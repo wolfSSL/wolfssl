@@ -425,6 +425,19 @@ int test_wolfSSL_X509_set_pubkey(void)
                         WOLFSSL_SUCCESS);
                     wolfSSL_EVP_PKEY_free(pubkey);
                     pubkey = NULL;
+
+                    /* A stale/tampered mldsaOID cache must fail the sign
+                     * rather than emit a certificate whose
+                     * signatureAlgorithm disagrees with the actual key. */
+                    if (EXPECT_SUCCESS() && pkey != NULL) {
+                        int realOID = WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID);
+                        int wrongOID = (realOID == ML_DSA_44k) ?
+                            ML_DSA_65k : ML_DSA_44k;
+                        WOLFSSL_ATOMIC_STORE(pkey->mldsaOID, wrongOID);
+                        ExpectIntEQ(wolfSSL_X509_sign(x509, pkey, NULL),
+                            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+                        WOLFSSL_ATOMIC_STORE(pkey->mldsaOID, realOID);
+                    }
                 }
             #endif
                 if (ki + 1 < sizeof(keyFiles) / sizeof(keyFiles[0])) {

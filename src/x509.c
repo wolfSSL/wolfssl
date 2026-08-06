@@ -12897,6 +12897,16 @@ cleanup:
                 XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
                 return WOLFSSL_FATAL_ERROR;
             }
+            /* sigType above came from the cached pkey->mldsaOID; require
+             * the decoded key to agree so a stale cache cannot emit a
+             * certificate whose signatureAlgorithm disagrees with the
+             * actual signature. */
+            if (oidSum != WOLFSSL_ATOMIC_LOAD(pkey->mldsaOID)) {
+                WOLFSSL_MSG("ML-DSA key does not match cached pkey OID");
+                wc_MlDsaKey_Free(mldsa);
+                XFREE(mldsa, x509->heap, DYNAMIC_TYPE_MLDSA);
+                return WOLFSSL_FATAL_ERROR;
+            }
             switch (oidSum) {
                 case ML_DSA_44k:
                     type = ML_DSA_44_TYPE;
