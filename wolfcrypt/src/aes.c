@@ -10686,6 +10686,65 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef STM32_CRYPTO_AES_GCM
 
+/* The Cube HAL always transfers the GCM auth header to the peripheral one
+ * 32-bit word at a time, including the trailing partial word (ST advisory
+ * SA0076), and casts the header pointer to uint32_t*, so the buffer it is
+ * handed must be both zero padded up to a word and word aligned -- even
+ * where STM_CRYPT_HEADER_WIDTH is 1 and the header size is in bytes.
+ * authPadSz is the length reported to the HAL and is deliberately not
+ * changed here, so the GHASH length block, and with it the hardware tag,
+ * is unaffected.
+ * tmpBuf is a caller supplied word aligned scratch buffer, used when it is
+ * large enough, otherwise the padded copy is allocated and *wasAlloc is set
+ * so the caller frees it. When no padding or realignment is needed
+ * *authInPadded aliases authIn and no copy is made.
+ * Returns 0 on success, MEMORY_E or BAD_FUNC_ARG on failure. */
+static WARN_UNUSED_RESULT int wc_AesGcmAuthPad_STM32(Aes* aes,
+    const byte* authIn, word32 authInSz, word32 authPadSz,
+    word32* tmpBuf, word32 tmpBufSz, byte** authInPadded, int* wasAlloc)
+{
+    word32 padWidth = (word32)STM_CRYPT_HEADER_PAD_WIDTH;
+    word32 authBufSz;
+
+    *wasAlloc = 0;
+
+    /* the HAL reads the larger of the two, and some HAL work arounds leave
+     * authPadSz smaller than authInSz, so cover both */
+    authBufSz = authPadSz;
+    if (authBufSz < authInSz) {
+        authBufSz = authInSz;
+    }
+    if (authBufSz > (WOLFSSL_MAX_32BIT - padWidth)) {
+        return BAD_FUNC_ARG; /* the round up below would wrap */
+    }
+    if ((authBufSz % padWidth) != 0) {
+        authBufSz += padWidth - (authBufSz % padWidth);
+    }
+    if ((authBufSz == authInSz) &&
+            (((wc_ptr_t)authIn % sizeof(word32)) == 0)) {
+        /* whole number of words and word aligned, the HAL can read it */
+        *authInPadded = (byte*)authIn;
+        return 0;
+    }
+
+    if (authBufSz <= tmpBufSz) {
+        *authInPadded = (byte*)tmpBuf;
+    }
+    else {
+        *authInPadded = (byte*)XMALLOC(authBufSz, aes->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (*authInPadded == NULL) {
+            return MEMORY_E;
+        }
+        *wasAlloc = 1;
+    }
+    XMEMSET(*authInPadded, 0, authBufSz);
+    if (authIn != NULL) {
+        XMEMCPY(*authInPadded, authIn, authInSz);
+    }
+    return 0;
+}
+
 /* this function supports inline encrypt */
 static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
                                   Aes* aes, byte* out, const byte* in, word32 sz,
@@ -10713,7 +10772,8 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     word32 ctr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
-    int authPadSz, wasAlloc = 0, useSwGhash = 0;
+    word32 authPadSz;
+    int wasAlloc = 0, useSwGhash = 0;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -10753,23 +10813,18 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         if (authPadSz < authInSz + STM_CRYPT_HEADER_WIDTH) {
             authPadSz = authInSz + STM_CRYPT_HEADER_WIDTH - authPadSz;
         }
-        if (authPadSz <= sizeof(authhdr)) {
-            authInPadded = (byte*)authhdr;
-        }
-        else {
-            authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (authInPadded == NULL) {
-                wolfSSL_CryptHwMutexUnLock();
-                return MEMORY_E;
-            }
-            wasAlloc = 1;
-        }
-        XMEMSET(authInPadded, 0, authPadSz);
-        XMEMCPY(authInPadded, authIn, authInSz);
-    } else {
+    }
+    else {
         authPadSz = authInSz;
-        authInPadded = (byte*)authIn;
+    }
+    /* Zero pad and word align the buffer the HAL reads the auth header
+     * from (SA0076). authPadSz, the length reported to the HAL, is
+     * unchanged, so the hardware tag is unaffected. */
+    ret = wc_AesGcmAuthPad_STM32(aes, authIn, authInSz, authPadSz,
+        authhdr, (word32)sizeof(authhdr), &authInPadded, &wasAlloc);
+    if (ret != 0) {
+        wc_Stm32_Aes_Cleanup();
+        return ret;
     }
 
     /* for cases where hardware cannot be used for authTag calculate it */
@@ -10792,6 +10847,10 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
+        if (wasAlloc) {
+            XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        wc_Stm32_Aes_Cleanup();
         return ret;
     }
 
@@ -11524,7 +11583,8 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     word32 ctr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
-    int authPadSz, wasAlloc = 0, tagComputed = 0;
+    word32 authPadSz;
+    int wasAlloc = 0, tagComputed = 0;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -11586,30 +11646,27 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     ) {
         GHASH(&aes->gcm, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
         ret = wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
-        if (ret != 0)
+        if (ret != 0) {
+            wc_Stm32_Aes_Cleanup();
             return ret;
+        }
         xorbuf(tag, partialBlock, sizeof(tag));
         tagComputed = 1;
     }
 
-    /* if using hardware for authentication tag make sure its aligned and zero padded */
-    if (authPadSz != authInSz && !tagComputed) {
-        if (authPadSz <= sizeof(authhdr)) {
-            authInPadded = (byte*)authhdr;
-        }
-        else {
-            authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (authInPadded == NULL) {
-                wolfSSL_CryptHwMutexUnLock();
-                return MEMORY_E;
-            }
-            wasAlloc = 1;
-        }
-        XMEMSET(authInPadded, 0, authPadSz);
-        XMEMCPY(authInPadded, authIn, authInSz);
-    } else {
-        authInPadded = (byte*)authIn;
+    /* Zero pad and word align the buffer the HAL reads the auth header
+     * from (SA0076). authPadSz, the length reported to the HAL, is
+     * unchanged, so the hardware tag is unaffected.
+     * This must NOT be gated on !tagComputed. tagComputed only selects
+     * who produces the tag; hcryp.Init.Header and HeaderSize are still
+     * handed to the HAL below and are still read during the header phase
+     * of the payload call, which the HAL runs whether or not we later ask
+     * it for the tag. The over read happens on the software tag path too. */
+    ret = wc_AesGcmAuthPad_STM32(aes, authIn, authInSz, authPadSz,
+        authhdr, (word32)sizeof(authhdr), &authInPadded, &wasAlloc);
+    if (ret != 0) {
+        wc_Stm32_Aes_Cleanup();
+        return ret;
     }
 
     /* Hardware requires counter + 1 */
@@ -11620,6 +11677,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         if (wasAlloc) {
             XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
+        wc_Stm32_Aes_Cleanup();
         return ret;
     }
 

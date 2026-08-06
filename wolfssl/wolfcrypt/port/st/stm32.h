@@ -776,6 +776,17 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #endif
     #endif
 
+    /* The Cube HAL always writes the auth header to the peripheral one
+     * 32-bit word at a time, including the trailing partial word (ST
+     * advisory SA0076), so the header buffer it reads must be zero padded
+     * up to a word, even where STM_CRYPT_HEADER_WIDTH is 1 and the header
+     * size itself is expressed in bytes.
+     * Unlike STM_CRYPT_HEADER_WIDTH, this is only ever used in ordinary C
+     * arithmetic and never in a preprocessor #if, so sizeof() is safe. */
+    #ifndef STM_CRYPT_HEADER_PAD_WIDTH
+        #define STM_CRYPT_HEADER_PAD_WIDTH sizeof(word32)
+    #endif
+
     /* CRYPT_AES_GCM starts the IV with 2 */
     #define STM32_GCM_IV_START 2
 
