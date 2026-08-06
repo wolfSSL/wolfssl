@@ -87,6 +87,7 @@ do_test() {
     timeout -s KILL 2m ./examples/server/server -r -R "$ready_file" -p $resume_port &
     server_pid=$!
 
+    counter=0
     while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1

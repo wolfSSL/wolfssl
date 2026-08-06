@@ -111,6 +111,7 @@ run_test() {
     timeout -s KILL 2m ./examples/server/server -P -R "$ready_file" -p $pk_port &
     server_pid=$!
 
+    counter=0
     while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1

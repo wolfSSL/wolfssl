@@ -57,6 +57,7 @@ wrong_cert=`pwd`/certs/server-revoked-cert.pem
 echo "ready file \"$ready_file\""
 
 create_port() {
+    counter=0
     while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1
