@@ -709,6 +709,7 @@ static void wb_oid_to_level(void)
  *
  * wc_mldsa.c selects an implementation with
  *
+ *     if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
  *     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
  *     if (IS_INTEL_AVX2(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags) && ...)
  *     if ((k == N) && (l == N) && IS_INTEL_AVX2(cpuid_flags) && ...)
@@ -790,14 +791,30 @@ static void wb_dispatch_rows(void)
     int           saved_intr  = wb_intr_ret;
     WC_RNG        rng;
     unsigned      i, t;
+    /* USE_INTEL_AVX512(f) is itself IS_INTEL_AVX512(f) && IS_INTEL_AVX512_BW(f)
+     * (cpuid.h), so each AVX512 dispatch is a three-condition decision and the
+     * F and BW bits need to be cleared separately.  SHA3_USE_AVX2(f) is
+     * IS_INTEL_AVX2(f) && IS_CPU_INTEL(f): its vendor operand is false on any
+     * AMD host, so CPUID_INTEL is forced on for the rows that need its true
+     * side -- the arm behind it is plain AVX2, which runs anywhere AVX2 does. */
     static const struct {
+        cpuid_flags_t set;
         cpuid_flags_t clear;
         int           intr;
     } rows[] = {
-        { 0,                            0 },  /* richest arm            */
-        { 0,                            1 },  /* save refused           */
-        { CPUID_BMI2,                   0 },  /* AVX2 without BMI2      */
-        { CPUID_AVX2 | CPUID_BMI2,      0 },  /* portable C             */
+        { CPUID_INTEL, 0,                          0 },  /* richest arm      */
+        { CPUID_INTEL, 0,                          1 },  /* save refused     */
+        { CPUID_INTEL, CPUID_AVX512_BW,            0 },  /* F set, BW clear  */
+        { CPUID_INTEL, CPUID_AVX512,               0 },  /* F clear          */
+        { CPUID_INTEL, CPUID_AVX512_VBMI,          0 },  /* no VBMI          */
+        { CPUID_INTEL, CPUID_AVX512 | CPUID_AVX512_BW |
+                       CPUID_AVX512_VBMI,          0 },  /* -> AVX2 arm      */
+        { CPUID_INTEL, CPUID_AVX512 | CPUID_AVX512_BW |
+                       CPUID_AVX512_VBMI | CPUID_BMI2, 0 }, /* AVX2 no BMI2  */
+        { CPUID_INTEL, CPUID_AVX512 | CPUID_AVX512_BW |
+                       CPUID_AVX512_VBMI | CPUID_BMI2 |
+                       CPUID_AVX2,                 0 },  /* portable C       */
+        { 0,           CPUID_INTEL,                0 },  /* non-Intel vendor */
     };
 
     if (wc_InitRng(&rng) != 0) {
@@ -808,6 +825,7 @@ static void wb_dispatch_rows(void)
     for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
         cpuid_flags = WC_CPUID_INITIALIZER;
         (void)cpuid_get_flags_ex(&cpuid_flags);
+        cpuid_flags |= rows[i].set;
         cpuid_flags &= (cpuid_flags_t)~rows[i].clear;
         wb_intr_ret = rows[i].intr;
 
