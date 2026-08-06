@@ -6270,6 +6270,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL || out == NULL || in == NULL)
                 return BAD_FUNC_ARG;
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                WOLFSSL_MSG("AES key not set");
+                return MISSING_KEY;
+            }
             VECTOR_REGISTERS_PUSH;
             ret = wc_AesEncrypt(aes, in, out);
             VECTOR_REGISTERS_POP;
@@ -6291,6 +6295,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             if (aes == NULL)
                 return BAD_FUNC_ARG;
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                WOLFSSL_MSG("AES key not set");
+                return MISSING_KEY;
+            }
             VECTOR_REGISTERS_PUSH;
             ret = wc_AesDecrypt(aes, in, out);
             VECTOR_REGISTERS_POP;
@@ -17485,6 +17493,13 @@ static int AesKeyWrapRaw(Aes* aes, word32 inSz, byte* out, const byte* aiv)
         return BAD_FUNC_ARG;
     }
 
+    /* The block loop below uses the wc_AesEncryptDirect macro, which bypasses
+     * the public function's guard. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
+    }
+
     r = out + KEYWRAP_BLOCK_SIZE;
     XMEMSET(t, 0, sizeof(t));
 
@@ -17638,6 +17653,13 @@ static int AesKeyUnWrapRaw(Aes* aes, const byte* in, word32 inSz, byte* out,
     if (aes == NULL || in == NULL || out == NULL || aOut == NULL ||
         inSz < 3 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0) {
         return BAD_FUNC_ARG;
+    }
+
+    /* The block loop below uses the wc_AesDecryptDirect macro, which bypasses
+     * the public function's guard. */
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        WOLFSSL_MSG("AES key not set");
+        return MISSING_KEY;
     }
 
     /* A = C[0], R[i] = C[i]; XMEMMOVE so in-place unwrap (in == out) is safe */

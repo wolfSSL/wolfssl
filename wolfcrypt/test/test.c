@@ -16767,7 +16767,8 @@ static wc_test_ret_t aes_ecb_direct_test(void)
  * the mode entry points. */
 #if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_AES_ECB) || \
-    defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB)) && \
+    defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB) || \
+    defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AES_KEYWRAP)) && \
     defined(WOLFSSL_AES_REQUIRE_KEY_SET) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLF_CRYPTO_CB_FIND)
@@ -16788,12 +16789,18 @@ static wc_test_ret_t aes_no_key_set_test(void)
     byte    iv[WC_AES_BLOCK_SIZE];
     byte    tag[WC_AES_BLOCK_SIZE];
 #endif
+#ifdef HAVE_AES_KEYWRAP
+    byte    wrapped[WC_AES_BLOCK_SIZE + KEYWRAP_BLOCK_SIZE];
+#endif
 
     XMEMSET(plain, 0, sizeof(plain));
     XMEMSET(cipher, 0, sizeof(cipher));
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     XMEMSET(iv, 0, sizeof(iv));
     XMEMSET(tag, 0, sizeof(tag));
+#endif
+#ifdef HAVE_AES_KEYWRAP
+    XMEMSET(wrapped, 0, sizeof(wrapped));
 #endif
 
     /* The keyInstalled guard is pure-software hardening placed after the
@@ -16896,6 +16903,28 @@ static wc_test_ret_t aes_no_key_set_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #endif /* WOLFSSL_AES_OFB */
+
+#ifdef WOLFSSL_AES_DIRECT
+    if (wc_AesEncryptDirect(aes, cipher, plain) !=
+            WC_NO_ERR_TRACE(MISSING_KEY))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesDecryptDirect(aes, plain, cipher) !=
+            WC_NO_ERR_TRACE(MISSING_KEY))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#endif /* WOLFSSL_AES_DIRECT */
+
+#ifdef HAVE_AES_KEYWRAP
+    if (wc_AesKeyWrap_ex(aes, plain, sizeof(plain), wrapped, sizeof(wrapped),
+            NULL) != WC_NO_ERR_TRACE(MISSING_KEY))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesKeyUnWrap_ex(aes, wrapped, sizeof(wrapped), cipher,
+            sizeof(cipher), NULL) != WC_NO_ERR_TRACE(MISSING_KEY))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#endif /* HAVE_AES_KEYWRAP */
 
     ret = 0; /* success */
   out:
