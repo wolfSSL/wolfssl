@@ -36,7 +36,8 @@
  * WOLFSSL_TLS13_MIDDLEBOX_COMPAT: Enable middlebox compatibility  default: on
  *                            Sends ChangeCipherSpec and includes session id
  * WOLFSSL_SEND_HRR_COOKIE:  Send cookie in HelloRetryRequest     default: off
- *                            for stateless ClientHello tracking
+ *                            for stateless ClientHello tracking. A client
+ *                            always echoes back a cookie it is sent.
  * WOLFSSL_EARLY_DATA:       Allow 0-RTT early data                default: off
  * WOLFSSL_EARLY_DATA_GROUP: Group early data with ClientHello     default: off
  * WOLFSSL_POST_HANDSHAKE_AUTH: Post-handshake client auth         default: off
@@ -6104,7 +6105,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
          */
         /* Check if the HRR contained a cookie or a keyshare */
         if (!ssl->options.hrrSentKeyShare
-#ifdef WOLFSSL_SEND_HRR_COOKIE
+#ifdef WOLFSSL_TLS13_COOKIE
                 && !ssl->options.hrrSentCookie
 #endif
                 ) {
