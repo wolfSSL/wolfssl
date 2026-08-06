@@ -10713,7 +10713,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     word32 ctr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
-    int authPadSz, wasAlloc = 0, useSwGhash = 0;
+    int authPadSz, authBufSz, wasAlloc = 0, useSwGhash = 0;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -10753,22 +10753,37 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         if (authPadSz < authInSz + STM_CRYPT_HEADER_WIDTH) {
             authPadSz = authInSz + STM_CRYPT_HEADER_WIDTH - authPadSz;
         }
-        if (authPadSz <= sizeof(authhdr)) {
+    }
+    else {
+        authPadSz = authInSz;
+    }
+    /* The HAL reads the auth header a word at a time, including the trailing
+     * partial word, so the buffer handed to it has to be zero padded up to a
+     * word. authPadSz stays the length reported to the HAL, so the GHASH
+     * length block, and with it the hardware tag, does not change. */
+    authBufSz = authPadSz;
+    if (authBufSz < authInSz) {
+        authBufSz = authInSz;
+    }
+    if ((authBufSz % STM_CRYPT_HEADER_PAD_WIDTH) != 0) {
+        authBufSz += STM_CRYPT_HEADER_PAD_WIDTH -
+            (authBufSz % STM_CRYPT_HEADER_PAD_WIDTH);
+    }
+    if (authBufSz != authInSz) {
+        if (authBufSz <= sizeof(authhdr)) {
             authInPadded = (byte*)authhdr;
         }
         else {
-            authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
+            authInPadded = (byte*)XMALLOC(authBufSz, aes->heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
             if (authInPadded == NULL) {
-                wolfSSL_CryptHwMutexUnLock();
                 return MEMORY_E;
             }
             wasAlloc = 1;
         }
-        XMEMSET(authInPadded, 0, authPadSz);
+        XMEMSET(authInPadded, 0, authBufSz);
         XMEMCPY(authInPadded, authIn, authInSz);
     } else {
-        authPadSz = authInSz;
         authInPadded = (byte*)authIn;
     }
 
@@ -10792,6 +10807,9 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
     ret = wolfSSL_CryptHwMutexLock();
     if (ret != 0) {
+        if (wasAlloc) {
+            XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
         return ret;
     }
 
@@ -11524,7 +11542,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     word32 ctr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[WC_AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
-    int authPadSz, wasAlloc = 0, tagComputed = 0;
+    int authPadSz, authBufSz, wasAlloc = 0, tagComputed = 0;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -11592,21 +11610,31 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         tagComputed = 1;
     }
 
-    /* if using hardware for authentication tag make sure its aligned and zero padded */
-    if (authPadSz != authInSz && !tagComputed) {
-        if (authPadSz <= sizeof(authhdr)) {
+    /* The HAL reads the auth header a word at a time, including the trailing
+     * partial word, so the buffer handed to it has to be zero padded up to a
+     * word. authPadSz stays the length reported to the HAL, so the GHASH
+     * length block, and with it the hardware tag, does not change. */
+    authBufSz = authPadSz;
+    if (authBufSz < authInSz) {
+        authBufSz = authInSz;
+    }
+    if ((authBufSz % STM_CRYPT_HEADER_PAD_WIDTH) != 0) {
+        authBufSz += STM_CRYPT_HEADER_PAD_WIDTH -
+            (authBufSz % STM_CRYPT_HEADER_PAD_WIDTH);
+    }
+    if (authBufSz != authInSz) {
+        if (authBufSz <= sizeof(authhdr)) {
             authInPadded = (byte*)authhdr;
         }
         else {
-            authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
+            authInPadded = (byte*)XMALLOC(authBufSz, aes->heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
             if (authInPadded == NULL) {
-                wolfSSL_CryptHwMutexUnLock();
                 return MEMORY_E;
             }
             wasAlloc = 1;
         }
-        XMEMSET(authInPadded, 0, authPadSz);
+        XMEMSET(authInPadded, 0, authBufSz);
         XMEMCPY(authInPadded, authIn, authInSz);
     } else {
         authInPadded = (byte*)authIn;
