@@ -1862,35 +1862,6 @@ err_exit:
     return NULL;
 }
 
-#ifdef OPENSSL_ALL
-static void X509StoreFreeObjList(WOLFSSL_X509_STORE* store,
-                  WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* objs)
-{
-    int i;
-    WOLFSSL_X509_OBJECT *obj = NULL;
-    int cnt = store->numAdded;
-
-    /* -1 here because it is later used as an index value into the object stack.
-     * With there being the chance that the only object in the stack is one from
-     * the numAdded to the store >= is used when comparing to 0. */
-    i = wolfSSL_sk_X509_OBJECT_num(objs) - 1;
-    while (cnt > 0 && i >= 0) {
-        obj = (WOLFSSL_X509_OBJECT *)wolfSSL_sk_X509_OBJECT_value(objs, i);
-        /* Only certificates are borrowed, so only they consume numAdded. The
-         * CRL object appended after them must not shift this window. */
-        if (obj != NULL && obj->type == WOLFSSL_X509_LU_X509) {
-            /* The inner X509 is owned by somebody else, NULL out the ref */
-            obj->type = (WOLFSSL_X509_LOOKUP_TYPE)0;
-            obj->data.ptr = NULL;
-            cnt--;
-        }
-        i--;
-    }
-
-    wolfSSL_sk_X509_OBJECT_pop_free(objs, NULL);
-}
-#endif
-
 void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 {
     int doFree = 0;
@@ -1939,7 +1910,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 #endif
 #ifdef OPENSSL_ALL
             if (store->objs != NULL) {
-                X509StoreFreeObjList(store, store->objs);
+                wolfSSL_sk_X509_OBJECT_pop_free(store->objs, NULL);
             }
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -2654,9 +2625,6 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
 {
     WOLFSSL_STACK* ret = NULL;
     WOLFSSL_STACK* cert_stack = NULL;
-    /* Set once the certificates have been handed over to "ret". Until then
-     * cert_stack still owns them and the error path must not free them. */
-    byte certsOwned = 0;
 #if ((defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)) || \
      (defined(HAVE_CRL)))
     WOLFSSL_X509_OBJECT* obj = NULL;
@@ -2675,7 +2643,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
     if (store->objs != NULL) {
 #if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
         /* want to update objs stack by cm stack again before returning it*/
-        X509StoreFreeObjList(store, store->objs);
+        wolfSSL_sk_X509_OBJECT_pop_free(store->objs, NULL);
         store->objs = NULL;
 #else
         if (wolfSSL_sk_X509_OBJECT_num(store->objs) == 0) {
@@ -2703,14 +2671,21 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             goto err_cleanup;
         }
     }
+    /* Reference the borrowed certificates so cert_stack owns every entry it
+     * holds, the same as the CertManager decodes above. */
     for (i = 0; i < wolfSSL_sk_X509_num(store->certs); i++) {
-        if (wolfSSL_sk_X509_push(cert_stack,
-                             wolfSSL_sk_X509_value(store->certs, i)) > 0) {
-            store->numAdded++;
+        x509 = wolfSSL_sk_X509_value(store->certs, i);
+        if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_X509_up_ref error");
+            goto err_cleanup;
         }
+        if (wolfSSL_sk_X509_push(cert_stack, x509) <= 0) {
+            WOLFSSL_MSG("wolfSSL_sk_X509_push error");
+            wolfSSL_X509_free(x509);
+            goto err_cleanup;
+        }
+        store->numAdded++;
     }
-    /* Do not modify stack until after we guarantee success to
-     * simplify cleanup logic handling cert merging above */
     for (i = 0; i < wolfSSL_sk_X509_num(cert_stack); i++) {
         x509 = (WOLFSSL_X509 *)wolfSSL_sk_value(cert_stack, i);
         obj  = wolfSSL_X509_OBJECT_new();
@@ -2718,19 +2693,22 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
             goto err_cleanup;
         }
+        /* Push first: "ret" owns the object from here on, so the cleanup
+         * below releases it even if the reference below fails. */
         if (wolfSSL_sk_X509_OBJECT_push(ret, obj) <= 0) {
             WOLFSSL_MSG("wolfSSL_sk_X509_OBJECT_push error");
             wolfSSL_X509_OBJECT_free(obj);
             goto err_cleanup;
         }
+        /* Each object holds its own reference, so the list can be freed
+         * without regard to who else still points at the certificate. */
+        if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_X509_up_ref error");
+            goto err_cleanup;
+        }
         obj->type = WOLFSSL_X509_LU_X509;
         obj->data.x509 = x509;
     }
-
-    while (wolfSSL_sk_X509_num(cert_stack) > 0) {
-        wolfSSL_sk_X509_pop(cert_stack);
-    }
-    certsOwned = 1;
 #endif
 
 #ifdef HAVE_CRL
@@ -2746,50 +2724,28 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             wolfSSL_X509_OBJECT_free(obj);
             goto err_cleanup;
         }
-        obj->type = WOLFSSL_X509_LU_CRL;
+        /* Reference before recording it, so the object only claims the CRL
+         * once it actually holds a reference to free. */
         wolfSSL_RefInc(&store->cm->crl->ref, &res);
         if (res != 0) {
             WOLFSSL_MSG("Failed to lock crl mutex");
             goto err_cleanup;
         }
+        obj->type = WOLFSSL_X509_LU_CRL;
         obj->data.crl = store->cm->crl;
     }
 #endif
 
-    if (cert_stack)
+    if (cert_stack != NULL)
         wolfSSL_sk_X509_pop_free(cert_stack, NULL);
     store->objs = ret;
     return ret;
 err_cleanup:
-    if (ret != NULL) {
-        if (certsOwned) {
-            X509StoreFreeObjList(store, ret);
-        }
-        else {
-            /* cert_stack still owns these certificates. pop_free() below runs
-             * wolfSSL_X509_OBJECT_free() on each entry, which frees the inner
-             * X509, so clear the references or they are freed twice. */
-            int j;
-            WOLFSSL_X509_OBJECT* cur;
-
-            for (j = 0; j < wolfSSL_sk_X509_OBJECT_num(ret); j++) {
-                cur = (WOLFSSL_X509_OBJECT*)wolfSSL_sk_X509_OBJECT_value(ret,
-                                                                         j);
-                if (cur != NULL) {
-                    cur->type = (WOLFSSL_X509_LOOKUP_TYPE)0;
-                    cur->data.ptr = NULL;
-                }
-            }
-            wolfSSL_sk_X509_OBJECT_pop_free(ret, NULL);
-        }
-    }
-    if (cert_stack != NULL) {
-        while (store->numAdded > 0) {
-            wolfSSL_sk_X509_pop(cert_stack);
-            store->numAdded--;
-        }
+    /* Every object owns its contents, so one pop_free releases the lot. */
+    if (ret != NULL)
+        wolfSSL_sk_X509_OBJECT_pop_free(ret, NULL);
+    if (cert_stack != NULL)
         wolfSSL_sk_X509_pop_free(cert_stack, NULL);
-    }
     return NULL;
 }
 #endif /* OPENSSL_ALL */
