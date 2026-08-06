@@ -3055,8 +3055,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     #endif /* HAVE_CURVE448 */
 
     #if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+        /* release early so the lock is not held during key agreement,
+         * the exit path below covers the error cases */
         if (args->keyLocked) {
             wc_UnLockMutex(&ctx->staticKELock);
+            args->keyLocked = 0;
         }
     #endif
 
@@ -3277,7 +3280,22 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 exit_sk:
+#endif
 
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+    /* release the lock if an error path left the key state locked */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if ((args != NULL) && (args->keyLocked))
+#else
+    if (args->keyLocked)
+#endif
+    {
+        wc_UnLockMutex(&ctx->staticKELock);
+        args->keyLocked = 0;
+    }
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle async pending response */
     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         return ret;
