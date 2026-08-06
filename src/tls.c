@@ -7721,7 +7721,10 @@ int TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
         return MEMORY_ERROR;
     XMEMCPY(node->dn, dn, dnSz);
     node->dnSz = dnSz;
-    node->next = *head;
+    node->next = NULL;
+    /* Append so wire order matches the order of the Add calls. */
+    while (*head != NULL)
+        head = &(*head)->next;
     *head = node;
     return 0;
 }
@@ -7733,17 +7736,6 @@ void TLSX_CertificateAuthorities_FreeAll(CertificateAuthority* head, void* heap)
         XFREE(head, heap, DYNAMIC_TYPE_TLSX);
         head = next;
     }
-}
-/* True if any CA name (compat or wolfSSL native) is configured. */
-static int HasAnyCANames(const WOLFSSL* ssl)
-{
-#ifdef OPENSSL_EXTRA
-    if (SSL_PRIORITY_CA_NAMES(ssl) != NULL)
-        return 1;
-#endif
-    if (WS_CA_NAMES(ssl) != NULL)
-        return 1;
-    return 0;
 }
 
 /* Certificate_authorities extension emitter. Walks the optional OPENSSL_EXTRA
@@ -7760,7 +7752,7 @@ static int HasAnyCANames(const WOLFSSL* ssl)
  * Each DN entry is at most 2^16-1 bytes and the whole authorities vector is
  * also at most 2^16-1 bytes. Returns 0 on success, BUFFER_ERROR if any entry
  * or the combined total would exceed either cap. */
-static int TLSX_CA_Names_Write(WOLFSSL* ssl, byte* output, word16* pSz)
+static int TLSX_CA_Names_Write(const WOLFSSL* ssl, byte* output, word16* pSz)
 {
     CertificateAuthority* cur;
     word32 total = OPAQUE16_LEN;  /* outer 16-bit length */
@@ -7826,6 +7818,20 @@ static int TLSX_CA_Names_Write(WOLFSSL* ssl, byte* output, word16* pSz)
         c16toa((word16)(total - OPAQUE16_LEN), outerLen);
     *pSz += (word16)total;
     return 0;
+}
+
+/* True if the emitter would produce at least one DN. Asks the emitter itself
+ * rather than restating its filtering, so the two cannot drift and an
+ * all-empty compat stack never yields an empty authorities vector. On error
+ * report true, so an oversized list fails at write time instead of silently
+ * dropping the extension. */
+static int HasAnyCANames(const WOLFSSL* ssl)
+{
+    word16 sz = 0;
+
+    if (TLSX_CA_Names_Write(ssl, NULL, &sz) != 0)
+        return 1;
+    return sz > OPAQUE16_LEN;
 }
 
 static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,

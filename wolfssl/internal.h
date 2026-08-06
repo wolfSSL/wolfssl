@@ -3642,9 +3642,13 @@ typedef struct CertificateAuthority {
     /* Ignore "nonstandard extension used : zero-sized array in struct/union"
      * MSVC warning */
     #ifdef _MSC_VER
+    #pragma warning(push)
     #pragma warning(disable: 4200)
     #endif
     byte                         dn[];
+    #ifdef _MSC_VER
+    #pragma warning(pop)
+    #endif
 } CertificateAuthority;
 
 WOLFSSL_LOCAL int  TLSX_CertificateAuthorities_Add(CertificateAuthority** head,

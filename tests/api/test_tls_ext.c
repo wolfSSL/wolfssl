@@ -2428,28 +2428,17 @@ int test_wolfSSL_CertificateAuthority_handshake(void)
         ExpectIntEQ(peerCount, count);
 
         if (count > 0 && peerCount == count) {
-            /* Verify every sent DN shows up exactly once on the server.
-             * Iteration order is unspecified, so match by tag byte. */
-            int seen[32];
-            XMEMSET(seen, 0, sizeof(seen));
+            /* Each Add appends, and the parser preserves wire order, so the
+             * server sees the DNs in the order the client added them. */
             for (i = 0; i < count; i++) {
                 byte expected[sizeof(kMinDnTemplate)];
-                int idx;
-                int matched = 0;
+                byte buf[sizeof(kMinDnTemplate)];
 
                 make_min_dn(expected, (byte)('A' + i));
-                for (idx = 0; idx < peerCount; idx++) {
-                    byte buf[sizeof(kMinDnTemplate)];
-                    int sz = wolfSSL_GetPeerCertificateAuthority(ssl_srv, idx,
-                            buf, sizeof(buf));
-                    if (sz == (int)sizeof(expected) && !seen[idx] &&
-                            XMEMCMP(buf, expected, sz) == 0) {
-                        seen[idx] = 1;
-                        matched = 1;
-                        break;
-                    }
-                }
-                ExpectIntEQ(matched, 1);
+                ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl_srv, i,
+                        buf, (unsigned int)sizeof(buf)),
+                        (int)sizeof(expected));
+                ExpectBufEQ(buf, expected, (int)sizeof(expected));
             }
 
             /* Sizing query on index 0: NULL buf returns the DN length. */
