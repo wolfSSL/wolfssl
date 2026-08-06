@@ -635,6 +635,28 @@ impl SHA256 {
         }
         Ok(())
     }
+
+}
+
+#[cfg(sha256)]
+impl SHA256 {
+    /// Copy the SHA-256 state into a new independent instance via `wc_Sha256Copy`.
+    ///
+    /// Allows the same in-progress computation to be continued independently
+    /// from the same point, e.g. for transcript snapshotting in TLS.
+    ///
+    /// Takes `&mut self` because `wc_Sha256Copy` may mutate `src` on some
+    /// platforms (e.g. MAXQ10XX).
+    pub fn copy(&mut self) -> Result<Self, i32> {
+        let mut dst = Self::new()?;
+        let rc = unsafe {
+            sys::wc_Sha256Copy(&mut self.wc_sha256, &mut dst.wc_sha256)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(dst)
+    }
 }
 
 #[cfg(sha256)]
@@ -845,6 +867,28 @@ impl SHA384 {
             return Err(rc);
         }
         Ok(())
+    }
+
+}
+
+#[cfg(sha384)]
+impl SHA384 {
+    /// Copy the SHA-384 state into a new independent instance via `wc_Sha384Copy`.
+    ///
+    /// Allows the same in-progress computation to be continued independently
+    /// from the same point, e.g. for transcript snapshotting in TLS.
+    ///
+    /// Takes `&mut self` because `wc_Sha384Copy` may mutate `src` on some
+    /// platforms (e.g. MAXQ10XX).
+    pub fn copy(&mut self) -> Result<Self, i32> {
+        let mut dst = Self::new()?;
+        let rc = unsafe {
+            sys::wc_Sha384Copy(&mut self.wc_sha384, &mut dst.wc_sha384)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(dst)
     }
 }
 
