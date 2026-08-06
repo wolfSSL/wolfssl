@@ -3898,6 +3898,12 @@ int TLSX_EncryptThenMac_Respond(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_TLS13
+
+/* Cookie support is mandatory per RFC 8446 9.2 */
+#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_SEND_HRR_COOKIE)
+    #define WOLFSSL_TLS13_COOKIE
+#endif
+
 /* Cookie extension information - cookie data. */
 typedef struct Cookie {
     word16 len;
@@ -5557,7 +5563,7 @@ struct Options {
     word16            cookieGood:1;
 #endif
 #ifdef WOLFSSL_TLS13
-#ifdef WOLFSSL_SEND_HRR_COOKIE
+#ifdef WOLFSSL_TLS13_COOKIE
     word16            hrrSentCookie:1;    /* HRR sent with cookie */
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */

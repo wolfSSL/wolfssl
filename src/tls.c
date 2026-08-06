@@ -7546,7 +7546,7 @@ static int TLSX_SetSupportedVersions(TLSX** extensions, const void* data,
 
 #endif /* WOLFSSL_TLS13 */
 
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+#ifdef WOLFSSL_TLS13_COOKIE
 
 /******************************************************************************/
 /* Cookie                                                                     */
@@ -7622,8 +7622,6 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 {
     word16  len;
     word16  idx = 0;
-    TLSX*   extension;
-    Cookie* cookie;
 
     if (msgType != client_hello && msgType != hello_retry_request) {
         WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
@@ -7646,32 +7644,40 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                &ssl->extensions);
     }
 
-    /* client_hello */
-    extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
-    if (extension == NULL) {
-#ifdef WOLFSSL_DTLS13
-        if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
-            /* Allow a cookie extension with DTLS 1.3 because it is possible
-             * that a different SSL instance sent the cookie but we are now
-             * receiving it. */
-            return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0,
-                                   &ssl->extensions);
-        else
-#endif
-        {
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    /* client_hello - only a server that sends cookies has one to check the
+     * echoed cookie against. Otherwise ignore it. */
+    {
+        TLSX*   extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
+        Cookie* cookie;
+
+        if (extension == NULL) {
+    #ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
+                /* Allow a cookie extension with DTLS 1.3 because it is
+                 * possible that a different SSL instance sent the cookie but
+                 * we are now receiving it. */
+                return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0,
+                                       &ssl->extensions);
+            else
+    #endif
+            {
+                WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
+                return HRR_COOKIE_ERROR;
+            }
+        }
+
+        cookie = (Cookie*)extension->data;
+        if (cookie->len != len ||
+                XMEMCMP(cookie->data, input + idx, len) != 0) {
             WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
             return HRR_COOKIE_ERROR;
         }
-    }
 
-    cookie = (Cookie*)extension->data;
-    if (cookie->len != len || XMEMCMP(cookie->data, input + idx, len) != 0) {
-        WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
-        return HRR_COOKIE_ERROR;
+        /* Request seen. */
+        extension->resp = 0;
     }
-
-    /* Request seen. */
-    extension->resp = 0;
+#endif
 
     return 0;
 }
@@ -17603,7 +17609,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         #ifdef WOLFSSL_EARLY_DATA
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
         #endif
-        #ifdef WOLFSSL_SEND_HRR_COOKIE
+        #ifdef WOLFSSL_TLS13_COOKIE
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
         #endif
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
@@ -17839,7 +17845,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         #ifdef WOLFSSL_EARLY_DATA
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
         #endif
-        #ifdef WOLFSSL_SEND_HRR_COOKIE
+        #ifdef WOLFSSL_TLS13_COOKIE
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
         #endif
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
