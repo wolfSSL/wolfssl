@@ -5576,6 +5576,10 @@ struct Options {
 #ifdef WOLFSSL_EARLY_DATA
     word16            clientInEarlyData:1; /* Client is in wolfSSL_read_early_data */
 #endif
+#if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+    word16            peerSha1CertOk:1;   /* Peer advertised a SHA-1 signature
+                                           * scheme for certificates */
+#endif
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
 #endif
@@ -6183,6 +6187,9 @@ typedef struct BuildMsgArgs {
         byte postHandshakeSendVerify;    /* ssl->options.sendVerify */
         byte postHandshakeSigAlgo;       /* ssl->options.sigAlgo */
         byte postHandshakeHashAlgo;      /* ssl->options.hashAlgo */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+        byte postHandshakeSha1CertOk;    /* ssl->options.peerSha1CertOk */
+#endif
         /* After the write side sends the PHA response, it stores its updated
          * transcript here so the read side can resume from it on the next
          * CertificateRequest (keeps client/server transcript in sync). */
