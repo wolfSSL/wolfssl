@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_KDF_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -26,9 +27,6 @@
 #ifndef NO_KDF
 
 #if FIPS_VERSION3_GE(5,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$h")
         #pragma const_seg(".fipsB$h")
@@ -1643,6 +1641,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #endif
 
     while (len_rem >= WC_AES_BLOCK_SIZE) {
+        int cmac_inited = 0;
         /* cmac in place in block size increments */
         c32toa(counter, counterBuf);
         #ifdef WOLFSSL_DEBUG_KDF
@@ -1653,6 +1652,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
         ret = wc_InitCmac_ex(cmac, Kin, KinSz, WC_CMAC_AES, NULL, heap, devId);
 
         if (ret == 0) {
+            cmac_inited = 1;
             ret = wc_CmacUpdate(cmac, counterBuf, sizeof(counterBuf));
         }
 
@@ -1670,7 +1670,8 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
             }
         }
 
-        (void)wc_CmacFree(cmac);
+        if (cmac_inited)
+            (void)wc_CmacFree(cmac);
 
         if (ret != 0) { break; }
 
@@ -1681,6 +1682,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     if (ret == 0 && len_rem) {
         /* cmac the last little bit that wouldn't fit in a block size. */
         byte rem[WC_AES_BLOCK_SIZE];
+        int cmac_inited = 0;
         XMEMSET(rem, 0, sizeof(rem));
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Add("wc_KDA_KDF_PRF_cmac rem", rem, sizeof(rem));
@@ -1695,6 +1697,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
         ret = wc_InitCmac_ex(cmac, Kin, KinSz, WC_CMAC_AES, NULL, heap, devId);
 
         if (ret == 0) {
+            cmac_inited = 1;
             ret = wc_CmacUpdate(cmac, counterBuf, sizeof(counterBuf));
         }
 
@@ -1720,7 +1723,8 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(rem, sizeof(rem));
     #endif
-        (void)wc_CmacFree(cmac);
+        if (cmac_inited)
+            (void)wc_CmacFree(cmac);
     }
 
     #ifdef WOLFSSL_SMALL_STACK

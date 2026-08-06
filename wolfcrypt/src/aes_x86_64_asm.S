@@ -47,12 +47,14 @@
 #ifndef __APPLE__
 .text
 .globl	AES_128_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_128_Key_Expansion_AESNI)
 .type	AES_128_Key_Expansion_AESNI,@function
 .align	16
 AES_128_Key_Expansion_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_128_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_128_Key_Expansion_AESNI)
 .p2align	4
 _AES_128_Key_Expansion_AESNI:
 #endif /* __APPLE__ */
@@ -175,12 +177,14 @@ _AES_128_Key_Expansion_AESNI:
 #ifndef __APPLE__
 .text
 .globl	AES_192_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_192_Key_Expansion_AESNI)
 .type	AES_192_Key_Expansion_AESNI,@function
 .align	16
 AES_192_Key_Expansion_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_192_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_192_Key_Expansion_AESNI)
 .p2align	4
 _AES_192_Key_Expansion_AESNI:
 #endif /* __APPLE__ */
@@ -344,12 +348,14 @@ _AES_192_Key_Expansion_AESNI:
 #ifndef __APPLE__
 .text
 .globl	AES_256_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(AES_256_Key_Expansion_AESNI)
 .type	AES_256_Key_Expansion_AESNI,@function
 .align	16
 AES_256_Key_Expansion_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_256_Key_Expansion_AESNI
+WC_ASM_ATT_HIDDEN(_AES_256_Key_Expansion_AESNI)
 .p2align	4
 _AES_256_Key_Expansion_AESNI:
 #endif /* __APPLE__ */
@@ -507,12 +513,14 @@ _AES_256_Key_Expansion_AESNI:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_AESNI)
 .type	AES_ECB_encrypt_AESNI,@function
 .align	16
 AES_ECB_encrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_AESNI)
 .p2align	4
 _AES_ECB_encrypt_AESNI:
 #endif /* __APPLE__ */
@@ -675,12 +683,14 @@ L_AES_ECB_encrypt_AESNI_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_AESNI)
 .type	AES_ECB_decrypt_AESNI,@function
 .align	16
 AES_ECB_decrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_AESNI)
 .p2align	4
 _AES_ECB_decrypt_AESNI:
 #endif /* __APPLE__ */
@@ -843,12 +853,14 @@ L_AES_ECB_decrypt_AESNI_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_AESNI)
 .type	AES_CBC_encrypt_AESNI,@function
 .align	16
 AES_CBC_encrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_AESNI)
 .p2align	4
 _AES_CBC_encrypt_AESNI:
 #endif /* __APPLE__ */
@@ -911,12 +923,14 @@ L_AES_CBC_encrypt_AESNI_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_AESNI)
 .type	AES_CBC_decrypt_AESNI,@function
 .align	16
 AES_CBC_decrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_AESNI)
 .p2align	4
 _AES_CBC_decrypt_AESNI:
 #endif /* __APPLE__ */
@@ -1118,12 +1132,14 @@ L_aes_ctr_aesni_one:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_AESNI)
 .type	AES_CTR_encrypt_AESNI,@function
 .align	16
 AES_CTR_encrypt_AESNI:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_AESNI
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_AESNI)
 .p2align	4
 _AES_CTR_encrypt_AESNI:
 #endif /* __APPLE__ */
@@ -1341,12 +1357,14 @@ L_AES_CTR_encrypt_AESNI_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_avx1)
 .type	AES_ECB_encrypt_avx1,@function
 .align	16
 AES_ECB_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_avx1)
 .p2align	4
 _AES_ECB_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -1509,12 +1527,14 @@ L_AES_ECB_encrypt_avx1_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_avx1)
 .type	AES_ECB_decrypt_avx1,@function
 .align	16
 AES_ECB_decrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_avx1)
 .p2align	4
 _AES_ECB_decrypt_avx1:
 #endif /* __APPLE__ */
@@ -1677,12 +1697,14 @@ L_AES_ECB_decrypt_avx1_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_avx1)
 .type	AES_CBC_encrypt_avx1,@function
 .align	16
 AES_CBC_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_avx1)
 .p2align	4
 _AES_CBC_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -1745,12 +1767,14 @@ L_AES_CBC_encrypt_avx1_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_avx1)
 .type	AES_CBC_decrypt_avx1,@function
 .align	16
 AES_CBC_decrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_avx1)
 .p2align	4
 _AES_CBC_decrypt_avx1:
 #endif /* __APPLE__ */
@@ -1949,12 +1973,14 @@ L_aes_ctr_avx1_one:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_avx1)
 .type	AES_CTR_encrypt_avx1,@function
 .align	16
 AES_CTR_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_avx1)
 .p2align	4
 _AES_CTR_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -2158,12 +2184,14 @@ L_AES_CTR_encrypt_avx1_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_vaes)
 .type	AES_ECB_encrypt_vaes,@function
 .align	16
 AES_ECB_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_vaes)
 .p2align	4
 _AES_ECB_encrypt_vaes:
 #endif /* __APPLE__ */
@@ -2442,12 +2470,14 @@ L_AES_ECB_encrypt_vaes_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_vaes)
 .type	AES_ECB_decrypt_vaes,@function
 .align	16
 AES_ECB_decrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_vaes)
 .p2align	4
 _AES_ECB_decrypt_vaes:
 #endif /* __APPLE__ */
@@ -2726,12 +2756,14 @@ L_AES_ECB_decrypt_vaes_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_vaes)
 .type	AES_CBC_encrypt_vaes,@function
 .align	16
 AES_CBC_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_vaes)
 .p2align	4
 _AES_CBC_encrypt_vaes:
 #endif /* __APPLE__ */
@@ -2794,12 +2826,14 @@ L_AES_CBC_encrypt_vaes_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_vaes)
 .type	AES_CBC_decrypt_vaes,@function
 .align	16
 AES_CBC_decrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_vaes)
 .p2align	4
 _AES_CBC_decrypt_vaes:
 #endif /* __APPLE__ */
@@ -3142,12 +3176,14 @@ L_aes_ctr_inc_vaes:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_vaes)
 .type	AES_CTR_encrypt_vaes,@function
 .align	16
 AES_CTR_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_vaes)
 .p2align	4
 _AES_CTR_encrypt_vaes:
 #endif /* __APPLE__ */
@@ -3573,12 +3609,14 @@ L_AES_CTR_encrypt_vaes_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_avx512)
 .type	AES_ECB_encrypt_avx512,@function
 .align	16
 AES_ECB_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_avx512)
 .p2align	4
 _AES_ECB_encrypt_avx512:
 #endif /* __APPLE__ */
@@ -3878,12 +3916,14 @@ L_AES_ECB_encrypt_avx512_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_avx512)
 .type	AES_ECB_decrypt_avx512,@function
 .align	16
 AES_ECB_decrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_avx512)
 .p2align	4
 _AES_ECB_decrypt_avx512:
 #endif /* __APPLE__ */
@@ -4183,12 +4223,14 @@ L_AES_ECB_decrypt_avx512_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_avx512)
 .type	AES_CBC_encrypt_avx512,@function
 .align	16
 AES_CBC_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_avx512)
 .p2align	4
 _AES_CBC_encrypt_avx512:
 #endif /* __APPLE__ */
@@ -4250,12 +4292,14 @@ L_AES_CBC_encrypt_avx512_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_avx512)
 .type	AES_CBC_decrypt_avx512,@function
 .align	16
 AES_CBC_decrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_avx512)
 .p2align	4
 _AES_CBC_decrypt_avx512:
 #endif /* __APPLE__ */
@@ -4625,12 +4669,14 @@ L_aes_ctr_inc_avx512:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_avx512)
 .type	AES_CTR_encrypt_avx512,@function
 .align	16
 AES_CTR_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_avx512)
 .p2align	4
 _AES_CTR_encrypt_avx512:
 #endif /* __APPLE__ */

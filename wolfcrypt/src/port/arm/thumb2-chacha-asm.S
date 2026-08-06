@@ -38,6 +38,7 @@
 	.text
 	.align	4
 	.globl	wc_chacha_setiv
+	WC_ASM_ATT_HIDDEN(wc_chacha_setiv)
 	.type	wc_chacha_setiv, %function
 wc_chacha_setiv:
 	PUSH	{r4, r5, r6, lr}
@@ -74,6 +75,7 @@ L_chacha_thumb2_constants:
 	.text
 	.align	4
 	.globl	wc_chacha_setkey
+	WC_ASM_ATT_HIDDEN(wc_chacha_setkey)
 	.type	wc_chacha_setkey, %function
 wc_chacha_setkey:
 	PUSH	{r4, r5, r6, r7, lr}
@@ -115,6 +117,7 @@ L_chacha_thumb2_setkey_same_key_bytes:
 	.text
 	.align	4
 	.globl	wc_chacha_crypt_bytes
+	WC_ASM_ATT_HIDDEN(wc_chacha_crypt_bytes)
 	.type	wc_chacha_crypt_bytes, %function
 wc_chacha_crypt_bytes:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -477,6 +480,7 @@ L_chacha_thumb2_crypt_done:
 	.text
 	.align	4
 	.globl	wc_chacha_use_over
+	WC_ASM_ATT_HIDDEN(wc_chacha_use_over)
 	.type	wc_chacha_use_over, %function
 wc_chacha_use_over:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

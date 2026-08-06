@@ -35,12 +35,14 @@
 #ifndef __APPLE__
 .text
 .globl	poly1305_arm64_block_16
+WC_ASM_ATT_HIDDEN(poly1305_arm64_block_16)
 .type	poly1305_arm64_block_16,@function
 .align	2
 poly1305_arm64_block_16:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_arm64_block_16
+WC_ASM_ATT_HIDDEN(_poly1305_arm64_block_16)
 .p2align	2
 _poly1305_arm64_block_16:
 #endif /* __APPLE__ */
@@ -120,12 +122,14 @@ _poly1305_arm64_block_16:
 #ifndef __APPLE__
 .text
 .globl	poly1305_arm64_blocks
+WC_ASM_ATT_HIDDEN(poly1305_arm64_blocks)
 .type	poly1305_arm64_blocks,@function
 .align	2
 poly1305_arm64_blocks:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_arm64_blocks
+WC_ASM_ATT_HIDDEN(_poly1305_arm64_blocks)
 .p2align	2
 _poly1305_arm64_blocks:
 #endif /* __APPLE__ */
@@ -458,12 +462,14 @@ L_poly1305_set_key_arm64_clamp:
 #ifndef __APPLE__
 .text
 .globl	poly1305_set_key
+WC_ASM_ATT_HIDDEN(poly1305_set_key)
 .type	poly1305_set_key,@function
 .align	2
 poly1305_set_key:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_set_key
+WC_ASM_ATT_HIDDEN(_poly1305_set_key)
 .p2align	2
 _poly1305_set_key:
 #endif /* __APPLE__ */
@@ -656,12 +662,14 @@ _poly1305_set_key:
 #ifndef __APPLE__
 .text
 .globl	poly1305_final
+WC_ASM_ATT_HIDDEN(poly1305_final)
 .type	poly1305_final,@function
 .align	2
 poly1305_final:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_final
+WC_ASM_ATT_HIDDEN(_poly1305_final)
 .p2align	2
 _poly1305_final:
 #endif /* __APPLE__ */

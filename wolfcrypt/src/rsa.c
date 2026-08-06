@@ -27,6 +27,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_RSA_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -34,9 +35,6 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifndef NO_RSA
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
        #ifdef USE_WINDOWS_API
                #pragma code_seg(".fipsA$j")
                #pragma const_seg(".fipsB$j")
@@ -2178,6 +2176,12 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     return ret;
 }
 
+#if defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_FIPS_READY) && !defined(WOLFSSL_FIPS_DEV)
+PRAGMA_DIAG_PUSH
+PRAGMA("GCC diagnostic ignored \"-Wswitch-enum\"")
+#endif
+
 int wc_hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
@@ -2277,6 +2281,11 @@ int wc_hash2mgf(enum wc_HashType hType)
     WOLFSSL_MSG("Unrecognized or unsupported hash function");
     return WC_MGF1NONE;
 }
+
+#if defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_FIPS_READY) && !defined(WOLFSSL_FIPS_DEV)
+PRAGMA_DIAG_POP
+#endif
 
 #ifdef WC_RSA_NONBLOCK
 static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,

@@ -94,6 +94,7 @@ L_SHA512_transform_len_k:
 	.text
 	.align	4
 	.globl	Transform_Sha512_Len_base
+	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_base)
 	.type	Transform_Sha512_Len_base, %function
 Transform_Sha512_Len_base:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

@@ -35,6 +35,7 @@
  * WOLFSSL_KCAPI_HMAC:       Linux kernel crypto API for HMAC     default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_HMAC_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -42,9 +43,6 @@
 #ifndef NO_HMAC
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$g")
         #pragma const_seg(".fipsB$g")
@@ -560,6 +558,11 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
             type == WC_SHA3_384 || type == WC_SHA3_512)) {
         return BAD_FUNC_ARG;
     }
+
+#if !defined(NO_MD5) && defined(HAVE_FIPS)
+    if (type == WC_MD5)
+        return BAD_FUNC_ARG;
+#endif
 
     heap = hmac->heap;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
@@ -1876,6 +1879,9 @@ int wolfSSL_GetHmacMaxSize(void)
         if (ret < 0) {
             return ret;
         }
+        else if (ret == 0)
+            return BAD_FUNC_ARG;
+
         hashSz = (word32)ret;
 
         /* RFC 5869 states that the length of output keying material in

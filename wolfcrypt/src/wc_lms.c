@@ -19,16 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WC_LMS_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_HAVE_LMS)
 
-#if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-#endif
 #include <wolfssl/wolfcrypt/wc_lms.h>
 #include <wolfssl/wolfcrypt/hash.h>
 

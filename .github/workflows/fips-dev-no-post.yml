@@ -1,0 +1,161 @@
+name: FIPS dev-no-POST tests
+
+# --enable-fips=dev-no-post builds with FIPS-like settings but none of the fips
+# repo content: no POST, no CASTs, no optest, and no fips.c wrappers (hence
+# FIPS_NO_WRAPPERS).  That makes the FIPS-conditional code in the regular
+# sources buildable and testable on ordinary master, where the fips repo is
+# absent.  It also tests for consistency in behavior/error codes between the
+# wrappers and the underlying implementations, because all callers (particularly
+# unit.test) expect FIPS behavior.
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+    # Docs-only changes cannot affect the build/test matrix - skip the
+    # run for them. Keep this list narrow (markdown + doc/ only);
+    # do not add cert/test data extensions here.
+    paths-ignore:
+      - '**/*.md'
+      - 'doc/**'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+    paths-ignore:
+      - '**/*.md'
+      - 'doc/**'
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '38 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  # All former runner-per-config matrix entries build on one runner via
+  # .github/scripts/parallel-make-check.py (see os-check.yml for the full
+  # pattern): each config builds in its own out-of-tree ("VPATH") build
+  # directory off one checkout/autogen, on a pool of one-per-CPU worker
+  # threads, longest first.
+  build_library:
+    name: build library/module
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential linux-headers-$(uname -r)
+          ghcr-debs-tag: ubuntu-24.04-linuxkm
+
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: fips-dev-no-post
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 500M
+
+      - name: Prepare target kernel for module builds
+        run: |
+          echo "preparing target kernel $(uname -r)"
+          pushd "/lib/modules/$(uname -r)/build" || $(exit 4)
+          if [ -f /proc/config.gz ]; then gzip -dc /proc/config.gz > /tmp/.config && sudo mv /tmp/.config . || $(exit 5); elif [ -f "/boot/config-$(uname -r)" ]; then sudo cp -p "/boot/config-$(uname -r)" .config || $(exit 6); fi
+          sudo make -j 4 olddefconfig || $(exit 7)
+          sudo make M="$(pwd)" modules_prepare || $(exit 8)
+          popd >/dev/null
+
+      - name: autogen.sh
+        run: |
+          ./autogen.sh || $(exit 9)
+
+      # "base" carries flags appropriate for every config; its "configure" list
+      # is prepended to each config's own.  KERNEL_EXTRA_CFLAGS_REMOVE and
+      # FORCE_NO_MODULE_SIG go in the environment rather than the JSON because
+      # the pool builds with a bare "make" (no way to add variables to that
+      # command line); make picks them up from the environment, and they are
+      # inert for the non-linuxkm configs.  Note the heredoc is unquoted so
+      # $(uname -r) and $FUZZING_SEED expand -- there are no other $ or
+      # backticks in the JSON.
+      - name: Build all configs (parallel, out-of-tree)
+        env:
+          KERNEL_EXTRA_CFLAGS_REMOVE: -pg
+          FORCE_NO_MODULE_SIG: 1
+        run: |
+          FUZZING_SEED=$(( (RANDOM << 15) ^ RANDOM ))
+          echo "FUZZING_SEED=$FUZZING_SEED"
+          if [ -n "$GITHUB_STEP_SUMMARY" ]; then echo "FUZZING_SEED=$FUZZING_SEED" >> "$GITHUB_STEP_SUMMARY"; fi
+          cat > "$RUNNER_TEMP/fips-dev-no-post-configs.json" <<EOF
+          {"base": {"configure": ["--enable-fips=dev-no-post",
+                                  "--with-linux-source=/lib/modules/$(uname -r)/build",
+                                  "EXTRA_CPPFLAGS=-Werror"]},
+           "configs": [
+          {"name": "default", "minutes": 7,
+           "configure": ["CPPFLAGS=-pedantic"]},
+          {"name": "all-asm-sp", "minutes": 7,
+           "configure": ["CPPFLAGS=-pedantic", "--enable-all-asm", "--enable-sp"]},
+          {"name": "all", "minutes": 16,
+           "configure": ["CPPFLAGS=-pedantic", "--enable-all"]},
+          {"name": "all-nodh-extiv", "minutes": 16,
+           "comment": "DH out of the boundary in v7; one-shot AES-GCM ext IV allowed",
+           "configure": ["--enable-all", "--disable-dh",
+            "CPPFLAGS=-pedantic -DWC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED -DWC_FIPS_AESGCM_NO_SHORT_NONCES"]},
+          {"name": "all-pqc-asm-fallback-fuzzer", "minutes": 22,
+           "configure": ["--enable-all", "--enable-sp", "--enable-experimental", "--enable-all-quantum-crypto",
+            "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]},
+          {"name": "kernel-settings", "minutes": 8,
+           "configure": ["--enable-kernel-settings", "--enable-dh",
+            "CPPFLAGS=-pedantic"]},
+          {"name": "kernel-settings-all-pqc-asm", "minutes": 22,
+           "configure": ["--enable-kernel-settings", "--enable-all", "--enable-experimental", "--enable-all-quantum-crypto",
+            "--enable-all-asm", "--enable-sp",
+            "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
+          ]}
+          EOF
+          # out-of-tree kernel module builds not working yet:
+          #          {"name": "linuxkm", "minutes": 4,
+          #           "comment": "module build; check=false (no host-side test suite), and the ls proves the .ko landed in the VPATH build dir",
+          #           "check": false,
+          #           "run": [["ls", "-l", "linuxkm/libwolfssl.ko"]],
+          #           "configure": ["--enable-linuxkm",
+          #            "--enable-linuxkm-lkcapi-register=all", "--enable-crypttests",
+          #            "--enable-linuxkm-benchmarks", "--with-max-rsa-bits=16384",
+          #            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1"]},
+          #          {"name": "linuxkm-all-asm", "minutes": 6,
+          #           "check": false,
+          #           "run": [["ls", "-l", "linuxkm/libwolfssl.ko"]],
+          #           "configure": ["--enable-linuxkm",
+          #            "--enable-linuxkm-lkcapi-register=all", "--enable-all",
+          #            "--enable-all-asm", "--enable-crypttests",
+          #            "--enable-linuxkm-benchmarks", "--with-max-rsa-bits=16384",
+          #            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1"]}
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            "$RUNNER_TEMP/fips-dev-no-post-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: dev-no-POST-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore

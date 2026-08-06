@@ -88,6 +88,14 @@
 
 #endif /* !BUILDING_WOLFSSL */
 
+#ifdef WC_ASM_ATT_HIDDEN
+    /* Use supplied override. */
+#elif defined(__ELF__)
+    #define WC_ASM_ATT_HIDDEN(name) .hidden name
+#else
+    #define WC_ASM_ATT_HIDDEN(name) /* null expansion */
+#endif
+
 /* WOLFSSL_ABI is used for public API symbols that must not change
  * their signature. This tag is used for all APIs that are a
  * part of the fixed ABI.

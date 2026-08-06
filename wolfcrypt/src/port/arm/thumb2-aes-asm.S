@@ -240,6 +240,7 @@ L_AES_Thumb2_te:
 	.text
 	.align	4
 	.globl	AES_invert_key
+	WC_ASM_ATT_HIDDEN(AES_invert_key)
 	.type	AES_invert_key, %function
 AES_invert_key:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -358,6 +359,7 @@ L_AES_Thumb2_rcon:
 	.text
 	.align	4
 	.globl	AES_set_encrypt_key
+	WC_ASM_ATT_HIDDEN(AES_set_encrypt_key)
 	.type	AES_set_encrypt_key, %function
 AES_set_encrypt_key:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -582,6 +584,7 @@ L_AES_set_encrypt_key_end:
 	.text
 	.align	4
 	.globl	AES_encrypt_block
+	WC_ASM_ATT_HIDDEN(AES_encrypt_block)
 	.type	AES_encrypt_block, %function
 AES_encrypt_block:
 	PUSH	{lr}
@@ -821,6 +824,7 @@ L_AES_Thumb2_te_ecb:
 	.text
 	.align	4
 	.globl	AES_ECB_encrypt
+	WC_ASM_ATT_HIDDEN(AES_ECB_encrypt)
 	.type	AES_ECB_encrypt, %function
 AES_ECB_encrypt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -1601,6 +1605,7 @@ L_AES_ECB_encrypt_end:
 	.text
 	.align	4
 	.globl	AES_CBC_encrypt
+	WC_ASM_ATT_HIDDEN(AES_CBC_encrypt)
 	.type	AES_CBC_encrypt, %function
 AES_CBC_encrypt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -2410,6 +2415,7 @@ L_AES_Thumb2_te_ctr:
 	.text
 	.align	4
 	.globl	AES_CTR_encrypt
+	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt)
 	.type	AES_CTR_encrypt, %function
 AES_CTR_encrypt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3228,6 +3234,7 @@ L_AES_CTR_encrypt_end:
 	.text
 	.align	4
 	.globl	AES_decrypt_block
+	WC_ASM_ATT_HIDDEN(AES_decrypt_block)
 	.type	AES_decrypt_block, %function
 AES_decrypt_block:
 	PUSH	{lr}
@@ -3507,6 +3514,7 @@ L_AES_Thumb2_td4:
 	.text
 	.align	4
 	.globl	AES_ECB_decrypt
+	WC_ASM_ATT_HIDDEN(AES_ECB_decrypt)
 	.type	AES_ECB_decrypt, %function
 AES_ECB_decrypt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -4283,6 +4291,7 @@ L_AES_ECB_decrypt_end:
 	.text
 	.align	4
 	.globl	AES_CBC_decrypt
+	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt)
 	.type	AES_CBC_decrypt, %function
 AES_CBC_decrypt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5888,6 +5897,7 @@ L_GCM_gmult_len_r:
 	.text
 	.align	4
 	.globl	GCM_gmult_len
+	WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 	.type	GCM_gmult_len, %function
 GCM_gmult_len:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -6504,6 +6514,7 @@ L_GCM_gmult_len_r:
 	.text
 	.align	4
 	.globl	GCM_gmult_len
+	WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 	.type	GCM_gmult_len, %function
 GCM_gmult_len:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -6984,6 +6995,7 @@ L_AES_Thumb2_te_gcm:
 	.text
 	.align	4
 	.globl	AES_GCM_encrypt
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt)
 	.type	AES_GCM_encrypt, %function
 AES_GCM_encrypt:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -7808,6 +7820,7 @@ L_AES_GCMSIV_polyval_thumb2_r:
 	.text
 	.align	4
 	.globl	AES_GCMSIV_polyval_thumb2
+	WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_thumb2)
 	.type	AES_GCMSIV_polyval_thumb2, %function
 AES_GCMSIV_polyval_thumb2:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -8592,6 +8605,7 @@ L_AES_GCMSIV_ctr_thumb2_te:
 	.text
 	.align	4
 	.globl	AES_GCMSIV_ctr_thumb2
+	WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_thumb2)
 	.type	AES_GCMSIV_ctr_thumb2, %function
 AES_GCMSIV_ctr_thumb2:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

@@ -21,6 +21,13 @@
 .ONESHELL:
 SHELL=bash
 
+# $(intcmp ...) requires GNU make 4.4 or later.
+ifeq ($(intcmp 1,1,,yes,),yes)
+    HAVE_INTCMP := yes
+else
+    HAVE_INTCMP := no
+endif
+
 ifeq "$(KERNEL_ARCH)" "x86"
     KERNEL_ARCH_X86 := yes
 else ifeq "$(KERNEL_ARCH)" "x86_64"
@@ -111,6 +118,24 @@ $(LIBWOLFSSL_NAME)-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/modu
 
 ifeq "$(FIPS_OPTEST)" "1"
     $(LIBWOLFSSL_NAME)-y += linuxkm/optest-140-3/linuxkm_optest_wrapper.o
+    # FIPS_OPTEST_NO_DH=1 for FIPS v7 or later, 0 for earlier.  Derived from
+    # $(HAVE_FIPS_VERSION_MAJOR) when $(intcmp) is available; supply it on the
+    # make command line otherwise.
+    ifndef FIPS_OPTEST_NO_DH
+        ifeq "$(HAVE_INTCMP)" "yes"
+            ifeq "$(HAVE_FIPS_VERSION_MAJOR)" ""
+                $(error $$HAVE_FIPS_VERSION_MAJOR is unset.)
+            endif
+            FIPS_OPTEST_NO_DH := $(intcmp $(HAVE_FIPS_VERSION_MAJOR),7,0,1,1)
+        else
+            $(error $$FIPS_OPTEST_NO_DH is unset -- supply FIPS_OPTEST_NO_DH=1 for FIPS v7 or later, or FIPS_OPTEST_NO_DH=0 for earlier.)
+        endif
+    endif
+    ifeq "$(FIPS_OPTEST_NO_DH)" "1"
+        # Don't optest DH in FIPS v7+ even if the module has DH -- there are no
+        # FIPS wrappers for its APIs.
+        linuxkm/optest-140-3/linuxkm_optest_wrapper.o: ccflags-y += -DNO_DH
+    endif
 endif
 
 WOLFSSL_CFLAGS_NO_VECTOR_INSNS := $(CFLAGS_SIMD_DISABLE) $(CFLAGS_FPU_DISABLE)
@@ -129,6 +154,9 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
     ifndef NO_PIE_FLAG
       ifeq ($(KERNEL_ARCH),arm)
+        ifneq "$(HAVE_INTCMP)" "yes"
+            $(error $$NO_PIE_FLAG is unset -- supply NO_PIE_FLAG=1 for target kernel <5.11, else supply NO_PIE_FLAG=0.)
+        endif
         ifeq ($(intcmp $(VERSION),5,1,0,0),1)
           NO_PIE_FLAG := 1
           $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
@@ -136,15 +164,19 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
           ifeq ($(intcmp $(VERSION),5,0,1,0)-$(intcmp $(PATCHLEVEL),11,1,0,0),1-1)
             NO_PIE_FLAG := 1
             $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+          else
+            NO_PIE_FLAG := 0
           endif
         endif
+      else
+        NO_PIE_FLAG := 0
       endif
     endif
 
-    ifdef NO_PIE_FLAG
-        PIE_FLAGS += -DWC_NO_PIE_FLAG
-    else
+    ifeq "$(NO_PIE_FLAG)" "0"
         PIE_FLAGS += -fPIE
+    else
+        PIE_FLAGS += -DWC_NO_PIE_FLAG
     endif
     # the kernel sanitizers generate external references to
     # __ubsan_handle_out_of_bounds(), __ubsan_handle_shift_out_of_bounds(), etc.
@@ -198,8 +230,7 @@ endif
 $(obj)/$(LIBWOLFSSL_NAME).mod.o: ccflags-y := $(PIE_SUPPORT_FLAGS)
 $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
 $(obj)/wolfcrypt/src/aes.o: ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS) $(PIE_FLAGS) $(PIE_SUPPORT_FLAGS)
-$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y := $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
-$(obj)/wolfcrypt/benchmark/benchmark.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)
+$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y := $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(CFLAGS_AUTO_VECTORIZE_DISABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
 
@@ -230,10 +261,6 @@ $(obj)/wolfcrypt/src/wc_mlkem_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_F
 $(obj)/wolfcrypt/src/wc_mlkem_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
-# Native Falcon fpr backend: scalar double math on SSE2 (mulsd/divsd/sqrtsd,
-# no x87), so it needs the vector insns enabled in the assembler like the other
-# _asm.o here. The vector registers are saved at run time by the SAVE_VECTOR_
-# REGISTERS2() wrapping in falcon.c around signing and keygen.
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
 

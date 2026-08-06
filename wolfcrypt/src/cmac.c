@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_CMAC_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -33,9 +34,6 @@
 #if defined(WOLFSSL_CMAC)
 
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$c")
         #pragma const_seg(".fipsB$c")
@@ -257,6 +255,12 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
             wc_MemZero_Check(l, WC_AES_BLOCK_SIZE);
 #endif
         }
+
+        if (ret != 0) {
+            wc_AesFree(&cmac->aes);
+            cmac->type = WC_CMAC_NONE;
+        }
+
         break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
     default:
@@ -361,6 +365,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
 #endif
     }; break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
+    case WC_CMAC_NONE:
     default:
         ret = BAD_FUNC_ARG;
     }
@@ -383,6 +388,7 @@ int wc_CmacFree(Cmac* cmac)
         wc_AesFree(&cmac->aes);
         break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
+    case WC_CMAC_NONE:
     default:
         /* Nothing to do */
         (void)cmac;
@@ -461,6 +467,7 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
 #endif
         }; break;
     #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
+        case WC_CMAC_NONE:
         default:
             ret = BAD_FUNC_ARG;
         }

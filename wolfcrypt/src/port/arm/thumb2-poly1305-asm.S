@@ -38,6 +38,7 @@
 	.text
 	.align	4
 	.globl	poly1305_blocks_thumb2_16
+	WC_ASM_ATT_HIDDEN(poly1305_blocks_thumb2_16)
 	.type	poly1305_blocks_thumb2_16, %function
 poly1305_blocks_thumb2_16:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -276,6 +277,7 @@ L_poly1305_thumb2_clamp:
 	.text
 	.align	4
 	.globl	poly1305_set_key
+	WC_ASM_ATT_HIDDEN(poly1305_set_key)
 	.type	poly1305_set_key, %function
 poly1305_set_key:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -316,6 +318,7 @@ poly1305_set_key:
 	.text
 	.align	4
 	.globl	poly1305_final
+	WC_ASM_ATT_HIDDEN(poly1305_final)
 	.type	poly1305_final, %function
 poly1305_final:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

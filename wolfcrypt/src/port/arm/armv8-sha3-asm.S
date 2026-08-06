@@ -65,12 +65,14 @@ L_SHA3_transform_crypto_r:
 #ifndef __APPLE__
 .text
 .globl	BlockSha3_crypto
+WC_ASM_ATT_HIDDEN(BlockSha3_crypto)
 .type	BlockSha3_crypto,@function
 .align	2
 BlockSha3_crypto:
 #else
 .section	__TEXT,__text
 .globl	_BlockSha3_crypto
+WC_ASM_ATT_HIDDEN(_BlockSha3_crypto)
 .p2align	2
 _BlockSha3_crypto:
 #endif /* __APPLE__ */
@@ -228,12 +230,14 @@ L_SHA3_transform_base_r:
 #ifndef __APPLE__
 .text
 .globl	BlockSha3_base
+WC_ASM_ATT_HIDDEN(BlockSha3_base)
 .type	BlockSha3_base,@function
 .align	2
 BlockSha3_base:
 #else
 .section	__TEXT,__text
 .globl	_BlockSha3_base
+WC_ASM_ATT_HIDDEN(_BlockSha3_base)
 .p2align	2
 _BlockSha3_base:
 #endif /* __APPLE__ */

@@ -53,6 +53,7 @@ L_SHA3_transform_vector_r:
 	.quad	0x0000000080000001,0x8000000080008008
 	.text
 	.globl	BlockSha3
+	WC_ASM_ATT_HIDDEN(BlockSha3)
 	.type	BlockSha3,@function
 	.align	2
 BlockSha3:
@@ -580,6 +581,7 @@ L_SHA3_transform_riscv_r:
 	.quad	0x0000000080000001,0x8000000080008008
 	.text
 	.globl	BlockSha3
+	WC_ASM_ATT_HIDDEN(BlockSha3)
 	.type	BlockSha3,@function
 	.align	2
 BlockSha3:

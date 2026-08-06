@@ -57,12 +57,14 @@
 #ifndef __APPLE__
 .text
 .globl	sp_2048_from_bin_bswap
+WC_ASM_ATT_HIDDEN(sp_2048_from_bin_bswap)
 .type	sp_2048_from_bin_bswap,@function
 .align	16
 sp_2048_from_bin_bswap:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_from_bin_bswap
+WC_ASM_ATT_HIDDEN(_sp_2048_from_bin_bswap)
 .p2align	4
 _sp_2048_from_bin_bswap:
 #endif /* __APPLE__ */
@@ -152,12 +154,14 @@ L_2048_from_bin_bswap_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_from_bin_movbe
+WC_ASM_ATT_HIDDEN(sp_2048_from_bin_movbe)
 .type	sp_2048_from_bin_movbe,@function
 .align	16
 sp_2048_from_bin_movbe:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_from_bin_movbe
+WC_ASM_ATT_HIDDEN(_sp_2048_from_bin_movbe)
 .p2align	4
 _sp_2048_from_bin_movbe:
 #endif /* __APPLE__ */
@@ -236,12 +240,14 @@ L_2048_from_bin_movbe_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_to_bin_bswap_32
+WC_ASM_ATT_HIDDEN(sp_2048_to_bin_bswap_32)
 .type	sp_2048_to_bin_bswap_32,@function
 .align	16
 sp_2048_to_bin_bswap_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_to_bin_bswap_32
+WC_ASM_ATT_HIDDEN(_sp_2048_to_bin_bswap_32)
 .p2align	4
 _sp_2048_to_bin_bswap_32:
 #endif /* __APPLE__ */
@@ -356,12 +362,14 @@ _sp_2048_to_bin_bswap_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_to_bin_movbe_32
+WC_ASM_ATT_HIDDEN(sp_2048_to_bin_movbe_32)
 .type	sp_2048_to_bin_movbe_32,@function
 .align	16
 sp_2048_to_bin_movbe_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_to_bin_movbe_32
+WC_ASM_ATT_HIDDEN(_sp_2048_to_bin_movbe_32)
 .p2align	4
 _sp_2048_to_bin_movbe_32:
 #endif /* __APPLE__ */
@@ -443,12 +451,14 @@ _sp_2048_to_bin_movbe_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_16
+WC_ASM_ATT_HIDDEN(sp_2048_mul_16)
 .type	sp_2048_mul_16,@function
 .align	16
 sp_2048_mul_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_16
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_16)
 .p2align	4
 _sp_2048_mul_16:
 #endif /* __APPLE__ */
@@ -2096,12 +2106,14 @@ _sp_2048_mul_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_avx2_16
+WC_ASM_ATT_HIDDEN(sp_2048_mul_avx2_16)
 .type	sp_2048_mul_avx2_16,@function
 .align	16
 sp_2048_mul_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_avx2_16)
 .p2align	4
 _sp_2048_mul_avx2_16:
 #endif /* __APPLE__ */
@@ -3772,12 +3784,14 @@ L_end_2048_mul_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_add_16
+WC_ASM_ATT_HIDDEN(sp_2048_add_16)
 .type	sp_2048_add_16,@function
 .align	16
 sp_2048_add_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_add_16
+WC_ASM_ATT_HIDDEN(_sp_2048_add_16)
 .p2align	4
 _sp_2048_add_16:
 #endif /* __APPLE__ */
@@ -3844,12 +3858,14 @@ _sp_2048_add_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_sub_in_place_32
+WC_ASM_ATT_HIDDEN(sp_2048_sub_in_place_32)
 .type	sp_2048_sub_in_place_32,@function
 .align	16
 sp_2048_sub_in_place_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_sub_in_place_32
+WC_ASM_ATT_HIDDEN(_sp_2048_sub_in_place_32)
 .p2align	4
 _sp_2048_sub_in_place_32:
 #endif /* __APPLE__ */
@@ -3963,12 +3979,14 @@ _sp_2048_sub_in_place_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_add_32
+WC_ASM_ATT_HIDDEN(sp_2048_add_32)
 .type	sp_2048_add_32,@function
 .align	16
 sp_2048_add_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_add_32
+WC_ASM_ATT_HIDDEN(_sp_2048_add_32)
 .p2align	4
 _sp_2048_add_32:
 #endif /* __APPLE__ */
@@ -4084,12 +4102,14 @@ _sp_2048_add_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_32
+WC_ASM_ATT_HIDDEN(sp_2048_mul_32)
 .type	sp_2048_mul_32,@function
 .align	16
 sp_2048_mul_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_32
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_32)
 .p2align	4
 _sp_2048_mul_32:
 #endif /* __APPLE__ */
@@ -4809,12 +4829,14 @@ _sp_2048_mul_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_avx2_32
+WC_ASM_ATT_HIDDEN(sp_2048_mul_avx2_32)
 .type	sp_2048_mul_avx2_32,@function
 .align	16
 sp_2048_mul_avx2_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_avx2_32
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_avx2_32)
 .p2align	4
 _sp_2048_mul_avx2_32:
 #endif /* __APPLE__ */
@@ -5485,12 +5507,14 @@ _sp_2048_mul_avx2_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_sqr_16
+WC_ASM_ATT_HIDDEN(sp_2048_sqr_16)
 .type	sp_2048_sqr_16,@function
 .align	16
 sp_2048_sqr_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_sqr_16
+WC_ASM_ATT_HIDDEN(_sp_2048_sqr_16)
 .p2align	4
 _sp_2048_sqr_16:
 #endif /* __APPLE__ */
@@ -6580,12 +6604,14 @@ _sp_2048_sqr_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_sqr_avx2_16
+WC_ASM_ATT_HIDDEN(sp_2048_sqr_avx2_16)
 .type	sp_2048_sqr_avx2_16,@function
 .align	16
 sp_2048_sqr_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_sqr_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_2048_sqr_avx2_16)
 .p2align	4
 _sp_2048_sqr_avx2_16:
 #endif /* __APPLE__ */
@@ -7640,12 +7666,14 @@ L_end_2048_sqr_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_sqr_32
+WC_ASM_ATT_HIDDEN(sp_2048_sqr_32)
 .type	sp_2048_sqr_32,@function
 .align	16
 sp_2048_sqr_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_sqr_32
+WC_ASM_ATT_HIDDEN(_sp_2048_sqr_32)
 .p2align	4
 _sp_2048_sqr_32:
 #endif /* __APPLE__ */
@@ -8181,12 +8209,14 @@ _sp_2048_sqr_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_sqr_avx2_32
+WC_ASM_ATT_HIDDEN(sp_2048_sqr_avx2_32)
 .type	sp_2048_sqr_avx2_32,@function
 .align	16
 sp_2048_sqr_avx2_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_sqr_avx2_32
+WC_ASM_ATT_HIDDEN(_sp_2048_sqr_avx2_32)
 .p2align	4
 _sp_2048_sqr_avx2_32:
 #endif /* __APPLE__ */
@@ -8720,12 +8750,14 @@ _sp_2048_sqr_avx2_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_sub_in_place_16
+WC_ASM_ATT_HIDDEN(sp_2048_sub_in_place_16)
 .type	sp_2048_sub_in_place_16,@function
 .align	16
 sp_2048_sub_in_place_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_sub_in_place_16
+WC_ASM_ATT_HIDDEN(_sp_2048_sub_in_place_16)
 .p2align	4
 _sp_2048_sub_in_place_16:
 #endif /* __APPLE__ */
@@ -8791,12 +8823,14 @@ _sp_2048_sub_in_place_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_d_32
+WC_ASM_ATT_HIDDEN(sp_2048_mul_d_32)
 .type	sp_2048_mul_d_32,@function
 .align	16
 sp_2048_mul_d_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_d_32
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_d_32)
 .p2align	4
 _sp_2048_mul_d_32:
 #endif /* __APPLE__ */
@@ -9071,12 +9105,14 @@ _sp_2048_mul_d_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cond_sub_16
+WC_ASM_ATT_HIDDEN(sp_2048_cond_sub_16)
 .type	sp_2048_cond_sub_16,@function
 .align	16
 sp_2048_cond_sub_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cond_sub_16
+WC_ASM_ATT_HIDDEN(_sp_2048_cond_sub_16)
 .p2align	4
 _sp_2048_cond_sub_16:
 #endif /* __APPLE__ */
@@ -9209,12 +9245,14 @@ _sp_2048_cond_sub_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mont_reduce_16
+WC_ASM_ATT_HIDDEN(sp_2048_mont_reduce_16)
 .type	sp_2048_mont_reduce_16,@function
 .align	16
 sp_2048_mont_reduce_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mont_reduce_16
+WC_ASM_ATT_HIDDEN(_sp_2048_mont_reduce_16)
 .p2align	4
 _sp_2048_mont_reduce_16:
 #endif /* __APPLE__ */
@@ -9432,12 +9470,14 @@ L_2048_mont_reduce_16_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cond_sub_avx2_16
+WC_ASM_ATT_HIDDEN(sp_2048_cond_sub_avx2_16)
 .type	sp_2048_cond_sub_avx2_16,@function
 .align	16
 sp_2048_cond_sub_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cond_sub_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_2048_cond_sub_avx2_16)
 .p2align	4
 _sp_2048_cond_sub_avx2_16:
 #endif /* __APPLE__ */
@@ -9536,12 +9576,14 @@ _sp_2048_cond_sub_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_d_16
+WC_ASM_ATT_HIDDEN(sp_2048_mul_d_16)
 .type	sp_2048_mul_d_16,@function
 .align	16
 sp_2048_mul_d_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_d_16
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_d_16)
 .p2align	4
 _sp_2048_mul_d_16:
 #endif /* __APPLE__ */
@@ -9686,12 +9728,14 @@ _sp_2048_mul_d_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_d_avx2_16
+WC_ASM_ATT_HIDDEN(sp_2048_mul_d_avx2_16)
 .type	sp_2048_mul_d_avx2_16,@function
 .align	16
 sp_2048_mul_d_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_d_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_d_avx2_16)
 .p2align	4
 _sp_2048_mul_d_avx2_16:
 #endif /* __APPLE__ */
@@ -9810,12 +9854,14 @@ _sp_2048_mul_d_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	div_2048_word_asm_16
+WC_ASM_ATT_HIDDEN(div_2048_word_asm_16)
 .type	div_2048_word_asm_16,@function
 .align	16
 div_2048_word_asm_16:
 #else
 .section	__TEXT,__text
 .globl	_div_2048_word_asm_16
+WC_ASM_ATT_HIDDEN(_div_2048_word_asm_16)
 .p2align	4
 _div_2048_word_asm_16:
 #endif /* __APPLE__ */
@@ -9839,12 +9885,14 @@ _div_2048_word_asm_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cmp_16
+WC_ASM_ATT_HIDDEN(sp_2048_cmp_16)
 .type	sp_2048_cmp_16,@function
 .align	16
 sp_2048_cmp_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cmp_16
+WC_ASM_ATT_HIDDEN(_sp_2048_cmp_16)
 .p2align	4
 _sp_2048_cmp_16:
 #endif /* __APPLE__ */
@@ -9996,12 +10044,14 @@ _sp_2048_cmp_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mont_reduce_avx2_16
+WC_ASM_ATT_HIDDEN(sp_2048_mont_reduce_avx2_16)
 .type	sp_2048_mont_reduce_avx2_16,@function
 .align	16
 sp_2048_mont_reduce_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mont_reduce_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_2048_mont_reduce_avx2_16)
 .p2align	4
 _sp_2048_mont_reduce_avx2_16:
 #endif /* __APPLE__ */
@@ -10327,18 +10377,20 @@ L_2048_mont_reduce_avx2_16_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_get_from_table_avx2_16
+WC_ASM_ATT_HIDDEN(sp_2048_get_from_table_avx2_16)
 .type	sp_2048_get_from_table_avx2_16,@function
 .align	16
 sp_2048_get_from_table_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_get_from_table_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_2048_get_from_table_avx2_16)
 .p2align	4
 _sp_2048_get_from_table_avx2_16:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -10882,12 +10934,14 @@ _sp_2048_get_from_table_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cond_sub_32
+WC_ASM_ATT_HIDDEN(sp_2048_cond_sub_32)
 .type	sp_2048_cond_sub_32,@function
 .align	16
 sp_2048_cond_sub_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cond_sub_32
+WC_ASM_ATT_HIDDEN(_sp_2048_cond_sub_32)
 .p2align	4
 _sp_2048_cond_sub_32:
 #endif /* __APPLE__ */
@@ -11132,12 +11186,14 @@ _sp_2048_cond_sub_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mont_reduce_32
+WC_ASM_ATT_HIDDEN(sp_2048_mont_reduce_32)
 .type	sp_2048_mont_reduce_32,@function
 .align	16
 sp_2048_mont_reduce_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mont_reduce_32
+WC_ASM_ATT_HIDDEN(_sp_2048_mont_reduce_32)
 .p2align	4
 _sp_2048_mont_reduce_32:
 #endif /* __APPLE__ */
@@ -11511,12 +11567,14 @@ L_2048_mont_reduce_32_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_sub_32
+WC_ASM_ATT_HIDDEN(sp_2048_sub_32)
 .type	sp_2048_sub_32,@function
 .align	16
 sp_2048_sub_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_sub_32
+WC_ASM_ATT_HIDDEN(_sp_2048_sub_32)
 .p2align	4
 _sp_2048_sub_32:
 #endif /* __APPLE__ */
@@ -11631,12 +11689,14 @@ _sp_2048_sub_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mul_d_avx2_32
+WC_ASM_ATT_HIDDEN(sp_2048_mul_d_avx2_32)
 .type	sp_2048_mul_d_avx2_32,@function
 .align	16
 sp_2048_mul_d_avx2_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mul_d_avx2_32
+WC_ASM_ATT_HIDDEN(_sp_2048_mul_d_avx2_32)
 .p2align	4
 _sp_2048_mul_d_avx2_32:
 #endif /* __APPLE__ */
@@ -11851,12 +11911,14 @@ _sp_2048_mul_d_avx2_32:
 #ifndef __APPLE__
 .text
 .globl	div_2048_word_asm_32
+WC_ASM_ATT_HIDDEN(div_2048_word_asm_32)
 .type	div_2048_word_asm_32,@function
 .align	16
 div_2048_word_asm_32:
 #else
 .section	__TEXT,__text
 .globl	_div_2048_word_asm_32
+WC_ASM_ATT_HIDDEN(_div_2048_word_asm_32)
 .p2align	4
 _div_2048_word_asm_32:
 #endif /* __APPLE__ */
@@ -11882,12 +11944,14 @@ _div_2048_word_asm_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cond_sub_avx2_32
+WC_ASM_ATT_HIDDEN(sp_2048_cond_sub_avx2_32)
 .type	sp_2048_cond_sub_avx2_32,@function
 .align	16
 sp_2048_cond_sub_avx2_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cond_sub_avx2_32
+WC_ASM_ATT_HIDDEN(_sp_2048_cond_sub_avx2_32)
 .p2align	4
 _sp_2048_cond_sub_avx2_32:
 #endif /* __APPLE__ */
@@ -12068,12 +12132,14 @@ _sp_2048_cond_sub_avx2_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cmp_32
+WC_ASM_ATT_HIDDEN(sp_2048_cmp_32)
 .type	sp_2048_cmp_32,@function
 .align	16
 sp_2048_cmp_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cmp_32
+WC_ASM_ATT_HIDDEN(_sp_2048_cmp_32)
 .p2align	4
 _sp_2048_cmp_32:
 #endif /* __APPLE__ */
@@ -12353,12 +12419,14 @@ _sp_2048_cmp_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_mont_reduce_avx2_32
+WC_ASM_ATT_HIDDEN(sp_2048_mont_reduce_avx2_32)
 .type	sp_2048_mont_reduce_avx2_32,@function
 .align	16
 sp_2048_mont_reduce_avx2_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_mont_reduce_avx2_32
+WC_ASM_ATT_HIDDEN(_sp_2048_mont_reduce_avx2_32)
 .p2align	4
 _sp_2048_mont_reduce_avx2_32:
 #endif /* __APPLE__ */
@@ -12759,18 +12827,20 @@ L_2048_mont_reduce_avx2_32_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_get_from_table_avx2_32
+WC_ASM_ATT_HIDDEN(sp_2048_get_from_table_avx2_32)
 .type	sp_2048_get_from_table_avx2_32,@function
 .align	16
 sp_2048_get_from_table_avx2_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_get_from_table_avx2_32
+WC_ASM_ATT_HIDDEN(_sp_2048_get_from_table_avx2_32)
 .p2align	4
 _sp_2048_get_from_table_avx2_32:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -14926,12 +14996,14 @@ _sp_2048_get_from_table_avx2_32:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cond_add_16
+WC_ASM_ATT_HIDDEN(sp_2048_cond_add_16)
 .type	sp_2048_cond_add_16,@function
 .align	16
 sp_2048_cond_add_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cond_add_16
+WC_ASM_ATT_HIDDEN(_sp_2048_cond_add_16)
 .p2align	4
 _sp_2048_cond_add_16:
 #endif /* __APPLE__ */
@@ -15068,12 +15140,14 @@ _sp_2048_cond_add_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_cond_add_avx2_16
+WC_ASM_ATT_HIDDEN(sp_2048_cond_add_avx2_16)
 .type	sp_2048_cond_add_avx2_16,@function
 .align	16
 sp_2048_cond_add_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_cond_add_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_2048_cond_add_avx2_16)
 .p2align	4
 _sp_2048_cond_add_avx2_16:
 #endif /* __APPLE__ */
@@ -15173,12 +15247,14 @@ _sp_2048_cond_add_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_2048_lshift_32
+WC_ASM_ATT_HIDDEN(sp_2048_lshift_32)
 .type	sp_2048_lshift_32,@function
 .align	16
 sp_2048_lshift_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_2048_lshift_32
+WC_ASM_ATT_HIDDEN(_sp_2048_lshift_32)
 .p2align	4
 _sp_2048_lshift_32:
 #endif /* __APPLE__ */
@@ -15301,12 +15377,14 @@ _sp_2048_lshift_32:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_from_bin_bswap
+WC_ASM_ATT_HIDDEN(sp_3072_from_bin_bswap)
 .type	sp_3072_from_bin_bswap,@function
 .align	16
 sp_3072_from_bin_bswap:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_from_bin_bswap
+WC_ASM_ATT_HIDDEN(_sp_3072_from_bin_bswap)
 .p2align	4
 _sp_3072_from_bin_bswap:
 #endif /* __APPLE__ */
@@ -15396,12 +15474,14 @@ L_3072_from_bin_bswap_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_from_bin_movbe
+WC_ASM_ATT_HIDDEN(sp_3072_from_bin_movbe)
 .type	sp_3072_from_bin_movbe,@function
 .align	16
 sp_3072_from_bin_movbe:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_from_bin_movbe
+WC_ASM_ATT_HIDDEN(_sp_3072_from_bin_movbe)
 .p2align	4
 _sp_3072_from_bin_movbe:
 #endif /* __APPLE__ */
@@ -15480,12 +15560,14 @@ L_3072_from_bin_movbe_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_to_bin_bswap_48
+WC_ASM_ATT_HIDDEN(sp_3072_to_bin_bswap_48)
 .type	sp_3072_to_bin_bswap_48,@function
 .align	16
 sp_3072_to_bin_bswap_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_to_bin_bswap_48
+WC_ASM_ATT_HIDDEN(_sp_3072_to_bin_bswap_48)
 .p2align	4
 _sp_3072_to_bin_bswap_48:
 #endif /* __APPLE__ */
@@ -15648,12 +15730,14 @@ _sp_3072_to_bin_bswap_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_to_bin_movbe_48
+WC_ASM_ATT_HIDDEN(sp_3072_to_bin_movbe_48)
 .type	sp_3072_to_bin_movbe_48,@function
 .align	16
 sp_3072_to_bin_movbe_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_to_bin_movbe_48
+WC_ASM_ATT_HIDDEN(_sp_3072_to_bin_movbe_48)
 .p2align	4
 _sp_3072_to_bin_movbe_48:
 #endif /* __APPLE__ */
@@ -15767,12 +15851,14 @@ _sp_3072_to_bin_movbe_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_12
+WC_ASM_ATT_HIDDEN(sp_3072_mul_12)
 .type	sp_3072_mul_12,@function
 .align	16
 sp_3072_mul_12:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_12
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_12)
 .p2align	4
 _sp_3072_mul_12:
 #endif /* __APPLE__ */
@@ -16724,12 +16810,14 @@ _sp_3072_mul_12:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_avx2_12
+WC_ASM_ATT_HIDDEN(sp_3072_mul_avx2_12)
 .type	sp_3072_mul_avx2_12,@function
 .align	16
 sp_3072_mul_avx2_12:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_avx2_12
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_avx2_12)
 .p2align	4
 _sp_3072_mul_avx2_12:
 #endif /* __APPLE__ */
@@ -17700,12 +17788,14 @@ L_end_3072_mul_avx2_12:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_add_12
+WC_ASM_ATT_HIDDEN(sp_3072_add_12)
 .type	sp_3072_add_12,@function
 .align	16
 sp_3072_add_12:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_add_12
+WC_ASM_ATT_HIDDEN(_sp_3072_add_12)
 .p2align	4
 _sp_3072_add_12:
 #endif /* __APPLE__ */
@@ -17760,12 +17850,14 @@ _sp_3072_add_12:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sub_in_place_24
+WC_ASM_ATT_HIDDEN(sp_3072_sub_in_place_24)
 .type	sp_3072_sub_in_place_24,@function
 .align	16
 sp_3072_sub_in_place_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sub_in_place_24
+WC_ASM_ATT_HIDDEN(_sp_3072_sub_in_place_24)
 .p2align	4
 _sp_3072_sub_in_place_24:
 #endif /* __APPLE__ */
@@ -17855,12 +17947,14 @@ _sp_3072_sub_in_place_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_add_24
+WC_ASM_ATT_HIDDEN(sp_3072_add_24)
 .type	sp_3072_add_24,@function
 .align	16
 sp_3072_add_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_add_24
+WC_ASM_ATT_HIDDEN(_sp_3072_add_24)
 .p2align	4
 _sp_3072_add_24:
 #endif /* __APPLE__ */
@@ -17952,12 +18046,14 @@ _sp_3072_add_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_24
+WC_ASM_ATT_HIDDEN(sp_3072_mul_24)
 .type	sp_3072_mul_24,@function
 .align	16
 sp_3072_mul_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_24
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_24)
 .p2align	4
 _sp_3072_mul_24:
 #endif /* __APPLE__ */
@@ -18521,12 +18617,14 @@ _sp_3072_mul_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_avx2_24
+WC_ASM_ATT_HIDDEN(sp_3072_mul_avx2_24)
 .type	sp_3072_mul_avx2_24,@function
 .align	16
 sp_3072_mul_avx2_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_avx2_24
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_avx2_24)
 .p2align	4
 _sp_3072_mul_avx2_24:
 #endif /* __APPLE__ */
@@ -19053,12 +19151,14 @@ _sp_3072_mul_avx2_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sub_in_place_48
+WC_ASM_ATT_HIDDEN(sp_3072_sub_in_place_48)
 .type	sp_3072_sub_in_place_48,@function
 .align	16
 sp_3072_sub_in_place_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sub_in_place_48
+WC_ASM_ATT_HIDDEN(_sp_3072_sub_in_place_48)
 .p2align	4
 _sp_3072_sub_in_place_48:
 #endif /* __APPLE__ */
@@ -19220,12 +19320,14 @@ _sp_3072_sub_in_place_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_add_48
+WC_ASM_ATT_HIDDEN(sp_3072_add_48)
 .type	sp_3072_add_48,@function
 .align	16
 sp_3072_add_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_add_48
+WC_ASM_ATT_HIDDEN(_sp_3072_add_48)
 .p2align	4
 _sp_3072_add_48:
 #endif /* __APPLE__ */
@@ -19389,12 +19491,14 @@ _sp_3072_add_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_48
+WC_ASM_ATT_HIDDEN(sp_3072_mul_48)
 .type	sp_3072_mul_48,@function
 .align	16
 sp_3072_mul_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_48
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_48)
 .p2align	4
 _sp_3072_mul_48:
 #endif /* __APPLE__ */
@@ -20426,12 +20530,14 @@ _sp_3072_mul_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_avx2_48
+WC_ASM_ATT_HIDDEN(sp_3072_mul_avx2_48)
 .type	sp_3072_mul_avx2_48,@function
 .align	16
 sp_3072_mul_avx2_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_avx2_48
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_avx2_48)
 .p2align	4
 _sp_3072_mul_avx2_48:
 #endif /* __APPLE__ */
@@ -21390,12 +21496,14 @@ _sp_3072_mul_avx2_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sqr_12
+WC_ASM_ATT_HIDDEN(sp_3072_sqr_12)
 .type	sp_3072_sqr_12,@function
 .align	16
 sp_3072_sqr_12:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sqr_12
+WC_ASM_ATT_HIDDEN(_sp_3072_sqr_12)
 .p2align	4
 _sp_3072_sqr_12:
 #endif /* __APPLE__ */
@@ -22065,12 +22173,14 @@ _sp_3072_sqr_12:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sqr_avx2_12
+WC_ASM_ATT_HIDDEN(sp_3072_sqr_avx2_12)
 .type	sp_3072_sqr_avx2_12,@function
 .align	16
 sp_3072_sqr_avx2_12:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sqr_avx2_12
+WC_ASM_ATT_HIDDEN(_sp_3072_sqr_avx2_12)
 .p2align	4
 _sp_3072_sqr_avx2_12:
 #endif /* __APPLE__ */
@@ -22714,12 +22824,14 @@ L_end_3072_sqr_avx2_12:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sqr_24
+WC_ASM_ATT_HIDDEN(sp_3072_sqr_24)
 .type	sp_3072_sqr_24,@function
 .align	16
 sp_3072_sqr_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sqr_24
+WC_ASM_ATT_HIDDEN(_sp_3072_sqr_24)
 .p2align	4
 _sp_3072_sqr_24:
 #endif /* __APPLE__ */
@@ -23139,12 +23251,14 @@ _sp_3072_sqr_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sqr_avx2_24
+WC_ASM_ATT_HIDDEN(sp_3072_sqr_avx2_24)
 .type	sp_3072_sqr_avx2_24,@function
 .align	16
 sp_3072_sqr_avx2_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sqr_avx2_24
+WC_ASM_ATT_HIDDEN(_sp_3072_sqr_avx2_24)
 .p2align	4
 _sp_3072_sqr_avx2_24:
 #endif /* __APPLE__ */
@@ -23564,12 +23678,14 @@ _sp_3072_sqr_avx2_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sqr_48
+WC_ASM_ATT_HIDDEN(sp_3072_sqr_48)
 .type	sp_3072_sqr_48,@function
 .align	16
 sp_3072_sqr_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sqr_48
+WC_ASM_ATT_HIDDEN(_sp_3072_sqr_48)
 .p2align	4
 _sp_3072_sqr_48:
 #endif /* __APPLE__ */
@@ -24337,12 +24453,14 @@ _sp_3072_sqr_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sqr_avx2_48
+WC_ASM_ATT_HIDDEN(sp_3072_sqr_avx2_48)
 .type	sp_3072_sqr_avx2_48,@function
 .align	16
 sp_3072_sqr_avx2_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sqr_avx2_48
+WC_ASM_ATT_HIDDEN(_sp_3072_sqr_avx2_48)
 .p2align	4
 _sp_3072_sqr_avx2_48:
 #endif /* __APPLE__ */
@@ -25109,12 +25227,14 @@ _sp_3072_sqr_avx2_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_d_48
+WC_ASM_ATT_HIDDEN(sp_3072_mul_d_48)
 .type	sp_3072_mul_d_48,@function
 .align	16
 sp_3072_mul_d_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_d_48
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_d_48)
 .p2align	4
 _sp_3072_mul_d_48:
 #endif /* __APPLE__ */
@@ -25517,12 +25637,14 @@ _sp_3072_mul_d_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cond_sub_24
+WC_ASM_ATT_HIDDEN(sp_3072_cond_sub_24)
 .type	sp_3072_cond_sub_24,@function
 .align	16
 sp_3072_cond_sub_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cond_sub_24
+WC_ASM_ATT_HIDDEN(_sp_3072_cond_sub_24)
 .p2align	4
 _sp_3072_cond_sub_24:
 #endif /* __APPLE__ */
@@ -25711,12 +25833,14 @@ _sp_3072_cond_sub_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mont_reduce_24
+WC_ASM_ATT_HIDDEN(sp_3072_mont_reduce_24)
 .type	sp_3072_mont_reduce_24,@function
 .align	16
 sp_3072_mont_reduce_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mont_reduce_24
+WC_ASM_ATT_HIDDEN(_sp_3072_mont_reduce_24)
 .p2align	4
 _sp_3072_mont_reduce_24:
 #endif /* __APPLE__ */
@@ -26014,12 +26138,14 @@ L_3072_mont_reduce_24_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cond_sub_avx2_24
+WC_ASM_ATT_HIDDEN(sp_3072_cond_sub_avx2_24)
 .type	sp_3072_cond_sub_avx2_24,@function
 .align	16
 sp_3072_cond_sub_avx2_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cond_sub_avx2_24
+WC_ASM_ATT_HIDDEN(_sp_3072_cond_sub_avx2_24)
 .p2align	4
 _sp_3072_cond_sub_avx2_24:
 #endif /* __APPLE__ */
@@ -26158,12 +26284,14 @@ _sp_3072_cond_sub_avx2_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_d_24
+WC_ASM_ATT_HIDDEN(sp_3072_mul_d_24)
 .type	sp_3072_mul_d_24,@function
 .align	16
 sp_3072_mul_d_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_d_24
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_d_24)
 .p2align	4
 _sp_3072_mul_d_24:
 #endif /* __APPLE__ */
@@ -26372,12 +26500,14 @@ _sp_3072_mul_d_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_d_avx2_24
+WC_ASM_ATT_HIDDEN(sp_3072_mul_d_avx2_24)
 .type	sp_3072_mul_d_avx2_24,@function
 .align	16
 sp_3072_mul_d_avx2_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_d_avx2_24
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_d_avx2_24)
 .p2align	4
 _sp_3072_mul_d_avx2_24:
 #endif /* __APPLE__ */
@@ -26544,12 +26674,14 @@ _sp_3072_mul_d_avx2_24:
 #ifndef __APPLE__
 .text
 .globl	div_3072_word_asm_24
+WC_ASM_ATT_HIDDEN(div_3072_word_asm_24)
 .type	div_3072_word_asm_24,@function
 .align	16
 div_3072_word_asm_24:
 #else
 .section	__TEXT,__text
 .globl	_div_3072_word_asm_24
+WC_ASM_ATT_HIDDEN(_div_3072_word_asm_24)
 .p2align	4
 _div_3072_word_asm_24:
 #endif /* __APPLE__ */
@@ -26573,12 +26705,14 @@ _div_3072_word_asm_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cmp_24
+WC_ASM_ATT_HIDDEN(sp_3072_cmp_24)
 .type	sp_3072_cmp_24,@function
 .align	16
 sp_3072_cmp_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cmp_24
+WC_ASM_ATT_HIDDEN(_sp_3072_cmp_24)
 .p2align	4
 _sp_3072_cmp_24:
 #endif /* __APPLE__ */
@@ -26794,12 +26928,14 @@ _sp_3072_cmp_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mont_reduce_avx2_24
+WC_ASM_ATT_HIDDEN(sp_3072_mont_reduce_avx2_24)
 .type	sp_3072_mont_reduce_avx2_24,@function
 .align	16
 sp_3072_mont_reduce_avx2_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mont_reduce_avx2_24
+WC_ASM_ATT_HIDDEN(_sp_3072_mont_reduce_avx2_24)
 .p2align	4
 _sp_3072_mont_reduce_avx2_24:
 #endif /* __APPLE__ */
@@ -27112,18 +27248,20 @@ L_3072_mont_reduce_avx2_24_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_get_from_table_avx2_24
+WC_ASM_ATT_HIDDEN(sp_3072_get_from_table_avx2_24)
 .type	sp_3072_get_from_table_avx2_24,@function
 .align	16
 sp_3072_get_from_table_avx2_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_get_from_table_avx2_24
+WC_ASM_ATT_HIDDEN(_sp_3072_get_from_table_avx2_24)
 .p2align	4
 _sp_3072_get_from_table_avx2_24:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -28027,12 +28165,14 @@ _sp_3072_get_from_table_avx2_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cond_sub_48
+WC_ASM_ATT_HIDDEN(sp_3072_cond_sub_48)
 .type	sp_3072_cond_sub_48,@function
 .align	16
 sp_3072_cond_sub_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cond_sub_48
+WC_ASM_ATT_HIDDEN(_sp_3072_cond_sub_48)
 .p2align	4
 _sp_3072_cond_sub_48:
 #endif /* __APPLE__ */
@@ -28389,12 +28529,14 @@ _sp_3072_cond_sub_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mont_reduce_48
+WC_ASM_ATT_HIDDEN(sp_3072_mont_reduce_48)
 .type	sp_3072_mont_reduce_48,@function
 .align	16
 sp_3072_mont_reduce_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mont_reduce_48
+WC_ASM_ATT_HIDDEN(_sp_3072_mont_reduce_48)
 .p2align	4
 _sp_3072_mont_reduce_48:
 #endif /* __APPLE__ */
@@ -28928,12 +29070,14 @@ L_3072_mont_reduce_48_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_sub_48
+WC_ASM_ATT_HIDDEN(sp_3072_sub_48)
 .type	sp_3072_sub_48,@function
 .align	16
 sp_3072_sub_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_sub_48
+WC_ASM_ATT_HIDDEN(_sp_3072_sub_48)
 .p2align	4
 _sp_3072_sub_48:
 #endif /* __APPLE__ */
@@ -29096,12 +29240,14 @@ _sp_3072_sub_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mul_d_avx2_48
+WC_ASM_ATT_HIDDEN(sp_3072_mul_d_avx2_48)
 .type	sp_3072_mul_d_avx2_48,@function
 .align	16
 sp_3072_mul_d_avx2_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mul_d_avx2_48
+WC_ASM_ATT_HIDDEN(_sp_3072_mul_d_avx2_48)
 .p2align	4
 _sp_3072_mul_d_avx2_48:
 #endif /* __APPLE__ */
@@ -29412,12 +29558,14 @@ _sp_3072_mul_d_avx2_48:
 #ifndef __APPLE__
 .text
 .globl	div_3072_word_asm_48
+WC_ASM_ATT_HIDDEN(div_3072_word_asm_48)
 .type	div_3072_word_asm_48,@function
 .align	16
 div_3072_word_asm_48:
 #else
 .section	__TEXT,__text
 .globl	_div_3072_word_asm_48
+WC_ASM_ATT_HIDDEN(_div_3072_word_asm_48)
 .p2align	4
 _div_3072_word_asm_48:
 #endif /* __APPLE__ */
@@ -29443,12 +29591,14 @@ _div_3072_word_asm_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cond_sub_avx2_48
+WC_ASM_ATT_HIDDEN(sp_3072_cond_sub_avx2_48)
 .type	sp_3072_cond_sub_avx2_48,@function
 .align	16
 sp_3072_cond_sub_avx2_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cond_sub_avx2_48
+WC_ASM_ATT_HIDDEN(_sp_3072_cond_sub_avx2_48)
 .p2align	4
 _sp_3072_cond_sub_avx2_48:
 #endif /* __APPLE__ */
@@ -29709,12 +29859,14 @@ _sp_3072_cond_sub_avx2_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cmp_48
+WC_ASM_ATT_HIDDEN(sp_3072_cmp_48)
 .type	sp_3072_cmp_48,@function
 .align	16
 sp_3072_cmp_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cmp_48
+WC_ASM_ATT_HIDDEN(_sp_3072_cmp_48)
 .p2align	4
 _sp_3072_cmp_48:
 #endif /* __APPLE__ */
@@ -30122,12 +30274,14 @@ _sp_3072_cmp_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_mont_reduce_avx2_48
+WC_ASM_ATT_HIDDEN(sp_3072_mont_reduce_avx2_48)
 .type	sp_3072_mont_reduce_avx2_48,@function
 .align	16
 sp_3072_mont_reduce_avx2_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_mont_reduce_avx2_48
+WC_ASM_ATT_HIDDEN(_sp_3072_mont_reduce_avx2_48)
 .p2align	4
 _sp_3072_mont_reduce_avx2_48:
 #endif /* __APPLE__ */
@@ -30704,18 +30858,20 @@ L_3072_mont_reduce_avx2_48_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_get_from_table_avx2_48
+WC_ASM_ATT_HIDDEN(sp_3072_get_from_table_avx2_48)
 .type	sp_3072_get_from_table_avx2_48,@function
 .align	16
 sp_3072_get_from_table_avx2_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_get_from_table_avx2_48
+WC_ASM_ATT_HIDDEN(_sp_3072_get_from_table_avx2_48)
 .p2align	4
 _sp_3072_get_from_table_avx2_48:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -31571,12 +31727,14 @@ _sp_3072_get_from_table_avx2_48:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cond_add_24
+WC_ASM_ATT_HIDDEN(sp_3072_cond_add_24)
 .type	sp_3072_cond_add_24,@function
 .align	16
 sp_3072_cond_add_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cond_add_24
+WC_ASM_ATT_HIDDEN(_sp_3072_cond_add_24)
 .p2align	4
 _sp_3072_cond_add_24:
 #endif /* __APPLE__ */
@@ -31769,12 +31927,14 @@ _sp_3072_cond_add_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_cond_add_avx2_24
+WC_ASM_ATT_HIDDEN(sp_3072_cond_add_avx2_24)
 .type	sp_3072_cond_add_avx2_24,@function
 .align	16
 sp_3072_cond_add_avx2_24:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_cond_add_avx2_24
+WC_ASM_ATT_HIDDEN(_sp_3072_cond_add_avx2_24)
 .p2align	4
 _sp_3072_cond_add_avx2_24:
 #endif /* __APPLE__ */
@@ -31914,12 +32074,14 @@ _sp_3072_cond_add_avx2_24:
 #ifndef __APPLE__
 .text
 .globl	sp_3072_lshift_48
+WC_ASM_ATT_HIDDEN(sp_3072_lshift_48)
 .type	sp_3072_lshift_48,@function
 .align	16
 sp_3072_lshift_48:
 #else
 .section	__TEXT,__text
 .globl	_sp_3072_lshift_48
+WC_ASM_ATT_HIDDEN(_sp_3072_lshift_48)
 .p2align	4
 _sp_3072_lshift_48:
 #endif /* __APPLE__ */
@@ -32090,12 +32252,14 @@ _sp_3072_lshift_48:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_from_bin_bswap
+WC_ASM_ATT_HIDDEN(sp_4096_from_bin_bswap)
 .type	sp_4096_from_bin_bswap,@function
 .align	16
 sp_4096_from_bin_bswap:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_from_bin_bswap
+WC_ASM_ATT_HIDDEN(_sp_4096_from_bin_bswap)
 .p2align	4
 _sp_4096_from_bin_bswap:
 #endif /* __APPLE__ */
@@ -32185,12 +32349,14 @@ L_4096_from_bin_bswap_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_from_bin_movbe
+WC_ASM_ATT_HIDDEN(sp_4096_from_bin_movbe)
 .type	sp_4096_from_bin_movbe,@function
 .align	16
 sp_4096_from_bin_movbe:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_from_bin_movbe
+WC_ASM_ATT_HIDDEN(_sp_4096_from_bin_movbe)
 .p2align	4
 _sp_4096_from_bin_movbe:
 #endif /* __APPLE__ */
@@ -32269,12 +32435,14 @@ L_4096_from_bin_movbe_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_to_bin_bswap_64
+WC_ASM_ATT_HIDDEN(sp_4096_to_bin_bswap_64)
 .type	sp_4096_to_bin_bswap_64,@function
 .align	16
 sp_4096_to_bin_bswap_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_to_bin_bswap_64
+WC_ASM_ATT_HIDDEN(_sp_4096_to_bin_bswap_64)
 .p2align	4
 _sp_4096_to_bin_bswap_64:
 #endif /* __APPLE__ */
@@ -32485,12 +32653,14 @@ _sp_4096_to_bin_bswap_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_to_bin_movbe_64
+WC_ASM_ATT_HIDDEN(sp_4096_to_bin_movbe_64)
 .type	sp_4096_to_bin_movbe_64,@function
 .align	16
 sp_4096_to_bin_movbe_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_to_bin_movbe_64
+WC_ASM_ATT_HIDDEN(_sp_4096_to_bin_movbe_64)
 .p2align	4
 _sp_4096_to_bin_movbe_64:
 #endif /* __APPLE__ */
@@ -32635,12 +32805,14 @@ _sp_4096_to_bin_movbe_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_sub_in_place_64
+WC_ASM_ATT_HIDDEN(sp_4096_sub_in_place_64)
 .type	sp_4096_sub_in_place_64,@function
 .align	16
 sp_4096_sub_in_place_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_sub_in_place_64
+WC_ASM_ATT_HIDDEN(_sp_4096_sub_in_place_64)
 .p2align	4
 _sp_4096_sub_in_place_64:
 #endif /* __APPLE__ */
@@ -32850,12 +33022,14 @@ _sp_4096_sub_in_place_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_add_64
+WC_ASM_ATT_HIDDEN(sp_4096_add_64)
 .type	sp_4096_add_64,@function
 .align	16
 sp_4096_add_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_add_64
+WC_ASM_ATT_HIDDEN(_sp_4096_add_64)
 .p2align	4
 _sp_4096_add_64:
 #endif /* __APPLE__ */
@@ -33067,12 +33241,14 @@ _sp_4096_add_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_mul_64
+WC_ASM_ATT_HIDDEN(sp_4096_mul_64)
 .type	sp_4096_mul_64,@function
 .align	16
 sp_4096_mul_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_mul_64
+WC_ASM_ATT_HIDDEN(_sp_4096_mul_64)
 .p2align	4
 _sp_4096_mul_64:
 #endif /* __APPLE__ */
@@ -34416,12 +34592,14 @@ _sp_4096_mul_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_mul_avx2_64
+WC_ASM_ATT_HIDDEN(sp_4096_mul_avx2_64)
 .type	sp_4096_mul_avx2_64,@function
 .align	16
 sp_4096_mul_avx2_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_mul_avx2_64
+WC_ASM_ATT_HIDDEN(_sp_4096_mul_avx2_64)
 .p2align	4
 _sp_4096_mul_avx2_64:
 #endif /* __APPLE__ */
@@ -35670,12 +35848,14 @@ _sp_4096_mul_avx2_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_sqr_64
+WC_ASM_ATT_HIDDEN(sp_4096_sqr_64)
 .type	sp_4096_sqr_64,@function
 .align	16
 sp_4096_sqr_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_sqr_64
+WC_ASM_ATT_HIDDEN(_sp_4096_sqr_64)
 .p2align	4
 _sp_4096_sqr_64:
 #endif /* __APPLE__ */
@@ -36675,12 +36855,14 @@ _sp_4096_sqr_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_sqr_avx2_64
+WC_ASM_ATT_HIDDEN(sp_4096_sqr_avx2_64)
 .type	sp_4096_sqr_avx2_64,@function
 .align	16
 sp_4096_sqr_avx2_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_sqr_avx2_64
+WC_ASM_ATT_HIDDEN(_sp_4096_sqr_avx2_64)
 .p2align	4
 _sp_4096_sqr_avx2_64:
 #endif /* __APPLE__ */
@@ -37679,12 +37861,14 @@ _sp_4096_sqr_avx2_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_mul_d_64
+WC_ASM_ATT_HIDDEN(sp_4096_mul_d_64)
 .type	sp_4096_mul_d_64,@function
 .align	16
 sp_4096_mul_d_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_mul_d_64
+WC_ASM_ATT_HIDDEN(_sp_4096_mul_d_64)
 .p2align	4
 _sp_4096_mul_d_64:
 #endif /* __APPLE__ */
@@ -38215,12 +38399,14 @@ _sp_4096_mul_d_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_cond_sub_64
+WC_ASM_ATT_HIDDEN(sp_4096_cond_sub_64)
 .type	sp_4096_cond_sub_64,@function
 .align	16
 sp_4096_cond_sub_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_cond_sub_64
+WC_ASM_ATT_HIDDEN(_sp_4096_cond_sub_64)
 .p2align	4
 _sp_4096_cond_sub_64:
 #endif /* __APPLE__ */
@@ -38689,12 +38875,14 @@ _sp_4096_cond_sub_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_mont_reduce_64
+WC_ASM_ATT_HIDDEN(sp_4096_mont_reduce_64)
 .type	sp_4096_mont_reduce_64,@function
 .align	16
 sp_4096_mont_reduce_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_mont_reduce_64
+WC_ASM_ATT_HIDDEN(_sp_4096_mont_reduce_64)
 .p2align	4
 _sp_4096_mont_reduce_64:
 #endif /* __APPLE__ */
@@ -39388,12 +39576,14 @@ L_4096_mont_reduce_64_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_sub_64
+WC_ASM_ATT_HIDDEN(sp_4096_sub_64)
 .type	sp_4096_sub_64,@function
 .align	16
 sp_4096_sub_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_sub_64
+WC_ASM_ATT_HIDDEN(_sp_4096_sub_64)
 .p2align	4
 _sp_4096_sub_64:
 #endif /* __APPLE__ */
@@ -39604,12 +39794,14 @@ _sp_4096_sub_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_mul_d_avx2_64
+WC_ASM_ATT_HIDDEN(sp_4096_mul_d_avx2_64)
 .type	sp_4096_mul_d_avx2_64,@function
 .align	16
 sp_4096_mul_d_avx2_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_mul_d_avx2_64
+WC_ASM_ATT_HIDDEN(_sp_4096_mul_d_avx2_64)
 .p2align	4
 _sp_4096_mul_d_avx2_64:
 #endif /* __APPLE__ */
@@ -40016,12 +40208,14 @@ _sp_4096_mul_d_avx2_64:
 #ifndef __APPLE__
 .text
 .globl	div_4096_word_asm_64
+WC_ASM_ATT_HIDDEN(div_4096_word_asm_64)
 .type	div_4096_word_asm_64,@function
 .align	16
 div_4096_word_asm_64:
 #else
 .section	__TEXT,__text
 .globl	_div_4096_word_asm_64
+WC_ASM_ATT_HIDDEN(_div_4096_word_asm_64)
 .p2align	4
 _div_4096_word_asm_64:
 #endif /* __APPLE__ */
@@ -40047,12 +40241,14 @@ _div_4096_word_asm_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_cond_sub_avx2_64
+WC_ASM_ATT_HIDDEN(sp_4096_cond_sub_avx2_64)
 .type	sp_4096_cond_sub_avx2_64,@function
 .align	16
 sp_4096_cond_sub_avx2_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_cond_sub_avx2_64
+WC_ASM_ATT_HIDDEN(_sp_4096_cond_sub_avx2_64)
 .p2align	4
 _sp_4096_cond_sub_avx2_64:
 #endif /* __APPLE__ */
@@ -40393,12 +40589,14 @@ _sp_4096_cond_sub_avx2_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_cmp_64
+WC_ASM_ATT_HIDDEN(sp_4096_cmp_64)
 .type	sp_4096_cmp_64,@function
 .align	16
 sp_4096_cmp_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_cmp_64
+WC_ASM_ATT_HIDDEN(_sp_4096_cmp_64)
 .p2align	4
 _sp_4096_cmp_64:
 #endif /* __APPLE__ */
@@ -40934,12 +41132,14 @@ _sp_4096_cmp_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_mont_reduce_avx2_64
+WC_ASM_ATT_HIDDEN(sp_4096_mont_reduce_avx2_64)
 .type	sp_4096_mont_reduce_avx2_64,@function
 .align	16
 sp_4096_mont_reduce_avx2_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_mont_reduce_avx2_64
+WC_ASM_ATT_HIDDEN(_sp_4096_mont_reduce_avx2_64)
 .p2align	4
 _sp_4096_mont_reduce_avx2_64:
 #endif /* __APPLE__ */
@@ -41692,18 +41892,20 @@ L_4096_mont_reduce_avx2_64_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_get_from_table_avx2_64
+WC_ASM_ATT_HIDDEN(sp_4096_get_from_table_avx2_64)
 .type	sp_4096_get_from_table_avx2_64,@function
 .align	16
 sp_4096_get_from_table_avx2_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_get_from_table_avx2_64
+WC_ASM_ATT_HIDDEN(_sp_4096_get_from_table_avx2_64)
 .p2align	4
 _sp_4096_get_from_table_avx2_64:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%rdx, %xmm10
-        movd	%rax, %xmm11
+        vmovq	%rdx, %xmm10
+        vmovq	%rax, %xmm11
         vpxor	%ymm13, %ymm13, %ymm13
         vpermd	%ymm10, %ymm13, %ymm10
         vpermd	%ymm11, %ymm13, %ymm11
@@ -42843,12 +43045,14 @@ _sp_4096_get_from_table_avx2_64:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_cond_add_32
+WC_ASM_ATT_HIDDEN(sp_4096_cond_add_32)
 .type	sp_4096_cond_add_32,@function
 .align	16
 sp_4096_cond_add_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_cond_add_32
+WC_ASM_ATT_HIDDEN(_sp_4096_cond_add_32)
 .p2align	4
 _sp_4096_cond_add_32:
 #endif /* __APPLE__ */
@@ -43097,12 +43301,14 @@ _sp_4096_cond_add_32:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_cond_add_avx2_32
+WC_ASM_ATT_HIDDEN(sp_4096_cond_add_avx2_32)
 .type	sp_4096_cond_add_avx2_32,@function
 .align	16
 sp_4096_cond_add_avx2_32:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_cond_add_avx2_32
+WC_ASM_ATT_HIDDEN(_sp_4096_cond_add_avx2_32)
 .p2align	4
 _sp_4096_cond_add_avx2_32:
 #endif /* __APPLE__ */
@@ -43282,12 +43488,14 @@ _sp_4096_cond_add_avx2_32:
 #ifndef __APPLE__
 .text
 .globl	sp_4096_lshift_64
+WC_ASM_ATT_HIDDEN(sp_4096_lshift_64)
 .type	sp_4096_lshift_64,@function
 .align	16
 sp_4096_lshift_64:
 #else
 .section	__TEXT,__text
 .globl	_sp_4096_lshift_64
+WC_ASM_ATT_HIDDEN(_sp_4096_lshift_64)
 .p2align	4
 _sp_4096_lshift_64:
 #endif /* __APPLE__ */
@@ -43503,12 +43711,14 @@ _sp_4096_lshift_64:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mul_4
+WC_ASM_ATT_HIDDEN(sp_256_mul_4)
 .type	sp_256_mul_4,@function
 .align	16
 sp_256_mul_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mul_4
+WC_ASM_ATT_HIDDEN(_sp_256_mul_4)
 .p2align	4
 _sp_256_mul_4:
 #endif /* __APPLE__ */
@@ -43644,12 +43854,14 @@ _sp_256_mul_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mul_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mul_avx2_4)
 .type	sp_256_mul_avx2_4,@function
 .align	16
 sp_256_mul_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mul_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mul_avx2_4)
 .p2align	4
 _sp_256_mul_avx2_4:
 #endif /* __APPLE__ */
@@ -43759,12 +43971,14 @@ _sp_256_mul_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_sqr_4
+WC_ASM_ATT_HIDDEN(sp_256_sqr_4)
 .type	sp_256_sqr_4,@function
 .align	16
 sp_256_sqr_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_sqr_4
+WC_ASM_ATT_HIDDEN(_sp_256_sqr_4)
 .p2align	4
 _sp_256_sqr_4:
 #endif /* __APPLE__ */
@@ -43882,12 +44096,14 @@ _sp_256_sqr_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_sqr_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_sqr_avx2_4)
 .type	sp_256_sqr_avx2_4,@function
 .align	16
 sp_256_sqr_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_sqr_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_sqr_avx2_4)
 .p2align	4
 _sp_256_sqr_avx2_4:
 #endif /* __APPLE__ */
@@ -43980,12 +44196,14 @@ _sp_256_sqr_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_add_4
+WC_ASM_ATT_HIDDEN(sp_256_add_4)
 .type	sp_256_add_4,@function
 .align	16
 sp_256_add_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_add_4
+WC_ASM_ATT_HIDDEN(_sp_256_add_4)
 .p2align	4
 _sp_256_add_4:
 #endif /* __APPLE__ */
@@ -44016,12 +44234,14 @@ _sp_256_add_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_sub_4
+WC_ASM_ATT_HIDDEN(sp_256_sub_4)
 .type	sp_256_sub_4,@function
 .align	16
 sp_256_sub_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_sub_4
+WC_ASM_ATT_HIDDEN(_sp_256_sub_4)
 .p2align	4
 _sp_256_sub_4:
 #endif /* __APPLE__ */
@@ -44053,12 +44273,14 @@ _sp_256_sub_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_cond_copy_4
+WC_ASM_ATT_HIDDEN(sp_256_cond_copy_4)
 .type	sp_256_cond_copy_4,@function
 .align	16
 sp_256_cond_copy_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_cond_copy_4
+WC_ASM_ATT_HIDDEN(_sp_256_cond_copy_4)
 .p2align	4
 _sp_256_cond_copy_4:
 #endif /* __APPLE__ */
@@ -44094,12 +44316,14 @@ _sp_256_cond_copy_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_mul_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_mul_4)
 .type	sp_256_mont_mul_4,@function
 .align	16
 sp_256_mont_mul_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_mul_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_mul_4)
 .p2align	4
 _sp_256_mont_mul_4:
 #endif /* __APPLE__ */
@@ -44297,12 +44521,14 @@ _sp_256_mont_mul_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_sqr_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_sqr_4)
 .type	sp_256_mont_sqr_4,@function
 .align	16
 sp_256_mont_sqr_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_sqr_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_sqr_4)
 .p2align	4
 _sp_256_mont_sqr_4:
 #endif /* __APPLE__ */
@@ -44471,12 +44697,14 @@ _sp_256_mont_sqr_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_cmp_4
+WC_ASM_ATT_HIDDEN(sp_256_cmp_4)
 .type	sp_256_cmp_4,@function
 .align	16
 sp_256_cmp_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_cmp_4
+WC_ASM_ATT_HIDDEN(_sp_256_cmp_4)
 .p2align	4
 _sp_256_cmp_4:
 #endif /* __APPLE__ */
@@ -44533,12 +44761,14 @@ _sp_256_cmp_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_cond_sub_4
+WC_ASM_ATT_HIDDEN(sp_256_cond_sub_4)
 .type	sp_256_cond_sub_4,@function
 .align	16
 sp_256_cond_sub_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_cond_sub_4
+WC_ASM_ATT_HIDDEN(_sp_256_cond_sub_4)
 .p2align	4
 _sp_256_cond_sub_4:
 #endif /* __APPLE__ */
@@ -44585,12 +44815,14 @@ _sp_256_cond_sub_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_reduce_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_reduce_4)
 .type	sp_256_mont_reduce_4,@function
 .align	16
 sp_256_mont_reduce_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_reduce_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_reduce_4)
 .p2align	4
 _sp_256_mont_reduce_4:
 #endif /* __APPLE__ */
@@ -44697,12 +44929,14 @@ _sp_256_mont_reduce_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_reduce_order_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_reduce_order_4)
 .type	sp_256_mont_reduce_order_4,@function
 .align	16
 sp_256_mont_reduce_order_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_reduce_order_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_reduce_order_4)
 .p2align	4
 _sp_256_mont_reduce_order_4:
 #endif /* __APPLE__ */
@@ -44806,12 +45040,14 @@ L_mont_loop_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_add_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_add_4)
 .type	sp_256_mont_add_4,@function
 .align	16
 sp_256_mont_add_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_add_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_add_4)
 .p2align	4
 _sp_256_mont_add_4:
 #endif /* __APPLE__ */
@@ -44855,12 +45091,14 @@ _sp_256_mont_add_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_dbl_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_dbl_4)
 .type	sp_256_mont_dbl_4,@function
 .align	16
 sp_256_mont_dbl_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_dbl_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_dbl_4)
 .p2align	4
 _sp_256_mont_dbl_4:
 #endif /* __APPLE__ */
@@ -44905,12 +45143,14 @@ _sp_256_mont_dbl_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_tpl_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_tpl_4)
 .type	sp_256_mont_tpl_4,@function
 .align	16
 sp_256_mont_tpl_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_tpl_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_tpl_4)
 .p2align	4
 _sp_256_mont_tpl_4:
 #endif /* __APPLE__ */
@@ -44974,12 +45214,14 @@ _sp_256_mont_tpl_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_sub_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_sub_4)
 .type	sp_256_mont_sub_4,@function
 .align	16
 sp_256_mont_sub_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_sub_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_sub_4)
 .p2align	4
 _sp_256_mont_sub_4:
 #endif /* __APPLE__ */
@@ -45023,12 +45265,14 @@ _sp_256_mont_sub_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_div2_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_div2_4)
 .type	sp_256_mont_div2_4,@function
 .align	16
 sp_256_mont_div2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_div2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_div2_4)
 .p2align	4
 _sp_256_mont_div2_4:
 #endif /* __APPLE__ */
@@ -45070,12 +45314,14 @@ _sp_256_mont_div2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_rsb_sub_dbl_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_rsb_sub_dbl_4)
 .type	sp_256_mont_rsb_sub_dbl_4,@function
 .align	16
 sp_256_mont_rsb_sub_dbl_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_rsb_sub_dbl_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_rsb_sub_dbl_4)
 .p2align	4
 _sp_256_mont_rsb_sub_dbl_4:
 #endif /* __APPLE__ */
@@ -45178,17 +45424,19 @@ _sp_256_mont_rsb_sub_dbl_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_get_point_33_4
+WC_ASM_ATT_HIDDEN(sp_256_get_point_33_4)
 .type	sp_256_get_point_33_4,@function
 .align	16
 sp_256_get_point_33_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_get_point_33_4
+WC_ASM_ATT_HIDDEN(_sp_256_get_point_33_4)
 .p2align	4
 _sp_256_get_point_33_4:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm13
+        vmovd	%edx, %xmm13
         addq	$0xc8, %rsi
         movd	%eax, %xmm15
         movq	$32, %rax
@@ -45247,19 +45495,21 @@ L_256_get_point_33_4_start_1:
 #ifndef __APPLE__
 .text
 .globl	sp_256_get_point_33_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_get_point_33_avx2_4)
 .type	sp_256_get_point_33_avx2_4,@function
 .align	16
 sp_256_get_point_33_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_get_point_33_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_get_point_33_avx2_4)
 .p2align	4
 _sp_256_get_point_33_avx2_4:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm7
+        vmovd	%edx, %xmm7
         addq	$0xc8, %rsi
-        movd	%eax, %xmm9
+        vmovd	%eax, %xmm9
         movq	$32, %rax
         vpxor	%ymm8, %ymm8, %ymm8
         vpermd	%ymm7, %ymm8, %ymm7
@@ -45305,12 +45555,14 @@ L_256_get_point_33_avx2_4_start:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_mul_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_mul_avx2_4)
 .type	sp_256_mont_mul_avx2_4,@function
 .align	16
 sp_256_mont_mul_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_mul_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_mul_avx2_4)
 .p2align	4
 _sp_256_mont_mul_avx2_4:
 #endif /* __APPLE__ */
@@ -45486,12 +45738,14 @@ _sp_256_mont_mul_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_sqr_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_sqr_avx2_4)
 .type	sp_256_mont_sqr_avx2_4,@function
 .align	16
 sp_256_mont_sqr_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_sqr_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_sqr_avx2_4)
 .p2align	4
 _sp_256_mont_sqr_avx2_4:
 #endif /* __APPLE__ */
@@ -45651,12 +45905,14 @@ _sp_256_mont_sqr_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_cond_sub_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_cond_sub_avx2_4)
 .type	sp_256_cond_sub_avx2_4,@function
 .align	16
 sp_256_cond_sub_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_cond_sub_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_cond_sub_avx2_4)
 .p2align	4
 _sp_256_cond_sub_avx2_4:
 #endif /* __APPLE__ */
@@ -45705,12 +45961,14 @@ _sp_256_cond_sub_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_reduce_order_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_reduce_order_avx2_4)
 .type	sp_256_mont_reduce_order_avx2_4,@function
 .align	16
 sp_256_mont_reduce_order_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_reduce_order_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_reduce_order_avx2_4)
 .p2align	4
 _sp_256_mont_reduce_order_avx2_4:
 #endif /* __APPLE__ */
@@ -45869,12 +46127,14 @@ _sp_256_mont_reduce_order_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_div2_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_div2_avx2_4)
 .type	sp_256_mont_div2_avx2_4,@function
 .align	16
 sp_256_mont_div2_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_div2_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_div2_avx2_4)
 .p2align	4
 _sp_256_mont_div2_avx2_4:
 #endif /* __APPLE__ */
@@ -45917,12 +46177,14 @@ _sp_256_mont_div2_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_get_entry_64_4
+WC_ASM_ATT_HIDDEN(sp_256_get_entry_64_4)
 .type	sp_256_get_entry_64_4,@function
 .align	16
 sp_256_get_entry_64_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_get_entry_64_4
+WC_ASM_ATT_HIDDEN(_sp_256_get_entry_64_4)
 .p2align	4
 _sp_256_get_entry_64_4:
 #endif /* __APPLE__ */
@@ -45977,19 +46239,21 @@ L_256_get_entry_64_4_start_0:
 #ifndef __APPLE__
 .text
 .globl	sp_256_get_entry_64_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_get_entry_64_avx2_4)
 .type	sp_256_get_entry_64_avx2_4,@function
 .align	16
 sp_256_get_entry_64_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_get_entry_64_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_get_entry_64_avx2_4)
 .p2align	4
 _sp_256_get_entry_64_avx2_4:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm5
+        vmovd	%edx, %xmm5
         addq	$0x40, %rsi
-        movd	%eax, %xmm7
+        vmovd	%eax, %xmm7
         movq	$0x40, %rax
         vpxor	%ymm6, %ymm6, %ymm6
         vpermd	%ymm5, %ymm6, %ymm5
@@ -46027,12 +46291,14 @@ L_256_get_entry_64_avx2_4_start:
 #ifndef __APPLE__
 .text
 .globl	sp_256_get_entry_65_4
+WC_ASM_ATT_HIDDEN(sp_256_get_entry_65_4)
 .type	sp_256_get_entry_65_4,@function
 .align	16
 sp_256_get_entry_65_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_get_entry_65_4
+WC_ASM_ATT_HIDDEN(_sp_256_get_entry_65_4)
 .p2align	4
 _sp_256_get_entry_65_4:
 #endif /* __APPLE__ */
@@ -46087,19 +46353,21 @@ L_256_get_entry_65_4_start_0:
 #ifndef __APPLE__
 .text
 .globl	sp_256_get_entry_65_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_get_entry_65_avx2_4)
 .type	sp_256_get_entry_65_avx2_4,@function
 .align	16
 sp_256_get_entry_65_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_get_entry_65_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_get_entry_65_avx2_4)
 .p2align	4
 _sp_256_get_entry_65_avx2_4:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm5
+        vmovd	%edx, %xmm5
         addq	$0x40, %rsi
-        movd	%eax, %xmm7
+        vmovd	%eax, %xmm7
         movq	$0x41, %rax
         vpxor	%ymm6, %ymm6, %ymm6
         vpermd	%ymm5, %ymm6, %ymm5
@@ -46134,12 +46402,14 @@ L_256_get_entry_65_avx2_4_start:
 #ifndef __APPLE__
 .text
 .globl	sp_256_add_one_4
+WC_ASM_ATT_HIDDEN(sp_256_add_one_4)
 .type	sp_256_add_one_4,@function
 .align	16
 sp_256_add_one_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_add_one_4
+WC_ASM_ATT_HIDDEN(_sp_256_add_one_4)
 .p2align	4
 _sp_256_add_one_4:
 #endif /* __APPLE__ */
@@ -46162,12 +46432,14 @@ _sp_256_add_one_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_from_bin_bswap
+WC_ASM_ATT_HIDDEN(sp_256_from_bin_bswap)
 .type	sp_256_from_bin_bswap,@function
 .align	16
 sp_256_from_bin_bswap:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_from_bin_bswap
+WC_ASM_ATT_HIDDEN(_sp_256_from_bin_bswap)
 .p2align	4
 _sp_256_from_bin_bswap:
 #endif /* __APPLE__ */
@@ -46257,12 +46529,14 @@ L_256_from_bin_bswap_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_256_from_bin_movbe
+WC_ASM_ATT_HIDDEN(sp_256_from_bin_movbe)
 .type	sp_256_from_bin_movbe,@function
 .align	16
 sp_256_from_bin_movbe:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_from_bin_movbe
+WC_ASM_ATT_HIDDEN(_sp_256_from_bin_movbe)
 .p2align	4
 _sp_256_from_bin_movbe:
 #endif /* __APPLE__ */
@@ -46341,12 +46615,14 @@ L_256_from_bin_movbe_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_256_to_bin_bswap_4
+WC_ASM_ATT_HIDDEN(sp_256_to_bin_bswap_4)
 .type	sp_256_to_bin_bswap_4,@function
 .align	16
 sp_256_to_bin_bswap_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_to_bin_bswap_4
+WC_ASM_ATT_HIDDEN(_sp_256_to_bin_bswap_4)
 .p2align	4
 _sp_256_to_bin_bswap_4:
 #endif /* __APPLE__ */
@@ -46377,12 +46653,14 @@ _sp_256_to_bin_bswap_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_to_bin_movbe_4
+WC_ASM_ATT_HIDDEN(sp_256_to_bin_movbe_4)
 .type	sp_256_to_bin_movbe_4,@function
 .align	16
 sp_256_to_bin_movbe_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_to_bin_movbe_4
+WC_ASM_ATT_HIDDEN(_sp_256_to_bin_movbe_4)
 .p2align	4
 _sp_256_to_bin_movbe_4:
 #endif /* __APPLE__ */
@@ -46407,12 +46685,14 @@ _sp_256_to_bin_movbe_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_sub_in_place_4
+WC_ASM_ATT_HIDDEN(sp_256_sub_in_place_4)
 .type	sp_256_sub_in_place_4,@function
 .align	16
 sp_256_sub_in_place_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_sub_in_place_4
+WC_ASM_ATT_HIDDEN(_sp_256_sub_in_place_4)
 .p2align	4
 _sp_256_sub_in_place_4:
 #endif /* __APPLE__ */
@@ -46438,12 +46718,14 @@ _sp_256_sub_in_place_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mul_d_4
+WC_ASM_ATT_HIDDEN(sp_256_mul_d_4)
 .type	sp_256_mul_d_4,@function
 .align	16
 sp_256_mul_d_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mul_d_4
+WC_ASM_ATT_HIDDEN(_sp_256_mul_d_4)
 .p2align	4
 _sp_256_mul_d_4:
 #endif /* __APPLE__ */
@@ -46492,12 +46774,14 @@ _sp_256_mul_d_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mul_d_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mul_d_avx2_4)
 .type	sp_256_mul_d_avx2_4,@function
 .align	16
 sp_256_mul_d_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mul_d_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mul_d_avx2_4)
 .p2align	4
 _sp_256_mul_d_avx2_4:
 #endif /* __APPLE__ */
@@ -46544,12 +46828,14 @@ _sp_256_mul_d_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	div_256_word_asm_4
+WC_ASM_ATT_HIDDEN(div_256_word_asm_4)
 .type	div_256_word_asm_4,@function
 .align	16
 div_256_word_asm_4:
 #else
 .section	__TEXT,__text
 .globl	_div_256_word_asm_4
+WC_ASM_ATT_HIDDEN(_div_256_word_asm_4)
 .p2align	4
 _div_256_word_asm_4:
 #endif /* __APPLE__ */
@@ -46573,12 +46859,14 @@ _div_256_word_asm_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_mul_order_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_mul_order_avx2_4)
 .type	sp_256_mont_mul_order_avx2_4,@function
 .align	16
 sp_256_mont_mul_order_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_mul_order_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_mul_order_avx2_4)
 .p2align	4
 _sp_256_mont_mul_order_avx2_4:
 #endif /* __APPLE__ */
@@ -46798,12 +47086,14 @@ _sp_256_mont_mul_order_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mont_sqr_order_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mont_sqr_order_avx2_4)
 .type	sp_256_mont_sqr_order_avx2_4,@function
 .align	16
 sp_256_mont_sqr_order_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mont_sqr_order_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mont_sqr_order_avx2_4)
 .p2align	4
 _sp_256_mont_sqr_order_avx2_4:
 #endif /* __APPLE__ */
@@ -47009,12 +47299,14 @@ _sp_256_mont_sqr_order_avx2_4:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mod_inv_4
+WC_ASM_ATT_HIDDEN(sp_256_mod_inv_4)
 .type	sp_256_mod_inv_4,@function
 .align	16
 sp_256_mod_inv_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mod_inv_4
+WC_ASM_ATT_HIDDEN(_sp_256_mod_inv_4)
 .p2align	4
 _sp_256_mod_inv_4:
 #endif /* __APPLE__ */
@@ -47344,12 +47636,14 @@ L_sp256_mod_inv_avx2_4_mask26:
 #ifndef __APPLE__
 .text
 .globl	sp_256_mod_inv_avx2_4
+WC_ASM_ATT_HIDDEN(sp_256_mod_inv_avx2_4)
 .type	sp_256_mod_inv_avx2_4,@function
 .align	16
 sp_256_mod_inv_avx2_4:
 #else
 .section	__TEXT,__text
 .globl	_sp_256_mod_inv_avx2_4
+WC_ASM_ATT_HIDDEN(_sp_256_mod_inv_avx2_4)
 .p2align	4
 _sp_256_mod_inv_avx2_4:
 #endif /* __APPLE__ */
@@ -47653,12 +47947,14 @@ L_256_mod_inv_avx2_4_no_add_order:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mul_6
+WC_ASM_ATT_HIDDEN(sp_384_mul_6)
 .type	sp_384_mul_6,@function
 .align	16
 sp_384_mul_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mul_6
+WC_ASM_ATT_HIDDEN(_sp_384_mul_6)
 .p2align	4
 _sp_384_mul_6:
 #endif /* __APPLE__ */
@@ -47926,12 +48222,14 @@ _sp_384_mul_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mul_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_mul_avx2_6)
 .type	sp_384_mul_avx2_6,@function
 .align	16
 sp_384_mul_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mul_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_mul_avx2_6)
 .p2align	4
 _sp_384_mul_avx2_6:
 #endif /* __APPLE__ */
@@ -48148,12 +48446,14 @@ _sp_384_mul_avx2_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_sqr_6
+WC_ASM_ATT_HIDDEN(sp_384_sqr_6)
 .type	sp_384_sqr_6,@function
 .align	16
 sp_384_sqr_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_sqr_6
+WC_ASM_ATT_HIDDEN(_sp_384_sqr_6)
 .p2align	4
 _sp_384_sqr_6:
 #endif /* __APPLE__ */
@@ -48373,12 +48673,14 @@ _sp_384_sqr_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_sqr_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_sqr_avx2_6)
 .type	sp_384_sqr_avx2_6,@function
 .align	16
 sp_384_sqr_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_sqr_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_sqr_avx2_6)
 .p2align	4
 _sp_384_sqr_avx2_6:
 #endif /* __APPLE__ */
@@ -48537,12 +48839,14 @@ _sp_384_sqr_avx2_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_add_6
+WC_ASM_ATT_HIDDEN(sp_384_add_6)
 .type	sp_384_add_6,@function
 .align	16
 sp_384_add_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_add_6
+WC_ASM_ATT_HIDDEN(_sp_384_add_6)
 .p2align	4
 _sp_384_add_6:
 #endif /* __APPLE__ */
@@ -48581,12 +48885,14 @@ _sp_384_add_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_sub_6
+WC_ASM_ATT_HIDDEN(sp_384_sub_6)
 .type	sp_384_sub_6,@function
 .align	16
 sp_384_sub_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_sub_6
+WC_ASM_ATT_HIDDEN(_sp_384_sub_6)
 .p2align	4
 _sp_384_sub_6:
 #endif /* __APPLE__ */
@@ -48626,12 +48932,14 @@ _sp_384_sub_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_cond_copy_6
+WC_ASM_ATT_HIDDEN(sp_384_cond_copy_6)
 .type	sp_384_cond_copy_6,@function
 .align	16
 sp_384_cond_copy_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_cond_copy_6
+WC_ASM_ATT_HIDDEN(_sp_384_cond_copy_6)
 .p2align	4
 _sp_384_cond_copy_6:
 #endif /* __APPLE__ */
@@ -48675,12 +48983,14 @@ _sp_384_cond_copy_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_cond_sub_6
+WC_ASM_ATT_HIDDEN(sp_384_cond_sub_6)
 .type	sp_384_cond_sub_6,@function
 .align	16
 sp_384_cond_sub_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_cond_sub_6
+WC_ASM_ATT_HIDDEN(_sp_384_cond_sub_6)
 .p2align	4
 _sp_384_cond_sub_6:
 #endif /* __APPLE__ */
@@ -48743,12 +49053,14 @@ _sp_384_cond_sub_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_reduce_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_reduce_6)
 .type	sp_384_mont_reduce_6,@function
 .align	16
 sp_384_mont_reduce_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_reduce_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_reduce_6)
 .p2align	4
 _sp_384_mont_reduce_6:
 #endif /* __APPLE__ */
@@ -48923,12 +49235,14 @@ _sp_384_mont_reduce_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_reduce_order_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_reduce_order_6)
 .type	sp_384_mont_reduce_order_6,@function
 .align	16
 sp_384_mont_reduce_order_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_reduce_order_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_reduce_order_6)
 .p2align	4
 _sp_384_mont_reduce_order_6:
 #endif /* __APPLE__ */
@@ -49044,12 +49358,14 @@ L_384_mont_reduce_order_6_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_384_cmp_6
+WC_ASM_ATT_HIDDEN(sp_384_cmp_6)
 .type	sp_384_cmp_6,@function
 .align	16
 sp_384_cmp_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_cmp_6
+WC_ASM_ATT_HIDDEN(_sp_384_cmp_6)
 .p2align	4
 _sp_384_cmp_6:
 #endif /* __APPLE__ */
@@ -49120,12 +49436,14 @@ _sp_384_cmp_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_add_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_add_6)
 .type	sp_384_mont_add_6,@function
 .align	16
 sp_384_mont_add_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_add_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_add_6)
 .p2align	4
 _sp_384_mont_add_6:
 #endif /* __APPLE__ */
@@ -49188,12 +49506,14 @@ _sp_384_mont_add_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_dbl_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_dbl_6)
 .type	sp_384_mont_dbl_6,@function
 .align	16
 sp_384_mont_dbl_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_dbl_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_dbl_6)
 .p2align	4
 _sp_384_mont_dbl_6:
 #endif /* __APPLE__ */
@@ -49257,12 +49577,14 @@ _sp_384_mont_dbl_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_tpl_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_tpl_6)
 .type	sp_384_mont_tpl_6,@function
 .align	16
 sp_384_mont_tpl_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_tpl_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_tpl_6)
 .p2align	4
 _sp_384_mont_tpl_6:
 #endif /* __APPLE__ */
@@ -49355,12 +49677,14 @@ _sp_384_mont_tpl_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_sub_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_sub_6)
 .type	sp_384_mont_sub_6,@function
 .align	16
 sp_384_mont_sub_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_sub_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_sub_6)
 .p2align	4
 _sp_384_mont_sub_6:
 #endif /* __APPLE__ */
@@ -49423,12 +49747,14 @@ _sp_384_mont_sub_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_div2_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_div2_6)
 .type	sp_384_mont_div2_6,@function
 .align	16
 sp_384_mont_div2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_div2_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_div2_6)
 .p2align	4
 _sp_384_mont_div2_6:
 #endif /* __APPLE__ */
@@ -49501,17 +49827,19 @@ _sp_384_mont_div2_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_get_point_33_6
+WC_ASM_ATT_HIDDEN(sp_384_get_point_33_6)
 .type	sp_384_get_point_33_6,@function
 .align	16
 sp_384_get_point_33_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_get_point_33_6
+WC_ASM_ATT_HIDDEN(_sp_384_get_point_33_6)
 .p2align	4
 _sp_384_get_point_33_6:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm13
+        vmovd	%edx, %xmm13
         addq	$0x128, %rsi
         movd	%eax, %xmm15
         movq	$32, %rax
@@ -49557,7 +49885,7 @@ L_384_get_point_33_6_start_1:
         movdqu	%xmm4, 112(%rdi)
         movdqu	%xmm5, 128(%rdi)
         movq	$0x01, %rax
-        movd	%edx, %xmm13
+        vmovd	%edx, %xmm13
         subq	$0x2500, %rsi
         movd	%eax, %xmm15
         movq	$32, %rax
@@ -49601,19 +49929,21 @@ L_384_get_point_33_6_start_2:
 #ifndef __APPLE__
 .text
 .globl	sp_384_get_point_33_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_get_point_33_avx2_6)
 .type	sp_384_get_point_33_avx2_6,@function
 .align	16
 sp_384_get_point_33_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_get_point_33_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_get_point_33_avx2_6)
 .p2align	4
 _sp_384_get_point_33_avx2_6:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm13
+        vmovd	%edx, %xmm13
         addq	$0x128, %rsi
-        movd	%eax, %xmm15
+        vmovd	%eax, %xmm15
         movq	$32, %rax
         vpxor	%ymm14, %ymm14, %ymm14
         vpermd	%ymm13, %ymm14, %ymm13
@@ -49672,12 +50002,14 @@ L_384_get_point_33_avx2_6_start:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_reduce_order_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_reduce_order_avx2_6)
 .type	sp_384_mont_reduce_order_avx2_6,@function
 .align	16
 sp_384_mont_reduce_order_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_reduce_order_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_reduce_order_avx2_6)
 .p2align	4
 _sp_384_mont_reduce_order_avx2_6:
 #endif /* __APPLE__ */
@@ -50005,12 +50337,14 @@ L_mont_loop_order_avx2_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_cond_sub_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_cond_sub_avx2_6)
 .type	sp_384_cond_sub_avx2_6,@function
 .align	16
 sp_384_cond_sub_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_cond_sub_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_cond_sub_avx2_6)
 .p2align	4
 _sp_384_cond_sub_avx2_6:
 #endif /* __APPLE__ */
@@ -50060,12 +50394,14 @@ _sp_384_cond_sub_avx2_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mont_div2_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_mont_div2_avx2_6)
 .type	sp_384_mont_div2_avx2_6,@function
 .align	16
 sp_384_mont_div2_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mont_div2_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_mont_div2_avx2_6)
 .p2align	4
 _sp_384_mont_div2_avx2_6:
 #endif /* __APPLE__ */
@@ -50138,12 +50474,14 @@ _sp_384_mont_div2_avx2_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_get_entry_64_6
+WC_ASM_ATT_HIDDEN(sp_384_get_entry_64_6)
 .type	sp_384_get_entry_64_6,@function
 .align	16
 sp_384_get_entry_64_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_get_entry_64_6
+WC_ASM_ATT_HIDDEN(_sp_384_get_entry_64_6)
 .p2align	4
 _sp_384_get_entry_64_6:
 #endif /* __APPLE__ */
@@ -50208,19 +50546,21 @@ L_384_get_entry_64_6_start_0:
 #ifndef __APPLE__
 .text
 .globl	sp_384_get_entry_64_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_get_entry_64_avx2_6)
 .type	sp_384_get_entry_64_avx2_6,@function
 .align	16
 sp_384_get_entry_64_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_get_entry_64_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_get_entry_64_avx2_6)
 .p2align	4
 _sp_384_get_entry_64_avx2_6:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm9
+        vmovd	%edx, %xmm9
         addq	$0x60, %rsi
-        movd	%eax, %xmm11
+        vmovd	%eax, %xmm11
         movq	$0x40, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
@@ -50268,12 +50608,14 @@ L_384_get_entry_64_avx2_6_start:
 #ifndef __APPLE__
 .text
 .globl	sp_384_get_entry_65_6
+WC_ASM_ATT_HIDDEN(sp_384_get_entry_65_6)
 .type	sp_384_get_entry_65_6,@function
 .align	16
 sp_384_get_entry_65_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_get_entry_65_6
+WC_ASM_ATT_HIDDEN(_sp_384_get_entry_65_6)
 .p2align	4
 _sp_384_get_entry_65_6:
 #endif /* __APPLE__ */
@@ -50338,19 +50680,21 @@ L_384_get_entry_65_6_start_0:
 #ifndef __APPLE__
 .text
 .globl	sp_384_get_entry_65_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_get_entry_65_avx2_6)
 .type	sp_384_get_entry_65_avx2_6,@function
 .align	16
 sp_384_get_entry_65_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_get_entry_65_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_get_entry_65_avx2_6)
 .p2align	4
 _sp_384_get_entry_65_avx2_6:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        movd	%edx, %xmm9
+        vmovd	%edx, %xmm9
         addq	$0x60, %rsi
-        movd	%eax, %xmm11
+        vmovd	%eax, %xmm11
         movq	$0x41, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
@@ -50395,12 +50739,14 @@ L_384_get_entry_65_avx2_6_start:
 #ifndef __APPLE__
 .text
 .globl	sp_384_add_one_6
+WC_ASM_ATT_HIDDEN(sp_384_add_one_6)
 .type	sp_384_add_one_6,@function
 .align	16
 sp_384_add_one_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_add_one_6
+WC_ASM_ATT_HIDDEN(_sp_384_add_one_6)
 .p2align	4
 _sp_384_add_one_6:
 #endif /* __APPLE__ */
@@ -50425,12 +50771,14 @@ _sp_384_add_one_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_from_bin_bswap
+WC_ASM_ATT_HIDDEN(sp_384_from_bin_bswap)
 .type	sp_384_from_bin_bswap,@function
 .align	16
 sp_384_from_bin_bswap:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_from_bin_bswap
+WC_ASM_ATT_HIDDEN(_sp_384_from_bin_bswap)
 .p2align	4
 _sp_384_from_bin_bswap:
 #endif /* __APPLE__ */
@@ -50520,12 +50868,14 @@ L_384_from_bin_bswap_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_384_from_bin_movbe
+WC_ASM_ATT_HIDDEN(sp_384_from_bin_movbe)
 .type	sp_384_from_bin_movbe,@function
 .align	16
 sp_384_from_bin_movbe:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_from_bin_movbe
+WC_ASM_ATT_HIDDEN(_sp_384_from_bin_movbe)
 .p2align	4
 _sp_384_from_bin_movbe:
 #endif /* __APPLE__ */
@@ -50604,12 +50954,14 @@ L_384_from_bin_movbe_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_384_to_bin_bswap_6
+WC_ASM_ATT_HIDDEN(sp_384_to_bin_bswap_6)
 .type	sp_384_to_bin_bswap_6,@function
 .align	16
 sp_384_to_bin_bswap_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_to_bin_bswap_6
+WC_ASM_ATT_HIDDEN(_sp_384_to_bin_bswap_6)
 .p2align	4
 _sp_384_to_bin_bswap_6:
 #endif /* __APPLE__ */
@@ -50646,12 +50998,14 @@ _sp_384_to_bin_bswap_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_to_bin_movbe_6
+WC_ASM_ATT_HIDDEN(sp_384_to_bin_movbe_6)
 .type	sp_384_to_bin_movbe_6,@function
 .align	16
 sp_384_to_bin_movbe_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_to_bin_movbe_6
+WC_ASM_ATT_HIDDEN(_sp_384_to_bin_movbe_6)
 .p2align	4
 _sp_384_to_bin_movbe_6:
 #endif /* __APPLE__ */
@@ -50680,12 +51034,14 @@ _sp_384_to_bin_movbe_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_sub_in_place_6
+WC_ASM_ATT_HIDDEN(sp_384_sub_in_place_6)
 .type	sp_384_sub_in_place_6,@function
 .align	16
 sp_384_sub_in_place_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_sub_in_place_6
+WC_ASM_ATT_HIDDEN(_sp_384_sub_in_place_6)
 .p2align	4
 _sp_384_sub_in_place_6:
 #endif /* __APPLE__ */
@@ -50715,12 +51071,14 @@ _sp_384_sub_in_place_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mul_d_6
+WC_ASM_ATT_HIDDEN(sp_384_mul_d_6)
 .type	sp_384_mul_d_6,@function
 .align	16
 sp_384_mul_d_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mul_d_6
+WC_ASM_ATT_HIDDEN(_sp_384_mul_d_6)
 .p2align	4
 _sp_384_mul_d_6:
 #endif /* __APPLE__ */
@@ -50785,12 +51143,14 @@ _sp_384_mul_d_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_mul_d_avx2_6
+WC_ASM_ATT_HIDDEN(sp_384_mul_d_avx2_6)
 .type	sp_384_mul_d_avx2_6,@function
 .align	16
 sp_384_mul_d_avx2_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_mul_d_avx2_6
+WC_ASM_ATT_HIDDEN(_sp_384_mul_d_avx2_6)
 .p2align	4
 _sp_384_mul_d_avx2_6:
 #endif /* __APPLE__ */
@@ -50849,12 +51209,14 @@ _sp_384_mul_d_avx2_6:
 #ifndef __APPLE__
 .text
 .globl	div_384_word_asm_6
+WC_ASM_ATT_HIDDEN(div_384_word_asm_6)
 .type	div_384_word_asm_6,@function
 .align	16
 div_384_word_asm_6:
 #else
 .section	__TEXT,__text
 .globl	_div_384_word_asm_6
+WC_ASM_ATT_HIDDEN(_div_384_word_asm_6)
 .p2align	4
 _div_384_word_asm_6:
 #endif /* __APPLE__ */
@@ -50875,12 +51237,14 @@ _div_384_word_asm_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_rshift1_6
+WC_ASM_ATT_HIDDEN(sp_384_rshift1_6)
 .type	sp_384_rshift1_6,@function
 .align	16
 sp_384_rshift1_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_rshift1_6
+WC_ASM_ATT_HIDDEN(_sp_384_rshift1_6)
 .p2align	4
 _sp_384_rshift1_6:
 #endif /* __APPLE__ */
@@ -50915,12 +51279,14 @@ _sp_384_rshift1_6:
 #ifndef __APPLE__
 .text
 .globl	sp_384_div2_mod_6
+WC_ASM_ATT_HIDDEN(sp_384_div2_mod_6)
 .type	sp_384_div2_mod_6,@function
 .align	16
 sp_384_div2_mod_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_div2_mod_6
+WC_ASM_ATT_HIDDEN(_sp_384_div2_mod_6)
 .p2align	4
 _sp_384_div2_mod_6:
 #endif /* __APPLE__ */
@@ -50979,12 +51345,14 @@ L_384_mod_inv_6_div2_mod_no_add:
 #ifndef __APPLE__
 .text
 .globl	sp_384_num_bits_6
+WC_ASM_ATT_HIDDEN(sp_384_num_bits_6)
 .type	sp_384_num_bits_6,@function
 .align	16
 sp_384_num_bits_6:
 #else
 .section	__TEXT,__text
 .globl	_sp_384_num_bits_6
+WC_ASM_ATT_HIDDEN(_sp_384_num_bits_6)
 .p2align	4
 _sp_384_num_bits_6:
 #endif /* __APPLE__ */
@@ -51053,12 +51421,14 @@ L_384_num_bits_6_done:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mul_9
+WC_ASM_ATT_HIDDEN(sp_521_mul_9)
 .type	sp_521_mul_9,@function
 .align	16
 sp_521_mul_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mul_9
+WC_ASM_ATT_HIDDEN(_sp_521_mul_9)
 .p2align	4
 _sp_521_mul_9:
 #endif /* __APPLE__ */
@@ -51614,12 +51984,14 @@ _sp_521_mul_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mul_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_mul_avx2_9)
 .type	sp_521_mul_avx2_9,@function
 .align	16
 sp_521_mul_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mul_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_mul_avx2_9)
 .p2align	4
 _sp_521_mul_avx2_9:
 #endif /* __APPLE__ */
@@ -52196,12 +52568,14 @@ L_end_521_mul_avx2_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_sqr_9
+WC_ASM_ATT_HIDDEN(sp_521_sqr_9)
 .type	sp_521_sqr_9,@function
 .align	16
 sp_521_sqr_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_sqr_9
+WC_ASM_ATT_HIDDEN(_sp_521_sqr_9)
 .p2align	4
 _sp_521_sqr_9:
 #endif /* __APPLE__ */
@@ -52619,12 +52993,14 @@ _sp_521_sqr_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_sqr_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_sqr_avx2_9)
 .type	sp_521_sqr_avx2_9,@function
 .align	16
 sp_521_sqr_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_sqr_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_sqr_avx2_9)
 .p2align	4
 _sp_521_sqr_avx2_9:
 #endif /* __APPLE__ */
@@ -53023,12 +53399,14 @@ L_end_521_sqr_avx2_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_add_9
+WC_ASM_ATT_HIDDEN(sp_521_add_9)
 .type	sp_521_add_9,@function
 .align	16
 sp_521_add_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_add_9
+WC_ASM_ATT_HIDDEN(_sp_521_add_9)
 .p2align	4
 _sp_521_add_9:
 #endif /* __APPLE__ */
@@ -53075,12 +53453,14 @@ _sp_521_add_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_sub_9
+WC_ASM_ATT_HIDDEN(sp_521_sub_9)
 .type	sp_521_sub_9,@function
 .align	16
 sp_521_sub_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_sub_9
+WC_ASM_ATT_HIDDEN(_sp_521_sub_9)
 .p2align	4
 _sp_521_sub_9:
 #endif /* __APPLE__ */
@@ -53126,12 +53506,14 @@ _sp_521_sub_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_cond_copy_9
+WC_ASM_ATT_HIDDEN(sp_521_cond_copy_9)
 .type	sp_521_cond_copy_9,@function
 .align	16
 sp_521_cond_copy_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_cond_copy_9
+WC_ASM_ATT_HIDDEN(_sp_521_cond_copy_9)
 .p2align	4
 _sp_521_cond_copy_9:
 #endif /* __APPLE__ */
@@ -53187,12 +53569,14 @@ _sp_521_cond_copy_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_mul_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_mul_9)
 .type	sp_521_mont_mul_9,@function
 .align	16
 sp_521_mont_mul_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_mul_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_mul_9)
 .p2align	4
 _sp_521_mont_mul_9:
 #endif /* __APPLE__ */
@@ -53784,12 +54168,14 @@ _sp_521_mont_mul_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_sqr_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_sqr_9)
 .type	sp_521_mont_sqr_9,@function
 .align	16
 sp_521_mont_sqr_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_sqr_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_sqr_9)
 .p2align	4
 _sp_521_mont_sqr_9:
 #endif /* __APPLE__ */
@@ -54243,12 +54629,14 @@ _sp_521_mont_sqr_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_cmp_9
+WC_ASM_ATT_HIDDEN(sp_521_cmp_9)
 .type	sp_521_cmp_9,@function
 .align	16
 sp_521_cmp_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_cmp_9
+WC_ASM_ATT_HIDDEN(_sp_521_cmp_9)
 .p2align	4
 _sp_521_cmp_9:
 #endif /* __APPLE__ */
@@ -54345,12 +54733,14 @@ _sp_521_cmp_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_cond_sub_9
+WC_ASM_ATT_HIDDEN(sp_521_cond_sub_9)
 .type	sp_521_cond_sub_9,@function
 .align	16
 sp_521_cond_sub_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_cond_sub_9
+WC_ASM_ATT_HIDDEN(_sp_521_cond_sub_9)
 .p2align	4
 _sp_521_cond_sub_9:
 #endif /* __APPLE__ */
@@ -54434,12 +54824,14 @@ _sp_521_cond_sub_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_reduce_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_reduce_9)
 .type	sp_521_mont_reduce_9,@function
 .align	16
 sp_521_mont_reduce_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_reduce_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_reduce_9)
 .p2align	4
 _sp_521_mont_reduce_9:
 #endif /* __APPLE__ */
@@ -54513,12 +54905,14 @@ _sp_521_mont_reduce_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_reduce_order_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_reduce_order_9)
 .type	sp_521_mont_reduce_order_9,@function
 .align	16
 sp_521_mont_reduce_order_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_reduce_order_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_reduce_order_9)
 .p2align	4
 _sp_521_mont_reduce_order_9:
 #endif /* __APPLE__ */
@@ -54702,12 +55096,14 @@ L_521_mont_reduce_order_9_nomask:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_add_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_add_9)
 .type	sp_521_mont_add_9,@function
 .align	16
 sp_521_mont_add_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_add_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_add_9)
 .p2align	4
 _sp_521_mont_add_9:
 #endif /* __APPLE__ */
@@ -54771,12 +55167,14 @@ _sp_521_mont_add_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_dbl_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_dbl_9)
 .type	sp_521_mont_dbl_9,@function
 .align	16
 sp_521_mont_dbl_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_dbl_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_dbl_9)
 .p2align	4
 _sp_521_mont_dbl_9:
 #endif /* __APPLE__ */
@@ -54838,12 +55236,14 @@ _sp_521_mont_dbl_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_tpl_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_tpl_9)
 .type	sp_521_mont_tpl_9,@function
 .align	16
 sp_521_mont_tpl_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_tpl_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_tpl_9)
 .p2align	4
 _sp_521_mont_tpl_9:
 #endif /* __APPLE__ */
@@ -54915,12 +55315,14 @@ _sp_521_mont_tpl_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_sub_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_sub_9)
 .type	sp_521_mont_sub_9,@function
 .align	16
 sp_521_mont_sub_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_sub_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_sub_9)
 .p2align	4
 _sp_521_mont_sub_9:
 #endif /* __APPLE__ */
@@ -54985,12 +55387,14 @@ _sp_521_mont_sub_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_div2_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_div2_9)
 .type	sp_521_mont_div2_9,@function
 .align	16
 sp_521_mont_div2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_div2_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_div2_9)
 .p2align	4
 _sp_521_mont_div2_9:
 #endif /* __APPLE__ */
@@ -55054,19 +55458,21 @@ _sp_521_mont_div2_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_get_point_33_9
+WC_ASM_ATT_HIDDEN(sp_521_get_point_33_9)
 .type	sp_521_get_point_33_9,@function
 .align	16
 sp_521_get_point_33_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_get_point_33_9
+WC_ASM_ATT_HIDDEN(_sp_521_get_point_33_9)
 .p2align	4
 _sp_521_get_point_33_9:
 #endif /* __APPLE__ */
         pushq	%r12
         movq	$0x01, %r12
         movq	$0x01, %rax
-        movd	%edx, %xmm13
+        vmovd	%edx, %xmm13
 #ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
 #else
@@ -55132,7 +55538,7 @@ L_521_get_point_33_9_start_1:
         movdqu	%xmm5, 160(%rdi)
         movq	$0x01, %r12
         movq	$0x01, %rax
-        movd	%edx, %xmm13
+        vmovd	%edx, %xmm13
 #ifndef SP_ALIGN_16
         subq	$0x3700, %rsi
 #else
@@ -55215,12 +55621,14 @@ L_521_get_point_33_9_start_2:
 #ifndef __APPLE__
 .text
 .globl	sp_521_get_point_33_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_get_point_33_avx2_9)
 .type	sp_521_get_point_33_avx2_9,@function
 .align	16
 sp_521_get_point_33_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_get_point_33_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_get_point_33_avx2_9)
 .p2align	4
 _sp_521_get_point_33_avx2_9:
 #endif /* __APPLE__ */
@@ -55229,13 +55637,13 @@ _sp_521_get_point_33_avx2_9:
         pushq	%r14
         movq	$0x01, %r14
         movq	$0x01, %rax
-        movd	%edx, %xmm13
+        vmovd	%edx, %xmm13
 #ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
 #else
         addq	$0x1c0, %rsi
 #endif /* !SP_ALIGN_16 */
-        movd	%eax, %xmm15
+        vmovd	%eax, %xmm15
         movq	$32, %rax
         vpxor	%ymm14, %ymm14, %ymm14
         vpermd	%ymm13, %ymm14, %ymm13
@@ -55323,12 +55731,14 @@ L_521_get_point_33_avx2_9_start:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_mul_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_mul_avx2_9)
 .type	sp_521_mont_mul_avx2_9,@function
 .align	16
 sp_521_mont_mul_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_mul_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_mul_avx2_9)
 .p2align	4
 _sp_521_mont_mul_avx2_9:
 #endif /* __APPLE__ */
@@ -55936,12 +56346,14 @@ _sp_521_mont_mul_avx2_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_sqr_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_sqr_avx2_9)
 .type	sp_521_mont_sqr_avx2_9,@function
 .align	16
 sp_521_mont_sqr_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_sqr_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_sqr_avx2_9)
 .p2align	4
 _sp_521_mont_sqr_avx2_9:
 #endif /* __APPLE__ */
@@ -56383,12 +56795,14 @@ _sp_521_mont_sqr_avx2_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_cond_sub_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_cond_sub_avx2_9)
 .type	sp_521_cond_sub_avx2_9,@function
 .align	16
 sp_521_cond_sub_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_cond_sub_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_cond_sub_avx2_9)
 .p2align	4
 _sp_521_cond_sub_avx2_9:
 #endif /* __APPLE__ */
@@ -56454,12 +56868,14 @@ _sp_521_cond_sub_avx2_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_reduce_order_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_reduce_order_avx2_9)
 .type	sp_521_mont_reduce_order_avx2_9,@function
 .align	16
 sp_521_mont_reduce_order_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_reduce_order_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_reduce_order_avx2_9)
 .p2align	4
 _sp_521_mont_reduce_order_avx2_9:
 #endif /* __APPLE__ */
@@ -56772,12 +57188,14 @@ L_521_mont_reduce_order_avx2_9_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mont_div2_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_mont_div2_avx2_9)
 .type	sp_521_mont_div2_avx2_9,@function
 .align	16
 sp_521_mont_div2_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mont_div2_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_mont_div2_avx2_9)
 .p2align	4
 _sp_521_mont_div2_avx2_9:
 #endif /* __APPLE__ */
@@ -56842,12 +57260,14 @@ _sp_521_mont_div2_avx2_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_get_entry_64_9
+WC_ASM_ATT_HIDDEN(sp_521_get_entry_64_9)
 .type	sp_521_get_entry_64_9,@function
 .align	16
 sp_521_get_entry_64_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_get_entry_64_9
+WC_ASM_ATT_HIDDEN(_sp_521_get_entry_64_9)
 .p2align	4
 _sp_521_get_entry_64_9:
 #endif /* __APPLE__ */
@@ -56961,21 +57381,23 @@ L_521_get_entry_64_9_start_1:
 #ifndef __APPLE__
 .text
 .globl	sp_521_get_entry_64_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_get_entry_64_avx2_9)
 .type	sp_521_get_entry_64_avx2_9,@function
 .align	16
 sp_521_get_entry_64_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_get_entry_64_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_get_entry_64_avx2_9)
 .p2align	4
 _sp_521_get_entry_64_avx2_9:
 #endif /* __APPLE__ */
         pushq	%r12
         movq	$0x01, %r12
         movq	$0x01, %rax
-        movd	%edx, %xmm9
+        vmovd	%edx, %xmm9
         addq	$0x90, %rsi
-        movd	%eax, %xmm11
+        vmovd	%eax, %xmm11
         movq	$0x40, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
@@ -57039,12 +57461,14 @@ L_521_get_entry_64_avx2_9_start:
 #ifndef __APPLE__
 .text
 .globl	sp_521_get_entry_65_9
+WC_ASM_ATT_HIDDEN(sp_521_get_entry_65_9)
 .type	sp_521_get_entry_65_9,@function
 .align	16
 sp_521_get_entry_65_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_get_entry_65_9
+WC_ASM_ATT_HIDDEN(_sp_521_get_entry_65_9)
 .p2align	4
 _sp_521_get_entry_65_9:
 #endif /* __APPLE__ */
@@ -57158,21 +57582,23 @@ L_521_get_entry_65_9_start_1:
 #ifndef __APPLE__
 .text
 .globl	sp_521_get_entry_65_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_get_entry_65_avx2_9)
 .type	sp_521_get_entry_65_avx2_9,@function
 .align	16
 sp_521_get_entry_65_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_get_entry_65_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_get_entry_65_avx2_9)
 .p2align	4
 _sp_521_get_entry_65_avx2_9:
 #endif /* __APPLE__ */
         pushq	%r12
         movq	$0x01, %r12
         movq	$0x01, %rax
-        movd	%edx, %xmm9
+        vmovd	%edx, %xmm9
         addq	$0x90, %rsi
-        movd	%eax, %xmm11
+        vmovd	%eax, %xmm11
         movq	$0x41, %rax
         vpxor	%ymm10, %ymm10, %ymm10
         vpermd	%ymm9, %ymm10, %ymm9
@@ -57233,12 +57659,14 @@ L_521_get_entry_65_avx2_9_start:
 #ifndef __APPLE__
 .text
 .globl	sp_521_add_one_9
+WC_ASM_ATT_HIDDEN(sp_521_add_one_9)
 .type	sp_521_add_one_9,@function
 .align	16
 sp_521_add_one_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_add_one_9
+WC_ASM_ATT_HIDDEN(_sp_521_add_one_9)
 .p2align	4
 _sp_521_add_one_9:
 #endif /* __APPLE__ */
@@ -57266,12 +57694,14 @@ _sp_521_add_one_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_from_bin_bswap
+WC_ASM_ATT_HIDDEN(sp_521_from_bin_bswap)
 .type	sp_521_from_bin_bswap,@function
 .align	16
 sp_521_from_bin_bswap:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_from_bin_bswap
+WC_ASM_ATT_HIDDEN(_sp_521_from_bin_bswap)
 .p2align	4
 _sp_521_from_bin_bswap:
 #endif /* __APPLE__ */
@@ -57361,12 +57791,14 @@ L_521_from_bin_bswap_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_521_from_bin_movbe
+WC_ASM_ATT_HIDDEN(sp_521_from_bin_movbe)
 .type	sp_521_from_bin_movbe,@function
 .align	16
 sp_521_from_bin_movbe:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_from_bin_movbe
+WC_ASM_ATT_HIDDEN(_sp_521_from_bin_movbe)
 .p2align	4
 _sp_521_from_bin_movbe:
 #endif /* __APPLE__ */
@@ -57445,12 +57877,14 @@ L_521_from_bin_movbe_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_521_to_bin_bswap_9
+WC_ASM_ATT_HIDDEN(sp_521_to_bin_bswap_9)
 .type	sp_521_to_bin_bswap_9,@function
 .align	16
 sp_521_to_bin_bswap_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_to_bin_bswap_9
+WC_ASM_ATT_HIDDEN(_sp_521_to_bin_bswap_9)
 .p2align	4
 _sp_521_to_bin_bswap_9:
 #endif /* __APPLE__ */
@@ -57497,12 +57931,14 @@ _sp_521_to_bin_bswap_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_to_bin_movbe_9
+WC_ASM_ATT_HIDDEN(sp_521_to_bin_movbe_9)
 .type	sp_521_to_bin_movbe_9,@function
 .align	16
 sp_521_to_bin_movbe_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_to_bin_movbe_9
+WC_ASM_ATT_HIDDEN(_sp_521_to_bin_movbe_9)
 .p2align	4
 _sp_521_to_bin_movbe_9:
 #endif /* __APPLE__ */
@@ -57539,12 +57975,14 @@ _sp_521_to_bin_movbe_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_rshift_9
+WC_ASM_ATT_HIDDEN(sp_521_rshift_9)
 .type	sp_521_rshift_9,@function
 .align	16
 sp_521_rshift_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_rshift_9
+WC_ASM_ATT_HIDDEN(_sp_521_rshift_9)
 .p2align	4
 _sp_521_rshift_9:
 #endif /* __APPLE__ */
@@ -57589,12 +58027,14 @@ _sp_521_rshift_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_lshift_9
+WC_ASM_ATT_HIDDEN(sp_521_lshift_9)
 .type	sp_521_lshift_9,@function
 .align	16
 sp_521_lshift_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_lshift_9
+WC_ASM_ATT_HIDDEN(_sp_521_lshift_9)
 .p2align	4
 _sp_521_lshift_9:
 #endif /* __APPLE__ */
@@ -57642,12 +58082,14 @@ _sp_521_lshift_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_lshift_18
+WC_ASM_ATT_HIDDEN(sp_521_lshift_18)
 .type	sp_521_lshift_18,@function
 .align	16
 sp_521_lshift_18:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_lshift_18
+WC_ASM_ATT_HIDDEN(_sp_521_lshift_18)
 .p2align	4
 _sp_521_lshift_18:
 #endif /* __APPLE__ */
@@ -57721,12 +58163,14 @@ _sp_521_lshift_18:
 #ifndef __APPLE__
 .text
 .globl	sp_521_sub_in_place_9
+WC_ASM_ATT_HIDDEN(sp_521_sub_in_place_9)
 .type	sp_521_sub_in_place_9,@function
 .align	16
 sp_521_sub_in_place_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_sub_in_place_9
+WC_ASM_ATT_HIDDEN(_sp_521_sub_in_place_9)
 .p2align	4
 _sp_521_sub_in_place_9:
 #endif /* __APPLE__ */
@@ -57771,12 +58215,14 @@ _sp_521_sub_in_place_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mul_d_9
+WC_ASM_ATT_HIDDEN(sp_521_mul_d_9)
 .type	sp_521_mul_d_9,@function
 .align	16
 sp_521_mul_d_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mul_d_9
+WC_ASM_ATT_HIDDEN(_sp_521_mul_d_9)
 .p2align	4
 _sp_521_mul_d_9:
 #endif /* __APPLE__ */
@@ -57865,12 +58311,14 @@ _sp_521_mul_d_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_mul_d_avx2_9
+WC_ASM_ATT_HIDDEN(sp_521_mul_d_avx2_9)
 .type	sp_521_mul_d_avx2_9,@function
 .align	16
 sp_521_mul_d_avx2_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_mul_d_avx2_9
+WC_ASM_ATT_HIDDEN(_sp_521_mul_d_avx2_9)
 .p2align	4
 _sp_521_mul_d_avx2_9:
 #endif /* __APPLE__ */
@@ -57947,12 +58395,14 @@ _sp_521_mul_d_avx2_9:
 #ifndef __APPLE__
 .text
 .globl	div_521_word_asm_9
+WC_ASM_ATT_HIDDEN(div_521_word_asm_9)
 .type	div_521_word_asm_9,@function
 .align	16
 div_521_word_asm_9:
 #else
 .section	__TEXT,__text
 .globl	_div_521_word_asm_9
+WC_ASM_ATT_HIDDEN(_div_521_word_asm_9)
 .p2align	4
 _div_521_word_asm_9:
 #endif /* __APPLE__ */
@@ -57973,12 +58423,14 @@ _div_521_word_asm_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_rshift1_9
+WC_ASM_ATT_HIDDEN(sp_521_rshift1_9)
 .type	sp_521_rshift1_9,@function
 .align	16
 sp_521_rshift1_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_rshift1_9
+WC_ASM_ATT_HIDDEN(_sp_521_rshift1_9)
 .p2align	4
 _sp_521_rshift1_9:
 #endif /* __APPLE__ */
@@ -58022,12 +58474,14 @@ _sp_521_rshift1_9:
 #ifndef __APPLE__
 .text
 .globl	sp_521_div2_mod_9
+WC_ASM_ATT_HIDDEN(sp_521_div2_mod_9)
 .type	sp_521_div2_mod_9,@function
 .align	16
 sp_521_div2_mod_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_div2_mod_9
+WC_ASM_ATT_HIDDEN(_sp_521_div2_mod_9)
 .p2align	4
 _sp_521_div2_mod_9:
 #endif /* __APPLE__ */
@@ -58105,12 +58559,14 @@ L_521_mod_inv_9_div2_mod_no_add:
 #ifndef __APPLE__
 .text
 .globl	sp_521_num_bits_9
+WC_ASM_ATT_HIDDEN(sp_521_num_bits_9)
 .type	sp_521_num_bits_9,@function
 .align	16
 sp_521_num_bits_9:
 #else
 .section	__TEXT,__text
 .globl	_sp_521_num_bits_9
+WC_ASM_ATT_HIDDEN(_sp_521_num_bits_9)
 .p2align	4
 _sp_521_num_bits_9:
 #endif /* __APPLE__ */
@@ -58203,12 +58659,14 @@ L_521_num_bits_9_done:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mul_16
+WC_ASM_ATT_HIDDEN(sp_1024_mul_16)
 .type	sp_1024_mul_16,@function
 .align	16
 sp_1024_mul_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mul_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mul_16)
 .p2align	4
 _sp_1024_mul_16:
 #endif /* __APPLE__ */
@@ -59854,12 +60312,14 @@ _sp_1024_mul_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_sqr_16
+WC_ASM_ATT_HIDDEN(sp_1024_sqr_16)
 .type	sp_1024_sqr_16,@function
 .align	16
 sp_1024_sqr_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_sqr_16
+WC_ASM_ATT_HIDDEN(_sp_1024_sqr_16)
 .p2align	4
 _sp_1024_sqr_16:
 #endif /* __APPLE__ */
@@ -60950,12 +61410,14 @@ _sp_1024_sqr_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mul_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mul_avx2_16)
 .type	sp_1024_mul_avx2_16,@function
 .align	16
 sp_1024_mul_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mul_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mul_avx2_16)
 .p2align	4
 _sp_1024_mul_avx2_16:
 #endif /* __APPLE__ */
@@ -62626,12 +63088,14 @@ L_end_1024_mul_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_sqr_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_sqr_avx2_16)
 .type	sp_1024_sqr_avx2_16,@function
 .align	16
 sp_1024_sqr_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_sqr_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_sqr_avx2_16)
 .p2align	4
 _sp_1024_sqr_avx2_16:
 #endif /* __APPLE__ */
@@ -63685,12 +64149,14 @@ L_end_1024_sqr_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_add_16
+WC_ASM_ATT_HIDDEN(sp_1024_add_16)
 .type	sp_1024_add_16,@function
 .align	16
 sp_1024_add_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_add_16
+WC_ASM_ATT_HIDDEN(_sp_1024_add_16)
 .p2align	4
 _sp_1024_add_16:
 #endif /* __APPLE__ */
@@ -63757,12 +64223,14 @@ _sp_1024_add_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_sub_in_place_16
+WC_ASM_ATT_HIDDEN(sp_1024_sub_in_place_16)
 .type	sp_1024_sub_in_place_16,@function
 .align	16
 sp_1024_sub_in_place_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_sub_in_place_16
+WC_ASM_ATT_HIDDEN(_sp_1024_sub_in_place_16)
 .p2align	4
 _sp_1024_sub_in_place_16:
 #endif /* __APPLE__ */
@@ -63831,12 +64299,14 @@ _sp_1024_sub_in_place_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_cond_sub_16
+WC_ASM_ATT_HIDDEN(sp_1024_cond_sub_16)
 .type	sp_1024_cond_sub_16,@function
 .align	16
 sp_1024_cond_sub_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_cond_sub_16
+WC_ASM_ATT_HIDDEN(_sp_1024_cond_sub_16)
 .p2align	4
 _sp_1024_cond_sub_16:
 #endif /* __APPLE__ */
@@ -63972,12 +64442,14 @@ _sp_1024_cond_sub_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_cond_sub_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_cond_sub_avx2_16)
 .type	sp_1024_cond_sub_avx2_16,@function
 .align	16
 sp_1024_cond_sub_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_cond_sub_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_cond_sub_avx2_16)
 .p2align	4
 _sp_1024_cond_sub_avx2_16:
 #endif /* __APPLE__ */
@@ -64076,12 +64548,14 @@ _sp_1024_cond_sub_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mul_d_16
+WC_ASM_ATT_HIDDEN(sp_1024_mul_d_16)
 .type	sp_1024_mul_d_16,@function
 .align	16
 sp_1024_mul_d_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mul_d_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mul_d_16)
 .p2align	4
 _sp_1024_mul_d_16:
 #endif /* __APPLE__ */
@@ -64226,12 +64700,14 @@ _sp_1024_mul_d_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mul_d_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mul_d_avx2_16)
 .type	sp_1024_mul_d_avx2_16,@function
 .align	16
 sp_1024_mul_d_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mul_d_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mul_d_avx2_16)
 .p2align	4
 _sp_1024_mul_d_avx2_16:
 #endif /* __APPLE__ */
@@ -64350,12 +64826,14 @@ _sp_1024_mul_d_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	div_1024_word_asm_16
+WC_ASM_ATT_HIDDEN(div_1024_word_asm_16)
 .type	div_1024_word_asm_16,@function
 .align	16
 div_1024_word_asm_16:
 #else
 .section	__TEXT,__text
 .globl	_div_1024_word_asm_16
+WC_ASM_ATT_HIDDEN(_div_1024_word_asm_16)
 .p2align	4
 _div_1024_word_asm_16:
 #endif /* __APPLE__ */
@@ -64379,12 +64857,14 @@ _div_1024_word_asm_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_cmp_16
+WC_ASM_ATT_HIDDEN(sp_1024_cmp_16)
 .type	sp_1024_cmp_16,@function
 .align	16
 sp_1024_cmp_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_cmp_16
+WC_ASM_ATT_HIDDEN(_sp_1024_cmp_16)
 .p2align	4
 _sp_1024_cmp_16:
 #endif /* __APPLE__ */
@@ -64535,12 +65015,14 @@ _sp_1024_cmp_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_cond_copy_16
+WC_ASM_ATT_HIDDEN(sp_1024_cond_copy_16)
 .type	sp_1024_cond_copy_16,@function
 .align	16
 sp_1024_cond_copy_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_cond_copy_16
+WC_ASM_ATT_HIDDEN(_sp_1024_cond_copy_16)
 .p2align	4
 _sp_1024_cond_copy_16:
 #endif /* __APPLE__ */
@@ -64622,12 +65104,14 @@ _sp_1024_cond_copy_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_reduce_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_reduce_16)
 .type	sp_1024_mont_reduce_16,@function
 .align	16
 sp_1024_mont_reduce_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_reduce_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_reduce_16)
 .p2align	4
 _sp_1024_mont_reduce_16:
 #endif /* __APPLE__ */
@@ -64847,12 +65331,14 @@ L_1024_mont_reduce_16_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_add_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_add_16)
 .type	sp_1024_mont_add_16,@function
 .align	16
 sp_1024_mont_add_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_add_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_add_16)
 .p2align	4
 _sp_1024_mont_add_16:
 #endif /* __APPLE__ */
@@ -65021,12 +65507,14 @@ _sp_1024_mont_add_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_dbl_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_dbl_16)
 .type	sp_1024_mont_dbl_16,@function
 .align	16
 sp_1024_mont_dbl_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_dbl_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_dbl_16)
 .p2align	4
 _sp_1024_mont_dbl_16:
 #endif /* __APPLE__ */
@@ -65195,12 +65683,14 @@ _sp_1024_mont_dbl_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_tpl_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_tpl_16)
 .type	sp_1024_mont_tpl_16,@function
 .align	16
 sp_1024_mont_tpl_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_tpl_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_tpl_16)
 .p2align	4
 _sp_1024_mont_tpl_16:
 #endif /* __APPLE__ */
@@ -65520,12 +66010,14 @@ _sp_1024_mont_tpl_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_sub_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_sub_16)
 .type	sp_1024_mont_sub_16,@function
 .align	16
 sp_1024_mont_sub_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_sub_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_sub_16)
 .p2align	4
 _sp_1024_mont_sub_16:
 #endif /* __APPLE__ */
@@ -65690,12 +66182,14 @@ _sp_1024_mont_sub_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_div2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_div2_16)
 .type	sp_1024_mont_div2_16,@function
 .align	16
 sp_1024_mont_div2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_div2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_div2_16)
 .p2align	4
 _sp_1024_mont_div2_16:
 #endif /* __APPLE__ */
@@ -65849,12 +66343,14 @@ _sp_1024_mont_div2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_reduce_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_reduce_avx2_16)
 .type	sp_1024_mont_reduce_avx2_16,@function
 .align	16
 sp_1024_mont_reduce_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_reduce_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_reduce_avx2_16)
 .p2align	4
 _sp_1024_mont_reduce_avx2_16:
 #endif /* __APPLE__ */
@@ -66191,12 +66687,14 @@ L_1024_mont_reduce_avx2_16_loop:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_add_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_add_avx2_16)
 .type	sp_1024_mont_add_avx2_16,@function
 .align	16
 sp_1024_mont_add_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_add_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_add_avx2_16)
 .p2align	4
 _sp_1024_mont_add_avx2_16:
 #endif /* __APPLE__ */
@@ -66349,12 +66847,14 @@ _sp_1024_mont_add_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_dbl_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_dbl_avx2_16)
 .type	sp_1024_mont_dbl_avx2_16,@function
 .align	16
 sp_1024_mont_dbl_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_dbl_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_dbl_avx2_16)
 .p2align	4
 _sp_1024_mont_dbl_avx2_16:
 #endif /* __APPLE__ */
@@ -66507,12 +67007,14 @@ _sp_1024_mont_dbl_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_tpl_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_tpl_avx2_16)
 .type	sp_1024_mont_tpl_avx2_16,@function
 .align	16
 sp_1024_mont_tpl_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_tpl_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_tpl_avx2_16)
 .p2align	4
 _sp_1024_mont_tpl_avx2_16:
 #endif /* __APPLE__ */
@@ -66800,12 +67302,14 @@ _sp_1024_mont_tpl_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_sub_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_sub_avx2_16)
 .type	sp_1024_mont_sub_avx2_16,@function
 .align	16
 sp_1024_mont_sub_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_sub_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_sub_avx2_16)
 .p2align	4
 _sp_1024_mont_sub_avx2_16:
 #endif /* __APPLE__ */
@@ -66954,12 +67458,14 @@ _sp_1024_mont_sub_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_mont_div2_avx2_16
+WC_ASM_ATT_HIDDEN(sp_1024_mont_div2_avx2_16)
 .type	sp_1024_mont_div2_avx2_16,@function
 .align	16
 sp_1024_mont_div2_avx2_16:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_mont_div2_avx2_16
+WC_ASM_ATT_HIDDEN(_sp_1024_mont_div2_avx2_16)
 .p2align	4
 _sp_1024_mont_div2_avx2_16:
 #endif /* __APPLE__ */
@@ -67113,12 +67619,14 @@ _sp_1024_mont_div2_avx2_16:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_from_bin_bswap
+WC_ASM_ATT_HIDDEN(sp_1024_from_bin_bswap)
 .type	sp_1024_from_bin_bswap,@function
 .align	16
 sp_1024_from_bin_bswap:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_from_bin_bswap
+WC_ASM_ATT_HIDDEN(_sp_1024_from_bin_bswap)
 .p2align	4
 _sp_1024_from_bin_bswap:
 #endif /* __APPLE__ */
@@ -67208,12 +67716,14 @@ L_1024_from_bin_bswap_zero_end:
 #ifndef __APPLE__
 .text
 .globl	sp_1024_from_bin_movbe
+WC_ASM_ATT_HIDDEN(sp_1024_from_bin_movbe)
 .type	sp_1024_from_bin_movbe,@function
 .align	16
 sp_1024_from_bin_movbe:
 #else
 .section	__TEXT,__text
 .globl	_sp_1024_from_bin_movbe
+WC_ASM_ATT_HIDDEN(_sp_1024_from_bin_movbe)
 .p2align	4
 _sp_1024_from_bin_movbe:
 #endif /* __APPLE__ */

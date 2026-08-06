@@ -92,6 +92,7 @@ L_SHA512_transform_len_k:
 	.text
 	.align	4
 	.globl	Transform_Sha512_Len_base
+	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_base)
 	.type	Transform_Sha512_Len_base, %function
 Transform_Sha512_Len_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -7568,6 +7569,7 @@ L_SHA512_transform_neon_len_k:
 	.align	4
 	.fpu	neon
 	.globl	Transform_Sha512_Len_neon
+	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_neon)
 	.type	Transform_Sha512_Len_neon, %function
 Transform_Sha512_Len_neon:
 	vpush	{d8-d15}

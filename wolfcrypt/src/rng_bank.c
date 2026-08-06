@@ -153,9 +153,10 @@ WOLFSSL_API int wc_rng_bank_init(
                 case WC_NO_ERR_TRACE(BUFFER_E):
                 case WC_NO_ERR_TRACE(OPEN_RAN_E):
                 case WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E):
+                case WC_NO_ERR_TRACE(DRBG_KAT_FIPS_E):
+                case WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E):
                     goto out;
                 }
-
                 /* Allow interrupt only if we're stuck spinning retries -- i.e.,
                  * don't allow an untimely user signal to derail an
                  * initialization that is proceeding expeditiously.
@@ -544,7 +545,8 @@ WOLFSSL_API int wc_rng_bank_checkout(
             ret = bank->affinity_lock_cb(bank->cb_arg);
             if (ret == 0)
                 new_lock_value |= WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
-            else if (ret == WC_NO_ERR_TRACE(ALREADY_E))
+            else if ((ret == WC_NO_ERR_TRACE(ALREADY_E)) ||
+                     (ret == WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E)))
                 ret = 0;
             else
                 break;
@@ -704,7 +706,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
     return ret;
 }
 
-#ifdef WC_DRBG_BANKREF
+#ifdef WC_HAVE_RNG_BANKREF
 WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst **rng_inst)
@@ -716,7 +718,7 @@ WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
         ((bank->affinity_get_id_cb != NULL) ? WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST : 0) |
         ((bank->affinity_lock_cb != NULL) ? WC_RNG_BANK_FLAG_AFFINITY_LOCK : 0));
 }
-#endif /* WC_DRBG_BANKREF */
+#endif /* WC_HAVE_RNG_BANKREF */
 
 static WC_INLINE int rng_inst_matches_bank(
     struct wc_rng_bank *bank,
@@ -1013,7 +1015,7 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
     return 0;
 }
 
-#ifdef WC_DRBG_BANKREF
+#ifdef WC_HAVE_RNG_BANKREF
 
 WOLFSSL_API int wc_InitRng_BankRef(struct wc_rng_bank *bank, WC_RNG *rng)
 {
@@ -1105,6 +1107,6 @@ WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng) {
 }
 #endif /* !WC_RNG_BANK_STATIC && !WC_NO_CONSTRUCTORS */
 
-#endif /* WC_DRBG_BANKREF */
+#endif /* WC_HAVE_RNG_BANKREF */
 
 #endif /* WC_RNG_BANK_SUPPORT */

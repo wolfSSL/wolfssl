@@ -46,12 +46,14 @@
 #ifndef __APPLE__
 .text
 .globl	chacha_encrypt_x64
+WC_ASM_ATT_HIDDEN(chacha_encrypt_x64)
 .type	chacha_encrypt_x64,@function
 .align	16
 chacha_encrypt_x64:
 #else
 .section	__TEXT,__text
 .globl	_chacha_encrypt_x64
+WC_ASM_ATT_HIDDEN(_chacha_encrypt_x64)
 .p2align	4
 _chacha_encrypt_x64:
 #endif /* __APPLE__ */
@@ -524,12 +526,14 @@ L_chacha20_avx1_four:
 #ifndef __APPLE__
 .text
 .globl	chacha_encrypt_avx1
+WC_ASM_ATT_HIDDEN(chacha_encrypt_avx1)
 .type	chacha_encrypt_avx1,@function
 .align	16
 chacha_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_chacha_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_chacha_encrypt_avx1)
 .p2align	4
 _chacha_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -1096,12 +1100,14 @@ L_chacha20_avx2_eight:
 #ifndef __APPLE__
 .text
 .globl	chacha_encrypt_avx2
+WC_ASM_ATT_HIDDEN(chacha_encrypt_avx2)
 .type	chacha_encrypt_avx2,@function
 .align	16
 chacha_encrypt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_chacha_encrypt_avx2
+WC_ASM_ATT_HIDDEN(_chacha_encrypt_avx2)
 .p2align	4
 _chacha_encrypt_avx2:
 #endif /* __APPLE__ */

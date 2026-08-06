@@ -33,6 +33,7 @@
 #ifdef HAVE_CHACHA
 	.text
 	.globl	wc_chacha_setiv
+	WC_ASM_ATT_HIDDEN(wc_chacha_setiv)
 	.type	wc_chacha_setiv,@function
 	.align	2
 wc_chacha_setiv:
@@ -143,6 +144,7 @@ L_chacha20_riscv64_setkey_constants:
 	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574
 	.text
 	.globl	wc_chacha_setkey
+	WC_ASM_ATT_HIDDEN(wc_chacha_setkey)
 	.type	wc_chacha_setkey,@function
 	.align	2
 wc_chacha_setkey:
@@ -414,6 +416,7 @@ L_ualn_lw11_e:
 	.size	wc_chacha_setkey,.-wc_chacha_setkey
 	.text
 	.globl	wc_chacha_use_over
+	WC_ASM_ATT_HIDDEN(wc_chacha_use_over)
 	.type	wc_chacha_use_over,@function
 	.align	2
 wc_chacha_use_over:
@@ -623,6 +626,7 @@ L_chacha20_riscv64_use_over_done:
 #ifdef WOLFSSL_RISCV_VECTOR
 	.text
 	.globl	wc_chacha_crypt_bytes
+	WC_ASM_ATT_HIDDEN(wc_chacha_crypt_bytes)
 	.type	wc_chacha_crypt_bytes,@function
 	.align	2
 wc_chacha_crypt_bytes:
@@ -3432,6 +3436,7 @@ L_chacha20_riscv64_vec_done:
 #else
 	.text
 	.globl	wc_chacha_crypt_bytes
+	WC_ASM_ATT_HIDDEN(wc_chacha_crypt_bytes)
 	.type	wc_chacha_crypt_bytes,@function
 	.align	2
 wc_chacha_crypt_bytes:

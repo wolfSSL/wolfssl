@@ -15799,38 +15799,48 @@ exit:
 void bench_falconKeySign(byte level)
 {
     int    ret = 0;
-    falcon_key key;
+    WC_DECLARE_VAR(key, falcon_key, 1, HEAP_HINT);
+    int key_inited = 0;
     double start;
     int    i, count;
-    byte   sig[FALCON_MAX_SIG_SIZE];
-    byte   msg[512];
+    WC_DECLARE_VAR(sig, byte, FALCON_MAX_SIG_SIZE, HEAP_HINT);
+    #define BENCH_FALCONKEYSIGN_MSG_SIZE 512
+    WC_DECLARE_VAR(msg, byte, BENCH_FALCONKEYSIGN_MSG_SIZE, HEAP_HINT);
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
+    WC_ALLOC_VAR(key, falcon_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(sig, byte, FALCON_MAX_SIG_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(msg, byte, BENCH_FALCONKEYSIGN_MSG_SIZE, HEAP_HINT);
+
     bench_stats_prepare();
 
-    ret = wc_falcon_init_ex(&key, HEAP_HINT, devId);
-    if (ret != 0) {
+    ret = wc_falcon_init_ex(key, HEAP_HINT, devId);
+    if (ret == 0)
+        key_inited = 1;
+    else {
         printf("wc_falcon_init_ex failed %d\n", ret);
-        return;
+        goto exit;
     }
 
-    ret = wc_falcon_set_level(&key, level);
-    if (ret != 0) {
-        printf("wc_falcon_set_level failed %d\n", ret);
+    if (ret == 0) {
+        ret = wc_falcon_set_level(key, level);
+        if (ret != 0) {
+            printf("wc_falcon_set_level failed %d\n", ret);
+        }
     }
 
     if (ret == 0) {
         word32 idx = 0;
         if (level == 1) {
             ret = wc_Falcon_PrivateKeyDecode(bench_falcon_level1_key, &idx,
-                                              &key,
+                                              key,
                                               sizeof_bench_falcon_level1_key);
         }
         else {
             ret = wc_Falcon_PrivateKeyDecode(bench_falcon_level5_key, &idx,
-                                              &key,
+                                              key,
                                               sizeof_bench_falcon_level5_key);
         }
 
@@ -15840,7 +15850,7 @@ void bench_falconKeySign(byte level)
     }
 
     /* make dummy msg */
-    for (i = 0; i < (int)sizeof(msg); i++) {
+    for (i = 0; i < BENCH_FALCONKEYSIGN_MSG_SIZE; i++) {
         msg[i] = (byte)i;
     }
 
@@ -15855,7 +15865,8 @@ void bench_falconKeySign(byte level)
                     x = FALCON_LEVEL5_SIG_SIZE;
                 }
 
-                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key, GLOBAL_RNG);
+                ret = wc_falcon_sign_msg(msg, BENCH_FALCONKEYSIGN_MSG_SIZE,
+                                         sig, &x, key, GLOBAL_RNG);
                 if (ret != 0) {
                     printf("wc_falcon_sign_msg failed\n");
                 }
@@ -15884,8 +15895,10 @@ void bench_falconKeySign(byte level)
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
                 int verify = 0;
-                ret = wc_falcon_verify_msg(sig, x, msg, sizeof(msg), &verify,
-                                           &key);
+                ret = wc_falcon_verify_msg(sig, x, msg,
+                                           BENCH_FALCONKEYSIGN_MSG_SIZE,
+                                           &verify,
+                                           key);
                 if (ret != 0 || verify != 1) {
                     printf("wc_falcon_verify_msg failed %d, verify %d\n",
                            ret, verify);
@@ -15909,7 +15922,13 @@ void bench_falconKeySign(byte level)
     #endif
     }
 
-    wc_falcon_free(&key);
+exit:
+
+    if (key_inited)
+        wc_falcon_free(key);
+    WC_FREE_VAR(key, HEAP_HINT);
+    WC_FREE_VAR(sig, HEAP_HINT);
+    WC_FREE_VAR(msg, HEAP_HINT);
 }
 #endif /* HAVE_FALCON */
 

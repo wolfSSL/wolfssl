@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_DH_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -27,9 +28,6 @@
 
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$e")
@@ -57,6 +55,35 @@
     {
         return 0;
     }
+#endif
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+
+/* Note that the wc_dh_enabled runtime feature-switching facility is neither
+ * thread-synchronized nor thread-local, and is only allowed during global
+ * initialization or self-test sequences before application service begins.
+ */
+
+static volatile int wc_dh_enabled = WC_DH_INITIAL_RUNTIME_ENABLEMENT;
+int wc_dh_enable(void) {
+    if (wc_dh_enabled)
+        return ALREADY_E;
+    else {
+        wc_dh_enabled = 1;
+        return 0;
+    }
+}
+int wc_dh_disable(void) {
+    if (wc_dh_enabled) {
+        wc_dh_enabled = 0;
+        return 0;
+    }
+    else
+        return ALREADY_E;
+}
+int wc_dh_is_enabled(void) {
+    return wc_dh_enabled;
+}
 #endif
 
 /*
@@ -942,8 +969,15 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(key, 0, sizeof(*key));
+
     key->heap = heap; /* for XMALLOC/XFREE in future */
     key->trustedGroup = 0;
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
 #ifdef WOLFSSL_DH_EXTRA
     if (mp_init_multi(&key->p, &key->g, &key->q, &key->pub, &key->priv, NULL) != MP_OKAY)
@@ -960,8 +994,6 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
     (void)devId;
 #endif
 
-    key->trustedGroup = 0;
-
 #ifdef WOLFSSL_KCAPI_DH
     key->handle = NULL;
 #endif
@@ -969,6 +1001,10 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 #ifdef WC_DH_NONBLOCK
     key->nb = NULL;
 #endif
+
+    /* On failure, release MPI allocations, if any. */
+    if (ret != 0)
+        (void)wc_FreeDhKey(key);
 
     return ret;
 }
@@ -1437,6 +1473,11 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
         pub == NULL || pubSz == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
     ret = GeneratePublicDh(key, priv, privSz, pub, pubSz);
 
@@ -2014,6 +2055,11 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
+
 #ifdef WOLFSSL_KCAPI_DH
     (void)priv;
     (void)privSz;
@@ -2383,6 +2429,11 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
+
 #ifdef WOLFSSL_KCAPI_DH
     (void)priv;
     (void)privSz;
@@ -2425,6 +2476,11 @@ int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
                                                             otherPub == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
     requested_agreeSz = (word32)mp_unsigned_bin_size(&key->p);
     if (requested_agreeSz > *agreeSz) {
@@ -2595,6 +2651,11 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
         ret = BAD_FUNC_ARG;
     }
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if ((ret == 0) && (! wc_dh_enabled))
+        ret = FIPS_NOT_ALLOWED_E;
+#endif
 
     if (ret == 0) {
         /* may have leading 0 */
@@ -3144,6 +3205,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 
     if (rng == NULL || dh == NULL)
         ret = BAD_FUNC_ARG;
+
+#ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
+    if (! wc_dh_enabled)
+        return FIPS_NOT_ALLOWED_E;
+#endif
 
     /* set group size in bytes from modulus size
      * FIPS 186-4 defines valid values (1024, 160) (2048, 256) (3072, 256)

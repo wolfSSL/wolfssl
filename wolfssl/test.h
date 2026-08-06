@@ -394,7 +394,7 @@ THREAD_RETURN
 #else
 WC_NORETURN void
 #endif
-err_sys(const char* msg)
+err_sys_func(const char* msg, const char *file, int line)
 {
 #if !defined(__GNUC__)
     /* scan-build (which pretends to be gnuc) can get confused and think the
@@ -406,10 +406,11 @@ err_sys(const char* msg)
     if (msg)
 #endif
     {
-        fprintf(stderr, "wolfSSL error: %s\n", msg);
+        fprintf(stderr, "wolfSSL error, %s L %d: %s\n", file, line, msg);
     }
     XEXIT_T(EXIT_FAILURE);
 }
+#define err_sys(msg) err_sys_func(msg, __FILE__, __LINE__)
 
 static WC_INLINE
 #if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
@@ -417,7 +418,7 @@ THREAD_RETURN
 #else
 WC_NORETURN void
 #endif
-err_sys_with_errno(const char* msg)
+err_sys_with_errno_func(const char* msg, const char *file, int line)
 {
 #if !defined(__GNUC__)
     /* scan-build (which pretends to be gnuc) can get confused and think the
@@ -430,13 +431,15 @@ err_sys_with_errno(const char* msg)
 #endif
     {
 #if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
-        fprintf(stderr, "wolfSSL error: %s: %s\n", msg, strerror(errno));
+        fprintf(stderr, "wolfSSL error, %s L %d: %s: %s\n", file, line,
+                msg, strerror(errno));
 #else
-        fprintf(stderr, "wolfSSL error: %s\n", msg);
+        fprintf(stderr, "wolfSSL error, %s L %d: %s\n", file, line, msg);
 #endif
     }
     XEXIT_T(EXIT_FAILURE);
 }
+#define err_sys_with_errno(msg) err_sys_with_errno_func(msg, __FILE__, __LINE__)
 
 #define LIBCALL_CHECK_RET(...) do {                                  \
         int _libcall_ret = (__VA_ARGS__);                            \

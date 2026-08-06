@@ -109,12 +109,14 @@ L_SHA512_transform_neon_len_r8:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_Len_neon
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_neon)
 .type	Transform_Sha512_Len_neon,@function
 .align	2
 Transform_Sha512_Len_neon:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len_neon
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_Len_neon)
 .p2align	2
 _Transform_Sha512_Len_neon:
 #endif /* __APPLE__ */
@@ -1110,12 +1112,14 @@ L_SHA512_trans_crypto_len_k:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_Len_crypto
+WC_ASM_ATT_HIDDEN(Transform_Sha512_Len_crypto)
 .type	Transform_Sha512_Len_crypto,@function
 .align	2
 Transform_Sha512_Len_crypto:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_Len_crypto
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_Len_crypto)
 .p2align	2
 _Transform_Sha512_Len_crypto:
 #endif /* __APPLE__ */

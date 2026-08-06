@@ -114,6 +114,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
  * WOLFSSL_HW_METRICS:      Track hardware acceleration usage     default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_AES_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -123,9 +124,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 /* Tip: Locate the software cipher modes by searching for "Software AES" */
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$b")
         #pragma const_seg(".fipsB$b")
@@ -11218,6 +11216,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (ret != 0)
         return ret;
 
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if (ivSz < GCM_NONCE_MID_SZ)
+        return FIPS_BAD_VALUE_E;
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
@@ -12059,6 +12062,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ret = wc_local_AesGcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
+
+    /* No FIPS check on ivSz in decrypt mode -- SP 800-38D IV
+     * construction requirements bind encryption only; decryption must
+     * accept externally generated IVs of any supported length.
+     */
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -14312,16 +14320,26 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 #endif
 
     if (ret == 0) {
-        /* Set the IV passed in if it is smaller than a block. */
-        if ((iv != NULL) && (ivSz <= WC_AES_BLOCK_SIZE)) {
-            XMEMMOVE((byte*)aes->reg, iv, ivSz);
-            aes->nonceSz = ivSz;
+        if (iv != NULL) {
+            if (ivSz <= WC_AES_BLOCK_SIZE) {
+                /* Set the IV passed in if it is smaller than a block. */
+                XMEMMOVE((byte*)aes->reg, iv, ivSz);
+                aes->nonceSz = ivSz;
+            }
+            else {
+                /* FIPS short-nonce detection depends on aes->nonceSz == 0
+                 * signifying that supplied ivSz > WC_AES_BLOCK_SIZE.
+                 */
+                aes->nonceSz = 0;
+            }
         }
-        /* No IV passed in, check for cached IV. */
-        if ((iv == NULL) && (aes->nonceSz != 0)) {
-            /* Use the cached copy. */
-            iv = (byte*)aes->reg;
-            ivSz = aes->nonceSz;
+        else {
+            /* No IV passed in, check for cached IV. */
+            if (aes->nonceSz != 0) {
+                /* Use the cached copy. */
+                iv = (byte*)aes->reg;
+                ivSz = aes->nonceSz;
+            }
         }
 
         if (iv != NULL) {
@@ -14382,6 +14400,14 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    /* Note iv is an optional arg to wc_AesGcmEncryptInit(), so we tolerate zero ivSz
+     * here.
+     */
+    if ((ivSz > 0) && (ivSz < GCM_NONCE_MID_SZ))
+        return FIPS_BAD_VALUE_E;
+#endif
+
     return wc_AesGcmInit(aes, key, len, iv, ivSz);
 }
 
@@ -14412,6 +14438,11 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len, byte* ivOut,
     if ((aes == NULL) || (ivOut == NULL) || (ivOutSz != aes->nonceSz)) {
         ret = BAD_FUNC_ARG;
     }
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    else if (ivOutSz < GCM_NONCE_MID_SZ) {
+        ret = FIPS_BAD_VALUE_E;
+    }
+#endif
     else {
         /* Copy out the IV including generated part for decryption. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
@@ -14442,6 +14473,11 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     if ((ret == 0) && (!aes->nonceSet)) {
         ret = MISSING_IV;
     }
+
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if ((ret == 0) && (aes->nonceSz != 0) && (aes->nonceSz < GCM_NONCE_MID_SZ))
+        ret = FIPS_BAD_VALUE_E;
+#endif
 
     /* Prevent overflow of aes->cSz and ->aSz.  Per NIST SP 800-38D section
      * 5.2.1.1, the maximum allowed ciphertext limit is 2^32 - 2 blocks, but we
@@ -14530,6 +14566,11 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
         ret = MISSING_IV;
     }
 
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if ((ret == 0) && (aes->nonceSz != 0) && (aes->nonceSz < GCM_NONCE_MID_SZ))
+        ret = FIPS_BAD_VALUE_E;
+#endif
+
     if (ret == 0) {
         /* Calculate authentication tag. */
     #ifdef WOLFSSL_AESNI
@@ -14581,6 +14622,11 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
+    /*
+     * There is no FIPS check on ivSz in decrypt mode -- SP
+     * 800-38D IV construction requirements bind encryption only; decryption
+     * must accept externally generated IVs of any supported length.
+     */
     return wc_AesGcmInit(aes, key, len, iv, ivSz);
 }
 
@@ -14808,6 +14854,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 
         ret = BAD_FUNC_ARG;
     }
+
+#if defined(HAVE_FIPS) && defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    if ((ret == 0) && (ivOutSz < GCM_NONCE_MID_SZ))
+        ret = FIPS_BAD_VALUE_E;
+#endif
 
     if (ret == 0) {
         aes->invokeCtr[0]++;

@@ -239,6 +239,7 @@ L_AES_ARM32_te:
 	.text
 	.align	4
 	.globl	AES_invert_key
+	WC_ASM_ATT_HIDDEN(AES_invert_key)
 	.type	AES_invert_key, %function
 AES_invert_key:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -458,6 +459,7 @@ L_AES_ARM32_rcon:
 	.text
 	.align	4
 	.globl	AES_set_encrypt_key
+	WC_ASM_ATT_HIDDEN(AES_set_encrypt_key)
 	.type	AES_set_encrypt_key, %function
 AES_set_encrypt_key:
 	push	{r4, r5, r6, r7, r8, lr}
@@ -923,6 +925,7 @@ L_AES_set_encrypt_key_end:
 	.text
 	.align	4
 	.globl	AES_encrypt_block
+	WC_ASM_ATT_HIDDEN(AES_encrypt_block)
 	.type	AES_encrypt_block, %function
 AES_encrypt_block:
 	push	{lr}
@@ -1585,6 +1588,7 @@ L_AES_ARM32_te_ecb:
 	.text
 	.align	4
 	.globl	AES_ECB_encrypt
+	WC_ASM_ATT_HIDDEN(AES_ECB_encrypt)
 	.type	AES_ECB_encrypt, %function
 AES_ECB_encrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3750,6 +3754,7 @@ L_AES_ARM32_te_cbc:
 	.text
 	.align	4
 	.globl	AES_CBC_encrypt
+	WC_ASM_ATT_HIDDEN(AES_CBC_encrypt)
 	.type	AES_CBC_encrypt, %function
 AES_CBC_encrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5929,6 +5934,7 @@ L_AES_ARM32_te_ctr:
 	.text
 	.align	4
 	.globl	AES_CTR_encrypt
+	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt)
 	.type	AES_CTR_encrypt, %function
 AES_CTR_encrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -8098,6 +8104,7 @@ L_AES_CTR_encrypt_end:
 	.text
 	.align	4
 	.globl	AES_decrypt_block
+	WC_ASM_ATT_HIDDEN(AES_decrypt_block)
 	.type	AES_decrypt_block, %function
 AES_decrypt_block:
 	push	{lr}
@@ -8804,6 +8811,7 @@ L_AES_ARM32_ecb_td4:
 	.text
 	.align	4
 	.globl	AES_ECB_decrypt
+	WC_ASM_ATT_HIDDEN(AES_ECB_decrypt)
 	.type	AES_ECB_decrypt, %function
 AES_ECB_decrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -10996,6 +11004,7 @@ L_AES_ARM32_cbc_td4:
 	.text
 	.align	4
 	.globl	AES_CBC_decrypt
+	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt)
 	.type	AES_CBC_decrypt, %function
 AES_CBC_decrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -15459,6 +15468,7 @@ L_GCM_gmult_len_r:
 	.text
 	.align	4
 	.globl	GCM_gmult_len
+	WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 	.type	GCM_gmult_len, %function
 GCM_gmult_len:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -16229,6 +16239,7 @@ L_GCM_gmult_len_r:
 	.text
 	.align	4
 	.globl	GCM_gmult_len
+	WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 	.type	GCM_gmult_len, %function
 GCM_gmult_len:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -17080,6 +17091,7 @@ L_AES_ARM32_te_gcm:
 	.text
 	.align	4
 	.globl	AES_GCM_encrypt
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt)
 	.type	AES_GCM_encrypt, %function
 AES_GCM_encrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -19255,6 +19267,7 @@ L_AES_GCMSIV_polyval_base_r:
 	.text
 	.align	4
 	.globl	AES_GCMSIV_polyval_base
+	WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_base)
 	.type	AES_GCMSIV_polyval_base, %function
 AES_GCMSIV_polyval_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -20186,6 +20199,7 @@ L_AES_GCMSIV_ctr_base_te:
 	.text
 	.align	4
 	.globl	AES_GCMSIV_ctr_base
+	WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_base)
 	.type	AES_GCMSIV_ctr_base, %function
 AES_GCMSIV_ctr_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -22360,6 +22374,7 @@ L_AES_GCMSIV_ctr_base_end:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_set_key_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_set_key_AARCH32)
 	.type	AES_set_key_AARCH32, %function
 AES_set_key_AARCH32:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -23292,6 +23307,7 @@ L_aes_set_key_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_encrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_encrypt_AARCH32)
 	.type	AES_encrypt_AARCH32, %function
 AES_encrypt_AARCH32:
 	vpush	{d8-d9}
@@ -23346,6 +23362,7 @@ L_aes_encrypt_arm32_crypto_round_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_decrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_decrypt_AARCH32)
 	.type	AES_decrypt_AARCH32, %function
 AES_decrypt_AARCH32:
 	vpush	{d8-d9}
@@ -23400,6 +23417,7 @@ L_aes_decrypt_arm32_crypto_round_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_encrypt_blocks_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_encrypt_blocks_AARCH32)
 	.type	AES_encrypt_blocks_AARCH32, %function
 AES_encrypt_blocks_AARCH32:
 	vpush	{d8-d15}
@@ -24034,6 +24052,7 @@ L_aes_encrypt_blocks_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_decrypt_blocks_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_decrypt_blocks_AARCH32)
 	.type	AES_decrypt_blocks_AARCH32, %function
 AES_decrypt_blocks_AARCH32:
 	vpush	{d8-d15}
@@ -24670,6 +24689,7 @@ L_aes_decrypt_blocks_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_CBC_encrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_AARCH32)
 	.type	AES_CBC_encrypt_AARCH32, %function
 AES_CBC_encrypt_AARCH32:
 	push	{lr}
@@ -25333,6 +25353,7 @@ L_aes_cbc_encrypt_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_CBC_decrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_AARCH32)
 	.type	AES_CBC_decrypt_AARCH32, %function
 AES_CBC_decrypt_AARCH32:
 	push	{lr}
@@ -25674,6 +25695,7 @@ L_aes_cbc_decrypt_blocks_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_CTR_encrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_AARCH32)
 	.type	AES_CTR_encrypt_AARCH32, %function
 AES_CTR_encrypt_AARCH32:
 	push	{r4, r5, r6, r7, r8, lr}
@@ -26243,6 +26265,7 @@ L_aes_ctr_encrypt_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_GCM_set_key_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_GCM_set_key_AARCH32)
 	.type	AES_GCM_set_key_AARCH32, %function
 AES_GCM_set_key_AARCH32:
 	vpush	{d8-d9}
@@ -26306,6 +26329,7 @@ L_aes_gcm_set_key_arm32_crypto_round_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_GCM_encrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_AARCH32)
 	.type	AES_GCM_encrypt_AARCH32, %function
 AES_GCM_encrypt_AARCH32:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -27754,6 +27778,7 @@ L_aes_gcm_encrypt_arm32_crypto_done_gcm:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_GCM_decrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_AARCH32)
 	.type	AES_GCM_decrypt_AARCH32, %function
 AES_GCM_decrypt_AARCH32:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -29238,6 +29263,7 @@ L_aes_gcm_decrypt_arm32_crypto_tag_tag_loaded:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_XTS_encrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_AARCH32)
 	.type	AES_XTS_encrypt_AARCH32, %function
 AES_XTS_encrypt_AARCH32:
 	push	{r4, r5, r6, r7, r8, r9, lr}
@@ -29644,6 +29670,7 @@ L_aes_xts_encrypt_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_XTS_decrypt_AARCH32
+	WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_AARCH32)
 	.type	AES_XTS_decrypt_AARCH32, %function
 AES_XTS_decrypt_AARCH32:
 	push	{r4, r5, r6, r7, r8, r9, lr}
@@ -30170,6 +30197,7 @@ L_aes_xts_decrypt_arm32_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_GCMSIV_polyval_crypto
+	WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_crypto)
 	.type	AES_GCMSIV_polyval_crypto, %function
 AES_GCMSIV_polyval_crypto:
 	vpush	{d8-d15}
@@ -30417,6 +30445,7 @@ L_AES_GCMSIV_polyval_crypto_done:
 	.align	4
 	.fpu	crypto-neon-fp-armv8
 	.globl	AES_GCMSIV_ctr_crypto
+	WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_crypto)
 	.type	AES_GCMSIV_ctr_crypto, %function
 AES_GCMSIV_ctr_crypto:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}

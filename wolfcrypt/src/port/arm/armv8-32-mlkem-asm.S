@@ -67,6 +67,7 @@ L_mlkem_arm32_ntt_zetas:
 	.text
 	.align	4
 	.globl	mlkem_arm32_ntt
+	WC_ASM_ATT_HIDDEN(mlkem_arm32_ntt)
 	.type	mlkem_arm32_ntt, %function
 mlkem_arm32_ntt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3088,6 +3089,7 @@ L_mlkem_invntt_zetas_inv:
 	.text
 	.align	4
 	.globl	mlkem_arm32_invntt
+	WC_ASM_ATT_HIDDEN(mlkem_arm32_invntt)
 	.type	mlkem_arm32_invntt, %function
 mlkem_arm32_invntt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -7503,6 +7505,7 @@ L_mlkem_basemul_mont_zetas:
 	.text
 	.align	4
 	.globl	mlkem_arm32_basemul_mont
+	WC_ASM_ATT_HIDDEN(mlkem_arm32_basemul_mont)
 	.type	mlkem_arm32_basemul_mont, %function
 mlkem_arm32_basemul_mont:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -7781,6 +7784,7 @@ L_mlkem_basemul_mont_loop:
 	.text
 	.align	4
 	.globl	mlkem_arm32_basemul_mont_add
+	WC_ASM_ATT_HIDDEN(mlkem_arm32_basemul_mont_add)
 	.type	mlkem_arm32_basemul_mont_add, %function
 mlkem_arm32_basemul_mont_add:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -8093,6 +8097,7 @@ L_mlkem_arm32_basemul_mont_add_loop:
 	.text
 	.align	4
 	.globl	mlkem_arm32_csubq
+	WC_ASM_ATT_HIDDEN(mlkem_arm32_csubq)
 	.type	mlkem_arm32_csubq, %function
 mlkem_arm32_csubq:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -8264,6 +8269,7 @@ L_mlkem_arm32_csubq_loop:
 	.text
 	.align	4
 	.globl	mlkem_arm32_rej_uniform
+	WC_ASM_ATT_HIDDEN(mlkem_arm32_rej_uniform)
 	.type	mlkem_arm32_rej_uniform, %function
 mlkem_arm32_rej_uniform:
 	push	{r4, r5, r6, r7, r8, lr}

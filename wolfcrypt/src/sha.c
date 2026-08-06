@@ -39,6 +39,7 @@
  * PSOC6_HASH_SHA1:          PSoC6 hardware SHA-1                  default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_SHA_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -52,9 +53,6 @@
 #if !defined(NO_SHA)
 
 #if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$k")
         #pragma const_seg(".fipsB$k")

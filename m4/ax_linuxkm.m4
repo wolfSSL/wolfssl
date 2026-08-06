@@ -77,8 +77,9 @@ AC_DEFUN([AX_SIMD_CC_COMPILER_FLAGS], [
         AX_APPEND_COMPILE_FLAGS([-mmmx],[CFLAGS_SIMD_ENABLE])
         AX_APPEND_COMPILE_FLAGS([-msse2],[CFLAGS_SIMD_ENABLE])
         AX_APPEND_COMPILE_FLAGS([-msse4],[CFLAGS_SIMD_ENABLE])
-        AX_APPEND_COMPILE_FLAGS([-mavx],[CFLAGS_SIMD_ENABLE])
-        AX_APPEND_COMPILE_FLAGS([-mavx2],[CFLAGS_SIMD_ENABLE])
+        # Don't add -mavx or -mavx2 -- gcc will emit AVX instructions unbidden,
+        # e.g. for 128 bit types, that can't be runtime-dispatched based on cpuid, leading
+        # to crashes (unknown opcodes) on CPUs lacking AVX.
         AX_APPEND_COMPILE_FLAGS([-mno-general-regs-only],[CFLAGS_SIMD_ENABLE])
     fi
 

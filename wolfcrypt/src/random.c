@@ -108,6 +108,7 @@ This library contains implementation for the random number generator.
  *                           tuning details.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_RANDOM_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -122,9 +123,6 @@ This library contains implementation for the random number generator.
 
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$i")
@@ -317,11 +315,28 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 
 
 /* Internal return codes */
-#define DRBG_SUCCESS      0
-#define DRBG_FAILURE      1
-#define DRBG_NEED_RESEED  2
-#define DRBG_CONT_FAILURE 3
-#define DRBG_NO_SEED_CB   4
+enum {
+    DRBG_SUCCESS = 0,
+    DRBG_FAILURE = 1,
+    DRBG_NEED_RESEED = 2,
+    DRBG_CONT_FAILURE = 3,
+    DRBG_NO_SEED_CB = 4
+};
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+    enum {
+        CONST_NUM_ERR_DRBG_FAILURE = DRBG_FAILURE,
+        CONST_NUM_ERR_DRBG_NEED_RESEED = DRBG_NEED_RESEED,
+        CONST_NUM_ERR_DRBG_CONT_FAILURE = DRBG_CONT_FAILURE,
+        CONST_NUM_ERR_DRBG_NO_SEED_CB = DRBG_NO_SEED_CB
+    };
+    #define DRBG_FAILURE WC_ERR_TRACE(DRBG_FAILURE)
+    #define DRBG_NEED_RESEED WC_ERR_TRACE(DRBG_NEED_RESEED)
+    #define DRBG_CONT_FAILURE WC_ERR_TRACE(DRBG_CONT_FAILURE)
+    #define DRBG_NO_SEED_CB WC_ERR_TRACE(DRBG_NO_SEED_CB)
+    #define WC_DRBG_FAILED WC_ERR_TRACE(WC_DRBG_FAILED)
+    #define WC_DRBG_CONT_FAILED WC_ERR_TRACE(WC_DRBG_CONT_FAILED)
+#endif
 
 /* RNG health states */
 #define DRBG_NOT_INIT     WC_DRBG_NOT_INIT
@@ -471,7 +486,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
                                                   const byte* inB, word32 inBSz,
                                                   const byte* inC, word32 inCSz)
 {
-    int ret = DRBG_FAILURE;
+    int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
     byte ctr;
     word32 i;
     word32 len;
@@ -706,7 +721,7 @@ static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
 static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 {
-    int ret = DRBG_FAILURE;
+    int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
     word32 i;
     word32 len;
 #if defined(WOLFSSL_SMALL_STACK_CACHE)
@@ -798,7 +813,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
 
     #ifdef WC_VERBOSE_RNG
-    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE)) {
+    if ((ret != DRBG_SUCCESS) && (ret != WC_NO_ERR_TRACE(DRBG_FAILURE))) {
         /* Note, if we're just going to return DRBG_FAILURE to the caller, then
          * there's no point printing it out here because (1) the lower-level
          * code that was remapped to DRBG_FAILURE already got printed before the
@@ -996,7 +1011,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz,
     }
 
     #ifdef WC_VERBOSE_RNG
-    if ((ret != DRBG_SUCCESS) && (ret != DRBG_FAILURE)) {
+    if ((ret != DRBG_SUCCESS) && (ret != WC_NO_ERR_TRACE(DRBG_FAILURE))) {
         /* see note above regarding log spam reduction */
         WOLFSSL_DEBUG_PRINTF("ERROR: Hash_DRBG_Generate failed with err %d.",
                              ret);
@@ -1035,7 +1050,7 @@ static int Hash_DRBG_Instantiate(DRBG_internal* drbg, const byte* seed,
                                  word32 nonceSz, const byte* perso,
                                  word32 persoSz, void* heap, int devId)
 {
-    int ret = DRBG_FAILURE;
+    int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
 
     XMEMSET(drbg, 0, sizeof(DRBG_internal));
     drbg->heap = heap;
@@ -1107,7 +1122,7 @@ static int Hash512_df(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
                       const byte* inB, word32 inBSz,
                       const byte* inC, word32 inCSz)
 {
-    int ret = DRBG_FAILURE;
+    int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
     byte ctr;
     word32 i;
     word32 len;
@@ -1281,7 +1296,7 @@ static int Hash512_DRBG_Reseed(DRBG_SHA512_internal* drbg, const byte* seed,
 static int Hash512_gen(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
                        const byte* V)
 {
-    int ret = DRBG_FAILURE;
+    int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
     word32 i;
     word32 len;
 #if defined(WOLFSSL_SMALL_STACK_CACHE)
@@ -1526,7 +1541,7 @@ static int Hash512_DRBG_Instantiate(DRBG_SHA512_internal* drbg,
                                     const byte* perso, word32 persoSz,
                                     void* heap, int devId)
 {
-    int ret = DRBG_FAILURE;
+    int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
 
     XMEMSET(drbg, 0, sizeof(DRBG_SHA512_internal));
     drbg->heap = heap;
@@ -2239,11 +2254,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         rng->status = DRBG_OK;
         ret = 0;
     }
-    else if (ret == DRBG_CONT_FAILURE) {
+    else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         rng->status = DRBG_CONT_FAILED;
         ret = DRBG_CONT_FIPS_E;
     }
-    else if (ret == DRBG_FAILURE) {
+    else if (ret == WC_NO_ERR_TRACE(DRBG_FAILURE)) {
         rng->status = DRBG_FAILED;
         ret = RNG_FAILURE_E;
     }
@@ -2343,7 +2358,7 @@ int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 static int PollAndReSeed(WC_RNG* rng)
 {
-    int ret   = DRBG_NEED_RESEED;
+    int ret   = WC_NO_ERR_TRACE(DRBG_NEED_RESEED);
     int devId = INVALID_DEVID;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     devId = rng->devId;
@@ -2520,7 +2535,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng->drbgType == WC_DRBG_SHA256) {
         ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz,
                                  NULL, 0);
-        if (ret == DRBG_NEED_RESEED) {
+        if (ret == WC_NO_ERR_TRACE(DRBG_NEED_RESEED)) {
             ret = PollAndReSeed(rng);
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output,
@@ -2533,7 +2548,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng->drbgType == WC_DRBG_SHA512) {
         ret = Hash512_DRBG_Generate((DRBG_SHA512_internal *)rng->drbg512,
                                     output, sz, NULL, 0);
-        if (ret == DRBG_NEED_RESEED) {
+        if (ret == WC_NO_ERR_TRACE(DRBG_NEED_RESEED)) {
             ret = PollAndReSeed(rng);
             if (ret == DRBG_SUCCESS)
                 ret = Hash512_DRBG_Generate(
@@ -2550,7 +2565,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (ret == DRBG_SUCCESS) {
         ret = 0;
     }
-    else if (ret == DRBG_CONT_FAILURE) {
+    else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         ret = DRBG_CONT_FIPS_E;
         rng->status = DRBG_CONT_FAILED;
     }
@@ -2739,7 +2754,7 @@ static int wc_RNG_HealthTest_ex_internal(DRBG_internal* drbg,
                                   byte* output, word32 outputSz,
                                   void* heap, int devId)
 {
-    int ret = -1;
+    int ret = WC_NO_ERR_TRACE(WC_FAILURE);
 
     if (seedA == NULL || output == NULL) {
         return BAD_FUNC_ARG;
@@ -2795,7 +2810,7 @@ exit_rng_ht:
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     /* This is safe to call even if Hash_DRBG_Instantiate fails */
     if (Hash_DRBG_Uninstantiate(drbg) != 0) {
-        ret = -1;
+        ret = WC_FAILURE;
     }
 #endif
 
@@ -2808,7 +2823,7 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
                                   byte* output, word32 outputSz,
                                   void* heap, int devId)
 {
-    int ret = -1;
+    int ret = WC_NO_ERR_TRACE(WC_FAILURE);
     DRBG_internal* drbg;
 #ifndef WOLFSSL_SMALL_STACK
     DRBG_internal  drbg_var;
@@ -3040,7 +3055,7 @@ static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
             if (ret == 0) {
                 if (ConstantCompare(check512, sha512_outputA_data,
                                     RNG_HEALTH_TEST_CHECK_SIZE_SHA512) != 0)
-                    ret = -1;
+                    ret = WC_FAILURE;
             }
         }
         else {
@@ -3055,7 +3070,7 @@ static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
             if (ret == 0) {
                 if (ConstantCompare(check512, sha512_outputB_data,
                                     RNG_HEALTH_TEST_CHECK_SIZE_SHA512) != 0)
-                    ret = -1;
+                    ret = WC_FAILURE;
             }
         }
 
@@ -3123,7 +3138,7 @@ static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
         if (ret == 0) {
             if (ConstantCompare(check, outputA,
                                 RNG_HEALTH_TEST_CHECK_SIZE) != 0)
-                ret = -1;
+                ret = WC_FAILURE;
         }
 
 #ifdef WOLFSSL_USE_FLASHMEM
@@ -3175,7 +3190,7 @@ static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
                 #if defined(DEBUG_WOLFSSL)
                 WOLFSSL_MSG_EX("Random ConstantCompare failed: err = %d", ret);
                 #endif
-                ret = -1;
+                ret = WC_FAILURE;
             }
         }
 
@@ -3192,7 +3207,7 @@ static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
                                        heap, devId);
             if (ret == 0) {
                 if (ConstantCompare(check, outputB, sizeof(outputB_data)) != 0)
-                    ret = -1;
+                    ret = WC_FAILURE;
             }
         }
 
@@ -3228,7 +3243,7 @@ static int wc_RNG_HealthTest_SHA512_ex_internal(DRBG_SHA512_internal* drbg,
                                   byte* output, word32 outputSz,
                                   void* heap, int devId)
 {
-    int ret = -1;
+    int ret = WC_NO_ERR_TRACE(WC_FAILURE);
 
     if (seedA == NULL || output == NULL) {
         return BAD_FUNC_ARG;
@@ -3281,7 +3296,7 @@ exit_rng_ht512:
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     if (Hash512_DRBG_Uninstantiate(drbg) != 0) {
-        ret = -1;
+        ret = WC_FAILURE;
     }
 #endif
 
@@ -3301,7 +3316,7 @@ int wc_RNG_HealthTest_SHA512_ex(int reseed,
                                 byte* output, word32 outputSz,
                                 void* heap, int devId)
 {
-    int ret = -1;
+    int ret = WC_NO_ERR_TRACE(WC_FAILURE);
     DRBG_SHA512_internal* drbg;
 #ifndef WOLFSSL_SMALL_STACK
     DRBG_SHA512_internal  drbg_var;
@@ -3366,7 +3381,7 @@ int wc_RNG_HealthTest_SHA512(int reseed,
                              const byte* seedB, word32 seedBSz,
                              byte* output, word32 outputSz)
 {
-    int ret = -1;
+    int ret = WC_NO_ERR_TRACE(WC_FAILURE);
     DRBG_SHA512_internal* drbg;
 #ifndef WOLFSSL_SMALL_STACK
     DRBG_SHA512_internal  drbg_var;

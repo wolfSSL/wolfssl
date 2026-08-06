@@ -57,6 +57,7 @@ L_SHA256_transform_riscv_vector_len_k:
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.globl	Transform_Sha256_Len_riscv_vector
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_riscv_vector)
 	.type	Transform_Sha256_Len_riscv_vector,@function
 	.align	2
 Transform_Sha256_Len_riscv_vector:
@@ -248,6 +249,7 @@ L_SHA256_transform_riscv_crypto_len_k:
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.globl	Transform_Sha256_Len_riscv_crypto
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_riscv_crypto)
 	.type	Transform_Sha256_Len_riscv_crypto,@function
 	.align	2
 Transform_Sha256_Len_riscv_crypto:
@@ -1333,6 +1335,7 @@ L_SHA256_transform_riscv_len_k:
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.text
 	.globl	Transform_Sha256_Len_riscv
+	WC_ASM_ATT_HIDDEN(Transform_Sha256_Len_riscv)
 	.type	Transform_Sha256_Len_riscv,@function
 	.align	2
 Transform_Sha256_Len_riscv:

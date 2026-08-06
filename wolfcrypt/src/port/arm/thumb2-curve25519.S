@@ -41,6 +41,7 @@
 	.text
 	.align	4
 	.globl	fe_init
+	WC_ASM_ATT_HIDDEN(fe_init)
 	.type	fe_init, %function
 fe_init:
 	BX	lr
@@ -49,6 +50,7 @@ fe_init:
 	.text
 	.align	4
 	.globl	fe_add_sub_op
+	WC_ASM_ATT_HIDDEN(fe_add_sub_op)
 	.type	fe_add_sub_op, %function
 fe_add_sub_op:
 	PUSH	{lr}
@@ -145,6 +147,7 @@ fe_add_sub_op:
 	.text
 	.align	4
 	.globl	fe_sub_op
+	WC_ASM_ATT_HIDDEN(fe_sub_op)
 	.type	fe_sub_op, %function
 fe_sub_op:
 	PUSH	{lr}
@@ -179,6 +182,7 @@ fe_sub_op:
 	.text
 	.align	4
 	.globl	fe_sub
+	WC_ASM_ATT_HIDDEN(fe_sub)
 	.type	fe_sub, %function
 fe_sub:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -189,6 +193,7 @@ fe_sub:
 	.text
 	.align	4
 	.globl	fe_add_op
+	WC_ASM_ATT_HIDDEN(fe_add_op)
 	.type	fe_add_op, %function
 fe_add_op:
 	PUSH	{lr}
@@ -223,6 +228,7 @@ fe_add_op:
 	.text
 	.align	4
 	.globl	fe_add
+	WC_ASM_ATT_HIDDEN(fe_add)
 	.type	fe_add, %function
 fe_add:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -234,6 +240,7 @@ fe_add:
 	.text
 	.align	4
 	.globl	fe_frombytes
+	WC_ASM_ATT_HIDDEN(fe_frombytes)
 	.type	fe_frombytes, %function
 fe_frombytes:
 	PUSH	{r4, r5, r6, r7, r8, r9, lr}
@@ -260,6 +267,7 @@ fe_frombytes:
 	.text
 	.align	4
 	.globl	fe_tobytes
+	WC_ASM_ATT_HIDDEN(fe_tobytes)
 	.type	fe_tobytes, %function
 fe_tobytes:
 	PUSH	{r4, r5, r6, r7, r8, r9, lr}
@@ -297,6 +305,7 @@ fe_tobytes:
 	.text
 	.align	4
 	.globl	fe_1
+	WC_ASM_ATT_HIDDEN(fe_1)
 	.type	fe_1, %function
 fe_1:
 	PUSH	{r4, r5, r6, r7, r8, r9, lr}
@@ -316,6 +325,7 @@ fe_1:
 	.text
 	.align	4
 	.globl	fe_0
+	WC_ASM_ATT_HIDDEN(fe_0)
 	.type	fe_0, %function
 fe_0:
 	PUSH	{r4, r5, r6, r7, r8, r9, lr}
@@ -335,6 +345,7 @@ fe_0:
 	.text
 	.align	4
 	.globl	fe_copy
+	WC_ASM_ATT_HIDDEN(fe_copy)
 	.type	fe_copy, %function
 fe_copy:
 	PUSH	{r4, r5, lr}
@@ -353,6 +364,7 @@ fe_copy:
 	.text
 	.align	4
 	.globl	fe_neg
+	WC_ASM_ATT_HIDDEN(fe_neg)
 	.type	fe_neg, %function
 fe_neg:
 	PUSH	{r4, r5, lr}
@@ -377,6 +389,7 @@ fe_neg:
 	.text
 	.align	4
 	.globl	fe_isnonzero
+	WC_ASM_ATT_HIDDEN(fe_isnonzero)
 	.type	fe_isnonzero, %function
 fe_isnonzero:
 	PUSH	{r4, r5, r6, r7, r8, r9, lr}
@@ -413,6 +426,7 @@ fe_isnonzero:
 	.text
 	.align	4
 	.globl	fe_isnegative
+	WC_ASM_ATT_HIDDEN(fe_isnegative)
 	.type	fe_isnegative, %function
 fe_isnegative:
 	PUSH	{r4, r5, lr}
@@ -437,6 +451,7 @@ fe_isnegative:
 	.text
 	.align	4
 	.globl	fe_cmov_table
+	WC_ASM_ATT_HIDDEN(fe_cmov_table)
 	.type	fe_cmov_table, %function
 fe_cmov_table:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -1410,6 +1425,7 @@ fe_cmov_table:
 	.text
 	.align	4
 	.globl	fe_cmov_table
+	WC_ASM_ATT_HIDDEN(fe_cmov_table)
 	.type	fe_cmov_table, %function
 fe_cmov_table:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -1515,6 +1531,7 @@ fe_cmov_table:
 	.text
 	.align	4
 	.globl	fe_mul_op
+	WC_ASM_ATT_HIDDEN(fe_mul_op)
 	.type	fe_mul_op, %function
 fe_mul_op:
 	PUSH	{lr}
@@ -1893,6 +1910,7 @@ fe_mul_op:
 	.text
 	.align	4
 	.globl	fe_mul_op_full_red
+	WC_ASM_ATT_HIDDEN(fe_mul_op_full_red)
 	.type	fe_mul_op_full_red, %function
 fe_mul_op_full_red:
 	PUSH	{lr}
@@ -2291,6 +2309,7 @@ fe_mul_op_full_red:
 	.text
 	.align	4
 	.globl	fe_mul_op
+	WC_ASM_ATT_HIDDEN(fe_mul_op)
 	.type	fe_mul_op, %function
 fe_mul_op:
 	PUSH	{lr}
@@ -2423,6 +2442,7 @@ fe_mul_op:
 	.text
 	.align	4
 	.globl	fe_mul_op_full_red
+	WC_ASM_ATT_HIDDEN(fe_mul_op_full_red)
 	.type	fe_mul_op_full_red, %function
 fe_mul_op_full_red:
 	PUSH	{lr}
@@ -2575,6 +2595,7 @@ fe_mul_op_full_red:
 	.text
 	.align	4
 	.globl	fe_mul
+	WC_ASM_ATT_HIDDEN(fe_mul)
 	.type	fe_mul, %function
 fe_mul:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -2586,6 +2607,7 @@ fe_mul:
 	.text
 	.align	4
 	.globl	fe_sq_op
+	WC_ASM_ATT_HIDDEN(fe_sq_op)
 	.type	fe_sq_op, %function
 fe_sq_op:
 	PUSH	{lr}
@@ -2857,6 +2879,7 @@ fe_sq_op:
 	.text
 	.align	4
 	.globl	fe_sq_op_full_red
+	WC_ASM_ATT_HIDDEN(fe_sq_op_full_red)
 	.type	fe_sq_op_full_red, %function
 fe_sq_op_full_red:
 	PUSH	{lr}
@@ -3148,6 +3171,7 @@ fe_sq_op_full_red:
 	.text
 	.align	4
 	.globl	fe_sq_op
+	WC_ASM_ATT_HIDDEN(fe_sq_op)
 	.type	fe_sq_op, %function
 fe_sq_op:
 	PUSH	{lr}
@@ -3266,6 +3290,7 @@ fe_sq_op:
 	.text
 	.align	4
 	.globl	fe_sq_op_full_red
+	WC_ASM_ATT_HIDDEN(fe_sq_op_full_red)
 	.type	fe_sq_op_full_red, %function
 fe_sq_op_full_red:
 	PUSH	{lr}
@@ -3404,6 +3429,7 @@ fe_sq_op_full_red:
 	.text
 	.align	4
 	.globl	fe_sq
+	WC_ASM_ATT_HIDDEN(fe_sq)
 	.type	fe_sq, %function
 fe_sq:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3416,6 +3442,7 @@ fe_sq:
 	.text
 	.align	4
 	.globl	fe_mul121666
+	WC_ASM_ATT_HIDDEN(fe_mul121666)
 	.type	fe_mul121666, %function
 fe_mul121666:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -3466,6 +3493,7 @@ fe_mul121666:
 	.text
 	.align	4
 	.globl	fe_mul121666
+	WC_ASM_ATT_HIDDEN(fe_mul121666)
 	.type	fe_mul121666, %function
 fe_mul121666:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, lr}
@@ -3504,6 +3532,7 @@ fe_mul121666:
 	.text
 	.align	4
 	.globl	curve25519
+	WC_ASM_ATT_HIDDEN(curve25519)
 	.type	curve25519, %function
 curve25519:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -3942,6 +3971,7 @@ L_curve25519_inv_8:
 	.text
 	.align	4
 	.globl	curve25519
+	WC_ASM_ATT_HIDDEN(curve25519)
 	.type	curve25519, %function
 curve25519:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -4284,6 +4314,7 @@ L_curve25519_inv_8:
 	.text
 	.align	4
 	.globl	fe_invert
+	WC_ASM_ATT_HIDDEN(fe_invert)
 	.type	fe_invert, %function
 fe_invert:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -4476,6 +4507,7 @@ L_fe_invert8:
 	.text
 	.align	4
 	.globl	fe_sq2
+	WC_ASM_ATT_HIDDEN(fe_sq2)
 	.type	fe_sq2, %function
 fe_sq2:
 	PUSH	{lr}
@@ -4800,6 +4832,7 @@ fe_sq2:
 	.text
 	.align	4
 	.globl	fe_sq2
+	WC_ASM_ATT_HIDDEN(fe_sq2)
 	.type	fe_sq2, %function
 fe_sq2:
 	PUSH	{lr}
@@ -4973,6 +5006,7 @@ fe_sq2:
 	.text
 	.align	4
 	.globl	fe_pow22523
+	WC_ASM_ATT_HIDDEN(fe_pow22523)
 	.type	fe_pow22523, %function
 fe_pow22523:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5164,6 +5198,7 @@ L_fe_pow22523_8:
 	.text
 	.align	4
 	.globl	ge_p1p1_to_p2
+	WC_ASM_ATT_HIDDEN(ge_p1p1_to_p2)
 	.type	ge_p1p1_to_p2, %function
 ge_p1p1_to_p2:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5191,6 +5226,7 @@ ge_p1p1_to_p2:
 	.text
 	.align	4
 	.globl	ge_p1p1_to_p3
+	WC_ASM_ATT_HIDDEN(ge_p1p1_to_p3)
 	.type	ge_p1p1_to_p3, %function
 ge_p1p1_to_p3:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5223,6 +5259,7 @@ ge_p1p1_to_p3:
 	.text
 	.align	4
 	.globl	ge_p2_dbl
+	WC_ASM_ATT_HIDDEN(ge_p2_dbl)
 	.type	ge_p2_dbl, %function
 ge_p2_dbl:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5267,6 +5304,7 @@ ge_p2_dbl:
 	.text
 	.align	4
 	.globl	ge_madd
+	WC_ASM_ATT_HIDDEN(ge_madd)
 	.type	ge_madd, %function
 ge_madd:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5345,6 +5383,7 @@ ge_madd:
 	.text
 	.align	4
 	.globl	ge_msub
+	WC_ASM_ATT_HIDDEN(ge_msub)
 	.type	ge_msub, %function
 ge_msub:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5424,6 +5463,7 @@ ge_msub:
 	.text
 	.align	4
 	.globl	ge_add
+	WC_ASM_ATT_HIDDEN(ge_add)
 	.type	ge_add, %function
 ge_add:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5503,6 +5543,7 @@ ge_add:
 	.text
 	.align	4
 	.globl	ge_sub
+	WC_ASM_ATT_HIDDEN(ge_sub)
 	.type	ge_sub, %function
 ge_sub:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -5585,6 +5626,7 @@ ge_sub:
 	.text
 	.align	4
 	.globl	sc_reduce
+	WC_ASM_ATT_HIDDEN(sc_reduce)
 	.type	sc_reduce, %function
 sc_reduce:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -6011,6 +6053,7 @@ sc_reduce:
 	.text
 	.align	4
 	.globl	sc_reduce
+	WC_ASM_ATT_HIDDEN(sc_reduce)
 	.type	sc_reduce, %function
 sc_reduce:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -6310,6 +6353,7 @@ sc_reduce:
 	.text
 	.align	4
 	.globl	sc_muladd
+	WC_ASM_ATT_HIDDEN(sc_muladd)
 	.type	sc_muladd, %function
 sc_muladd:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
@@ -7093,6 +7137,7 @@ sc_muladd:
 	.text
 	.align	4
 	.globl	sc_muladd
+	WC_ASM_ATT_HIDDEN(sc_muladd)
 	.type	sc_muladd, %function
 sc_muladd:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

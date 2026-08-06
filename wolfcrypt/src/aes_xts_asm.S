@@ -48,12 +48,14 @@
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_init_aesni
+WC_ASM_ATT_HIDDEN(AES_XTS_init_aesni)
 .type	AES_XTS_init_aesni,@function
 .align	16
 AES_XTS_init_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_init_aesni
+WC_ASM_ATT_HIDDEN(_AES_XTS_init_aesni)
 .p2align	4
 _AES_XTS_init_aesni:
 #endif /* __APPLE__ */
@@ -113,12 +115,14 @@ L_aes_xts_gc_xts:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_aesni
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_aesni)
 .type	AES_XTS_encrypt_aesni,@function
 .align	16
 AES_XTS_encrypt_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_aesni
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_aesni)
 .p2align	4
 _AES_XTS_encrypt_aesni:
 #endif /* __APPLE__ */
@@ -435,12 +439,14 @@ L_AES_XTS_encrypt_aesni_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_update_aesni
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_update_aesni)
 .type	AES_XTS_encrypt_update_aesni,@function
 .align	16
 AES_XTS_encrypt_update_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_update_aesni
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_aesni)
 .p2align	4
 _AES_XTS_encrypt_update_aesni:
 #endif /* __APPLE__ */
@@ -720,12 +726,14 @@ L_AES_XTS_encrypt_update_aesni_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_aesni
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_aesni)
 .type	AES_XTS_decrypt_aesni,@function
 .align	16
 AES_XTS_decrypt_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_aesni
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_aesni)
 .p2align	4
 _AES_XTS_decrypt_aesni:
 #endif /* __APPLE__ */
@@ -1096,12 +1104,14 @@ L_AES_XTS_decrypt_aesni_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_update_aesni
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_update_aesni)
 .type	AES_XTS_decrypt_update_aesni,@function
 .align	16
 AES_XTS_decrypt_update_aesni:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_update_aesni
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_aesni)
 .p2align	4
 _AES_XTS_decrypt_update_aesni:
 #endif /* __APPLE__ */
@@ -1436,12 +1446,14 @@ L_AES_XTS_decrypt_update_aesni_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_init_avx1
+WC_ASM_ATT_HIDDEN(AES_XTS_init_avx1)
 .type	AES_XTS_init_avx1,@function
 .align	16
 AES_XTS_init_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_init_avx1
+WC_ASM_ATT_HIDDEN(_AES_XTS_init_avx1)
 .p2align	4
 _AES_XTS_init_avx1:
 #endif /* __APPLE__ */
@@ -1501,12 +1513,14 @@ L_avx1_aes_xts_gc_xts:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_avx1)
 .type	AES_XTS_encrypt_avx1,@function
 .align	16
 AES_XTS_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_avx1)
 .p2align	4
 _AES_XTS_encrypt_avx1:
 #endif /* __APPLE__ */
@@ -1814,12 +1828,14 @@ L_AES_XTS_encrypt_avx1_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_update_avx1
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_update_avx1)
 .type	AES_XTS_encrypt_update_avx1,@function
 .align	16
 AES_XTS_encrypt_update_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_update_avx1
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_avx1)
 .p2align	4
 _AES_XTS_encrypt_update_avx1:
 #endif /* __APPLE__ */
@@ -2090,12 +2106,14 @@ L_AES_XTS_encrypt_update_avx1_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_avx1
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_avx1)
 .type	AES_XTS_decrypt_avx1,@function
 .align	16
 AES_XTS_decrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_avx1
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_avx1)
 .p2align	4
 _AES_XTS_decrypt_avx1:
 #endif /* __APPLE__ */
@@ -2455,12 +2473,14 @@ L_AES_XTS_decrypt_avx1_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_update_avx1
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_update_avx1)
 .type	AES_XTS_decrypt_update_avx1,@function
 .align	16
 AES_XTS_decrypt_update_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_update_avx1
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_avx1)
 .p2align	4
 _AES_XTS_decrypt_update_avx1:
 #endif /* __APPLE__ */
@@ -2785,12 +2805,14 @@ L_AES_XTS_decrypt_update_avx1_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_init_vaes
+WC_ASM_ATT_HIDDEN(AES_XTS_init_vaes)
 .type	AES_XTS_init_vaes,@function
 .align	16
 AES_XTS_init_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_init_vaes
+WC_ASM_ATT_HIDDEN(_AES_XTS_init_vaes)
 .p2align	4
 _AES_XTS_init_vaes:
 #endif /* __APPLE__ */
@@ -2888,12 +2910,14 @@ L_vaes_aes_xts_shr:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_vaes)
 .type	AES_XTS_encrypt_vaes,@function
 .align	16
 AES_XTS_encrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_vaes)
 .p2align	4
 _AES_XTS_encrypt_vaes:
 #endif /* __APPLE__ */
@@ -3387,12 +3411,14 @@ L_AES_XTS_encrypt_vaes_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_update_vaes
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_update_vaes)
 .type	AES_XTS_encrypt_update_vaes,@function
 .align	16
 AES_XTS_encrypt_update_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_update_vaes
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_vaes)
 .p2align	4
 _AES_XTS_encrypt_update_vaes:
 #endif /* __APPLE__ */
@@ -3849,12 +3875,14 @@ L_AES_XTS_encrypt_update_vaes_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_vaes
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_vaes)
 .type	AES_XTS_decrypt_vaes,@function
 .align	16
 AES_XTS_decrypt_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_vaes
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_vaes)
 .p2align	4
 _AES_XTS_decrypt_vaes:
 #endif /* __APPLE__ */
@@ -4422,12 +4450,14 @@ L_AES_XTS_decrypt_vaes_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_update_vaes
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_update_vaes)
 .type	AES_XTS_decrypt_update_vaes,@function
 .align	16
 AES_XTS_decrypt_update_vaes:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_update_vaes
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_vaes)
 .p2align	4
 _AES_XTS_decrypt_update_vaes:
 #endif /* __APPLE__ */
@@ -4960,12 +4990,14 @@ L_AES_XTS_decrypt_update_vaes_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_init_avx512
+WC_ASM_ATT_HIDDEN(AES_XTS_init_avx512)
 .type	AES_XTS_init_avx512,@function
 .align	16
 AES_XTS_init_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_init_avx512
+WC_ASM_ATT_HIDDEN(_AES_XTS_init_avx512)
 .p2align	4
 _AES_XTS_init_avx512:
 #endif /* __APPLE__ */
@@ -5067,12 +5099,14 @@ L_avx512_aes_xts_shr:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_avx512)
 .type	AES_XTS_encrypt_avx512,@function
 .align	16
 AES_XTS_encrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_avx512)
 .p2align	4
 _AES_XTS_encrypt_avx512:
 #endif /* __APPLE__ */
@@ -5573,12 +5607,14 @@ L_AES_XTS_encrypt_avx512_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_update_avx512
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_update_avx512)
 .type	AES_XTS_encrypt_update_avx512,@function
 .align	16
 AES_XTS_encrypt_update_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_update_avx512
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_avx512)
 .p2align	4
 _AES_XTS_encrypt_update_avx512:
 #endif /* __APPLE__ */
@@ -6042,12 +6078,14 @@ L_AES_XTS_encrypt_update_avx512_done_enc:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_avx512
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_avx512)
 .type	AES_XTS_decrypt_avx512,@function
 .align	16
 AES_XTS_decrypt_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_avx512
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_avx512)
 .p2align	4
 _AES_XTS_decrypt_avx512:
 #endif /* __APPLE__ */
@@ -6632,12 +6670,14 @@ L_AES_XTS_decrypt_avx512_done_dec:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_update_avx512
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_update_avx512)
 .type	AES_XTS_decrypt_update_avx512,@function
 .align	16
 AES_XTS_decrypt_update_avx512:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_update_avx512
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_avx512)
 .p2align	4
 _AES_XTS_decrypt_update_avx512:
 #endif /* __APPLE__ */

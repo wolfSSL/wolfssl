@@ -86,12 +86,14 @@ L_sse2_sha256_shuf_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_SSE2_Sha
+WC_ASM_ATT_HIDDEN(Transform_Sha256_SSE2_Sha)
 .type	Transform_Sha256_SSE2_Sha,@function
 .align	16
 Transform_Sha256_SSE2_Sha:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_SSE2_Sha
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_SSE2_Sha)
 .p2align	4
 _Transform_Sha256_SSE2_Sha:
 #endif /* __APPLE__ */
@@ -283,12 +285,14 @@ _Transform_Sha256_SSE2_Sha:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_SSE2_Sha_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha256_SSE2_Sha_Len)
 .type	Transform_Sha256_SSE2_Sha_Len,@function
 .align	16
 Transform_Sha256_SSE2_Sha_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_SSE2_Sha_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_SSE2_Sha_Len)
 .p2align	4
 _Transform_Sha256_SSE2_Sha_Len:
 #endif /* __APPLE__ */
@@ -549,12 +553,14 @@ L_avx1_sha256_flip_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX1
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX1)
 .type	Transform_Sha256_AVX1,@function
 .align	16
 Transform_Sha256_AVX1:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX1)
 .p2align	4
 _Transform_Sha256_AVX1:
 #endif /* __APPLE__ */
@@ -2940,12 +2946,14 @@ _Transform_Sha256_AVX1:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX1_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX1_Len)
 .type	Transform_Sha256_AVX1_Len,@function
 .align	16
 Transform_Sha256_AVX1_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX1_Len)
 .p2align	4
 _Transform_Sha256_AVX1_Len:
 #endif /* __APPLE__ */
@@ -5409,12 +5417,14 @@ L_avx1_rorx_sha256_flip_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX1_RORX
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX1_RORX)
 .type	Transform_Sha256_AVX1_RORX,@function
 .align	16
 Transform_Sha256_AVX1_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_RORX
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX1_RORX)
 .p2align	4
 _Transform_Sha256_AVX1_RORX:
 #endif /* __APPLE__ */
@@ -7758,12 +7768,14 @@ _Transform_Sha256_AVX1_RORX:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX1_RORX_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX1_RORX_Len)
 .type	Transform_Sha256_AVX1_RORX_Len,@function
 .align	16
 Transform_Sha256_AVX1_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_RORX_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX1_RORX_Len)
 .p2align	4
 _Transform_Sha256_AVX1_RORX_Len:
 #endif /* __APPLE__ */
@@ -10162,12 +10174,14 @@ L_avx1_sha256_shuf_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX1_Sha
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX1_Sha)
 .type	Transform_Sha256_AVX1_Sha,@function
 .align	16
 Transform_Sha256_AVX1_Sha:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_Sha
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX1_Sha)
 .p2align	4
 _Transform_Sha256_AVX1_Sha:
 #endif /* __APPLE__ */
@@ -10331,12 +10345,14 @@ _Transform_Sha256_AVX1_Sha:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX1_Sha_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX1_Sha_Len)
 .type	Transform_Sha256_AVX1_Sha_Len,@function
 .align	16
 Transform_Sha256_AVX1_Sha_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_Sha_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX1_Sha_Len)
 .p2align	4
 _Transform_Sha256_AVX1_Sha_Len:
 #endif /* __APPLE__ */
@@ -10589,12 +10605,14 @@ L_avx2_sha256_flip_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX2
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX2)
 .type	Transform_Sha256_AVX2,@function
 .align	16
 Transform_Sha256_AVX2:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX2)
 .p2align	4
 _Transform_Sha256_AVX2:
 #endif /* __APPLE__ */
@@ -12981,12 +12999,14 @@ _Transform_Sha256_AVX2:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX2_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX2_Len)
 .type	Transform_Sha256_AVX2_Len,@function
 .align	16
 Transform_Sha256_AVX2_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX2_Len)
 .p2align	4
 _Transform_Sha256_AVX2_Len:
 #endif /* __APPLE__ */
@@ -17193,12 +17213,14 @@ L_avx2_rorx_sha256_shuf_DC00:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX2_RORX
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX2_RORX)
 .type	Transform_Sha256_AVX2_RORX,@function
 .align	16
 Transform_Sha256_AVX2_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2_RORX
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX2_RORX)
 .p2align	4
 _Transform_Sha256_AVX2_RORX:
 #endif /* __APPLE__ */
@@ -19560,12 +19582,14 @@ _Transform_Sha256_AVX2_RORX:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha256_AVX2_RORX_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha256_AVX2_RORX_Len)
 .type	Transform_Sha256_AVX2_RORX_Len,@function
 .align	16
 Transform_Sha256_AVX2_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2_RORX_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha256_AVX2_RORX_Len)
 .p2align	4
 _Transform_Sha256_AVX2_RORX_Len:
 #endif /* __APPLE__ */

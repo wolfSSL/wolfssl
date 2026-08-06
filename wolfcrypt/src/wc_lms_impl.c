@@ -37,6 +37,7 @@
  *   Enable when memory is limited.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WC_LMS_IMPL_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>

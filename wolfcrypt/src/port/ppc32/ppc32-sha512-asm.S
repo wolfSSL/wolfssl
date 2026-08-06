@@ -91,6 +91,7 @@ L_SHA512_transform_len_k:
 	.section	".text"
 	.align	4
 	.globl	Transform_Sha512_Len
+	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len)
 	.type	Transform_Sha512_Len, @function
 Transform_Sha512_Len:
 	stwu	1, -72(1)

@@ -110,12 +110,14 @@ L_avx1_sha512_flip_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX1
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX1)
 .type	Transform_Sha512_AVX1,@function
 .align	16
 Transform_Sha512_AVX1:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX1)
 .p2align	4
 _Transform_Sha512_AVX1:
 #endif /* __APPLE__ */
@@ -1383,12 +1385,14 @@ L_transform_sha512_avx1_start:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX1_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX1_Len)
 .type	Transform_Sha512_AVX1_Len,@function
 .align	16
 Transform_Sha512_AVX1_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX1_Len)
 .p2align	4
 _Transform_Sha512_AVX1_Len:
 #endif /* __APPLE__ */
@@ -2738,12 +2742,14 @@ L_avx1_rorx_sha512_flip_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX1_RORX
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX1_RORX)
 .type	Transform_Sha512_AVX1_RORX,@function
 .align	16
 Transform_Sha512_AVX1_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1_RORX
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX1_RORX)
 .p2align	4
 _Transform_Sha512_AVX1_RORX:
 #endif /* __APPLE__ */
@@ -3940,12 +3946,14 @@ L_transform_sha512_avx1_rorx_start:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX1_RORX_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX1_RORX_Len)
 .type	Transform_Sha512_AVX1_RORX_Len,@function
 .align	16
 Transform_Sha512_AVX1_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1_RORX_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX1_RORX_Len)
 .p2align	4
 _Transform_Sha512_AVX1_RORX_Len:
 #endif /* __APPLE__ */
@@ -5346,12 +5354,14 @@ L_avx2_sha512_flip_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX2
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX2)
 .type	Transform_Sha512_AVX2,@function
 .align	16
 Transform_Sha512_AVX2:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX2)
 .p2align	4
 _Transform_Sha512_AVX2:
 #endif /* __APPLE__ */
@@ -6408,12 +6418,14 @@ L_sha256_avx2_start:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX2_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX2_Len)
 .type	Transform_Sha512_AVX2_Len,@function
 .align	16
 Transform_Sha512_AVX2_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX2_Len)
 .p2align	4
 _Transform_Sha512_AVX2_Len:
 #endif /* __APPLE__ */
@@ -8205,12 +8217,14 @@ L_avx2_rorx_sha512_flip_mask:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX2_RORX
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX2_RORX)
 .type	Transform_Sha512_AVX2_RORX,@function
 .align	16
 Transform_Sha512_AVX2_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2_RORX
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX2_RORX)
 .p2align	4
 _Transform_Sha512_AVX2_RORX:
 #endif /* __APPLE__ */
@@ -9209,12 +9223,14 @@ L_sha256_len_avx2_rorx_start:
 #ifndef __APPLE__
 .text
 .globl	Transform_Sha512_AVX2_RORX_Len
+WC_ASM_ATT_HIDDEN(Transform_Sha512_AVX2_RORX_Len)
 .type	Transform_Sha512_AVX2_RORX_Len,@function
 .align	16
 Transform_Sha512_AVX2_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2_RORX_Len
+WC_ASM_ATT_HIDDEN(_Transform_Sha512_AVX2_RORX_Len)
 .p2align	4
 _Transform_Sha512_AVX2_RORX_Len:
 #endif /* __APPLE__ */

@@ -2274,7 +2274,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #endif
     #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
             (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L) && \
-             !defined(__GNUC__)) ||                                        \
+             (!defined(__GNUC__) || defined(__STRICT_ANSI__))) ||          \
             (defined(_MSVC_LANG) && (__cpp_static_assert >= 201411L))
         /* native variadic static_assert() */
         #define wc_static_assert static_assert
@@ -2400,12 +2400,6 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
-#if (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES) || \
-     defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
-     defined(WOLFSSL_SP_ASM)) && !defined(WOLFSSL_NO_ASM)
-    #define WC_HAVE_VECTOR_SPEEDUPS
-#endif
-
 /* DISABLE_VECTOR_REGISTERS() and REENABLE_VECTOR_REGISTERS() are currently only
  * used by Linux kernel code.  If WC_HAVE_VECTOR_SPEEDUPS, we default
  * DISABLE_VECTOR_REGISTERS() to NOT_COMPILED_IN, to assure calling code is
@@ -2431,15 +2425,15 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_SANITIZE_ENABLE() WC_DO_NOTHING
 #endif
 
-#if FIPS_VERSION_GE(5,1)
-    #define WC_SPKRE_F(x,y) wolfCrypt_SetPrivateKeyReadEnable_fips((x),(y))
+#if FIPS_VERSION_GE(5,1) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    #define WC_SPKRE_F(x,y) wolfCrypt_SetPrivateKeyReadEnable_fips(x, y)
     #define PRIVATE_KEY_LOCK() WC_SPKRE_F(0,WC_KEYTYPE_ALL)
     #define PRIVATE_KEY_UNLOCK() WC_SPKRE_F(1,WC_KEYTYPE_ALL)
 #else
+    #define wolfCrypt_SetPrivateKeyReadEnable_fips(x, y) 0
     #define PRIVATE_KEY_LOCK() WC_DO_NOTHING
     #define PRIVATE_KEY_UNLOCK() WC_DO_NOTHING
 #endif
-
 
 #ifdef _MSC_VER
     /* disable buggy MSC warning (incompatible with clang-tidy

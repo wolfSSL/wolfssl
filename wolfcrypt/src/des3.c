@@ -30,6 +30,9 @@
  * FREESCALE_LTC_DES:        Freescale LTC DES acceleration        default: off
  */
 
+#define WC_FIPS_LL_CRYPTO
+#define _WC_BUILDING_DES3_C
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_DES3

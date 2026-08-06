@@ -686,6 +686,7 @@ L_AES_PPC32_rcon:
 	.section	".text"
 	.align	4
 	.globl	AES_set_encrypt_key
+	WC_ASM_ATT_HIDDEN(AES_set_encrypt_key)
 	.type	AES_set_encrypt_key, @function
 AES_set_encrypt_key:
 	stwu	1, -20(1)
@@ -913,6 +914,7 @@ L_AES_set_encrypt_key_end:
 	.section	".text"
 	.align	4
 	.globl	AES_ECB_encrypt
+	WC_ASM_ATT_HIDDEN(AES_ECB_encrypt)
 	.type	AES_ECB_encrypt, @function
 AES_ECB_encrypt:
 	stwu	1, -56(1)
@@ -1202,6 +1204,7 @@ L_AES_ECB_encrypt_round:
 	.section	".text"
 	.align	4
 	.globl	AES_invert_key
+	WC_ASM_ATT_HIDDEN(AES_invert_key)
 	.type	AES_invert_key, @function
 AES_invert_key:
 	stwu	1, -40(1)
@@ -1356,6 +1359,7 @@ L_AES_invert_key_mix:
 	.section	".text"
 	.align	4
 	.globl	AES_ECB_decrypt
+	WC_ASM_ATT_HIDDEN(AES_ECB_decrypt)
 	.type	AES_ECB_decrypt, @function
 AES_ECB_decrypt:
 	stwu	1, -60(1)
@@ -1650,6 +1654,7 @@ L_AES_ECB_decrypt_round:
 	.section	".text"
 	.align	4
 	.globl	AES_CBC_encrypt
+	WC_ASM_ATT_HIDDEN(AES_CBC_encrypt)
 	.type	AES_CBC_encrypt, @function
 AES_CBC_encrypt:
 	stwu	1, -56(1)
@@ -1950,6 +1955,7 @@ L_AES_CBC_encrypt_round:
 	.section	".text"
 	.align	4
 	.globl	AES_CBC_decrypt
+	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt)
 	.type	AES_CBC_decrypt, @function
 AES_CBC_decrypt:
 	stwu	1, -76(1)
@@ -2268,6 +2274,7 @@ L_AES_CBC_decrypt_round:
 	.section	".text"
 	.align	4
 	.globl	AES_CTR_encrypt
+	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt)
 	.type	AES_CTR_encrypt, @function
 AES_CTR_encrypt:
 	stwu	1, -72(1)
@@ -2585,6 +2592,7 @@ L_AES_CTR_encrypt_round:
 	.section	".text"
 	.align	4
 	.globl	AES_GCM_encrypt
+	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt)
 	.type	AES_GCM_encrypt, @function
 AES_GCM_encrypt:
 	stwu	1, -72(1)
@@ -2921,6 +2929,7 @@ L_GCM_gmult_len_r:
 	.section	".text"
 	.align	4
 	.globl	GCM_gmult_len
+	WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 	.type	GCM_gmult_len, @function
 GCM_gmult_len:
 	stwu	1, -52(1)
@@ -3722,6 +3731,7 @@ L_GCM_gmult_len_r:
 	.section	".text"
 	.align	4
 	.globl	GCM_gmult_len
+	WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 	.type	GCM_gmult_len, @function
 GCM_gmult_len:
 	stwu	1, -40(1)

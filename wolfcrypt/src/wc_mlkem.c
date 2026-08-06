@@ -70,6 +70,7 @@
  *   Cannot be used with WOLFSSL_NO_MALLOC.
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WC_MLKEM_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -78,11 +79,6 @@
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
-#endif
-
-#if FIPS_VERSION3_GE(2,0,0)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
 #endif
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>

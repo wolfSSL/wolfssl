@@ -232,7 +232,8 @@
     enum wc_svr_flags {
         WC_SVR_FLAG_NONE = 0,
         WC_SVR_FLAG_INHIBIT = 1,
-        WC_SVR_FLAG_FUZZ
+        WC_SVR_FLAG_MAYBE_INHIBIT = 2,
+        WC_SVR_FLAG_FUZZ = 4
     };
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
@@ -787,6 +788,17 @@
             #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
 
+        #ifndef SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT
+            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+                #define SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT() wc_save_vector_registers_x86(WC_SVR_FLAG_FUZZ | WC_SVR_FLAG_MAYBE_INHIBIT)
+            #else
+                #define SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT() wc_save_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
+            #endif
+        #endif
+        #ifndef RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED
+            #define RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED() wc_restore_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
+        #endif
+
     #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
 
         #error kernel module ARM SIMD is not yet tested or usable.
@@ -930,10 +942,12 @@
             extern int wolfCrypt_FIPS_SHA3_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2];
 #endif
+#ifndef WOLFSSL_FIPS_DEV_NO_POST
             extern int wolfCrypt_FIPS_FT_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_ft_ro_sanity[2];
             extern const unsigned int wolfCrypt_FIPS_f_ro_sanity[2];
             extern int wc_RunAllCast_fips(void);
+#endif
         #endif
     #endif
 
@@ -1266,10 +1280,12 @@
             typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
             typeof(wolfCrypt_FIPS_sha3_ro_sanity) *wolfCrypt_FIPS_sha3_ro_sanity;
 #endif
+#ifndef WOLFSSL_FIPS_DEV_NO_POST
             typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
             typeof(wolfCrypt_FIPS_ft_ro_sanity) *wolfCrypt_FIPS_ft_ro_sanity;
             typeof(wolfCrypt_FIPS_f_ro_sanity) *wolfCrypt_FIPS_f_ro_sanity;
             typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
+#endif
         #endif /* FIPS_VERSION3_GE(6,0,0) */
         #endif /* HAVE_FIPS */
 

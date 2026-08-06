@@ -65,6 +65,7 @@ L_sha3_thumb2_rt:
 	.text
 	.align	4
 	.globl	BlockSha3
+	WC_ASM_ATT_HIDDEN(BlockSha3)
 	.type	BlockSha3, %function
 BlockSha3:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}

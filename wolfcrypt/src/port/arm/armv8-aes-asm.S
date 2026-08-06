@@ -38,12 +38,14 @@
 #ifndef __APPLE__
 .text
 .globl	AES_set_key_AARCH64
+WC_ASM_ATT_HIDDEN(AES_set_key_AARCH64)
 .type	AES_set_key_AARCH64,@function
 .align	2
 AES_set_key_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_set_key_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_set_key_AARCH64)
 .p2align	2
 _AES_set_key_AARCH64:
 #endif /* __APPLE__ */
@@ -589,12 +591,14 @@ L_aes_set_key_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_encrypt_AARCH64)
 .type	AES_encrypt_AARCH64,@function
 .align	2
 AES_encrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_encrypt_AARCH64)
 .p2align	2
 _AES_encrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -649,12 +653,14 @@ L_aes_encrypt_arm64_crypto_round_done:
 #ifndef __APPLE__
 .text
 .globl	AES_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_decrypt_AARCH64)
 .type	AES_decrypt_AARCH64,@function
 .align	2
 AES_decrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_decrypt_AARCH64)
 .p2align	2
 _AES_decrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -709,12 +715,14 @@ L_aes_decrypt_arm64_crypto_round_done:
 #ifndef __APPLE__
 .text
 .globl	AES_encrypt_blocks_AARCH64
+WC_ASM_ATT_HIDDEN(AES_encrypt_blocks_AARCH64)
 .type	AES_encrypt_blocks_AARCH64,@function
 .align	2
 AES_encrypt_blocks_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_encrypt_blocks_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_encrypt_blocks_AARCH64)
 .p2align	2
 _AES_encrypt_blocks_AARCH64:
 #endif /* __APPLE__ */
@@ -1919,12 +1927,14 @@ L_aes_encrypt_blocks_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_decrypt_blocks_AARCH64
+WC_ASM_ATT_HIDDEN(AES_decrypt_blocks_AARCH64)
 .type	AES_decrypt_blocks_AARCH64,@function
 .align	2
 AES_decrypt_blocks_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_decrypt_blocks_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_decrypt_blocks_AARCH64)
 .p2align	2
 _AES_decrypt_blocks_AARCH64:
 #endif /* __APPLE__ */
@@ -3131,12 +3141,14 @@ L_aes_decrypt_blocks_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_AARCH64)
 .type	AES_CBC_encrypt_AARCH64,@function
 .align	2
 AES_CBC_encrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_AARCH64)
 .p2align	2
 _AES_CBC_encrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -3267,12 +3279,14 @@ L_aes_cbc_encrypt_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_AARCH64)
 .type	AES_CBC_decrypt_AARCH64,@function
 .align	2
 AES_CBC_decrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_AARCH64)
 .p2align	2
 _AES_CBC_decrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -3519,12 +3533,14 @@ L_aes_cbc_decrypt_blocks_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_AARCH64)
 .type	AES_CTR_encrypt_AARCH64,@function
 .align	2
 AES_CTR_encrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_AARCH64)
 .p2align	2
 _AES_CTR_encrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -5181,12 +5197,14 @@ L_aes_ctr_encrypt_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_set_key_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_set_key_AARCH64)
 .type	AES_GCM_set_key_AARCH64,@function
 .align	2
 AES_GCM_set_key_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_set_key_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_set_key_AARCH64)
 .p2align	2
 _AES_GCM_set_key_AARCH64:
 #endif /* __APPLE__ */
@@ -5239,12 +5257,14 @@ L_aes_gcm_set_key_arm64_crypto_round_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_AARCH64)
 .type	AES_GCM_encrypt_AARCH64,@function
 .align	2
 AES_GCM_encrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_AARCH64)
 .p2align	2
 _AES_GCM_encrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -10040,12 +10060,14 @@ L_aes_gcm_encrypt_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_AARCH64)
 .type	AES_GCM_decrypt_AARCH64,@function
 .align	2
 AES_GCM_decrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_AARCH64)
 .p2align	2
 _AES_GCM_decrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -14891,12 +14913,14 @@ L_aes_gcm_decrypt_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_AARCH64_EOR3)
 .type	AES_GCM_encrypt_AARCH64_EOR3,@function
 .align	2
 AES_GCM_encrypt_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_encrypt_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -19583,12 +19607,14 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_AARCH64_EOR3)
 .type	AES_GCM_decrypt_AARCH64_EOR3,@function
 .align	2
 AES_GCM_decrypt_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_decrypt_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -24326,12 +24352,14 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_init_AARCH64)
 .type	AES_GCM_init_AARCH64,@function
 .align	2
 AES_GCM_init_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_init_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_init_AARCH64)
 .p2align	2
 _AES_GCM_init_AARCH64:
 #endif /* __APPLE__ */
@@ -24504,12 +24532,14 @@ L_aes_gcm_init_arm64_crypto_round_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_ghash_block_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_AARCH64)
 .type	AES_GCM_ghash_block_AARCH64,@function
 .align	2
 AES_GCM_ghash_block_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_ghash_block_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_ghash_block_AARCH64)
 .p2align	2
 _AES_GCM_ghash_block_AARCH64:
 #endif /* __APPLE__ */
@@ -24549,12 +24579,14 @@ _AES_GCM_ghash_block_AARCH64:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_aad_update_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_AARCH64)
 .type	AES_GCM_aad_update_AARCH64,@function
 .align	2
 AES_GCM_aad_update_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_aad_update_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_AARCH64)
 .p2align	2
 _AES_GCM_aad_update_AARCH64:
 #endif /* __APPLE__ */
@@ -24903,12 +24935,14 @@ L_aes_gcm_aad_update_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_block_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_AARCH64)
 .type	AES_GCM_encrypt_block_AARCH64,@function
 .align	2
 AES_GCM_encrypt_block_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_block_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_AARCH64)
 .p2align	2
 _AES_GCM_encrypt_block_AARCH64:
 #endif /* __APPLE__ */
@@ -24968,12 +25002,14 @@ L_aes_gcm_encrypt_block_arm64_crypto_round_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_AARCH64)
 .type	AES_GCM_encrypt_update_AARCH64,@function
 .align	2
 AES_GCM_encrypt_update_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_update_AARCH64)
 .p2align	2
 _AES_GCM_encrypt_update_AARCH64:
 #endif /* __APPLE__ */
@@ -28778,12 +28814,14 @@ L_aes_gcm_encrypt_update_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_final_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_AARCH64)
 .type	AES_GCM_encrypt_final_AARCH64,@function
 .align	2
 AES_GCM_encrypt_final_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_final_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_AARCH64)
 .p2align	2
 _AES_GCM_encrypt_final_AARCH64:
 #endif /* __APPLE__ */
@@ -28853,12 +28891,14 @@ L_aes_gcm_encrypt_final_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_AARCH64)
 .type	AES_GCM_decrypt_update_AARCH64,@function
 .align	2
 AES_GCM_decrypt_update_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_update_AARCH64)
 .p2align	2
 _AES_GCM_decrypt_update_AARCH64:
 #endif /* __APPLE__ */
@@ -32664,12 +32704,14 @@ L_aes_gcm_decrypt_update_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_final_AARCH64
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_AARCH64)
 .type	AES_GCM_decrypt_final_AARCH64,@function
 .align	2
 AES_GCM_decrypt_final_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_final_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_AARCH64)
 .p2align	2
 _AES_GCM_decrypt_final_AARCH64:
 #endif /* __APPLE__ */
@@ -32765,12 +32807,14 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_init_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_init_AARCH64_EOR3)
 .type	AES_GCM_init_AARCH64_EOR3,@function
 .align	2
 AES_GCM_init_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_init_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_init_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_init_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -32940,12 +32984,14 @@ L_aes_gcm_init_arm64_crypto_eor3_round_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_ghash_block_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_ghash_block_AARCH64_EOR3)
 .type	AES_GCM_ghash_block_AARCH64_EOR3,@function
 .align	2
 AES_GCM_ghash_block_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_ghash_block_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_ghash_block_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_ghash_block_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -32984,12 +33030,14 @@ _AES_GCM_ghash_block_AARCH64_EOR3:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_aad_update_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_aad_update_AARCH64_EOR3)
 .type	AES_GCM_aad_update_AARCH64_EOR3,@function
 .align	2
 AES_GCM_aad_update_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_aad_update_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_aad_update_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_aad_update_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -33320,12 +33368,14 @@ L_aes_gcm_aad_update_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_block_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_block_AARCH64_EOR3)
 .type	AES_GCM_encrypt_block_AARCH64_EOR3,@function
 .align	2
 AES_GCM_encrypt_block_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_block_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_encrypt_block_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -33385,12 +33435,14 @@ L_aes_gcm_encrypt_block_arm64_crypto_eor3_round_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_update_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_update_AARCH64_EOR3)
 .type	AES_GCM_encrypt_update_AARCH64_EOR3,@function
 .align	2
 AES_GCM_encrypt_update_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_update_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_update_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_encrypt_update_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -37111,12 +37163,14 @@ L_aes_gcm_encrypt_update_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_final_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_final_AARCH64_EOR3)
 .type	AES_GCM_encrypt_final_AARCH64_EOR3,@function
 .align	2
 AES_GCM_encrypt_final_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_final_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_encrypt_final_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -37185,12 +37239,14 @@ L_aes_gcm_encrypt_final_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_update_AARCH64_EOR3)
 .type	AES_GCM_decrypt_update_AARCH64_EOR3,@function
 .align	2
 AES_GCM_decrypt_update_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_update_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_update_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_decrypt_update_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -40912,12 +40968,14 @@ L_aes_gcm_decrypt_update_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_final_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(AES_GCM_decrypt_final_AARCH64_EOR3)
 .type	AES_GCM_decrypt_final_AARCH64_EOR3,@function
 .align	2
 AES_GCM_decrypt_final_AARCH64_EOR3:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_final_AARCH64_EOR3
+WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_decrypt_final_AARCH64_EOR3:
 #endif /* __APPLE__ */
@@ -41015,12 +41073,14 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_AARCH64)
 .type	AES_XTS_encrypt_AARCH64,@function
 .align	2
 AES_XTS_encrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_AARCH64)
 .p2align	2
 _AES_XTS_encrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -42025,12 +42085,14 @@ L_aes_xts_encrypt_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_AARCH64)
 .type	AES_XTS_decrypt_AARCH64,@function
 .align	2
 AES_XTS_decrypt_AARCH64:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_AARCH64)
 .p2align	2
 _AES_XTS_decrypt_AARCH64:
 #endif /* __APPLE__ */
@@ -43132,12 +43194,14 @@ L_aes_xts_decrypt_arm64_crypto_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_polyval_pmull
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_pmull)
 .type	AES_GCMSIV_polyval_pmull,@function
 .align	2
 AES_GCMSIV_polyval_pmull:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_polyval_pmull
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_pmull)
 .p2align	2
 _AES_GCMSIV_polyval_pmull:
 #endif /* __APPLE__ */
@@ -43671,12 +43735,14 @@ L_AES_GCMSIV_polyval_pmull_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_ctr_aarch64
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_aarch64)
 .type	AES_GCMSIV_ctr_aarch64,@function
 .align	2
 AES_GCMSIV_ctr_aarch64:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_ctr_aarch64
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_aarch64)
 .p2align	2
 _AES_GCMSIV_ctr_aarch64:
 #endif /* __APPLE__ */
@@ -44267,12 +44333,14 @@ L_AES_ARM64_NEON_shift_rows_shuffle:
 #ifndef __APPLE__
 .text
 .globl	AES_invert_key_NEON
+WC_ASM_ATT_HIDDEN(AES_invert_key_NEON)
 .type	AES_invert_key_NEON,@function
 .align	2
 AES_invert_key_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_invert_key_NEON
+WC_ASM_ATT_HIDDEN(_AES_invert_key_NEON)
 .p2align	2
 _AES_invert_key_NEON:
 #endif /* __APPLE__ */
@@ -44346,12 +44414,14 @@ L_AES_ARM64_NEON_rcon:
 #ifndef __APPLE__
 .text
 .globl	AES_set_encrypt_key_NEON
+WC_ASM_ATT_HIDDEN(AES_set_encrypt_key_NEON)
 .type	AES_set_encrypt_key_NEON,@function
 .align	2
 AES_set_encrypt_key_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_set_encrypt_key_NEON
+WC_ASM_ATT_HIDDEN(_AES_set_encrypt_key_NEON)
 .p2align	2
 _AES_set_encrypt_key_NEON:
 #endif /* __APPLE__ */
@@ -44593,12 +44663,14 @@ L_AES_set_encrypt_key_NEON_end:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt_NEON)
 .type	AES_ECB_encrypt_NEON,@function
 .align	2
 AES_ECB_encrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt_NEON)
 .p2align	2
 _AES_ECB_encrypt_NEON:
 #endif /* __APPLE__ */
@@ -45373,12 +45445,14 @@ L_AES_ECB_encrypt_NEON_data_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt_NEON)
 .type	AES_CBC_encrypt_NEON,@function
 .align	2
 AES_CBC_encrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt_NEON)
 .p2align	2
 _AES_CBC_encrypt_NEON:
 #endif /* __APPLE__ */
@@ -45538,12 +45612,14 @@ L_AES_CBC_encrypt_NEON_loop_nr:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt_NEON)
 .type	AES_CTR_encrypt_NEON,@function
 .align	2
 AES_CTR_encrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt_NEON)
 .p2align	2
 _AES_CTR_encrypt_NEON:
 #endif /* __APPLE__ */
@@ -46432,12 +46508,14 @@ L_AES_ARM64_NEON_shift_rows_invshuffle:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt_NEON)
 .type	AES_ECB_decrypt_NEON,@function
 .align	2
 AES_ECB_decrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt_NEON)
 .p2align	2
 _AES_ECB_decrypt_NEON:
 #endif /* __APPLE__ */
@@ -47482,12 +47560,14 @@ L_AES_ECB_decrypt_NEON_data_done:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt_NEON)
 .type	AES_CBC_decrypt_NEON,@function
 .align	2
 AES_CBC_decrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt_NEON)
 .p2align	2
 _AES_CBC_decrypt_NEON:
 #endif /* __APPLE__ */
@@ -48555,12 +48635,14 @@ L_AES_CBC_decrypt_NEON_data_done:
 #ifndef __APPLE__
 .text
 .globl	GCM_gmult_len_NEON
+WC_ASM_ATT_HIDDEN(GCM_gmult_len_NEON)
 .type	GCM_gmult_len_NEON,@function
 .align	2
 GCM_gmult_len_NEON:
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len_NEON
+WC_ASM_ATT_HIDDEN(_GCM_gmult_len_NEON)
 .p2align	2
 _GCM_gmult_len_NEON:
 #endif /* __APPLE__ */
@@ -48897,12 +48979,14 @@ L_GCM_gmult_len_NEON_start_block:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt_NEON)
 .type	AES_GCM_encrypt_NEON,@function
 .align	2
 AES_GCM_encrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_NEON)
 .p2align	2
 _AES_GCM_encrypt_NEON:
 #endif /* __APPLE__ */
@@ -49703,12 +49787,14 @@ L_AES_GCM_encrypt_NEON_data_done:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_NEON)
 .type	AES_XTS_encrypt_NEON,@function
 .align	2
 AES_XTS_encrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_NEON)
 .p2align	2
 _AES_XTS_encrypt_NEON:
 #endif /* __APPLE__ */
@@ -50785,12 +50871,14 @@ L_AES_XTS_encrypt_NEON_data_done:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt_NEON
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_NEON)
 .type	AES_XTS_decrypt_NEON,@function
 .align	2
 AES_XTS_decrypt_NEON:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt_NEON
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_NEON)
 .p2align	2
 _AES_XTS_decrypt_NEON:
 #endif /* __APPLE__ */
@@ -52347,12 +52435,14 @@ L_AES_XTS_decrypt_NEON_data_done:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_polyval_neon
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_neon)
 .type	AES_GCMSIV_polyval_neon,@function
 .align	2
 AES_GCMSIV_polyval_neon:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_polyval_neon
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_neon)
 .p2align	2
 _AES_GCMSIV_polyval_neon:
 #endif /* __APPLE__ */
@@ -52757,12 +52847,14 @@ L_AES_GCMSIV_ctr_neon_shuffle:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_ctr_neon
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_neon)
 .type	AES_GCMSIV_ctr_neon,@function
 .align	2
 AES_GCMSIV_ctr_neon:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_ctr_neon
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_neon)
 .p2align	2
 _AES_GCMSIV_ctr_neon:
 #endif /* __APPLE__ */
@@ -53731,12 +53823,14 @@ L_AES_ARM64_te:
 #ifndef __APPLE__
 .text
 .globl	AES_invert_key
+WC_ASM_ATT_HIDDEN(AES_invert_key)
 .type	AES_invert_key,@function
 .align	2
 AES_invert_key:
 #else
 .section	__TEXT,__text
 .globl	_AES_invert_key
+WC_ASM_ATT_HIDDEN(_AES_invert_key)
 .p2align	2
 _AES_invert_key:
 #endif /* __APPLE__ */
@@ -53882,12 +53976,14 @@ L_AES_ARM64_rcon:
 #ifndef __APPLE__
 .text
 .globl	AES_set_encrypt_key
+WC_ASM_ATT_HIDDEN(AES_set_encrypt_key)
 .type	AES_set_encrypt_key,@function
 .align	2
 AES_set_encrypt_key:
 #else
 .section	__TEXT,__text
 .globl	_AES_set_encrypt_key
+WC_ASM_ATT_HIDDEN(_AES_set_encrypt_key)
 .p2align	2
 _AES_set_encrypt_key:
 #endif /* __APPLE__ */
@@ -54139,12 +54235,14 @@ L_AES_set_encrypt_key_end:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_encrypt
+WC_ASM_ATT_HIDDEN(AES_ECB_encrypt)
 .type	AES_ECB_encrypt,@function
 .align	2
 AES_ECB_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_encrypt
+WC_ASM_ATT_HIDDEN(_AES_ECB_encrypt)
 .p2align	2
 _AES_ECB_encrypt:
 #endif /* __APPLE__ */
@@ -54471,12 +54569,14 @@ L_AES_ECB_encrypt_loop_nr:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_encrypt
+WC_ASM_ATT_HIDDEN(AES_CBC_encrypt)
 .type	AES_CBC_encrypt,@function
 .align	2
 AES_CBC_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_encrypt
+WC_ASM_ATT_HIDDEN(_AES_CBC_encrypt)
 .p2align	2
 _AES_CBC_encrypt:
 #endif /* __APPLE__ */
@@ -54807,12 +54907,14 @@ L_AES_CBC_encrypt_loop_nr:
 #ifndef __APPLE__
 .text
 .globl	AES_CTR_encrypt
+WC_ASM_ATT_HIDDEN(AES_CTR_encrypt)
 .type	AES_CTR_encrypt,@function
 .align	2
 AES_CTR_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_CTR_encrypt
+WC_ASM_ATT_HIDDEN(_AES_CTR_encrypt)
 .p2align	2
 _AES_CTR_encrypt:
 #endif /* __APPLE__ */
@@ -55202,12 +55304,14 @@ L_AES_ARM64_td4:
 #ifndef __APPLE__
 .text
 .globl	AES_ECB_decrypt
+WC_ASM_ATT_HIDDEN(AES_ECB_decrypt)
 .type	AES_ECB_decrypt,@function
 .align	2
 AES_ECB_decrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_ECB_decrypt
+WC_ASM_ATT_HIDDEN(_AES_ECB_decrypt)
 .p2align	2
 _AES_ECB_decrypt:
 #endif /* __APPLE__ */
@@ -55513,12 +55617,14 @@ L_AES_ECB_decrypt_loop_nr:
 #ifndef __APPLE__
 .text
 .globl	AES_CBC_decrypt
+WC_ASM_ATT_HIDDEN(AES_CBC_decrypt)
 .type	AES_CBC_decrypt,@function
 .align	2
 AES_CBC_decrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_CBC_decrypt
+WC_ASM_ATT_HIDDEN(_AES_CBC_decrypt)
 .p2align	2
 _AES_CBC_decrypt:
 #endif /* __APPLE__ */
@@ -56138,12 +56244,14 @@ L_GCM_gmult_len_r:
 #ifndef __APPLE__
 .text
 .globl	GCM_gmult_len
+WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 .type	GCM_gmult_len,@function
 .align	2
 GCM_gmult_len:
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
+WC_ASM_ATT_HIDDEN(_GCM_gmult_len)
 .p2align	2
 _GCM_gmult_len:
 #endif /* __APPLE__ */
@@ -56642,12 +56750,14 @@ L_GCM_gmult_len_r:
 #ifndef __APPLE__
 .text
 .globl	GCM_gmult_len
+WC_ASM_ATT_HIDDEN(GCM_gmult_len)
 .type	GCM_gmult_len,@function
 .align	2
 GCM_gmult_len:
 #else
 .section	__TEXT,__text
 .globl	_GCM_gmult_len
+WC_ASM_ATT_HIDDEN(_GCM_gmult_len)
 .p2align	2
 _GCM_gmult_len:
 #endif /* __APPLE__ */
@@ -56942,12 +57052,14 @@ L_GCM_gmult_len_start_block:
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_encrypt
+WC_ASM_ATT_HIDDEN(AES_GCM_encrypt)
 .type	AES_GCM_encrypt,@function
 .align	2
 AES_GCM_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt
+WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt)
 .p2align	2
 _AES_GCM_encrypt:
 #endif /* __APPLE__ */
@@ -57285,12 +57397,14 @@ L_AES_GCM_encrypt_loop_nr:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_encrypt
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt)
 .type	AES_XTS_encrypt,@function
 .align	2
 AES_XTS_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_encrypt
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt)
 .p2align	2
 _AES_XTS_encrypt:
 #endif /* __APPLE__ */
@@ -58240,12 +58354,14 @@ L_AES_XTS_encrypt_done_data:
 #ifndef __APPLE__
 .text
 .globl	AES_XTS_decrypt
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt)
 .type	AES_XTS_decrypt,@function
 .align	2
 AES_XTS_decrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_XTS_decrypt
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt)
 .p2align	2
 _AES_XTS_decrypt:
 #endif /* __APPLE__ */
@@ -59458,12 +59574,14 @@ L_AES_GCMSIV_polyval_base_r:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_polyval_base
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_polyval_base)
 .type	AES_GCMSIV_polyval_base,@function
 .align	2
 AES_GCMSIV_polyval_base:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_polyval_base
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_polyval_base)
 .p2align	2
 _AES_GCMSIV_polyval_base:
 #endif /* __APPLE__ */
@@ -59923,12 +60041,14 @@ L_AES_GCMSIV_ctr_base_te:
 #ifndef __APPLE__
 .text
 .globl	AES_GCMSIV_ctr_base
+WC_ASM_ATT_HIDDEN(AES_GCMSIV_ctr_base)
 .type	AES_GCMSIV_ctr_base,@function
 .align	2
 AES_GCMSIV_ctr_base:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCMSIV_ctr_base
+WC_ASM_ATT_HIDDEN(_AES_GCMSIV_ctr_base)
 .p2align	2
 _AES_GCMSIV_ctr_base:
 #endif /* __APPLE__ */

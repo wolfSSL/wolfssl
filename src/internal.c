@@ -8948,6 +8948,7 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
 int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int key_inited = 0;
     size_t sz = 0;
 #ifdef HAVE_ECC
     ecc_key* eccKey;
@@ -9054,6 +9055,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #ifndef NO_RSA
         case DYNAMIC_TYPE_RSA:
             ret = wc_InitRsaKey_ex((RsaKey*)*pKey, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
         #if defined(WC_RSA_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
             defined(WC_ASYNC_ENABLE_RSA)
             /* Only set non-blocking context when async device is active. With
@@ -9080,6 +9083,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         case DYNAMIC_TYPE_ECC:
             eccKey = (ecc_key*)*pKey;
             ret = wc_ecc_init_ex(eccKey, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
         #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
             defined(WC_ASYNC_ENABLE_ECC)
             /* Only set non-blocking context when async device is active. With
@@ -9104,14 +9109,17 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         case DYNAMIC_TYPE_ED25519:
-            wc_ed25519_init_ex((ed25519_key*)*pKey, ssl->heap, ssl->devId);
-            ret = 0;
+            ret = wc_ed25519_init_ex((ed25519_key*)*pKey, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
             break;
-    #endif /* HAVE_CURVE25519 */
+    #endif /* HAVE_ED25519 */
     #ifdef HAVE_CURVE25519
         case DYNAMIC_TYPE_CURVE25519:
             x25519Key = (curve25519_key*)*pKey;
             ret = wc_curve25519_init_ex(x25519Key, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
         #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
             defined(WC_ASYNC_ENABLE_X25519)
             /* Only set non-blocking context when async device is active. With
@@ -9136,20 +9144,23 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_ED448
         case DYNAMIC_TYPE_ED448:
-            wc_ed448_init_ex((ed448_key*)*pKey, ssl->heap, ssl->devId);
-            ret = 0;
+            ret = wc_ed448_init_ex((ed448_key*)*pKey, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
             break;
-    #endif /* HAVE_CURVE448 */
+    #endif /* HAVE_ED448 */
     #if defined(HAVE_FALCON)
         case DYNAMIC_TYPE_FALCON:
-            wc_falcon_init_ex((falcon_key*)*pKey, ssl->heap, ssl->devId);
-            ret = 0;
+            ret = wc_falcon_init_ex((falcon_key*)*pKey, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
             break;
     #endif /* HAVE_FALCON */
     #if defined(WOLFSSL_HAVE_MLDSA)
         case DYNAMIC_TYPE_MLDSA:
-            wc_MlDsaKey_Init((wc_MlDsaKey*)*pKey, ssl->heap, ssl->devId);
-            ret = 0;
+            ret = wc_MlDsaKey_Init((wc_MlDsaKey*)*pKey, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
             break;
     #endif /* WOLFSSL_HAVE_MLDSA */
     #if defined(WOLFSSL_HAVE_SLHDSA)
@@ -9161,17 +9172,22 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             XMEMSET(*pKey, 0, sizeof(SlhDsaKey));
             ret = wc_SlhDsaKey_Init((SlhDsaKey*)*pKey, WC_SLHDSA_DEFAULT_PARAM,
                                     ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
             break;
     #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifdef HAVE_CURVE448
         case DYNAMIC_TYPE_CURVE448:
-            wc_curve448_init((curve448_key*)*pKey);
-            ret = 0;
+            ret = wc_curve448_init((curve448_key*)*pKey);
+            if (ret == 0)
+                key_inited = 1;
             break;
     #endif /* HAVE_CURVE448 */
     #ifndef NO_DH
         case DYNAMIC_TYPE_DH:
             ret = wc_InitDhKey_ex((DhKey*)*pKey, ssl->heap, ssl->devId);
+            if (ret == 0)
+                key_inited = 1;
         #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
             defined(WC_ASYNC_ENABLE_DH)
             /* Only set non-blocking context when async device is active. With
@@ -9195,12 +9211,18 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             break;
     #endif /* !NO_DH */
         default:
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
-    /* On error free handshake key */
+    /* On error free handshake key if inited */
     if (ret != 0) {
-        FreeKey(ssl, type, pKey);
+        if (key_inited)
+            FreeKey(ssl, type, pKey);
+        else {
+            XFREE(*pKey, ssl->heap, type);
+            *pKey = NULL;
+        }
     }
 
     return ret;

@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_ECC_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -211,9 +212,6 @@ ECC Curve Sizes:
 #endif
 
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$f")
         #pragma const_seg(".fipsB$f")
@@ -233,6 +231,10 @@ ECC Curve Sizes:
 
 #ifdef HAVE_ECC_ENCRYPT
     #include <wolfssl/wolfcrypt/kdf.h>
+
+    /* For wc_AesGcmEncrypt() wrapper, if needed. */
+    #include <wolfssl/wolfcrypt/wc_compat.h>
+
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 

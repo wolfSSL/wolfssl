@@ -859,12 +859,14 @@ L_mldsa_avx2_zetas_inv:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_red_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_red_avx2)
 .type	wc_mldsa_poly_red_avx2,@function
 .align	16
 wc_mldsa_poly_red_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_red_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_red_avx2)
 .p2align	4
 _wc_mldsa_poly_red_avx2:
 #endif /* __APPLE__ */
@@ -1071,12 +1073,14 @@ _wc_mldsa_poly_red_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_avx2)
 .type	wc_mldsa_ntt_avx2,@function
 .align	16
 wc_mldsa_ntt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_avx2)
 .p2align	4
 _wc_mldsa_ntt_avx2:
 #endif /* __APPLE__ */
@@ -3239,12 +3243,14 @@ _wc_mldsa_ntt_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_small_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_small_avx2)
 .type	wc_mldsa_ntt_small_avx2,@function
 .align	16
 wc_mldsa_ntt_small_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_small_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_small_avx2)
 .p2align	4
 _wc_mldsa_ntt_small_avx2:
 #endif /* __APPLE__ */
@@ -5311,12 +5317,14 @@ _wc_mldsa_ntt_small_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_full_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_full_avx2)
 .type	wc_mldsa_ntt_full_avx2,@function
 .align	16
 wc_mldsa_ntt_full_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_full_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_full_avx2)
 .p2align	4
 _wc_mldsa_ntt_full_avx2:
 #endif /* __APPLE__ */
@@ -7543,12 +7551,14 @@ _wc_mldsa_ntt_full_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_small_full_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_small_full_avx2)
 .type	wc_mldsa_ntt_small_full_avx2,@function
 .align	16
 wc_mldsa_ntt_small_full_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_small_full_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_small_full_avx2)
 .p2align	4
 _wc_mldsa_ntt_small_full_avx2:
 #endif /* __APPLE__ */
@@ -9679,12 +9689,14 @@ _wc_mldsa_ntt_small_full_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_invntt_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_invntt_avx2)
 .type	wc_mldsa_invntt_avx2,@function
 .align	16
 wc_mldsa_invntt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_invntt_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_invntt_avx2)
 .p2align	4
 _wc_mldsa_invntt_avx2:
 #endif /* __APPLE__ */
@@ -12221,12 +12233,14 @@ _wc_mldsa_invntt_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_invntt_full_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_invntt_full_avx2)
 .type	wc_mldsa_invntt_full_avx2,@function
 .align	16
 wc_mldsa_invntt_full_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_invntt_full_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_invntt_full_avx2)
 .p2align	4
 _wc_mldsa_invntt_full_avx2:
 #endif /* __APPLE__ */
@@ -14859,12 +14873,14 @@ _wc_mldsa_invntt_full_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_avx2)
 .type	wc_mldsa_mul_avx2,@function
 .align	16
 wc_mldsa_mul_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_avx2)
 .p2align	4
 _wc_mldsa_mul_avx2:
 #endif /* __APPLE__ */
@@ -15391,12 +15407,14 @@ _wc_mldsa_mul_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_vec_4_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_vec_4_avx2)
 .type	wc_mldsa_mul_vec_4_avx2,@function
 .align	16
 wc_mldsa_mul_vec_4_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_vec_4_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_vec_4_avx2)
 .p2align	4
 _wc_mldsa_mul_vec_4_avx2:
 #endif /* __APPLE__ */
@@ -16723,12 +16741,14 @@ _wc_mldsa_mul_vec_4_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_vec_5_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_vec_5_avx2)
 .type	wc_mldsa_mul_vec_5_avx2,@function
 .align	16
 wc_mldsa_mul_vec_5_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_vec_5_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_vec_5_avx2)
 .p2align	4
 _wc_mldsa_mul_vec_5_avx2:
 #endif /* __APPLE__ */
@@ -18311,12 +18331,14 @@ _wc_mldsa_mul_vec_5_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_vec_7_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_vec_7_avx2)
 .type	wc_mldsa_mul_vec_7_avx2,@function
 .align	16
 wc_mldsa_mul_vec_7_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_vec_7_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_vec_7_avx2)
 .p2align	4
 _wc_mldsa_mul_vec_7_avx2:
 #endif /* __APPLE__ */
@@ -20986,12 +21008,14 @@ L_mldsa_rej_ones:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_rej_uniform_n_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_rej_uniform_n_avx2)
 .type	wc_mldsa_rej_uniform_n_avx2,@function
 .align	16
 wc_mldsa_rej_uniform_n_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_rej_uniform_n_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_rej_uniform_n_avx2)
 .p2align	4
 _wc_mldsa_rej_uniform_n_avx2:
 #endif /* __APPLE__ */
@@ -21524,12 +21548,14 @@ L_mldsa_rej_uniform_n_avx2_done_64:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_rej_uniform_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_rej_uniform_avx2)
 .type	wc_mldsa_rej_uniform_avx2,@function
 .align	16
 wc_mldsa_rej_uniform_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_rej_uniform_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_rej_uniform_avx2)
 .p2align	4
 _wc_mldsa_rej_uniform_avx2:
 #endif /* __APPLE__ */
@@ -21916,12 +21942,14 @@ L_mldsa_extract_coeffs_eta2_nibble_table:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_extract_coeffs_eta2_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_extract_coeffs_eta2_avx2)
 .type	wc_mldsa_extract_coeffs_eta2_avx2,@function
 .align	16
 wc_mldsa_extract_coeffs_eta2_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_extract_coeffs_eta2_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_extract_coeffs_eta2_avx2)
 .p2align	4
 _wc_mldsa_extract_coeffs_eta2_avx2:
 #endif /* __APPLE__ */
@@ -22554,12 +22582,14 @@ L_mldsa_extract_coeffs_eta4_four:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_extract_coeffs_eta4_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_extract_coeffs_eta4_avx2)
 .type	wc_mldsa_extract_coeffs_eta4_avx2,@function
 .align	16
 wc_mldsa_extract_coeffs_eta4_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_extract_coeffs_eta4_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_extract_coeffs_eta4_avx2)
 .p2align	4
 _wc_mldsa_extract_coeffs_eta4_avx2:
 #endif /* __APPLE__ */
@@ -23102,12 +23132,14 @@ L_mldsa_extract_coeffs_eta4_done:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_redistribute_21_rand_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_redistribute_21_rand_avx2)
 .type	wc_mldsa_redistribute_21_rand_avx2,@function
 .align	16
 wc_mldsa_redistribute_21_rand_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_redistribute_21_rand_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_redistribute_21_rand_avx2)
 .p2align	4
 _wc_mldsa_redistribute_21_rand_avx2:
 #endif /* __APPLE__ */
@@ -23207,12 +23239,14 @@ _wc_mldsa_redistribute_21_rand_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_redistribute_17_rand_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_redistribute_17_rand_avx2)
 .type	wc_mldsa_redistribute_17_rand_avx2,@function
 .align	16
 wc_mldsa_redistribute_17_rand_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_redistribute_17_rand_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_redistribute_17_rand_avx2)
 .p2align	4
 _wc_mldsa_redistribute_17_rand_avx2:
 #endif /* __APPLE__ */
@@ -23382,12 +23416,14 @@ L_mldsa_encode_eta_2_avx2_shuff_6_odd:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_vec_encode_eta_2_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_vec_encode_eta_2_avx2)
 .type	wc_mldsa_vec_encode_eta_2_avx2,@function
 .align	16
 wc_mldsa_vec_encode_eta_2_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_vec_encode_eta_2_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_vec_encode_eta_2_avx2)
 .p2align	4
 _wc_mldsa_vec_encode_eta_2_avx2:
 #endif /* __APPLE__ */
@@ -23683,12 +23719,14 @@ L_mldsa_encode_eta_4_avx2_vs_4:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_vec_encode_eta_4_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_vec_encode_eta_4_avx2)
 .type	wc_mldsa_vec_encode_eta_4_avx2,@function
 .align	16
 wc_mldsa_vec_encode_eta_4_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_vec_encode_eta_4_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_vec_encode_eta_4_avx2)
 .p2align	4
 _wc_mldsa_vec_encode_eta_4_avx2:
 #endif /* __APPLE__ */
@@ -24846,12 +24884,14 @@ L_mldsa_decode_eta_2_avx2_mask:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_eta_2_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_eta_2_avx2)
 .type	wc_mldsa_decode_eta_2_avx2,@function
 .align	16
 wc_mldsa_decode_eta_2_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_eta_2_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_eta_2_avx2)
 .p2align	4
 _wc_mldsa_decode_eta_2_avx2:
 #endif /* __APPLE__ */
@@ -25242,12 +25282,14 @@ L_mldsa_decode_eta_4_avx2_mask:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_eta_4_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_eta_4_avx2)
 .type	wc_mldsa_decode_eta_4_avx2,@function
 .align	16
 wc_mldsa_decode_eta_4_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_eta_4_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_eta_4_avx2)
 .p2align	4
 _wc_mldsa_decode_eta_4_avx2:
 #endif /* __APPLE__ */
@@ -25496,12 +25538,14 @@ L_mldsa_encode_w1_88_avx2_vs:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_w1_88_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_w1_88_avx2)
 .type	wc_mldsa_encode_w1_88_avx2,@function
 .align	16
 wc_mldsa_encode_w1_88_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_w1_88_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_w1_88_avx2)
 .p2align	4
 _wc_mldsa_encode_w1_88_avx2:
 #endif /* __APPLE__ */
@@ -25788,12 +25832,14 @@ L_mldsa_encode_w1_32_avx2_vs_4:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_w1_32_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_w1_32_avx2)
 .type	wc_mldsa_encode_w1_32_avx2,@function
 .align	16
 wc_mldsa_encode_w1_32_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_w1_32_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_w1_32_avx2)
 .p2align	4
 _wc_mldsa_encode_w1_32_avx2:
 #endif /* __APPLE__ */
@@ -26051,12 +26097,14 @@ L_mldsa_encode_t0_t1_avx2_shuff_10_odd:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_vec_encode_t0_t1_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_vec_encode_t0_t1_avx2)
 .type	wc_mldsa_vec_encode_t0_t1_avx2,@function
 .align	16
 wc_mldsa_vec_encode_t0_t1_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_vec_encode_t0_t1_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_vec_encode_t0_t1_avx2)
 .p2align	4
 _wc_mldsa_vec_encode_t0_t1_avx2:
 #endif /* __APPLE__ */
@@ -26943,12 +26991,14 @@ L_mldsa_decode_t0_avx2_d_max_half:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_t0_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_t0_avx2)
 .type	wc_mldsa_decode_t0_avx2,@function
 .align	16
 wc_mldsa_decode_t0_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_t0_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_t0_avx2)
 .p2align	4
 _wc_mldsa_decode_t0_avx2:
 #endif /* __APPLE__ */
@@ -27307,12 +27357,14 @@ L_mldsa_decode_t1_avx2_mask:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_t1_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_t1_avx2)
 .type	wc_mldsa_decode_t1_avx2,@function
 .align	16
 wc_mldsa_decode_t1_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_t1_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_t1_avx2)
 .p2align	4
 _wc_mldsa_decode_t1_avx2:
 #endif /* __APPLE__ */
@@ -27672,12 +27724,14 @@ L_mldsa_decode_gamma1_17_avx2_gamma17:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_gamma1_17_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_gamma1_17_avx2)
 .type	wc_mldsa_decode_gamma1_17_avx2,@function
 .align	16
 wc_mldsa_decode_gamma1_17_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_gamma1_17_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_gamma1_17_avx2)
 .p2align	4
 _wc_mldsa_decode_gamma1_17_avx2:
 #endif /* __APPLE__ */
@@ -28023,12 +28077,14 @@ L_mldsa_decode_gamma1_20_avx2_gamma19:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_gamma1_19_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_gamma1_19_avx2)
 .type	wc_mldsa_decode_gamma1_19_avx2,@function
 .align	16
 wc_mldsa_decode_gamma1_19_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_gamma1_19_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_gamma1_19_avx2)
 .p2align	4
 _wc_mldsa_decode_gamma1_19_avx2:
 #endif /* __APPLE__ */
@@ -28361,12 +28417,14 @@ L_mldsa_encode_gamma1_17_avx2_vs:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_gamma1_17_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_gamma1_17_avx2)
 .type	wc_mldsa_encode_gamma1_17_avx2,@function
 .align	16
 wc_mldsa_encode_gamma1_17_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_gamma1_17_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_gamma1_17_avx2)
 .p2align	4
 _wc_mldsa_encode_gamma1_17_avx2:
 #endif /* __APPLE__ */
@@ -28823,12 +28881,14 @@ L_mldsa_encode_gamma1_19_avx2_vs:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_gamma1_19_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_gamma1_19_avx2)
 .type	wc_mldsa_encode_gamma1_19_avx2,@function
 .align	16
 wc_mldsa_encode_gamma1_19_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_gamma1_19_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_gamma1_19_avx2)
 .p2align	4
 _wc_mldsa_encode_gamma1_19_avx2:
 #endif /* __APPLE__ */
@@ -29281,12 +29341,14 @@ L_mldsa_decompose_q88_avx2_44:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decompose_q88_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decompose_q88_avx2)
 .type	wc_mldsa_decompose_q88_avx2,@function
 .align	16
 wc_mldsa_decompose_q88_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decompose_q88_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decompose_q88_avx2)
 .p2align	4
 _wc_mldsa_decompose_q88_avx2:
 #endif /* __APPLE__ */
@@ -31534,12 +31596,14 @@ L_mldsa_decompose_q32_avx2_mask:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decompose_q32_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_decompose_q32_avx2)
 .type	wc_mldsa_decompose_q32_avx2,@function
 .align	16
 wc_mldsa_decompose_q32_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decompose_q32_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decompose_q32_avx2)
 .p2align	4
 _wc_mldsa_decompose_q32_avx2:
 #endif /* __APPLE__ */
@@ -32132,12 +32196,14 @@ L_mldsa_use_hint_88_avx2_one:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_use_hint_88_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_use_hint_88_avx2)
 .type	wc_mldsa_use_hint_88_avx2,@function
 .align	16
 wc_mldsa_use_hint_88_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_use_hint_88_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_use_hint_88_avx2)
 .p2align	4
 _wc_mldsa_use_hint_88_avx2:
 #endif /* __APPLE__ */
@@ -37758,12 +37824,14 @@ L_mldsa_use_hint_32_avx2_one:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_use_hint_32_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_use_hint_32_avx2)
 .type	wc_mldsa_use_hint_32_avx2,@function
 .align	16
 wc_mldsa_use_hint_32_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_use_hint_32_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_use_hint_32_avx2)
 .p2align	4
 _wc_mldsa_use_hint_32_avx2:
 #endif /* __APPLE__ */
@@ -38980,12 +39048,14 @@ L_mldsa_use_hint_32_avx2_hints_done__15:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_vec_check_low_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_vec_check_low_avx2)
 .type	wc_mldsa_vec_check_low_avx2,@function
 .align	16
 wc_mldsa_vec_check_low_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_vec_check_low_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_vec_check_low_avx2)
 .p2align	4
 _wc_mldsa_vec_check_low_avx2:
 #endif /* __APPLE__ */
@@ -39217,12 +39287,14 @@ L_mldsa_vec_check_low_vx2_done:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_add_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_add_avx2)
 .type	wc_mldsa_poly_add_avx2,@function
 .align	16
 wc_mldsa_poly_add_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_add_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_add_avx2)
 .p2align	4
 _wc_mldsa_poly_add_avx2:
 #endif /* __APPLE__ */
@@ -39361,12 +39433,14 @@ _wc_mldsa_poly_add_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_sub_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_sub_avx2)
 .type	wc_mldsa_poly_sub_avx2,@function
 .align	16
 wc_mldsa_poly_sub_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_sub_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_sub_avx2)
 .p2align	4
 _wc_mldsa_poly_sub_avx2:
 #endif /* __APPLE__ */
@@ -39505,12 +39579,14 @@ _wc_mldsa_poly_sub_avx2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_make_pos_avx2
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_make_pos_avx2)
 .type	wc_mldsa_poly_make_pos_avx2,@function
 .align	16
 wc_mldsa_poly_make_pos_avx2:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_make_pos_avx2
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_make_pos_avx2)
 .p2align	4
 _wc_mldsa_poly_make_pos_avx2:
 #endif /* __APPLE__ */
@@ -39806,12 +39882,14 @@ L_mldsa_rej_shuffle_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_rej_uniform_n_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_rej_uniform_n_avx512)
 .type	wc_mldsa_rej_uniform_n_avx512,@function
 .align	16
 wc_mldsa_rej_uniform_n_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_rej_uniform_n_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_rej_uniform_n_avx512)
 .p2align	4
 _wc_mldsa_rej_uniform_n_avx512:
 #endif /* __APPLE__ */
@@ -39882,12 +39960,14 @@ L_wc_mldsa_rej_uniform_n_avx512_done_64:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_rej_uniform_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_rej_uniform_avx512)
 .type	wc_mldsa_rej_uniform_avx512,@function
 .align	16
 wc_mldsa_rej_uniform_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_rej_uniform_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_rej_uniform_avx512)
 .p2align	4
 _wc_mldsa_rej_uniform_avx512:
 #endif /* __APPLE__ */
@@ -40033,12 +40113,14 @@ L_mldsa_extract_coeffs_eta2_avx512_shift:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_extract_coeffs_eta2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_extract_coeffs_eta2_avx512)
 .type	wc_mldsa_extract_coeffs_eta2_avx512,@function
 .align	16
 wc_mldsa_extract_coeffs_eta2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_extract_coeffs_eta2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_extract_coeffs_eta2_avx512)
 .p2align	4
 _wc_mldsa_extract_coeffs_eta2_avx512:
 #endif /* __APPLE__ */
@@ -40370,12 +40452,14 @@ L_mldsa_extract_coeffs_eta4_avx512_shift:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_extract_coeffs_eta4_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_extract_coeffs_eta4_avx512)
 .type	wc_mldsa_extract_coeffs_eta4_avx512,@function
 .align	16
 wc_mldsa_extract_coeffs_eta4_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_extract_coeffs_eta4_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_extract_coeffs_eta4_avx512)
 .p2align	4
 _wc_mldsa_extract_coeffs_eta4_avx512:
 #endif /* __APPLE__ */
@@ -40692,12 +40776,14 @@ L_mldsa_make_hint_88_avx512_step:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_make_hint_88_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_make_hint_88_avx512)
 .type	wc_mldsa_make_hint_88_avx512,@function
 .align	16
 wc_mldsa_make_hint_88_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_make_hint_88_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_make_hint_88_avx512)
 .p2align	4
 _wc_mldsa_make_hint_88_avx512:
 #endif /* __APPLE__ */
@@ -41120,12 +41206,14 @@ L_mldsa_make_hint_32_avx512_step:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_make_hint_32_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_make_hint_32_avx512)
 .type	wc_mldsa_make_hint_32_avx512,@function
 .align	16
 wc_mldsa_make_hint_32_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_make_hint_32_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_make_hint_32_avx512)
 .p2align	4
 _wc_mldsa_make_hint_32_avx512:
 #endif /* __APPLE__ */
@@ -41488,12 +41576,14 @@ L_mldsa_make_hint_32_avx512_done:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_use_hint_88_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_use_hint_88_avx512)
 .type	wc_mldsa_use_hint_88_avx512,@function
 .align	16
 wc_mldsa_use_hint_88_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_use_hint_88_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_use_hint_88_avx512)
 .p2align	4
 _wc_mldsa_use_hint_88_avx512:
 #endif /* __APPLE__ */
@@ -44539,12 +44629,14 @@ L_mldsa_use_hint_88_avx512_hints_done_3_15:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_use_hint_32_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_use_hint_32_avx512)
 .type	wc_mldsa_use_hint_32_avx512,@function
 .align	16
 wc_mldsa_use_hint_32_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_use_hint_32_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_use_hint_32_avx512)
 .p2align	4
 _wc_mldsa_use_hint_32_avx512:
 #endif /* __APPLE__ */
@@ -45245,12 +45337,14 @@ L_mldsa_use_hint_32_avx512_hints_done_15:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_redistribute_21_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_redistribute_21_rand_x8_avx512)
 .type	wc_mldsa_redistribute_21_rand_x8_avx512,@function
 .align	16
 wc_mldsa_redistribute_21_rand_x8_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_redistribute_21_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_redistribute_21_rand_x8_avx512)
 .p2align	4
 _wc_mldsa_redistribute_21_rand_x8_avx512:
 #endif /* __APPLE__ */
@@ -45443,12 +45537,14 @@ _wc_mldsa_redistribute_21_rand_x8_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_redistribute_17_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_redistribute_17_rand_x8_avx512)
 .type	wc_mldsa_redistribute_17_rand_x8_avx512,@function
 .align	16
 wc_mldsa_redistribute_17_rand_x8_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_redistribute_17_rand_x8_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_redistribute_17_rand_x8_avx512)
 .p2align	4
 _wc_mldsa_redistribute_17_rand_x8_avx512:
 #endif /* __APPLE__ */
@@ -45676,12 +45772,14 @@ L_mldsa_decode_gamma1_17_x2_avx512_gamma17:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_gamma1_17_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_gamma1_17_x2_avx512)
 .type	wc_mldsa_decode_gamma1_17_x2_avx512,@function
 .align	16
 wc_mldsa_decode_gamma1_17_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_gamma1_17_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_gamma1_17_x2_avx512)
 .p2align	4
 _wc_mldsa_decode_gamma1_17_x2_avx512:
 #endif /* __APPLE__ */
@@ -46094,12 +46192,14 @@ L_mldsa_decode_gamma1_19_x2_avx512_gamma19:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_gamma1_19_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_gamma1_19_x2_avx512)
 .type	wc_mldsa_decode_gamma1_19_x2_avx512,@function
 .align	16
 wc_mldsa_decode_gamma1_19_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_gamma1_19_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_gamma1_19_x2_avx512)
 .p2align	4
 _wc_mldsa_decode_gamma1_19_x2_avx512:
 #endif /* __APPLE__ */
@@ -46604,12 +46704,14 @@ L_mldsa_decode_t0_x2_avx512_d_max_half:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_t0_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_t0_x2_avx512)
 .type	wc_mldsa_decode_t0_x2_avx512,@function
 .align	16
 wc_mldsa_decode_t0_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_t0_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_t0_x2_avx512)
 .p2align	4
 _wc_mldsa_decode_t0_x2_avx512:
 #endif /* __APPLE__ */
@@ -47037,12 +47139,14 @@ L_mldsa_decode_t1_x2_avx512_mask:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_t1_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_t1_x2_avx512)
 .type	wc_mldsa_decode_t1_x2_avx512,@function
 .align	16
 wc_mldsa_decode_t1_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_t1_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_t1_x2_avx512)
 .p2align	4
 _wc_mldsa_decode_t1_x2_avx512:
 #endif /* __APPLE__ */
@@ -47520,12 +47624,14 @@ L_mldsa_decode_eta_2_x2_avx512_mask:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_eta_2_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_eta_2_x2_avx512)
 .type	wc_mldsa_decode_eta_2_x2_avx512,@function
 .align	16
 wc_mldsa_decode_eta_2_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_eta_2_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_eta_2_x2_avx512)
 .p2align	4
 _wc_mldsa_decode_eta_2_x2_avx512:
 #endif /* __APPLE__ */
@@ -47835,12 +47941,14 @@ L_mldsa_decode_eta_4_x2_avx512_mask:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decode_eta_4_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decode_eta_4_x2_avx512)
 .type	wc_mldsa_decode_eta_4_x2_avx512,@function
 .align	16
 wc_mldsa_decode_eta_4_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decode_eta_4_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decode_eta_4_x2_avx512)
 .p2align	4
 _wc_mldsa_decode_eta_4_x2_avx512:
 #endif /* __APPLE__ */
@@ -48186,12 +48294,14 @@ L_mldsa_encode_gamma1_17_avx512_shift2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_gamma1_17_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_gamma1_17_avx512)
 .type	wc_mldsa_encode_gamma1_17_avx512,@function
 .align	16
 wc_mldsa_encode_gamma1_17_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_gamma1_17_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_gamma1_17_avx512)
 .p2align	4
 _wc_mldsa_encode_gamma1_17_avx512:
 #endif /* __APPLE__ */
@@ -48493,12 +48603,14 @@ L_mldsa_encode_gamma1_19_avx512_shift2:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_gamma1_19_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_gamma1_19_avx512)
 .type	wc_mldsa_encode_gamma1_19_avx512,@function
 .align	16
 wc_mldsa_encode_gamma1_19_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_gamma1_19_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_gamma1_19_avx512)
 .p2align	4
 _wc_mldsa_encode_gamma1_19_avx512:
 #endif /* __APPLE__ */
@@ -48768,12 +48880,14 @@ L_mldsa_encode_w1_88_x2_avx512_vs:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_w1_88_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_w1_88_x2_avx512)
 .type	wc_mldsa_encode_w1_88_x2_avx512,@function
 .align	16
 wc_mldsa_encode_w1_88_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_w1_88_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_w1_88_x2_avx512)
 .p2align	4
 _wc_mldsa_encode_w1_88_x2_avx512:
 #endif /* __APPLE__ */
@@ -49142,12 +49256,14 @@ _wc_mldsa_encode_w1_88_x2_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_w1_32_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_w1_32_avx512)
 .type	wc_mldsa_encode_w1_32_avx512,@function
 .align	16
 wc_mldsa_encode_w1_32_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_w1_32_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_w1_32_avx512)
 .p2align	4
 _wc_mldsa_encode_w1_32_avx512:
 #endif /* __APPLE__ */
@@ -49309,12 +49425,14 @@ L_mldsa_encode_eta_2_x2_avx512_shuff_6_odd:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_eta_2_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_eta_2_x2_avx512)
 .type	wc_mldsa_encode_eta_2_x2_avx512,@function
 .align	16
 wc_mldsa_encode_eta_2_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_eta_2_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_eta_2_x2_avx512)
 .p2align	4
 _wc_mldsa_encode_eta_2_x2_avx512:
 #endif /* __APPLE__ */
@@ -49653,12 +49771,14 @@ L_mldsa_encode_eta_4_avx512_four:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_eta_4_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_eta_4_avx512)
 .type	wc_mldsa_encode_eta_4_avx512,@function
 .align	16
 wc_mldsa_encode_eta_4_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_eta_4_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_eta_4_avx512)
 .p2align	4
 _wc_mldsa_encode_eta_4_avx512:
 #endif /* __APPLE__ */
@@ -49863,12 +49983,14 @@ L_mldsa_encode_t0_t1_x2_avx512_shuff_10_odd:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_t0_t1_x2_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_t0_t1_x2_avx512)
 .type	wc_mldsa_encode_t0_t1_x2_avx512,@function
 .align	16
 wc_mldsa_encode_t0_t1_x2_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_t0_t1_x2_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_t0_t1_x2_avx512)
 .p2align	4
 _wc_mldsa_encode_t0_t1_x2_avx512:
 #endif /* __APPLE__ */
@@ -51634,12 +51756,14 @@ L_mldsa_avx512_zetas_inv_1p:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_1p_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_1p_avx512)
 .type	wc_mldsa_ntt_1p_avx512,@function
 .align	16
 wc_mldsa_ntt_1p_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_1p_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_1p_avx512)
 .p2align	4
 _wc_mldsa_ntt_1p_avx512:
 #endif /* __APPLE__ */
@@ -52788,12 +52912,14 @@ _wc_mldsa_ntt_1p_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_small_1p_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_small_1p_avx512)
 .type	wc_mldsa_ntt_small_1p_avx512,@function
 .align	16
 wc_mldsa_ntt_small_1p_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_small_1p_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_small_1p_avx512)
 .p2align	4
 _wc_mldsa_ntt_small_1p_avx512:
 #endif /* __APPLE__ */
@@ -53894,12 +54020,14 @@ _wc_mldsa_ntt_small_1p_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_full_1p_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_full_1p_avx512)
 .type	wc_mldsa_ntt_full_1p_avx512,@function
 .align	16
 wc_mldsa_ntt_full_1p_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_full_1p_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_full_1p_avx512)
 .p2align	4
 _wc_mldsa_ntt_full_1p_avx512:
 #endif /* __APPLE__ */
@@ -55082,12 +55210,14 @@ _wc_mldsa_ntt_full_1p_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_ntt_small_full_1p_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_ntt_small_full_1p_avx512)
 .type	wc_mldsa_ntt_small_full_1p_avx512,@function
 .align	16
 wc_mldsa_ntt_small_full_1p_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_ntt_small_full_1p_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_ntt_small_full_1p_avx512)
 .p2align	4
 _wc_mldsa_ntt_small_full_1p_avx512:
 #endif /* __APPLE__ */
@@ -56222,12 +56352,14 @@ _wc_mldsa_ntt_small_full_1p_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_invntt_1p_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_invntt_1p_avx512)
 .type	wc_mldsa_invntt_1p_avx512,@function
 .align	16
 wc_mldsa_invntt_1p_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_invntt_1p_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_invntt_1p_avx512)
 .p2align	4
 _wc_mldsa_invntt_1p_avx512:
 #endif /* __APPLE__ */
@@ -57554,12 +57686,14 @@ _wc_mldsa_invntt_1p_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_invntt_full_1p_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_invntt_full_1p_avx512)
 .type	wc_mldsa_invntt_full_1p_avx512,@function
 .align	16
 wc_mldsa_invntt_full_1p_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_invntt_full_1p_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_invntt_full_1p_avx512)
 .p2align	4
 _wc_mldsa_invntt_full_1p_avx512:
 #endif /* __APPLE__ */
@@ -58990,12 +59124,14 @@ _wc_mldsa_invntt_full_1p_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_red_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_red_avx512)
 .type	wc_mldsa_poly_red_avx512,@function
 .align	16
 wc_mldsa_poly_red_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_red_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_red_avx512)
 .p2align	4
 _wc_mldsa_poly_red_avx512:
 #endif /* __APPLE__ */
@@ -59109,12 +59245,14 @@ _wc_mldsa_poly_red_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_avx512)
 .type	wc_mldsa_mul_avx512,@function
 .align	16
 wc_mldsa_mul_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_avx512)
 .p2align	4
 _wc_mldsa_mul_avx512:
 #endif /* __APPLE__ */
@@ -59388,12 +59526,14 @@ _wc_mldsa_mul_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_vec_4_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_vec_4_avx512)
 .type	wc_mldsa_mul_vec_4_avx512,@function
 .align	16
 wc_mldsa_mul_vec_4_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_vec_4_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_vec_4_avx512)
 .p2align	4
 _wc_mldsa_mul_vec_4_avx512:
 #endif /* __APPLE__ */
@@ -60067,12 +60207,14 @@ _wc_mldsa_mul_vec_4_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_vec_5_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_vec_5_avx512)
 .type	wc_mldsa_mul_vec_5_avx512,@function
 .align	16
 wc_mldsa_mul_vec_5_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_vec_5_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_vec_5_avx512)
 .p2align	4
 _wc_mldsa_mul_vec_5_avx512:
 #endif /* __APPLE__ */
@@ -60874,12 +61016,14 @@ _wc_mldsa_mul_vec_5_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_mul_vec_7_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_mul_vec_7_avx512)
 .type	wc_mldsa_mul_vec_7_avx512,@function
 .align	16
 wc_mldsa_mul_vec_7_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_mul_vec_7_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_mul_vec_7_avx512)
 .p2align	4
 _wc_mldsa_mul_vec_7_avx512:
 #endif /* __APPLE__ */
@@ -61937,12 +62081,14 @@ _wc_mldsa_mul_vec_7_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decompose_q88_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decompose_q88_avx512)
 .type	wc_mldsa_decompose_q88_avx512,@function
 .align	16
 wc_mldsa_decompose_q88_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decompose_q88_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decompose_q88_avx512)
 .p2align	4
 _wc_mldsa_decompose_q88_avx512:
 #endif /* __APPLE__ */
@@ -63061,12 +63207,14 @@ _wc_mldsa_decompose_q88_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_decompose_q32_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_decompose_q32_avx512)
 .type	wc_mldsa_decompose_q32_avx512,@function
 .align	16
 wc_mldsa_decompose_q32_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_decompose_q32_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_decompose_q32_avx512)
 .p2align	4
 _wc_mldsa_decompose_q32_avx512:
 #endif /* __APPLE__ */
@@ -63336,12 +63484,14 @@ L_mldsa_decompose_q32_avx512_start_256:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_vec_check_low_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_vec_check_low_avx512)
 .type	wc_mldsa_vec_check_low_avx512,@function
 .align	16
 wc_mldsa_vec_check_low_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_vec_check_low_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_vec_check_low_avx512)
 .p2align	4
 _wc_mldsa_vec_check_low_avx512:
 #endif /* __APPLE__ */
@@ -63461,12 +63611,14 @@ L_mldsa_vec_check_low_avx512_done:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_add_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_add_avx512)
 .type	wc_mldsa_poly_add_avx512,@function
 .align	16
 wc_mldsa_poly_add_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_add_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_add_avx512)
 .p2align	4
 _wc_mldsa_poly_add_avx512:
 #endif /* __APPLE__ */
@@ -63542,12 +63694,14 @@ _wc_mldsa_poly_add_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_sub_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_sub_avx512)
 .type	wc_mldsa_poly_sub_avx512,@function
 .align	16
 wc_mldsa_poly_sub_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_sub_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_sub_avx512)
 .p2align	4
 _wc_mldsa_poly_sub_avx512:
 #endif /* __APPLE__ */
@@ -63623,12 +63777,14 @@ _wc_mldsa_poly_sub_avx512:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_poly_make_pos_avx512
+WC_ASM_ATT_HIDDEN(wc_mldsa_poly_make_pos_avx512)
 .type	wc_mldsa_poly_make_pos_avx512,@function
 .align	16
 wc_mldsa_poly_make_pos_avx512:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_poly_make_pos_avx512
+WC_ASM_ATT_HIDDEN(_wc_mldsa_poly_make_pos_avx512)
 .p2align	4
 _wc_mldsa_poly_make_pos_avx512:
 #endif /* __APPLE__ */
@@ -63787,12 +63943,14 @@ L_mldsa_encode_w1_88_avx512_vbmi_idx_b:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_w1_88_avx512_vbmi
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_w1_88_avx512_vbmi)
 .type	wc_mldsa_encode_w1_88_avx512_vbmi,@function
 .align	16
 wc_mldsa_encode_w1_88_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_w1_88_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_w1_88_avx512_vbmi)
 .p2align	4
 _wc_mldsa_encode_w1_88_avx512_vbmi:
 #endif /* __APPLE__ */
@@ -64041,12 +64199,14 @@ L_mldsa_encode_t0_t1_avx512_vbmi_t1_vs:
 #ifndef __APPLE__
 .text
 .globl	wc_mldsa_encode_t0_t1_avx512_vbmi
+WC_ASM_ATT_HIDDEN(wc_mldsa_encode_t0_t1_avx512_vbmi)
 .type	wc_mldsa_encode_t0_t1_avx512_vbmi,@function
 .align	16
 wc_mldsa_encode_t0_t1_avx512_vbmi:
 #else
 .section	__TEXT,__text
 .globl	_wc_mldsa_encode_t0_t1_avx512_vbmi
+WC_ASM_ATT_HIDDEN(_wc_mldsa_encode_t0_t1_avx512_vbmi)
 .p2align	4
 _wc_mldsa_encode_t0_t1_avx512_vbmi:
 #endif /* __APPLE__ */
