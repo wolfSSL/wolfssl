@@ -2881,9 +2881,38 @@ endif()
 
 # TODO: - Session export
 
+add_option("WOLFSSL_ALTERA_FCS"
+    "Enable Altera Agilex 5 SDM crypto offload via libfcs (default: disabled)"
+    "no" "all;rng;yes;no")
+
 add_option("WOLFSSL_CRYPTOCB"
     "Enable crypto callbacks (default: disabled)"
     "no" "yes;no")
+
+if(WOLFSSL_ALTERA_FCS)
+    find_path(ALTERA_FCS_INCLUDE_DIR NAMES libfcs.h)
+    find_path(ALTERA_FCS_OSAL_INCLUDE_DIR
+        NAMES libfcs_osal_types.h)
+    find_library(ALTERA_FCS_LIBRARY NAMES FCS)
+    find_library(ALTERA_FDT_LIBRARY NAMES fdt)
+    if(ALTERA_FCS_INCLUDE_DIR AND ALTERA_FCS_OSAL_INCLUDE_DIR AND
+       ALTERA_FCS_LIBRARY AND ALTERA_FDT_LIBRARY)
+        list(APPEND WOLFSSL_INCLUDE_DIRS
+            ${ALTERA_FCS_INCLUDE_DIR}
+            ${ALTERA_FCS_OSAL_INCLUDE_DIR})
+        list(APPEND WOLFSSL_LINK_LIBS
+            ${ALTERA_FCS_LIBRARY}
+            ${ALTERA_FDT_LIBRARY})
+        list(APPEND PC_LIBS_PRIVATE "-lFCS" "-lfdt")
+    else()
+        message(FATAL_ERROR "Altera FCS requires libfcs and libfdt headers "
+            "and libraries")
+    endif()
+endif()
+
+if(WOLFSSL_ALTERA_FCS)
+    override_cache(WOLFSSL_CRYPTOCB "yes")
+endif()
 
 add_option("WOLFSSL_CRYPTOCB_NO_SW_TEST"
     "Disable crypto callback SW testing (default: disabled)"
@@ -4154,6 +4183,39 @@ wolfssl_warn_unconsumed_forces()
 # Generates the BUILD_* flags. These control what source files are included in
 # the library. A series of AM_CONDITIONALs handle this in configure.ac.
 generate_build_flags()
+
+# FCS depends on algorithm options declared throughout this file. Derive its
+# compile definitions only after all options and BUILD_* selections are final.
+if(WOLFSSL_ALTERA_FCS)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_ALTERA_FCS"
+        "-DWOLF_CRYPTO_CB_COPY"
+        "-DWOLF_CRYPTO_CB_FREE"
+        "-DWOLF_CRYPTO_CB_SETKEY")
+    if(WOLFSSL_ALTERA_FCS STREQUAL "rng")
+        if(BUILD_ALTERA_FCS_RNG)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALTERA_FCS_RNG")
+        endif()
+    else()
+        if(BUILD_ALTERA_FCS_RNG)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALTERA_FCS_RNG")
+        endif()
+        if(BUILD_ALTERA_FCS_HASH)
+            list(APPEND WOLFSSL_DEFINITIONS
+                "-DWOLFSSL_ALTERA_FCS_HASH"
+                "-DWOLFSSL_SHA512_HASHTYPE")
+        endif()
+        if(BUILD_ALTERA_FCS_AES)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALTERA_FCS_AES")
+        endif()
+        if(BUILD_ALTERA_FCS_ECC)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALTERA_FCS_ECC")
+        endif()
+        if(BUILD_ALTERA_FCS_HMAC)
+            list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALTERA_FCS_HMAC")
+        endif()
+    endif()
+endif()
 
 # TODO: - Bit of logic after optimization flags option (above)
 #       - Check for build-type conflicts section

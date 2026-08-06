@@ -1,0 +1,507 @@
+/* altera_fcs_aes.c
+ *
+ * Copyright (C) 2006-2026 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+/* AES-CBC and AES-CTR on the Agilex 5 Secure Device Manager.
+ *
+ * Unlike the hash path an AES request arrives whole, so this callback can
+ * decline any operation it cannot serve exactly and let wolfSSL run it in
+ * software. Nothing is consumed before the decision is made.
+ *
+ * Three device properties shape the code, all measured on hardware rather than
+ * taken from the documentation:
+ *
+ * 1. Input length must be a multiple of 32 bytes. AES blocks are 16, so lengths
+ *    such as 16 and 48 are refused by the driver and stay in software.
+ * 2. The IV buffer is not updated by the device, so the chaining state in
+ *    aes->reg is maintained here.
+ * 3. Key slots are few, about 27, and a leaked slot lasts until the session
+ *    closes. Keys are therefore imported lazily on first eligible use and
+ *    removed when the context is freed.
+ *
+ * Importing a plaintext key gives SDM enforcement of the usage mask, not key
+ * secrecy: the key was already in HPS memory when wc_AesSetKey stored it.
+ */
+
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
+#if defined(WOLFSSL_ALTERA_FCS) && defined(WOLFSSL_ALTERA_FCS_AES)
+
+#include <wolfssl/wolfcrypt/port/altera/altera_fcs.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/aes.h>
+
+#include <libfcs.h>
+
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
+#ifndef WOLF_CRYPTO_CB_FREE
+    #error "WOLFSSL_ALTERA_FCS_AES requires WOLF_CRYPTO_CB_FREE to release keys"
+#endif
+#ifndef WOLF_CRYPTO_CB_SETKEY
+    #error "WOLFSSL_ALTERA_FCS_AES requires WOLF_CRYPTO_CB_SETKEY for re-keying"
+#endif
+
+/* The driver refuses any non-GCM length that is not a multiple of this. */
+#define WC_ALTERA_FCS_AES_ALIGN 32
+
+#define FCS_KEY_OBJ_MAGIC     0x43736B4FU
+#define FCS_KEY_DATA_MAGIC    0x43736B64U
+#define FCS_KEY_OBJ_VER       1
+#define FCS_KEY_TYPE_AES      1
+#define FCS_KEY_SIZE_128      1
+#define FCS_KEY_SIZE_256      2
+#define FCS_KEY_USAGE_ENC_DEC 0x3
+#define FCS_KEY_MAC_SZ        48
+#define FCS_KEY_DATA_OFFSET   56
+#define FCS_KEY_STATUS_SZ     64
+
+/* Header, one 32 byte aligned key, then the unused MAC field. */
+#define WC_ALTERA_FCS_KEYOBJ_SZ \
+    (FCS_KEY_DATA_OFFSET + WC_ALTERA_FCS_AES_ALIGN + FCS_KEY_MAC_SZ)
+
+/* The imported key is cached against the material it was built from, because
+ * wc_AesSetKey may re-key a context without clearing devCtx and a stale id
+ * would silently encrypt under the previous key. */
+typedef struct {
+    word32 keyId;
+    int    keyLen;
+    void*  heap;
+    byte   key[AES_256_KEY_SIZE];
+} AlteraAesKey;
+
+static void wc_AlteraFcs_Put32(byte* out, word32 val)
+{
+    out[0] = (byte)( val        & 0xFF);
+    out[1] = (byte)((val >>  8) & 0xFF);
+    out[2] = (byte)((val >> 16) & 0xFF);
+    out[3] = (byte)((val >> 24) & 0xFF);
+}
+
+/* Encode an unprotected AES key object, the binary layout that fcs_prepare
+ * produces and fcs_import_service_key expects. */
+static int wc_AlteraFcs_KeyObject(byte* out, word32 keyId, const byte* key,
+                                  int keyLen, word32* outSz)
+{
+    word32 objSz;
+    word32 padded;
+    word32 sizeCode;
+
+    if (keyLen == AES_128_KEY_SIZE) {
+        sizeCode = FCS_KEY_SIZE_128;
+    }
+    else if (keyLen == AES_256_KEY_SIZE) {
+        sizeCode = FCS_KEY_SIZE_256;
+    }
+    else {
+        /* The key object has no code for 192 bit keys. */
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    padded = (word32)keyLen;
+    if ((padded % WC_ALTERA_FCS_AES_ALIGN) != 0) {
+        padded += WC_ALTERA_FCS_AES_ALIGN -
+                  (padded % WC_ALTERA_FCS_AES_ALIGN);
+    }
+
+    XMEMSET(out, 0, WC_ALTERA_FCS_KEYOBJ_SZ);
+    wc_AlteraFcs_Put32(out,      FCS_KEY_OBJ_MAGIC);
+    wc_AlteraFcs_Put32(out + 8,  keyId);
+    wc_AlteraFcs_Put32(out + 20, (sizeCode << 16) |
+                                 ((word32)FCS_KEY_TYPE_AES << 24));
+    wc_AlteraFcs_Put32(out + 24, FCS_KEY_USAGE_ENC_DEC);
+    wc_AlteraFcs_Put32(out + 48, FCS_KEY_DATA_MAGIC);
+    XMEMCPY(out + FCS_KEY_DATA_OFFSET, key, (word32)keyLen);
+
+    /* The declared size covers the object but not the trailing MAC field. */
+    objSz = FCS_KEY_DATA_OFFSET + padded;
+    wc_AlteraFcs_Put32(out + 4, ((word32)FCS_KEY_OBJ_VER << 16) |
+                                (objSz & 0xFFFF));
+
+    *outSz = objSz + FCS_KEY_MAC_SZ;
+    return 0;
+}
+
+static int wc_AlteraFcs_KeyRemove(word32 keyId)
+{
+    return wc_AlteraFcs_RemoveServiceKey(keyId);
+}
+
+/* Resolve the device key id for this context, importing on first use. */
+static int wc_AlteraFcs_AesKeyId(Aes* aes, word32* keyId)
+{
+    AlteraAesKey* keyCtx;
+    byte          keyObj[WC_ALTERA_FCS_KEYOBJ_SZ];
+    byte          status[FCS_KEY_STATUS_SZ];
+    FCS_OSAL_UINT statusLen = (FCS_OSAL_UINT)sizeof(status);
+    void*         session   = NULL;
+    word32        objSz     = 0;
+    word32        newId     = 0;
+    int           resourceReserved = 0;
+    int           ret;
+
+    keyCtx = (AlteraAesKey*)aes->devCtx;
+    if (keyCtx != NULL) {
+        void* heap = keyCtx->heap;
+
+        if (keyCtx->keyLen == aes->keylen &&
+            ConstantCompare(keyCtx->key, (const byte*)aes->devKey,
+                            aes->keylen) == 0) {
+            *keyId = keyCtx->keyId;
+            return 0;
+        }
+        if (wc_AlteraFcs_UnregisterPending()) {
+            return CRYPTOCB_UNAVAILABLE;
+        }
+        /* Keep one resource reserved across replacement. Otherwise a pending
+         * unregister can remove the callback in the instant between dropping
+         * the old key and installing the new one. */
+        wc_AlteraFcs_ResourceAdd();
+        resourceReserved = 1;
+        ret = wc_AlteraFcs_KeyRemove(keyCtx->keyId);
+        if (ret != 0) {
+            wc_AlteraFcs_ResourceRemove();
+            return ret;
+        }
+        wc_AlteraFcs_ResourceRemove();
+        ForceZero(keyCtx, sizeof(*keyCtx));
+        XFREE(keyCtx, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        aes->devCtx = NULL;
+    }
+    else if (wc_AlteraFcs_UnregisterPending()) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    ret = wc_AlteraFcs_KeyIdNew(&newId);
+    if (ret == 0) {
+        ret = wc_AlteraFcs_KeyObject(keyObj, newId, (const byte*)aes->devKey,
+                                     aes->keylen, &objSz);
+    }
+    if (ret == 0) {
+        ret = wc_AlteraFcs_SessionAcquire(&session);
+    }
+    if (ret == 0) {
+        XMEMSET(status, 0, sizeof(status));
+        ret = fcs_import_service_key((FCS_OSAL_UUID*)session,
+                                     (FCS_OSAL_CHAR*)keyObj,
+                                     (FCS_OSAL_INT)objSz,
+                                     (FCS_OSAL_CHAR*)status, &statusLen);
+        wc_AlteraFcs_SessionRelease();
+        if (ret != 0) {
+            wc_AlteraFcs_DiscardServiceKey(newId);
+            /* Slots are finite, so exhaustion has to mean software rather
+             * than a hard failure. */
+            WOLFSSL_MSG("Altera FCS AES key import failed");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    if (ret == 0) {
+        keyCtx = (AlteraAesKey*)XMALLOC(sizeof(AlteraAesKey), aes->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+        if (keyCtx == NULL) {
+            wc_AlteraFcs_DiscardServiceKey(newId);
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMSET(keyCtx, 0, sizeof(*keyCtx));
+            keyCtx->keyId  = newId;
+            keyCtx->keyLen = aes->keylen;
+            keyCtx->heap   = aes->heap;
+            XMEMCPY(keyCtx->key, aes->devKey, (size_t)aes->keylen);
+            aes->devCtx = keyCtx;
+            if (!resourceReserved) {
+                wc_AlteraFcs_ResourceAdd();
+            }
+            *keyId = newId;
+        }
+    }
+
+    if (aes->devCtx == NULL && resourceReserved) {
+        wc_AlteraFcs_ResourceRemove();
+    }
+
+    ForceZero(keyObj, sizeof(keyObj));
+    return ret;
+}
+
+/* A request is only offloaded when the device can serve it exactly. */
+static int wc_AlteraFcs_AesEligible(const Aes* aes, word32 sz)
+{
+    if (aes->keylen != AES_128_KEY_SIZE &&
+        aes->keylen != AES_256_KEY_SIZE) {
+        return 0;
+    }
+    if (sz < WC_ALTERA_FCS_AES_ALIGN || sz > WC_ALTERA_FCS_MAX_XFER) {
+        return 0;
+    }
+    if ((sz % WC_ALTERA_FCS_AES_ALIGN) != 0) {
+        return 0;
+    }
+    if (sz < WOLFSSL_ALTERA_FCS_AES_MIN) {
+        return 0;
+    }
+    return 1;
+}
+
+static int wc_AlteraFcs_AesOp(Aes* aes, byte* out, const byte* in, word32 sz,
+                              FCS_OSAL_U32 blockMode, FCS_OSAL_U32 cryptMode)
+{
+    struct fcs_aes_req req;
+    byte         iv[WC_AES_BLOCK_SIZE];
+    byte*        tmp = NULL;
+    void*        session = NULL;
+    FCS_OSAL_U32 outLen  = (FCS_OSAL_U32)sz;
+    word32       keyId   = 0;
+    int          ret;
+
+    /* Keep caller input and output untouched until the device confirms a full
+     * result. This makes in-place requests safe to retry in software after a
+     * transport, session, or device failure. */
+    tmp = (byte*)XMALLOC(sz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    ret = wc_AlteraFcs_AesKeyId(aes, &keyId);
+    if (ret != 0) {
+        ret = CRYPTOCB_UNAVAILABLE;
+        goto exit;
+    }
+
+    ret = wc_AlteraFcs_SessionAcquire(&session);
+    if (ret != 0) {
+        ret = CRYPTOCB_UNAVAILABLE;
+        goto exit;
+    }
+
+    XMEMCPY(iv, aes->reg, WC_AES_BLOCK_SIZE);
+
+    XMEMSET(&req, 0, sizeof(req));
+    req.crypt_mode = cryptMode;
+    req.block_mode = blockMode;
+    req.iv_source  = FCS_AES_IV_SOURCE_EXTERNAL;
+    req.iv         = (FCS_OSAL_CHAR*)iv;
+    req.iv_len     = WC_AES_BLOCK_SIZE;
+    req.input      = (FCS_OSAL_CHAR*)in;
+    req.ip_len     = (FCS_OSAL_U32)sz;
+    req.output     = (FCS_OSAL_CHAR*)tmp;
+    req.op_len     = &outLen;
+
+    ret = fcs_aes_crypt((FCS_OSAL_UUID*)session, (FCS_OSAL_U32)keyId,
+                        WOLFSSL_ALTERA_FCS_CTX_ID, &req);
+    if (ret != 0) {
+        (void)wc_AlteraFcs_MapError(ret);
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+    else if (outLen != sz) {
+        /* A stale session has been seen to report success with a short
+         * result, so the length is checked rather than trusted. */
+        WOLFSSL_MSG("Altera FCS AES length mismatch");
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+    else {
+        XMEMCPY(out, tmp, sz);
+        wc_AlteraFcs_TestHwMark(WC_ALTERA_FCS_TEST_HW_AES);
+    }
+
+    wc_AlteraFcs_SessionRelease();
+exit:
+    ForceZero(tmp, sz);
+    XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ForceZero(iv, sizeof(iv));
+    return ret;
+}
+
+#ifdef HAVE_AES_CBC
+static int wc_AlteraFcs_AesCbc(wc_CryptoInfo* info)
+{
+    Aes*        aes = info->cipher.aescbc.aes;
+    byte*       out = info->cipher.aescbc.out;
+    const byte* in  = info->cipher.aescbc.in;
+    word32      sz  = info->cipher.aescbc.sz;
+    byte        lastIn[WC_AES_BLOCK_SIZE];
+    int         ret;
+
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (!wc_AlteraFcs_AesEligible(aes, sz)) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    /* Decrypt chains on the last input block, which an in place request would
+     * overwrite before it could be read back. */
+    XMEMSET(lastIn, 0, sizeof(lastIn));
+    if (info->cipher.enc == 0) {
+        XMEMCPY(lastIn, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+    }
+
+    ret = wc_AlteraFcs_AesOp(aes, out, in, sz, FCS_AES_BLOCK_MODE_CBC,
+                             info->cipher.enc ? FCS_AES_ENCRYPT
+                                              : FCS_AES_DECRYPT);
+    if (ret == 0) {
+        if (info->cipher.enc) {
+            XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE,
+                    WC_AES_BLOCK_SIZE);
+        }
+        else {
+            XMEMCPY(aes->reg, lastIn, WC_AES_BLOCK_SIZE);
+        }
+    }
+
+    ForceZero(lastIn, sizeof(lastIn));
+    return ret;
+}
+#endif /* HAVE_AES_CBC */
+
+#ifdef WOLFSSL_AES_COUNTER
+/* Advance the big endian counter block by a block count in one bounded pass,
+ * equivalent to that many single increments including wraparound. */
+static void wc_AlteraFcs_AddCounter(byte* ctr, word32 blocks)
+{
+    word32 carry = blocks;
+    int    i;
+
+    for (i = WC_AES_BLOCK_SIZE - 1; i >= 0 && carry != 0; i--) {
+        carry += ctr[i];
+        ctr[i] = (byte)(carry & 0xFF);
+        carry >>= 8;
+    }
+}
+
+static int wc_AlteraFcs_AesCtr(wc_CryptoInfo* info)
+{
+    Aes*        aes = info->cipher.aesctr.aes;
+    byte*       out = info->cipher.aesctr.out;
+    const byte* in  = info->cipher.aesctr.in;
+    word32      sz  = info->cipher.aesctr.sz;
+    int         ret;
+
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    /* Keystream left over from an earlier call cannot be expressed in a whole
+     * operation request, so such calls stay in software. */
+    if (aes->left != 0) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (!wc_AlteraFcs_AesEligible(aes, sz)) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    /* Counter mode is its own inverse, so the device always encrypts. */
+    ret = wc_AlteraFcs_AesOp(aes, out, in, sz, FCS_AES_BLOCK_MODE_CTR,
+                             FCS_AES_ENCRYPT);
+    if (ret == 0) {
+        wc_AlteraFcs_AddCounter((byte*)aes->reg, sz / WC_AES_BLOCK_SIZE);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_AES_COUNTER */
+
+static void wc_AlteraFcs_AesKeyFree(Aes* aes)
+{
+    AlteraAesKey* keyCtx;
+
+    if (aes == NULL) {
+        return;
+    }
+
+    keyCtx = (AlteraAesKey*)aes->devCtx;
+    if (keyCtx != NULL) {
+        void* heap = keyCtx->heap;
+
+        if (wc_AlteraFcs_KeyRemove(keyCtx->keyId) != 0) {
+            (void)wc_AlteraFcs_OrphanKey(keyCtx->keyId);
+        }
+        wc_AlteraFcs_ResourceRemove();
+        ForceZero(keyCtx, sizeof(*keyCtx));
+        XFREE(keyCtx, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        aes->devCtx = NULL;
+    }
+}
+
+/* Release the device key when a context is freed. */
+static int wc_AlteraFcs_AesFreeCtx(wc_CryptoInfo* info)
+{
+    if (info->free.algo != WC_ALGO_TYPE_CIPHER ||
+        info->free.type != WC_CIPHER_AES) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    wc_AlteraFcs_AesKeyFree((Aes*)info->free.obj);
+
+    /* Decline so wolfSSL still performs its own teardown. */
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+/* Retire an imported key before the generic AES setup overwrites devKey. */
+static int wc_AlteraFcs_AesSetKey(wc_CryptoInfo* info)
+{
+    if (info->setkey.type != WC_SETKEY_AES) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    wc_AlteraFcs_AesKeyFree((Aes*)info->setkey.obj);
+    return CRYPTOCB_UNAVAILABLE;
+}
+
+int wc_AlteraFcs_Aes(wc_CryptoInfo* info)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+
+    if (info == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (info->algo_type == WC_ALGO_TYPE_FREE) {
+        return wc_AlteraFcs_AesFreeCtx(info);
+    }
+    if (info->algo_type == WC_ALGO_TYPE_SETKEY) {
+        return wc_AlteraFcs_AesSetKey(info);
+    }
+
+    switch (info->cipher.type) {
+    #ifdef HAVE_AES_CBC
+        case WC_CIPHER_AES_CBC:
+            ret = wc_AlteraFcs_AesCbc(info);
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_COUNTER
+        case WC_CIPHER_AES_CTR:
+            ret = wc_AlteraFcs_AesCtr(info);
+            break;
+    #endif
+        default:
+            break;
+    }
+
+    return ret;
+}
+
+#endif /* WOLFSSL_ALTERA_FCS && WOLFSSL_ALTERA_FCS_AES */
