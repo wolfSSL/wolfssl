@@ -10,6 +10,7 @@ EXTRA_DIST += examples/configs/user_settings_curve25519nonblock.h
 EXTRA_DIST += examples/configs/user_settings_dtls13.h
 EXTRA_DIST += examples/configs/user_settings_EBSnet.h
 EXTRA_DIST += examples/configs/user_settings_eccnonblock.h
+EXTRA_DIST += examples/configs/user_settings_embedded.h
 EXTRA_DIST += examples/configs/user_settings_espressif.h
 EXTRA_DIST += examples/configs/user_settings_fipsv2.h
 EXTRA_DIST += examples/configs/user_settings_fipsv5.h
