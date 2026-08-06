@@ -72,7 +72,9 @@ static int d2i_make_pkey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         clearEVPPkeyKeys(pkey);
     #endif
         /* Drop metadata describing the key this object held before, so a
-         * reused object decodes to the same state as a new one. */
+         * reused object decodes to the same state as a new one. A failure
+         * below must not leave the object advertising the old type. */
+        pkey->type = WC_EVP_PKEY_NONE;
         pkey->pkcs8HeaderSz = 0;
         pkey->save_type = 0;
     #ifdef HAVE_ECC
