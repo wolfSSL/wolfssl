@@ -45,6 +45,9 @@
 
 #include <wolfssl/wolfcrypt/ed448.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -462,6 +465,22 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
                                      ((context == NULL) && (contextLen != 0))) {
         ret = BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_Ed448Sign(in, inLen, out, outLen, key, type,
+                context, contextLen);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            ret = 0; /* fall-through when unavailable */
+        }
+    }
+#endif
+
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
@@ -923,6 +942,19 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     {
         return BAD_LENGTH_E;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Ed448Verify(sig, sigLen, msg, msgLen, res, key, type,
+            context, contextLen);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     sha = &key->sha;
