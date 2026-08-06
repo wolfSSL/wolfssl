@@ -27356,6 +27356,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "bne	L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte_%=\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm32_crypto_192_out_end_bytes_%=:\n\t"
+        "sub	r9, r9, r11\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm32_crypto_192_partial_done_%=:\n\t"
         /* Finish */
@@ -27621,6 +27622,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "bne	L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte_%=\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm32_crypto_256_out_end_bytes_%=:\n\t"
+        "sub	r9, r9, r11\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm32_crypto_256_partial_done_%=:\n\t"
         /* Finish */
@@ -27845,6 +27847,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "bne	L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte_%=\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm32_crypto_128_out_end_bytes_%=:\n\t"
+        "sub	r9, r9, r11\n\t"
         "\n"
     "L_aes_gcm_encrypt_arm32_crypto_128_partial_done_%=:\n\t"
         /* Finish */
@@ -29447,6 +29450,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "bne	L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte_%=\n\t"
         "\n"
     "L_aes_gcm_decrypt_arm32_crypto_192_out_end_bytes_%=:\n\t"
+        "sub	r9, r9, r11\n\t"
         "\n"
     "L_aes_gcm_decrypt_arm32_crypto_192_partial_done_%=:\n\t"
         /* Finish */
@@ -29712,6 +29716,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "bne	L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte_%=\n\t"
         "\n"
     "L_aes_gcm_decrypt_arm32_crypto_256_out_end_bytes_%=:\n\t"
+        "sub	r9, r9, r11\n\t"
         "\n"
     "L_aes_gcm_decrypt_arm32_crypto_256_partial_done_%=:\n\t"
         /* Finish */
@@ -29936,6 +29941,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "bne	L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte_%=\n\t"
         "\n"
     "L_aes_gcm_decrypt_arm32_crypto_128_out_end_bytes_%=:\n\t"
+        "sub	r9, r9, r11\n\t"
         "\n"
     "L_aes_gcm_decrypt_arm32_crypto_128_partial_done_%=:\n\t"
         /* Finish */
