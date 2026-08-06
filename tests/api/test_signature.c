@@ -180,6 +180,7 @@ int test_wc_falcon_sign_verify(void)
     static const byte msg[] = "wolfssl falcon coverage";
 
     XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_falcon_init(&key), 0);
     ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
@@ -304,6 +305,7 @@ int test_wc_SignatureDecisionCoverage(void)
             WC_RNG rng;
 
             XMEMSET(data, 0x5A, sizeof(data));
+            XMEMSET(&rng, 0, sizeof(rng));
             ExpectIntEQ(wc_InitRng(&rng), 0);
 
             ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA256, sig_type,
@@ -401,6 +403,7 @@ int test_wc_SignatureDecisionCoverage(void)
             word32 genSigLen = (word32)eccSigMax;
             WC_RNG rng;
 
+            XMEMSET(&rng, 0, sizeof(rng));
             ExpectIntEQ(wc_InitRng(&rng), 0);
 
             ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
@@ -478,6 +481,7 @@ int test_wc_SignatureDecisionCoverage(void)
             WC_RNG rng;
 
             XMEMSET(data, 0xA5, sizeof(data));
+            XMEMSET(&rng, 0, sizeof(rng));
             ExpectIntEQ(wc_InitRng(&rng), 0);
 
             ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA256, sig_type,
@@ -533,7 +537,6 @@ int test_wc_SignatureDecisionCoverage(void)
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
             }
 #endif
-
             DoExpectIntEQ(wc_FreeRng(&rng), 0);
         }
 
@@ -639,7 +642,9 @@ int test_wc_SignatureDecisionCoverage(void)
 
             XMEMSET(data, 0x24, sizeof(data));
             XMEMSET(otherData, 0x99, sizeof(otherData));
+            XMEMSET(&rng, 0, sizeof(rng));
             ExpectIntEQ(wc_InitRng(&rng), 0);
+
             ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA256,
                 WC_SIGNATURE_TYPE_RSA, data, data_len, realSig, &realSigLen,
                 &rsa_key, key_len, &rng), 0);
@@ -685,6 +690,7 @@ int test_wc_SignatureFeatureCoverage(void)
 
         XMEMSET(&ecc, 0, sizeof(ecc));
         XMEMSET(data, 0x42, sizeof(data));
+        XMEMSET(&rng, 0, sizeof(rng));
 
         ExpectIntEQ(wc_ecc_init(&ecc), 0);
         ExpectIntEQ(wc_ecc_import_raw(&ecc, qx, qy, d, "SECP256R1"), 0);
@@ -741,6 +747,7 @@ int test_wc_SignatureFeatureCoverage(void)
 
         XMEMSET(&rsa_key, 0, sizeof(RsaKey));
         XMEMSET(data, 0x24, sizeof(data));
+        XMEMSET(&rng, 0, sizeof(rng));
 
     #ifdef USE_CERT_BUFFERS_1024
         bytes = (size_t)sizeof_client_key_der_1024;
