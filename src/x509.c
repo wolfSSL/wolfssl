@@ -16654,7 +16654,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
                 return WOLFSSL_FAILURE;
             }
 
-            derSz = MLDSA_MAX_PUB_KEY_SIZE + MAX_ALGO_SZ + MAX_SEQ_SZ * 2;
+            derSz = MLDSA_MAX_PUB_KEY_DER_SIZE;
             p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             if (p == NULL) {
                 WOLFSSL_MSG("malloc error");

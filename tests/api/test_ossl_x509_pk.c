@@ -510,7 +510,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                 int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
                 ExpectNotNull(pubDer = (byte*)XMALLOC(
-                    MLDSA_MAX_PUB_KEY_SIZE + 64, NULL,
+                    MLDSA_MAX_PUB_KEY_DER_SIZE, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER));
                 ExpectNotNull(rawKey = (wc_MlDsaKey*)XMALLOC(sizeof(*rawKey),
                     NULL, DYNAMIC_TYPE_TMP_BUFFER));
@@ -521,7 +521,7 @@ int test_wolfSSL_X509_set_pubkey(void)
                     (word32)derSz, &kidx), 0);
                 if (EXPECT_SUCCESS() &&
                         wc_MlDsaKey_PublicKeyToDer(rawKey, pubDer,
-                            MLDSA_MAX_PUB_KEY_SIZE + 64, 1) > 0) {
+                            MLDSA_MAX_PUB_KEY_DER_SIZE, 1) > 0) {
                     expected = WOLFSSL_SUCCESS;
                 }
                 PRIVATE_KEY_LOCK();
