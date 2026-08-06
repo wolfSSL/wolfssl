@@ -145,6 +145,45 @@ int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
 
 /*!
     \ingroup ASN
+    \brief This function encodes an array of word16 values into an ASN.1
+    Object Identifier (OID) in DER format. OIDs are used to identify
+    algorithms, extensions, and other objects in certificates and
+    cryptographic protocols.
+
+    Each OID arc is a word16, so arcs with values > 65535 cannot be
+    represented. Use wc_EncodeObjectId32() in new code.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If in, inSz, or outSz are invalid.
+    \return BUFFER_E If out is not NULL and outSz is too small.
+
+    \param in pointer to array of word16 values representing OID components
+    \param inSz number of components in the OID
+    \param out pointer to buffer to store encoded OID (can be NULL to
+    calculate size)
+    \param outSz pointer to size of out buffer; updated with actual size
+
+    _Example_
+    \code
+    word16 oid[] = {1, 2, 840, 113549, 1, 1, 11}; // sha256WithRSAEncryption
+    byte encoded[32];
+    word32 encodedSz = sizeof(encoded);
+
+    int ret = wc_EncodeObjectId(oid, sizeof(oid)/sizeof(*oid),
+                                encoded, &encodedSz);
+    if (ret == 0) {
+        // encoded contains DER encoded OID
+    }
+    \endcode
+
+    \sa wc_EncodeObjectId32
+    \sa wc_BerToDer
+*/
+int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out,
+                      word32* outSz);
+
+/*!
+    \ingroup ASN
     \brief This function encodes an array of word32 values into an ASN.1
     Object Identifier (OID) in DER format. OIDs are used to identify
     algorithms, extensions, and other objects in certificates and
@@ -169,17 +208,18 @@ int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
     byte encoded[32];
     word32 encodedSz = sizeof(encoded);
 
-    int ret = wc_EncodeObjectId(oid, sizeof(oid)/sizeof(*oid),
-                                encoded, &encodedSz);
+    int ret = wc_EncodeObjectId32(oid, sizeof(oid)/sizeof(*oid),
+                                  encoded, &encodedSz);
     if (ret == 0) {
         // encoded contains DER encoded OID
     }
     \endcode
 
+    \sa wc_EncodeObjectId
     \sa wc_BerToDer
 */
-int wc_EncodeObjectId(const word32* in, word32 inSz, byte* out,
-                      word32* outSz);
+int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out,
+                        word32* outSz);
 
 /*!
     \ingroup ASN
