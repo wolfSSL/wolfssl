@@ -313,6 +313,285 @@ int test_tls_ems_resumption_server_downgrade(void)
 }
 
 
+/* wolfSSL_DisableExtendedMasterSecret must disable EMS on the server as well
+ * as the client. When the server disables EMS it ignores the client's
+ * extended_master_secret extension and both peers fall back to a standard
+ * master secret while the handshake still completes. */
+int test_tls_ems_server_disable(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* The client still advertises EMS; the server disables it. */
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_s), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Neither side ends up using EMS. */
+    ExpectIntEQ(ssl_s->options.haveEMS, 0);
+    ExpectIntEQ(ssl_c->options.haveEMS, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+/* serverSide selects which side requires EMS. peerDisables makes the other
+ * side disable EMS, so the requiring side must abort. */
+static int test_tls_require_ems_ex(int serverSide, int peerDisables)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    if (serverSide)
+        ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl_s),
+                WOLFSSL_SUCCESS);
+    else
+        ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl_c),
+                WOLFSSL_SUCCESS);
+
+    if (peerDisables) {
+        if (serverSide)
+            ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c),
+                    WOLFSSL_SUCCESS);
+        else
+            ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_s),
+                    WOLFSSL_SUCCESS);
+
+        /* EMS cannot be negotiated so the requiring side must abort. */
+        ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+        ExpectIntNE(ret, 0);
+        if (serverSide)
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+                    WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+        else
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+                    WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+    }
+    else {
+        /* Peer supports EMS so the handshake completes using EMS. */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(ssl_c->options.haveEMS, 1);
+        ExpectIntEQ(ssl_s->options.haveEMS, 1);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* wolfSSL_RequireExtendedMasterSecret: the handshake succeeds when the peer
+ * supports EMS and aborts with EXT_MASTER_SECRET_NEEDED_E otherwise. */
+int test_tls_require_ems(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    /* Client requires EMS, server supports it -> success. */
+    ExpectIntEQ(test_tls_require_ems_ex(0, 0), TEST_SUCCESS);
+    /* Client requires EMS, server disabled it -> abort. */
+    ExpectIntEQ(test_tls_require_ems_ex(0, 1), TEST_SUCCESS);
+    /* Server requires EMS, client offers it -> success. */
+    ExpectIntEQ(test_tls_require_ems_ex(1, 0), TEST_SUCCESS);
+    /* Server requires EMS, client disabled it -> abort. */
+    ExpectIntEQ(test_tls_require_ems_ex(1, 1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE)
+/* Resume a non-EMS session without EMS while one side requires EMS: that side
+ * must abort with EXT_MASTER_SECRET_NEEDED_E. serverSide selects whether the
+ * server (context level) or the client (object level) requires EMS. */
+static int test_tls_require_ems_resumption_ex(int serverSide)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Establish a session that does not use EMS. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    ExpectFalse(session->haveEMS);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    if (serverSide) {
+        /* Set on the context so the new server object must inherit it. */
+        ExpectIntEQ(wolfSSL_CTX_RequireExtendedMasterSecret(ctx_s),
+                WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    if (serverSide) {
+        ExpectIntEQ(ssl_s->options.requireEMS, 1);
+        /* Client presents the non-EMS session without offering EMS. */
+        ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c),
+                WOLFSSL_SUCCESS);
+    }
+    else {
+        /* Server ignores the offered extension and resumes without EMS. */
+        ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl_c),
+                WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_s),
+                WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+    if (!serverSide) {
+        /* Require keeps EMS advertised despite the non-EMS session. */
+        ExpectIntEQ(ssl_c->options.haveEMS, 1);
+    }
+
+    /* The requiring side must catch the missing EMS and abort. */
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    ExpectIntNE(ret, 0);
+    if (serverSide)
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+                WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+    else
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, ret),
+                WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+    /* Server took the abbreviated path, so the resumption check fired. */
+    ExpectIntEQ(ssl_s->options.resuming, 1);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Requiring EMS is enforced on TLS 1.2 abbreviated handshakes, both sides. */
+int test_tls_require_ems_resumption(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE)
+    ExpectIntEQ(test_tls_require_ems_resumption_ex(1), TEST_SUCCESS);
+    ExpectIntEQ(test_tls_require_ems_resumption_ex(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* A wolfSSLv23_method object gains its side in InitSSL_Side, which used to
+ * re-arm EMS advertising and undo a previous disable. Disable must survive
+ * becoming a client, and require must arm advertising then. */
+int test_tls_ems_disable_v23(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        defined(OPENSSL_EXTRA)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfSSLv23_method, wolfTLSv1_2_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_connect_state(ssl_c);
+    ExpectIntEQ(ssl_c->options.haveEMS, 0);
+
+    /* Handshake completes without EMS. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_2_VERSION);
+    ExpectIntEQ(ssl_c->options.haveEMS, 0);
+    ExpectIntEQ(ssl_s->options.haveEMS, 0);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* Requiring EMS on a side-less object arms advertising at connect. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfSSLv23_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_RequireExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
+    wolfSSL_set_connect_state(ssl_c);
+    ExpectIntEQ(ssl_c->options.haveEMS, 1);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_2_VERSION);
+    ExpectIntEQ(ssl_c->options.haveEMS, 1);
+    ExpectIntEQ(ssl_s->options.haveEMS, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if !defined(WOLFSSL_NO_TLS12) && \
         defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
@@ -857,11 +1136,11 @@ int test_wolfSSL_DisableExtendedMasterSecret(void)
     EXPECT_DECLS;
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS)
-    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    WOLFSSL     *ssl = wolfSSL_new(ctx);
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
 
-    ExpectNotNull(ctx);
-    ExpectNotNull(ssl);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* error cases */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(NULL));
@@ -870,6 +1149,73 @@ int test_wolfSSL_DisableExtendedMasterSecret(void)
     /* success cases */
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(ctx));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(ssl));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+int test_wolfSSL_RequireExtendedMasterSecret(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL     *ssl = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* error cases */
+    ExpectIntNE(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_RequireExtendedMasterSecret(NULL));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_RequireExtendedMasterSecret(NULL));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_EnableExtendedMasterSecret(NULL));
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_EnableExtendedMasterSecret(NULL));
+
+    /* Disable first so require has to restore state. */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(ctx));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(ssl));
+    ExpectIntEQ(ctx->haveEMS, 0);
+    ExpectIntEQ(ssl->options.haveEMS, 0);
+    ExpectIntEQ(ctx->disableEMS, 1);
+    ExpectIntEQ(ssl->options.disableEMS, 1);
+
+    /* Require clears the disable and re-enables client advertising. */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_RequireExtendedMasterSecret(ctx));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_RequireExtendedMasterSecret(ssl));
+    ExpectIntEQ(ctx->haveEMS, 1);
+    ExpectIntEQ(ssl->options.haveEMS, 1);
+    ExpectIntEQ(ctx->disableEMS, 0);
+    ExpectIntEQ(ssl->options.disableEMS, 0);
+    ExpectIntEQ(ctx->requireEMS, 1);
+    ExpectIntEQ(ssl->options.requireEMS, 1);
+
+    /* Enable clears the requirement, keeps EMS on. */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_EnableExtendedMasterSecret(ctx));
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_EnableExtendedMasterSecret(ssl));
+    ExpectIntEQ(ctx->requireEMS, 0);
+    ExpectIntEQ(ssl->options.requireEMS, 0);
+    ExpectIntEQ(ctx->haveEMS, 1);
+    ExpectIntEQ(ssl->options.haveEMS, 1);
+
+    /* Enable also undoes a disable. */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(ssl));
+    ExpectIntEQ(ssl->options.disableEMS, 1);
+    ExpectIntEQ(ssl->options.haveEMS, 0);
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_EnableExtendedMasterSecret(ssl));
+    ExpectIntEQ(ssl->options.disableEMS, 0);
+    ExpectIntEQ(ssl->options.requireEMS, 0);
+    ExpectIntEQ(ssl->options.haveEMS, 1);
+
+    /* Disabling EMS clears the requirement (mutually exclusive). */
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_RequireExtendedMasterSecret(ssl));
+    ExpectIntEQ(ssl->options.requireEMS, 1);
+    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(ssl));
+    ExpectIntEQ(ssl->options.requireEMS, 0);
+    ExpectIntEQ(ssl->options.disableEMS, 1);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

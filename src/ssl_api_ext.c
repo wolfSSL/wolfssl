@@ -1562,9 +1562,12 @@ int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
 
 
 #ifdef HAVE_EXTENDED_MASTER
-#ifndef NO_WOLFSSL_CLIENT
 
 /* Disable the Extended Master Secret extension on the context.
+ *
+ * For a client this stops the extension being advertised. For a server this
+ * causes the peer's Extended Master Secret request to be ignored so that a
+ * standard master secret is negotiated.
  *
  * @param [in] ctx  SSL/TLS context object.
  * @return  WOLFSSL_SUCCESS on success.
@@ -1579,6 +1582,9 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
     }
     else {
         ctx->haveEMS = 0;
+        ctx->disableEMS = 1;
+        /* Disabling EMS is mutually exclusive with requiring it. */
+        ctx->requireEMS = 0;
     }
 
     return ret;
@@ -1586,6 +1592,10 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 
 
 /* Disable the Extended Master Secret extension on the object.
+ *
+ * For a client this stops the extension being advertised. For a server this
+ * causes the peer's Extended Master Secret request to be ignored so that a
+ * standard master secret is negotiated.
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
@@ -1600,13 +1610,143 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
     }
     else {
         ssl->options.haveEMS = 0;
+        ssl->options.disableEMS = 1;
+        /* Disabling EMS is mutually exclusive with requiring it. */
+        ssl->options.requireEMS = 0;
     }
 
     return ret;
 }
 
-#endif
-#endif
+
+/* Re-enable the Extended Master Secret extension on the context (default).
+ *
+ * Undoes a previous disable or require: EMS is used when the peer supports it
+ * but is not mandatory.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ctx->disableEMS = 0;
+        ctx->requireEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+            ctx->haveEMS = 1;
+    }
+
+    return ret;
+}
+
+
+/* Re-enable the Extended Master Secret extension on the object (default).
+ *
+ * Undoes a previous disable or require: EMS is used when the peer supports it
+ * but is not mandatory.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ssl->options.disableEMS = 0;
+        ssl->options.requireEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            ssl->options.haveEMS = 1;
+    }
+
+    return ret;
+}
+
+
+#ifndef WOLFSSL_NO_TLS12
+
+/* Require the Extended Master Secret extension on the context.
+ *
+ * If EMS (RFC 7627) is not negotiated the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E instead of deriving a standard master secret.
+ * TLS 1.3 has its own key schedule and is unaffected.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL.
+ */
+int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ctx->requireEMS = 1;
+        /* Mutually exclusive with disabling EMS. */
+        ctx->disableEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+            ctx->haveEMS = 1;
+    }
+
+    return ret;
+}
+
+
+/* Require the Extended Master Secret extension on the object.
+ *
+ * If EMS (RFC 7627) is not negotiated the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E instead of deriving a standard master secret.
+ * TLS 1.3 has its own key schedule and is unaffected.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL.
+ */
+int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ssl->options.requireEMS = 1;
+        /* Mutually exclusive with disabling EMS. */
+        ssl->options.disableEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            ssl->options.haveEMS = 1;
+    }
+
+    return ret;
+}
+
+#endif /* !WOLFSSL_NO_TLS12 */
+
+#endif /* HAVE_EXTENDED_MASTER */
 
 #endif /* !NO_TLS */
 /* ---- OpenSSL-compatibility TLS extension APIs (moved from ssl.c) ---- */
