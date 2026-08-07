@@ -351,9 +351,15 @@ int wc_AlteraFcs_KeyIdNew(word32* keyId)
         return BAD_MUTEX_E;
     }
 
-    *keyId = g_nextKeyId++;
-    if (g_nextKeyId == 0) {
+    *keyId = g_nextKeyId;
+    /* Key IDs are carried by a few legacy signed atomic trackers. Keep the
+     * allocator below INT_MAX so those trackers never observe a negative ID;
+     * zero remains reserved for the orphan-key sweep. */
+    if (g_nextKeyId >= 0x7FFFFFFFU) {
         g_nextKeyId = WOLFSSL_ALTERA_FCS_KEY_ID_BASE;
+    }
+    else {
+        g_nextKeyId++;
     }
 
     wc_UnLockMutex(&g_lock);
