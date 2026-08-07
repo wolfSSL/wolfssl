@@ -1619,29 +1619,25 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
 }
 
 
-/* Disable the standard (non-extended) master secret on the context.
+/* Re-enable the Extended Master Secret extension on the context (default).
  *
- * The Extended Master Secret extension (RFC 7627) becomes mandatory: if it is
- * not negotiated with the peer the connection is aborted with
- * EXT_MASTER_SECRET_NEEDED_E rather than falling back to a standard master
- * secret. This only applies to TLS 1.2 and earlier; TLS 1.3 always uses a
- * secure key schedule and is unaffected.
+ * Undoes a previous disable or require: EMS is used when the peer supports it
+ * but is not mandatory.
  *
  * @param [in] ctx  SSL/TLS context object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL.
  */
-int wolfSSL_CTX_DisableNormalMasterSecret(WOLFSSL_CTX* ctx)
+int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    ctx->requireEMS = 1;
-    /* Requiring EMS is mutually exclusive with disabling it. */
     ctx->disableEMS = 0;
-    /* A client must advertise the extension for it to be negotiated. Undo any
-     * previous disable so the extension is offered. A server keeps its EMS
-     * state driven by the incoming ClientHello. */
+    ctx->requireEMS = 0;
+    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
+     * InitSSL_Side instead; arming it here would make a server echo an
+     * unsolicited extension. */
     if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
         ctx->haveEMS = 1;
 
@@ -1649,29 +1645,25 @@ int wolfSSL_CTX_DisableNormalMasterSecret(WOLFSSL_CTX* ctx)
 }
 
 
-/* Disable the standard (non-extended) master secret on the object.
+/* Re-enable the Extended Master Secret extension on the object (default).
  *
- * The Extended Master Secret extension (RFC 7627) becomes mandatory: if it is
- * not negotiated with the peer the connection is aborted with
- * EXT_MASTER_SECRET_NEEDED_E rather than falling back to a standard master
- * secret. This only applies to TLS 1.2 and earlier; TLS 1.3 always uses a
- * secure key schedule and is unaffected.
+ * Undoes a previous disable or require: EMS is used when the peer supports it
+ * but is not mandatory.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  */
-int wolfSSL_DisableNormalMasterSecret(WOLFSSL* ssl)
+int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    ssl->options.requireEMS = 1;
-    /* Requiring EMS is mutually exclusive with disabling it. */
     ssl->options.disableEMS = 0;
-    /* A client must advertise the extension for it to be negotiated. Undo any
-     * previous disable so the extension is offered. A server keeps its EMS
-     * state driven by the incoming ClientHello. */
+    ssl->options.requireEMS = 0;
+    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
+     * InitSSL_Side instead; arming it here would make a server echo an
+     * unsolicited extension. */
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         ssl->options.haveEMS = 1;
 
@@ -1679,44 +1671,57 @@ int wolfSSL_DisableNormalMasterSecret(WOLFSSL* ssl)
 }
 
 
-/* Re-enable the standard (non-extended) master secret on the context.
+/* Require the Extended Master Secret extension on the context.
  *
- * Undoes wolfSSL_CTX_DisableNormalMasterSecret so that a standard master
- * secret is once again acceptable when the Extended Master Secret extension
- * (RFC 7627) is not negotiated. Extended Master Secret support itself is left
- * unchanged.
+ * If EMS (RFC 7627) is not negotiated the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E instead of deriving a standard master secret.
+ * TLS 1.3 has its own key schedule and is unaffected.
  *
  * @param [in] ctx  SSL/TLS context object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL.
  */
-int wolfSSL_CTX_EnableNormalMasterSecret(WOLFSSL_CTX* ctx)
+int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    ctx->requireEMS = 0;
+    ctx->requireEMS = 1;
+    /* Mutually exclusive with disabling EMS. */
+    ctx->disableEMS = 0;
+    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
+     * InitSSL_Side instead; arming it here would make a server echo an
+     * unsolicited extension. */
+    if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+        ctx->haveEMS = 1;
 
     return WOLFSSL_SUCCESS;
 }
 
 
-/* Re-enable the standard (non-extended) master secret on the object.
+/* Require the Extended Master Secret extension on the object.
  *
- * Undoes wolfSSL_DisableNormalMasterSecret so that a standard master secret is
- * once again acceptable when the Extended Master Secret extension (RFC 7627)
- * is not negotiated. Extended Master Secret support itself is left unchanged.
+ * If EMS (RFC 7627) is not negotiated the connection is aborted with
+ * EXT_MASTER_SECRET_NEEDED_E instead of deriving a standard master secret.
+ * TLS 1.3 has its own key schedule and is unaffected.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  */
-int wolfSSL_EnableNormalMasterSecret(WOLFSSL* ssl)
+int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    ssl->options.requireEMS = 0;
+    ssl->options.requireEMS = 1;
+    /* Mutually exclusive with disabling EMS. */
+    ssl->options.disableEMS = 0;
+    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
+     * InitSSL_Side instead; arming it here would make a server echo an
+     * unsolicited extension. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        ssl->options.haveEMS = 1;
 
     return ret;
 }
