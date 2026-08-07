@@ -4702,6 +4702,9 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                     *out = NULL;
                 ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
             }
+            else if (ret > 0) {
+                ret = SIG_VERIFY_E;
+            }
             return ret;
         }
         ret = 0;
@@ -4783,6 +4786,8 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             if (ret == 0)
                 ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
+            else if (ret > 0)
+                ret = SIG_VERIFY_E;
             return ret;
         }
         ret = 0;
