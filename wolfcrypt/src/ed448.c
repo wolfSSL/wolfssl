@@ -478,8 +478,19 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         {
             ret = wc_CryptoCb_Ed448Sign(in, inLen, out, outLen, key, type,
                 context, contextLen);
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* The device signed, so this returns without reaching the
+                 * ForceZero below. Release the registrations made above or
+                 * they outlive the stack frame and trip a later check. */
+                #ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+                wc_MemZero_Check(orig_k, sizeof(orig_k));
+                #endif
+                wc_MemZero_Check(nonce, sizeof(nonce));
+                wc_MemZero_Check(az, sizeof(az));
+            #endif
                 return ret;
+            }
             ret = 0; /* fall-through when unavailable */
         }
     }
