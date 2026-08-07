@@ -2495,6 +2495,10 @@ int hw_mulmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
         return MP_VAL;
     }
     if ((multiplier->used == 0) || (multiplicand->used == 0)) {
+        /* A zero modulus is invalid whatever the operands are. */
+        if (mod->used == 0) {
+            return MP_VAL;
+        }
         mp_zero(result);
         return 0;
     }
@@ -2591,6 +2595,10 @@ int hw_sqrmod(mp_int* base, mp_int* mod, mp_int* result)
         return MP_VAL;
     }
     if (base->used == 0) {
+        /* A zero modulus is invalid whatever the base is. */
+        if (mod->used == 0) {
+            return MP_VAL;
+        }
         mp_zero(result);
         return 0;
     }

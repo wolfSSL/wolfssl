@@ -76044,6 +76044,39 @@ static wc_test_ret_t mp_test_mulmod_sqrmod(mp_int* a, mp_int* b, mp_int* m,
     if (!mp_iszero(m))
         return WC_TEST_RET_ENC_NC;
 
+    /* A zero modulus is invalid whether or not the result aliases it. The
+     * zero-operand short-circuits must not hide it. */
+    ret = mp_set(a, 0);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0x5);
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_sqrmod(a, m, r) != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_NC;
+    if (mp_sqrmod(a, m, m) != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_NC;
+    ret = mp_set(m, 0);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_mulmod(a, b, m, r) != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_NC;
+    if (mp_mulmod(a, b, m, m) != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_NC;
+    /* Cover the other half of the zero-operand test in _sp_mulmod_tmp. */
+    ret = mp_set(a, 0x5);
+    if (ret == MP_OKAY)
+        ret = mp_set(b, 0);
+    if (ret == MP_OKAY)
+        ret = mp_set(m, 0);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (mp_mulmod(a, b, m, r) != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_NC;
+    if (mp_mulmod(a, b, m, m) != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_NC;
+
     return 0;
 }
 
