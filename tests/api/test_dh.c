@@ -566,7 +566,7 @@ int test_wc_DhGenerateKeyPair_and_Agree(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    for (i = 0; i < sizeof(groups) / sizeof(groups[0]) - 1; i++) {
+    for (i = 0; i + 1 < sizeof(groups) / sizeof(groups[0]); i++) {
         XMEMSET(&aliceKey, 0, sizeof(aliceKey));
         XMEMSET(&bobKey, 0, sizeof(bobKey));
         ExpectIntEQ(wc_InitDhKey(&aliceKey), 0);
