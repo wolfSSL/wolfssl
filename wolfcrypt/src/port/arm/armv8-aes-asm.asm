@@ -5161,9 +5161,9 @@ AES_GCM_encrypt_AARCH64 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Square H => H^2
@@ -5176,9 +5176,9 @@ AES_GCM_encrypt_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
@@ -5207,9 +5207,9 @@ AES_GCM_encrypt_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
@@ -9952,9 +9952,9 @@ AES_GCM_decrypt_AARCH64 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Square H => H^2
@@ -9967,9 +9967,9 @@ AES_GCM_decrypt_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
@@ -9998,9 +9998,9 @@ AES_GCM_decrypt_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
@@ -14793,9 +14793,9 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Square H => H^2
@@ -14808,9 +14808,9 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
@@ -14838,9 +14838,9 @@ AES_GCM_encrypt_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_encrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
@@ -19475,9 +19475,9 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	ushr	V27.2D, V27.2D, #56
 	ld1	{V22.2D}, [x10]
 	cmp	w8, #0x40
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #32
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Square H => H^2
@@ -19490,9 +19490,9 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w8, #0x100
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x40
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
@@ -19520,9 +19520,9 @@ AES_GCM_decrypt_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w8, #0x400
-	csetm	x16, lt
+	csetm	x16, cc
 	cmp	w2, #0x200
-	csetm	x17, lt
+	csetm	x17, cc
 	ands	x16, x16, x17
 	bne	L_aes_gcm_decrypt_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
@@ -24804,7 +24804,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -24815,7 +24815,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -24842,7 +24842,7 @@ AES_GCM_encrypt_update_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -28669,7 +28669,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -28680,7 +28680,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -28707,7 +28707,7 @@ AES_GCM_decrypt_update_AARCH64 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -33141,7 +33141,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -33152,7 +33152,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -33178,7 +33178,7 @@ AES_GCM_encrypt_update_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_encrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -36921,7 +36921,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	mov	w9, V13.S[3]
 	rev	w9, w9
 	cmp	w4, #32
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Square H => H^2
 	pmull2	V31.1Q, V22.2D, V22.2D
 	pmull	V30.1Q, V22.1D, V22.1D
@@ -36932,7 +36932,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	mov	V30.D[1], V29.D[0]
 	eor	V23.16B, V30.16B, V31.16B
 	cmp	w4, #0x40
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^2  => H^3
 	pmull	V28.1Q, V22.1D, V23.1D
 	pmull2	V29.1Q, V22.2D, V23.2D
@@ -36958,7 +36958,7 @@ AES_GCM_decrypt_update_AARCH64_EOR3 PROC
 	eor	V25.16B, V30.16B, V31.16B
 	; Done
 	cmp	w4, #0x200
-	blt	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
+	bcc	L_aes_gcm_decrypt_update_arm64_crypto_eor3_h_done
 	; Multiply H and H^4  => H^5
 	pmull	V28.1Q, V22.1D, V25.1D
 	pmull2	V29.1Q, V22.2D, V25.2D
@@ -44203,7 +44203,7 @@ AES_ECB_encrypt_NEON PROC
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x5], #0x40
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x5]
 	cmp	x2, #0x40
-	blt	L_AES_ECB_encrypt_NEON_start_2
+	bcc	L_AES_ECB_encrypt_NEON_start_2
 L_AES_ECB_encrypt_NEON_loop_4
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -44607,7 +44607,7 @@ L_AES_ECB_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_ECB_encrypt_NEON_loop_4
+	bcs	L_AES_ECB_encrypt_NEON_loop_4
 L_AES_ECB_encrypt_NEON_start_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
@@ -44615,7 +44615,7 @@ L_AES_ECB_encrypt_NEON_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_ECB_encrypt_NEON_start_1
-	blt	L_AES_ECB_encrypt_NEON_data_done
+	bcc	L_AES_ECB_encrypt_NEON_data_done
 L_AES_ECB_encrypt_NEON_loop_2
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B}, [x0], #32
@@ -45113,7 +45113,7 @@ AES_CTR_encrypt_NEON PROC
 	mov	x10, V8.D[1]
 	mov	x11, V8.D[0]
 	cmp	x2, #0x40
-	blt	L_AES_CTR_encrypt_NEON_start_2
+	bcc	L_AES_CTR_encrypt_NEON_start_2
 L_AES_CTR_encrypt_NEON_loop_4
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -45540,7 +45540,7 @@ L_AES_CTR_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_CTR_encrypt_NEON_loop_4
+	bcs	L_AES_CTR_encrypt_NEON_loop_4
 	mov	V2.D[1], x10
 	mov	V2.D[0], x11
 	rev64	V2.4S, V2.4S
@@ -45551,7 +45551,7 @@ L_AES_CTR_encrypt_NEON_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_CTR_encrypt_NEON_start_1
-	blt	L_AES_CTR_encrypt_NEON_data_done
+	bcc	L_AES_CTR_encrypt_NEON_data_done
 L_AES_CTR_encrypt_NEON_loop_2
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -45958,7 +45958,7 @@ AES_ECB_decrypt_NEON PROC
 	ld1	{V24.16B, V25.16B, V26.16B, V27.16B}, [x5], #0x40
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x5]
 	cmp	x2, #0x40
-	blt	L_AES_ECB_decrypt_NEON_start_2
+	bcc	L_AES_ECB_decrypt_NEON_start_2
 L_AES_ECB_decrypt_NEON_loop_4
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -46509,11 +46509,11 @@ L_AES_ECB_decrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_ECB_decrypt_NEON_loop_4
+	bcs	L_AES_ECB_decrypt_NEON_loop_4
 L_AES_ECB_decrypt_NEON_start_2
 	cmp	x2, #16
 	beq	L_AES_ECB_decrypt_NEON_start_1
-	blt	L_AES_ECB_decrypt_NEON_data_done
+	bcc	L_AES_ECB_decrypt_NEON_data_done
 L_AES_ECB_decrypt_NEON_loop_2
 	mov	x8, x3
 	ld1	{V0.16B, V1.16B}, [x0], #32
@@ -46990,7 +46990,7 @@ AES_CBC_decrypt_NEON PROC
 	ld1	{V3.2D}, [x5]
 	add	x10, x29, #16
 	cmp	x2, #0x40
-	blt	L_AES_CBC_decrypt_NEON_start_2
+	bcc	L_AES_CBC_decrypt_NEON_start_2
 L_AES_CBC_decrypt_NEON_loop_4
 	mov	x9, x3
 	ld1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x0], #0x40
@@ -47549,11 +47549,11 @@ L_AES_CBC_decrypt_NEON_loop_nr_4
 	st1	{V4.16B, V5.16B, V6.16B, V7.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_CBC_decrypt_NEON_loop_4
+	bcs	L_AES_CBC_decrypt_NEON_loop_4
 L_AES_CBC_decrypt_NEON_start_2
 	cmp	x2, #16
 	beq	L_AES_CBC_decrypt_NEON_start_1
-	blt	L_AES_CBC_decrypt_NEON_data_done
+	bcc	L_AES_CBC_decrypt_NEON_data_done
 L_AES_CBC_decrypt_NEON_loop_2
 	mov	x9, x3
 	ld1	{V4.16B, V5.16B}, [x0], #32
@@ -47853,7 +47853,7 @@ L_AES_CBC_decrypt_NEON_loop_nr_2
 	st1	{V4.16B, V5.16B}, [x1], #32
 	sub	x2, x2, #32
 	cmp	x2, #32
-	bge	L_AES_CBC_decrypt_NEON_loop_2
+	bcs	L_AES_CBC_decrypt_NEON_loop_2
 	cmp	x2, #0
 	beq	L_AES_CBC_decrypt_NEON_data_done
 L_AES_CBC_decrypt_NEON_start_1
@@ -48376,7 +48376,7 @@ AES_GCM_encrypt_NEON PROC
 	rev32	V2.16B, V2.16B
 	mov	w6, V2.S[3]
 	cmp	x2, #0x40
-	blt	L_AES_GCM_encrypt_NEON_start_2
+	bcc	L_AES_GCM_encrypt_NEON_start_2
 	mov	x7, V2.D[0]
 	mov	x8, V2.D[1]
 L_AES_GCM_encrypt_NEON_loop_4
@@ -48792,7 +48792,7 @@ L_AES_GCM_encrypt_NEON_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_GCM_encrypt_NEON_loop_4
+	bcs	L_AES_GCM_encrypt_NEON_loop_4
 	mov	V2.D[0], x7
 	mov	V2.D[1], x8
 	mov	V2.S[3], w6
@@ -48803,7 +48803,7 @@ L_AES_GCM_encrypt_NEON_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_GCM_encrypt_NEON_start_1
-	blt	L_AES_GCM_encrypt_NEON_data_done
+	bcc	L_AES_GCM_encrypt_NEON_data_done
 L_AES_GCM_encrypt_NEON_loop_2
 	mov	x12, x3
 	ld1	{V4.2D}, [x12], #16
@@ -49276,7 +49276,7 @@ L_AES_XTS_encrypt_NEON_loop_nr_tweak
 	mov	x8, V2.D[0]
 	mov	x9, V2.D[1]
 	cmp	w2, #0x40
-	blt	L_AES_XTS_encrypt_NEON_start_2
+	bcc	L_AES_XTS_encrypt_NEON_start_2
 L_AES_XTS_encrypt_NEON_loop_4
 	mov	x22, x4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -49715,14 +49715,14 @@ L_AES_XTS_encrypt_NEON_loop_nr_4
 	eor	x8, x16, x14, lsl 1
 	sub	w2, w2, #0x40
 	cmp	w2, #0x40
-	bge	L_AES_XTS_encrypt_NEON_loop_4
+	bcs	L_AES_XTS_encrypt_NEON_loop_4
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 L_AES_XTS_encrypt_NEON_start_2
 	cmp	w2, #32
-	blt	L_AES_XTS_encrypt_NEON_start_1
+	bcc	L_AES_XTS_encrypt_NEON_start_1
 	mov	x22, x4
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	ld1	{V4.16B}, [x22], #16
@@ -49950,7 +49950,7 @@ L_AES_XTS_encrypt_NEON_start_1
 	mov	V2.D[0], x8
 	mov	V2.D[1], x9
 	cmp	w2, #16
-	blt	L_AES_XTS_encrypt_NEON_start_partial
+	bcc	L_AES_XTS_encrypt_NEON_start_partial
 	mov	x22, x4
 	ld1	{V0.16B}, [x0], #16
 	ld1	{V4.2D}, [x22], #16
@@ -50351,7 +50351,7 @@ L_AES_XTS_decrypt_NEON_loop_nr_tweak
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x21]
 	ld1	{V3.2D}, [x23]
 	cmp	w2, #0x40
-	blt	L_AES_XTS_decrypt_NEON_start_2
+	bcc	L_AES_XTS_decrypt_NEON_start_2
 L_AES_XTS_decrypt_NEON_loop_4
 	mov	x25, x4
 	ld1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x0], #0x40
@@ -50937,14 +50937,14 @@ L_AES_XTS_decrypt_NEON_loop_nr_4
 	eor	x8, x16, x14, lsl 1
 	sub	w2, w2, #0x40
 	cmp	w2, #0x40
-	bge	L_AES_XTS_decrypt_NEON_loop_4
+	bcs	L_AES_XTS_decrypt_NEON_loop_4
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
 	movi	V14.16B, #0xc0
 	movi	V15.16B, #27
 L_AES_XTS_decrypt_NEON_start_2
 	cmp	w2, #32
-	blt	L_AES_XTS_decrypt_NEON_start_1
+	bcc	L_AES_XTS_decrypt_NEON_start_1
 	mov	x25, x4
 	ld1	{V0.16B, V1.16B}, [x0], #32
 	ld1	{V4.16B}, [x25], #16
@@ -51259,7 +51259,7 @@ L_AES_XTS_decrypt_NEON_start_1
 	mov	V2.D[0], x8
 	mov	V2.D[1], x9
 	cmp	w2, #16
-	blt	L_AES_XTS_decrypt_NEON_start_partial
+	bcc	L_AES_XTS_decrypt_NEON_start_partial
 	mov	x25, x4
 	ld1	{V0.16B}, [x0], #16
 	ld1	{V4.2D}, [x25], #16
@@ -52130,7 +52130,7 @@ AES_GCMSIV_ctr_neon PROC
 	ld1	{V28.16B, V29.16B, V30.16B, V31.16B}, [x6]
 	ldr	w10, [x5]
 	cmp	x2, #0x40
-	blt	L_AES_GCMSIV_ctr_neon_start_2
+	bcc	L_AES_GCMSIV_ctr_neon_start_2
 L_AES_GCMSIV_ctr_neon_loop_4
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -52550,7 +52550,7 @@ L_AES_GCMSIV_ctr_neon_loop_nr_4
 	st1	{V0.16B, V1.16B, V2.16B, V3.16B}, [x1], #0x40
 	sub	x2, x2, #0x40
 	cmp	x2, #0x40
-	bge	L_AES_GCMSIV_ctr_neon_loop_4
+	bcs	L_AES_GCMSIV_ctr_neon_loop_4
 L_AES_GCMSIV_ctr_neon_start_2
 	movi	V12.16B, #0x40
 	movi	V13.16B, #0x80
@@ -52558,7 +52558,7 @@ L_AES_GCMSIV_ctr_neon_start_2
 	movi	V15.16B, #27
 	cmp	x2, #16
 	beq	L_AES_GCMSIV_ctr_neon_start_1
-	blt	L_AES_GCMSIV_ctr_neon_data_done
+	bcc	L_AES_GCMSIV_ctr_neon_data_done
 L_AES_GCMSIV_ctr_neon_loop_2
 	mov	x9, x3
 	ld1	{V4.2D}, [x9], #16
@@ -56991,7 +56991,7 @@ L_AES_XTS_encrypt_loop_nr
 	add	x0, x0, #16
 	add	x1, x1, #16
 	cmp	w2, #16
-	bge	L_AES_XTS_encrypt_loop_block
+	bcs	L_AES_XTS_encrypt_loop_block
 	cbz	w2, L_AES_XTS_encrypt_done_data
 	mov	x26, x4
 	sub	x1, x1, #16
@@ -57633,7 +57633,7 @@ L_AES_XTS_decrypt_loop_nr_tweak
 	rev32	x23, x23
 	rev32	x24, x24
 	cmp	w2, #16
-	blt	L_AES_XTS_decrypt_start_partail
+	bcc	L_AES_XTS_decrypt_start_partail
 L_AES_XTS_decrypt_loop_block
 	mov	x28, x4
 	ldp	x12, x13, [x0]
@@ -57913,7 +57913,7 @@ L_AES_XTS_decrypt_loop_nr
 	add	x0, x0, #16
 	add	x1, x1, #16
 	cmp	w2, #16
-	bge	L_AES_XTS_decrypt_loop_block
+	bcs	L_AES_XTS_decrypt_loop_block
 	cbz	w2, L_AES_XTS_decrypt_done_data
 L_AES_XTS_decrypt_start_partail
 	and	x21, x11, x24, asr 63

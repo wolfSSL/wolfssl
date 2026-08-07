@@ -51,7 +51,7 @@ chacha_encrypt_x64 PROC
         push	r15
         sub	rsp, 72
         cmp	r9d, 64
-        jl	L_chacha_x64_small
+        jb	L_chacha_x64_small
 L_chacha_x64_start:
         sub	rsp, 48
         mov	QWORD PTR [rsp+24], r8
@@ -235,7 +235,7 @@ L_chacha_x64_block_crypt_start:
         add	rdx, 64
         add	r8, 64
         cmp	r9d, 64
-        jge	L_chacha_x64_start
+        jae	L_chacha_x64_start
 L_chacha_x64_small:
         cmp	r9d, 0
         je	L_chacha_x64_done
@@ -1150,7 +1150,7 @@ L_chacha20_avx1_loop128:
         sub	r9d, 256
         vmovdqa	OWORD PTR [r11+192], xmm12
         cmp	r9d, 256
-        jl	L_chacha20_avx1_done128
+        jb	L_chacha20_avx1_done128
         vmovdqa	xmm0, OWORD PTR [r11]
         vmovdqa	xmm1, OWORD PTR [r11+16]
         vmovdqa	xmm2, OWORD PTR [r11+32]
@@ -1173,7 +1173,7 @@ L_chacha20_avx1_done128:
         add	DWORD PTR [rcx+48], eax
 L_chacha20_avx1_end128:
         cmp	r9d, 64
-        jl	L_chacha20_avx1_block_done
+        jb	L_chacha20_avx1_block_done
 L_chacha20_avx1_block_start:
         vmovdqu	xmm0, OWORD PTR [rcx]
         vmovdqu	xmm1, OWORD PTR [rcx+16]
@@ -1246,7 +1246,7 @@ L_chacha20_avx1_block_crypt_start:
         add	rdx, 64
         add	r8, 64
         cmp	r9d, 64
-        jge	L_chacha20_avx1_block_start
+        jae	L_chacha20_avx1_block_start
 L_chacha20_avx1_block_done:
         cmp	r9d, 0
         je	L_chacha20_avx1_partial_done
@@ -1722,7 +1722,7 @@ L_chacha20_avx2_loop256:
         sub	r9d, 512
         vmovdqu	YMMWORD PTR [r11+384], ymm12
         cmp	r9d, 512
-        jl	L_chacha20_avx2_done256
+        jb	L_chacha20_avx2_done256
         vmovdqu	ymm0, YMMWORD PTR [r11]
         vmovdqu	ymm1, YMMWORD PTR [r11+32]
         vmovdqu	ymm2, YMMWORD PTR [r11+64]

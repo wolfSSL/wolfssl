@@ -27889,7 +27889,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "vld1.32	{q8}, [r8]\n\t"
         "orr	r10, r6, %[sz]\n\t"
         "cmp	r10, #32\n\t"
-        "blt	L_aes_gcm_encrypt_arm32_crypto_h_done_%=\n\t"
+        "blo	L_aes_gcm_encrypt_arm32_crypto_h_done_%=\n\t"
         /* Square H => H^2 */
         "vmull.p64	q1, d17, d17\n\t"
         "vmull.p64	q0, d16, d16\n\t"
@@ -27899,7 +27899,7 @@ WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_AARCH32(const byte* in, byte* out,
         "vmull.p64	q9, d2, d26\n\t"
         "veor.8	q9, q9, q0\n\t"
         "cmp	r10, #0x40\n\t"
-        "blt	L_aes_gcm_encrypt_arm32_crypto_h_done_%=\n\t"
+        "blo	L_aes_gcm_encrypt_arm32_crypto_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
         "vmull.p64	q2, d17, d18\n\t"
         "vmull.p64	q3, d16, d19\n\t"
@@ -28555,7 +28555,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "vld1.32	{q8}, [r8]\n\t"
         "orr	r10, r6, %[sz]\n\t"
         "cmp	r10, #32\n\t"
-        "blt	L_aes_gcm_decrypt_arm32_crypto_h_done_%=\n\t"
+        "blo	L_aes_gcm_decrypt_arm32_crypto_h_done_%=\n\t"
         /* Square H => H^2 */
         "vmull.p64	q1, d17, d17\n\t"
         "vmull.p64	q0, d16, d16\n\t"
@@ -28565,7 +28565,7 @@ WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_AARCH32(const byte* in, byte* out,
         "vmull.p64	q9, d2, d26\n\t"
         "veor.8	q9, q9, q0\n\t"
         "cmp	r10, #0x40\n\t"
-        "blt	L_aes_gcm_decrypt_arm32_crypto_h_done_%=\n\t"
+        "blo	L_aes_gcm_decrypt_arm32_crypto_h_done_%=\n\t"
         /* Multiply H and H^2  => H^3 */
         "vmull.p64	q2, d17, d18\n\t"
         "vmull.p64	q3, d16, d19\n\t"
