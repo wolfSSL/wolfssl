@@ -813,6 +813,7 @@ enum DN_Tags {
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
+    ASN_X500_UNIQUE_ID = 0x2d,  /* x500UniqueIdentifier (2.5.4.45) */
 #ifdef WOLFSSL_CERT_NAME_ALL
     ASN_NAME          = 0x29,   /* name */
     ASN_GIVEN_NAME    = 0x2a,   /* GN */
@@ -883,6 +884,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_RFC822_MAILBOX   "/rfc822Mailbox="
 #define WOLFSSL_FAVOURITE_DRINK  "/favouriteDrink="
 #define WOLFSSL_CONTENT_TYPE     "/contentType="
+#define WOLFSSL_X500_UNIQUE_ID   "/x500UniqueIdentifier="
 
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
@@ -1101,6 +1103,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_LN_userId "userId"
 #define WC_NID_userId 458
 
+#define WC_SN_x500UniqueIdentifier "x500UniqueIdentifier"
+#define WC_LN_x500UniqueIdentifier "X500 unique identifier"
+#define WC_NID_x500UniqueIdentifier 503     /* 2.5.4.45 */
+
 #define WC_LN_registeredAddress "registeredAddress"
 #define WC_NID_registeredAddress 870
 
@@ -1237,6 +1243,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define SN_userId WC_SN_userId
 #define LN_userId WC_LN_userId
 #define NID_userId WC_NID_userId
+
+#define SN_x500UniqueIdentifier WC_SN_x500UniqueIdentifier
+#define LN_x500UniqueIdentifier WC_LN_x500UniqueIdentifier
+#define NID_x500UniqueIdentifier WC_NID_x500UniqueIdentifier
 
 #define LN_registeredAddress WC_LN_registeredAddress
 #define NID_registeredAddress WC_NID_registeredAddress

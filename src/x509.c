@@ -13163,6 +13163,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case WC_NID_pkcs9_contentType: return ASN_CONTENT_TYPE;
         case WC_NID_serialNumber: return ASN_SERIAL_NUMBER;
         case WC_NID_userId: return ASN_USER_ID;
+        case WC_NID_x500UniqueIdentifier: return ASN_X500_UNIQUE_ID;
         case WC_NID_businessCategory: return ASN_BUS_CAT;
         case WC_NID_domainComponent: return ASN_DOMAIN_COMPONENT;
         case WC_NID_postalCode: return ASN_POSTAL_CODE;
@@ -15464,6 +15465,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case WC_NID_userId:
             str = "UID";
             len = 3;
+            break;
+        case WC_NID_x500UniqueIdentifier:
+            str = "x500UniqueIdentifier";
+            len = 20;
             break;
         case WC_NID_serialNumber:
             str = "serialNumber";

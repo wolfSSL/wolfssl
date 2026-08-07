@@ -1942,6 +1942,9 @@ enum CertName_Sum {
     /* 0x55,0x04,0x2b  */
     /* 2.5.4.43 */
     WC_NAME_INITIALIS_OID               = 132,
+    /* 0x55,0x04,0x2d  */
+    /* 2.5.4.45 */
+    WC_NAME_X500_UNIQUE_ID_OID          = 134,
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x01  */
     /* 1.2.840.113549.1.9.1 */
     WC_NAME_EMAIL_ADDRESS_OID           = 653,
@@ -2012,6 +2015,9 @@ enum CertName_Sum {
     /* 0x55,0x04,0x2b  */
     /* 2.5.4.43 */
     WC_NAME_INITIALIS_OID               = 0x7fd404aa,
+    /* 0x55,0x04,0x2d  */
+    /* 2.5.4.45 */
+    WC_NAME_X500_UNIQUE_ID_OID          = 0x7fd204aa,
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x01  */
     /* 1.2.840.113549.1.9.1 */
     WC_NAME_EMAIL_ADDRESS_OID           = 0x70b67423,
