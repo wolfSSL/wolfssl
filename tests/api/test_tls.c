@@ -297,6 +297,215 @@ int test_tls_record_overflow_alert(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+
+static int test_peer_name_cb_err = 0;
+static int test_peer_name_cb_preverify = -1;
+
+static int test_peer_name_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    /* Only record the first failure - later certificates in the chain would
+     * otherwise overwrite it. */
+    if (!preverify && (test_peer_name_cb_err == 0)) {
+        test_peer_name_cb_preverify = preverify;
+        test_peer_name_cb_err = wolfSSL_X509_STORE_CTX_get_error(store);
+    }
+    return preverify;
+}
+
+/* mode: 0 = check_ip_address(), 1 = set1_ip_asc(), 2 = set1_host() */
+static int test_peer_name_mismatch(int mode, const char* name, int expectErr)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    test_peer_name_cb_err = 0;
+    test_peer_name_cb_preverify = -1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_peer_name_verify_cb);
+
+    if (mode == 0) {
+        ExpectIntEQ(wolfSSL_check_ip_address(ssl_c, name), WOLFSSL_SUCCESS);
+    }
+    else if (mode == 1) {
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(
+            wolfSSL_get0_param(ssl_c), name), WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(
+            wolfSSL_get0_param(ssl_c), name, 0), WOLFSSL_SUCCESS);
+    }
+
+    if (expectErr == 0) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(test_peer_name_cb_err, 0);
+    }
+    else {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* The mismatch has to reach the application's verify callback so it
+         * can apply its own policy, not just fail the handshake. */
+        ExpectIntEQ(test_peer_name_cb_preverify, 0);
+        ExpectIntEQ(test_peer_name_cb_err, expectErr);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A peer name mismatch must be reported through SSL_set_verify()'s callback,
+ * whichever API named the expected peer. */
+int test_tls_peer_name_mismatch_verify_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA256)
+#ifdef WOLFSSL_IP_ALT_NAME
+    /* certs/server-cert.pem carries IP:127.0.0.1 and DNS:example.com. */
+    ExpectIntEQ(test_peer_name_mismatch(0, "127.0.0.2",
+        WC_NO_ERR_TRACE(IPADDR_MISMATCH)), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_name_mismatch(1, "127.0.0.2",
+        WC_NO_ERR_TRACE(IPADDR_MISMATCH)), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_name_mismatch(0, "127.0.0.1", 0), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_peer_name_mismatch(2, "wrong.example.com",
+        WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH)), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_name_mismatch(2, "example.com", 0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+static int test_peer_tmp_key_group(int group, int tls13)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    int groups[1];
+
+    groups[0] = group;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        tls13 ? wolfTLSv1_3_client_method : wolfTLSv1_2_client_method,
+        tls13 ? wolfTLSv1_3_server_method : wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_KeepHandshakeResources(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_get_peer_tmp_key(ssl_c, &pkey), WOLFSSL_SUCCESS);
+    ExpectNotNull(pkey);
+    wolfSSL_EVP_PKEY_free(pkey);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* SSL_get_peer_tmp_key() has to return the peer's ephemeral key for every key
+ * exchange group, not just TLS 1.2 ECDHE. */
+int test_tls_get_peer_tmp_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_SHA256)
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 0),
+        TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 1),
+        TEST_SUCCESS);
+#endif
+#endif /* HAVE_ECC */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE25519) && !defined(HAVE_FIPS)
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X25519, 1), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE448) && !defined(HAVE_FIPS)
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X448, 1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* SSL_get_negotiated_group() and SSL_group_to_name() report the group that was
+ * negotiated, using the names OpenSSL gives the TLS supported groups. */
+int test_tls_get_negotiated_group(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int group = 0;
+    int p256[] = {WOLFSSL_ECC_SECP256R1};
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, p256, 1), WOLFSSL_SUCCESS);
+
+    /* Nothing negotiated yet. */
+    ExpectIntEQ(wolfSSL_get_negotiated_group(NULL), 0);
+    ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntNE((group = wolfSSL_get_negotiated_group(ssl_c)), 0);
+    ExpectIntEQ(group, wolfSSL_get_negotiated_group(ssl_s));
+    /* OpenSSL names this group secp256r1, not by its NIST name P-256. */
+    ExpectStrEQ(wolfSSL_group_to_name(ssl_c, group), "secp256r1");
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* Groups can also be named directly by their IANA code point. */
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ECC_SECP256R1),
+        "secp256r1");
+#ifdef HAVE_CURVE25519
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ECC_X25519), "x25519");
+#endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_FFDHE_2048), "ffdhe2048");
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_NO_ML_KEM_768)
+    /* OpenSSL spells the standalone ML-KEM groups without underscores. */
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ML_KEM_768), "MLKEM768");
+#endif
+    ExpectNull(wolfSSL_group_to_name(NULL, 9999));
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls12_curve_intersection(void) {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
