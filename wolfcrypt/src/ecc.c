@@ -16895,6 +16895,9 @@ int wc_ecc_oid_cache_init(void)
     int ret = 0;
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
     ret = wc_InitMutex(&ecc_oid_cache_lock);
+    if (ret == 0) {
+        eccOidLockInit = 1;
+    }
 #endif
     return ret;
 }
@@ -16903,6 +16906,7 @@ void wc_ecc_oid_cache_free(void)
 {
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
     wc_FreeMutex(&ecc_oid_cache_lock);
+    eccOidLockInit = 0;
 #endif
 }
 #endif /* HAVE_OID_ENCODING */
