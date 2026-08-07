@@ -381,17 +381,6 @@ void wc_AlteraFcs_ResourceRemove(void)
     }
 }
 
-int wc_AlteraFcs_ResourceActive(void)
-{
-    int active = 0;
-
-    if (g_stateLockInit != 0 && wc_LockMutex(&g_stateLock) == 0) {
-        active = (g_resourceCount != 0);
-        wc_UnLockMutex(&g_stateLock);
-    }
-    return active;
-}
-
 void wc_AlteraFcs_StateAtForkPrepare(void)
 {
 #ifndef SINGLE_THREADED
