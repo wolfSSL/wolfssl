@@ -10890,6 +10890,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         if (ret == 0) {
                             ret = mldsa_invntt(ct0);
                         }
+                        if (ret == 0) {
+                            ret = mldsa_poly_red(ct0);
+                        }
                         /* Step 27: Check ct0 has low enough values. Every
                          * row: ct0 has no mask, so a failing index leaks t0. */
                         ct0Valid &= mldsa_check_low(ct0, params->gamma2);
