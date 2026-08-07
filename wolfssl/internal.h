@@ -6187,6 +6187,9 @@ typedef struct BuildMsgArgs {
         byte postHandshakeSendVerify;    /* ssl->options.sendVerify */
         byte postHandshakeSigAlgo;       /* ssl->options.sigAlgo */
         byte postHandshakeHashAlgo;      /* ssl->options.hashAlgo */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+        byte postHandshakeSha1CertOk;    /* ssl->options.peerSha1CertOk */
+#endif
         /* After the write side sends the PHA response, it stores its updated
          * transcript here so the read side can resume from it on the next
          * CertificateRequest (keeps client/server transcript in sync). */
