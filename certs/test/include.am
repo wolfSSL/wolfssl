@@ -31,6 +31,8 @@ EXTRA_DIST += \
          certs/test/cert-ext-ndir-exc.cfg \
          certs/test/cert-ext-ndir-exc.der \
          certs/test/cert-ext-ndir-exc.pem \
+         certs/test/cert-ext-oid-collide.der \
+         certs/test/gen-oid-collide-cert.sh \
          certs/test/gen-ext-certs.sh \
          certs/test/server-duplicate-policy.pem \
          certs/test/cert-ext-joi.der \
