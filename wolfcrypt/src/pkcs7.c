@@ -6662,6 +6662,13 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                             pkcs7->stream->expected, &msg, idx)) != 0) {
             break;
         }
+        /* re-sync totalRd baseline to the fresh idx. Without this, a byte
+         * that wc_PKCS7_AddDataToStream() already charged to totalRd while
+         * buffering (growing stream->length) gets charged again below when
+         * this loop switches to reading directly from "in" starting at
+         * that same position, since *tmpIdx would still hold a position
+         * from before the buffered run started. */
+        *tmpIdx = *idx;
 
         msgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length:inSz;
 
@@ -7517,21 +7524,26 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
              * malformed fails there with a real parse error.
              */
             pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
-            if (!pkcs7->stream->indefLen &&
-                    pkcs7->stream->totalRd >= pkcs7->stream->maxLen) {
-                /* definite-length bundle with no bytes left per the outer
-                 * length: force stage 4's bounds check to fail now instead
-                 * of requesting bytes that will never arrive. For
-                 * indefinite-length (BER) bundles maxLen is only a running
-                 * estimate, so totalRd catching up to it does not mean the
-                 * bundle is actually exhausted. */
-                pkcs7->stream->expected = 0;
-            }
-            else if (pkcs7->stream->totalRd < pkcs7->stream->maxLen &&
-                    pkcs7->stream->expected >
-                    pkcs7->stream->maxLen - pkcs7->stream->totalRd) {
-                pkcs7->stream->expected =
-                    pkcs7->stream->maxLen - pkcs7->stream->totalRd;
+            if (!pkcs7->stream->indefLen) {
+                /* cap to what can actually still show up: bytes already
+                 * buffered (stream->length) plus whatever the outer
+                 * length still allows past totalRd. Matches the same
+                 * (maxLen - totalRd) + length expression used at every
+                 * other stage in this function. For indefinite-length
+                 * (BER) bundles maxLen is only a running estimate, so
+                 * this cap does not apply. */
+                if (pkcs7->stream->totalRd >= pkcs7->stream->maxLen) {
+                    if (pkcs7->stream->expected > pkcs7->stream->length) {
+                        pkcs7->stream->expected = pkcs7->stream->length;
+                    }
+                }
+                else if (pkcs7->stream->expected >
+                        (pkcs7->stream->maxLen - pkcs7->stream->totalRd) +
+                            pkcs7->stream->length) {
+                    pkcs7->stream->expected =
+                        (pkcs7->stream->maxLen - pkcs7->stream->totalRd) +
+                            pkcs7->stream->length;
+                }
             }
 
         #else
@@ -7673,6 +7685,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
 
             maxIdx = idx + pkcs7->stream->expected;
+
+            /* re-sync totalRd baseline to the fresh idx, same as STAGE6
+             * does; otherwise it can still hold a stale position left
+             * over from stage 3's internal stream buffer. */
+            stateIdx = idx;
         #endif /* !NO_PKCS7_STREAM */
 
             if (pkiMsg2 == NULL || pkiMsg2Sz == 0) {
@@ -7781,6 +7798,11 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
             pkiMsg2Sz = (pkcs7->stream->length > 0)? pkcs7->stream->length:
                                                                         srcSz;
+
+            /* re-sync totalRd baseline to the fresh idx, same as STAGE4
+             * and STAGE6 do; otherwise it can still hold a stale position
+             * left over from STAGE4's internal stream buffer. */
+            stateIdx = idx;
 
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
 
@@ -8086,6 +8108,30 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
 
+        #ifndef NO_PKCS7_STREAM
+            /* claimed signerInfos content must fit in what can still
+             * arrive, or stage 7 stalls on WANT_READ_E forever */
+            if (ret == 0 && !pkcs7->stream->indefLen) {
+                word32 avail;
+                if (pkcs7->stream->length > 0) {
+                    avail = pkcs7->stream->length - idx;
+                    if (pkcs7->stream->totalRd < pkcs7->stream->maxLen) {
+                        avail += pkcs7->stream->maxLen -
+                                 pkcs7->stream->totalRd;
+                    }
+                }
+                else {
+                    word32 used = pkcs7->stream->totalRd +
+                                  (idx - stateIdx);
+                    avail = (used < pkcs7->stream->maxLen) ?
+                            pkcs7->stream->maxLen - used : 0;
+                }
+                if ((word32)length > avail) {
+                    ret = ASN_PARSE_E;
+                }
+            }
+        #endif
+
             /* Update degenerate flag based on if signerInfos SET is empty.
              * The earlier degenerate check at digestAlgorithms is an early
              * optimization, but depending on degenerate case may not be
@@ -8129,18 +8175,6 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             }
             else  {
                 pkcs7->stream->expected = (word32)length;
-                if (pkcs7->stream->totalRd >= pkcs7->stream->maxLen) {
-                    /* definite-length bundle with no bytes left per the
-                     * outer length: force stage 7's bounds check to fail
-                     * now instead of requesting bytes that will never
-                     * arrive. Do NOT cap expected down further than that
-                     * when bytes may still remain -- expected here is the
-                     * full signerInfo content size that stage 7 needs
-                     * buffered at once, not just header lookahead, so
-                     * shrinking it while genuinely more data is still due
-                     * from a future call would corrupt the parse window. */
-                    pkcs7->stream->expected = 0;
-                }
             }
 
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE7);
