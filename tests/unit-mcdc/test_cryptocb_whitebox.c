@@ -883,6 +883,67 @@ int main(void)
             "key-slot state, out of scope for this pass");
 #endif
 
+    /* ---- Curve25519 MakePub / Generic, and the ECIES pair ----
+     * These take no devId: they resolve a device with FindDevice(INVALID_DEVID)
+     * and fall back to FindDeviceByIndex(0), so their `if (dev && dev->cb)`
+     * guard is driven by what is registered rather than by an argument. Run
+     * last, since the rows below deregister everything. */
+#ifdef HAVE_CURVE25519
+    {
+        byte c25pub[CURVE25519_KEYSIZE];
+        byte c25priv[CURVE25519_KEYSIZE];
+        byte c25base[CURVE25519_KEYSIZE];
+
+        XMEMSET(c25pub, 0, sizeof(c25pub));
+        XMEMSET(c25priv, 1, sizeof(c25priv));
+        XMEMSET(c25base, 9, sizeof(c25base));
+
+        /* Argument guards: one operand true per call, then all false. The
+         * device state is irrelevant here -- each returns before resolving. */
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), NULL,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), NULL);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), NULL,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), NULL, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), NULL);
+
+        /* `dev && dev->cb` (T,T): a registered device with a callback is the
+         * first slot FindDeviceByIndex(0) reaches. */
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+
+        /* (T,F): the only registered device has a NULL callback. */
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID);
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_HASH_OK);
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+
+        /* (F,-): nothing registered at all, so FindDeviceByIndex returns NULL
+         * and the guard short-circuits on its first operand. */
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);
+        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
+                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+
+        /* Put the callback device back for anything that follows. */
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+        WB_NOTE("Curve25519MakePub/Generic: arg guards and dev&&dev->cb "
+                "driven across registered/no-callback/none states");
+    }
+#else
+    WB_NOTE("HAVE_CURVE25519 not defined; Curve25519MakePub/Generic skipped");
+#endif
+
     wc_CryptoCb_UnRegisterDevice(WB_DEVID);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_HASH_OK);

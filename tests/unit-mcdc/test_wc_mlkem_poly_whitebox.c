@@ -46,6 +46,31 @@
  * keeps the variant.
  */
 
+/* SAVE_VECTOR_REGISTERS2() gates every SIMD dispatch in this file:
+ *
+ *     if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+ *
+ * In a userspace build types.h resolves it to SAVE_NO_VECTOR_REGISTERS2(),
+ * which is the literal 0, so "(0 == 0)" is structurally true and that operand
+ * can never take its false side -- it is not merely undriven. The false side
+ * is real on platforms that can refuse the save (the kernel module build,
+ * where it becomes WC_CHECK_FOR_INTR_SIGNALS()).
+ *
+ * WC_CHECK_FOR_INTR_SIGNALS is the #ifndef extension point types.h offers for
+ * exactly that, so defining it here -- BEFORE any wolfSSL header is pulled in
+ * by the .c below -- routes all 58 SAVE_VECTOR_REGISTERS2() sites through a
+ * variable this file controls, using the library's own hook rather than
+ * overriding a macro behind its back. Setting it non-zero makes each dispatch
+ * fall through to the portable C path, which is what the operand's false side
+ * selects on a platform that really can refuse.
+ *
+ * The file uses only SAVE_VECTOR_REGISTERS2(); the SAVE_VECTOR_REGISTERS(
+ * fail_clause) form, whose expansion also changes under this hook, appears
+ * nowhere here.
+ */
+static int wb_intr_ret = 0;
+#define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
+
 #include <wolfcrypt/src/wc_mlkem_poly.c>
 
 #include <stdio.h>
@@ -252,6 +277,153 @@ static void wb_get_noise_c_vec2_null(void)
 
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * SIMD dispatch rows.
+ *
+ * 28 functions here select an implementation with
+ *
+ *     if (IS_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+ *     else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+ *     else <portable C>
+ *
+ * On an AVX512-capable host the first arm always wins, so only the [T,T] row
+ * is ever seen and neither operand gets an independence pair. Both rows are
+ * supplied by driving one full ML-KEM key cycle per setting:
+ *
+ *   [T,T]  features present, save accepted   -> the SIMD arm runs
+ *   [F,-]  cpuid_flags cleared               -> operand 0's pair
+ *   [T,F]  features present, save refused    -> operand 1's pair
+ *
+ * cpuid_flags is this file's own static and mlkem_init() only refreshes it
+ * while it still holds WC_CPUID_INITIALIZER, so a forced value stays put.
+ * Clearing feature bits only ever selects portable C, and claiming bits the
+ * host really has is what the unforced build already does, so no row runs an
+ * instruction the CPU lacks.
+ *
+ * A whole keygen/encapsulate/decapsulate cycle is used rather than 28 hand
+ * written calls: the top-level entry points reach the compress/decompress,
+ * to/from bytes, rej-uniform, noise and NTT dispatches transitively, with
+ * correctly sized buffers.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(WOLFSSL_ARMASM)
+
+/* Every parameter set the build compiles. The compress/decompress dispatches
+ * are du/dv specific -- ML-KEM-768 uses du=10,dv=4 and never reaches
+ * mlkem_vec_compress_11 or mlkem_compress_5 (du=11,dv=5, the 1024 params) --
+ * and the matrix generators are specialised per k, so one parameter set alone
+ * leaves most of the SIMD dispatches unexecuted. */
+static const int wb_kem_types[] = {
+#ifdef WOLFSSL_WC_ML_KEM_512
+    WC_ML_KEM_512,
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_768
+    WC_ML_KEM_768,
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_1024
+    WC_ML_KEM_1024,
+#endif
+    0 /* sentinel keeps the array non-empty if none are enabled */
+};
+
+static void wb_run_cycle(WC_RNG* rng, int type)
+{
+    MlKemKey key;
+    byte     ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte     ss[WC_ML_KEM_SS_SZ];
+    byte     ss2[WC_ML_KEM_SS_SZ];
+    word32   ctSz = 0;
+
+    if (type == 0) {
+        return;
+    }
+    if (wc_MlKemKey_Init(&key, type, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_MlKemKey_MakeKey(&key, rng) == 0 &&
+            wc_MlKemKey_CipherTextSize(&key, &ctSz) == 0 &&
+            ctSz <= (word32)sizeof(ct)) {
+        if (wc_MlKemKey_Encapsulate(&key, ct, ss, rng) == 0) {
+            (void)wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz);
+        }
+    }
+    wc_MlKemKey_Free(&key);
+}
+
+static void wb_dispatch_rows(void)
+{
+    cpuid_flags_t saved_flags = cpuid_flags;
+    int           saved_intr  = wb_intr_ret;
+    WC_RNG        rng;
+    unsigned      i;
+    unsigned      t;
+    /* The dispatches form chains:
+     *
+     *     if      (AVX512_VBMI && save) ...
+     *     else if (AVX512      && save) ...
+     *     else if (AVX2        && save) ...
+     *     else                          <portable C>
+     *
+     * so an arm's true row only happens when every RICHER feature above it is
+     * absent -- with all bits set the first arm always wins and the ones below
+     * are never even evaluated. Each row therefore clears a different suffix of
+     * the feature ladder, and the save-refused row makes every arm in a chain
+     * fall through, which is that operand's false side at each level. */
+    static const struct {
+        cpuid_flags_t clear;
+        int           intr;
+        const char*   what;
+    } rows[] = {
+        { 0,                                                    0,
+          "all features, save accepted -> richest arm" },
+        { 0,                                                    1,
+          "all features, save refused  -> operand 1 false at every level" },
+        { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2,               0,
+          "no VBMI                     -> plain AVX512 arm" },
+        /* USE_INTEL_AVX512() is IS_INTEL_AVX512() && IS_INTEL_AVX512_BW()
+         * (cpuid.h), so those dispatches carry three conditions. Clearing BW
+         * alone is the only row that gives the middle operand a false side
+         * while the F bit above it is still true. */
+        { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512_BW, 0,
+          "AVX512 without BW           -> USE_INTEL_AVX512 operand 1 false" },
+        { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512, 0,
+          "no AVX512                   -> AVX2 arm" },
+        { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512 |
+          CPUID_AVX512_BW | CPUID_AVX2,                          0,
+          "no SIMD                     -> portable C arm" },
+    };
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; SIMD dispatch rows skipped");
+        return;
+    }
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        /* Start from the host's real flags so the "present" rows claim only
+         * what this CPU actually has. */
+        cpuid_flags = WC_CPUID_INITIALIZER;
+        (void)cpuid_get_flags_ex(&cpuid_flags);
+        cpuid_flags &= (cpuid_flags_t)~rows[i].clear;
+        wb_intr_ret = rows[i].intr;
+
+        for (t = 0; t < sizeof(wb_kem_types) / sizeof(wb_kem_types[0]); t++) {
+            wb_run_cycle(&rng, wb_kem_types[t]);
+        }
+    }
+
+    cpuid_flags = saved_flags;
+    wb_intr_ret = saved_intr;
+    wc_FreeRng(&rng);
+    WB_NOTE("SIMD dispatch rows (cpuid x save-accepted) exercised");
+}
+
+#else
+static void wb_dispatch_rows(void)
+{
+    WB_NOTE("no Intel SIMD dispatch in this variant; rows skipped");
+}
+#endif
+
 int main(void)
 {
     printf("wc_mlkem_poly.c white-box MC/DC supplement\n");
@@ -271,6 +443,7 @@ int main(void)
      * to call regardless of the feature guard above. */
     wb_rej_uniform_c_rlen_exhaust();
     wb_get_noise_c_vec2_null();
+    wb_dispatch_rows();
     printf("wc_mlkem_poly.c white-box: done\n");
     return 0;
 }

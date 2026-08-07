@@ -119,13 +119,30 @@ DISTCLEANFILES+= tests/.libs/unit.test
 # the dist tarball -- the same treatment tests/api/include.am gives its
 # non-compiled files.  Do not move them to tests_unit_test_SOURCES.
 EXTRA_DIST += \
+              tests/unit-mcdc/README.md \
               tests/unit-mcdc/mcdc_fault_alloc.h \
+              tests/unit-mcdc/test_aes_whitebox.c \
+              tests/unit-mcdc/test_asn_cert_whitebox.c \
+              tests/unit-mcdc/test_asn_certgen_whitebox.c \
+              tests/unit-mcdc/test_asn_ext_whitebox.c \
+              tests/unit-mcdc/test_asn_fault_whitebox.c \
+              tests/unit-mcdc/test_asn_keys_whitebox.c \
+              tests/unit-mcdc/test_asn_revocation_whitebox.c \
+              tests/unit-mcdc/test_asn_whitebox.c \
               tests/unit-mcdc/test_blake2b_whitebox.c \
               tests/unit-mcdc/test_blake2s_whitebox.c \
+              tests/unit-mcdc/test_chacha_whitebox.c \
+              tests/unit-mcdc/test_cmac_whitebox.c \
               tests/unit-mcdc/test_cryptocb_whitebox.c \
+              tests/unit-mcdc/test_curve25519_whitebox.c \
+              tests/unit-mcdc/test_dh_fault_whitebox.c \
               tests/unit-mcdc/test_dsa_fault_whitebox.c \
+              tests/unit-mcdc/test_ecc_fault_whitebox.c \
+              tests/unit-mcdc/test_ecc_whitebox.c \
               tests/unit-mcdc/test_eccsi_fault_whitebox.c \
               tests/unit-mcdc/test_eccsi_whitebox.c \
+              tests/unit-mcdc/test_ed25519_whitebox.c \
+              tests/unit-mcdc/test_ed448_whitebox.c \
               tests/unit-mcdc/test_falcon_whitebox.c \
               tests/unit-mcdc/test_frodokem_fault_common.h \
               tests/unit-mcdc/test_frodokem_fault_whitebox.c \
@@ -133,18 +150,46 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_hpke_fault_whitebox.c \
               tests/unit-mcdc/test_hpke_whitebox.c \
               tests/unit-mcdc/test_integer_fault_whitebox.c \
+              tests/unit-mcdc/test_integer_whitebox.c \
+              tests/unit-mcdc/test_lms_fault_whitebox.c \
               tests/unit-mcdc/test_logging_globalq_whitebox.c \
               tests/unit-mcdc/test_logging_whitebox.c \
               tests/unit-mcdc/test_memory_whitebox.c \
               tests/unit-mcdc/test_mldsa_fault_whitebox.c \
               tests/unit-mcdc/test_mlkem_fault_whitebox.c \
+              tests/unit-mcdc/test_pkcs12_fault_whitebox.c \
+              tests/unit-mcdc/test_pkcs12_parse_whitebox.c \
+              tests/unit-mcdc/test_pkcs12_whitebox.c \
+              tests/unit-mcdc/test_pkcs7_decode_whitebox.c \
+              tests/unit-mcdc/test_pkcs7_fault_whitebox.c \
+              tests/unit-mcdc/test_pkcs7_whitebox.c \
+              tests/unit-mcdc/test_poly1305_whitebox.c \
+              tests/unit-mcdc/test_puf_whitebox.c \
+              tests/unit-mcdc/test_random_whitebox.c \
               tests/unit-mcdc/test_rsa_fault_whitebox.c \
+              tests/unit-mcdc/test_rsa_whitebox.c \
               tests/unit-mcdc/test_sakke_fault_whitebox.c \
               tests/unit-mcdc/test_sakke_whitebox.c \
+              tests/unit-mcdc/test_sha256_whitebox.c \
+              tests/unit-mcdc/test_sha3_whitebox.c \
+              tests/unit-mcdc/test_sha512_whitebox.c \
+              tests/unit-mcdc/test_slhdsa_whitebox.c \
               tests/unit-mcdc/test_sp_arm32_whitebox.c \
               tests/unit-mcdc/test_sp_arm64_whitebox.c \
               tests/unit-mcdc/test_sp_armthumb_whitebox.c \
               tests/unit-mcdc/test_sp_c32_whitebox.c \
               tests/unit-mcdc/test_sp_c64_whitebox.c \
               tests/unit-mcdc/test_sp_cortexm_whitebox.c \
-              tests/unit-mcdc/test_sp_x86_64_whitebox.c
+              tests/unit-mcdc/test_sp_int_whitebox.c \
+              tests/unit-mcdc/test_sp_x86_64_whitebox.c \
+              tests/unit-mcdc/test_tfm_whitebox.c \
+              tests/unit-mcdc/test_tsp_fault_whitebox.c \
+              tests/unit-mcdc/test_tsp_whitebox.c \
+              tests/unit-mcdc/test_wc_lms_impl_whitebox.c \
+              tests/unit-mcdc/test_wc_lms_impl_whitebox_gap.c \
+              tests/unit-mcdc/test_wc_mldsa_whitebox.c \
+              tests/unit-mcdc/test_wc_mlkem_poly_whitebox.c \
+              tests/unit-mcdc/test_wc_port_whitebox.c \
+              tests/unit-mcdc/test_wc_xmss_impl_whitebox.c \
+              tests/unit-mcdc/test_wolfentropy_whitebox.c \
+              tests/unit-mcdc/test_xmss_fault_whitebox.c

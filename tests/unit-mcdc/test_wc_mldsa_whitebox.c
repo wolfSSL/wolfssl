@@ -47,6 +47,19 @@
  * the binary always returns 0 so the campaign keeps the variant.
  */
 
+/* SAVE_VECTOR_REGISTERS2() gates every SIMD dispatch in this file. In a
+ * userspace build types.h resolves it to the literal 0, so "(0 == 0)" is
+ * structurally true and that operand has no false side at all -- it is real
+ * only where the save can be refused (the kernel-module build, where it
+ * becomes WC_CHECK_FOR_INTR_SIGNALS()). That is the #ifndef extension point
+ * types.h offers, so defining it here -- BEFORE any wolfSSL header is reached
+ * through the .c below -- routes every dispatch through a variable this file
+ * controls, using the library's own hook rather than overriding a macro
+ * behind its back. Same arrangement as test_wc_mlkem_poly_whitebox.c.
+ */
+static int wb_intr_ret = 0;
+#define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
+
 #include <wolfcrypt/src/wc_mldsa.c>
 
 #include <stdio.h>
@@ -691,6 +704,149 @@ static void wb_oid_to_level(void)
 
 #endif /* WOLFSSL_HAVE_MLDSA */
 
+/* ------------------------------------------------------------------------- *
+ * SIMD dispatch rows.
+ *
+ * wc_mldsa.c selects an implementation with
+ *
+ *     if (IS_INTEL_AVX512_VBMI(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+ *     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+ *     if (IS_INTEL_AVX2(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags) && ...)
+ *     if ((k == N) && (l == N) && IS_INTEL_AVX2(cpuid_flags) && ...)
+ *
+ * On a capable host every feature bit is set and the save always succeeds, so
+ * only the all-true row is ever seen and no operand gets an independence pair.
+ * Each row below clears a different suffix of the feature ladder -- an arm's
+ * true side only occurs when the richer features above it are absent -- and
+ * one row refuses the save so every chain falls through at its last operand.
+ *
+ * Every compiled parameter set is swept because a good many of the dispatches
+ * are guarded by (k == ..) && (l == ..) first, so one level alone leaves the
+ * others' dispatches unexecuted.
+ *
+ * cpuid_flags is this file's own static and mldsa_init()-style refresh only
+ * happens while it still holds WC_CPUID_INITIALIZER, so a forced value stays.
+ * Clearing bits only ever selects portable C, and the rows that keep bits
+ * claim only what this CPU actually reported.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+
+static const int wb_dsa_levels[] = {
+#ifndef WOLFSSL_NO_ML_DSA_44
+    WC_ML_DSA_44,
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    WC_ML_DSA_65,
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    WC_ML_DSA_87,
+#endif
+    0 /* sentinel keeps the array non-empty */
+};
+
+static const byte wb_dsa_seed[32] = {
+    0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+    0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+    0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
+    0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f
+};
+
+static void wb_dsa_cycle(WC_RNG* rng, int level)
+{
+    (void)rng;
+    wc_MlDsaKey key;
+    static byte sig[MLDSA_MAX_SIG_SIZE];
+    byte   msg[32];
+    word32 sigLen = (word32)sizeof(sig);
+    int    res = 0;
+
+    if (level == 0) {
+        return;
+    }
+    XMEMSET(msg, 0x5a, sizeof(msg));
+
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    /* The ctx-based entry points are the ones this config compiles;
+     * wc_MlDsaKey_Sign/Verify exist only under WOLFSSL_MLDSA_NO_CTX. Seeded
+     * signing keeps the cycle deterministic across rows, so a row difference
+     * is a dispatch difference and nothing else. */
+    if (wc_MlDsaKey_SetParams(&key, level) == 0 &&
+            wc_MlDsaKey_MakeKeyFromSeed(&key, wb_dsa_seed) == 0) {
+        if (wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen, msg,
+                (word32)sizeof(msg), wb_dsa_seed) == 0) {
+            (void)wc_MlDsaKey_VerifyCtx(&key, sig, sigLen, NULL, 0, msg,
+                (word32)sizeof(msg), &res);
+        }
+    }
+    wc_MlDsaKey_Free(&key);
+}
+
+static void wb_dispatch_rows(void)
+{
+    cpuid_flags_t saved_flags = cpuid_flags;
+    int           saved_intr  = wb_intr_ret;
+    WC_RNG        rng;
+    unsigned      i, t;
+    /* USE_INTEL_AVX512(f) is itself IS_INTEL_AVX512(f) && IS_INTEL_AVX512_BW(f)
+     * (cpuid.h), so each AVX512 dispatch is a three-condition decision and the
+     * F and BW bits need to be cleared separately.  SHA3_USE_AVX2(f) is
+     * IS_INTEL_AVX2(f) && IS_CPU_INTEL(f): its vendor operand is false on any
+     * AMD host, so CPUID_INTEL is forced on for the rows that need its true
+     * side -- the arm behind it is plain AVX2, which runs anywhere AVX2 does. */
+    static const struct {
+        cpuid_flags_t set;
+        cpuid_flags_t clear;
+        int           intr;
+    } rows[] = {
+        { CPUID_INTEL, 0,                          0 },  /* richest arm      */
+        { CPUID_INTEL, 0,                          1 },  /* save refused     */
+        { CPUID_INTEL, CPUID_AVX512_BW,            0 },  /* F set, BW clear  */
+        { CPUID_INTEL, CPUID_AVX512,               0 },  /* F clear          */
+        { CPUID_INTEL, CPUID_AVX512_VBMI,          0 },  /* no VBMI          */
+        { CPUID_INTEL, CPUID_AVX512 | CPUID_AVX512_BW |
+                       CPUID_AVX512_VBMI,          0 },  /* -> AVX2 arm      */
+        { CPUID_INTEL, CPUID_AVX512 | CPUID_AVX512_BW |
+                       CPUID_AVX512_VBMI | CPUID_BMI2, 0 }, /* AVX2 no BMI2  */
+        { CPUID_INTEL, CPUID_AVX512 | CPUID_AVX512_BW |
+                       CPUID_AVX512_VBMI | CPUID_BMI2 |
+                       CPUID_AVX2,                 0 },  /* portable C       */
+        { 0,           CPUID_INTEL,                0 },  /* non-Intel vendor */
+    };
+
+    if (wc_InitRng(&rng) != 0) {
+        printf("  [wb] wc_InitRng failed; SIMD dispatch rows skipped\n");
+        return;
+    }
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        cpuid_flags = WC_CPUID_INITIALIZER;
+        (void)cpuid_get_flags_ex(&cpuid_flags);
+        cpuid_flags |= rows[i].set;
+        cpuid_flags &= (cpuid_flags_t)~rows[i].clear;
+        wb_intr_ret = rows[i].intr;
+
+        for (t = 0; t < sizeof(wb_dsa_levels) / sizeof(wb_dsa_levels[0]); t++) {
+            wb_dsa_cycle(&rng, wb_dsa_levels[t]);
+        }
+    }
+
+    cpuid_flags = saved_flags;
+    wb_intr_ret = saved_intr;
+    wc_FreeRng(&rng);
+    printf("  [wb] SIMD dispatch rows (cpuid x save-accepted) exercised\n");
+}
+
+#else
+static void wb_dispatch_rows(void)
+{
+    printf("  [wb] no Intel SIMD dispatch in this variant; rows skipped\n");
+}
+#endif
+
 int main(void)
 {
     printf("wc_mldsa.c white-box MC/DC supplement\n");
@@ -725,6 +881,7 @@ int main(void)
     wb_check_type();
     wb_oid_to_level();
 #endif
+    wb_dispatch_rows();
     printf("done (%d note%s)\n", wb_notes, (wb_notes == 1) ? "" : "s");
     return 0;
 #endif

@@ -143,6 +143,16 @@
 
 #include <wolfcrypt/src/memory.c>
 
+/* memory.c defines wc_MemStats_Ptr only in the non-static-memory build, but
+ * this file compiles it with WOLFSSL_STATIC_MEMORY, while the rest of the
+ * library still references the symbol via mem_track.h. Since memory.o is
+ * trimmed from the archive, supply the definition it would have provided.
+ * Declared void* because memoryStats is not visible here: only the storage
+ * matters, and nothing in this binary dereferences it. */
+#if defined(WOLFSSL_TRACK_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+void *wc_MemStats_Ptr;
+#endif
+
 #include <stdio.h>
 #include <string.h>
 

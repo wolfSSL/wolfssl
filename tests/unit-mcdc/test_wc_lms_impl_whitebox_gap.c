@@ -53,6 +53,37 @@ static int wb_fail = 0;
 #define WB_P        34U   /* LMS_P(w=8, wb=3, hLen=32) = LMS_U(32) + LMS_V(2) */
 #define WB_LS       0U    /* LMS_LS(w=8, wb=3) = 16 - LMS_V(2)*8 */
 
+/* Tree height for the two drivers that build a real multi-level HSS key.
+ * Keygen cost is 2^h OTS keys per subtree per level, so height 5 made those
+ * two setups alone take ~320s under MC/DC instrumentation -- over the
+ * campaign's 600s TEST_TIMEOUT once variants run concurrently, which scored
+ * the whole file as a skip and cost every decision in it.
+ *
+ * wb_make_params() bypasses wc_LmsKey_SetParameters() and lmsType is only
+ * ever echoed into the encoded blobs (never decoded back into a height), so
+ * a non-standard height is fine as long as one LmsParams drives both sign
+ * and verify. Buffers sized from LMS_SIG_LEN() must use it too: sizeof(sig)
+ * is passed as the signature length and has to equal params.sig_len. */
+#define WB_TREE_H      2U
+#define WB_TREE_SIGS   ((1 << WB_TREE_H) + 2)  /* one past the boundary */
+
+/* Every driver below except wb_q_expand() builds an LmsParams by hand and
+ * establishes its starting state with a real wc_hss_make_key()/wc_hss_sign().
+ *
+ * WOLFSSL_WC_LMS_SMALL selects the recompute signing path, whose LmsParams
+ * has no rootLevels/cacheBits and whose LmsState has no auth_path/stack/root.
+ * WOLFSSL_LMS_VERIFY_ONLY compiles keygen and signing out entirely.
+ * Neither can build those drivers; the sibling test_wc_lms_impl_whitebox.c
+ * covers both configurations. wc_lmots_q_expand() sits outside every
+ * verify-only guard in wc_lms_impl.c, so wb_q_expand() stays available. */
+#if defined(WOLFSSL_WC_LMS_SMALL) || defined(WOLFSSL_LMS_VERIFY_ONLY)
+    #define WB_GAP_SIGN 0
+#else
+    #define WB_GAP_SIGN 1
+#endif
+
+#if WB_GAP_SIGN
+
 /* Fill in a small, self-consistent LmsParams instance. levels/height/
  * rootLevels/cacheBits are caller supplied (rootLevels and cacheBits need
  * not match the "real" wc_lms_map table -- this white-box never goes
@@ -108,6 +139,8 @@ static void wb_state_free(LmsState* state)
     wc_Sha256Free(LMS_STATE_HASH_K(state));
     wc_Sha256Free(LMS_STATE_HASH(state));
 }
+
+#endif /* WB_GAP_SIGN */
 
 /*******************************************************************
  * 814:9:814:53:0-3
@@ -176,6 +209,7 @@ static void wb_q_expand(void)
  * crypto operation. Paired with a normal, valid call (ret stays 0, loop
  * runs to completion) as the baseline "true" side.
  ******************************************************************/
+#if WB_GAP_SIGN
 static void wb_compute_y_kc_ret(void)
 {
     LmsParams good, bad;
@@ -815,6 +849,7 @@ static void wb_hss_verify_checks(void)
     WB_NOTE("4111 wc_hss_verify levels/nspk leaf: closed");
 
     /* --- 4119: 3-level key, corrupt first chained LMS signature --- */
+#if LMS_MAX_LEVELS >= 3
     {
         LmsParams p3;
         HssPrivKey priv_key;
@@ -823,7 +858,7 @@ static void wb_hss_verify_checks(void)
         byte pub[HSS_PUBLIC_KEY_LEN(WB_HLEN)];
         byte* priv_data;
         word32 priv_data_len;
-        byte sig[4U + 3U * LMS_SIG_LEN(5, WB_P, WB_HLEN) +
+        byte sig[4U + 3U * LMS_SIG_LEN(WB_TREE_H, WB_P, WB_HLEN) +
             2U * LMS_PUBKEY_LEN(WB_HLEN)];
         byte msg[] = "4119 nspk-loop message";
 
@@ -831,7 +866,7 @@ static void wb_hss_verify_checks(void)
         XMEMSET(pub, 0, sizeof(pub));
         XMEMSET(sig, 0, sizeof(sig));
 
-        wb_make_params(&p3, 3, 5, 2, 2);
+        wb_make_params(&p3, 3, WB_TREE_H, 2, 2);
         priv_data_len = LMS_PRIV_DATA_LEN(p3.levels, p3.height, p3.p,
             p3.rootLevels, p3.cacheBits, p3.hash_len);
         priv_data = (byte*)XMALLOC(priv_data_len, NULL,
@@ -887,12 +922,21 @@ static void wb_hss_verify_checks(void)
         }
     }
     WB_NOTE("4119 wc_hss_verify nspk-loop ret leaf: closed");
+#else
+    /* HssPrivKey holds state[LMS_MAX_LEVELS], so wc_hss_make_key() rejects a
+     * 3-level key whenever LMS_MAX_LEVELS < 3 -- as in this module's config,
+     * which pins WOLFSSL_LMS_MAX_LEVELS to 2. The setup can only fail there,
+     * and it is not free: at height 5 it spent ~320s building subtrees before
+     * giving up. 4119's nspk-loop ret leaf needs a >=3-level variant. */
+    WB_NOTE("4119 nspk-loop needs LMS_MAX_LEVELS >= 3; skipped");
+#endif
 }
 
 /*******************************************************************
- * Natural full-cycle drive: levels=2, height=5 HSS key, signing across a
- * subtree boundary (33 signatures on a 32-leaf bottom tree forces exactly
- * one top-level subtree transition). This exercises, across many (i, q, h)
+ * Natural full-cycle drive: levels=2, height=WB_TREE_H HSS key, signing
+ * across a subtree boundary (WB_TREE_SIGS signatures on a 2^WB_TREE_H-leaf
+ * bottom tree forces exactly one top-level subtree transition). This
+ * exercises, across many (i, q, h)
  * combinations for free:
  *   - 3357/3361 (q==0 new-subtree vs q!=0 branches in
  *     wc_hss_update_auth_path)
@@ -914,7 +958,10 @@ static void wb_hss_full_cycle(void)
     byte pub[HSS_PUBLIC_KEY_LEN(WB_HLEN)];
     byte* priv_data;
     word32 priv_data_len;
-    byte sig[4U + 2U * LMS_SIG_LEN(5, WB_P, WB_HLEN) +
+    /* Height 2 puts the bottom subtree's 2^2 leaves within reach: signature
+     * 5 crosses the boundary, which is the transition this drives. sizeof(sig)
+     * is passed as the signature length, so it must track params.sig_len. */
+    byte sig[4U + 2U * LMS_SIG_LEN(WB_TREE_H, WB_P, WB_HLEN) +
         1U * LMS_PUBKEY_LEN(WB_HLEN)];
     int ret;
     int i;
@@ -923,7 +970,7 @@ static void wb_hss_full_cycle(void)
     XMEMSET(pub, 0, sizeof(pub));
     XMEMSET(sig, 0, sizeof(sig));
 
-    wb_make_params(&params, 2, 5, 2, 2);
+    wb_make_params(&params, 2, WB_TREE_H, 2, 2);
     priv_data_len = LMS_PRIV_DATA_LEN(params.levels, params.height, params.p,
         params.rootLevels, params.cacheBits, params.hash_len);
     priv_data = (byte*)XMALLOC(priv_data_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -951,7 +998,7 @@ static void wb_hss_full_cycle(void)
         wb_fail = 1;
     }
     else {
-        for (i = 0; i < 33; i++) {
+        for (i = 0; i < WB_TREE_SIGS; i++) {
             byte msg[16];
             XMEMSET(msg, (byte)i, sizeof(msg));
 
@@ -984,6 +1031,22 @@ static void wb_hss_full_cycle(void)
     WB_NOTE("hss_full_cycle (levels=2, subtree transition) drive complete");
 }
 
+#else /* !WB_GAP_SIGN */
+
+static void wb_compute_y_kc_ret(void)
+{
+    WB_NOTE("signing path not built in this variant; skipped");
+}
+static void wb_treehash_init_edges(void) {}
+static void wb_treehash_update_leafslide(void) {}
+static void wb_verify_corrupt(void) {}
+static void wb_hss_sign_checks(void) {}
+static void wb_next_subtree_inc(void) {}
+static void wb_hss_verify_checks(void) {}
+static void wb_hss_full_cycle(void) {}
+
+#endif /* WB_GAP_SIGN */
+
 #else /* !WOLFSSL_HAVE_LMS */
 
 static void wb_q_expand(void)
@@ -1003,6 +1066,11 @@ static void wb_hss_full_cycle(void) {}
 
 int main(void)
 {
+    /* Unbuffered: if a driver overruns the campaign's TEST_TIMEOUT the
+     * harness SIGKILLs this process, and anything still sitting in stdio's
+     * buffer is lost -- which reports as an empty log and no clue where it
+     * stopped. */
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("wc_lms_impl.c white-box supplement\n");
 #ifndef WOLFSSL_HAVE_LMS
     printf("  WOLFSSL_HAVE_LMS not defined; nothing to exercise\n");

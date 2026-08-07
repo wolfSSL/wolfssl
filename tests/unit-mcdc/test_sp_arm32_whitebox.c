@@ -705,9 +705,95 @@ static void wb_run_gap_256(void)
         }
         WB_NOTE("P-256 check_key mp_count_bits(pX/pY/privm) > 256 exercised");
     }
+
+    /* --- Target gap 4: sp_ecc_check_key_256()'s point-at-infinity input
+     * (iszero(pX) && iszero(pY)), out-of-range ordinate
+     * (cmp(pX,mod)>=0 || cmp(pY,mod)>=0), and the base*priv != pub mismatch
+     * -- degenerate/adversarial inputs a real caller (always a point it
+     * itself just computed) never constructs. --- */
+    if (ok && dp != NULL) {
+        mp_int zero;
+        mp_int five;
+        mp_int modP;
+        int haveZero = (mp_init(&zero) == MP_OKAY);
+        int haveFive = haveZero && (mp_init(&five) == MP_OKAY);
+
+        if (haveZero && haveFive) {
+            (void)mp_set(&five, 5);
+
+            /* Point at infinity: (0,0), then each ordinate zero alone. */
+            (void)sp_ecc_check_key_256(&zero, &zero, NULL, keyA.heap);
+            (void)sp_ecc_check_key_256(&zero, &five, NULL, keyA.heap);
+            (void)sp_ecc_check_key_256(&five, &zero, NULL, keyA.heap);
+
+            /* Out-of-range ordinate: pX == field prime, then pY == prime. */
+            if (mp_init(&modP) == MP_OKAY) {
+                if (mp_read_radix(&modP, dp->prime, 16) == MP_OKAY) {
+                    (void)sp_ecc_check_key_256(&modP, &five, NULL,
+                        keyA.heap);
+                    (void)sp_ecc_check_key_256(&five, &modP, NULL,
+                        keyA.heap);
+                }
+                mp_clear(&modP);
+            }
+
+            /* Valid on-curve point, wrong private scalar: base*priv != pub.
+             */
+            (void)sp_ecc_check_key_256(keyA.pubkey.x, keyA.pubkey.y,
+                keyB.k, keyA.heap);
+
+            WB_NOTE("P-256 check_key infinity/out-of-range/priv-mismatch "
+                     "exercised");
+        }
+        if (haveFive) {
+            mp_clear(&five);
+        }
+        if (haveZero) {
+            mp_clear(&zero);
+        }
+    }
 #else
     WB_NOTE("HAVE_ECC_CHECK_KEY/NO_ECC_CHECK_PUBKEY_ORDER; "
              "check_key_256 skipped");
+#endif
+
+#ifdef HAVE_ECC_SIGN
+    /* --- Target gap 5: sp_ecc_sign_256()'s (km == NULL || iszero(km)).
+     * Real callers (wc_ecc_sign_hash) always pass km == NULL. Driven here
+     * with an explicit nonzero km (bypasses RNG, uses km as-is) and an
+     * explicit zero km (falls back to RNG, same as the km == NULL path). */
+    if (ok) {
+        mp_int sigR;
+        mp_int sigS;
+        mp_int kNonzero;
+        mp_int kZero;
+        int haveK = (mp_init(&sigR) == MP_OKAY);
+
+        if (haveK) {
+            haveK = (mp_init(&sigS) == MP_OKAY);
+        }
+        if (haveK) {
+            haveK = (mp_init(&kNonzero) == MP_OKAY);
+        }
+        if (haveK) {
+            haveK = (mp_init(&kZero) == MP_OKAY);
+        }
+        if (haveK) {
+            (void)mp_set(&kNonzero, 5);
+            mp_zero(&kZero);
+
+            (void)sp_ecc_sign_256(wb_digest, (word32)sizeof(wb_digest),
+                &rng, keyA.k, &sigR, &sigS, &kNonzero, keyA.heap);
+            (void)sp_ecc_sign_256(wb_digest, (word32)sizeof(wb_digest),
+                &rng, keyA.k, &sigR, &sigS, &kZero, keyA.heap);
+
+            mp_clear(&kZero);
+            mp_clear(&kNonzero);
+            mp_clear(&sigS);
+            mp_clear(&sigR);
+            WB_NOTE("P-256 sign km==NULL||iszero(km) exercised");
+        }
+    }
 #endif
 
     if (gm != NULL) {
@@ -883,9 +969,86 @@ static void wb_run_gap_384(void)
         }
         WB_NOTE("P-384 check_key mp_count_bits(pX/pY/privm) > 384 exercised");
     }
+
+    /* --- Target gap 4 (see P-256 for rationale): point-at-infinity input,
+     * out-of-range ordinate, base*priv != pub mismatch. --- */
+    if (ok && dp != NULL) {
+        mp_int zero;
+        mp_int five;
+        mp_int modP;
+        int haveZero = (mp_init(&zero) == MP_OKAY);
+        int haveFive = haveZero && (mp_init(&five) == MP_OKAY);
+
+        if (haveZero && haveFive) {
+            (void)mp_set(&five, 5);
+
+            (void)sp_ecc_check_key_384(&zero, &zero, NULL, keyA.heap);
+            (void)sp_ecc_check_key_384(&zero, &five, NULL, keyA.heap);
+            (void)sp_ecc_check_key_384(&five, &zero, NULL, keyA.heap);
+
+            if (mp_init(&modP) == MP_OKAY) {
+                if (mp_read_radix(&modP, dp->prime, 16) == MP_OKAY) {
+                    (void)sp_ecc_check_key_384(&modP, &five, NULL,
+                        keyA.heap);
+                    (void)sp_ecc_check_key_384(&five, &modP, NULL,
+                        keyA.heap);
+                }
+                mp_clear(&modP);
+            }
+
+            (void)sp_ecc_check_key_384(keyA.pubkey.x, keyA.pubkey.y,
+                keyB.k, keyA.heap);
+
+            WB_NOTE("P-384 check_key infinity/out-of-range/priv-mismatch "
+                     "exercised");
+        }
+        if (haveFive) {
+            mp_clear(&five);
+        }
+        if (haveZero) {
+            mp_clear(&zero);
+        }
+    }
 #else
     WB_NOTE("HAVE_ECC_CHECK_KEY/NO_ECC_CHECK_PUBKEY_ORDER; "
              "check_key_384 skipped");
+#endif
+
+#ifdef HAVE_ECC_SIGN
+    /* --- Target gap 5 (see P-256 for rationale): sp_ecc_sign_384()'s
+     * (km == NULL || iszero(km)). --- */
+    if (ok) {
+        mp_int sigR;
+        mp_int sigS;
+        mp_int kNonzero;
+        mp_int kZero;
+        int haveK = (mp_init(&sigR) == MP_OKAY);
+
+        if (haveK) {
+            haveK = (mp_init(&sigS) == MP_OKAY);
+        }
+        if (haveK) {
+            haveK = (mp_init(&kNonzero) == MP_OKAY);
+        }
+        if (haveK) {
+            haveK = (mp_init(&kZero) == MP_OKAY);
+        }
+        if (haveK) {
+            (void)mp_set(&kNonzero, 5);
+            mp_zero(&kZero);
+
+            (void)sp_ecc_sign_384(wb_digest, (word32)sizeof(wb_digest),
+                &rng, keyA.k, &sigR, &sigS, &kNonzero, keyA.heap);
+            (void)sp_ecc_sign_384(wb_digest, (word32)sizeof(wb_digest),
+                &rng, keyA.k, &sigR, &sigS, &kZero, keyA.heap);
+
+            mp_clear(&kZero);
+            mp_clear(&kNonzero);
+            mp_clear(&sigS);
+            mp_clear(&sigR);
+            WB_NOTE("P-384 sign km==NULL||iszero(km) exercised");
+        }
+    }
 #endif
 
     if (gm != NULL) {
@@ -1061,9 +1224,86 @@ static void wb_run_gap_521(void)
         }
         WB_NOTE("P-521 check_key mp_count_bits(pX/pY/privm) > 521 exercised");
     }
+
+    /* --- Target gap 4 (see P-256 for rationale): point-at-infinity input,
+     * out-of-range ordinate, base*priv != pub mismatch. --- */
+    if (ok && dp != NULL) {
+        mp_int zero;
+        mp_int five;
+        mp_int modP;
+        int haveZero = (mp_init(&zero) == MP_OKAY);
+        int haveFive = haveZero && (mp_init(&five) == MP_OKAY);
+
+        if (haveZero && haveFive) {
+            (void)mp_set(&five, 5);
+
+            (void)sp_ecc_check_key_521(&zero, &zero, NULL, keyA.heap);
+            (void)sp_ecc_check_key_521(&zero, &five, NULL, keyA.heap);
+            (void)sp_ecc_check_key_521(&five, &zero, NULL, keyA.heap);
+
+            if (mp_init(&modP) == MP_OKAY) {
+                if (mp_read_radix(&modP, dp->prime, 16) == MP_OKAY) {
+                    (void)sp_ecc_check_key_521(&modP, &five, NULL,
+                        keyA.heap);
+                    (void)sp_ecc_check_key_521(&five, &modP, NULL,
+                        keyA.heap);
+                }
+                mp_clear(&modP);
+            }
+
+            (void)sp_ecc_check_key_521(keyA.pubkey.x, keyA.pubkey.y,
+                keyB.k, keyA.heap);
+
+            WB_NOTE("P-521 check_key infinity/out-of-range/priv-mismatch "
+                     "exercised");
+        }
+        if (haveFive) {
+            mp_clear(&five);
+        }
+        if (haveZero) {
+            mp_clear(&zero);
+        }
+    }
 #else
     WB_NOTE("HAVE_ECC_CHECK_KEY/NO_ECC_CHECK_PUBKEY_ORDER; "
              "check_key_521 skipped");
+#endif
+
+#ifdef HAVE_ECC_SIGN
+    /* --- Target gap 5 (see P-256 for rationale): sp_ecc_sign_521()'s
+     * (km == NULL || iszero(km)). --- */
+    if (ok) {
+        mp_int sigR;
+        mp_int sigS;
+        mp_int kNonzero;
+        mp_int kZero;
+        int haveK = (mp_init(&sigR) == MP_OKAY);
+
+        if (haveK) {
+            haveK = (mp_init(&sigS) == MP_OKAY);
+        }
+        if (haveK) {
+            haveK = (mp_init(&kNonzero) == MP_OKAY);
+        }
+        if (haveK) {
+            haveK = (mp_init(&kZero) == MP_OKAY);
+        }
+        if (haveK) {
+            (void)mp_set(&kNonzero, 5);
+            mp_zero(&kZero);
+
+            (void)sp_ecc_sign_521(wb_digest, (word32)sizeof(wb_digest),
+                &rng, keyA.k, &sigR, &sigS, &kNonzero, keyA.heap);
+            (void)sp_ecc_sign_521(wb_digest, (word32)sizeof(wb_digest),
+                &rng, keyA.k, &sigR, &sigS, &kZero, keyA.heap);
+
+            mp_clear(&kZero);
+            mp_clear(&kNonzero);
+            mp_clear(&sigS);
+            mp_clear(&sigR);
+            WB_NOTE("P-521 sign km==NULL||iszero(km) exercised");
+        }
+    }
 #endif
 
     if (gm != NULL) {
@@ -1090,10 +1330,344 @@ static void wb_run_gap_521(void)
 }
 #endif /* WOLFSSL_SP_521 */
 
+/* ======================================================================= *
+ * RSA/DH argument-bounds and loop-guard gap driving. These operate
+ * directly on the file-static/exported sp_RsaPublic_<n>, sp_RsaPrivate_<n>
+ * and sp_DhExp_<n> entry points with synthetic mp_int operands -- no RSA
+ * or ECC key generation is performed here (see file header hard rule):
+ * every "bad" call below fails its bound check before any modular
+ * exponentiation happens, so the p/q/dP/dQ/qInv arguments passed to the RSA
+ * private (CRT) entry point never need to be a real matching key.
+ * ======================================================================= */
+#if defined(WOLFSSL_HAVE_SP_RSA) || (defined(WOLFSSL_HAVE_SP_DH) && \
+                                      !defined(NO_DH))
+/* Build an lenBytes-byte big-endian odd integer with an exact bit length of
+ * lenBytes*8: top word forced to 0xFFFFFFFF (ffdheShaped) to hit the DH
+ * base==2 fast path's "m[top] == -1" check, or to 0xC0000000 (distinctly
+ * not -1, but still full-length) to miss it; bottom byte forced odd. Not
+ * required to be prime -- only used to drive bit-length/shape-gated
+ * branches with generic modular arithmetic. */
+static void wb_build_shaped_mod(byte* buf, word32 lenBytes, int ffdheShaped)
+{
+    XMEMSET(buf, 0, lenBytes);
+    if (ffdheShaped) {
+        buf[0] = 0xFF; buf[1] = 0xFF; buf[2] = 0xFF; buf[3] = 0xFF;
+    }
+    else {
+        buf[0] = 0xC0;
+    }
+    buf[lenBytes - 1] |= 0x01;
+}
+#endif
+
+#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(NO_RSA)
+/* Drive sp_RsaPublic_<bits>()'s
+ * "mp_count_bits(em) > 32 || inLen > byteLen || mp_count_bits(mm) != bits"
+ * and (where compiled) sp_RsaPrivate_<bits>()'s
+ * "inLen > byteLen || mp_count_bits(mm) != bits", one operand at a time. */
+#define WB_RSA_GAP_FN(bits, byteLen)                                        \
+static void wb_run_rsa_gap_##bits(void)                                     \
+{                                                                            \
+    byte    modGood[byteLen];                                               \
+    byte    modBadBits[(byteLen) + 1];                                      \
+    byte    dummyIn[8];                                                     \
+    byte    out[byteLen];                                                   \
+    word32  outLen;                                                         \
+    mp_int  mm, mmBad, em, emBad;                                           \
+    int     ok;                                                             \
+                                                                              \
+    XMEMSET(dummyIn, 0, sizeof(dummyIn));                                   \
+    XMEMSET(out, 0, sizeof(out));                                          \
+    wb_build_shaped_mod(modGood, sizeof(modGood), 1);                       \
+    modBadBits[0] = 0x01; /* extra leading byte -> bits+1, not bits */      \
+    XMEMCPY(modBadBits + 1, modGood, sizeof(modGood));                     \
+                                                                              \
+    ok = (mp_init(&mm) == MP_OKAY);                                        \
+    if (ok) ok = (mp_init(&mmBad) == MP_OKAY);                             \
+    if (ok) ok = (mp_init(&em) == MP_OKAY);                                \
+    if (ok) ok = (mp_init(&emBad) == MP_OKAY);                             \
+    if (ok) {                                                              \
+        (void)mp_read_unsigned_bin(&mm, modGood, (int)sizeof(modGood));    \
+        (void)mp_read_unsigned_bin(&mmBad, modBadBits,                    \
+            (int)sizeof(modBadBits));                                     \
+        (void)mp_set(&em, 0x10001);                                       \
+        (void)mp_set_bit(&emBad, 32); /* 33 bits: > 32 */                 \
+                                                                              \
+        /* mp_count_bits(em) > 32, others valid. */                       \
+        outLen = (word32)sizeof(out);                                     \
+        (void)sp_RsaPublic_##bits(dummyIn, 32, &emBad, &mm, out, &outLen);\
+        /* inLen > byteLen, others valid. */                              \
+        outLen = (word32)sizeof(out);                                     \
+        (void)sp_RsaPublic_##bits(dummyIn, (byteLen) + 1, &em, &mm, out,  \
+            &outLen);                                                     \
+        /* mp_count_bits(mm) != bits, others valid. */                    \
+        outLen = (word32)sizeof(out);                                     \
+        (void)sp_RsaPublic_##bits(dummyIn, 32, &em, &mmBad, out, &outLen);\
+                                                                              \
+        WB_NOTE("RSA-" #bits " sp_RsaPublic_" #bits " em/inLen/mm bound "  \
+                 "checks exercised");                                     \
+                                                                              \
+        mp_clear(&mm); mp_clear(&mmBad); mp_clear(&em); mp_clear(&emBad); \
+    }                                                                       \
+                                                                              \
+    (void)ok;                                                              \
+}
+WB_RSA_GAP_FN(2048, 256)
+WB_RSA_GAP_FN(3072, 384)
+WB_RSA_GAP_FN(4096, 512)
+#undef WB_RSA_GAP_FN
+
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#define WB_RSA_PRIV_GAP_FN(bits, byteLen)                                   \
+static void wb_run_rsa_priv_gap_##bits(void)                                \
+{                                                                            \
+    byte    modGood[byteLen];                                               \
+    byte    modBadBits[(byteLen) + 1];                                      \
+    byte    dummyIn[8];                                                     \
+    byte    out[byteLen];                                                   \
+    word32  outLen;                                                         \
+    mp_int  mm, mmBad, dm, pm, qm, dpm, dqm, qim;                          \
+    int     ok;                                                             \
+                                                                              \
+    XMEMSET(dummyIn, 0, sizeof(dummyIn));                                  \
+    XMEMSET(out, 0, sizeof(out));                                          \
+    wb_build_shaped_mod(modGood, sizeof(modGood), 1);                      \
+    modBadBits[0] = 0x01;                                                  \
+    XMEMCPY(modBadBits + 1, modGood, sizeof(modGood));                    \
+                                                                              \
+    ok = (mp_init(&mm) == MP_OKAY);                                       \
+    if (ok) ok = (mp_init(&mmBad) == MP_OKAY);                            \
+    if (ok) ok = (mp_init(&dm) == MP_OKAY);                               \
+    if (ok) ok = (mp_init(&pm) == MP_OKAY);                               \
+    if (ok) ok = (mp_init(&qm) == MP_OKAY);                               \
+    if (ok) ok = (mp_init(&dpm) == MP_OKAY);                              \
+    if (ok) ok = (mp_init(&dqm) == MP_OKAY);                              \
+    if (ok) ok = (mp_init(&qim) == MP_OKAY);                              \
+    if (ok) {                                                             \
+        (void)mp_read_unsigned_bin(&mm, modGood, (int)sizeof(modGood));   \
+        (void)mp_read_unsigned_bin(&mmBad, modBadBits,                   \
+            (int)sizeof(modBadBits));                                    \
+        (void)mp_set(&dm, 1); (void)mp_set(&pm, 1); (void)mp_set(&qm, 1); \
+        (void)mp_set(&dpm, 1); (void)mp_set(&dqm, 1);                    \
+        (void)mp_set(&qim, 1);                                           \
+                                                                              \
+        /* inLen > byteLen: bound check fails before p/q/dP/dQ/qInv are   \
+         * ever touched, so dummy values for them are safe. */           \
+        outLen = (word32)sizeof(out);                                    \
+        (void)sp_RsaPrivate_##bits(dummyIn, (byteLen) + 1, &dm, &pm, &qm,\
+            &dpm, &dqm, &qim, &mm, out, &outLen);                        \
+        /* mp_count_bits(mm) != bits, inLen valid. */                    \
+        outLen = (word32)sizeof(out);                                    \
+        (void)sp_RsaPrivate_##bits(dummyIn, 32, &dm, &pm, &qm, &dpm,     \
+            &dqm, &qim, &mmBad, out, &outLen);                           \
+                                                                              \
+        WB_NOTE("RSA-" #bits " sp_RsaPrivate_" #bits " inLen/mm bound "   \
+                 "checks exercised");                                    \
+                                                                              \
+        mp_clear(&mm); mp_clear(&mmBad);                                 \
+        mp_clear(&dm); mp_clear(&pm); mp_clear(&qm);                     \
+        mp_clear(&dpm); mp_clear(&dqm); mp_clear(&qim);                  \
+    }                                                                      \
+                                                                              \
+    (void)ok;                                                             \
+}
+WB_RSA_PRIV_GAP_FN(2048, 256)
+WB_RSA_PRIV_GAP_FN(3072, 384)
+WB_RSA_PRIV_GAP_FN(4096, 512)
+#undef WB_RSA_PRIV_GAP_FN
+#else
+static void wb_run_rsa_priv_gap_2048(void) { }
+static void wb_run_rsa_priv_gap_3072(void) { }
+static void wb_run_rsa_priv_gap_4096(void) { }
+#endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
+
+static void wb_run_rsa_gaps(void)
+{
+#ifndef WOLFSSL_SP_NO_2048
+    wb_run_rsa_gap_2048();
+    wb_run_rsa_priv_gap_2048();
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+    wb_run_rsa_gap_3072();
+    wb_run_rsa_priv_gap_3072();
+#endif
+#ifdef WOLFSSL_SP_4096
+    wb_run_rsa_gap_4096();
+    wb_run_rsa_priv_gap_4096();
+#endif
+}
+#else
+static void wb_run_rsa_gaps(void)
+{
+    WB_NOTE("WOLFSSL_HAVE_SP_RSA/NO_RSA; RSA bound-check gap driving "
+             "skipped");
+}
+#endif /* WOLFSSL_HAVE_SP_RSA && !NO_RSA */
+
+#if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH)
+/* Drive sp_DhExp_<bits>()'s (where FFDHE is compiled)
+ * "base->used==1 && base->dp[0]==2 && m[top]==(sp_digit)-1" fast-path AND,
+ * one operand at a time, plus the unconditional leading-zero-strip loop
+ * "for (i=0; i<byteLen && out[i]==0; i++)" that follows every exponentiation
+ * (both the i<byteLen bound-exit and the out[i]==0 flip). */
+#define WB_DH_GAP_FN(bits, byteLen, ffdheGuard)                             \
+static void wb_run_dh_gap_##bits(void)                                      \
+{                                                                            \
+    byte   modGood[byteLen];                                               \
+    byte   modOther[byteLen];                                              \
+    byte   baseNearMod[byteLen];                                           \
+    byte   out[byteLen];                                                   \
+    word32 outLen;                                                         \
+    mp_int base2, base3, baseZero, baseNear, modG, modO;                   \
+    byte   exp1[1];                                                        \
+    int    ok;                                                             \
+                                                                              \
+    exp1[0] = 0x01;                                                        \
+    wb_build_shaped_mod(modGood, sizeof(modGood), 1);                      \
+    wb_build_shaped_mod(modOther, sizeof(modOther), 0);                    \
+    XMEMCPY(baseNearMod, modGood, sizeof(modGood));                        \
+    baseNearMod[sizeof(baseNearMod) - 1] -= 2; /* < modGood, top byte still \
+                                                 * 0xFF: nonzero out[0]. */ \
+    XMEMSET(out, 0, sizeof(out));                                         \
+                                                                              \
+    ok = (mp_init(&base2) == MP_OKAY);                                    \
+    if (ok) ok = (mp_init(&base3) == MP_OKAY);                            \
+    if (ok) ok = (mp_init(&baseZero) == MP_OKAY);                         \
+    if (ok) ok = (mp_init(&baseNear) == MP_OKAY);                        \
+    if (ok) ok = (mp_init(&modG) == MP_OKAY);                             \
+    if (ok) ok = (mp_init(&modO) == MP_OKAY);                             \
+    if (ok) {                                                             \
+        (void)mp_set(&base2, 2);                                         \
+        (void)mp_set(&base3, 3);                                         \
+        mp_zero(&baseZero);                                              \
+        (void)mp_read_unsigned_bin(&baseNear, baseNearMod,                \
+            (int)sizeof(baseNearMod));                                   \
+        (void)mp_read_unsigned_bin(&modG, modGood, (int)sizeof(modGood));\
+        (void)mp_read_unsigned_bin(&modO, modOther,                      \
+            (int)sizeof(modOther));                                      \
+                                                                              \
+        ffdheGuard(                                                       \
+            outLen = (word32)sizeof(out);                                \
+            (void)sp_DhExp_##bits(&base2, exp1, 1, &modG, out, &outLen); \
+            outLen = (word32)sizeof(out);                                \
+            (void)sp_DhExp_##bits(&base3, exp1, 1, &modG, out, &outLen); \
+            outLen = (word32)sizeof(out);                                \
+            (void)sp_DhExp_##bits(&base2, exp1, 1, &modO, out, &outLen); \
+        )                                                                  \
+                                                                              \
+        outLen = (word32)sizeof(out);                                    \
+        (void)sp_DhExp_##bits(&baseZero, exp1, 1, &modG, out, &outLen);  \
+        outLen = (word32)sizeof(out);                                    \
+        (void)sp_DhExp_##bits(&baseNear, exp1, 1, &modG, out, &outLen);  \
+                                                                              \
+        WB_NOTE("DH-" #bits " sp_DhExp_" #bits " fast-path/leading-zero "  \
+                 "loop exercised");                                      \
+                                                                              \
+        mp_clear(&base2); mp_clear(&base3); mp_clear(&baseZero);        \
+        mp_clear(&baseNear); mp_clear(&modG); mp_clear(&modO);          \
+    }                                                                      \
+                                                                              \
+    (void)ok;                                                             \
+}
+#define WB_FFDHE_YES(x) x
+#define WB_FFDHE_NO(x)
+
+#ifdef HAVE_FFDHE_2048
+WB_DH_GAP_FN(2048, 256, WB_FFDHE_YES)
+#else
+WB_DH_GAP_FN(2048, 256, WB_FFDHE_NO)
+#endif
+#ifdef HAVE_FFDHE_3072
+WB_DH_GAP_FN(3072, 384, WB_FFDHE_YES)
+#else
+WB_DH_GAP_FN(3072, 384, WB_FFDHE_NO)
+#endif
+
+/* RSA-4096/DH-4096 share sp_4096_mod_exp_128()'s windowed-exponentiation
+ * loop "for (; i>=0 || c>=4; )": a small (<=32-bit) exponent -- all real
+ * RSA-4096 public-key traffic uses e=65537 -- never advances i past its
+ * initial -1, so i>=0 is never independently true. A >32-bit exponent
+ * forces a second exponent word to be consumed, driving i>=0 true for at
+ * least one iteration before the normal c<4 exit. */
+#ifdef WOLFSSL_SP_4096
+static void wb_run_dh_gap_4096(void)
+{
+    byte   modGood[512];
+    byte   baseNearMod[512];
+    byte   out[512];
+    word32 outLen;
+    mp_int base3, baseZero, baseNear, modG;
+    byte   exp1[1];
+    byte   expMulti[5]; /* 40 bits: spans 2 32-bit words. */
+    int    ok;
+
+    exp1[0] = 0x01;
+    XMEMSET(expMulti, 0xFF, sizeof(expMulti));
+    wb_build_shaped_mod(modGood, sizeof(modGood), 1);
+    XMEMCPY(baseNearMod, modGood, sizeof(modGood));
+    baseNearMod[sizeof(baseNearMod) - 1] -= 2;
+    XMEMSET(out, 0, sizeof(out));
+
+    ok = (mp_init(&base3) == MP_OKAY);
+    if (ok) ok = (mp_init(&baseZero) == MP_OKAY);
+    if (ok) ok = (mp_init(&baseNear) == MP_OKAY);
+    if (ok) ok = (mp_init(&modG) == MP_OKAY);
+    if (ok) {
+        (void)mp_set(&base3, 3);
+        mp_zero(&baseZero);
+        (void)mp_read_unsigned_bin(&baseNear, baseNearMod,
+            (int)sizeof(baseNearMod));
+        (void)mp_read_unsigned_bin(&modG, modGood, (int)sizeof(modGood));
+
+        /* Leading-zero loop: full-zero result (bound-exit), then a
+         * near-modulus base (nonzero out[0] on the first iteration). */
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_4096(&baseZero, exp1, 1, &modG, out, &outLen);
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_4096(&baseNear, exp1, 1, &modG, out, &outLen);
+
+        /* Multi-word exponent: drives sp_4096_mod_exp_128's
+         * "i>=0 || c>=4" loop across a word boundary. */
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_4096(&base3, expMulti, sizeof(expMulti), &modG, out,
+            &outLen);
+
+        WB_NOTE("DH-4096 sp_DhExp_4096 leading-zero loop + multi-word "
+                 "exponent loop exercised");
+
+        mp_clear(&base3); mp_clear(&baseZero); mp_clear(&baseNear);
+        mp_clear(&modG);
+    }
+
+    (void)ok;
+}
+#else
+static void wb_run_dh_gap_4096(void) { }
+#endif /* WOLFSSL_SP_4096 */
+
+static void wb_run_dh_gaps(void)
+{
+#ifndef WOLFSSL_SP_NO_2048
+    wb_run_dh_gap_2048();
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+    wb_run_dh_gap_3072();
+#endif
+    wb_run_dh_gap_4096();
+}
+#else
+static void wb_run_dh_gaps(void)
+{
+    WB_NOTE("WOLFSSL_HAVE_SP_DH/NO_DH; DH bound-check gap driving skipped");
+}
+#endif /* WOLFSSL_HAVE_SP_DH && !NO_DH */
+
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("sp_arm32.c white-box supplement (32-bit ARM assembly, no cpuid "
            "dispatch)\n");
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
@@ -1104,6 +1678,8 @@ int main(void)
     wb_run_gap_256();
     wb_run_gap_384();
     wb_run_gap_521();
+    wb_run_rsa_gaps();
+    wb_run_dh_gaps();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else

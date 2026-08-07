@@ -3826,6 +3826,124 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
 } /* END test_wc_PKCS7_DecodeAuthEnvelopedData_truncated() */
 
 
+/* Tearing down a PKCS7 whose AuthEnvelopedData decode stopped part-way must
+ * not leak the encryptedContent buffer.
+ *
+ * wc_PKCS7_ResetStream()/wc_PKCS7_FreeStream() release aad, tag, nonce, buffer
+ * and key, but stream->bufferPt holds the AuthEnvelopedData encryptedContent
+ * across WANT_READ re-entries (two sites return rather than break precisely to
+ * keep it), and nothing frees it. Any teardown while a decode is pending
+ * therefore orphans it; a malformed outer length is just the cheapest way to
+ * reach that state.
+ *
+ * Counting allocators wrap the whole New/InitWithCert/Decode/Free cycle, so a
+ * balanced count is the assertion. Pass 0 runs an untouched blob as a control:
+ * it establishes that the cycle is balanced to begin with, so an imbalance in
+ * pass 1 is attributable to the aborted decode and not to ambient allocation.
+ */
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && !defined(NO_PKCS7_STREAM) \
+    && defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+#define TEST_PKCS7_AUTHENV_LEAK
+
+static long pkcs7_leak_live;    /* outstanding allocations */
+
+static void* pkcs7_leak_malloc_cb(size_t size)
+{
+    void* p = malloc(size);
+    if (p != NULL)
+        pkcs7_leak_live++;
+    return p;
+}
+
+static void pkcs7_leak_free_cb(void* ptr)
+{
+    if (ptr != NULL)
+        pkcs7_leak_live--;
+    free(ptr);
+}
+
+static void* pkcs7_leak_realloc_cb(void* ptr, size_t size)
+{
+    void* p = realloc(ptr, size);
+    /* realloc(NULL, n) is an allocation; realloc(p, n) replaces one. */
+    if (ptr == NULL && p != NULL)
+        pkcs7_leak_live++;
+    return p;
+}
+#endif
+
+int test_wc_PKCS7_AuthEnvelopedData_stream_leak(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS7_AUTHENV_LEAK
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[2048];
+    byte   decoded[256];
+    byte   data[] = "authEnvelopedData stream teardown leak";
+    int    encSz = 0;
+    int    pass;
+    wolfSSL_Malloc_cb  prev_mc = NULL;
+    wolfSSL_Free_cb    prev_fc = NULL;
+    wolfSSL_Realloc_cb prev_rc = NULL;
+
+    /* Build a valid blob first, with the default allocators still in place so
+     * none of the setup lands in the count. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES128GCMb;
+    }
+    ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
+        sizeof(enveloped)), 32);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    for (pass = 0; pass < 2 && EXPECT_SUCCESS(); pass++) {
+        byte blob[2048];
+
+        XMEMCPY(blob, enveloped, (size_t)encSz);
+        if (pass == 1) {
+            /* Corrupt the outer ContentInfo length so the decode abandons the
+             * stream with encryptedContent already attached to bufferPt. */
+            blob[2] ^= 0xFF;
+        }
+
+        pkcs7_leak_live = 0;
+        ExpectIntEQ(wolfSSL_GetAllocators(&prev_mc, &prev_fc, &prev_rc), 0);
+        ExpectIntEQ(wolfSSL_SetAllocators(pkcs7_leak_malloc_cb,
+            pkcs7_leak_free_cb, pkcs7_leak_realloc_cb), 0);
+
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+        if (pkcs7 != NULL) {
+            if (wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+                    sizeof_client_cert_der_2048) == 0) {
+                pkcs7->privateKey   = (byte*)client_key_der_2048;
+                pkcs7->privateKeySz = sizeof_client_key_der_2048;
+                /* Return value is deliberately not asserted: pass 1 may fail
+                 * with any parse error. The teardown is what is under test. */
+                (void)wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, blob,
+                    (word32)encSz, decoded, sizeof(decoded));
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+
+        (void)wolfSSL_SetAllocators(prev_mc, prev_fc, prev_rc);
+
+        /* Balanced teardown: everything the cycle allocated was freed. */
+        ExpectIntEQ((int)pkcs7_leak_live, 0);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_AuthEnvelopedData_stream_leak() */
+
+
 /*
  * Testing wc_PKCS7_DecodeEnvelopedData with streaming
  */

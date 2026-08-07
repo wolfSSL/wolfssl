@@ -122,6 +122,112 @@ static void wb_ed25519_hash(void)
     WB_NOTE("ed25519_hash key/in/hash guard exercised");
 }
 
+#if defined(HAVE_ED25519_VERIFY) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_ONLY_KEY_ID)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ED25519)
+
+/* ------------------------------------------------------------------------- *
+ * Class 2: the "key == NULL" operand of the three streaming-verify helpers.
+ *
+ *   ed25519_verify_msg_init_with_sha:   sig == NULL || key == NULL || ...
+ *   ed25519_verify_msg_update_with_sha: msgSegment == NULL || key == NULL
+ *   ed25519_verify_msg_final_with_sha:  sig == NULL || res == NULL ||
+ *                                       key == NULL
+ *
+ * The public wc_ed25519_verify_msg_* wrappers reject a NULL key before
+ * delegating, so these inner operands cannot be reached through the API at
+ * all; only a direct call to the file-static helper can drive them. Each
+ * needs its own all-false partner in THIS binary, so both vectors are issued
+ * here rather than relying on the wrappers' valid calls in unit.test.
+ *
+ * The all-false partners stop at the length check immediately after the
+ * guard (init/final) or at a plain wc_Sha512Update (update), so no key
+ * material or curve arithmetic is involved.
+ * ------------------------------------------------------------------------- */
+static void wb_ed25519_verify_helper_key_guard(void)
+{
+    ed25519_key key;
+    wc_Sha512   sha;
+    byte        sig[ED25519_SIG_SIZE];
+    byte        msg[8];
+    int         res = 0;
+    int         ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(msg, 0x22, sizeof(msg));
+
+    if (wc_InitSha512(&sha) != 0) {
+        WB_NOTE("wc_InitSha512 failed; verify-helper guards skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    /* init, key == NULL: operand 0 false, operand 1 the sole true. */
+    ret = ed25519_verify_msg_init_with_sha(sig, sizeof(sig), NULL, &sha,
+        (byte)Ed25519, NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("verify_msg_init_with_sha(key==NULL) did not return "
+                "BAD_FUNC_ARG");
+        wb_fail = 1;
+    }
+
+    /* init, all-false: context NULL with contextLen 0 keeps operand 2 false;
+     * sigLen 0 then trips the following length check. */
+    ret = ed25519_verify_msg_init_with_sha(sig, 0, &key, &sha,
+        (byte)Ed25519, NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("verify_msg_init_with_sha(all-false) did not stop at the "
+                "length check");
+        wb_fail = 1;
+    }
+
+    /* update, key == NULL: operand 0 false, operand 1 the sole true. */
+    ret = ed25519_verify_msg_update_with_sha(msg, sizeof(msg), NULL, &sha);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("verify_msg_update_with_sha(key==NULL) did not return "
+                "BAD_FUNC_ARG");
+        wb_fail = 1;
+    }
+
+    /* update, all-false. */
+    ret = ed25519_verify_msg_update_with_sha(msg, sizeof(msg), &key, &sha);
+    if (ret != 0) {
+        WB_NOTE("verify_msg_update_with_sha(all-false) unexpected error");
+        wb_fail = 1;
+    }
+
+    /* final, key == NULL: operands 0 and 1 false, operand 2 the sole true. */
+    ret = ed25519_verify_msg_final_with_sha(sig, sizeof(sig), &res, NULL,
+        &sha);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("verify_msg_final_with_sha(key==NULL) did not return "
+                "BAD_FUNC_ARG");
+        wb_fail = 1;
+    }
+
+    /* final, all-false: sigLen 0 trips the length check just past the
+     * guard, before any point decompression. */
+    ret = ed25519_verify_msg_final_with_sha(sig, 0, &res, &key, &sha);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("verify_msg_final_with_sha(all-false) did not stop at the "
+                "length check");
+        wb_fail = 1;
+    }
+
+    wc_Sha512Free(&sha);
+    WB_NOTE("verify_msg_{init,update,final}_with_sha key guards exercised");
+}
+
+#else
+
+static void wb_ed25519_verify_helper_key_guard(void)
+{
+    WB_NOTE("ed25519 software verify helpers not built; skipped");
+}
+
+#endif /* HAVE_ED25519_VERIFY && !SE050-only && !crypto-cb-only */
+
 #else
 
 static void wb_ed25519_hash(void)
@@ -139,6 +245,7 @@ int main(void)
     return 0;
 #else
     wb_ed25519_hash();
+    wb_ed25519_verify_helper_key_guard();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
      * campaign treats a nonzero exit as a failed variant and discards its

@@ -132,7 +132,7 @@ static void wb_family_roundtrip(WC_RNG* rng, int hash, const char* label)
 
 /* Direct static drives for decision false-sides not reached by a valid-key
  * roundtrip. */
-static void wb_direct_statics(void)
+static void wb_direct_helpers(void)
 {
     /* wc_lms_idx_inc: exercise both the "carry stops" break and the
      * "carry propagates" fall-through of the increment loop. */
@@ -209,7 +209,7 @@ static void wb_run(void)
         wc_LmsKey_Free(&key);
     }
 
-    wb_direct_statics();
+    wb_direct_helpers();
     wc_FreeRng(&rng);
 }
 

@@ -237,6 +237,8 @@
 #include <tests/api/test_random.h>
 #include <tests/api/test_wolfentropy.h>
 #include <tests/api/test_wolfevent.h>
+#include <tests/api/test_port.h>
+#include <tests/api/test_compress.h>
 #include <tests/api/test_wolfmath.h>
 #include <tests/api/test_rsa.h>
 #include <tests/api/test_dsa.h>
@@ -38839,6 +38841,8 @@ TEST_CASE testCases[] = {
     TEST_RANDOM_DECLS,
     TEST_WOLFENTROPY_DECLS,
     TEST_WOLFEVENT_DECLS,
+    TEST_PORT_DECLS,
+    TEST_COMPRESS_DECLS,
 
     /* Public key */
     /* wolfmath MP API tests */
@@ -39634,13 +39638,13 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_read_ahead_ctx_inherit),
     TEST_DECL(test_wolfSSL_inject),
     TEST_DECL(test_ocsp_status_callback),
-    TEST_DECL(test_ocsp_basic_verify),
-    TEST_DECL(test_ocsp_ancestor_responder_rejected),
-    TEST_DECL(test_ocsp_responder_keyhash_binding),
-    TEST_DECL(test_ocsp_response_parsing),
-    TEST_DECL(test_ocsp_certid_enc_dec),
-    TEST_DECL(test_ocsp_certid_dup),
-    TEST_DECL(test_ocsp_resp_find_status_serial_prefix),
+    TEST_DECL_GROUP("ocsp", test_ocsp_basic_verify),
+    TEST_DECL_GROUP("ocsp", test_ocsp_ancestor_responder_rejected),
+    TEST_DECL_GROUP("ocsp", test_ocsp_responder_keyhash_binding),
+    TEST_DECL_GROUP("ocsp", test_ocsp_response_parsing),
+    TEST_DECL_GROUP("ocsp", test_ocsp_certid_enc_dec),
+    TEST_DECL_GROUP("ocsp", test_ocsp_certid_dup),
+    TEST_DECL_GROUP("ocsp", test_ocsp_resp_find_status_serial_prefix),
     TEST_DECL(test_ocsp_tls_cert_cb),
     TEST_DECL(test_ocsp_status_request_v2_multi_revoked_single),
     TEST_DECL(test_ocsp_cert_unknown_crl_fallback),

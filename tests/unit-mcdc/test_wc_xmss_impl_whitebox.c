@@ -356,8 +356,8 @@ static void wb_hash_family_pairs(void)
     }
     state.params = &paramsFull;
 
-    /* Lines 1033-1035 / 1218-1220: wc_xmss_rand_hash() /
-     * wc_xmss_rand_hash_lr()'s "params->n == XMSS_SHA256_32_N" operand. */
+    /* wc_xmss_rand_hash() and wc_xmss_rand_hash_lr()'s
+     * "params->n == XMSS_SHA256_32_N" operand, both arms of each. */
     state.ret = 0;
     XMEMSET(&addr, 0, sizeof(addr));
     wc_xmss_rand_hash(&state, data, pk_seed, addr, hashOut);
@@ -375,6 +375,9 @@ static void wb_hash_family_pairs(void)
     }
     state.params = &paramsFull;
 
+/* wc_xmss_rand_hash_lr() is compiled under this condition only
+ * (wc_xmss_impl.c). */
+#if !defined(WOLFSSL_WC_XMSS_SMALL) || defined(WOLFSSL_XMSS_VERIFY_ONLY)
     state.ret = 0;
     XMEMSET(&addr, 0, sizeof(addr));
     wc_xmss_rand_hash_lr(&state, data, data + 32, pk_seed, addr, hashOut);
@@ -391,6 +394,7 @@ static void wb_hash_family_pairs(void)
         wb_fail = 1;
     }
     state.params = &paramsFull;
+#endif
 
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
     /* Lines 1813-1815: wc_xmss_wots_gen_pk(). */
@@ -494,9 +498,12 @@ static void wb_hash_family_pairs(void)
  * is "i < XMSS_WOTS_W" alone that is true for i=1..15 and false at i=16 -
  * both sides of that one operand, shown within this single call.
  ********************************************/
+/* wc_xmss_chain_sha256_32() is built only in the non-small SHA-256 path
+ * (wc_xmss_impl.c). */
+#if !defined(WOLFSSL_WC_XMSS_SMALL) && defined(WC_XMSS_SHA256)
 static void wb_wots_chain_loop(void)
 {
-    /* Line 1623: wc_xmss_chain_sha256_32() - fixed SHA-256/32-byte path. */
+    /* wc_xmss_chain_sha256_32() - fixed SHA-256/32-byte path. */
     {
         XmssParams params;
         XmssState state;
@@ -560,12 +567,21 @@ static void wb_wots_chain_loop(void)
         }
     }
 #else
-    WB_NOTE("WC_XMSS_SHA512 not compiled in; generic wc_xmss_chain (line "
-        "1697) arm skipped");
+    WB_NOTE("WC_XMSS_SHA512 not compiled in; generic wc_xmss_chain arm "
+        "skipped");
 #endif
 }
+#else
+static void wb_wots_chain_loop(void)
+{
+    WB_NOTE("WOLFSSL_WC_XMSS_SMALL: wc_xmss_chain_sha256_32 not built; "
+        "chain-loop section skipped");
+}
+#endif /* !WOLFSSL_WC_XMSS_SMALL && WC_XMSS_SHA256 */
 
-#ifndef WOLFSSL_XMSS_VERIFY_ONLY
+/* BdsState and the BDS helpers exist only in the non-small signing path
+ * (wc_xmss_impl.c). */
+#if !defined(WOLFSSL_XMSS_VERIFY_ONLY) && !defined(WOLFSSL_WC_XMSS_SMALL)
 /********************************************
  * 2846: wc_xmss_bds_next_idx()'s "if ((hsk > 0) && (i == 3))".
  * hsk = sub_h - bds_k. Direct calls with offset=0 (so the function's
@@ -999,28 +1015,24 @@ static void wb_full_cycle_d1(void)
         }
     }
 }
-#else /* WOLFSSL_XMSS_VERIFY_ONLY */
+#else /* verify-only, or the small signing path */
 static void wb_bds_next_idx(void)
 {
-    WB_NOTE("WOLFSSL_XMSS_VERIFY_ONLY: signing-side BDS helpers not "
-        "compiled in; wb_bds_next_idx skipped");
+    WB_NOTE("BDS helpers not compiled in; wb_bds_next_idx skipped");
 }
 static void wb_bds_auth_path(void)
 {
-    WB_NOTE("WOLFSSL_XMSS_VERIFY_ONLY: signing-side BDS helpers not "
-        "compiled in; wb_bds_auth_path skipped");
+    WB_NOTE("BDS helpers not compiled in; wb_bds_auth_path skipped");
 }
 static void wb_full_cycle_d2(void)
 {
-    WB_NOTE("WOLFSSL_XMSS_VERIFY_ONLY: keygen/sign not compiled in; "
-        "wb_full_cycle_d2 skipped");
+    WB_NOTE("keygen/sign not compiled in; wb_full_cycle_d2 skipped");
 }
 static void wb_full_cycle_d1(void)
 {
-    WB_NOTE("WOLFSSL_XMSS_VERIFY_ONLY: keygen/sign not compiled in; "
-        "wb_full_cycle_d1 skipped");
+    WB_NOTE("keygen/sign not compiled in; wb_full_cycle_d1 skipped");
 }
-#endif /* !WOLFSSL_XMSS_VERIFY_ONLY */
+#endif /* !WOLFSSL_XMSS_VERIFY_ONLY && !WOLFSSL_WC_XMSS_SMALL */
 
 #else /* WOLFSSL_HAVE_XMSS */
 

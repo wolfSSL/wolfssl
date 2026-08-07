@@ -228,6 +228,56 @@ static void wb_make_key_nb(void)
 
 #endif /* HAVE_CURVE25519 && WC_X25519_NONBLOCK */
 
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING)
+/* wc_curve25519_generic_blind() opens with two three-operand OR guards -- one
+ * over the three sizes, one over the three pointers. Every caller in the
+ * library passes CURVE25519_KEYSIZE and non-NULL buffers, so both are only ever
+ * seen all-false; each operand needs its own true row against that partner. */
+static void wb_generic_arg_guards(void)
+{
+    byte pub[CURVE25519_KEYSIZE];
+    byte priv[CURVE25519_KEYSIZE];
+    byte base[CURVE25519_KEYSIZE];
+    const int n = CURVE25519_KEYSIZE;
+    WC_RNG rng;
+    int haveRng;
+
+    XMEMSET(pub, 0, sizeof(pub));
+    XMEMSET(priv, 1, sizeof(priv));
+    XMEMSET(base, 9, sizeof(base));
+    haveRng = (wc_InitRng(&rng) == 0);
+
+    /* size guard, one operand true per call */
+    (void)wc_curve25519_generic_blind(n - 1, pub, n, priv, n, base,
+                                      haveRng ? &rng : NULL);
+    (void)wc_curve25519_generic_blind(n, pub, n - 1, priv, n, base,
+                                      haveRng ? &rng : NULL);
+    (void)wc_curve25519_generic_blind(n, pub, n, priv, n - 1, base,
+                                      haveRng ? &rng : NULL);
+
+    /* pointer guard, one operand true per call; the size guard above is
+     * all-false on each of these */
+    (void)wc_curve25519_generic_blind(n, NULL, n, priv, n, base,
+                                      haveRng ? &rng : NULL);
+    (void)wc_curve25519_generic_blind(n, pub, n, NULL, n, base,
+                                      haveRng ? &rng : NULL);
+    (void)wc_curve25519_generic_blind(n, pub, n, priv, n, NULL,
+                                      haveRng ? &rng : NULL);
+
+    /* all six operands false: decided by the rng argument instead */
+    (void)wc_curve25519_generic_blind(n, pub, n, priv, n, base, NULL);
+    if (haveRng) {
+        (void)wc_curve25519_generic_blind(n, pub, n, priv, n, base, &rng);
+        wc_FreeRng(&rng);
+    }
+}
+#else
+static void wb_generic_arg_guards(void)
+{
+    WB_NOTE("WOLFSSL_CURVE25519_BLINDING off; generic_blind guards skipped");
+}
+#endif /* HAVE_CURVE25519 && WOLFSSL_CURVE25519_BLINDING */
+
 int main(void)
 {
     printf("curve25519.c white-box supplement\n");
@@ -237,6 +287,7 @@ int main(void)
 #else
     wb_make_pub_nb();
     wb_make_key_nb();
+    wb_generic_arg_guards();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
      * campaign treats a nonzero exit as a failed variant and discards its
