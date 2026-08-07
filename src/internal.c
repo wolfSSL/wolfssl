@@ -42930,7 +42930,13 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             const byte* id, psk_sess_free_cb_ctx* freeCtx)
     {
         const WOLFSSL_SESSION* sess = NULL;
+#ifndef NO_SESSION_CACHE
         int ret;
+#endif
+
+        (void)ssl;
+        (void)id;
+
         XMEMSET(freeCtx, 0, sizeof(*freeCtx));
 #ifdef HAVE_EXT_CACHE
         if (ssl->ctx->get_sess_cb != NULL) {
@@ -42945,12 +42951,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             }
         }
 #endif
+#ifndef NO_SESSION_CACHE
         if (sess == NULL) {
             ret = TlsSessionCacheGetAndRdLock(id, &sess, &freeCtx->row,
                     (byte)ssl->options.side);
             if (ret != 0)
                 sess = NULL;
         }
+#endif /* !NO_SESSION_CACHE */
         return sess;
     }
 
@@ -42959,16 +42967,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
     {
         (void)ssl;
         (void)sess;
+        (void)freeCtx;
 #ifdef HAVE_EXT_CACHE
         if (freeCtx->extCache) {
             if (freeCtx->freeSess)
                 /* In this case sess is not longer const and the external cache
                  * wants us to free it. */
                 wolfSSL_FreeSession(ssl->ctx, (WOLFSSL_SESSION*)sess);
+            return;
         }
-        else
 #endif
-            TlsSessionCacheUnlockRow(freeCtx->row);
+#ifndef NO_SESSION_CACHE
+        TlsSessionCacheUnlockRow(freeCtx->row);
+#endif /* !NO_SESSION_CACHE */
     }
 
     /* Parse ticket sent by client, returns callback return value. Doesn't
