@@ -13548,6 +13548,7 @@ static int TLSX_ClientCertificateType_Parse(WOLFSSL* ssl, const byte* input,
              * presents its own credential in. */
             if (ssl->options.rpkState.sending_ClientCertTypeCnt == 0) {
                 WOLFSSL_MSG("client_cert_type received but never offered");
+                SendAlert(ssl, alert_fatal, unsupported_extension);
                 WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
                 return UNSUPPORTED_EXTENSION;
             }
@@ -13555,6 +13556,7 @@ static int TLSX_ClientCertificateType_Parse(WOLFSSL* ssl, const byte* input,
                     ssl->options.rpkState.sending_ClientCertTypeCnt,
                     ssl->options.rpkState.sending_ClientCertTypes)) {
                 WOLFSSL_MSG("client_cert_type value was not offered");
+                SendAlert(ssl, alert_fatal, unsupported_extension);
                 WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
                 return UNSUPPORTED_EXTENSION;
             }
@@ -13765,6 +13767,7 @@ static int TLSX_ServerCertificateType_Parse(WOLFSSL* ssl, const byte* input,
          * and skip chain verification. */
         if (ssl->options.rpkState.sending_ServerCertTypeCnt == 0) {
             WOLFSSL_MSG("server_cert_type received but never offered");
+            SendAlert(ssl, alert_fatal, unsupported_extension);
             WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
             return UNSUPPORTED_EXTENSION;
         }
@@ -13772,6 +13775,7 @@ static int TLSX_ServerCertificateType_Parse(WOLFSSL* ssl, const byte* input,
                 ssl->options.rpkState.sending_ServerCertTypeCnt,
                 ssl->options.rpkState.sending_ServerCertTypes)) {
             WOLFSSL_MSG("server_cert_type value was not offered");
+            SendAlert(ssl, alert_fatal, unsupported_extension);
             WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
             return UNSUPPORTED_EXTENSION;
         }
