@@ -526,11 +526,11 @@ int test_wc_ChaCha20Poly1305_Stream(void)
     /* wc_ChaCha20Poly1305_Final: NULL aead */
     ExpectIntEQ(wc_ChaCha20Poly1305_Final(NULL, outTag),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* wc_ChaCha20Poly1305_Final: wrong state (INIT, not AAD/DATA) */
+    /* wc_ChaCha20Poly1305_Final: READY state (Init, no UpdateAad/UpdateData)
+     * is valid -- RFC 8439 Section 2.8 permits empty plaintext + empty AAD. */
     ExpectIntEQ(wc_ChaCha20Poly1305_Init(&aead, key, iv,
         CHACHA20_POLY1305_AEAD_ENCRYPT), 0);
-    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, outTag),
-        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_ChaCha20Poly1305_Final(&aead, outTag), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ChaCha20Poly1305_Stream */
