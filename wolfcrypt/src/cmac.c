@@ -160,6 +160,10 @@ static int _InitCmac_common(Cmac* cmac, const byte* key, word32 keySz,
 #ifdef WOLF_CRYPTO_CB
     /* Set devId regardless of value (invalid or not) */
     cmac->devId = devId;
+    /* Set type up front so wc_CmacFree can clean up properly when the
+     * callback handles the init and returns before the software path
+     * below has a chance to set it. */
+    cmac->type = type;
     #ifndef WOLF_CRYPTO_CB_FIND
     if (devId != INVALID_DEVID)
     #endif
