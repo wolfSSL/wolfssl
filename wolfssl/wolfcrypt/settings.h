@@ -408,14 +408,17 @@
 #endif
 
 /* A configure-generated options.h is sometimes copied in as user_settings.h to
- * seed a Windows build, bringing the POSIX host's header probes with it. Drop
- * them where the target has no such header; MinGW has <sys/time.h> but not
- * <sys/un.h>. */
-#ifdef _MSC_VER
-    #undef HAVE_SYS_TIME_H
-#endif
-#ifdef _WIN32
-    #undef HAVE_SYS_UN_H
+ * seed a Windows build, carrying the POSIX host's header probes with it. Drop
+ * the ones naming a header the target lacks: MinGW ships <sys/time.h> (so only
+ * MSVC drops it) but not <sys/un.h> (so all of Windows does).
+ * WOLFSSL_KEEP_HOST_HEADER_PROBES skips this. */
+#ifndef WOLFSSL_KEEP_HOST_HEADER_PROBES
+    #ifdef _MSC_VER
+        #undef HAVE_SYS_TIME_H
+    #endif
+    #ifdef _WIN32
+        #undef HAVE_SYS_UN_H
+    #endif
 #endif
 
 /* Microsoft's ARM64 compiler defines _M_ARM64 but not __aarch64__.  The wolfSSL
