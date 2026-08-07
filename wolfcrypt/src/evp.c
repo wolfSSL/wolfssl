@@ -9256,6 +9256,59 @@ static void clearEVPPkeyKeys(WOLFSSL_EVP_PKEY *pkey)
     }
     pkey->ownEcc = 0;
 #endif
+#ifdef HAVE_ED25519
+    if (pkey->ed25519 != NULL && pkey->ownEd25519 == 1) {
+        wc_ed25519_free(pkey->ed25519);
+        XFREE(pkey->ed25519, pkey->heap, DYNAMIC_TYPE_ED25519);
+        pkey->ed25519 = NULL;
+    }
+    pkey->ownEd25519 = 0;
+#endif
+#ifdef HAVE_ED448
+    if (pkey->ed448 != NULL && pkey->ownEd448 == 1) {
+        wc_ed448_free(pkey->ed448);
+        XFREE(pkey->ed448, pkey->heap, DYNAMIC_TYPE_ED448);
+        pkey->ed448 = NULL;
+    }
+    pkey->ownEd448 = 0;
+#endif
+#ifdef HAVE_CURVE25519
+    if (pkey->curve25519 != NULL && pkey->ownCurve25519 == 1) {
+        wc_curve25519_free(pkey->curve25519);
+        XFREE(pkey->curve25519, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+        pkey->curve25519 = NULL;
+    }
+    pkey->ownCurve25519 = 0;
+#endif
+#ifdef HAVE_CURVE448
+    if (pkey->curve448 != NULL && pkey->ownCurve448 == 1) {
+        wc_curve448_free(pkey->curve448);
+        XFREE(pkey->curve448, pkey->heap, DYNAMIC_TYPE_CURVE448);
+        pkey->curve448 = NULL;
+    }
+    pkey->ownCurve448 = 0;
+#endif
+#ifdef HAVE_HKDF
+    XFREE(pkey->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
+    pkey->hkdfSalt = NULL;
+    if (pkey->hkdfKey != NULL && pkey->hkdfKeySz > 0) {
+        ForceZero(pkey->hkdfKey, pkey->hkdfKeySz);
+    }
+    XFREE(pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
+    pkey->hkdfKey = NULL;
+    XFREE(pkey->hkdfInfo, NULL, DYNAMIC_TYPE_INFO);
+    pkey->hkdfInfo = NULL;
+    pkey->hkdfSaltSz = 0;
+    pkey->hkdfKeySz = 0;
+    pkey->hkdfInfoSz = 0;
+#endif
+#if defined(WOLFSSL_CMAC) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_DIRECT)
+    if (pkey->cmacCtx != NULL) {
+        wolfSSL_CMAC_CTX_free(pkey->cmacCtx);
+        pkey->cmacCtx = NULL;
+    }
+#endif
 }
 
 #ifndef NO_RSA
@@ -9372,6 +9425,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
                     ForceZero(keyBuf, (word32)keySz);
                     XFREE(keyBuf, pkey->heap, DYNAMIC_TYPE_DER);
                     pkey->pkey.ptr = (char*)derBuf;
+                    pkey->pkey_sz  = (int)pkcs8Sz;
                 }
                 else {
                     /* The encoding is abandoned but keyBuf stays on the pkey,

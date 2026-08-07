@@ -35,6 +35,7 @@
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/x509.h>
 #include <wolfssl/openssl/x509v3.h>
+#include <wolfssl/openssl/pem.h>
 
 #include <wolfssl/internal.h>
 #include <wolfssl/wolfcrypt/asn.h>
@@ -1143,6 +1144,96 @@ int test_x509_ReqCertFromX509_ext_critical(void)
     wolfSSL_X509_free(req);
     wolfSSL_EVP_PKEY_free(pub);
     wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Sign a certificate request with an ML-DSA key through the compat layer
+ * (wolfSSL_X509_REQ_sign), round-trip it through DER and verify the
+ * signature with the public key recovered from the parsed request. The
+ * REQ path sizes and allocates its DER buffer separately from
+ * wolfSSL_X509_sign, so it needs its own coverage. */
+int test_x509_REQ_sign_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_BIO) && !defined(NO_PWDBASED) && !defined(WOLFSSL_NO_ML_DSA_44)
+
+    WOLFSSL_BIO*       bio    = NULL;
+    WOLFSSL_EVP_PKEY*  pkey   = NULL;
+    WOLFSSL_EVP_PKEY*  pubkey = NULL;
+    WOLFSSL_X509*      req    = NULL;
+    WOLFSSL_X509*      parsed = NULL;
+    WOLFSSL_X509_NAME* name   = NULL;
+    unsigned char*     der    = NULL;
+    int                derSz  = 0;
+    /* ML-DSA-87 (4627-byte signature) is what motivates the enlarged DER
+     * buffers; cover every compiled-in level. */
+    static const char* keyFiles[] = {
+        "./certs/mldsa/mldsa44-key.pem",
+    #ifndef WOLFSSL_NO_ML_DSA_65
+        "./certs/mldsa/mldsa65-key.pem",
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_87
+        "./certs/mldsa/mldsa87-key.pem",
+    #endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(keyFiles) / sizeof(keyFiles[0]); i++) {
+        ExpectNotNull(bio = wolfSSL_BIO_new_file(keyFiles[i], "rb"));
+        ExpectNotNull(pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, NULL,
+            NULL));
+        wolfSSL_BIO_free(bio);
+        bio = NULL;
+
+        ExpectNotNull(req = wolfSSL_X509_REQ_new());
+        ExpectNotNull(name = wolfSSL_X509_NAME_new());
+        ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_txt(name, "commonName",
+            MBSTRING_UTF8, (const byte*)"mldsa-req", -1, -1, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_REQ_set_subject_name(req, name),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_REQ_set_pubkey(req, pkey), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(wolfSSL_X509_REQ_sign(req, pkey, wolfSSL_EVP_sha256()),
+            WOLFSSL_SUCCESS);
+
+        /* Round-trip the signed request through DER to prove the encoding
+         * is a complete, parseable CSR (an ML-DSA signature does not fit
+         * the old fixed 2048-byte buffer). */
+        ExpectIntGT((derSz = wolfSSL_i2d_X509_REQ(req, &der)), 0);
+        ExpectNotNull(der);
+        ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
+
+        /* Verify the signature with the public key from the parsed
+         * request. */
+        ExpectNotNull(pubkey = wolfSSL_X509_get_pubkey(parsed));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pubkey), WC_EVP_PKEY_DILITHIUM);
+        ExpectIntEQ(wolfSSL_X509_REQ_verify(parsed, pubkey), WOLFSSL_SUCCESS);
+
+        /* OpenSSL semantics: NULL md is valid for ML-DSA. */
+        ExpectIntEQ(wolfSSL_X509_REQ_sign(req, pkey, NULL), WOLFSSL_SUCCESS);
+
+        wolfSSL_EVP_PKEY_free(pubkey);
+        pubkey = NULL;
+        wolfSSL_X509_free(parsed);
+        parsed = NULL;
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+        der = NULL;
+        derSz = 0;
+        wolfSSL_X509_NAME_free(name);
+        name = NULL;
+        wolfSSL_X509_free(req);
+        req = NULL;
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
 #endif
     return EXPECT_RESULT();
 }

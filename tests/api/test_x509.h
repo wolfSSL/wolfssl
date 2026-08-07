@@ -31,6 +31,7 @@ int test_x509_CertFromX509_akid_overflow(void);
 int test_x509_ReqCertFromX509_skid_overflow(void);
 int test_x509_ReqCertFromX509_skid_boundary(void);
 int test_x509_ReqCertFromX509_ext_critical(void);
+int test_x509_REQ_sign_mldsa(void);
 
 #define TEST_X509_DECLS                                                        \
     TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
@@ -41,6 +42,7 @@ int test_x509_ReqCertFromX509_ext_critical(void);
     TEST_DECL_GROUP("x509", test_x509_CertFromX509_akid_overflow),             \
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_overflow),          \
     TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_skid_boundary),          \
-    TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_ext_critical)
+    TEST_DECL_GROUP("x509", test_x509_ReqCertFromX509_ext_critical),           \
+    TEST_DECL_GROUP("x509", test_x509_REQ_sign_mldsa)
 
 #endif /* WOLFCRYPT_TEST_X509_H */

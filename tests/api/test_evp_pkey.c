@@ -30,6 +30,12 @@
 
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/kdf.h>
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
+#endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_evp_pkey.h>
 
@@ -2956,6 +2962,32 @@ int test_wolfSSL_EVP_PKEY_ed25519(void)
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
 
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    {
+        /* Reuse: after decoding an RSA key, reusing the same EVP_PKEY for
+         * an Ed25519 SPKI must re-populate type and DER and release the
+         * RSA object. */
+        p = client_keypub_der_2048;
+        ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p,
+            (long)sizeof_client_keypub_der_2048));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+        p = spkiPub;
+        ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, (long)sizeof(spkiPub)));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED25519);
+        if (pkey != NULL) {
+            /* The stored DER length is how far the Ed25519 decoder advanced
+             * its index, which differs between the ASN template and
+             * original implementations - only require that the previous RSA
+             * DER (larger than the whole SPKI) was replaced. */
+            ExpectIntGT(pkey->pkey_sz, 0);
+            ExpectIntLE(pkey->pkey_sz, (int)sizeof(spkiPub));
+            ExpectNull(wolfSSL_EVP_PKEY_get0_RSA(pkey));
+        }
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+
     {
         static const unsigned char junk[16] = { 0 };
         const unsigned char* jp = junk;
@@ -3046,6 +3078,231 @@ int test_wolfSSL_EVP_PKEY_ed448(void)
     ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_ED448);
     wolfSSL_EVP_PKEY_free(pkey);
     pkey = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Decoding into a caller-supplied EVP_PKEY must re-populate the object
+ * (documented OpenSSL reuse semantics). An ML-DSA decode into a key that
+ * previously held another key must not return success while leaving the
+ * old key data in place. */
+int test_wolfSSL_d2i_PUBKEY_mldsa_reuse(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_65) && \
+    !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+    unsigned char* der44 = NULL;
+    unsigned char* der65 = NULL;
+    int der44Sz = 0;
+    int der65Sz = 0;
+    XFILE f = XBADFILE;
+
+    ExpectNotNull(der44 = (unsigned char*)XMALLOC(2048, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(der65 = (unsigned char*)XMALLOC(2600, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(der44Sz = (int)XFREAD(der44, 1, 2048, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa65_pub-spki.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(der65Sz = (int)XFREAD(der65, 1, 2600, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+#ifdef HAVE_CURVE25519
+    {
+        /* Start from a raw X25519 key: the RSA decode below repurposes the
+         * EVP_PKEY and must release the curve25519 object too. */
+        static const unsigned char x25519Base[CURVE25519_PUB_KEY_SIZE] =
+            { 9 };
+        ExpectNotNull(pkey = wolfSSL_EVP_PKEY_new_raw_public_key(
+            WC_EVP_PKEY_X25519, NULL, x25519Base, sizeof(x25519Base)));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_X25519);
+    }
+#endif
+
+    /* Decode an RSA SPKI first so pkey holds a non-ML-DSA key. */
+    p = client_keypub_der_2048;
+    ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p,
+        (long)sizeof_client_keypub_der_2048));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+#ifdef HAVE_CURVE25519
+    if (pkey != NULL) {
+        /* The X25519 object must have been released and detached when the
+         * key was repurposed to RSA. */
+        ExpectNull(pkey->curve25519);
+    }
+#endif
+
+    /* Reuse the same EVP_PKEY for an ML-DSA SPKI and check the object was
+     * re-populated with the new key. */
+    p = der44;
+    ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, (long)der44Sz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+    if (pkey != NULL) {
+        ExpectIntEQ(pkey->pkey_sz, der44Sz);
+        ExpectNotNull(pkey->pkey.ptr);
+        if (pkey->pkey.ptr != NULL) {
+            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, der44, (size_t)der44Sz), 0);
+        }
+        /* The RSA object from the first decode must have been released
+         * and detached when the key was repurposed. */
+        ExpectNull(wolfSSL_EVP_PKEY_get0_RSA(pkey));
+    }
+
+    /* Reuse again with a different ML-DSA level: same type, new key data. */
+    p = der65;
+    ExpectNotNull(wolfSSL_d2i_PUBKEY(&pkey, &p, (long)der65Sz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+    if (pkey != NULL) {
+        ExpectIntEQ(pkey->pkey_sz, der65Sz);
+        ExpectNotNull(pkey->pkey.ptr);
+        if (pkey->pkey.ptr != NULL) {
+            ExpectIntEQ(XMEMCMP(pkey->pkey.ptr, der65, (size_t)der65Sz), 0);
+        }
+    }
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE(der65, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der44, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Typed d2i entry points for ML-DSA: a PKCS#8 key of another algorithm
+ * and raw (non-DER) bytes must both be rejected; a matching PKCS#8
+ * ML-DSA key must decode. */
+int test_wolfSSL_d2i_PrivateKey_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_MLDSA_PUBLIC_KEY) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* p;
+    unsigned char* mldsaDer = NULL;
+    unsigned char* rsaDer = NULL;
+    unsigned char* rawBlob = NULL;
+    int mldsaSz = 0;
+    int rsaSz = 0;
+    XFILE f = XBADFILE;
+
+    ExpectNotNull(mldsaDer = (unsigned char*)XMALLOC(4096, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(rsaDer = (unsigned char*)XMALLOC(2048, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    /* 2560 = ML-DSA-44 raw private key size */
+    ExpectNotNull(rawBlob = (unsigned char*)XMALLOC(2560, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44-key.der", "rb"))
+        != XBADFILE);
+    ExpectIntGT(mldsaSz = (int)XFREAD(mldsaDer, 1, 4096, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/server-keyPkcs8.der", "rb")) != XBADFILE);
+    ExpectIntGT(rsaSz = (int)XFREAD(rsaDer, 1, 2048, f), 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* PKCS#8 ML-DSA private key decodes with the matching type. */
+    p = mldsaDer;
+    ExpectNotNull(pkey = wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL,
+        &p, (long)mldsaSz));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+
+    /* i2d must emit the full PKCS#8 wrapper (the parameter set only exists
+     * in the AlgorithmIdentifier) so the output round-trips through d2i. */
+    {
+        WOLFSSL_EVP_PKEY* pkey2 = NULL;
+        unsigned char* out = NULL;
+
+        ExpectIntEQ(wolfSSL_i2d_PrivateKey(pkey, &out), mldsaSz);
+        ExpectNotNull(out);
+        if (out != NULL) {
+            ExpectIntEQ(XMEMCMP(out, mldsaDer, (size_t)mldsaSz), 0);
+            p = out;
+            ExpectNotNull(pkey2 = wolfSSL_d2i_PrivateKey(
+                WC_EVP_PKEY_DILITHIUM, NULL, &p, (long)mldsaSz));
+            wolfSSL_EVP_PKEY_free(pkey2);
+        }
+        XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    /* PKCS#8 RSA key requested as ML-DSA is rejected by the algId check. */
+    p = rsaDer;
+    ExpectNull(wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL, &p,
+        (long)rsaSz));
+
+    /* Raw (non-DER) private key bytes are rejected: d2i is a DER API, the
+     * size-keyed raw import is for the auto-detect path only. Use genuine
+     * raw bytes so the rejection is due to the format, not the contents. */
+    {
+        wc_MlDsaKey* mldsa = NULL;
+        word32 idx = 0;
+        word32 rawSz = 2560;
+        int keyRet = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+
+        ExpectNotNull(mldsa = (wc_MlDsaKey*)XMALLOC(sizeof(*mldsa), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntEQ(keyRet = wc_MlDsaKey_Init(mldsa, NULL, INVALID_DEVID), 0);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_MlDsaKey_PrivateKeyDecode(mldsa, mldsaDer,
+            (word32)mldsaSz, &idx), 0);
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(mldsa, rawBlob, &rawSz), 0);
+        PRIVATE_KEY_LOCK();
+        if (keyRet == 0) {
+            wc_MlDsaKey_Free(mldsa);
+        }
+        XFREE(mldsa, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        p = rawBlob;
+        ExpectNull(wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_DILITHIUM, NULL, &p,
+            (long)rawSz));
+    }
+
+    /* Typed public-key entry point decodes an ML-DSA SPKI. Reuse the
+     * mldsaDer buffer for the SPKI bytes. */
+    {
+        int spkiSz = 0;
+
+        ExpectTrue((f = XFOPEN("./certs/mldsa/mldsa44_pub-spki.der", "rb"))
+            != XBADFILE);
+        ExpectIntGT(spkiSz = (int)XFREAD(mldsaDer, 1, 4096, f), 0);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+        p = mldsaDer;
+        ExpectNotNull(pkey = wolfSSL_d2i_PublicKey(WC_EVP_PKEY_DILITHIUM,
+            NULL, &p, (long)spkiSz));
+        ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), WC_EVP_PKEY_DILITHIUM);
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+
+    XFREE(rawBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(mldsaDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
