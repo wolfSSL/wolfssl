@@ -23,6 +23,10 @@
 
 #include <wolfssl/internal.h>
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
+#endif
+
 #if !defined(WOLFSSL_SSL_CERTMAN_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
         #warning ssl_certman.c not to be compiled separately from ssl.c

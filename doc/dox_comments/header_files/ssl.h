@@ -2974,7 +2974,10 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
 
     \brief This function gets the session at specified index of the session
     cache and copies it into memory. The WOLFSSL_SESSION structure holds
-    the session information.
+    the session information. The copy is independent of the cache entry: it
+    does not share the ticket buffer, peer certificate or ex_data with the
+    cache, and it stays valid after the cache entry is overwritten or evicted.
+    The caller owns the copy and releases it with wolfSSL_SESSION_free().
 
     \return SSL_SUCCESS returned if the function executed successfully and
     no errors were thrown.
@@ -2982,16 +2985,19 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
     \return SSL_FAILURE returned if the function did not execute successfully.
 
     \param index an int type representing the session index.
-    \param session a pointer to the WOLFSSL_SESSION structure.
+    \param session a pointer to a WOLFSSL_SESSION structure to copy into,
+    obtained from wolfSSL_SESSION_new().
 
     _Example_
     \code
     int idx; // The index to locate the session.
-    WOLFSSL_SESSION* session;  // Buffer to copy to.
+    WOLFSSL_SESSION* session = wolfSSL_SESSION_new();  // Buffer to copy to.
     ...
     if(wolfSSL_GetSessionAtIndex(idx, session) != SSL_SUCCESS){
     	// Failure case.
     }
+    ...
+    wolfSSL_SESSION_free(session);
     \endcode
 
     \sa UnLockMutex
