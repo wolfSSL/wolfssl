@@ -12104,17 +12104,26 @@ retry:
 }
 
 
-/* Switch dynamic output buffer back to static, buffer is assumed clear */
+/* Switch dynamic output buffer back to static, discarding pending output.
+ * Safe on a static buffer. */
 void ShrinkOutputBuffer(WOLFSSL* ssl)
 {
     WOLFSSL_MSG("Shrinking output buffer");
-    XFREE(ssl->buffers.outputBuffer.buffer - ssl->buffers.outputBuffer.offset,
-          ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    if (ssl->buffers.outputBuffer.dynamicFlag) {
+        /* Only the region still holding record data; 0 after a full flush. */
+        ForceZero(ssl->buffers.outputBuffer.buffer,
+                  ssl->buffers.outputBuffer.idx +
+                      ssl->buffers.outputBuffer.length);
+        XFREE(ssl->buffers.outputBuffer.buffer -
+                  ssl->buffers.outputBuffer.offset,
+              ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    }
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.outputBuffer.dynamicFlag = 0;
     ssl->buffers.outputBuffer.offset      = 0;
-    /* idx and length are assumed to be 0. */
+    ssl->buffers.outputBuffer.idx         = 0;
+    ssl->buffers.outputBuffer.length      = 0;
 }
 
 

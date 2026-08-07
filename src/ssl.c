@@ -5720,6 +5720,15 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->earlyData = no_early_data;
         ssl->earlyDataSz = 0;
     #endif
+    #ifdef HAVE_RPK
+        /* Drop the negotiated cert types so one peer's choice cannot carry into
+         * the next handshake. Clearing the counts is enough: every read of the
+         * type arrays is gated on its count. */
+        ssl->options.rpkState.sending_ClientCertTypeCnt = 0;
+        ssl->options.rpkState.sending_ServerCertTypeCnt = 0;
+        ssl->options.rpkState.received_ClientCertTypeCnt = 0;
+        ssl->options.rpkState.received_ServerCertTypeCnt = 0;
+    #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);

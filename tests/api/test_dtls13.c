@@ -1122,6 +1122,45 @@ int test_dtls13_epochs(void) {
     return EXPECT_RESULT();
 }
 
+int test_dtls13_alert_with_pending_output(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[1300];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(msg, 'A', sizeof(msg));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Stall the transport, then queue a record big enough that adding the
+     * alert would exceed the MTU. */
+    test_ctx.s_force_want_write = 1;
+    ExpectIntLT(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), 0);
+    ExpectIntGT((int)ssl_s->buffers.outputBuffer.length, 1288);
+
+    /* EndOfEarlyData is not valid in DTLS 1.3 and raises a fatal alert. */
+    ExpectIntEQ(Dtls13CheckEpoch(ssl_s, end_of_early_data), SANITY_MSG_E);
+
+    ExpectIntLE((int)(ssl_s->buffers.outputBuffer.idx +
+                      ssl_s->buffers.outputBuffer.length),
+                (int)ssl_s->buffers.outputBuffer.bufferSize);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*-- ack_order (test_dtls.c lines 873,951) ---*/
 int test_dtls13_ack_order(void)
 {

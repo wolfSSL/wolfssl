@@ -1888,6 +1888,60 @@ static int test_untrusted_inter_retry(X509* leaf, X509* inter,
     sk_X509_free(badOnly);
     return EXPECT_RESULT();
 }
+
+/* A first-link signature failure must not leave the caller-supplied issuer
+ * loaded in the store's CertManager.  X509_verify_cert() adds it as a
+ * WOLFSSL_TEMP_CA before checking the child; if the check fails the anchor has
+ * to go with it.  The compat verifier drops TEMP_CAs before its own trust
+ * check, so residue is only visible through another user of the same
+ * CertManager - signer lookups there do not filter on type. */
+static int test_untrusted_inter_no_temp_ca_residue(X509* leaf, X509* inter,
+    X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+    X509* badLeaf = NULL;
+    unsigned char* der = NULL;
+    const unsigned char* p = NULL;
+    int derSz = 0;
+
+    /* Flip a bit in the trailing signature BIT STRING: the leaf still names
+     * inter as its issuer, so inter is still selected and loaded, but the
+     * signature check against it now fails. */
+    ExpectIntGT(derSz = wolfSSL_i2d_X509(leaf, &der), 0);
+    ExpectNotNull(der);
+    if (EXPECT_SUCCESS() && der != NULL) {
+        der[derSz - 1] ^= 0x01;
+        p = der;
+        ExpectNotNull(badLeaf = wolfSSL_d2i_X509(NULL, &p, derSz));
+        der[derSz - 1] ^= 0x01;
+    }
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, badLeaf, untrusted), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntNE(X509_STORE_CTX_get_error(ctx), X509_V_OK);
+
+    /* Only root was ever trusted, so the genuine leaf must not verify through
+     * the CertManager.  It would if inter were still resident as a TEMP_CA. */
+    if (EXPECT_SUCCESS() && store != NULL && der != NULL) {
+        ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(store->cm, der, derSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    X509_free(badLeaf);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    return EXPECT_RESULT();
+}
 #endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_FILESYSTEM */
 
 int test_X509_verify_cert_untrusted_inter(void)
@@ -1913,6 +1967,7 @@ int test_X509_verify_cert_untrusted_inter(void)
     int depthExhaustRes = 0;
     int trustedStackCleanupRes = 0;
     int retryRes = 0;
+    int noTempCaResidueRes = 0;
 
     ExpectNotNull(leaf = untrusted_inter_load(UA_CERT_DIR "leaf-cert.pem"));
     ExpectNotNull(leafDeep =
@@ -1947,6 +2002,8 @@ int test_X509_verify_cert_untrusted_inter(void)
         trustedStackCleanupRes = test_untrusted_inter_trusted_stack_cleanup(
                             leaf, inter, root);
         retryRes = test_untrusted_inter_retry(leaf, inter, tamperedInter, root);
+        noTempCaResidueRes = test_untrusted_inter_no_temp_ca_residue(leaf,
+                            inter, root);
         ExpectIntEQ(sanityRes, 1);
         ExpectIntEQ(twoLevelRes, 1);
         ExpectIntEQ(emptyStoreRes, 1);
@@ -1957,6 +2014,7 @@ int test_X509_verify_cert_untrusted_inter(void)
         ExpectIntEQ(depthExhaustRes, 1);
         ExpectIntEQ(trustedStackCleanupRes, 1);
         ExpectIntEQ(retryRes, 1);
+        ExpectIntEQ(noTempCaResidueRes, 1);
     }
 
     X509_free(leaf);
@@ -2855,6 +2913,48 @@ int test_X509_STORE_get0_objects(void)
     ExpectNotNull(objsCopy = sk_X509_OBJECT_deep_copy(objs, NULL, NULL));
     wolfSSL_sk_X509_OBJECT_free(objsCopy);
     wolfSSL_sk_X509_OBJECT_free(objs);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_X509_STORE_get0_objects_borrowed_crl(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_CRL) && \
+    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    int pass;
+
+    /* pass 0: one get0_objects call.  pass 1: a second call, which rebuilds
+     * the list and so tears the first one down while the store is alive. */
+    for (pass = 0; pass < 2 && EXPECT_SUCCESS(); pass++) {
+        X509_STORE* store = NULL;
+        X509* borrowed = NULL;
+        STACK_OF(X509_OBJECT)* objs = NULL;
+
+        /* Not self-signed, so add_cert up_refs it onto store->certs. */
+        ExpectNotNull(borrowed = wolfSSL_X509_load_certificate_file(svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(store = X509_STORE_new());
+        ExpectIntEQ(X509_STORE_add_cert(store, borrowed), 1);
+        /* Arms cm->crl and puts one decoded CA in the CertManager. */
+        ExpectIntEQ(X509_STORE_load_locations(store, caCertFile, NULL),
+            WOLFSSL_SUCCESS);
+
+        ExpectNotNull(objs = X509_STORE_get0_objects(store));
+        /* CM decode + borrowed cert + CRL. */
+        ExpectIntEQ(sk_X509_OBJECT_num(objs), 3);
+        if (pass == 1) {
+            ExpectNotNull(objs = X509_STORE_get0_objects(store));
+            ExpectIntEQ(sk_X509_OBJECT_num(objs), 3);
+        }
+
+        X509_STORE_free(store);
+
+        /* The store is gone but the caller's reference must have survived. */
+        ExpectNotNull(X509_get_subject_name(borrowed));
+        X509_free(borrowed);
+    }
 #endif
     return EXPECT_RESULT();
 }
