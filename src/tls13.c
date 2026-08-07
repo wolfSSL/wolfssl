@@ -38,6 +38,8 @@
  * WOLFSSL_SEND_HRR_COOKIE:  Send cookie in HelloRetryRequest     default: off
  *                            for stateless ClientHello tracking. A client
  *                            always echoes back a cookie it is sent.
+ * WOLFSSL_MAX_TLS13_COOKIE_SZ: Largest cookie a client accepts  default: 4096
+ *                            in a HelloRetryRequest.
  * WOLFSSL_EARLY_DATA:       Allow 0-RTT early data                default: off
  * WOLFSSL_EARLY_DATA_GROUP: Group early data with ClientHello     default: off
  * WOLFSSL_POST_HANDSHAKE_AUTH: Post-handshake client auth         default: off

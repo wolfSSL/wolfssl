@@ -8183,6 +8183,88 @@ int test_tls13_client_cookie_echo(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a client rejects a HelloRetryRequest cookie larger than it is
+ * willing to store and echo back. RFC 8446 4.2.2 sets no upper bound. */
+int test_tls13_client_cookie_too_big(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    WOLFSSL_MAX_TLS13_COOKIE_SZ < 65535
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte* hrrExt = NULL;
+    const word16 cookieLen = WOLFSSL_MAX_TLS13_COOKIE_SZ + 1;
+    const word16 extLen = cookieLen + OPAQUE16_LEN;
+    const word32 totalLen = (word32)extLen + OPAQUE16_LEN * 2;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectNotNull(hrrExt = (byte*)XMALLOC(totalLen, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(hrrExt, 0, totalLen);
+        c16toa(TLSX_COOKIE, hrrExt);
+        c16toa(extLen, hrrExt + OPAQUE16_LEN);
+        c16toa(cookieLen, hrrExt + OPAQUE16_LEN * 2);
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, hrrExt, (word16)totalLen, hello_retry_request,
+        NULL), WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
+    ExpectNull(TLSX_Find(ssl->extensions, TLSX_COOKIE));
+
+    XFREE(hrrExt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the cookie extension of a ClientHello on the server. The encoding is
+ * validated in every build, so a malformed one is always rejected. Only a
+ * build that sends cookies has a stored cookie to compare the echoed value
+ * against; without one the value is accepted and ignored. */
+int test_tls13_server_cookie_parse(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int expected = 0;
+    /* Cookie extension of a ClientHello: type, extension length, cookie
+     * length, cookie. */
+    static const byte goodExt[] = {
+        0x00, 0x2c, 0x00, 0x08, 0x00, 0x06, 'w', 'o', 'l', 'f', 'S', 'L'
+    };
+    /* Same, with a cookie length that disagrees with the extension length. */
+    static const byte badExt[] = {
+        0x00, 0x2c, 0x00, 0x08, 0x00, 0x07, 'w', 'o', 'l', 'f', 'S', 'L'
+    };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+        CERT_FILETYPE));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, badExt, (word16)sizeof(badExt), client_hello,
+        (Suites*)WOLFSSL_SUITES(ssl)), WC_NO_ERR_TRACE(BUFFER_E));
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    /* No cookie was sent, so there is nothing for the echo to match. */
+    expected = WC_NO_ERR_TRACE(HRR_COOKIE_ERROR);
+#endif
+    ExpectIntEQ(TLSX_Parse(ssl, goodExt, (word16)sizeof(goodExt), client_hello,
+        (Suites*)WOLFSSL_SUITES(ssl)), expected);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a TLS 1.3 encrypted record whose inner content type resolves to
  * zero is rejected in removeMsgInnerPadding() with PARSE_ERROR and an
  * unexpected_message alert. */

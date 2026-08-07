@@ -7622,6 +7622,10 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 {
     word16  len;
     word16  idx = 0;
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    TLSX*   extension;
+    Cookie* cookie;
+#endif
 
     if (msgType != client_hello && msgType != hello_retry_request) {
         WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
@@ -7639,44 +7643,47 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return BUFFER_E;
 
     if (msgType == hello_retry_request) {
+        /* RFC 8446 4.2.2 puts no upper bound on the cookie. Limit how much a
+         * server can make us hold and echo back. */
+        if (len > WOLFSSL_MAX_TLS13_COOKIE_SZ) {
+            WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
+            return HRR_COOKIE_ERROR;
+        }
+
         ssl->options.hrrSentCookie = 1;
         return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 1,
                                &ssl->extensions);
     }
 
+    /* client_hello - the encoding is checked above in every build. Only a
+     * server that sends cookies holds one to compare the echoed cookie
+     * against, so otherwise the value is accepted and ignored. */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    /* client_hello - only a server that sends cookies has one to check the
-     * echoed cookie against. Otherwise ignore it. */
-    {
-        TLSX*   extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
-        Cookie* cookie;
-
-        if (extension == NULL) {
-    #ifdef WOLFSSL_DTLS13
-            if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
-                /* Allow a cookie extension with DTLS 1.3 because it is
-                 * possible that a different SSL instance sent the cookie but
-                 * we are now receiving it. */
-                return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0,
-                                       &ssl->extensions);
-            else
-    #endif
-            {
-                WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
-                return HRR_COOKIE_ERROR;
-            }
-        }
-
-        cookie = (Cookie*)extension->data;
-        if (cookie->len != len ||
-                XMEMCMP(cookie->data, input + idx, len) != 0) {
+    extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
+    if (extension == NULL) {
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
+            /* Allow a cookie extension with DTLS 1.3 because it is possible
+             * that a different SSL instance sent the cookie but we are now
+             * receiving it. */
+            return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0,
+                                   &ssl->extensions);
+        else
+#endif
+        {
             WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
             return HRR_COOKIE_ERROR;
         }
-
-        /* Request seen. */
-        extension->resp = 0;
     }
+
+    cookie = (Cookie*)extension->data;
+    if (cookie->len != len || XMEMCMP(cookie->data, input + idx, len) != 0) {
+        WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
+        return HRR_COOKIE_ERROR;
+    }
+
+    /* Request seen. */
+    extension->resp = 0;
 #endif
 
     return 0;
