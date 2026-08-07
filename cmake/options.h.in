@@ -121,6 +121,16 @@ extern "C" {
 #cmakedefine HAVE_HASHDRBG
 #undef HAVE_HKDF
 #cmakedefine HAVE_HKDF
+#undef WOLFSSL_PUF
+#cmakedefine WOLFSSL_PUF
+#undef WOLFSSL_PUF_SRAM
+#cmakedefine WOLFSSL_PUF_SRAM
+#undef WOLFSSL_PUF_TEST
+#cmakedefine WOLFSSL_PUF_TEST
+#undef WC_PUF_BCH_T
+#cmakedefine WC_PUF_BCH_T @WC_PUF_BCH_T@
+#undef WC_PUF_NUM_CODEWORDS
+#cmakedefine WC_PUF_NUM_CODEWORDS @WC_PUF_NUM_CODEWORDS@
 #undef HAVE_HPKE
 #cmakedefine HAVE_HPKE
 #undef HAVE_KEYING_MATERIAL

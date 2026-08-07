@@ -2326,10 +2326,47 @@ add_option("WOLFSSL_PUF"
     "no" "yes;no")
 
 if(WOLFSSL_PUF)
+    # PUF BCH error-correction profile (only surfaced when PUF is enabled).
+    # Other t values and WC_PUF_NUM_CODEWORDS can still be set via CFLAGS.
+    add_option("WOLFSSL_PUF_PROFILE"
+        "PUF BCH profile: balanced (t=10), small (t=7), strong (t=13), strongest (t=15)"
+        "balanced" "balanced;small;strong;strongest")
+
+    # Codeword count. Plain cache STRING (not add_option) so a number is kept
+    # rather than reduced to yes/no. The cache name deliberately differs from
+    # the C macro: the loop that turns WOLFSSL_DEFINITIONS into CMake vars
+    # before configure_file() would otherwise clobber this cache entry.
+    # NOTE: setting WC_PUF_NUM_CODEWORDS through raw CMAKE_C_FLAGS bypasses
+    # WOLFSSL_DEFINITIONS and so can never reach the generated options.h,
+    # leaving the application and library with different sizeof(wc_PufCtx).
+    # Use this option instead.
+    set(WOLFSSL_PUF_NUM_CODEWORDS "" CACHE STRING
+        "Number of PUF BCH codewords (1-4095, default: 16)")
+
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_PUF"
         "-DWOLFSSL_PUF_SRAM"
         "-DHAVE_HKDF")
+    if(WOLFSSL_PUF_NUM_CODEWORDS)
+        if(NOT WOLFSSL_PUF_NUM_CODEWORDS MATCHES "^[0-9]+$" OR
+           WOLFSSL_PUF_NUM_CODEWORDS LESS 1 OR
+           WOLFSSL_PUF_NUM_CODEWORDS GREATER 4095)
+            message(FATAL_ERROR
+                "WOLFSSL_PUF_NUM_CODEWORDS must be an integer from 1 to 4095")
+        endif()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWC_PUF_NUM_CODEWORDS=${WOLFSSL_PUF_NUM_CODEWORDS}")
+    endif()
+    if(WOLFSSL_PUF_PROFILE STREQUAL "small")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_PUF_BCH_T=7")
+    elseif(WOLFSSL_PUF_PROFILE STREQUAL "strong")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_PUF_BCH_T=13")
+    elseif(WOLFSSL_PUF_PROFILE STREQUAL "strongest")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_PUF_BCH_T=15")
+    elseif(NOT WOLFSSL_PUF_PROFILE STREQUAL "balanced")
+        message(FATAL_ERROR
+            "WOLFSSL_PUF_PROFILE must be balanced, small, strong, or strongest")
+    endif()
     override_cache(WOLFSSL_HKDF "yes")
 endif()
 
