@@ -10040,6 +10040,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                         mldsa_mul(ct0, c, t0 + r * MLDSA_N);
                     #endif
                         mldsa_invntt(ct0);
+                        mldsa_poly_red(ct0);
                         /* Step 27: Check ct0 has low enough values. */
                         valid = mldsa_check_low(ct0, params->gamma2);
                     }
