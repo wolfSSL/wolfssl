@@ -97,7 +97,6 @@ WOLFSSL_LOCAL void wc_AlteraFcs_DiscardServiceKey(word32 keyId);
 WOLFSSL_LOCAL int  wc_AlteraFcs_ResourceAcquire(void);
 WOLFSSL_LOCAL void wc_AlteraFcs_ResourceAdd(void);
 WOLFSSL_LOCAL void wc_AlteraFcs_ResourceRemove(void);
-WOLFSSL_LOCAL int  wc_AlteraFcs_ResourceActive(void);
 WOLFSSL_LOCAL void wc_AlteraFcsCryptoCb_UnRegisterPending(void);
 WOLFSSL_LOCAL int  wc_AlteraFcsCryptoCb_UnRegisterDeviceEx(int devId);
 WOLFSSL_LOCAL int  wc_AlteraFcs_UnregisterPending(void);

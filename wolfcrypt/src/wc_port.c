@@ -869,20 +869,9 @@ int wolfCrypt_Cleanup(void)
     else if (ret == WC_INIT_STATE_INITED)
         return 0;
     else {
-#if defined(WOLFSSL_ALTERA_FCS) && defined(WOLF_CRYPTO_CB)
-        if (wc_AlteraFcs_ResourceActive()) {
-            WOLFSSL_MSG("wolfCrypt_Cleanup() called with active Altera FCS objects");
-            ret = wc_local_InitDownAbort(&wolfcrypt_init_state);
-            return (ret == 0) ? BUSY_E : ret;
-        }
-        ret = wc_AlteraFcsCryptoCb_UnRegisterDeviceEx(
-            WOLFSSL_ALTERA_FCS_DEVID);
-        if (ret != 0) {
-            int ret2 = wc_local_InitDownAbort(&wolfcrypt_init_state);
-            return (ret2 == 0) ? ret : ret2;
-        }
-#endif
 #ifdef WOLF_CRYPTO_CB
+        /* Altera FCS unregisters through this loop too, so an abort on a
+         * different device's BUSY_E leaves its SDM session intact. */
         ret = wc_CryptoCb_Cleanup();
         if (ret != 0) {
             int ret2 = wc_local_InitDownAbort(&wolfcrypt_init_state);

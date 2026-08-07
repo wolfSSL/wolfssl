@@ -78080,10 +78080,12 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
     wc_test_ret_t ret = 0;
     wc_Sha256 hwSha;
     wc_Sha256 swSha;
+    wc_Sha256 copySha;
     byte      hwDig[WC_SHA256_DIGEST_SIZE];
     byte      swDig[WC_SHA256_DIGEST_SIZE];
     int       hwInit = 0;
     int       swInit = 0;
+    int       copyInit = 0;
     word32    sizes[2];
     word32    sz;
     int       i;
@@ -78226,9 +78228,7 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
      * copy callback replaces wolfCrypt's own deep copy, so a shallow copy of
      * either side's buffers shows up here. */
     {
-        wc_Sha256 copySha;
         byte      copyDig[WC_SHA256_DIGEST_SIZE];
-        int       copyInit = 0;
 
         ret = wc_InitSha256_ex(&hwSha, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
         if (ret != 0)
@@ -78270,8 +78270,10 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
             ret = wc_Sha256Update(&swSha, msg, 4096);
         if (ret == 0)
             ret = wc_Sha256Final(&swSha, swDig);
-        if (copyInit)
+        if (copyInit) {
             wc_Sha256Free(&copySha);
+            copyInit = 0;
+        }
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_hash);
 
@@ -78288,11 +78290,9 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
     /* Cross the single-request limit, then copy and finalize the streaming
      * software state owned by the callback. */
     {
-        wc_Sha256 copySha;
         byte      copyDig[WC_SHA256_DIGEST_SIZE];
         word32    chunks = (WC_ALTERA_FCS_MAX_XFER / msgSz) + 1;
         word32    j;
-        int       copyInit = 0;
 
         ret = wc_InitSha256_ex(&hwSha, HEAP_HINT,
                                WOLFSSL_ALTERA_FCS_DEVID);
@@ -78323,8 +78323,10 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
         if (ret == 0)
             ret = wc_Sha256Final(&swSha, swDig);
 
-        if (copyInit)
+        if (copyInit) {
             wc_Sha256Free(&copySha);
+            copyInit = 0;
+        }
         if (hwInit) {
             wc_Sha256Free(&hwSha);
             hwInit = 0;
@@ -78342,6 +78344,8 @@ static wc_test_ret_t altera_fcs_hash_test(const byte* msg, word32 msgSz)
     }
 
 exit_fcs_hash:
+    if (copyInit)
+        wc_Sha256Free(&copySha);
     if (hwInit)
         wc_Sha256Free(&hwSha);
     if (swInit)
@@ -82437,14 +82441,17 @@ static int cryptoCbBusyTestCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
 static wc_test_ret_t cryptoCbBusyUnregisterTest(void)
 {
-    CryptoCbBusyTestCtx testCtx;
-    int ret;
+    static CryptoCbBusyTestCtx testCtx;
+    wc_test_ret_t ret = 0;
+    int apiRet;
+    int cleanupRet;
+    int initRet;
 
     testCtx.busy = 1;
-    ret = wc_CryptoCb_RegisterDevice(CRYPTOCB_BUSY_TEST_DEVID,
+    apiRet = wc_CryptoCb_RegisterDevice(CRYPTOCB_BUSY_TEST_DEVID,
                                      cryptoCbBusyTestCb, &testCtx);
-    if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+    if (apiRet != 0) {
+        return WC_TEST_RET_ENC_EC(apiRet);
     }
     wc_CryptoCb_UnRegisterDevice(CRYPTOCB_BUSY_TEST_DEVID);
     if (!wc_CryptoCb_IsDeviceRegistered(CRYPTOCB_BUSY_TEST_DEVID)) {
@@ -82456,30 +82463,36 @@ static wc_test_ret_t cryptoCbBusyUnregisterTest(void)
     }
 
     testCtx.busy = 1;
-    ret = wc_CryptoCb_RegisterDevice(CRYPTOCB_BUSY_TEST_DEVID,
+    apiRet = wc_CryptoCb_RegisterDevice(CRYPTOCB_BUSY_TEST_DEVID,
                                      cryptoCbBusyTestCb, &testCtx);
-    if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+    if (apiRet != 0) {
+        return WC_TEST_RET_ENC_EC(apiRet);
     }
-    ret = wolfCrypt_Cleanup();
-    if (ret != WC_NO_ERR_TRACE(BUSY_E)) {
-        return WC_TEST_RET_ENC_NC;
+
+    /* From here wolfCrypt_Cleanup() may fully tear the library down, so
+     * every path below must run wolfCrypt_Init() before returning. */
+    cleanupRet = wolfCrypt_Cleanup();
+    if (cleanupRet != WC_NO_ERR_TRACE(BUSY_E)) {
+        ret = WC_TEST_RET_ENC_NC;
     }
-    if (!wc_CryptoCb_IsDeviceRegistered(CRYPTOCB_BUSY_TEST_DEVID)) {
-        return WC_TEST_RET_ENC_NC;
+    else if (!wc_CryptoCb_IsDeviceRegistered(CRYPTOCB_BUSY_TEST_DEVID)) {
+        ret = WC_TEST_RET_ENC_NC;
     }
-    ret = wolfCrypt_Cleanup();
-    if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
+    else {
+        cleanupRet = wolfCrypt_Cleanup();
+        if (cleanupRet != 0) {
+            ret = WC_TEST_RET_ENC_EC(cleanupRet);
+        }
+        else if (wc_CryptoCb_IsDeviceRegistered(CRYPTOCB_BUSY_TEST_DEVID)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
     }
-    if (wc_CryptoCb_IsDeviceRegistered(CRYPTOCB_BUSY_TEST_DEVID)) {
-        return WC_TEST_RET_ENC_NC;
+
+    initRet = wolfCrypt_Init();
+    if (ret == 0 && initRet != 0) {
+        ret = WC_TEST_RET_ENC_EC(initRet);
     }
-    ret = wolfCrypt_Init();
-    if (ret != 0) {
-        return WC_TEST_RET_ENC_EC(ret);
-    }
-    return 0;
+    return ret;
 }
 #endif /* WOLF_CRYPTO_CB_CMD */
 
@@ -82510,10 +82523,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, &myCtx);
-    if (ret != 0)
-        ret = WC_TEST_RET_ENC_EC(ret);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
     /* don't overwrite find cb when using WOLFSSL_SWDEV */
 #if defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_SWDEV)
     wc_CryptoCb_SetDeviceFindCb(myCryptoCbFind);

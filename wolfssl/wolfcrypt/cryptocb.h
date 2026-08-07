@@ -786,6 +786,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Cleanup(void);
 WOLFSSL_LOCAL int wc_CryptoCb_GetDevIdAtIndex(int startIdx);
 WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
+WOLFSSL_API int  wc_CryptoCb_UnRegisterDeviceEx(int devId);
 WOLFSSL_API int wc_CryptoCb_DefaultDevID(void);
 WOLFSSL_API int wc_CryptoCb_IsDeviceRegistered(int devId);
 
