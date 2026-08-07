@@ -4231,6 +4231,16 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
 int MakeMasterSecret(WOLFSSL* ssl)
 {
+#ifdef HAVE_EXTENDED_MASTER
+    /* User requires EMS but it was not negotiated: abort rather than derive
+     * a standard master secret (RFC 7627). */
+    if (ssl->options.requireEMS && !ssl->options.haveEMS) {
+        WOLFSSL_MSG("EMS required but not negotiated with peer");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+        return EXT_MASTER_SECRET_NEEDED_E;
+    }
+#endif
     /* append secret to premaster : premaster | SerSi | CliSi */
 #ifndef NO_OLD_TLS
     if (ssl->options.tls) return MakeTlsMasterSecret(ssl);

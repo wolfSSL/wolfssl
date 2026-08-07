@@ -1609,7 +1609,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     ssl->options.resuming = 1;
 #ifdef HAVE_EXTENDED_MASTER
     /* A user EMS override takes precedence over the session's EMS state. */
-    if (ssl->options.requireEMS)
+    if (ssl->options.requireEMS && ssl->options.side == WOLFSSL_CLIENT_END)
         ssl->options.haveEMS = 1;
     else if (ssl->options.disableEMS)
         ssl->options.haveEMS = 0;
