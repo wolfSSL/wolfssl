@@ -5201,10 +5201,10 @@ WOLFSSL_API int wolfSSL_CTX_add_client_custom_ext(WOLFSSL_CTX* ctx,
 /* TLS Extended Master Secret Extension */
 WOLFSSL_API int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
-WOLFSSL_API int wolfSSL_DisableNormalMasterSecret(WOLFSSL* ssl);
-WOLFSSL_API int wolfSSL_CTX_DisableNormalMasterSecret(WOLFSSL_CTX* ctx);
-WOLFSSL_API int wolfSSL_EnableNormalMasterSecret(WOLFSSL* ssl);
-WOLFSSL_API int wolfSSL_CTX_EnableNormalMasterSecret(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
 
 
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
