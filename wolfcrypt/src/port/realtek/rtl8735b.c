@@ -89,6 +89,31 @@
  * Anything larger is rejected (defensive; not reachable in device RAM). */
 #define WC_RTL8735B_BOUNCE_MAX  (0xFFFFFFFFUL - 32u)
 
+/* CRYPTO_MAX_AAD_LENGTH in the vendor HAL: the engine's AAD FIFO. A longer
+ * header is rejected with _ERRNO_CRYPTO_AAD_OutRange (-10). */
+#ifndef WC_RTL8735B_MAX_AAD
+    #define WC_RTL8735B_MAX_AAD 496u
+#endif
+
+/* Report a vendor HAL failure with its raw return code before collapsing it to
+ * WC_HW_E. The codes are the _ERRNO_CRYPTO_* set in the AmebaPro2 HAL's
+ * hal_crypto.h; the ones seen in practice are:
+ *    -1  FAIL             -- the crypto done-IRQ never arrived. On a non-SDK
+ *                            RTOS (e.g. Zephyr) this means the HAL's ISR was
+ *                            never wired into the live vector table; see the
+ *                            bring-up notes in this port's README.
+ *    -4  NULL_POINTER
+ *    -5  ENGINE_NOT_INIT  -- hal_crypto_engine_init() not run, or run against
+ *                            the other security state's adapter.
+ *    -6  ADDR_NOT_32Byte_Aligned -- key / IV / AAD not 32-byte aligned.
+ *   -10  AAD_OutRange     -- aadLen > WC_RTL8735B_MAX_AAD.
+ *   -12  CIPHER_TYPE_NOT_MATCH -- an op without its matching *_init.
+ *   -14  AES_MSGLEN_NOT_16Byte_Aligned
+ *   -19  CACHE_HANDLE
+ * Without WOLFSSL_DEBUG this compiles away and only the WC_HW_E remains. */
+#define WC_RTL8735B_HW_FAIL(fn, rc)                                          \
+    WOLFSSL_MSG_EX("rtl8735b: %s failed, hal=%d", (fn), (int)(rc))
+
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
 /* HW ECDSA engine is wired for 256-bit curves (P-256); big ints cross the HAL as
  * little-endian 32-bit word arrays. Used by the ECDSA paths and result state. */
@@ -190,8 +215,12 @@ static int huk_trngInit = 0;
  * devices. Idempotent on the HAL side. */
 static int Rtl8735bHuk_Init(void* ctx)
 {
+    int hw;
+
     (void)ctx;
-    if (hal_crypto_engine_init() != 0) {
+    hw = hal_crypto_engine_init();
+    if (hw != 0) {
+        WC_RTL8735B_HW_FAIL("crypto_engine_init", hw);
         return WC_HW_E;
     }
     return 0;
@@ -308,6 +337,7 @@ static int Rtl8735bAes_Gcm(const byte* key, word32 keyLen, int enc,
     const byte* aad, word32 aadSz, byte* tag, word32 tagSz)
 {
     int   ret;
+    int   hw;
     XALIGNED(32) byte ivA[WC_AES_BLOCK_SIZE]   = { 0 };
     XALIGNED(32) byte hwTag[WC_AES_BLOCK_SIZE] = { 0 };
     /* The HAL rejects a key that is not 32-byte aligned (it DMAs it), so stage
@@ -338,6 +368,21 @@ static int Rtl8735bAes_Gcm(const byte* key, word32 keyLen, int enc,
     }
     if (sz > WC_RTL8735B_BOUNCE_MAX || aadSz > WC_RTL8735B_BOUNCE_MAX) {
         return BAD_FUNC_ARG;   /* guard the (sz/aadSz + 31) bounce allocation */
+    }
+    /* Three payload shapes the engine cannot service. Decline them (rather than
+     * letting the HAL fail and surface as WC_HW_E) so wolfCrypt falls back to
+     * the software GCM:
+     *   - a payload that is not a whole number of AES blocks: the HAL rejects
+     *     it outright (-14), and GCM cannot be split across providers;
+     *   - AAD longer than the engine's header FIFO (-10);
+     *   - an empty payload (GMAC): the HAL returns SUCCESS *without* computing
+     *     a tag, which would silently emit an all-zero tag on encrypt and fail
+     *     every decrypt. Worse than an error, so it must never reach the HAL. */
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (aadSz > WC_RTL8735B_MAX_AAD) {
+        return CRYPTOCB_UNAVAILABLE;
     }
 
     /* Bounce any unaligned DMA buffer through a 32-byte-aligned temporary. */
@@ -372,13 +417,17 @@ static int Rtl8735bAes_Gcm(const byte* key, word32 keyLen, int enc,
         goto cleanup;
     }
     XMEMCPY(keyA, key, keyLen);
-    if (hal_crypto_aes_gcm_init(keyA, keyLen) != 0) {
+    hw = hal_crypto_aes_gcm_init(keyA, keyLen);
+    if (hw != 0) {
+        WC_RTL8735B_HW_FAIL("aes_gcm_init", hw);
         ret = WC_HW_E;
         goto unlock;
     }
     if (enc) {
-        if (hal_crypto_aes_gcm_encrypt(inA, sz, ivA, aadA, aadSz, outA, hwTag)
-                != 0) {
+        hw = hal_crypto_aes_gcm_encrypt(inA, sz, ivA, aadA, aadSz, outA,
+                                        hwTag);
+        if (hw != 0) {
+            WC_RTL8735B_HW_FAIL("aes_gcm_encrypt", hw);
             ret = WC_HW_E;
             goto unlock;
         }
@@ -386,8 +435,10 @@ static int Rtl8735bAes_Gcm(const byte* key, word32 keyLen, int enc,
         ret = 0;
     }
     else {
-        if (hal_crypto_aes_gcm_decrypt(inA, sz, ivA, aadA, aadSz, outA, hwTag)
-                != 0) {
+        hw = hal_crypto_aes_gcm_decrypt(inA, sz, ivA, aadA, aadSz, outA,
+                                        hwTag);
+        if (hw != 0) {
+            WC_RTL8735B_HW_FAIL("aes_gcm_decrypt", hw);
             ret = WC_HW_E;
             goto unlock;
         }
@@ -676,6 +727,7 @@ static int Rtl8735bHuk_Gcm(int enc, const byte* seed, const byte* in,
     word32 aadSz, byte* tag, word32 tagSz)
 {
     int   ret;
+    int   hw;
     /* 16-byte aligned IV block: the HAL reads a full block, so the 4 bytes past
      * the 12-byte nonce must be zero and stable across calls. */
     XALIGNED(32) byte ivA[WC_AES_BLOCK_SIZE]   = { 0 };
@@ -707,6 +759,21 @@ static int Rtl8735bHuk_Gcm(int enc, const byte* seed, const byte* in,
     }
     if (sz > WC_RTL8735B_BOUNCE_MAX || aadSz > WC_RTL8735B_BOUNCE_MAX) {
         return BAD_FUNC_ARG;   /* guard the (sz/aadSz + 31) bounce allocation */
+    }
+    /* Three payload shapes the engine cannot service. Decline them (rather than
+     * letting the HAL fail and surface as WC_HW_E) so wolfCrypt falls back to
+     * the software GCM:
+     *   - a payload that is not a whole number of AES blocks: the HAL rejects
+     *     it outright (-14), and GCM cannot be split across providers;
+     *   - AAD longer than the engine's header FIFO (-10);
+     *   - an empty payload (GMAC): the HAL returns SUCCESS *without* computing
+     *     a tag, which would silently emit an all-zero tag on encrypt and fail
+     *     every decrypt. Worse than an error, so it must never reach the HAL. */
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (aadSz > WC_RTL8735B_MAX_AAD) {
+        return CRYPTOCB_UNAVAILABLE;
     }
 
     /* Bounce any unaligned DMA buffer through a 32-byte-aligned temporary. iv
@@ -743,14 +810,18 @@ static int Rtl8735bHuk_Gcm(int enc, const byte* seed, const byte* in,
     if (ret != 0) {
         goto unlock;
     }
-    if (hal_crypto_aes_gcm_sk_init((byte)WC_RTL8735B_DERIVED_WB_IDX,
-            WC_RTL8735B_KEYLEN) != 0) {
+    hw = hal_crypto_aes_gcm_sk_init((byte)WC_RTL8735B_DERIVED_WB_IDX,
+                                    WC_RTL8735B_KEYLEN);
+    if (hw != 0) {
+        WC_RTL8735B_HW_FAIL("aes_gcm_sk_init", hw);
         ret = WC_HW_E;
         goto unlock;
     }
     if (enc) {
-        if (hal_crypto_aes_gcm_encrypt(inA, sz, ivA, aadA, aadSz, outA, hwTag)
-                != 0) {
+        hw = hal_crypto_aes_gcm_encrypt(inA, sz, ivA, aadA, aadSz, outA,
+                                        hwTag);
+        if (hw != 0) {
+            WC_RTL8735B_HW_FAIL("aes_gcm_encrypt", hw);
             ret = WC_HW_E;
             goto unlock;
         }
@@ -758,8 +829,10 @@ static int Rtl8735bHuk_Gcm(int enc, const byte* seed, const byte* in,
         ret = 0;
     }
     else {
-        if (hal_crypto_aes_gcm_decrypt(inA, sz, ivA, aadA, aadSz, outA, hwTag)
-                != 0) {
+        hw = hal_crypto_aes_gcm_decrypt(inA, sz, ivA, aadA, aadSz, outA,
+                                        hwTag);
+        if (hw != 0) {
+            WC_RTL8735B_HW_FAIL("aes_gcm_decrypt", hw);
             ret = WC_HW_E;
             goto unlock;
         }

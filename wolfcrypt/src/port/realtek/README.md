@@ -188,11 +188,48 @@ wc_Rtl8735b_AesUnRegister(WC_RTL8735B_AES_DEVID);
 
 The device services AES-GCM and AES-ECB (ECB is needed so `wc_AesGcmSetKey` can derive the GHASH subkey H through the callback under `WOLF_CRYPTO_CB_ONLY_AES`); other modes return `CRYPTOCB_UNAVAILABLE` so wolfCrypt falls back to software with the same plaintext key. GCM correctness is validated on RTL8735B hardware; the host compile-test (`--enable-rtl8735b`) exercises the dispatch through HAL stubs only.
 
+## Bringing the crypto engine up outside the FreeRTOS SDK (Zephyr and friends)
+
+`hal_crypto_engine_init()` returning 0 is **not** enough on its own. It ends by calling `hal_crypto_irq_enable()`, which registers the crypto ISR through the **ROM's** `hal_irq_set_vector()`. The ROM writes into whatever RAM vector table it was told about by `hal_vector_table_init()`. The FreeRTOS SDK's `ram_start()` calls that during startup; a Zephyr (or any non-SDK) image does not, and points `SCB->VTOR` at its own table instead. The registration therefore lands in a table nothing is using, `IRQ 44` (`SCrypto_IRQn`, or 35 `Crypto_IRQn` on a non-secure build) never reaches the handler, and because `hal_crypto_engine_init()` also sets `isIntMode = 1`, every operation blocks in `g_crypto_wait_done()` until its ~10M-iteration spin expires and returns `FAIL` (-1). wolfSSL surfaces that as `WC_HW_E` (-248) from the first `wc_AesGcmEncrypt`/`Decrypt`, with registration having succeeded.
+
+Steps for a non-SDK image:
+
+1. Call `hal_crypto_engine_init()` once (it is idempotent; `hal_crypto_engine_chk_init()` reports whether it ran). Clocks, function-enable and the IPsec reset are handled inside it by the ROM on B-cut silicon -- you do **not** need `hal_sys_peripheral_en(CRYPTO_SYS, ...)`.
+2. **Immediately after it, point the crypto IRQ at the HAL handler through your RTOS.** Under Zephyr with `CONFIG_DYNAMIC_INTERRUPTS=y`:
+
+   ```c
+   extern void crypto_handler(void);   /* hal_crypto.c */
+
+   hal_crypto_engine_init();
+   irq_disable(44);
+   irq_connect_dynamic(44, 9 /* SCrypto_IRQPri */,
+                       (void (*)(const void *))crypto_handler, NULL, 0);
+   irq_enable(44);
+   ```
+
+   Alternatively call `hal_vector_table_init(__get_MSP(), (int_vector_t *)SCB->VTOR)` early in your SoC init so *every* Realtek HAL `hal_irq_set_vector()` lands in the live table -- that also fixes the same latent problem for the SPI/I2C/I2S/Ethernet drivers. A third option is to install a polling `wait_done_func` on the adapter.
+
+   Do **not** simply clear `isIntMode`: `g_crypto_wait_done()` then returns success immediately and the caller reads the destination buffer before the DMA has finished.
+3. Call `hal_otp_init()` if you use the HUK / secure-key-slot paths (`WOLFSSL_RTL8735B_HUK`). Plaintext-key AES does not need it.
+4. Keep key / IV / AAD buffers **32-byte aligned** (this port already bounces unaligned ones); message and output buffers have no alignment requirement.
+5. Do **not** add your own `DCache_Clean`/`DCache_Invalidate` around the calls -- `hal_crypto_engine_init()` installs the ROM's cache callbacks, and the 32-byte requirement exists precisely because the ROM does line-granular maintenance.
+6. Keep DMA buffers out of PSRAM (`0x60000000`-`0x60400000`) and out of flash-XIP. SRAM and DDR are both fine.
+
+If an operation still fails, build with `WOLFSSL_DEBUG` (or `DEBUG_WOLFSSL`): every HAL failure now logs its raw vendor return code, which pins the cause exactly -- `-1` IRQ never arrived (this section), `-4` NULL pointer, `-5` engine not initialised or initialised against the other security state's adapter, `-6` key/IV/AAD not 32-byte aligned, `-10` AAD over the 496-byte FIFO, `-12` an operation without its matching `*_init`, `-14` payload not a multiple of 16, `-19` cache handling.
+
 ## Notes / limitations
 
 - The HAL GCM path assumes a 96-bit (12-byte) IV (standard J0). A non-12-byte
   IV returns a hard error (not a software fallback, which would key off the seed
   rather than the device-bound key).
+- The GCM engine only accepts a payload that is a non-zero multiple of 16 bytes
+  and AAD of at most 496 bytes. Requests outside that return
+  `CRYPTOCB_UNAVAILABLE` so wolfCrypt uses the software GCM -- note this means
+  a partial-block record (most real TLS traffic) runs in software. An empty
+  payload (GMAC) is declined for the same reason: the HAL reports success
+  without computing a tag, so letting it through would emit an all-zero tag.
+  Under `WOLF_CRYPTO_CB_ONLY_AES` there is no software fallback to decline to,
+  so those shapes will fail -- do not combine that option with GCM here.
 - AES-CBC and AES-CTR chain in software over single-block
   `hal_crypto_aes_ecb_sk_*` calls because the HAL exposes no CBC/CTR secure-key
   variant; the key still stays in hardware. CTR maintains the wolfCrypt counter
