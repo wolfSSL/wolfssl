@@ -9403,6 +9403,25 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 #endif
 #endif /* WOLFSSL_MLKEM_KYBER */
 #endif /* WOLFSSL_HAVE_MLKEM */
+#ifndef NO_DH
+    /* Finite field groups have no NID; OpenSSL identifies them by TLS group
+     * code point, so use that for both fields. */
+    #ifdef HAVE_FFDHE_2048
+    {CURVE_NAME("ffdhe2048"), WOLFSSL_FFDHE_2048, WOLFSSL_FFDHE_2048},
+    #endif
+    #ifdef HAVE_FFDHE_3072
+    {CURVE_NAME("ffdhe3072"), WOLFSSL_FFDHE_3072, WOLFSSL_FFDHE_3072},
+    #endif
+    #ifdef HAVE_FFDHE_4096
+    {CURVE_NAME("ffdhe4096"), WOLFSSL_FFDHE_4096, WOLFSSL_FFDHE_4096},
+    #endif
+    #ifdef HAVE_FFDHE_6144
+    {CURVE_NAME("ffdhe6144"), WOLFSSL_FFDHE_6144, WOLFSSL_FFDHE_6144},
+    #endif
+    #ifdef HAVE_FFDHE_8192
+    {CURVE_NAME("ffdhe8192"), WOLFSSL_FFDHE_8192, WOLFSSL_FFDHE_8192},
+    #endif
+#endif /* !NO_DH */
 #ifdef WOLFSSL_SM2
     {CURVE_NAME("SM2"),     WC_NID_sm2, WOLFSSL_ECC_SM2P256V1},
 #endif
