@@ -1161,7 +1161,7 @@ int test_wolfSSL_RequireExtendedMasterSecret(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_TLS)
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL     *ssl = NULL;
 
