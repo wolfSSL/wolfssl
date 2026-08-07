@@ -464,8 +464,6 @@ void wc_CryptoCb_Init(void)
     }
 }
 
-static int wc_CryptoCb_UnRegisterDeviceEx(int devId);
-
 int wc_CryptoCb_Cleanup(void)
 {
     int i;
@@ -595,7 +593,7 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
     return rc;
 }
 
-static int wc_CryptoCb_UnRegisterDeviceEx(int devId)
+int wc_CryptoCb_UnRegisterDeviceEx(int devId)
 {
     CryptoCb* dev = NULL;
 #ifdef WOLF_CRYPTO_CB_CMD
