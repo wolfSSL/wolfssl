@@ -7510,31 +7510,47 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 pkcs7->content   = pkcs7->contentDynamic;
             }
 
-            /* expect data length to be enough to check set and seq of certs,
-             * but never more than what is left inside the outer ContentInfo,
-             * so that a short footer (such as an empty signerInfos SET "31 00"
-             * with no certificates) is still parsed by the stages below rather
-             * than stalling on a window the bundle cannot fill.
+            /* check if bundle has more elements or footer, if not, set content
+             * to pkcs7->content and hash to pkcs7->hash.
              *
-             * maxLen only bounds the bundle when it was taken from a complete
-             * outer SEQUENCE header; a caller feeding small chunks can leave
-             * it behind totalRd, so leave the window uncapped in that case
-             * rather than subtracting past zero. */
-            pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
+             * maxLen only bounds the bundle when stage 1 read it from a
+             * complete outer SEQUENCE header; a caller feeding small chunks can
+             * leave it behind totalRd, so only consult it when it is still
+             * ahead. The residual only decides between an ended bundle, a
+             * footer too short for the stages below to read, and a footer they
+             * can parse. */
             if (pkcs7->stream->maxLen > 0 &&
                     pkcs7->stream->maxLen >= pkcs7->stream->totalRd) {
-                if (pkcs7->stream->expected > (pkcs7->stream->maxLen -
-                                pkcs7->stream->totalRd) + pkcs7->stream->length)
-                    pkcs7->stream->expected = (pkcs7->stream->maxLen -
-                                pkcs7->stream->totalRd) + pkcs7->stream->length;
+                word32 remaining = (pkcs7->stream->maxLen -
+                            pkcs7->stream->totalRd) + pkcs7->stream->length;
 
-                /* signerInfos is a required field of SignedData */
-                if (pkcs7->stream->expected == 0) {
+                /* signerInfos is a required field of SignedData, so a bundle
+                 * whose outer ContentInfo ends with the content carries no
+                 * signer at all */
+                if (remaining == 0) {
                     WOLFSSL_MSG("PKCS7 bundle ends before signerInfos");
                     ret = PKCS7_NO_SIGNER_E;
                     break;
                 }
+
+                /* Below the window the stages after this one read, so the
+                 * footer cannot be handed to them, and it is far too small to
+                 * hold a SignerInfo in any case. Treat it as a degenerate end
+                 * and honour the caller's choice the way
+                 * wc_PKCS7_ParseSignerInfo() would have. */
+                if (remaining < (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2) {
+                    if (pkcs7->noDegenerate == 1) {
+                        WOLFSSL_MSG("Set to not allow degenerate cases");
+                        ret = PKCS7_NO_SIGNER_E;
+                    }
+                    else {
+                        ret = 0;
+                    }
+                    break;
+                }
             }
+            /* expect data length to be enough to check set and seq of certs */
+            pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
 
         #else
             /* Break out before content because it can be optional in degenerate
