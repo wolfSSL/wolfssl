@@ -1085,7 +1085,17 @@ int test_wolfSSL_i2a_ASN1_OBJECT(void)
     /* DER encoding */
     p = notObjDer;
     ExpectNotNull(a = c2i_ASN1_OBJECT(NULL, &p, 3));
-    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 5);
+    /* notObjDer's content has a truncated trailing arc (0xff with no
+     * terminator), now rejected instead of silently dropped, so this
+     * falls through to the "<INVALID>" + hex dump path: 9 bytes of
+     * "<INVALID>" plus, when the filesystem-gated wolfSSL_BIO_dump() is
+     * actually built, 61 bytes of hex dump. Under NO_FILESYSTEM,
+     * wolfSSL_BIO_dump() is a no-op that returns 0. */
+#ifndef NO_FILESYSTEM
+    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 70);
+#else
+    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 9);
+#endif
     ASN1_OBJECT_free(a);
 
     BIO_free(bio);

@@ -4223,10 +4223,26 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     #endif
 
     #ifdef WOLFSSL_CERT_EXT
-            /* decode cert policy */
-            if (DecodePolicyOID(cert->extCertPolicies[
-                                cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
-                                input + idx, length) <= 0) {
+        {
+            int decodeRet;
+            int skipPolicy = 0;
+
+            /* decode cert policy. A structurally malformed policy OID
+             * (non-minimal or truncated arc) fails the whole certificate
+             * parse here, not just this extension - intentional, matching
+             * how other malformed extensions are handled in this file.
+             * An otherwise well-formed arc whose magnitude just doesn't
+             * fit a word32 (ASN_OID_ARC_TOO_BIG_E, e.g. a 2.25 UUID-based
+             * OID) is more lenient: skip only this policy entry rather
+             * than failing the whole certificate. */
+            decodeRet = wc_DecodePolicyOID(cert->extCertPolicies[
+                                   cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
+                                   input + idx, length);
+            if (decodeRet == WC_NO_ERR_TRACE(ASN_OID_ARC_TOO_BIG_E)) {
+                WOLFSSL_MSG("\tSkipping policy OID with an oversized arc");
+                skipPolicy = 1;
+            }
+            else if (decodeRet <= 0) {
                 WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                 WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                 return ASN_PARSE_E;
@@ -4237,7 +4253,7 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
              * extension". This is a sanity check for duplicates.
              * extCertPolicies should only have OID values, additional
              * qualifiers need to be stored in a separate array. */
-            for (i = 0; i < cert->extCertPoliciesNb; i++) {
+            for (i = 0; !skipPolicy && (i < cert->extCertPoliciesNb); i++) {
                 if (XMEMCMP(cert->extCertPolicies[i],
                             cert->extCertPolicies[cert->extCertPoliciesNb],
                             MAX_CERTPOL_SZ) == 0) {
@@ -4248,7 +4264,10 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
                 }
             }
         #endif /* !WOLFSSL_DUP_CERTPOL */
-            cert->extCertPoliciesNb++;
+            if (!skipPolicy) {
+                cert->extCertPoliciesNb++;
+            }
+        }
     #endif
         }
         idx += (word32)policy_length;
@@ -5547,7 +5566,7 @@ static int SetCertificatePolicies(byte *output,
         oidSz = sizeof(oid);
         XMEMSET(oid, 0, oidSz);
 
-        ret = EncodePolicyOID(oid, &oidSz, input[i], heap);
+        ret = wc_EncodePolicyOID(oid, &oidSz, input[i], heap);
         if (ret != 0)
             return ret;
 

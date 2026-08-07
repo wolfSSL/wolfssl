@@ -5845,7 +5845,8 @@ int wc_OBJ_sn2nid(const char *sn)
      * buffer.
      *
      * String is of the form "1.2.840.113549.1.9.1" and is always NUL
-     * terminated. Truncated when the buffer is too small.
+     * terminated. Fails when the buffer is too small; unlike OpenSSL's
+     * OBJ_obj2txt(), it does not truncate and report the needed length.
      *
      * @param [out] buf     Buffer to hold string.
      * @param [in]  bufLen  Length of buffer in bytes.
@@ -5853,6 +5854,7 @@ int wc_OBJ_sn2nid(const char *sn)
      * @return  Length of string that would be written, excluding the NUL
      *          terminator, on success.
      * @return  0 when decoding the object fails.
+     * @return  ASN_PARSE_E when the object's length cannot be parsed.
      */
     static int wolfssl_obj2txt_numeric(char *buf, int bufLen,
                                        const WOLFSSL_ASN1_OBJECT *a)
@@ -5861,6 +5863,11 @@ int wc_OBJ_sn2nid(const char *sn)
         int    length;
         word32 idx = 0;
         byte   tag;
+
+        /* Fail closed: keep buf a valid (empty) NUL-terminated string on
+         * every error path, since the doc contract promises it is always
+         * NUL terminated even when decoding fails. */
+        buf[0] = '\0';
 
         if (GetASNTag(a->obj, &idx, &tag, a->objSz) != 0) {
             return WOLFSSL_FAILURE;
@@ -5876,17 +5883,17 @@ int wc_OBJ_sn2nid(const char *sn)
             return ASN_PARSE_E;
         }
 
-        /* save an extra byte for null term. */
-        if (bufLen < MAX_OID_STRING_SZ) {
-            bufSz = bufLen - 1;
-        }
-        else {
-            bufSz = MAX_OID_STRING_SZ - 1;
-        }
+        /* wc_DecodePolicyOID() accounts for the NUL terminator itself, so
+         * pass the caller's full buffer length rather than reserving a
+         * byte here. Do not clamp to MAX_OID_STRING_SZ: that would turn a
+         * caller-supplied buffer larger than 64 bytes into a spurious
+         * failure for OID strings >= 64 chars. */
+        bufSz = bufLen;
 
-        if ((bufSz = DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,
+        if ((bufSz = wc_DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,
                     (word32)length)) <= 0) {
             WOLFSSL_MSG("Error decoding OID");
+            buf[0] = '\0';
             return WOLFSSL_FAILURE;
         }
 
@@ -6259,7 +6266,7 @@ int wc_OBJ_sn2nid(const char *sn)
         }
 
     #ifdef WOLFSSL_CERT_EXT
-        ret = EncodePolicyOID(out, &outSz, s, NULL);
+        ret = wc_EncodePolicyOID(out, &outSz, s, NULL);
         if (ret == 0) {
             /* sum OID */
             sum = wc_oid_sum(out, outSz);
@@ -6324,7 +6331,7 @@ int wc_OBJ_sn2nid(const char *sn)
             return NULL;
 
         /* If s is numerical value, try to sum oid */
-        ret = EncodePolicyOID(out, &outSz, s, NULL);
+        ret = wc_EncodePolicyOID(out, &outSz, s, NULL);
         if (ret == 0 && outSz > 0) {
             /* If numerical encode succeeded then just
              * create object from that because sums are
