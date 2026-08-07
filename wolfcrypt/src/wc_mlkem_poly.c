@@ -5127,19 +5127,20 @@ static int mlkem_get_noise_k4_avx512(MLKEM_PRF_T* prf, sword16* vec1,
  *  17:     e2 <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
  *   ...
  *
- * @param  [out]  rand  Random number byte array.
+ * @param  [out]  rand  Random number word64 array. Used as the SHAKE-256
+ *                      state - the random is squeezed into it in place.
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
+static void mlkem_get_noise_x3_eta2_aarch64(word64* rand, byte* seed, byte o)
 {
-    word64* state = (word64*)rand;
+    /* Only rand[i*25 + 4] is set here - the rest of the state is zeroed in
+     * registers by the assembly. */
+    rand[0*25 + 4] = 0x1f00 + 0 + o;
+    rand[1*25 + 4] = 0x1f00 + 1 + o;
+    rand[2*25 + 4] = 0x1f00 + 2 + o;
 
-    state[0*25 + 4] = 0x1f00 + 0 + o;
-    state[1*25 + 4] = 0x1f00 + 1 + o;
-    state[2*25 + 4] = 0x1f00 + 2 + o;
-
-    mlkem_shake256_blocksx3_seed_neon(state, seed);
+    mlkem_shake256_blocksx3_seed_neon(rand, seed);
 }
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
@@ -5162,6 +5163,8 @@ static void mlkem_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
  */
 static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
+    /* Only state[i*25 + 4] is read by the assembly - the rest of the state is
+     * zeroed in registers there. */
     word64 state[3 * 25];
 
     state[0*25 + 4] = 0x1f00 + 0 + o;
@@ -5204,12 +5207,11 @@ static void mlkem_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
  */
 static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
 {
+    /* ETA3_RAND_SIZE is larger than the SHAKE-256 rate - two squeezes are
+     * needed, so the state cannot be squeezed in place over the output. */
     word64 state[25];
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[16] = W64LIT(0x8000000000000000);
@@ -5241,21 +5243,21 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed)
 {
     int ret = 0;
-    byte rand[3 * 25 * 8];
+    word64 rand[3 * 25];
 
-    mlkem_get_noise_x3_eta3_aarch64(rand, seed, 0);
-    mlkem_cbd_eta3(vec1          , rand + 0 * ETA3_RAND_SIZE);
-    mlkem_cbd_eta3(vec1 + MLKEM_N, rand + 1 * ETA3_RAND_SIZE);
+    mlkem_get_noise_x3_eta3_aarch64((byte*)rand, seed, 0);
+    mlkem_cbd_eta3(vec1          , (byte*)rand + 0 * ETA3_RAND_SIZE);
+    mlkem_cbd_eta3(vec1 + MLKEM_N, (byte*)rand + 1 * ETA3_RAND_SIZE);
     if (poly == NULL) {
-        mlkem_cbd_eta3(vec2          , rand + 2 * ETA3_RAND_SIZE);
-        mlkem_get_noise_eta3_aarch64(rand, seed, 3);
-        mlkem_cbd_eta3(vec2 + MLKEM_N, rand                     );
+        mlkem_cbd_eta3(vec2          , (byte*)rand + 2 * ETA3_RAND_SIZE);
+        mlkem_get_noise_eta3_aarch64((byte*)rand, seed, 3);
+        mlkem_cbd_eta3(vec2 + MLKEM_N, (byte*)rand                     );
     }
     else {
         mlkem_get_noise_x3_eta2_aarch64(rand, seed, 2);
-        mlkem_cbd_eta2(vec2          , rand + 0 * 25 * 8);
-        mlkem_cbd_eta2(vec2 + MLKEM_N, rand + 1 * 25 * 8);
-        mlkem_cbd_eta2(poly          , rand + 2 * 25 * 8);
+        mlkem_cbd_eta2(vec2          , (byte*)rand + 0 * 25 * 8);
+        mlkem_cbd_eta2(vec2 + MLKEM_N, (byte*)rand + 1 * 25 * 8);
+        mlkem_cbd_eta2(poly          , (byte*)rand + 2 * 25 * 8);
     }
 
     /* rand holds secret noise. */
@@ -5280,23 +5282,18 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
  *  17:     e2 <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
  *   ...
  *
- * @param  [out]  rand  Random number byte array.
+ * @param  [out]  rand  Random number word64 array.
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
  */
-static void mlkem_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
+static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
 {
-    word64* state = (word64*)rand;
-
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(rand, seed, 4);
     /* Transposed value same as not. */
-    state[4] = 0x1f00 + o;
-    XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[16] = W64LIT(0x8000000000000000);
-    BlockSha3(state);
+    rand[4] = 0x1f00 + o;
+    XMEMSET(rand + 5, 0, sizeof(*rand) * (25 - 5));
+    rand[16] = W64LIT(0x8000000000000000);
+    BlockSha3(rand);
 }
 
 /* Get the noise/error by calculating random bytes and sampling to a binomial
@@ -5311,19 +5308,19 @@ static void mlkem_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
 static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
      sword16* poly, byte* seed)
 {
-    byte rand[3 * 25 * 8];
+    word64 rand[3 * 25];
 
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
-    mlkem_cbd_eta2(vec1              , rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 3);
-    mlkem_cbd_eta2(vec2              , rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec2              , (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     if (poly != NULL) {
         mlkem_get_noise_eta2_aarch64(rand, seed, 6);
-        mlkem_cbd_eta2(poly              , rand + 0 * 25 * 8);
+        mlkem_cbd_eta2(poly              , (byte*)rand + 0 * 25 * 8);
     }
 
     /* rand holds secret noise. */
@@ -5352,21 +5349,21 @@ static int mlkem_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed)
 {
     int ret = 0;
-    byte rand[3 * 25 * 8];
+    word64 rand[3 * 25];
 
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
-    mlkem_cbd_eta2(vec1              , rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 2 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 3);
-    mlkem_cbd_eta2(vec1 + 3 * MLKEM_N, rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec2              , rand + 1 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, rand + 2 * 25 * 8);
+    mlkem_cbd_eta2(vec1 + 3 * MLKEM_N, (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec2              , (byte*)rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 1 * MLKEM_N, (byte*)rand + 2 * 25 * 8);
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 6);
-    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, rand + 0 * 25 * 8);
-    mlkem_cbd_eta2(vec2 + 3 * MLKEM_N, rand + 1 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 2 * MLKEM_N, (byte*)rand + 0 * 25 * 8);
+    mlkem_cbd_eta2(vec2 + 3 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
     if (poly != NULL) {
-        mlkem_cbd_eta2(poly,               rand + 2 * 25 * 8);
+        mlkem_cbd_eta2(poly,               (byte*)rand + 2 * 25 * 8);
     }
 
     /* rand holds secret noise. */

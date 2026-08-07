@@ -400,26 +400,41 @@ static int sha256DrbgDisabled = 0;
 static int sha512DrbgDisabled = 0;
 #endif /* WOLFSSL_DRBG_SHA512 */
 
+
 #ifndef SINGLE_THREADED
 static wolfSSL_Mutex drbgStateMutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(drbgStateMutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-static int drbgStateMutex_inited = 0;
-#endif
-#endif /* !SINGLE_THREADED */
+enum {
+    WC_DRBG_MUTEX_UNINITED,
+    WC_DRBG_MUTEX_INITED
+};
+/* Ports with no static mutex initializer must create drbgStateMutex at run
+ * time, so its readiness is tracked here.
+ *
+ * wc_DrbgState_MutexInit and wc_DrbgState_MutexFree are called only from
+ * wolfCrypt_Init() and wolfCrypt_Cleanup(), inside the span serialized by the
+ * init-state machine, so this flag is not otherwise synchronized. */
+static int drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
+#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
+#endif /* !defined(SINGLE_THREADED) */
+
 
 int wc_DrbgState_MutexInit(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (!drbgStateMutex_inited) {
+    if (drbgStateMutex_inited == WC_DRBG_MUTEX_UNINITED) {
         int ret = wc_InitMutex(&drbgStateMutex);
-        if (ret != 0)
+        if (ret != 0) {
+            /* flag left unchanged because mutex was not inited */
             return ret;
-        drbgStateMutex_inited = 1;
+        }
+        drbgStateMutex_inited = WC_DRBG_MUTEX_INITED;
     }
-#endif
-#endif
+
+#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
+#endif /* !defined(SINGLE_THREADED) */
     return 0;
 }
 
@@ -427,13 +442,17 @@ int wc_DrbgState_MutexFree(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (drbgStateMutex_inited) {
+    if (drbgStateMutex_inited == WC_DRBG_MUTEX_INITED) {
         int ret = wc_FreeMutex(&drbgStateMutex);
-        drbgStateMutex_inited = 0;
-        return ret;
+        if (ret != 0) {
+            /* flag left unchanged because mutex was not freed */
+            return ret;
+        }
+        drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
     }
-#endif
-#endif
+
+#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
+#endif /* !defined(SINGLE_THREADED) */
     return 0;
 }
 
@@ -3803,9 +3822,10 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
 /* return 0 on success */
 static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
-    int ret;
+    int ret = 0;
     word64 rndTmp;
     static int rdseed_sanity_status = 0;
+    word64 rndTmpLocal = 0;
 
     (void)os;
 
@@ -3849,11 +3869,19 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     }
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
-                                                    output += sizeof(word64)) {
-        ret = IntelRDseed64_r((word64*)output);
-        if (ret != 0)
-            return ret;
+                                                output += sizeof(word64)) {
+        ret = IntelRDseed64_r(&rndTmpLocal);
+        if (ret != 0) {
+            break;
+        }
+        writeUnalignedWord64(output, rndTmpLocal);
     }
+
+    ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
+    if (ret != 0) {
+        return ret;
+    }
+
     if (sz == 0)
         return 0;
 
@@ -3923,8 +3951,9 @@ static WC_INLINE int IntelRDrand64_r(word64 *rnd)
 /* return 0 on success */
 static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
-    int ret;
     word64 rndTmp;
+    int ret = 0;
+    word64 rndTmpLocal = 0;
 
     (void)os;
 
@@ -3932,11 +3961,19 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return -1;
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
-                                                    output += sizeof(word64)) {
-        ret = IntelRDrand64_r((word64 *)output);
-        if (ret != 0)
-            return ret;
+                                                output += sizeof(word64)) {
+        ret = IntelRDrand64_r(&rndTmpLocal);
+        if (ret != 0) {
+            break;
+        }
+        writeUnalignedWord64(output, rndTmpLocal);
     }
+
+    ForceZero(&rndTmpLocal, sizeof(rndTmpLocal));
+    if (ret != 0) {
+        return ret;
+    }
+
     if (sz == 0)
         return 0;
 
@@ -3946,6 +3983,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return ret;
 
     XMEMCPY(output, &rndTmp, sz);
+    ForceZero(&rndTmp, sizeof(rndTmp));
 
     return 0;
 }
