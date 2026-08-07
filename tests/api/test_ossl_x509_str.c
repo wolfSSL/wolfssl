@@ -1535,18 +1535,16 @@ static int test_untrusted_inter_depth_exhaustion(X509* leafDeep, X509* inter,
     return EXPECT_RESULT();
 }
 
-/* Intermediate-stack cleanup: the caller-supplied intermediates that the
- * verifier temporarily appends to its working cert list must be removed from
- * the exact stack they were added to once verification finishes.  When a
- * trusted_stack is in use (X509_STORE_CTX_set0_trusted_stack), they are
- * appended to that caller-owned stack; if they are not removed again, a later
- * verification reusing the stack/ctx would snapshot them as trust anchors.
+/* Caller-owned trusted stack (X509_STORE_CTX_set0_trusted_stack): chain
+ * building appends the caller-supplied intermediates to an internal working
+ * copy, never to the caller's stack.  If the caller's stack were modified and
+ * an intermediate left behind, a later verification reusing the stack/ctx
+ * would treat it as a trust anchor.
  *
  *     leaf <- int-ca <- root, with root supplied via the trusted_stack.
  *
  * Verify the chain (which reaches root in the trusted stack), then assert the
- * trusted stack is left exactly as the caller supplied it: only root, with the
- * injected intermediate removed again. */
+ * trusted stack is left exactly as the caller supplied it: only root. */
 static int test_untrusted_inter_trusted_stack_cleanup(X509* leaf, X509* inter,
     X509* root)
 {
@@ -1567,11 +1565,68 @@ static int test_untrusted_inter_trusted_stack_cleanup(X509* leaf, X509* inter,
     /* Chain reaches root in the trusted stack -> verifies. */
     ExpectIntEQ(X509_verify_cert(ctx), 1);
     ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_OK);
-    /* The trusted stack must be restored: the injected intermediate appended
-     * during verification must have been removed, leaving only root. */
+    /* The trusted stack must be left exactly as supplied: verification builds
+     * the chain on a private copy, so nothing is appended to or removed from
+     * the caller's stack - only root remains. */
     ExpectIntEQ(sk_X509_num(trusted), 1);
     ExpectPtrEq(sk_X509_value(trusted, 0), root);
     X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    sk_X509_free(trusted);
+    return EXPECT_RESULT();
+}
+
+/* Trusted-stack counterpart of test_untrusted_inter_store_stack_unchanged: the
+ * caller's set0_trusted_stack must not be mutated - not even reordered - by the
+ * retry path.  Put the tampered candidate ahead of root in the trusted stack so
+ * the verifier hits it first and takes X509VerifyCertSetupRetry (which moves
+ * failed candidates around on the internal copy), supply the genuine int-ca via
+ * the untrusted stack, then assert the trusted stack's exact contents and order
+ * after both a succeeding and a failing verification. */
+static int test_untrusted_inter_trusted_stack_unchanged(X509* leaf, X509* inter,
+    X509* tamperedInter, X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(trusted = sk_X509_new_null());
+    /* Tampered candidate ahead of root forces the retry path over the trusted
+     * stack. */
+    ExpectIntGT(sk_X509_push(trusted, tamperedInter), 0);
+    ExpectIntGT(sk_X509_push(trusted, root), 0);
+
+    /* Succeeding verification: genuine int-ca arrives via the untrusted stack. */
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Trusted stack unchanged in contents and order. */
+    ExpectIntEQ(sk_X509_num(trusted), 2);
+    ExpectPtrEq(sk_X509_value(trusted, 0), tamperedInter);
+    ExpectPtrEq(sk_X509_value(trusted, 1), root);
+
+    /* Failing verification on the same trusted stack: no genuine issuer. */
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntNE(X509_STORE_CTX_get_error(ctx), X509_V_OK);
+    X509_STORE_CTX_free(ctx);
+
+    ExpectIntEQ(sk_X509_num(trusted), 2);
+    ExpectPtrEq(sk_X509_value(trusted, 0), tamperedInter);
+    ExpectPtrEq(sk_X509_value(trusted, 1), root);
+
     X509_STORE_free(store);
     sk_X509_free(untrusted);
     sk_X509_free(trusted);
@@ -1657,6 +1712,113 @@ static int test_untrusted_inter_retry(X509* leaf, X509* inter,
     sk_X509_free(badOnly);
     return EXPECT_RESULT();
 }
+
+/* Retry-path chain integrity: a tampered same-subject candidate tried and
+ * rejected before the genuine intermediate succeeds must not appear in the
+ * reported chain.  Drive the retry path (tampered candidate ahead of the
+ * genuine one), then confirm X509_STORE_CTX_get0_chain() contains the genuine
+ * intermediate and never the rejected sibling.  Certs are compared by content
+ * (X509_cmp) since the chain need not hold the caller's pointers.
+ * NOTE: this exercises the retry/failedCerts machinery via the untrusted
+ * stack; it does not drive the terminal-anchor failedCerts guard (x509_str.c),
+ * which additionally needs a same-subject rejected *anchor* in the trusted
+ * terminal set - no such fixture exists yet. */
+static int test_untrusted_inter_chain_excludes_rejected(X509* leaf, X509* inter,
+    X509* tamperedInter, X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* mixed = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i;
+    int foundInter = 0;
+    int foundTampered = 0;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+
+    /* Tampered candidate first forces the verifier to try and reject it,
+     * moving it into the internal failedCerts list, before recovering with the
+     * genuine intermediate. */
+    ExpectNotNull(mixed = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(mixed, tamperedInter), 0);
+    ExpectIntGT(sk_X509_push(mixed, inter), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, mixed), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    ExpectNotNull(chain = X509_STORE_CTX_get0_chain(ctx));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        X509* c = sk_X509_value(chain, i);
+        if (c != NULL && X509_cmp(c, inter) == 0)
+            foundInter = 1;
+        if (c != NULL && X509_cmp(c, tamperedInter) == 0)
+            foundTampered = 1;
+    }
+    ExpectIntEQ(foundInter, 1);
+    ExpectIntEQ(foundTampered, 0);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(mixed);
+    return EXPECT_RESULT();
+}
+
+/* The store's cert stack is shared by every X509_STORE_CTX (and every SSL
+ * connection) using the store, so verification must not modify it.  Chain
+ * building appends caller-supplied intermediates and moves failed retry
+ * candidates around on an internal copy only.  Put a tampered candidate on
+ * store->certs ahead of the genuine one so the verifier takes the retry path
+ * (which used to reorder the stack), then assert the stack's exact contents
+ * and order after both a succeeding and a failing verification. */
+static int test_untrusted_inter_store_stack_unchanged(X509* leaf, X509* inter,
+    X509* tamperedInter, X509* inter2, X509* root)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    /* Non-self-signed certs land on store->certs, in add order. */
+    ExpectIntEQ(X509_STORE_add_cert(store, tamperedInter), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, inter2), 1);
+    ExpectIntEQ(sk_X509_num(store->certs), 2);
+
+    /* Succeeding verification: the tampered candidate is hit first and the
+     * genuine intermediate arrives via the untrusted stack, forcing a retry.
+     * Only the return value is asserted; the error code after a recovered
+     * retry is order-dependent (worst-seen error persists). */
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectIntEQ(sk_X509_num(store->certs), 2);
+    ExpectPtrEq(sk_X509_value(store->certs, 0), tamperedInter);
+    ExpectPtrEq(sk_X509_value(store->certs, 1), inter2);
+
+    /* Failing verification on the same store: no genuine issuer available. */
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    ExpectIntNE(X509_STORE_CTX_get_error(ctx), X509_V_OK);
+    X509_STORE_CTX_free(ctx);
+
+    ExpectIntEQ(sk_X509_num(store->certs), 2);
+    ExpectPtrEq(sk_X509_value(store->certs, 0), tamperedInter);
+    ExpectPtrEq(sk_X509_value(store->certs, 1), inter2);
+
+    X509_STORE_free(store);
+    sk_X509_free(untrusted);
+    return EXPECT_RESULT();
+}
 #endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_FILESYSTEM */
 
 int test_X509_verify_cert_untrusted_inter(void)
@@ -1681,7 +1843,10 @@ int test_X509_verify_cert_untrusted_inter(void)
     int noStaleRes = 0;
     int depthExhaustRes = 0;
     int trustedStackCleanupRes = 0;
+    int trustedStackUnchangedRes = 0;
     int retryRes = 0;
+    int chainExcludesRes = 0;
+    int storeStackRes = 0;
 
     ExpectNotNull(leaf = untrusted_inter_load(UA_CERT_DIR "leaf-cert.pem"));
     ExpectNotNull(leafDeep =
@@ -1715,7 +1880,14 @@ int test_X509_verify_cert_untrusted_inter(void)
                             inter, inter2, root);
         trustedStackCleanupRes = test_untrusted_inter_trusted_stack_cleanup(
                             leaf, inter, root);
+        trustedStackUnchangedRes =
+                            test_untrusted_inter_trusted_stack_unchanged(
+                            leaf, inter, tamperedInter, root);
         retryRes = test_untrusted_inter_retry(leaf, inter, tamperedInter, root);
+        chainExcludesRes = test_untrusted_inter_chain_excludes_rejected(leaf,
+                            inter, tamperedInter, root);
+        storeStackRes = test_untrusted_inter_store_stack_unchanged(leaf, inter,
+                            tamperedInter, inter2, root);
         ExpectIntEQ(sanityRes, 1);
         ExpectIntEQ(twoLevelRes, 1);
         ExpectIntEQ(emptyStoreRes, 1);
@@ -1725,7 +1897,10 @@ int test_X509_verify_cert_untrusted_inter(void)
         ExpectIntEQ(noStaleRes, 1);
         ExpectIntEQ(depthExhaustRes, 1);
         ExpectIntEQ(trustedStackCleanupRes, 1);
+        ExpectIntEQ(trustedStackUnchangedRes, 1);
         ExpectIntEQ(retryRes, 1);
+        ExpectIntEQ(chainExcludesRes, 1);
+        ExpectIntEQ(storeStackRes, 1);
     }
 
     X509_free(leaf);
