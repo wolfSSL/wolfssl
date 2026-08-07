@@ -38108,9 +38108,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WC_NO_ERR_TRACE(PSK_KEY_ERROR):
             case WC_NO_ERR_TRACE(INVALID_PARAMETER):
             case WC_NO_ERR_TRACE(HRR_COOKIE_ERROR):
-            case WC_NO_ERR_TRACE(BAD_BINDER):
             case WC_NO_ERR_TRACE(DUPLICATE_TLS_EXT_E):
                 return illegal_parameter;
+            /* RFC 8446 Section 6.2. The no-PSK-match path reuses BAD_BINDER
+             * for identity protection, so both share this alert. */
+            case WC_NO_ERR_TRACE(BAD_BINDER):
+                return decrypt_error;
             case WC_NO_ERR_TRACE(INCOMPLETE_DATA):
                 return missing_extension;
             case WC_NO_ERR_TRACE(MATCH_SUITE_ERROR):

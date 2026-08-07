@@ -2524,7 +2524,7 @@ int test_tls13_bad_psk_binder(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
         WC_NO_ERR_TRACE(FATAL_ERROR));
     ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
-    ExpectIntEQ(h.last_rx.code, illegal_parameter);
+    ExpectIntEQ(h.last_rx.code, decrypt_error);
     ExpectIntEQ(h.last_rx.level, alert_fatal);
 
     wolfSSL_free(ssl_c);
@@ -2646,12 +2646,12 @@ int test_tls13_psk_no_cert_bad_binder(void)
         WC_NO_ERR_TRACE(BAD_BINDER));
 
     /* Client reads the server's alert: BAD_BINDER maps to a fatal
-     * illegal_parameter alert (see TranslateErrorToAlert). */
+     * decrypt_error alert (see TranslateErrorToAlert). */
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
         WC_NO_ERR_TRACE(FATAL_ERROR));
     ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
-    ExpectIntEQ(h.last_rx.code, illegal_parameter);
+    ExpectIntEQ(h.last_rx.code, decrypt_error);
     ExpectIntEQ(h.last_rx.level, alert_fatal);
 
     wolfSSL_free(ssl_c);
@@ -2687,6 +2687,211 @@ int test_tls13_psk_no_cert_bad_binder(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
 #endif /* !NO_CERTS */
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(NO_PSK)
+#define TEST_TLS13_PSK_AGE_KNOWN_ID   "known_id"
+#define TEST_TLS13_PSK_AGE_UNKNOWN_ID "unknown_id"
+
+/* Identity the client offers; TLS 1.3 has no identity hint to carry it, so a
+ * file-scope value serves both the known and the unknown case. */
+static const char* test_tls13_psk_age_identity = TEST_TLS13_PSK_AGE_KNOWN_ID;
+
+static unsigned int test_tls13_psk_age_client_cb(WOLFSSL* ssl,
+    const char* hint, char* identity, unsigned int id_max_len,
+    unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)hint;
+    if (id_max_len <= XSTRLEN(test_tls13_psk_age_identity) || key_max_len < 32)
+        return 0;
+    XSTRNCPY(identity, test_tls13_psk_age_identity, id_max_len);
+    XMEMSET(key, 0x5A, 32);
+    return 32;
+}
+
+/* Set when the server callback recognises the identity, so the test can prove
+ * the known-identity run really exercised the matched path. */
+static int test_tls13_psk_age_matched = 0;
+
+static unsigned int test_tls13_psk_age_server_cb(WOLFSSL* ssl, const char* id,
+    unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    if (id == NULL || key_max_len < 32)
+        return 0;
+    if (XSTRCMP(id, TEST_TLS13_PSK_AGE_KNOWN_ID) != 0)
+        return 0;
+    test_tls13_psk_age_matched = 1;
+    XMEMSET(key, 0x5A, 32);
+    return 32;
+}
+
+/* Overwrite the 4-byte obfuscated_ticket_age that follows the identity in the
+ * ClientHello's pre_shared_key extension. wolfSSL's own client always sends
+ * zero there, so the field has to be rewritten on the wire to model a hostile
+ * peer. Returns 1 when the identity was found and patched. */
+static int test_tls13_psk_age_patch(byte* buf, int len, const char* id)
+{
+    int idLen = (int)XSTRLEN(id);
+    int i;
+
+    /* Anchor on the 2-byte identity length that precedes the identity in
+     * PskIdentity, so a stray copy of the string cannot be matched. */
+    for (i = 2; i + idLen + 4 <= len; i++) {
+        if (buf[i - 2] != ((idLen >> 8) & 0xff) || buf[i - 1] != (idLen & 0xff))
+            continue;
+        if (XMEMCMP(buf + i, id, (size_t)idLen) == 0) {
+            buf[i + idLen + 0] = 0x00;
+            buf[i + idLen + 1] = 0x00;
+            buf[i + idLen + 2] = 0x00;
+            buf[i + idLen + 3] = 0x01;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Drive one ClientHello carrying the given identity and a non-zero age, and
+ * report the alert the server sends back. */
+static int test_tls13_psk_age_alert(const char* identity, int* alertOut,
+    int expectMatch, int patchAge)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_tls13_psk_age_identity = identity;
+    test_tls13_psk_age_matched = 0;
+
+    /* No certificate on the server, so a non-matching PSK has nothing to fall
+     * back to and the handshake has to abort. */
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    if (ctx_c != NULL) {
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+    }
+    if (ctx_s != NULL) {
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+    wolfSSL_CTX_set_psk_client_callback(ctx_c, test_tls13_psk_age_client_cb);
+    wolfSSL_CTX_set_psk_server_callback(ctx_s, test_tls13_psk_age_server_cb);
+
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    if (ssl_c != NULL) {
+        wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    }
+    if (ssl_s != NULL) {
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    }
+
+    if (!patchAge) {
+        /* Control: the same fixture, ClientHello untouched. It must complete,
+         * so a failure in the patched runs is attributable to the age rewrite
+         * and not to a fixture that never negotiated a PSK at all. */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        if (ssl_s != NULL) {
+            ExpectIntEQ(ssl_s->options.isPSK, 1);
+        }
+        ExpectIntEQ(test_tls13_psk_age_matched, 1);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        return EXPECT_RESULT();
+    }
+
+    /* Client emits the ClientHello into the server inbound buffer. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_tls13_psk_age_patch(test_ctx.s_buff, test_ctx.s_len,
+        identity), 1);
+
+    /* Server must reject, and must not reveal whether it knew the identity.
+     * The server-side error is asserted too, matching the convention of the
+     * neighbouring PSK tests, so an abort for an unrelated reason that also
+     * maps to decrypt_error cannot pass unnoticed. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(BAD_BINDER));
+
+    /* isPSK is set only after FindPskSuite() reported a match and the early
+     * secret was derived, so it proves the known run really took the matched
+     * path. The callback flag alone would not: the callback runs before the
+     * ciphersuite match that decides whether the PSK is used at all. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.isPSK, expectMatch);
+    }
+    ExpectIntEQ(test_tls13_psk_age_matched, expectMatch);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    if (alertOut != NULL)
+        *alertOut = h.last_rx.code;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A ClientHello that offers a known PSK identity with a non-zero
+ * obfuscated_ticket_age must fail exactly like one offering an unknown
+ * identity, or an unauthenticated peer could enumerate the server's PSK
+ * identities. The two runs reach that same alert by different routes: the
+ * known identity is accepted by FindPsk(), so the server derives the binder
+ * and rejects it at the comparison (the age rewrite invalidated the
+ * transcript), while the unknown identity never matches and aborts earlier.
+ * Before the fix the known run returned PSK_KEY_ERROR (illegal_parameter)
+ * and the unknown run BAD_BINDER (decrypt_error).
+ *
+ * A control run with an untouched ClientHello completes the handshake first,
+ * so the two rejecting runs cannot pass by way of a fixture that never
+ * negotiated a PSK.
+ *
+ * The accept side for a non-zero age, where a conformant client sends one and
+ * the handshake completes, is not covered: wolfSSL's client always sends zero,
+ * and rewriting the age on the wire necessarily invalidates the binder the
+ * client already computed. */
+int test_tls13_psk_age_no_identity_oracle(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(NO_PSK)
+    int knownAlert = -1;
+    int unknownAlert = -1;
+
+    ExpectIntEQ(test_tls13_psk_age_alert(TEST_TLS13_PSK_AGE_KNOWN_ID,
+        NULL, 1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_psk_age_alert(TEST_TLS13_PSK_AGE_KNOWN_ID,
+        &knownAlert, 1, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_psk_age_alert(TEST_TLS13_PSK_AGE_UNKNOWN_ID,
+        &unknownAlert, 0, 1), TEST_SUCCESS);
+
+    ExpectIntEQ(knownAlert, unknownAlert);
+    ExpectIntEQ(knownAlert, decrypt_error);
 #endif
     return EXPECT_RESULT();
 }
