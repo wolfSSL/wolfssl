@@ -78844,7 +78844,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         WOLFSSL_MSG_EX("CryptoDevCb: Pk Type %d\n", info->pk.type);
     #endif
 
-    #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+        !defined(WOLF_CRYPTO_CB_ONLY_RSA)
         if (info->pk.type == WC_PK_TYPE_RSA_PSS_VERIFY) {
             RsaKey* pssKey = info->pk.rsa_pss_verify.key;
             int     pssSaveDevId = pssKey->devId;
@@ -78887,7 +78888,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
             return pssVer;
         }
-    #endif /* WC_RSA_PSS && WOLF_CRYPTO_CB_RSA_PAD */
+    #endif /* WC_RSA_PSS && WOLF_CRYPTO_CB_RSA_PAD && !WOLF_CRYPTO_CB_ONLY_RSA */
 
     #ifndef NO_RSA
         if (info->pk.type == WC_PK_TYPE_RSA) {
