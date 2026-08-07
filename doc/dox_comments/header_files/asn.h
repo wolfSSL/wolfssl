@@ -80,11 +80,16 @@ void FreeAltNames(DNS_entry* altNames, void* heap);
     \note This API is not public by default. Define WOLFSSL_PUBLIC_ASN to
     expose APIs marked WOLFSSL_ASN_API.
 
+    \note The oid argument passed to the callback is an array of word32
+    elements, one per OID arc, so that arcs > 65535 are represented without
+    truncation. Callbacks must declare their oid parameter as const word32*.
+    The same applies to wc_SetUnknownExtCallback.
+
     _Example_
     \code
     DecodedCert cert;
 
-    int UnknownExtCallback(const byte* oid, word32 oidSz, int crit,
+    int UnknownExtCallback(const word32* oid, word32 oidSz, int crit,
                           const byte* der, word32 derSz, void* ctx) {
         // handle unknown extension
         return 0;
@@ -145,6 +150,9 @@ int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
     algorithms, extensions, and other objects in certificates and
     cryptographic protocols.
 
+    Each OID arc is a word16, so arcs with values > 65535 cannot be
+    represented. Use wc_EncodeObjectId32() in new code.
+
     \return 0 On success.
     \return BAD_FUNC_ARG If in, inSz, or outSz are invalid.
     \return BUFFER_E If out is not NULL and outSz is too small.
@@ -161,17 +169,57 @@ int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
     byte encoded[32];
     word32 encodedSz = sizeof(encoded);
 
-    int ret = wc_EncodeObjectId(oid, sizeof(oid)/sizeof(word16),
+    int ret = wc_EncodeObjectId(oid, sizeof(oid)/sizeof(*oid),
                                 encoded, &encodedSz);
     if (ret == 0) {
         // encoded contains DER encoded OID
     }
     \endcode
 
+    \sa wc_EncodeObjectId32
     \sa wc_BerToDer
 */
 int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out,
                       word32* outSz);
+
+/*!
+    \ingroup ASN
+    \brief This function encodes an array of word32 values into an ASN.1
+    Object Identifier (OID) in DER format. OIDs are used to identify
+    algorithms, extensions, and other objects in certificates and
+    cryptographic protocols.
+
+    Each OID arc is a word32, so OIDs containing arcs with values > 65535 are
+    represented without truncation.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If in, inSz, or outSz are invalid.
+    \return BUFFER_E If out is not NULL and outSz is too small.
+
+    \param in pointer to array of word32 values representing OID components
+    \param inSz number of components in the OID
+    \param out pointer to buffer to store encoded OID (can be NULL to
+    calculate size)
+    \param outSz pointer to size of out buffer; updated with actual size
+
+    _Example_
+    \code
+    word32 oid[] = {1, 2, 840, 113549, 1, 1, 11}; // sha256WithRSAEncryption
+    byte encoded[32];
+    word32 encodedSz = sizeof(encoded);
+
+    int ret = wc_EncodeObjectId32(oid, sizeof(oid)/sizeof(*oid),
+                                  encoded, &encodedSz);
+    if (ret == 0) {
+        // encoded contains DER encoded OID
+    }
+    \endcode
+
+    \sa wc_EncodeObjectId
+    \sa wc_BerToDer
+*/
+int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out,
+                        word32* outSz);
 
 /*!
     \ingroup ASN
