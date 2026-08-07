@@ -26483,6 +26483,69 @@ static int test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date(void)
 #endif
 
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
+    defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+/* A serial number obtained from wolfSSL_X509_CRL_get_REVOKED() must survive a
+ * round trip back through wolfSSL_X509_CRL_add_revoked() unchanged. The getter
+ * hands out a DER encoded INTEGER, so a consumer that reads the buffer as a
+ * bare serial stores the tag and length bytes as serial content. */
+static int test_wolfSSL_X509_CRL_add_revoked_roundtrip(void)
+{
+    EXPECT_DECLS;
+    /* Serial of the single revoked entry in certs/crl/crl.der, DER encoded.
+     * Oracle is the system openssl, not wolfSSL:
+     *   openssl asn1parse -in certs/crl/crl.der -inform DER
+     * reports inside the revokedCertificates SEQUENCE:
+     *   210:d=4  hl=2 l=   1 prim: INTEGER           :02
+     * i.e. tag 0x02, length 0x01, content 0x02. */
+    const unsigned char expSerialDer[3] = { 0x02, 0x01, 0x02 };
+    WOLFSSL_X509_CRL* src = NULL;
+    WOLFSSL_X509_CRL* dst = NULL;
+    XFILE fp = XBADFILE;
+    WOLFSSL_STACK* sk = NULL;
+    WOLFSSL_X509_REVOKED* rev = NULL;
+    WOLFSSL_ASN1_INTEGER* serial = NULL;
+    unsigned char out[8];
+    unsigned char* p = NULL;
+
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.der", "rb")) != XBADFILE);
+    ExpectNotNull(src = wolfSSL_d2i_X509_CRL_fp(fp, NULL));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectNotNull(sk = wolfSSL_X509_CRL_get_REVOKED(src));
+    ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(sk), 1);
+    ExpectNotNull(rev = wolfSSL_sk_X509_REVOKED_value(sk, 0));
+
+    /* Copy the parsed entry into a fresh CRL. */
+    ExpectNotNull(dst = wolfSSL_X509_CRL_new());
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(dst, rev), WOLFSSL_SUCCESS);
+
+    /* Read it back. The serial must still encode 2, not the DER header. */
+    sk = NULL;
+    ExpectNotNull(sk = wolfSSL_X509_CRL_get_REVOKED(dst));
+    ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(sk), 1);
+    ExpectNotNull(rev = wolfSSL_sk_X509_REVOKED_value(sk, 0));
+    ExpectNotNull(serial = (WOLFSSL_ASN1_INTEGER*)
+        wolfSSL_X509_REVOKED_get0_serial_number(rev));
+
+    ExpectIntEQ(wolfSSL_i2d_ASN1_INTEGER(serial, NULL), 3);
+    XMEMSET(out, 0, sizeof(out));
+    p = out;
+    ExpectIntEQ(wolfSSL_i2d_ASN1_INTEGER(serial, &p), 3);
+    ExpectBufEQ(out, expSerialDer, sizeof(expSerialDer));
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(serial), 2);
+
+    wolfSSL_X509_CRL_free(dst);
+    wolfSSL_X509_CRL_free(src);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+#if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM)
 /* Ensure reason-code parsing handles optional critical BOOLEAN in entry ext. */
@@ -39090,6 +39153,11 @@ TEST_CASE testCases[] = {
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
     TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date),
+#endif
+#if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
+    defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+    TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_roundtrip),
 #endif
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
