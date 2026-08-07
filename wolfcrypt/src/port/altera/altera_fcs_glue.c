@@ -335,15 +335,12 @@ int wc_AlteraFcs_SessionAcquire(void** sessionId)
 
 int wc_AlteraFcs_KeyIdNew(word32* keyId)
 {
-    int ret;
-
     if (keyId == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = wc_AlteraFcs_OrphanKey(0);
-    if (ret != 0) {
-        return ret;
-    }
+    /* Best effort: a stuck orphan must not block new key allocation, since
+     * session close reclaims it regardless. */
+    (void)wc_AlteraFcs_OrphanKey(0);
     if (g_lockInit == 0) {
         return BAD_MUTEX_E;
     }
