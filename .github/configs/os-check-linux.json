@@ -378,5 +378,14 @@
 {"name": "pkcs12-pbkdf-mp-api", "minutes": 1.0,
  "comment": "WC_PKCS12_PBKDF_USING_MP_API selects a second wc_PKCS12_PBKDF_ex implementation that no configure option reaches.",
  "configure": ["--enable-pkcs12", "--enable-des3", "--enable-opensslextra",
-  "CPPFLAGS=-DWC_PKCS12_PBKDF_USING_MP_API"]}
+  "CPPFLAGS=-DWC_PKCS12_PBKDF_USING_MP_API"]},
+{"name": "no-session-cache-session-ticket", "minutes": 0.8,
+ "comment": "Session tickets with the internal session cache compiled out, over TLS 1.3 and DTLS 1.3. This is what a Zephyr build produces from CONFIG_WOLFSSL_SESSION_CACHE=n with tickets left on, and it used to fail to link. HAVE_EXT_CACHE is set because NO_SESSION_CACHE with an external cache is the one combination where the ticket-session free path keeps its external-cache branch, and --enable-wpas with --enable-lowresource reaches it. Examples are off because tests/unit.test calls the session APIs that NO_SESSION_CACHE removes, so this entry is compile coverage for the library.",
+ "configure": ["--enable-session-ticket", "--enable-dtls", "--enable-dtls13",
+  "--disable-examples",
+  "CPPFLAGS=-DNO_SESSION_CACHE -DWOLFSSL_DTLS_NO_HVR_ON_RESUME -DHAVE_EXT_CACHE"]},
+{"name": "lowresource-tls13-session-ticket", "minutes": 0.8,
+ "comment": "--enable-lowresource defines NO_SESSION_CACHE, so this reaches the src/internal.c no-cache ticket paths purely through configure options, with no CPPFLAGS to get wrong. It does not cover src/dtls.c, whose TlsSessionIdIsValid needs WOLFSSL_DTLS_NO_HVR_ON_RESUME, so no-session-cache-session-ticket is the entry for that and the two are not interchangeable. Examples are off for the same reason as that entry.",
+ "configure": ["--enable-lowresource", "--enable-tls13", "--enable-session-ticket",
+  "--disable-examples"]}
 ]
