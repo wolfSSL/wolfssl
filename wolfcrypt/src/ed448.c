@@ -466,6 +466,10 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         ret = BAD_FUNC_ARG;
     }
 
+    if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE)) {
+        ret = BAD_LENGTH_E;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -486,11 +490,6 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     }
     if ((ret == 0) && (!key->privKeySet)) {
         ret = BAD_FUNC_ARG;
-    }
-
-    if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE))
-    {
-        ret = BAD_LENGTH_E;
     }
 
     /* check and set up out length */
