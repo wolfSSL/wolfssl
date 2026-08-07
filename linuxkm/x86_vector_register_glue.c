@@ -401,11 +401,17 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         __builtin_unreachable();
     }
 
+#ifndef DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON
+    /* EINTR during optest, which is exercised by the kernel test harness, acts
+     * like a failed save, which would emit (and indeed be) an ERROR in
+     * DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON builds.
+     */
     {
         int ret = WC_CHECK_FOR_INTR_SIGNALS();
         if (ret)
             return ret;
     }
+#endif
 
     WC_RELAX_LONG_LOOP();
 

@@ -25621,7 +25621,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif
 
     ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE,
+#ifndef DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON
                            WC_RNG_BANK_FLAG_NO_VECTOR_OPS |
+#endif
                            WC_RNG_BANK_FLAG_CAN_WAIT,
                            10, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
@@ -25660,7 +25662,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     defined(HAVE_HASHDRBG) &&             \
     defined(WC_NO_INTERNAL_FUNCTION_POINTERS) && \
     defined(HAVE_FIPS) && \
-    FIPS_VERSION3_LT(7,0,0)
+    FIPS_VERSION3_LT(7,0,0) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+
 #ifdef WOLFSSL_DRBG_SHA512
     if (rng_inst->rng.drbgType == WC_DRBG_SHA512) {
         if (((struct DRBG_SHA512_internal *)rng_inst->rng.drbg512)->sha512.sha_method != 5 /* SHA512_C */)
@@ -25672,7 +25676,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         if (((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
             ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method), out);
     }
-#endif
+#endif /* USE_INTEL_SPEEDUP && ... && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
 
     ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
     if (ret != 0)
