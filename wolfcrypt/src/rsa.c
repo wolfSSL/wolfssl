@@ -4698,9 +4698,15 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
             if (ret == 0) {
                 /* Device verified internally; no recovered PSS block to expose,
                  * so report no inline output rather than a misleading pointer. */
-                if (out != NULL)
+                if (out != NULL) {
                     *out = NULL;
-                ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
+                }
+                if (res != 0) {
+                    ret = saltLen + hLen;
+                }
+                else {
+                    ret = SIG_VERIFY_E;
+                }
             }
             else if (ret > 0) {
                 ret = SIG_VERIFY_E;
@@ -4784,10 +4790,17 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
         ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
                                        saltLen, key, &res);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret == 0)
-                ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
-            else if (ret > 0)
+            if (ret == 0) {
+                if (res != 0) {
+                    ret = saltLen + hLen;
+                }
+                else {
+                    ret = SIG_VERIFY_E;
+                }
+            }
+            else if (ret > 0) {
                 ret = SIG_VERIFY_E;
+            }
             return ret;
         }
         ret = 0;
