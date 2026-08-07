@@ -72,6 +72,10 @@ static int wolfssl_write_dup_take_tls13_work(WOLFSSL* ssl)
             ssl->options.sendVerify = ssl->dupWrite->postHandshakeSendVerify;
             ssl->options.sigAlgo = ssl->dupWrite->postHandshakeSigAlgo;
             ssl->options.hashAlgo = ssl->dupWrite->postHandshakeHashAlgo;
+            #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+            ssl->options.peerSha1CertOk =
+                (ssl->dupWrite->postHandshakeSha1CertOk != 0) ? 1 : 0;
+            #endif
         }
         #endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
         #ifdef WOLFSSL_DTLS13
