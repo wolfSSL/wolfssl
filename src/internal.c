@@ -17999,6 +17999,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                    int preCbRet;
 
                     /* select last certificate */
                     args->certIdx = args->count - 1;
@@ -18261,7 +18262,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
                     /* Do verify callback */
+                    preCbRet = ret;
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    if (ret == 0 &&
+                            (preCbRet == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
+                             preCbRet == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E))) {
+                        skipAddCA = 1;
+                    }
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
                                ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
