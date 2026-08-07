@@ -155,8 +155,10 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     ExpectIntEQ(X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
         (int)XSTRLEN(testhostName2)), 1);
     ExpectIntEQ(X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4), 1);
-    paramTo->inherit_flags = X509_VP_FLAG_ONCE;
-    paramFrom->inherit_flags = 0;
+    if ((paramTo != NULL) && (paramFrom != NULL)) {
+        paramTo->inherit_flags = X509_VP_FLAG_ONCE;
+        paramFrom->inherit_flags = 0;
+    }
     ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
     ExpectIntEQ(paramTo->inherit_flags, 0);
     ExpectIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName2,
@@ -164,17 +166,21 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     ExpectIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
 
     /* check_time should not be copied when already set unless overwrite */
-    XMEMSET(paramTo, 0, sizeof(X509_VERIFY_PARAM));
-    XMEMSET(paramFrom, 0, sizeof(X509_VERIFY_PARAM));
-    paramTo->check_time = 11;
-    paramTo->flags = WOLFSSL_USE_CHECK_TIME;
-    paramFrom->check_time = 22;
+    if ((paramTo != NULL) && (paramFrom != NULL)) {
+        XMEMSET(paramTo, 0, sizeof(X509_VERIFY_PARAM));
+        XMEMSET(paramFrom, 0, sizeof(X509_VERIFY_PARAM));
+        paramTo->check_time = 11;
+        paramTo->flags = WOLFSSL_USE_CHECK_TIME;
+        paramFrom->check_time = 22;
+    }
     ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
     ExpectTrue(paramTo->check_time == 11);
     ExpectIntEQ(paramTo->flags & WOLFSSL_USE_CHECK_TIME,
         WOLFSSL_USE_CHECK_TIME);
 
-    paramTo->inherit_flags = X509_VP_FLAG_OVERWRITE;
+    if (paramTo != NULL) {
+        paramTo->inherit_flags = X509_VP_FLAG_OVERWRITE;
+    }
     ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
     ExpectTrue(paramTo->check_time == 22);
     ExpectIntEQ(paramTo->flags & WOLFSSL_USE_CHECK_TIME, 0);
