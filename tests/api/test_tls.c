@@ -297,6 +297,60 @@ int test_tls_record_overflow_alert(void)
     return EXPECT_RESULT();
 }
 
+/* SSL_get_negotiated_group() and SSL_group_to_name() report the group that was
+ * negotiated, using the names OpenSSL gives the TLS supported groups. */
+int test_tls_get_negotiated_group(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int group = 0;
+    int p256[] = {WOLFSSL_ECC_SECP256R1};
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, p256, 1), WOLFSSL_SUCCESS);
+
+    /* Nothing negotiated yet. */
+    ExpectIntEQ(wolfSSL_get_negotiated_group(NULL), 0);
+    ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_c), 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntNE((group = wolfSSL_get_negotiated_group(ssl_c)), 0);
+    ExpectIntEQ(group, wolfSSL_get_negotiated_group(ssl_s));
+    /* OpenSSL names this group secp256r1, not by its NIST name P-256. */
+    ExpectStrEQ(wolfSSL_group_to_name(ssl_c, group), "secp256r1");
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* Groups can also be named directly by their IANA code point. */
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ECC_SECP256R1),
+        "secp256r1");
+#ifdef HAVE_CURVE25519
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ECC_X25519), "x25519");
+#endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_FFDHE_2048), "ffdhe2048");
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_NO_ML_KEM_768)
+    /* OpenSSL spells the standalone ML-KEM groups without underscores. */
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ML_KEM_768), "MLKEM768");
+#endif
+    ExpectNull(wolfSSL_group_to_name(NULL, 9999));
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls12_curve_intersection(void) {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \

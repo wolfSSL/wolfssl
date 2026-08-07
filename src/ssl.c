@@ -9773,6 +9773,145 @@ leave:
     return ret;
 }
 
+/* Get the group used for key exchange.
+ *
+ * Mirrors OpenSSL's SSL_get_negotiated_group(): the NID is returned for groups
+ * wolfSSL gives one, the IANA code point otherwise. NID values are wolfSSL's
+ * WC_NID_* (not every one matches OpenSSL's), so compare against those rather
+ * than against literals. The result can be passed to wolfSSL_group_to_name().
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  Group identifier on success.
+ * @return  0 when ssl is NULL or no group has been negotiated.
+ */
+int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
+{
+    word16 group;
+    const WOLF_EC_NIST_NAME* nist_name;
+
+    WOLFSSL_ENTER("wolfSSL_get_negotiated_group");
+
+    if (ssl == NULL)
+        return 0;
+
+    group = ssl->namedGroup;
+
+#ifdef HAVE_CURVE25519
+    if ((group == 0) && (ssl->ecdhCurveOID == ECC_X25519_OID))
+        group = WOLFSSL_ECC_X25519;
+#endif
+#ifdef HAVE_CURVE448
+    if ((group == 0) && (ssl->ecdhCurveOID == ECC_X448_OID))
+        group = WOLFSSL_ECC_X448;
+#endif
+#ifdef HAVE_ECC
+    if ((group == 0) && (ssl->ecdhCurveOID != 0))
+        group = GetCurveByOID((int)ssl->ecdhCurveOID);
+#endif
+
+    if (group == 0)
+        return 0;
+
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if (nist_name->curve == group)
+            return nist_name->nid;
+    }
+
+    return (int)group;
+}
+
+/* Names OpenSSL gives the TLS supported groups. These are the TLS group
+ * registry spellings, which differ from both the NIST curve names in
+ * kNistCurves ("P-256" is "secp256r1" here) and from wolfSSL_get_curve_name().
+ */
+static const struct {
+    word16      group;
+    const char* name;
+} kTlsGroupNames[] = {
+#ifdef HAVE_ECC
+    {WOLFSSL_ECC_SECP256R1,        "secp256r1"},
+    {WOLFSSL_ECC_SECP384R1,        "secp384r1"},
+    {WOLFSSL_ECC_SECP521R1,        "secp521r1"},
+    {WOLFSSL_ECC_SECP224R1,        "secp224r1"},
+    {WOLFSSL_ECC_SECP192R1,        "secp192r1"},
+    {WOLFSSL_ECC_SECP256K1,        "secp256k1"},
+#ifdef HAVE_ECC_BRAINPOOL
+    {WOLFSSL_ECC_BRAINPOOLP256R1,  "brainpoolP256r1"},
+    {WOLFSSL_ECC_BRAINPOOLP384R1,  "brainpoolP384r1"},
+    {WOLFSSL_ECC_BRAINPOOLP512R1,  "brainpoolP512r1"},
+    {WOLFSSL_ECC_BRAINPOOLP256R1TLS13, "brainpoolP256r1tls13"},
+    {WOLFSSL_ECC_BRAINPOOLP384R1TLS13, "brainpoolP384r1tls13"},
+    {WOLFSSL_ECC_BRAINPOOLP512R1TLS13, "brainpoolP512r1tls13"},
+#endif
+#endif /* HAVE_ECC */
+#ifdef HAVE_CURVE25519
+    {WOLFSSL_ECC_X25519,           "x25519"},
+#endif
+#ifdef HAVE_CURVE448
+    {WOLFSSL_ECC_X448,             "x448"},
+#endif
+#ifndef NO_DH
+    {WOLFSSL_FFDHE_2048,           "ffdhe2048"},
+    {WOLFSSL_FFDHE_3072,           "ffdhe3072"},
+    {WOLFSSL_FFDHE_4096,           "ffdhe4096"},
+    {WOLFSSL_FFDHE_6144,           "ffdhe6144"},
+    {WOLFSSL_FFDHE_8192,           "ffdhe8192"},
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+    {WOLFSSL_ML_KEM_512,           "MLKEM512"},
+    {WOLFSSL_ML_KEM_768,           "MLKEM768"},
+    {WOLFSSL_ML_KEM_1024,          "MLKEM1024"},
+#if defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS)
+    {WOLFSSL_SECP256R1MLKEM768,    "SecP256r1MLKEM768"},
+    {WOLFSSL_SECP384R1MLKEM1024,   "SecP384r1MLKEM1024"},
+#ifdef HAVE_CURVE25519
+    {WOLFSSL_X25519MLKEM768,       "X25519MLKEM768"},
+#endif
+#endif
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_NO_ML_KEM */
+    {0, NULL}
+};
+
+/* Get the name of a group.
+ *
+ * @param [in] ssl  SSL/TLS object. Unused, present for OpenSSL compatibility.
+ * @param [in] id   NID or IANA code point of the group.
+ * @return  Name of the group on success.
+ * @return  NULL when the group is unknown.
+ */
+const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id)
+{
+    const WOLF_EC_NIST_NAME* nist_name;
+    int group = id;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_group_to_name");
+
+    (void)ssl;
+
+    /* wolfSSL_get_negotiated_group() reports a NID where one exists, so map
+     * NIDs back to their code point before looking the name up. */
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if (nist_name->nid == id) {
+            group = (int)nist_name->curve;
+            break;
+        }
+    }
+
+    for (i = 0; kTlsGroupNames[i].name != NULL; i++) {
+        if ((int)kTlsGroupNames[i].group == group)
+            return kTlsGroupNames[i].name;
+    }
+
+    /* Not a group OpenSSL names - fall back to the wolfSSL name. */
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if ((int)nist_name->curve == group)
+            return nist_name->name;
+    }
+
+    return NULL;
+}
+
 #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
 #endif /* OPENSSL_EXTRA || HAVE_CURL */
 
