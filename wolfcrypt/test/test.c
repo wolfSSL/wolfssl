@@ -3482,11 +3482,17 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("crypto callback test passed!\n");
 #endif
 
-#ifdef WOLFSSL_RTL8735B_HOST_TEST
+#if defined(WOLFSSL_RTL8735B_HUK) && defined(WOLFSSL_RTL8735B_HOST_TEST)
     if ( (ret = wc_Rtl8735b_HukSelfTest()) != 0)
         TEST_FAIL("RTL8735B HUK self-test failed!\n", ret);
     else
         TEST_PASS("RTL8735B HUK self-test passed!\n");
+#endif
+#if defined(WOLFSSL_RTL8735B_AES) && defined(WOLFSSL_RTL8735B_HOST_TEST)
+    if ( (ret = wc_Rtl8735b_AesSelfTest()) != 0)
+        TEST_FAIL("RTL8735B AES self-test failed!\n", ret);
+    else
+        TEST_PASS("RTL8735B AES self-test passed!\n");
 #endif
 
 #ifdef WOLFSSL_CERT_PIV

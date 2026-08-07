@@ -23822,6 +23822,37 @@ static int test_wc_EncryptPKCS8Key_rc4NoPad(void)
     return EXPECT_RESULT();
 }
 
+/* Negative: PKCS5v2 with a valid encryption algorithm but an hmacOid that maps
+ * to no OID must return a clean ALGO_ID_E, not dereference a NULL OidFromId()
+ * result. Exercises the NULL guards added in wc_EncryptPKCS8Key_ex. */
+static int test_wc_EncryptPKCS8Key_ex_badHmac(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
+ && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_ASN_CRYPT)
+    WC_RNG rng;
+    word32 outSz = 0;
+    const char password[] = "password";
+    byte plain[48];
+
+    XMEMSET(plain, 0, sizeof(plain));
+    plain[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    plain[1] = (byte)(sizeof(plain) - 2);
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    PRIVATE_KEY_UNLOCK();
+    /* out == NULL would normally return LENGTH_ONLY_E, but the hmacOid guard
+     * runs first, so a bogus hmacOid yields ALGO_ID_E cleanly (no crash). */
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(plain, (word32)sizeof(plain), NULL, &outSz,
+        password, (int)XSTRLEN(password), PKCS5, PBES2, AES256CBCb, NULL, 0,
+        WC_PKCS12_ITT_DEFAULT, 99999 /* hmacOid with no OID */, &rng, NULL),
+        WC_NO_ERR_TRACE(ALGO_ID_E));
+    PRIVATE_KEY_LOCK();
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wc_DecryptedPKCS8Key(void)
 {
     EXPECT_DECLS;
@@ -38741,6 +38772,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_EncryptPKCS8Key_blockAligned),
     TEST_DECL(test_wc_EncryptPKCS8Key_pbes1BlockAligned),
     TEST_DECL(test_wc_EncryptPKCS8Key_rc4NoPad),
+    TEST_DECL(test_wc_EncryptPKCS8Key_ex_badHmac),
     TEST_DECL(test_wc_DecryptedPKCS8Key),
     TEST_DECL(test_wc_GetPkcs8TraditionalOffset),
 

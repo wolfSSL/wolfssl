@@ -45,11 +45,12 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef WOLFSSL_RTL8735B_HUK
+#if defined(WOLFSSL_RTL8735B_HUK) || defined(WOLFSSL_RTL8735B_AES)
 
-/* Transparent HUK crypto flows through the crypto-callback framework. */
+/* Transparent HUK / plaintext-key crypto flows through the crypto-callback
+ * framework. */
 #if !defined(WOLF_CRYPTO_CB)
-    #error "WOLFSSL_RTL8735B_HUK requires WOLF_CRYPTO_CB (crypto callback dispatch)"
+    #error "RTL8735B port requires WOLF_CRYPTO_CB (crypto callback dispatch)"
 #endif
 
 /* Crypto-callback device id for transparent HUK crypto. Must not collide with
@@ -57,6 +58,17 @@
  * are enabled in one build. Override before include if it collides. */
 #ifndef WC_HUK_DEVID
     #define WC_HUK_DEVID                    810
+#endif
+
+/* Crypto-callback device id for the plaintext-key AES device (distinct from the
+ * HUK device above). Registering both lets an application choose, per Aes,
+ * whether its key is used verbatim (this devId) or as a HUK derivation seed
+ * (WC_HUK_DEVID) -- selected by the devId passed to wc_AesInit. Override before
+ * include if it collides. */
+#ifdef WOLFSSL_RTL8735B_AES
+    #ifndef WC_RTL8735B_AES_DEVID
+        #define WC_RTL8735B_AES_DEVID       811
+    #endif
 #endif
 
 /* Secure key-storage slot indices for the key ladder (KEY_STG_* values from
@@ -178,6 +190,7 @@ typedef struct wc_Rtl8735b_EccKey {
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_RTL8735B_HUK
 /* Register / unregister the AmebaPro2 HUK device. After registering at
  * WC_HUK_DEVID, set an object's devId to it at init (e.g.
  * wc_AesInit(&aes, NULL, WC_HUK_DEVID)) to route transparently to the HUK
@@ -186,19 +199,37 @@ typedef struct wc_Rtl8735b_EccKey {
  * is still unregistered in that case). */
 WOLFSSL_API int wc_Rtl8735b_HukRegister(int devId);
 WOLFSSL_API int wc_Rtl8735b_HukUnRegister(int devId);
+#endif /* WOLFSSL_RTL8735B_HUK */
 
-#ifdef WOLFSSL_RTL8735B_HOST_TEST
+#ifdef WOLFSSL_RTL8735B_AES
+/* Register / unregister the plaintext-key AES device. After registering at
+ * WC_RTL8735B_AES_DEVID, init an Aes with that devId (wc_AesInit) to run AES
+ * (GCM/ECB) on the HW engine using the Aes's own key -- no HUK binding, and
+ * 128/192/256-bit keys are all supported. Can be registered alongside the HUK
+ * device so both are selectable per-Aes by devId. Both return 0 on success. */
+WOLFSSL_API int wc_Rtl8735b_AesRegister(int devId);
+WOLFSSL_API int wc_Rtl8735b_AesUnRegister(int devId);
+#endif /* WOLFSSL_RTL8735B_AES */
+
+#if defined(WOLFSSL_RTL8735B_HUK) && defined(WOLFSSL_RTL8735B_HOST_TEST)
 /* Host-only KAT of the port's silicon-independent helpers (BE/LE word conversion,
  * CTR counter increment, HMAC accumulator growth/overflow/cap, bounce alignment).
  * A build/CI aid for the --enable-rtl8735b compile-test -- NOT shipped production
  * API. Returns 0 on success, negative on the first failing check. */
 WOLFSSL_API int wc_Rtl8735b_HukSelfTest(void);
 #endif
+#if defined(WOLFSSL_RTL8735B_AES) && defined(WOLFSSL_RTL8735B_HOST_TEST)
+/* Host-only self-test of the plaintext-key AES device: registers it and drives
+ * ECB/GCM dispatch, arg validation, bounce alignment and the
+ * CRYPTOCB_UNAVAILABLE-vs-hard-error contract through the stub HAL (no crypto
+ * output). Returns 0 on success, negative on the first failing check. */
+WOLFSSL_API int wc_Rtl8735b_AesSelfTest(void);
+#endif
 
 #ifdef __cplusplus
     }
 #endif
 
-#endif /* WOLFSSL_RTL8735B_HUK */
+#endif /* WOLFSSL_RTL8735B_HUK || WOLFSSL_RTL8735B_AES */
 
 #endif /* _WOLFPORT_RTL8735B_H_ */
