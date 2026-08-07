@@ -1,6 +1,6 @@
 # wolfssl-wolfcrypt Change Log
 
-## Unreleased
+## v2.2.0
 
 New features:
 
