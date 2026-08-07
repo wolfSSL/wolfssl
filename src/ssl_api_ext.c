@@ -1630,18 +1630,22 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
  */
 int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 {
-    if (ctx == NULL)
-        return BAD_FUNC_ARG;
+    int ret = WOLFSSL_SUCCESS;
 
-    ctx->disableEMS = 0;
-    ctx->requireEMS = 0;
-    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
-     * InitSSL_Side instead; arming it here would make a server echo an
-     * unsolicited extension. */
-    if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
-        ctx->haveEMS = 1;
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ctx->disableEMS = 0;
+        ctx->requireEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+            ctx->haveEMS = 1;
+    }
 
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 
 
@@ -1656,20 +1660,26 @@ int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
  */
 int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
 {
-    if (ssl == NULL)
-        return BAD_FUNC_ARG;
+    int ret = WOLFSSL_SUCCESS;
 
-    ssl->options.disableEMS = 0;
-    ssl->options.requireEMS = 0;
-    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
-     * InitSSL_Side instead; arming it here would make a server echo an
-     * unsolicited extension. */
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        ssl->options.haveEMS = 1;
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ssl->options.disableEMS = 0;
+        ssl->options.requireEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            ssl->options.haveEMS = 1;
+    }
 
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 
+
+#ifndef WOLFSSL_NO_TLS12
 
 /* Require the Extended Master Secret extension on the context.
  *
@@ -1683,19 +1693,23 @@ int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
  */
 int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx)
 {
-    if (ctx == NULL)
-        return BAD_FUNC_ARG;
+    int ret = WOLFSSL_SUCCESS;
 
-    ctx->requireEMS = 1;
-    /* Mutually exclusive with disabling EMS. */
-    ctx->disableEMS = 0;
-    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
-     * InitSSL_Side instead; arming it here would make a server echo an
-     * unsolicited extension. */
-    if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
-        ctx->haveEMS = 1;
+    if (ctx == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ctx->requireEMS = 1;
+        /* Mutually exclusive with disabling EMS. */
+        ctx->disableEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+            ctx->haveEMS = 1;
+    }
 
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 
 
@@ -1711,22 +1725,28 @@ int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx)
  */
 int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl)
 {
-    if (ssl == NULL)
-        return BAD_FUNC_ARG;
+    int ret = WOLFSSL_SUCCESS;
 
-    ssl->options.requireEMS = 1;
-    /* Mutually exclusive with disabling EMS. */
-    ssl->options.disableEMS = 0;
-    /* Re-arm client advertising. A side-less (wolfSSLv23) object is armed by
-     * InitSSL_Side instead; arming it here would make a server echo an
-     * unsolicited extension. */
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        ssl->options.haveEMS = 1;
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ssl->options.requireEMS = 1;
+        /* Mutually exclusive with disabling EMS. */
+        ssl->options.disableEMS = 0;
+        /* Re-arm client advertising. A side-less (wolfSSLv23) object is
+         * armed by InitSSL_Side instead; arming it here would make a server
+         * echo an unsolicited extension. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            ssl->options.haveEMS = 1;
+    }
 
     return ret;
 }
 
-#endif
+#endif /* !WOLFSSL_NO_TLS12 */
+
+#endif /* HAVE_EXTENDED_MASTER */
 
 #endif /* !NO_TLS */
 /* ---- OpenSSL-compatibility TLS extension APIs (moved from ssl.c) ---- */
