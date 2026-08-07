@@ -2080,6 +2080,7 @@ int test_wc_CryptoCb_RsaPssVerify(void)
     WC_RNG rng;
     byte   digest[WC_SHA256_DIGEST_SIZE];
     word32 sigLen = 0;
+    int    sigSz = 0;
     int    r;
     WC_DECLARE_VAR(key, RsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, 512, HEAP_HINT);
@@ -2111,9 +2112,12 @@ int test_wc_CryptoCb_RsaPssVerify(void)
     ExpectIntEQ(wc_RsaSetRNG(key, &rng), 0);
 
     /* PSS sign runs in software (device declines). */
-    ExpectIntGT(sigLen = (word32)wc_RsaPSS_Sign(digest,
+    ExpectIntGT(sigSz = wc_RsaPSS_Sign(digest,
         (word32)sizeof(digest), sig, 512, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
         key, &rng), 0);
+    if (sigSz > 0) {
+        sigLen = (word32)sigSz;
+    }
 
     /* Positive: verify routes through the device and succeeds. */
     pssVerifySeen = 0;
@@ -2123,7 +2127,7 @@ int test_wc_CryptoCb_RsaPssVerify(void)
 
     /* Positive: the inline variant also routes through the device; *out is NULL
      * on that path.  Use a copy of the sig since inline 'in' is reused as out. */
-    if (WC_VAR_OK(sig) && WC_VAR_OK(rec)) {
+    if (EXPECT_SUCCESS() && WC_VAR_OK(sig) && WC_VAR_OK(rec)) {
         byte* inlineOut = rec; /* non-NULL sentinel, must be cleared to NULL */
         XMEMCPY(rec, sig, sigLen);
         pssVerifySeen = 0;
