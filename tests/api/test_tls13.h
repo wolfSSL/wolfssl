@@ -106,6 +106,9 @@ int test_tls13_KeyUpdate_sender_limit(void);
 int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 
+int test_tls13_import_v6_canned(void);
+int test_tls13_export_import_keyupdate(void);
+
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_suites),         \
@@ -187,6 +190,8 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_sender_limit), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
-    TEST_DECL_GROUP("tls13", test_tls13_pha_status_request)
+    TEST_DECL_GROUP("tls13", test_tls13_pha_status_request), \
+    TEST_DECL_GROUP("tls13", test_tls13_import_v6_canned), \
+    TEST_DECL_GROUP("tls13", test_tls13_export_import_keyupdate)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

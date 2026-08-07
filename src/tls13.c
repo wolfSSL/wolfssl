@@ -16881,6 +16881,15 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FreeAsyncCtx(ssl, 1);
 #endif
 
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
+            if (ssl->dtls_export) {
+                if ((ssl->error = wolfSSL_send_session(ssl)) != 0) {
+                    WOLFSSL_MSG("Export DTLS session error");
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+#endif
             ssl->error = 0; /* clear the error */
 
             WOLFSSL_LEAVE("wolfSSL_accept", WOLFSSL_SUCCESS);

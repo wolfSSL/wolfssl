@@ -1656,9 +1656,19 @@ enum Misc {
     WOLFSSL_EXPORT_SPC_SZ    = 16, /* number of bytes used from CipherSpecs */
 #endif
     WOLFSSL_EXPORT_LEN       = 2,  /* 2 bytes for length and protocol */
-    WOLFSSL_EXPORT_VERSION   = 6,  /* wolfSSL version for serialized session */
+    WOLFSSL_EXPORT_TLS13_SZ  = 11 + (2 * SECRET_LEN),
+                                   /* max size of (D)TLS 1.3 secrets chunk:
+                                    * length byte, two traffic secrets, two
+                                    * KeyUpdate flags and a 64-bit counter */
+    WOLFSSL_EXPORT_DTLS13_SZ = 42 + DTLS_SEQ_SZ,
+                                   /* size of DTLS 1.3 state chunk: five
+                                    * 64-bit values (send/peer epoch, next
+                                    * send/peer sequence number, drop count),
+                                    * window word count and window */
+    WOLFSSL_EXPORT_VERSION   = 7,  /* wolfSSL version for serialized session */
 
     /* older export versions supported */
+    WOLFSSL_EXPORT_VERSION_6 = 6,  /* version before (D)TLS 1.3 state chunks */
     WOLFSSL_EXPORT_VERSION_5 = 5,  /* version before DTLS Encrypt-Then-MAC */
     WOLFSSL_EXPORT_VERSION_4 = 4,  /* 5.6.4 release and before */
     WOLFSSL_EXPORT_VERSION_3 = 3,  /* wolfSSL version before TLS 1.3 addition */
@@ -1668,8 +1678,11 @@ enum Misc {
                                    /* Additional bytes to read so that
                                     * we can work with a peer that has
                                     * a slightly different MTU than us. */
-    MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
-    MAX_EXPORT_STATE_BUFFER  = (DTLS_EXPORT_MIN_KEY_SZ) + (3 * WOLFSSL_EXPORT_LEN),
+    MAX_EXPORT_BUFFER        = 514 + (2 * WOLFSSL_EXPORT_LEN) +
+                               WOLFSSL_EXPORT_TLS13_SZ + WOLFSSL_EXPORT_DTLS13_SZ,
+                                    /* max size of buffer for exporting */
+    MAX_EXPORT_STATE_BUFFER  = (DTLS_EXPORT_MIN_KEY_SZ) +
+                               (4 * WOLFSSL_EXPORT_LEN) + WOLFSSL_EXPORT_DTLS13_SZ,
                                     /* max size of buffer for exporting state */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */

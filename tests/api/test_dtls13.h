@@ -57,7 +57,21 @@ int test_dtls13_5_9_0_compat_bad_echo(void);
 int test_dtls13_5_9_0_compat_empty_echo(void);
 int test_dtls13_reuse_after_clear(void);
 
-#define TEST_DTLS13_DECLS                                                      \
+/* Session export/import (WOLFSSL_SESSION_EXPORT) for DTLS 1.3. */
+int test_dtls13_export_guards(void);
+int test_dtls13_export_import_roundtrip(void);
+int test_dtls13_import_negative(void);
+int test_dtls13_export_import_keyupdate(void);
+int test_dtls13_export_import_replay_window(void);
+int test_dtls13_export_import_old_epoch_record(void);
+int test_dtls13_export_import_peer_keyupdate_inflight(void);
+int test_dtls13_export_import_unacked_ticket(void);
+int test_dtls13_export_state_only_refresh(void);
+int test_dtls13_import_state_negative(void);
+int test_dtls13_export_callback(void);
+int test_dtls13_export_import_ciphersuites(void);
+
+#define TEST_DTLS13_DECLS                                                     \
     TEST_DECL_GROUP("dtls13", test_dtls13_bad_epoch_ch),                       \
     TEST_DECL_GROUP("dtls13", test_wolfSSL_dtls13_null_cipher),                \
     TEST_DECL_GROUP("dtls13", test_dtls13_frag_ch_pq),                         \
@@ -82,6 +96,19 @@ int test_dtls13_reuse_after_clear(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_5_9_0_compat),                       \
     TEST_DECL_GROUP("dtls13", test_dtls13_5_9_0_compat_bad_echo),              \
     TEST_DECL_GROUP("dtls13", test_dtls13_5_9_0_compat_empty_echo),            \
-    TEST_DECL_GROUP("dtls13", test_dtls13_reuse_after_clear)
+    TEST_DECL_GROUP("dtls13", test_dtls13_reuse_after_clear),                  \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_guards),                      \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_import_roundtrip),            \
+    TEST_DECL_GROUP("dtls13", test_dtls13_import_negative),                   \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_import_keyupdate),            \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_import_replay_window),        \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_import_old_epoch_record),     \
+    TEST_DECL_GROUP("dtls13",                                                  \
+                    test_dtls13_export_import_peer_keyupdate_inflight),        \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_import_unacked_ticket),       \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_state_only_refresh),          \
+    TEST_DECL_GROUP("dtls13", test_dtls13_import_state_negative),              \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_callback),                    \
+    TEST_DECL_GROUP("dtls13", test_dtls13_export_import_ciphersuites)
 
 #endif /* TESTS_API_DTLS13_H */
