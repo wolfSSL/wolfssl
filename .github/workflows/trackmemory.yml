@@ -35,8 +35,11 @@ jobs:
     runs-on: ubuntu-24.04
     # Typical runs finish in 13-16 min, but the wolfEntropy configs gather
     # entropy from CPU timing jitter, whose runtime varies severalfold with
-    # runner contention (a 20-min limit was hit with one config left).
-    timeout-minutes: 40
+    # runner contention (a 20-min limit was hit with one config left, and
+    # later a 40-min one: six configs were done inside 8 min while
+    # all-wolfentropy ran on for another 32).  Cheap to leave high - a
+    # healthy run never approaches it.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -54,7 +57,10 @@ jobs:
         with:
           workflow-id: trackmemory
           read-only: ${{ github.event_name == 'pull_request' }}
-          max-size: 250M
+          # 250M left the cache 100% full with 232 cleanups and a 44% hit
+          # rate, i.e. evicting objects this same run still needed; the
+          # configs then ran 2-3x their warm time.
+          max-size: 450M
 
       # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
       # which would stop the test scripts from re-execing under

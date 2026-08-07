@@ -37,8 +37,11 @@ jobs:
         shard: [1, 2]
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 30
+    # Generous for a cold ccache; warm reruns finish in a fraction.  The
+    # margin is deliberately wide: the "Install dependencies" step has been
+    # seen to spend 30 min pulling the cross-compilers from a slow archive
+    # mirror, which used up the whole budget before a single config built.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -56,7 +59,12 @@ jobs:
         with:
           workflow-id: pq-all
           config-hash: shard-${{ matrix.shard }}
-          max-size: 350M
+          # A shard restores a seed cache that already sits at the cap, so
+          # every object this run compiles evicts one that is still needed:
+          # at 350M a shard reported 223 cleanups and a 43% hit rate, and
+          # configs took 3-5x their warm time.  Size it to hold the seeded
+          # objects and this run's alongside them.
+          max-size: 700M
           # PRs read the cache the weekday seed writes; they never
           # save, so PR runs add nothing to the Actions cache.
           read-only: ${{ github.event_name == 'pull_request' }}
@@ -78,6 +86,9 @@ jobs:
       # omit it for a new config (defaults to 1) and refresh later. The list
       # is kept sorted by minutes for readability, but the schedule sorts by
       # the values, not list order.
+      # Take the figure from a run whose ccache actually hit: the same config
+      # takes 3-5x longer when the cache is cold, so a value read off a cold
+      # run makes every warm run warn that the estimate is stale.
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
