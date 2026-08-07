@@ -221,9 +221,14 @@ then
     fi
 fi
 
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h errno.h ctype.h sys/random.h])
 # Special case: Since types.h depends on HAVE_LIMITS_H, we must define it in options.h.
 AC_CHECK_HEADER([limits.h], [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIMITS_H=1"], [])
+# Special case: these gate the layout of public types in installed headers
+# (union WOLFSSL_BIO_ADDR in wolfio.h, WOLFSSL_TIMEVAL in callbacks.h), so
+# applications must see the same value the library was built with.
+AC_CHECK_HEADER([sys/un.h], [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_SYS_UN_H=1"], [])
+AC_CHECK_HEADER([sys/time.h], [AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_SYS_TIME_H=1"], [])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
 AC_C___ATOMIC

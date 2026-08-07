@@ -2082,6 +2082,16 @@ static int sakke_accumulate_line_add_one(mp_proj* v, mp_int* prime, mp_digit mp,
     t3 = (mp_int *)XMALLOC(sizeof(*t3), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (t3 == NULL)
         err = 1;
+
+    /* zeroed so the cleanup below no-ops if the init is skipped */
+    if (h != NULL)
+        XMEMSET(h, 0, sizeof(*h));
+    if (ty != NULL)
+        XMEMSET(ty, 0, sizeof(*ty));
+    if (tz != NULL)
+        XMEMSET(tz, 0, sizeof(*tz));
+    if (t3 != NULL)
+        XMEMSET(t3, 0, sizeof(*t3));
 #else
     mp_int tmp[4];
     mp_int* h = &tmp[0];

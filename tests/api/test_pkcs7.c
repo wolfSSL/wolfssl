@@ -6774,18 +6774,11 @@ int test_wc_PKCS7_VerifySignedData_TruncEContentTag(void)
  * SignedData bundle truncated at the certificates [0] IMPLICIT tag.
  * Verifies that the parser rejects the malformed input rather than
  * dereferencing past the end of the buffer.
- *
- * TODO: limited to NO_PKCS7_STREAM because the streaming parser's stage 3
- * early-exit check (pkcs7.c near line 6594) accepts any bundle
- * whose remaining footer is < 6 bytes as a successful degenerate end,
- * so the bounds check at line 6765 is unreachable in streaming mode.
- * Drop the NO_PKCS7_STREAM gate if/when the early-exit check becomes
- * more accurate.
  */
 int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PKCS7) && defined(NO_PKCS7_STREAM)
+#if defined(HAVE_PKCS7)
     PKCS7* pkcs7 = NULL;
 
     WOLFSSL_SMALL_STACK_STATIC byte der[] = {
@@ -6825,7 +6818,71 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void)
     ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
     wc_PKCS7_Free(pkcs7);
 
-#endif /* HAVE_PKCS7 && NO_PKCS7_STREAM */
+#endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * SignedData bundle with a non-empty digestAlgorithms SET whose signerInfos
+ * field is absent entirely - the bundle stops right after the eContent.
+ * signerInfos is a required field, so the bundle must be rejected both with
+ * the default settings and with wc_PKCS7_AllowDegenerate() turned off.
+ */
+int test_wc_PKCS7_VerifySignedData_NoSignerInfos(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+
+    WOLFSSL_SMALL_STACK_STATIC byte der[] = {
+        /* outer ContentInfo SEQUENCE (99 bytes content) */
+        0x30, 0x63,
+        /* contentType OID signedData */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02,
+        /* [0] EXPLICIT (86 bytes content) */
+        0xA0, 0x56,
+        /* SignedData SEQUENCE (84 bytes content) */
+        0x30, 0x54,
+        /* version INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* digestAlgorithms SET (15 bytes) { sha256 AlgorithmIdentifier } */
+        0x31, 0x0F,
+        0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+        0x05, 0x00,
+        /* encapContentInfo SEQUENCE (62 bytes content) */
+        0x30, 0x3E,
+        /* eContentType OID 1.2.840.113549.1.7.1 (data) */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+        /* eContent [0] EXPLICIT (49 bytes content) */
+        0xA0, 0x31,
+        /* OCTET STRING (47 bytes content) */
+        0x04, 0x2F,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41
+        /* no certificates, no signerInfos: bundle ends here */
+    };
+    word32 derSz = (word32)sizeof(der);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+#endif /* HAVE_PKCS7 && !NO_SHA256 */
     return EXPECT_RESULT();
 }
 
@@ -6961,6 +7018,134 @@ static int pkcs7_build_digestparam_mismatch(byte* cert, word32 certSz,
  * mismatch). The fix is symmetric, so both directions are exercised, over both
  * the attribute-free and signed-attribute signing paths.
  */
+#if defined(HAVE_PKCS7) && !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048)
+/* Feed der[0..derSz) to the verifier in fixed size chunks, mimicking a caller
+ * that streams the bundle in. Returns the final return code, which is
+ * WC_PKCS7_WANT_READ_E if the parser never reached a decision. */
+static int pkcs7_verify_chunked(const byte* der, word32 derSz, word32 chunkSz)
+{
+    PKCS7* pkcs7;
+    int    ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+    word32 z;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return MEMORY_E;
+    if (wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID) != 0 ||
+            wc_PKCS7_InitWithCert(pkcs7, NULL, 0) != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return BAD_FUNC_ARG;
+    }
+
+    for (z = 0; z < derSz; z += chunkSz) {
+        word32 n = (derSz - z < chunkSz) ? derSz - z : chunkSz;
+
+        ret = wc_PKCS7_VerifySignedData(pkcs7, (byte*)der + z, n);
+        if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+            break;
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    return ret;
+}
+#endif
+
+/*
+ * The streaming verifier decides at the stage 3 handoff whether the bundle has
+ * a footer left, and the amount of input handed over per call changes which
+ * read windows are satisfied from the caller's buffer and which from the
+ * internal one. Sweep every chunk size over a well formed bundle, which must
+ * verify however it is split, and over a bundle whose outer ContentInfo ends
+ * with the eContent, which carries no signerInfos field at all and must never
+ * be reported as verified.
+ */
+int test_wc_PKCS7_VerifySignedData_ChunkSweep(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048)
+    byte   cert[sizeof(client_cert_der_2048)];
+    byte   key[sizeof(client_key_der_2048)];
+    word32 certSz = (word32)sizeof(cert);
+    word32 keySz  = (word32)sizeof(key);
+    byte   msg[FOURK_BUF];
+    int    msgSz = 0;
+    word32 chunkSz;
+
+    /* non-empty digestAlgorithms SET, eContent, and then end of bundle: no
+     * certificates and no signerInfos */
+    WOLFSSL_SMALL_STACK_STATIC byte noSigner[] = {
+        0x30, 0x63, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07,
+        0x02, 0xA0, 0x56, 0x30, 0x54, 0x02, 0x01, 0x01, 0x31, 0x0F, 0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+        0x00, 0x30, 0x3E, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01, 0xA0, 0x31, 0x04, 0x2F, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41
+    };
+
+    /* same, with a lone certificates [0] tag: a truncated footer */
+    WOLFSSL_SMALL_STACK_STATIC byte footTrunc[] = {
+        0x30, 0x64, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07,
+        0x02, 0xA0, 0x57, 0x30, 0x55, 0x02, 0x01, 0x01, 0x31, 0x0F, 0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+        0x00, 0x30, 0x3E, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01, 0xA0, 0x31, 0x04, 0x2F, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0xA0
+    };
+    /* same, with a well formed empty signerInfos SET */
+    WOLFSSL_SMALL_STACK_STATIC byte footEmptySi[] = {
+        0x30, 0x65, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07,
+        0x02, 0xA0, 0x58, 0x30, 0x56, 0x02, 0x01, 0x01, 0x31, 0x0F, 0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+        0x00, 0x30, 0x3E, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01, 0xA0, 0x31, 0x04, 0x2F, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x31, 0x00
+    };
+
+    XMEMCPY(cert, client_cert_der_2048, certSz);
+    XMEMCPY(key, client_key_der_2048, keySz);
+
+    XMEMSET(msg, 0, sizeof(msg));
+    ExpectIntGT(msgSz = pkcs7_sign_digest_params(cert, certSz, key, keySz, 0, 0,
+                msg, (word32)sizeof(msg)), 0);
+
+    /* a well formed bundle must verify no matter how the input is split */
+    for (chunkSz = 1; (msgSz > 0) && (chunkSz <= (word32)msgSz); chunkSz++) {
+        ExpectIntEQ(pkcs7_verify_chunked(msg, (word32)msgSz, chunkSz), 0);
+    }
+
+    /* signerInfos is a required field, so this one must never verify */
+    for (chunkSz = 1; chunkSz <= (word32)sizeof(noSigner); chunkSz++) {
+        ExpectIntNE(pkcs7_verify_chunked(noSigner, (word32)sizeof(noSigner),
+                    chunkSz), 0);
+    }
+
+    /* a truncated footer is malformed and must never verify either */
+    for (chunkSz = 1; chunkSz <= (word32)sizeof(footTrunc); chunkSz++) {
+        ExpectIntNE(pkcs7_verify_chunked(footTrunc, (word32)sizeof(footTrunc),
+                    chunkSz), 0);
+    }
+
+    /* a well formed empty signerInfos SET is a degenerate end, accepted by
+     * default however the input is split */
+    for (chunkSz = 1; chunkSz <= (word32)sizeof(footEmptySi); chunkSz++) {
+        ExpectIntEQ(pkcs7_verify_chunked(footEmptySi,
+                    (word32)sizeof(footEmptySi), chunkSz), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_PKCS7_VerifySignedData_NoDigestParams(void)
 {
     EXPECT_DECLS;

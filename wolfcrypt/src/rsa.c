@@ -5352,6 +5352,7 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     }
     else
         ret = 0;
+
     if (ret == 0)
 #endif
         ret = mp_init_multi(p, q, e, NULL, NULL, NULL);

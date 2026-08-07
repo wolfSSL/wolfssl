@@ -570,6 +570,8 @@ static const char* wc_PKCS7_GetStateName(int in)
 
         case WC_PKCS7_VERIFY_STAGE2: return "WC_PKCS7_VERIFY_STAGE2";
         case WC_PKCS7_VERIFY_STAGE3: return "WC_PKCS7_VERIFY_STAGE3";
+        case WC_PKCS7_VERIFY_STAGE3_FOOTER:
+            return "WC_PKCS7_VERIFY_STAGE3_FOOTER";
         case WC_PKCS7_VERIFY_STAGE4: return "WC_PKCS7_VERIFY_STAGE4";
         case WC_PKCS7_VERIFY_STAGE5: return "WC_PKCS7_VERIFY_STAGE5";
         case WC_PKCS7_VERIFY_STAGE6: return "WC_PKCS7_VERIFY_STAGE6";
@@ -6894,6 +6896,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 #endif
     int multiPart = 0, keepContent;
     int contentLen = 0;
+    int shortFooter = 0;
 
     byte* pkiMsg    = in;
     word32 pkiMsgSz = inSz;
@@ -7513,23 +7516,40 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* check if bundle has more elements or footer, if not, set content
              * to pkcs7->content and hash to pkcs7->hash.
              *
-             * NOTE: this check returns success whenever fewer than 6 bytes
-             * follow the content within the outer ContentInfo, which also
-             * accepts truncated bundles whose footer was cut short (e.g. a
-             * lone certificates [0] tag with no length). Distinguishing a
-             * legitimate degenerate end (such as an empty signerInfos SET
-             * "31 00") from truncated junk would require peeking at the
-             * remaining bytes or making stage 4's `expected` window smaller.
-             */
-            if (ret == 0 && pkcs7->stream->maxLen > 0 &&
-                    (pkcs7->stream->maxLen - pkcs7->stream->totalRd)
-                                                < ASN_TAG_SZ + MAX_LENGTH_SZ) {
+             * maxLen only bounds the bundle when stage 1 read it from a
+             * complete outer SEQUENCE header; a caller feeding small chunks can
+             * leave it behind totalRd, so only consult it when it is still
+             * ahead. The residual only decides between an ended bundle, a
+             * footer too short for the stages below to read, and a footer they
+             * can parse. */
+            if (pkcs7->stream->maxLen > 0 &&
+                    pkcs7->stream->maxLen >= pkcs7->stream->totalRd) {
+                word32 remaining = (pkcs7->stream->maxLen -
+                            pkcs7->stream->totalRd) + pkcs7->stream->length;
 
-                ret = 0;
-                break;
+                /* signerInfos is a required field of SignedData, so a bundle
+                 * whose outer ContentInfo ends with the content carries no
+                 * signer at all */
+                if (remaining == 0) {
+                    WOLFSSL_MSG("PKCS7 bundle ends before signerInfos");
+                    ret = PKCS7_NO_SIGNER_E;
+                    break;
+                }
+
+                /* Below the window the stages after this one read, so the
+                 * footer cannot be handed to them. Nothing this small can hold
+                 * a SignerInfo either, so read it here and check it against
+                 * the only shape it is allowed to have. */
+                if (remaining < (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2) {
+                    pkcs7->stream->expected = remaining;
+                    shortFooter = 1;
+                }
             }
-            /* expect data length to be enough to check set and seq of certs */
-            pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
+            if (!shortFooter) {
+                /* expect data length to be enough to check set and seq of
+                 * certs */
+                pkcs7->stream->expected = (ASN_TAG_SZ + MAX_LENGTH_SZ) * 2;
+            }
 
         #else
             /* Break out before content because it can be optional in degenerate
@@ -7636,7 +7656,76 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 contentSz = pkcs7->contentSz;
             }
         #endif /* !NO_PKCS7_STREAM */
-            wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE4);
+            wc_PKCS7_ChangeState(pkcs7, shortFooter ?
+                    WC_PKCS7_VERIFY_STAGE3_FOOTER : WC_PKCS7_VERIFY_STAGE4);
+
+            FALL_THROUGH;
+
+        case WC_PKCS7_VERIFY_STAGE3_FOOTER:
+        #ifndef NO_PKCS7_STREAM
+            /* Only entered for a footer too short for the stages below. It has
+             * to be an empty signerInfos SET, optionally preceded by empty
+             * certificates [0] and crls [1], and it has to account for every
+             * byte left in the outer ContentInfo. */
+            if (pkcs7->state == WC_PKCS7_VERIFY_STAGE3_FOOTER) {
+                byte*  foot = NULL;
+                word32 footIdx = 0, footEnd;
+                int    footLen = 0;
+
+                if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                                pkcs7->stream->expected, &foot, &footIdx))
+                                != 0) {
+                    break;
+                }
+                footEnd = footIdx + pkcs7->stream->expected;
+
+                if (footIdx < footEnd && foot[footIdx] ==
+                        (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+                    footIdx++;
+                    if (GetLength(foot, &footIdx, &footLen, footEnd) < 0 ||
+                            footLen != 0) {
+                        ret = ASN_PARSE_E;
+                    }
+                }
+                if (ret == 0 && footIdx < footEnd && foot[footIdx] ==
+                        (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+                    footIdx++;
+                    if (GetLength(foot, &footIdx, &footLen, footEnd) < 0 ||
+                            footLen != 0) {
+                        ret = ASN_PARSE_E;
+                    }
+                }
+                if (ret == 0) {
+                    if (footIdx >= footEnd ||
+                            foot[footIdx] != (ASN_CONSTRUCTED | ASN_SET)) {
+                        ret = ASN_PARSE_E;
+                    }
+                    else {
+                        footIdx++;
+                        if (GetLength(foot, &footIdx, &footLen, footEnd) < 0 ||
+                                footLen != 0) {
+                            ret = ASN_PARSE_E;
+                        }
+                    }
+                }
+                if (ret == 0 && footIdx != footEnd) {
+                    ret = ASN_PARSE_E;
+                }
+                if (ret != 0) {
+                    WOLFSSL_MSG("PKCS7 malformed signerInfos footer");
+                    break;
+                }
+
+                /* a well formed empty signerInfos SET: a degenerate end, so
+                 * honour the caller's choice the way
+                 * wc_PKCS7_ParseSignerInfo() would have */
+                if (pkcs7->noDegenerate == 1) {
+                    WOLFSSL_MSG("Set to not allow degenerate cases");
+                    ret = PKCS7_NO_SIGNER_E;
+                }
+                break;
+            }
+        #endif /* !NO_PKCS7_STREAM */
 
             FALL_THROUGH;
 

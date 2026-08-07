@@ -15950,10 +15950,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
     }
 
 #ifdef WOLFSSL_IP_ALT_NAME
-    /* chk is length delimited and may not be NUL terminated, so check it
-     * against the iPAddress entries directly rather than through the
-     * NUL terminated CheckIPAddr helper. */
-    ret = CheckHostName(dCert, (char *)chk, chklen, 0, 1);
+    ret = CheckIPAddr(dCert, (char *)chk, chklen);
     if (ret == 0) {
         goto out;
     }
@@ -16008,7 +16005,7 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
             ret = WOLFSSL_FAILURE;
         }
         else {
-            ret = CheckIPAddr(dCert, ipasc);
+            ret = CheckIPAddr(dCert, ipasc, (size_t)XSTRLEN(ipasc));
             if (ret != 0) {
                 ret = WOLFSSL_FAILURE;
             }

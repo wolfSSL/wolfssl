@@ -41,6 +41,12 @@ extern "C" {
 /* Since types.h depends on HAVE_LIMITS_H, we must define it in options.h. */
 #undef HAVE_LIMITS_H
 #cmakedefine HAVE_LIMITS_H @HAVE_LIMITS_H@
+/* callbacks.h sizes WOLFSSL_TIMEVAL with HAVE_SYS_TIME_H, so it must be in
+ * options.h too. */
+#undef HAVE_SYS_TIME_H
+#cmakedefine HAVE_SYS_TIME_H @HAVE_SYS_TIME_H@
+#undef HAVE_SYS_UN_H
+#cmakedefine HAVE_SYS_UN_H @HAVE_SYS_UN_H@
 #undef ASIO_USE_WOLFSSL
 #cmakedefine ASIO_USE_WOLFSSL
 #undef BOOST_ASIO_USE_WOLFSSL
