@@ -947,6 +947,8 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     if (key->devId != INVALID_DEVID)
     #endif
     {
+        if (res != NULL)
+            *res = 0;
         ret = wc_CryptoCb_Ed448Verify(sig, sigLen, msg, msgLen, res, key, type,
             context, contextLen);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
