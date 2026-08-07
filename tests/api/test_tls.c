@@ -388,6 +388,70 @@ int test_tls_peer_name_mismatch_verify_cb(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+static int test_peer_tmp_key_group(int group, int tls13)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    int groups[1];
+
+    groups[0] = group;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        tls13 ? wolfTLSv1_3_client_method : wolfTLSv1_2_client_method,
+        tls13 ? wolfTLSv1_3_server_method : wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_KeepHandshakeResources(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_get_peer_tmp_key(ssl_c, &pkey), WOLFSSL_SUCCESS);
+    ExpectNotNull(pkey);
+    wolfSSL_EVP_PKEY_free(pkey);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* SSL_get_peer_tmp_key() has to return the peer's ephemeral key for every key
+ * exchange group, not just TLS 1.2 ECDHE. */
+int test_tls_get_peer_tmp_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_SHA256)
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 0),
+        TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 1),
+        TEST_SUCCESS);
+#endif
+#endif /* HAVE_ECC */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE25519) && !defined(HAVE_FIPS)
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X25519, 1), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE448) && !defined(HAVE_FIPS)
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X448, 1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* SSL_get_negotiated_group() and SSL_group_to_name() report the group that was
  * negotiated, using the names OpenSSL gives the TLS supported groups. */
 int test_tls_get_negotiated_group(void)
