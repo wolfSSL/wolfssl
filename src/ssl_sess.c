@@ -1607,7 +1607,17 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #endif
     }
     ssl->options.resuming = 1;
-    ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
+#ifdef HAVE_EXTENDED_MASTER
+    /* A user EMS override takes precedence over the session's EMS state. */
+    if (ssl->options.requireEMS)
+        ssl->options.haveEMS = 1;
+    else if (ssl->options.disableEMS)
+        ssl->options.haveEMS = 0;
+    else
+#endif
+    {
+        ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
+    }
 
     if (ssl->session->version.major != 0) {
         /* Reject sessions whose protocol version is below the configured

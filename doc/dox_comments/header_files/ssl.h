@@ -17276,3 +17276,146 @@ int wolfSSL_get_scr_check_enabled(const WOLFSSL* ssl);
     \sa wolfSSL_get_scr_check_enabled
 */
 int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
+
+/*!
+    \ingroup Setup
+    \brief Disables the TLS Extended Master Secret extension (RFC 7627) on
+    the context: a client stops advertising it and a server ignores the
+    peer's request, so a standard master secret is negotiated. TLS 1.2 and
+    earlier only. Requires HAVE_EXTENDED_MASTER.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx is NULL.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    wolfSSL_CTX_DisableExtendedMasterSecret(ctx);
+    \endcode
+
+    \sa wolfSSL_DisableExtendedMasterSecret
+    \sa wolfSSL_CTX_EnableExtendedMasterSecret
+    \sa wolfSSL_CTX_RequireExtendedMasterSecret
+*/
+int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+    \brief Disables the TLS Extended Master Secret extension (RFC 7627) on
+    the SSL object: a client stops advertising it and a server ignores the
+    peer's request, so a standard master secret is negotiated. TLS 1.2 and
+    earlier only. Requires HAVE_EXTENDED_MASTER.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    wolfSSL_DisableExtendedMasterSecret(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_DisableExtendedMasterSecret
+    \sa wolfSSL_EnableExtendedMasterSecret
+    \sa wolfSSL_RequireExtendedMasterSecret
+*/
+int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+    \brief Re-enables the TLS Extended Master Secret extension (RFC 7627) on
+    the context (the default): EMS is used when the peer supports it but is
+    not mandatory. Undoes a previous disable or require. Requires
+    HAVE_EXTENDED_MASTER.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx is NULL.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    wolfSSL_CTX_EnableExtendedMasterSecret(ctx);
+    \endcode
+
+    \sa wolfSSL_EnableExtendedMasterSecret
+    \sa wolfSSL_CTX_DisableExtendedMasterSecret
+    \sa wolfSSL_CTX_RequireExtendedMasterSecret
+*/
+int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+    \brief Re-enables the TLS Extended Master Secret extension (RFC 7627) on
+    the SSL object (the default): EMS is used when the peer supports it but
+    is not mandatory. Undoes a previous disable or require. Requires
+    HAVE_EXTENDED_MASTER.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    wolfSSL_EnableExtendedMasterSecret(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_EnableExtendedMasterSecret
+    \sa wolfSSL_DisableExtendedMasterSecret
+    \sa wolfSSL_RequireExtendedMasterSecret
+*/
+int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+    \brief Makes the TLS Extended Master Secret extension (RFC 7627)
+    mandatory on the context: if it is not negotiated, the connection
+    is aborted with EXT_MASTER_SECRET_NEEDED_E. A client advertises
+    the extension even after a previous disable. TLS 1.2 and earlier
+    only. Requires HAVE_EXTENDED_MASTER.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx is NULL.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    wolfSSL_CTX_RequireExtendedMasterSecret(ctx);
+    \endcode
+
+    \sa wolfSSL_RequireExtendedMasterSecret
+    \sa wolfSSL_CTX_EnableExtendedMasterSecret
+    \sa wolfSSL_CTX_DisableExtendedMasterSecret
+*/
+int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+    \brief Makes the TLS Extended Master Secret extension (RFC 7627)
+    mandatory on the SSL object: if it is not negotiated, including on
+    resumption, the connection is aborted with EXT_MASTER_SECRET_NEEDED_E. A
+    client advertises the extension even after a previous disable. TLS 1.2
+    and earlier only. Requires HAVE_EXTENDED_MASTER.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    wolfSSL_RequireExtendedMasterSecret(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_RequireExtendedMasterSecret
+    \sa wolfSSL_EnableExtendedMasterSecret
+    \sa wolfSSL_DisableExtendedMasterSecret
+*/
+int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl);
