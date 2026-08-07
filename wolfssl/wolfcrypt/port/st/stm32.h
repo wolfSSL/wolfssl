@@ -967,11 +967,23 @@ int wc_Stm32_Hmac_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
     int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
         word32* outSz, const byte* iv, int ivSz);
-#ifdef WOLFSSL_STM32_BARE
-    /* Optional exact-key import primitive: unwrap a DHUK-wrapped key into SAES
-     * KEYR and ECB/CBC with it. _ex `isCbc`: 0=ECB, 1=CBC. Returns
-     * CRYPTOCB_UNAVAILABLE unless built with WOLFSSL_STM32_DHUK_UNWRAP. Not
-     * auto-routed -- call explicitly (DHUK uses the cryptocb path). */
+#if defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX)
+    /* Explicit KEK primitive: SAES turns the 256-bit value in aes->key into a
+     * chip-bound key encryption key (KEK = DHUK-decrypt(input)) inside KEYR --
+     * the KEK never enters software -- then ECB/CBC's the caller's buffer with
+     * it. Use it to wrap key material before storing it in flash and to unwrap
+     * it again. _ex `isCbc`: 0=ECB, 1=CBC; CBC takes its IV from aes->reg.
+     *
+     * Same primitive the WC_DHUK_DEVID crypto-callback device derives from its
+     * seed, so blobs are interchangeable between the two APIs (verified
+     * byte-identical on STM32U385). Input and output are NOT byte-reversed on
+     * either build path.
+     *
+     * NOT the inverse of wc_Stm32_Aes_Wrap: unwrapping a blob that
+     * wc_Stm32_Aes_Wrap produced from K does not put K in KEYR.
+     *
+     * Returns CRYPTOCB_UNAVAILABLE unless built with
+     * WOLFSSL_STM32_DHUK_UNWRAP. Not auto-routed -- call explicitly. */
     int wc_Stm32_Aes_DhukOp(struct Aes* aes, byte* out, const byte* in,
         word32 sz, int isEnc);
     int wc_Stm32_Aes_DhukOp_ex(struct Aes* aes, byte* out, const byte* in,
@@ -991,27 +1003,23 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
 #endif /* WOLFSSL_STM32_PKA && HAVE_ECC */
 
 
-/* DHUK BARE port: the STM32 crypto-callback device. Built on families with
- * SAES + DHUK (the WC_STM32_HAS_DHUK gate); transparent DHUK crypto (AES /
- * GMAC / ECDSA) routes through it via the cryptocb path. */
-#if defined(WOLFSSL_STM32_BARE) && defined(WC_STM32_HAS_DHUK)
-
-#ifdef WOLF_CRYPTO_CB
-    /* Register / unregister the STM32 DHUK device. After registering at
-     * WC_DHUK_DEVID, set an object's devId to it at init
-     * (wc_AesInit / wc_ecc_init_ex) and supply the 256-bit seed as the key
-     * (wc_AesGcmSetKey) or via wc_ecc_import_wrapped_private(). */
-    int  wc_Stm32_DhukRegister(int devId);
-    void wc_Stm32_DhukUnRegister(int devId);
-#endif
-
-#endif /* WOLFSSL_STM32_BARE && WC_STM32_HAS_DHUK */
-
-/* CubeMX CCB build: DHUK AES/GMAC is bare-only, but the CCB-protected ECDSA
- * sign routes through the crypto-callback device too, so expose the same
- * register/unregister entry points under the HAL build. */
-#if defined(WOLFSSL_STM32_CUBEMX) && defined(WOLFSSL_STM32_CCB) && \
-    defined(WOLF_CRYPTO_CB)
+/* The STM32 DHUK crypto-callback device. Built on families with SAES + DHUK
+ * (the WC_STM32_HAS_DHUK gate) under either build path: the bare-metal
+ * direct-register driver (WOLFSSL_STM32_BARE) or the CubeMX/HAL build
+ * (WOLFSSL_STM32_CUBEMX). One merged device serving transparent DHUK-derived
+ * AES / AES-GCM / GMAC, DHUK seed-wrapped ECDSA sign, HW PKA ECDSA
+ * sign+verify, and -- when WOLFSSL_STM32_CCB is enabled -- CCB-protected
+ * ECDSA sign plus CCB keygen, alongside TRNG/SEED routing.
+ *
+ * After registering at WC_DHUK_DEVID, set an object's devId to it at init
+ * (wc_AesInit / wc_ecc_init_ex) and supply the 256-bit seed as the key
+ * (wc_AesSetKey / wc_AesGcmSetKey) or via wc_ecc_import_wrapped_private().
+ *
+ * AES dispatch rule: a 256-bit key on a WC_DHUK_DEVID Aes is treated as a DHUK
+ * derivation SEED, not as a literal key. Use WOLFSSL_STM32_AES_DEVID for
+ * plaintext-key AES. */
+#if defined(WC_STM32_HAS_DHUK) && defined(WOLF_CRYPTO_CB) && \
+    (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
     int  wc_Stm32_DhukRegister(int devId);
     void wc_Stm32_DhukUnRegister(int devId);
 #endif

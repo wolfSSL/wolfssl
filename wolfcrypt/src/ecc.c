@@ -8175,7 +8175,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 #endif /* WOLFSSL_ATECC508A && WOLFSSL_CRYPTOCELL */
 
 #if defined(WOLFSSL_DHUK) && defined(WC_STM32_HAS_DHUK) && \
-    defined(WOLFSSL_STM32_BARE)
+    (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
 /* Import a hardware-wrapped ECC private scalar + its derivation seed onto the
  * ecc_key for the DHUK crypto-callback sign path. The scalar is AES-encrypted
  * (offline or on-chip) with the device key that the SAES derives from the seed;
@@ -8222,7 +8222,7 @@ int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
 #endif
     return 0;
 }
-#endif /* WOLFSSL_DHUK && WC_STM32_HAS_DHUK && WOLFSSL_STM32_BARE */
+#endif /* WOLFSSL_DHUK && WC_STM32_HAS_DHUK && (BARE || CUBEMX) */
 
 /* Guard must match the ecc.h prototype and the ccb_ / dhuk_ ecc_key struct
  * members (both WOLFSSL_DHUK && WOLFSSL_STM32_CCB) -- the implementation must
