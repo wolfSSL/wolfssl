@@ -1228,15 +1228,15 @@ exit:
             }
         }
     }
-    /* Remove intermediates that were added to CM. Unconditional: anything left
-     * resident anchors verification for every other user of this CM. */
+    /* Remove intermediates added to CM. Unconditional: a "did we add one" flag
+     * is cleared by the same failure paths that leave one resident. Clears all
+     * TEMP_CAs, so concurrent verifies on one store are unsupported. */
     if (ctx != NULL) {
         if (ctx->store != NULL) {
             if (wolfSSL_CertManagerUnloadTempIntermediateCerts(ctx->store->cm)
                     != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Failed to unload temporary intermediates");
-                /* Any left resident would anchor later verifications, so do
-                 * not report success. */
+                /* Residue would anchor later verifications. */
                 if (ret == WOLFSSL_SUCCESS)
                     ret = WOLFSSL_FAILURE;
             }
@@ -1825,8 +1825,6 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 #ifdef HAVE_CRL
     store->crl = store->cm->crl;
 #endif
-
-    store->numAdded = 0;
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
@@ -2663,7 +2661,6 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
 
 #if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
     cert_stack = wolfSSL_CertManagerGetCerts(store->cm);
-    store->numAdded = 0;
     if (cert_stack == NULL && wolfSSL_sk_X509_num(store->certs) > 0) {
         cert_stack = wolfSSL_sk_X509_new_null();
         if (cert_stack == NULL) {
@@ -2671,8 +2668,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             goto err_cleanup;
         }
     }
-    /* Reference the borrowed certificates so cert_stack owns every entry it
-     * holds, the same as the CertManager decodes above. */
+    /* Reference borrowed certs so cert_stack owns every entry. */
     for (i = 0; i < wolfSSL_sk_X509_num(store->certs); i++) {
         x509 = wolfSSL_sk_X509_value(store->certs, i);
         if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
@@ -2684,7 +2680,6 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             wolfSSL_X509_free(x509);
             goto err_cleanup;
         }
-        store->numAdded++;
     }
     for (i = 0; i < wolfSSL_sk_X509_num(cert_stack); i++) {
         x509 = (WOLFSSL_X509 *)wolfSSL_sk_value(cert_stack, i);
@@ -2693,15 +2688,13 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
             goto err_cleanup;
         }
-        /* Push first: "ret" owns the object from here on, so the cleanup
-         * below releases it even if the reference below fails. */
+        /* Push first so cleanup frees the object if the up_ref fails. */
         if (wolfSSL_sk_X509_OBJECT_push(ret, obj) <= 0) {
             WOLFSSL_MSG("wolfSSL_sk_X509_OBJECT_push error");
             wolfSSL_X509_OBJECT_free(obj);
             goto err_cleanup;
         }
-        /* Each object holds its own reference, so the list can be freed
-         * without regard to who else still points at the certificate. */
+        /* Object owns a reference, so the list frees independently. */
         if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_X509_up_ref error");
             goto err_cleanup;
@@ -2724,8 +2717,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             wolfSSL_X509_OBJECT_free(obj);
             goto err_cleanup;
         }
-        /* Reference before recording it, so the object only claims the CRL
-         * once it actually holds a reference to free. */
+        /* Reference first, so the object only claims what it can free. */
         wolfSSL_RefInc(&store->cm->crl->ref, &res);
         if (res != 0) {
             WOLFSSL_MSG("Failed to lock crl mutex");
@@ -2741,7 +2733,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
     store->objs = ret;
     return ret;
 err_cleanup:
-    /* Every object owns its contents, so one pop_free releases the lot. */
+    /* Objects own their contents, so one pop_free releases everything. */
     if (ret != NULL)
         wolfSSL_sk_X509_OBJECT_pop_free(ret, NULL);
     if (cert_stack != NULL)
