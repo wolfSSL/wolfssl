@@ -2396,6 +2396,28 @@ if (WOLFSSL_ARMASM_INLINE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_INLINE")
 endif()
 
+# ARM64 crypto kernels as NEON C intrinsics instead of assembly. Intended for
+# MSVC on Windows ARM64: cl.exe compiles no ARM64 inline assembly, and the
+# Microsoft-syntax .asm files need a separate armasm64.exe step that is only
+# wired up through MSBuild (.vcxproj), not CMake. The intrinsics are ordinary C,
+# so they need no assembler and no per-source target-feature flag (MSVC enables
+# NEON crypto unconditionally on ARM64).
+#
+# Mutually exclusive with the assembly forms - it supplies the same *_AARCH64
+# symbols - hence a separate opt-in rather than an automatic fallback.
+add_option("WOLFSSL_ARMASM_INTRINSICS"
+    "Use NEON C intrinsics for ARM64 crypto instead of assembly, for MSVC \
+(default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_ARMASM_INTRINSICS)
+    if (NOT MSVC)
+        message(FATAL_ERROR "WOLFSSL_ARMASM_INTRINSICS is only supported with "
+            "MSVC on ARM64; other toolchains should use the assembly path.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_INTRINSICS")
+endif()
+
 # TODO:
 #       - CRL monitor
 #       - User crypto
