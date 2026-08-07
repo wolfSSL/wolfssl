@@ -9,6 +9,7 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 * `user_settings_arduino.h`: An example Arduino file. See also [wolfSSL/Arduino-wolfSSL](https://github.com/wolfSSL/Arduino-wolfSSL).
 * `user_settings_EBSnet.h`: Example configuration file for use with EBSnet ports.
 * `user_settings_eccnonblock.h`: Example for non-blocking ECC crypto only. See comment at top for test results.
+* `user_settings_embedded.h`: Embedded profile driven by `WC_CFG_*` on/off switches at the top - target CPU, assembly (big-number and per-algorithm), memory model, math back end, key sizes and TLS. Covers Cortex-M, ARM32/Thumb, Aarch64, RISC-V, PowerPC and x86_64. See [doc/ASM_AND_MATH_DEFINES.md](../../doc/ASM_AND_MATH_DEFINES.md) for what the generated defines do.
 * `user_settings_espressif.h`: Example configuration for Espressif ESP32. See also [wolfSSL/IDE/Espressif](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif).
 * `user_settings_fipsv2.h`: The FIPS v2 (3389) 140-2 certificate build options.
 * `user_settings_fipsv5.h`: The FIPS v5 (ready) 140-3 build options. Equivalent to `./configure --enable-fips=v5-dev`.

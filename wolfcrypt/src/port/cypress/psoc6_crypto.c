@@ -181,7 +181,7 @@ int wc_Psoc6_Sha1_Sha2_Init(void* sha, wc_psoc6_hash_sha1_sha2_t hash_mode,
                 res = Cy_Crypto_Core_Sha_Start(crypto_base,
                                                &((wc_Sha512*)sha)->hash_state);
             break;
-#endif /* WOLFSSL_SHA512_224 */
+#endif /* !WOLFSSL_NOSHA512_224 */
 
 #if !defined(WOLFSSL_NOSHA512_256)
         case WC_PSOC6_SHA512_256:
@@ -192,7 +192,7 @@ int wc_Psoc6_Sha1_Sha2_Init(void* sha, wc_psoc6_hash_sha1_sha2_t hash_mode,
                 res = Cy_Crypto_Core_Sha_Start(crypto_base,
                                                &((wc_Sha512*)sha)->hash_state);
             break;
-#endif /* WOLFSSL_SHA512_256 */
+#endif /* !WOLFSSL_NOSHA512_256 */
 
 #endif /* WOLFSSL_SHA512 */
 
