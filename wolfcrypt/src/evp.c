@@ -13979,6 +13979,8 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         }
         e[0] = in[j++];
         if (e[0] == '\0') {
+            /* a NUL byte ends the input, nothing is left to buffer */
+            inLen = 0;
             break;
         }
         inLen--;
@@ -14058,6 +14060,15 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             }
             if (c == '=') {
                 pad = 1;
+            }
+            if (i >= BASE64_DECODE_BLOCK_SIZE) {
+                /* More leftover data than one decode block can hold. The loops
+                 * above leave at most a partial block behind, so this is a
+                 * bound on the buffer and not a reachable input error. */
+                XMEMSET(ctx->data, 0, sizeof(ctx->data));
+                ctx->remaining = 0;
+                *outl = 0;
+                return -1;
             }
             ctx->data[i++] = c;
             ctx->remaining++;

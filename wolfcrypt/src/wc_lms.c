@@ -1421,6 +1421,10 @@ int wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len)
 
 /* Sign a message.
  *
+ * The one-time key at the current leaf is consumed before the advanced private
+ * key is written to storage. If either step fails then the key state is left
+ * bad and no further signatures can be created with this key.
+ *
  * @param [in, out] key    LMS key to sign with.
  * @param [out]     sig    Signature data. Buffer must be big enough to hold
  *                         signature data.
@@ -1434,6 +1438,7 @@ int wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len)
  * @return  BAD_FUNC_ARG when a read/write private key context is not set.
  * @return  BUFFER_E when sigSz is too small.
  * @return  BAD_STATE_E when wrong state for operation.
+ * @return  KEY_EXHAUSTED_E when no signatures are left in the key.
  * @return  IO_FAILED_E when reading or writing private key failed.
  */
 int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
@@ -1475,6 +1480,16 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
         ret = wc_CryptoCb_PqcStatefulSigSign(msg, (word32)msgSz, sig, sigSz,
             WC_PQC_STATEFUL_SIG_TYPE_LMS, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == WC_NO_ERR_TRACE(KEY_EXHAUSTED_E)) {
+                /* Signature space exhausted. */
+                WOLFSSL_MSG("error: no LMS signatures remaining");
+                key->state = WC_LMS_STATE_NOSIGS;
+            }
+            else if (ret != 0) {
+                /* The device may have consumed the one-time key without
+                 * committing the advanced state, so presume the key is bad. */
+                key->state = WC_LMS_STATE_BAD;
+            }
             return ret;
         }
         ret = 0; /* fall through to software path */
@@ -1498,6 +1513,9 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
             /* Initialize working state for use. */
             ret = wc_lmskey_state_init(state, key->params);
             if (ret == 0) {
+                /* Set the key state to bad by default. State is presumed bad
+                 * unless a correct sign and write operation happen together. */
+                key->state = WC_LMS_STATE_BAD;
                 /* Sign message. */
                 ret = wc_hss_sign(state, key->priv_raw, &key->priv,
                     key->priv_data, msg, (word32)msgSz, sig);
@@ -1506,6 +1524,11 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
             ForceZero(state, sizeof(LmsState));
             WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
+    }
+    if (ret == WC_NO_ERR_TRACE(KEY_EXHAUSTED_E)) {
+        /* Signature space exhausted. */
+        WOLFSSL_MSG("error: no LMS signatures remaining");
+        key->state = WC_LMS_STATE_NOSIGS;
     }
     if (ret == 0) {
         *sigSz = (word32)key->params->sig_len;
@@ -1532,9 +1555,15 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
             /* Write to NV storage failed. Erase the signature from
              * memory to prevent OTS key reuse if state is rolled back. */
+            WOLFSSL_MSG("error: LmsKey write_private_key failed");
             ForceZero(sig, key->params->sig_len);
             ret = IO_FAILED_E;
         }
+    }
+    if (ret == 0) {
+        /* The advanced private key was committed to storage. The key is safe
+         * to sign with again. */
+        key->state = WC_LMS_STATE_OK;
     }
 
     return ret;
