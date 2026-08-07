@@ -25260,12 +25260,8 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
                                       Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-    #ifndef NO_SKID
+#ifndef NO_SKID
     Signer* exCaSigner;
-    #endif
-#else
-    (void)extraCAList;
 #endif
 
 #ifndef NO_SKID
@@ -25286,7 +25282,6 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
     signer = GetCA(cm, cert->issuerNameHash);
 #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     if (signer == NULL && extraCAList != NULL) {
     #ifndef NO_SKID
         if (cert->authKeyIdSet) {
@@ -25311,7 +25306,6 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
         signer = findSignerByName(extraCAList, cert->issuerNameHash);
     #endif
     }
-#endif
 
     return signer;
 }
@@ -25895,11 +25889,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
         if (!cert->selfIssued || (verify != NO_VERIFY && type != CA_TYPE &&
                                                    type != TRUSTED_PEER_TYPE)) {
             cert->ca = NULL;
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         if (extraCAList != NULL) {
             cert->ca = findSignerByName(extraCAList, cert->issuerHash);
         }
-#endif
     #ifndef NO_SKID
             if (cert->ca == NULL && cert->extAuthKeyIdSet) {
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
