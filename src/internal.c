@@ -37629,15 +37629,20 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     #ifdef HAVE_PK_CALLBACKS
                         buffer tmp;
 
-                        tmp.length = ssl->buffers.key->length;
-                        tmp.buffer = ssl->buffers.key->buffer;
+                        /* Private key may be held by the PK callback. */
+                        tmp.length = ssl->buffers.key ?
+                            ssl->buffers.key->length : 0;
+                        tmp.buffer = ssl->buffers.key ?
+                            ssl->buffers.key->buffer : NULL;
                     #endif
 
-                        ret = Sm3wSm2Verify(ssl,
+                        /* Sm2wSm3Sign() was given the handshake messages and
+                         * not the digest - verify over the same data. */
+                        ret = Sm2wSm3Verify(ssl,
                             TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
                             ssl->buffers.sig.buffer, ssl->buffers.sig.length,
-                            ssl->buffers.digest.buffer,
-                            ssl->buffers.digest.length, key,
+                            ssl->hsHashes->messages,
+                            ssl->hsHashes->length, key,
                         #ifdef HAVE_PK_CALLBACKS
                             &tmp
                         #else
@@ -37651,8 +37656,11 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     #ifdef HAVE_PK_CALLBACKS
                         buffer tmp;
 
-                        tmp.length = ssl->buffers.key->length;
-                        tmp.buffer = ssl->buffers.key->buffer;
+                        /* Private key may be held by the PK callback. */
+                        tmp.length = ssl->buffers.key ?
+                            ssl->buffers.key->length : 0;
+                        tmp.buffer = ssl->buffers.key ?
+                            ssl->buffers.key->buffer : NULL;
                     #endif
 
                         ret = EccVerify(ssl,
@@ -39698,6 +39706,16 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         #ifdef WOLFSSL_CHECK_SIG_FAULTS
                             {
                                 ecc_key* key = (ecc_key*)ssl->hsKey;
+                            #ifdef HAVE_PK_CALLBACKS
+                                buffer tmp;
+
+                                /* Private key may be held by the PK
+                                 * callback. */
+                                tmp.length = ssl->buffers.key ?
+                                    ssl->buffers.key->length : 0;
+                                tmp.buffer = ssl->buffers.key ?
+                                    ssl->buffers.key->buffer : NULL;
+                            #endif
 
                             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                                 if (ssl->options.sigAlgo == sm2_sa_algo) {
@@ -39709,7 +39727,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                                         ssl->buffers.sig.length,
                                         key,
                                     #ifdef HAVE_PK_CALLBACKS
-                                        ssl->buffers.key
+                                        &tmp
                                     #else
                                         NULL
                                     #endif
@@ -39718,13 +39736,6 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                                 else
                             #endif /* WOLFSSL_SM2 */
                                 {
-                                #ifdef HAVE_PK_CALLBACKS
-                                    buffer tmp;
-
-                                    tmp.length = ssl->buffers.key->length;
-                                    tmp.buffer = ssl->buffers.key->buffer;
-                                #endif
-
                                     ret = EccVerify(ssl,
                                         args->output + LENGTH_SZ + args->idx,
                                         args->sigSz,

@@ -11165,8 +11165,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 #ifdef HAVE_PK_CALLBACKS
                     buffer tmp;
 
-                    tmp.length = ssl->buffers.key->length;
-                    tmp.buffer = ssl->buffers.key->buffer;
+                    /* Private key may be held by the PK callback. */
+                    tmp.length = ssl->buffers.key ?
+                        ssl->buffers.key->length : 0;
+                    tmp.buffer = ssl->buffers.key ?
+                        ssl->buffers.key->buffer : NULL;
                 #endif
                     ret = EccVerify(ssl, sigOut, args->sigLen,
                             args->sigData, args->sigDataSz,
@@ -11188,8 +11191,12 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                 args->sigLen + OPAQUE16_LEN + OPAQUE16_LEN;
             #ifdef HAVE_PK_CALLBACKS
                 buffer tmp;
-                tmp.length = ssl->buffers.altKey->length;
-                tmp.buffer = ssl->buffers.altKey->buffer;
+
+                /* Private key may be held by the PK callback. */
+                tmp.length = ssl->buffers.altKey ?
+                    ssl->buffers.altKey->length : 0;
+                tmp.buffer = ssl->buffers.altKey ?
+                    ssl->buffers.altKey->buffer : NULL;
             #endif
                 ret = EccVerify(ssl, sigOut, args->altSigLen,
                         args->altSigData, args->altSigDataSz,
