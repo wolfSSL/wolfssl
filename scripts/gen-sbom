@@ -21,14 +21,33 @@ from datetime import datetime, timezone
 # fields.  Reproducibility CI keys on byte-equal SBOMs across re-runs,
 # so this constant must change in lockstep with the output it produces.
 #
-# 1.2.1  Dependency components carry a CPE 2.3 identifier, and pkg:github
-#        PURLs use the canonical lowercase namespace and name with the
-#        project's real release tag as the version.  Numbered against 1.2
-#        rather than taking the wolfGlass 1.3 / 1.4 numbers: those describe
-#        an engine with changes this copy does not have, and a version that
-#        does not identify one output shape is worse than no version at all.
+# The CLI counts as auditor-visible: '1.2' shipped in two incompatible
+# shapes because dropping --dep-liboqs did not bump it, leaving vendored
+# copies indistinguishable by the only identifier the SBOM records.
+#
+# 1.6  A product whose CPE is only pending at NVD no longer emits a `cpe`
+#      field; the intended identifier moves to
+#      `wolfssl:sbom:cpe-requested` alongside
+#      `wolfssl:sbom:cpe-status=pending`.  wolfCrypt is nested inside the
+#      wolfssl component (CycloneDX sub-component + CONTAINS on the SPDX
+#      side) instead of sitting beside it, and `--crypto-only` records
+#      `wolfssl:sbom:wolfssl-subset=wolfcrypt-only` when only the crypto
+#      subset of the wolfSSL release is compiled in.
+# 1.5  Emit wolfCrypt as its own component (registered CPE
+#      wolfssl:wolfcrypt).  Main-package CPEs come from PRODUCT_CPE only:
+#      registered NVD pairs, plus pending submissions (e.g. wolfBoot) so
+#      the SBOM and the future dictionary entry agree.  wolfssh uses the
+#      NVD vendor `wolfssh`, not `wolfssl`.
+# 1.4  Dependency components carry a CPE 2.3 identifier, so a scanner that
+#      matches on CPE (NVD) sees the linked dependency and not only the
+#      product. pkg:github PURLs use the canonical lowercase namespace and
+#      name, and a version that is the project's real release tag.
+# 1.3  Valueless '#define X' records an empty value instead of '1'.
+#      Warns when the licence file is the full GPL text, where the
+#      -only/-or-later distinction cannot be inferred.
+# 1.2  Dropped --dep-liboqs (unversioned; see above).
 GEN_SBOM_TOOL_NAME = 'wolfssl-sbom-gen'
-GEN_SBOM_VERSION = '1.2.1'
+GEN_SBOM_VERSION = '1.6'
 
 # Placeholder recorded in the component checksum fields when the operator
 # passes --no-artifact-hash: a build (ROM image, HSM firmware, binary-only
@@ -112,6 +131,103 @@ def wolfssl_project_purl(name, version):
     return github_purl('wolfSSL', name, github_release_tag(name, version))
 
 
+# Official CPE 2.3 vendor:product pairs.  Main-package CPEs are emitted only
+# from this table so a product without an entry never invents a silent false
+# match against NVD.
+#
+# status:
+#   registered — present in the Official CPE Dictionary; scanners can match
+#                NVD advisories today, so the `cpe` field is emitted.
+#   pending    — intended name for an NVD dictionary submission, NOT in the
+#                dictionary yet.  No `cpe` field is emitted: a scanner
+#                cannot distinguish an unlisted CPE from a listed one with
+#                no advisories, so publishing it asserts a match that does
+#                not exist.  The intended string is recorded instead as
+#                `wolfssl:sbom:cpe-requested` plus
+#                `wolfssl:sbom:cpe-status=pending`, which keeps the SBOM
+#                and the eventual dictionary entry byte-identical without
+#                claiming registration.  Promote the entry to `registered`
+#                once NVD publishes it.  See docs/cpe-requests/ for the
+#                NIST submission materials.
+#
+# NVD currently registers under vendor wolfssl: wolfssl, wolfcrypt,
+# wolfmqtt, yassl.  wolfSSH is registered under vendor wolfssh.
+PRODUCT_CPE = {
+    'wolfssl':   {'vendor': 'wolfssl', 'product': 'wolfssl',   'status': 'registered'},
+    'wolfcrypt': {'vendor': 'wolfssl', 'product': 'wolfcrypt', 'status': 'registered'},
+    'wolfmqtt':  {'vendor': 'wolfssl', 'product': 'wolfmqtt',  'status': 'registered'},
+    'wolfssh':   {'vendor': 'wolfssh', 'product': 'wolfssh',   'status': 'registered'},
+    'wolfboot':  {'vendor': 'wolfssl', 'product': 'wolfboot',  'status': 'pending'},
+}
+
+
+def _product_cpe_string(meta, version):
+    return (
+        f"cpe:2.3:a:{meta['vendor']}:{meta['product']}:{version}:*:*:*:*:*:*:*"
+    )
+
+
+def product_cpe(name, version):
+    """Return the CPE 2.3 to publish for a product, or None.
+
+    Only a `registered` product yields a value.  A `pending` product returns
+    None here and surfaces through product_cpe_requested() instead."""
+    meta = PRODUCT_CPE.get((name or '').lower())
+    if not meta or not version or meta['status'] != 'registered':
+        return None
+    return _product_cpe_string(meta, version)
+
+
+def product_cpe_requested(name, version):
+    """Return the CPE 2.3 a `pending` product has submitted to NVD, else None."""
+    meta = PRODUCT_CPE.get((name or '').lower())
+    if not meta or not version or meta['status'] != 'pending':
+        return None
+    return _product_cpe_string(meta, version)
+
+
+def product_cpe_status(name):
+    """Return 'registered', 'pending', or None for a product name."""
+    meta = PRODUCT_CPE.get((name or '').lower())
+    return meta['status'] if meta else None
+
+
+# Defining this macro compiles the wolfSSL tree with the TLS layer removed,
+# leaving only wolfCrypt.  wolfBoot sets it in include/user_settings.h for
+# every build except wolfHSM-server-with-cert-chain-verify, so it is the
+# authoritative signal for "this image holds the crypto subset only" -- more
+# reliable than a build-system flag, which would have to restate that
+# condition and would drift from it.
+CRYPTO_ONLY_MACRO = 'WOLFCRYPT_ONLY'
+
+# Value recorded for wolfssl:sbom:wolfssl-subset when the macro (or an
+# explicit --crypto-only yes) says only wolfCrypt is compiled in.
+WOLFSSL_SUBSET_CRYPTO_ONLY = 'wolfcrypt-only'
+
+
+def resolve_crypto_only(mode, build_props):
+    """Return (is_crypto_only, basis) for --crypto-only auto|yes|no.
+
+    basis is 'declared' when the operator stated it, 'captured' when it was
+    read out of the configuration macros this SBOM records, and 'unknown'
+    when there are no captured macros to read (a --source-only front end
+    such as Zephyr, where nothing in the inputs can settle the question).
+
+    A crypto-only image does NOT drop the wolfssl component.  NVD maps 30
+    CVEs to cpe:2.3:a:wolfssl:wolfssl:<ver> and zero to
+    cpe:2.3:a:wolfssl:wolfcrypt, because wolfCrypt advisories are filed
+    against the wolfssl product; removing the wolfssl component to be
+    precise about the subset would silently take the scan from 30
+    matchable advisories to none.  The subset is recorded as a property and
+    narrowed per-CVE with VEX instead."""
+    mode = (mode or 'auto').lower()
+    if mode in ('yes', 'no'):
+        return mode == 'yes', 'declared'
+    if not build_props:
+        return False, 'unknown'
+    return any(k == CRYPTO_ONLY_MACRO for k, _ in build_props), 'captured'
+
+
 def derived_uuid(*parts):
     """Deterministic UUID from joined parts under the wolfSSL SBOM namespace.
     Re-runs of `make sbom` against the same source produce identical UUIDs,
@@ -174,11 +290,29 @@ DEP_META = {
         'download': 'https://github.com/wolfSSL/wolfssl',
         'pkgconfig': 'wolfssl',
         'purl': lambda v: wolfssl_project_purl('wolfssl', v),
-        # The CPE NVD registers for the wolfSSL library.  wolfCrypt is not a
-        # separate NVD product: it is compiled from the same wolfssl release,
-        # and its advisories are published against wolfssl:wolfssl, so this
-        # one identifier covers the whole linked artefact.
+        # The CPE NVD registers for the wolfSSL library.
         'cpe': lambda v: f'cpe:2.3:a:wolfssl:wolfssl:{v}:*:*:*:*:*:*:*',
+    },
+    # wolfCrypt is a separate NVD product (cpe:2.3:a:wolfssl:wolfcrypt).
+    # Embedders such as wolfBoot compile wolfcrypt sources into the image;
+    # wolfSSL itself co-ships wolfCrypt.  Emitting it as a component lets a
+    # CPE-driven scan match wolfCrypt advisories, which NVD indexes under
+    # wolfcrypt rather than only under wolfssl.
+    'wolfcrypt': {
+        'name': 'wolfcrypt',
+        'supplier': 'wolfSSL Inc.',
+        'license': 'GPL-3.0-only',
+        'download': 'https://github.com/wolfSSL/wolfssl',
+        # Co-released with wolfssl; no separate .pc file.  Version comes from
+        # --dep-version wolfcrypt=X.Y.Z, or is inherited from the wolfssl
+        # dep / main package version (see main()).
+        'pkgconfig': None,
+        # wolfcrypt lives in the wolfssl repository.  The resolvable PURL is
+        # the wolfssl release that ships it, with a #wolfcrypt subpath so it
+        # does not collide with the wolfssl component's own PURL.  NVD
+        # matching keys on the wolfcrypt CPE below.
+        'purl': lambda v: wolfssl_project_purl('wolfssl', v) + '#wolfcrypt',
+        'cpe': lambda v: f'cpe:2.3:a:wolfssl:wolfcrypt:{v}:*:*:*:*:*:*:*',
     },
     'libz': {
         'name': 'zlib',
@@ -300,6 +434,22 @@ def cdx_license_block(license_expr, license_text):
     return [{'expression': license_expr}]
 
 
+# Section headings that appear only in the verbatim GNU licence text, never
+# in a short per-project licensing statement such as wolfSSL's LICENSING.
+_FULL_LICENSE_MARKERS = (
+    'terms and conditions for copying, distribution and modification',
+    'terms and conditions',
+    'how to apply these terms to your new programs',
+)
+
+
+def _is_full_license_text(text):
+    """True when the licence file is the verbatim GNU licence rather than a
+    statement about how the project licenses under it."""
+    low = text.lower()
+    return sum(marker in low for marker in _FULL_LICENSE_MARKERS) >= 2
+
+
 def detect_license(license_file):
     """Parse LICENSING file and return an SPDX license ID.
 
@@ -350,6 +500,24 @@ def detect_license(license_file):
     if re.search(r'or\s+(?:[^,.;\n]*?\s+)?(?:any\s+)?later',
                  excerpt, re.IGNORECASE):
         return f'GPL-{version}.0-or-later'
+    if _is_full_license_text(text):
+        # The verbatim GPL is the licence itself, not a statement about how
+        # this project licenses under it.  Whether the project grants "or any
+        # later version" appears only in the per-file headers, so -only here
+        # is a guess that silently narrows the grant.  wolfBoot ships the full
+        # GPLv3 as LICENSE while every source header says "either version 3
+        # ... or (at your option) any later version", i.e. GPL-3.0-or-later.
+        print(
+            f"WARNING: {license_file} is the full GPL text, not a licensing "
+            f"statement.\n"
+            f"         It cannot say whether this project grants "
+            f"'or any later version', so\n"
+            f"         GPL-{version}.0-only is assumed and may understate the "
+            f"grant. Confirm against\n"
+            f"         your source headers and pass --license-override "
+            f"GPL-{version}.0-or-later if so\n"
+            f"         (Make: SBOM_LICENSE_OVERRIDE).",
+            file=sys.stderr)
     return f'GPL-{version}.0-only'
 
 
@@ -419,7 +587,10 @@ def dep_version(key, overrides=None):
     entry."""
     if overrides and key in overrides:
         return overrides[key]
-    return pkgconfig_version(DEP_META[key]['pkgconfig'])
+    pkg = DEP_META[key].get('pkgconfig')
+    if not pkg:
+        return None
+    return pkgconfig_version(pkg)
 
 
 # Patterns for #define names that pollute the SBOM with build-environment
@@ -858,22 +1029,58 @@ def spdx_dep_package(key, dep_version_overrides=None):
     return spdx_id, pkg
 
 
+# CycloneDX 1.6 component.type -> SPDX 2.3 primaryPackagePurpose, so the two
+# documents agree on what kind of artifact this is.  A bootloader described as
+# a 'library' misfiles the product for anyone triaging by artifact class, which
+# under IEC 62443 is the difference between a component and the firmware it
+# boots.  Only the values a wolfSSL-stack product can legitimately be.
+SPDX_PACKAGE_PURPOSE = {
+    'library': 'LIBRARY',
+    'firmware': 'FIRMWARE',
+    'application': 'APPLICATION',
+    'framework': 'FRAMEWORK',
+    'device': 'DEVICE',
+    'file': 'FILE',
+}
+
+
 def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
                  timestamp, year, serial, enabled_deps, build_props,
                  dep_version_overrides=None, hash_kind='library-binary',
-                 hash_source='lib', srcs_basenames=None, file_entries=None):
+                 hash_source='lib', srcs_basenames=None, file_entries=None,
+                 component_type='library', wolfssl_subset=None,
+                 subset_basis=None):
     bom_ref = derived_uuid(name, version, 'package')
     urls = project_urls(name)
 
-    dep_bom_refs = []
-    components = []
+    # wolfCrypt is shipped inside the wolfSSL release, not beside it, so when
+    # both are recorded the wolfcrypt component nests in the wolfssl one and
+    # the dependency edge runs wolfssl -> wolfcrypt.  wolfssl stays top-level
+    # because it is the only identifier of the pair that NVD maps advisories
+    # to (see resolve_crypto_only).
+    dep_refs, dep_comps = {}, {}
     for key in enabled_deps:
         ref, comp = cdx_dep_component(name, version, key, dep_version_overrides)
-        dep_bom_refs.append(ref)
-        components.append(comp)
+        dep_refs[key] = ref
+        dep_comps[key] = comp
 
+    nest_wolfcrypt = 'wolfcrypt' in dep_comps and 'wolfssl' in dep_comps
+    if nest_wolfcrypt:
+        dep_comps['wolfssl']['components'] = [dep_comps['wolfcrypt']]
+
+    top_keys = [k for k in enabled_deps
+                if not (nest_wolfcrypt and k == 'wolfcrypt')]
+    components = [dep_comps[k] for k in top_keys]
+    dep_bom_refs = [dep_refs[k] for k in top_keys]
+
+    # A valueless `#define X` is recorded with an empty value, not '1'.
+    # Coercing to '1' made the two indistinguishable and produced actively
+    # misleading entries where the macro names a quantity: wolfBoot's
+    # target.h emits `#define WOLFBOOT_LOAD_ADDRESS` with nothing after it
+    # when the target does not set a load address, which an auditor then read
+    # as the address literally being 1.
     properties = [
-        {'name': f'wolfssl:build:{k}', 'value': v if v else '1'}
+        {'name': f'wolfssl:build:{k}', 'value': v}
         for k, v in build_props
     ]
     # Document what the SHA-256 in `hashes` represents, on every entry
@@ -902,15 +1109,42 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
             'value': ','.join(srcs_basenames),
         })
 
+    if wolfssl_subset:
+        # Which part of the wolfSSL release is actually compiled in.  Without
+        # this an integrator reading a wolfssl component assumes the TLS
+        # stack is present and triages TLS advisories that cannot apply.
+        properties.append({
+            'name': 'wolfssl:sbom:wolfssl-subset',
+            'value': wolfssl_subset,
+        })
+        properties.append({
+            'name': 'wolfssl:sbom:wolfssl-subset-basis',
+            'value': subset_basis or 'unknown',
+        })
+
+    cpe = product_cpe(name, version)
+    cpe_requested = product_cpe_requested(name, version)
+    if cpe_requested:
+        # NVD does not list this product yet, so no `cpe` field is emitted.
+        # Record the submitted identifier and its status so the SBOM and the
+        # dictionary entry agree the day NVD publishes it.
+        properties.append({
+            'name': 'wolfssl:sbom:cpe-status',
+            'value': 'pending',
+        })
+        properties.append({
+            'name': 'wolfssl:sbom:cpe-requested',
+            'value': cpe_requested,
+        })
+
     main_component = {
         'bom-ref': bom_ref,
-        'type': 'library',
+        'type': component_type,
         'supplier': {'name': supplier},
         'name': name,
         'version': version,
         'licenses': cdx_license_block(license_id, license_text),
         'copyright': f'Copyright (C) 2006-{year} wolfSSL Inc.',
-        'cpe': f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*',
         'purl': wolfssl_project_purl(name, version),
         'hashes': [{'alg': 'SHA-256', 'content': lib_hash}],
         'externalReferences': [
@@ -927,6 +1161,8 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
         ],
         'properties': properties,
     }
+    if cpe:
+        main_component['cpe'] = cpe
     # Sub-component file entries (CycloneDX file-typed components nested
     # under the library).  Autotools paths nest the linked library
     # binary so an auditor running a CDX parser can resolve the SHA-256
@@ -966,7 +1202,15 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
         'components': components,
         'dependencies': [
             {'ref': bom_ref, 'dependsOn': dep_bom_refs},
-            *[{'ref': r, 'dependsOn': []} for r in dep_bom_refs],
+            *[
+                {
+                    'ref': dep_refs[k],
+                    'dependsOn': ([dep_refs['wolfcrypt']]
+                                  if nest_wolfcrypt and k == 'wolfssl'
+                                  else []),
+                }
+                for k in enabled_deps
+            ],
         ],
     }
 
@@ -975,7 +1219,9 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
                   timestamp, year, doc_ns_uuid, enabled_deps, build_props,
                   dep_version_overrides=None, hash_kind='library-binary',
                   hash_source='lib', srcs_basenames=None,
-                  document_namespace=None, file_entries=None):
+                  document_namespace=None, file_entries=None,
+                  component_type='library', wolfssl_subset=None,
+                  subset_basis=None):
     build_defines = ', '.join(k for k, _ in build_props)
     # Hash-kind / source-set / bomsh-traced-binary information used to
     # be stuffed into the package `comment` as `key=value` slugs, which
@@ -1005,6 +1251,10 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
         _annotate(f'wolfssl:sbom:no-artifact-hash-note={_NO_HASH_NOTE}')
     if srcs_basenames:
         _annotate('wolfssl:sbom:source-set=' + ','.join(srcs_basenames))
+    if wolfssl_subset:
+        _annotate(f'wolfssl:sbom:wolfssl-subset={wolfssl_subset}')
+        _annotate('wolfssl:sbom:wolfssl-subset-basis='
+                  + (subset_basis or 'unknown'))
 
     urls = project_urls(name)
     # Main-package SPDXID derived from --name (sanitised per SPDX 2.3 idstring
@@ -1012,6 +1262,34 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
     # not mislabel its own package as wolfssl.  For name='wolfssl' the result
     # is 'SPDXRef-Package-wolfssl', unchanged from before.
     main_spdx_id = 'SPDXRef-Package-' + re.sub(r'[^A-Za-z0-9.]', '', name)
+
+    cpe = product_cpe(name, version)
+    cpe_requested = product_cpe_requested(name, version)
+    if cpe_requested:
+        # Pending at NVD: no cpe23Type external ref, since that reference
+        # category asserts a dictionary entry a scanner can resolve.
+        _annotate('wolfssl:sbom:cpe-status=pending')
+        _annotate(f'wolfssl:sbom:cpe-requested={cpe_requested}')
+
+    external_refs = []
+    if cpe:
+        external_refs.append({
+            'referenceCategory': 'SECURITY',
+            'referenceType': 'cpe23Type',
+            'referenceLocator': cpe,
+        })
+    external_refs.extend([
+        {
+            'referenceCategory': 'PACKAGE-MANAGER',
+            'referenceType': 'purl',
+            'referenceLocator': wolfssl_project_purl(name, version),
+        },
+        {
+            'referenceCategory': 'SECURITY',
+            'referenceType': 'advisory',
+            'referenceLocator': urls['advisories'],
+        },
+    ])
 
     wolfssl_pkg = {
         'SPDXID': main_spdx_id,
@@ -1024,27 +1302,11 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
         'licenseConcluded': license_id,
         'licenseDeclared': license_id,
         'copyrightText': f'Copyright (C) 2006-{year} wolfSSL Inc.',
+        'primaryPackagePurpose': SPDX_PACKAGE_PURPOSE.get(
+            component_type, 'LIBRARY'),
         'comment': f'Build configuration defines: {build_defines}',
         'annotations': annotations,
-        'externalRefs': [
-            {
-                'referenceCategory': 'SECURITY',
-                'referenceType': 'cpe23Type',
-                'referenceLocator': (
-                    f'cpe:2.3:a:wolfssl:{name}:{version}:*:*:*:*:*:*:*'
-                )
-            },
-            {
-                'referenceCategory': 'PACKAGE-MANAGER',
-                'referenceType': 'purl',
-                'referenceLocator': wolfssl_project_purl(name, version),
-            },
-            {
-                'referenceCategory': 'SECURITY',
-                'referenceType': 'advisory',
-                'referenceLocator': urls['advisories'],
-            },
-        ],
+        'externalRefs': external_refs,
     }
 
     # No SPDX `files[]` / `hasFiles[]` inventory.  spdx-tools (the
@@ -1072,14 +1334,38 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
         'relationshipType': 'DESCRIBES',
     }]
 
+    # SPDX has no nested-package construct, so the containment the CycloneDX
+    # side expresses by nesting is a CONTAINS relationship here: wolfcrypt is
+    # part of the wolfssl release the product depends on, not a second thing
+    # the product depends on directly.
+    dep_spdx_ids = {}
     for key in enabled_deps:
         spdx_id, pkg = spdx_dep_package(key, dep_version_overrides)
+        dep_spdx_ids[key] = spdx_id
         packages.append(pkg)
-        relationships.append({
-            'spdxElementId': main_spdx_id,
-            'relatedSpdxElement': spdx_id,
-            'relationshipType': 'DEPENDS_ON',
-        })
+
+    # The container is the wolfssl release: the dependency package when the
+    # product embeds wolfSSL, or this package itself in wolfSSL's own SBOM.
+    if 'wolfssl' in dep_spdx_ids:
+        wolfcrypt_container = dep_spdx_ids['wolfssl']
+    elif name.lower() == 'wolfssl':
+        wolfcrypt_container = main_spdx_id
+    else:
+        wolfcrypt_container = None
+
+    for key in enabled_deps:
+        if key == 'wolfcrypt' and wolfcrypt_container:
+            relationships.append({
+                'spdxElementId': wolfcrypt_container,
+                'relatedSpdxElement': dep_spdx_ids['wolfcrypt'],
+                'relationshipType': 'CONTAINS',
+            })
+        else:
+            relationships.append({
+                'spdxElementId': main_spdx_id,
+                'relatedSpdxElement': dep_spdx_ids[key],
+                'relationshipType': 'DEPENDS_ON',
+            })
 
     # SPDX 2.3 §6.5: documentNamespace must be a unique URI; it is NOT
     # required to resolve to anything.  Default to `urn:uuid:<derived>`
@@ -1160,6 +1446,12 @@ def main():
     parser.add_argument('--version', required=True, help='Package version')
     parser.add_argument('--supplier', default='wolfSSL Inc.',
                         help='Supplier name (default: wolfSSL Inc.)')
+    parser.add_argument('--component-type', default='library',
+                        choices=sorted(SPDX_PACKAGE_PURPOSE),
+                        help='What kind of artifact this is: CycloneDX '
+                             'component.type, mirrored to SPDX '
+                             'primaryPackagePurpose. Use firmware for a '
+                             'bootloader such as wolfBoot (default: library)')
     parser.add_argument('--license-file', required=True,
                         help='Path to LICENSING file for SPDX ID detection')
     parser.add_argument('--license-override', default='',
@@ -1236,6 +1528,22 @@ def main():
                              'wolfSSL\'s own SBOM leaves this off. Combine '
                              'with --dep-version wolfssl=X.Y.Z on hosts '
                              'without wolfssl.pc.')
+    parser.add_argument('--dep-wolfcrypt', default='no',
+                        help='yes to record wolfcrypt as a component with its '
+                             'registered NVD CPE (cpe:2.3:a:wolfssl:wolfcrypt). '
+                             'Use for embedders (wolfBoot) and for wolfSSL\'s '
+                             'own SBOM (containment). Combine with '
+                             '--dep-version wolfcrypt=X.Y.Z, or inherit the '
+                             'wolfssl / package version when unset.')
+    parser.add_argument('--crypto-only', default='auto',
+                        choices=['auto', 'yes', 'no'],
+                        help='Whether only the wolfCrypt subset of the '
+                             'wolfSSL release is compiled in. auto (default) '
+                             'reads the ' + CRYPTO_ONLY_MACRO + ' macro out '
+                             'of the captured build configuration. Records '
+                             'wolfssl:sbom:wolfssl-subset; it never removes '
+                             'the wolfssl component, which is the only one '
+                             'NVD maps advisories to.')
     parser.add_argument('--dep-openssl', default='no',
                         help='yes to record openssl as a dependency component '
                              '(for OpenSSL-compat products such as wolfProvider '
@@ -1309,13 +1617,22 @@ def main():
 
     enabled_deps = [
         key for key, flag in [
-            ('wolfssl', args.dep_wolfssl),
-            ('openssl', args.dep_openssl),
-            ('libz',    args.dep_libz),
+            ('wolfssl',   args.dep_wolfssl),
+            ('wolfcrypt', args.dep_wolfcrypt),
+            ('openssl',   args.dep_openssl),
+            ('libz',      args.dep_libz),
         ]
         if flag.lower() == 'yes'
     ]
     dep_version_overrides = _parse_dep_version_overrides(args.dep_version)
+    # wolfcrypt has no pkg-config.  Inherit a version so the CPE/PURL are
+    # not dropped: prefer an explicit --dep-version wolfcrypt=, else the
+    # wolfssl dep version, else (for wolfSSL's own SBOM) the package version.
+    if 'wolfcrypt' in enabled_deps and 'wolfcrypt' not in dep_version_overrides:
+        if dep_version_overrides.get('wolfssl'):
+            dep_version_overrides['wolfcrypt'] = dep_version_overrides['wolfssl']
+        elif args.name.lower() == 'wolfssl':
+            dep_version_overrides['wolfcrypt'] = args.version
     # Resolve each enabled dependency's version once, here, and feed the
     # result to both the CDX and SPDX emitters via the overrides map (see
     # _resolve_dep_versions for the once-per-dep pkg-config rationale).
@@ -1350,6 +1667,19 @@ def main():
             args.user_settings_include,
             args.user_settings_define,
         )
+
+    crypto_only, subset_basis = resolve_crypto_only(args.crypto_only,
+                                                    build_props)
+    wolfssl_subset = WOLFSSL_SUBSET_CRYPTO_ONLY if crypto_only else None
+    if subset_basis == 'unknown' and 'wolfssl' in enabled_deps:
+        # A front end that captures no macros (--source-only) cannot answer
+        # the question either way.  Say so rather than defaulting silently to
+        # "the whole of wolfSSL is in here".
+        print(
+            f"NOTE: no build configuration was captured, so {CRYPTO_ONLY_MACRO} "
+            "could not be read; the SBOM does not state whether only wolfCrypt "
+            "is compiled in. Pass --crypto-only yes|no to record it.",
+            file=sys.stderr)
 
     file_entries = None
     if args.lib:
@@ -1434,6 +1764,9 @@ def main():
         hash_kind=hash_kind, hash_source=hash_source,
         srcs_basenames=srcs_basenames,
         file_entries=file_entries,
+        component_type=args.component_type,
+        wolfssl_subset=wolfssl_subset,
+        subset_basis=subset_basis,
     )
     spdx = generate_spdx(
         args.name, args.version, args.supplier,
@@ -1444,6 +1777,9 @@ def main():
         srcs_basenames=srcs_basenames,
         document_namespace=(args.document_namespace or None),
         file_entries=file_entries,
+        component_type=args.component_type,
+        wolfssl_subset=wolfssl_subset,
+        subset_basis=subset_basis,
     )
 
     try:

@@ -583,6 +583,8 @@ sbom:
 	    --options-h $(abs_builddir)/wolfssl/options.h \
 	    --lib "$$sbom_lib" \
 	    --dep-libz "$(ENABLED_LIBZ)" \
+	    --dep-wolfcrypt yes \
+	    --dep-version wolfcrypt=$(PACKAGE_VERSION) \
 	    $(foreach dv,$(SBOM_DEP_VERSIONS),--dep-version '$(dv)') \
 	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
 	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \

@@ -832,7 +832,7 @@ class TestDepMetaShape(unittest.TestCase):
         # OpenSSL-compat products (wolfProvider, wolfEngine) can declare it via
         # --dep-openssl; libz is wolfSSL's own optional linked dep.
         self.assertEqual(set(gs.DEP_META.keys()),
-                         {'wolfssl', 'openssl', 'libz'})
+                         {'wolfssl', 'wolfcrypt', 'openssl', 'libz'})
 
     def test_wolfssl_dep_entry_describes_the_linked_artefact(self):
         wolfssl = gs.DEP_META['wolfssl']
@@ -973,6 +973,7 @@ class TestEnabledDepsCli(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('--dep-libz', result.stdout)
         self.assertIn('--dep-wolfssl', result.stdout)
+        self.assertIn('--dep-wolfcrypt', result.stdout)
         self.assertIn('--dep-openssl', result.stdout)
 
     def test_removed_flags_are_rejected(self):
@@ -2026,9 +2027,10 @@ class TestGenerateCdx(unittest.TestCase):
         props = doc['metadata']['component']['properties']
         names = {p['name']: p['value'] for p in props}
         self.assertEqual(names['wolfssl:build:HAVE_AESGCM'], '1')
-        # An empty define value is rendered as '1' so the SBOM
-        # consumer can't distinguish '#define X' from '#define X 1'.
-        self.assertEqual(names['wolfssl:build:NO_DES3'], '1')
+        # A valueless '#define X' keeps an empty value. Coercing it to '1'
+        # made it indistinguishable from '#define X 1' and misread any macro
+        # naming a quantity.
+        self.assertEqual(names['wolfssl:build:NO_DES3'], '')
 
     def test_dependency_refs_match_components(self):
         # Critical invariant: every bom-ref in `dependencies` must
@@ -2718,6 +2720,95 @@ class TestBomshProvenanceVerify(unittest.TestCase):
             (fx.objects_dir / 'pack' / 'index.idx').write_bytes(b'pack idx')
             ok, messages = fx.verify()
             self.assertTrue(ok, f'verifier flagged non-blob files: {messages}')
+
+
+
+class TestProductCpePolicy(unittest.TestCase):
+    def test_registered_wolfssl_cpe(self):
+        self.assertEqual(
+            gs.product_cpe('wolfssl', '5.9.1'),
+            'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
+        self.assertEqual(gs.product_cpe_status('wolfssl'), 'registered')
+
+    def test_wolfboot_pending_cpe_is_not_published(self):
+        # Not in the NVD dictionary, so no `cpe` may be published: a scanner
+        # cannot tell an unlisted CPE from a listed one with no advisories.
+        self.assertEqual(gs.product_cpe_status('wolfboot'), 'pending')
+        self.assertIsNone(gs.product_cpe('wolfboot', '2.9.0'))
+        self.assertEqual(
+            gs.product_cpe_requested('wolfboot', '2.9.0'),
+            'cpe:2.3:a:wolfssl:wolfboot:2.9.0:*:*:*:*:*:*:*')
+
+    def test_wolfssh_uses_nvd_vendor_wolfssh(self):
+        self.assertEqual(
+            gs.product_cpe('wolfssh', '1.4.20'),
+            'cpe:2.3:a:wolfssh:wolfssh:1.4.20:*:*:*:*:*:*:*')
+
+
+class TestResolveCryptoOnly(unittest.TestCase):
+    def test_auto_reads_captured_macro(self):
+        self.assertEqual(
+            gs.resolve_crypto_only('auto', [('WOLFCRYPT_ONLY', '')]),
+            (True, 'captured'))
+
+    def test_auto_without_any_capture_is_unknown(self):
+        self.assertEqual(gs.resolve_crypto_only('auto', []), (False, 'unknown'))
+
+    def test_explicit_value_overrides_the_macro(self):
+        self.assertEqual(
+            gs.resolve_crypto_only('no', [('WOLFCRYPT_ONLY', '')]),
+            (False, 'declared'))
+
+
+class TestWolfbootCoatContract(unittest.TestCase):
+    BASE_KW = dict(
+        name='wolfboot',
+        version='2.9.0',
+        supplier='wolfSSL Inc.',
+        license_id='GPL-3.0-or-later',
+        license_text=None,
+        lib_hash='b' * 64,
+        timestamp='2024-01-01T00:00:00Z',
+        year=2024,
+        serial='00000000-0000-0000-0000-000000000002',
+        enabled_deps=['wolfssl', 'wolfcrypt'],
+        build_props=[('TARGET_stm32u5', '1')],
+        dep_version_overrides={'wolfssl': '5.9.1', 'wolfcrypt': '5.9.1'},
+        component_type='firmware',
+    )
+
+    def test_cdx_nests_wolfcrypt_inside_wolfssl(self):
+        doc = gs.generate_cdx(**self.BASE_KW)
+        main = doc['metadata']['component']
+        # wolfssl stays top-level: it is the only one of the pair NVD maps
+        # advisories to.
+        top = {c['name']: c for c in doc['components']}
+        self.assertEqual(set(top), {'wolfssl'})
+        self.assertEqual(
+            top['wolfssl']['cpe'],
+            'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
+        self.assertEqual(
+            top['wolfssl']['purl'],
+            'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
+        nested = {c['name']: c for c in top['wolfssl']['components']}
+        self.assertEqual(
+            nested['wolfcrypt']['cpe'],
+            'cpe:2.3:a:wolfssl:wolfcrypt:5.9.1:*:*:*:*:*:*:*')
+
+        self.assertNotIn('cpe', main)
+        props = {p['name']: p['value'] for p in main['properties']}
+        self.assertEqual(props.get('wolfssl:sbom:cpe-status'), 'pending')
+        self.assertEqual(props.get('wolfssl:sbom:cpe-requested'),
+                         'cpe:2.3:a:wolfssl:wolfboot:2.9.0:*:*:*:*:*:*:*')
+
+    def test_wolfssl_own_sbom_keeps_wolfcrypt_top_level(self):
+        # No wolfssl dependency to nest into, so wolfcrypt must stay
+        # top-level or components[] goes empty.
+        doc = gs.generate_cdx(**dict(
+            self.BASE_KW, name='wolfssl', version='5.9.1',
+            enabled_deps=['wolfcrypt'], component_type='library'))
+        self.assertEqual([c['name'] for c in doc['components']], ['wolfcrypt'])
+
 
 
 if __name__ == '__main__':
