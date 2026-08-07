@@ -7496,7 +7496,7 @@ static int TLSX_SetSupportedVersions(TLSX** extensions, const void* data,
 
 #endif /* WOLFSSL_TLS13 */
 
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+#ifdef WOLFSSL_TLS13_COOKIE
 
 /******************************************************************************/
 /* Cookie                                                                     */
@@ -7572,8 +7572,10 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 {
     word16  len;
     word16  idx = 0;
+#ifdef WOLFSSL_SEND_HRR_COOKIE
     TLSX*   extension;
     Cookie* cookie;
+#endif
 
     if (msgType != client_hello && msgType != hello_retry_request) {
         WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
@@ -7591,12 +7593,22 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return BUFFER_E;
 
     if (msgType == hello_retry_request) {
+        /* RFC 8446 4.2.2 puts no upper bound on the cookie. Limit how much a
+         * server can make us hold and echo back. */
+        if (len > WOLFSSL_MAX_TLS13_COOKIE_SZ) {
+            WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
+            return HRR_COOKIE_ERROR;
+        }
+
         ssl->options.hrrSentCookie = 1;
         return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 1,
                                &ssl->extensions);
     }
 
-    /* client_hello */
+    /* client_hello - the encoding is checked above in every build. Only a
+     * server that sends cookies holds one to compare the echoed cookie
+     * against, so otherwise the value is accepted and ignored. */
+#ifdef WOLFSSL_SEND_HRR_COOKIE
     extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
     if (extension == NULL) {
 #ifdef WOLFSSL_DTLS13
@@ -7622,6 +7634,7 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
     /* Request seen. */
     extension->resp = 0;
+#endif
 
     return 0;
 }
@@ -17496,7 +17509,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         #ifdef WOLFSSL_EARLY_DATA
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
         #endif
-        #ifdef WOLFSSL_SEND_HRR_COOKIE
+        #ifdef WOLFSSL_TLS13_COOKIE
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
         #endif
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
@@ -17732,7 +17745,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         #ifdef WOLFSSL_EARLY_DATA
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
         #endif
-        #ifdef WOLFSSL_SEND_HRR_COOKIE
+        #ifdef WOLFSSL_TLS13_COOKIE
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
         #endif
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH

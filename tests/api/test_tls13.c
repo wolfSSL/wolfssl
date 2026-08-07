@@ -7864,6 +7864,247 @@ int test_tls13_hrr_bad_cookie(void)
     return EXPECT_RESULT();
 }
 
+/* Run a handshake where the server sends a cookie in its HelloRetryRequest:
+ * the client must echo it back for the server to accept the second
+ * ClientHello. With noKeyShares the retry also asks for a different group,
+ * without it the cookie is the only thing the retry changes. */
+static int test_tls13_hrr_cookie_handshake_once(int noKeyShares)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
+    if (noKeyShares) {
+        ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Client saw a cookie and the server accepted the one echoed back. */
+    ExpectIntEQ(ssl_c->options.hrrSentCookie, 1);
+    ExpectIntEQ(ssl_s->options.cookieGood, 1);
+    ExpectIntEQ(ssl_c->options.hrrSentKeyShare, noKeyShares ? 1 : 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#else
+    (void)noKeyShares;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* HelloRetryRequest carrying both a key share and a cookie. */
+int test_tls13_hrr_cookie_handshake(void)
+{
+    return test_tls13_hrr_cookie_handshake_once(1);
+}
+
+/* HelloRetryRequest whose only change is the cookie. This is what a server
+ * sends when it wants the client's address confirmed and the offered key
+ * share was already usable. */
+int test_tls13_hrr_cookie_only_handshake(void)
+{
+    return test_tls13_hrr_cookie_handshake_once(0);
+}
+
+/* Test that a client stores a cookie received in a HelloRetryRequest and
+ * writes it back out in the second ClientHello. Required of every TLS 1.3
+ * client by RFC 8446 4.2.2, so it must hold without WOLFSSL_SEND_HRR_COOKIE,
+ * which only controls a server creating cookies. */
+int test_tls13_client_cookie_echo(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    TLSX* ext = NULL;
+    Cookie* cookie = NULL;
+    word32 length = 0;
+    word32 offset = 0;
+    byte out[128];
+    /* Cookie extension of a HelloRetryRequest: type, extension length,
+     * cookie length, cookie. */
+    static const byte hrrExt[] = {
+        0x00, 0x2c, 0x00, 0x08, 0x00, 0x06, 'w', 'o', 'l', 'f', 'S', 'L'
+    };
+
+    XMEMSET(out, 0, sizeof(out));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, hrrExt, (word16)sizeof(hrrExt),
+        hello_retry_request, NULL), 0);
+
+    ExpectNotNull(ext = TLSX_Find(ssl->extensions, TLSX_COOKIE));
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(cookie = (Cookie*)ext->data);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(cookie->len, sizeof(hrrExt) - 6);
+        ExpectBufEQ(cookie->data, hrrExt + 6, sizeof(hrrExt) - 6);
+    }
+
+    ExpectIntEQ(TLSX_GetRequestSize(ssl, client_hello, &length), 0);
+    ExpectIntGT(length, 0);
+    ExpectIntLE(length, (word32)sizeof(out));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(TLSX_WriteRequest(ssl, out, client_hello, &offset), 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        int found = 0;
+        word32 i;
+
+        for (i = 0; i + sizeof(hrrExt) <= offset; i++) {
+            if (XMEMCMP(out + i, hrrExt, sizeof(hrrExt)) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        ExpectIntEQ(found, 1);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a client rejects a HelloRetryRequest cookie larger than it is
+ * willing to store and echo back. RFC 8446 4.2.2 sets no upper bound. */
+int test_tls13_client_cookie_too_big(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    WOLFSSL_MAX_TLS13_COOKIE_SZ < 65535
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte* hrrExt = NULL;
+    const word16 cookieLen = WOLFSSL_MAX_TLS13_COOKIE_SZ + 1;
+    const word16 extLen = cookieLen + OPAQUE16_LEN;
+    const word32 totalLen = (word32)extLen + OPAQUE16_LEN * 2;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectNotNull(hrrExt = (byte*)XMALLOC(totalLen, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMSET(hrrExt, 0, totalLen);
+        c16toa(TLSX_COOKIE, hrrExt);
+        c16toa(extLen, hrrExt + OPAQUE16_LEN);
+        c16toa(cookieLen, hrrExt + OPAQUE16_LEN * 2);
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, hrrExt, (word16)totalLen, hello_retry_request,
+        NULL), WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
+    ExpectNull(TLSX_Find(ssl->extensions, TLSX_COOKIE));
+
+    XFREE(hrrExt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the cookie extension of a ClientHello on the server. How much of it a
+ * server checks depends on the build:
+ *  - without WOLFSSL_TLS13_COOKIE there is no cookie code, so the extension
+ *    is skipped without being looked at;
+ *  - with WOLFSSL_TLS13_COOKIE, which any build holding a client has, the
+ *    extension is parsed and so its encoding is checked;
+ *  - with WOLFSSL_SEND_HRR_COOKIE the server also kept the cookie it sent,
+ *    and the echoed value has to match it. */
+int test_tls13_server_cookie_parse(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    int expectBad = 0;
+    int expectUnsent = 0;
+    /* Cookie extension: type, extension length, cookie length, cookie. */
+    static const byte cookieExt[] = {
+        0x00, 0x2c, 0x00, 0x08, 0x00, 0x06, 'w', 'o', 'l', 'f', 'S', 'L'
+    };
+    /* Same, with a cookie length that disagrees with the extension length. */
+    static const byte badExt[] = {
+        0x00, 0x2c, 0x00, 0x08, 0x00, 0x07, 'w', 'o', 'l', 'f', 'S', 'L'
+    };
+    /* Well formed, same length as the cookie the server sent, but not it. */
+    static const byte otherExt[] = {
+        0x00, 0x2c, 0x00, 0x08, 0x00, 0x06, 'w', 'o', 'l', 'f', 'S', 'S'
+    };
+    /* Well formed, and not even the length of the cookie sent. */
+    static const byte longerExt[] = {
+        0x00, 0x2c, 0x00, 0x09, 0x00, 0x07, 'w', 'o', 'l', 'f', 'S', 'S', 'L'
+    };
+
+#ifdef WOLFSSL_TLS13_COOKIE
+    expectBad = WC_NO_ERR_TRACE(BUFFER_E);
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    expectUnsent = WC_NO_ERR_TRACE(HRR_COOKIE_ERROR);
+#endif
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+        CERT_FILETYPE));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(TLSX_Parse(ssl, badExt, (word16)sizeof(badExt), client_hello,
+        (Suites*)WOLFSSL_SUITES(ssl)), expectBad);
+
+    /* Nothing has been sent yet, so there is no cookie to echo. */
+    ExpectIntEQ(TLSX_Parse(ssl, cookieExt, (word16)sizeof(cookieExt),
+        client_hello, (Suites*)WOLFSSL_SUITES(ssl)), expectUnsent);
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    /* Give the server the cookie it sends in a HelloRetryRequest. Parsing the
+     * extension as one leaves it stored the way the server stores it. */
+    ExpectIntEQ(TLSX_Parse(ssl, cookieExt, (word16)sizeof(cookieExt),
+        hello_retry_request, NULL), 0);
+#endif
+
+    /* The cookie the server sent, echoed back unchanged. */
+    ExpectIntEQ(TLSX_Parse(ssl, cookieExt, (word16)sizeof(cookieExt),
+        client_hello, (Suites*)WOLFSSL_SUITES(ssl)), 0);
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    ExpectIntEQ(TLSX_Parse(ssl, otherExt, (word16)sizeof(otherExt),
+        client_hello, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
+    ExpectIntEQ(TLSX_Parse(ssl, longerExt, (word16)sizeof(longerExt),
+        client_hello, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
+#else
+    (void)otherExt;
+    (void)longerExt;
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a TLS 1.3 encrypted record whose inner content type resolves to
  * zero is rejected in removeMsgInnerPadding() with PARSE_ERROR and an
  * unexpected_message alert. */

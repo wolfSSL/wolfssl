@@ -2673,7 +2673,7 @@ fi
 
 # Hello Retry Request Cookie
 AC_ARG_ENABLE([hrrcookie],
-    [AS_HELP_STRING([--enable-hrrcookie],[Enable the server to send Cookie Extension in HRR with state (default: disabled)])],
+    [AS_HELP_STRING([--enable-hrrcookie],[Enable the server to send Cookie Extension in HRR with state. A client always echoes back a cookie it is sent (default: disabled)])],
     [ ENABLED_SEND_HRR_COOKIE=$enableval ],
     [ ENABLED_SEND_HRR_COOKIE=undefined ]
     )
