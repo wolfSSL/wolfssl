@@ -1,10 +1,20 @@
-name: TI C2000 (C28x) compile-only
+name: "CHAR_BIT != 8 (wide byte) guards"
 
-# Compile-guard for the TI C2000 C28x port (CHAR_BIT == 16).  It builds the
-# wolfCrypt subset that carries the CHAR_BIT != 8 gated fixes with the TI cl2000
-# code generation tools - no linking, no C2000Ware, no hardware.  Purpose: catch
-# compile regressions in the octet/SP/ML-DSA gated paths.  On-target run-tests
-# live on a hardware-in-the-loop runner (there is no public C28x simulator).
+# Guards for the CHAR_BIT != 8 (WOLFSSL_WIDE_BYTE) support added for the TI
+# C2000 C28x, where a char is a 16-bit cell.  Three independent jobs:
+#
+#   ti_c2000_compile     cl2000 compile-only over the C28x wolfCrypt subset.
+#                        Needs the TI CGT, so it self-skips when that is not
+#                        configured (see the job's env block).
+#   sha3_split64_host    x86-64 build + wolfCrypt KAT run with WC_SHA3_SPLIT64
+#                        forced.  Always runs.
+#   wide_byte_be_compile x86-64 syntax-only check of WOLFSSL_WIDE_BYTE combined
+#                        with BIG_ENDIAN_ORDER.  Always runs.
+#
+# Only the first job involves TI tooling or the C28x at all; the other two are
+# plain host jobs covering code paths this port introduced.  On-target
+# run-tests live on a hardware-in-the-loop runner (there is no public C28x
+# simulator).
 
 # START OF COMMON SECTION
 on:
@@ -32,6 +42,10 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  # WHAT: compiles - does not link - the wolfCrypt subset carrying the
+  #       CHAR_BIT != 8 gated fixes, using the TI cl2000 code generation tools.
+  #       Catches compile regressions in the octet/SP/ML-DSA gated paths.
+  # NOT:  no run-tests, no C2000Ware, no hardware.
   ti_c2000_compile:
     name: cl2000 compile-only
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
@@ -106,11 +120,14 @@ jobs:
           CGT_ROOT="${{ steps.find-cl.outputs.cgt_root }}" \
             IDE/C2000/compile.sh
 
-  # Portable regression guard for the WC_SHA3_SPLIT64 Keccak permutation added
-  # for CHAR_BIT != 8 targets.  It is pure C and runs on any host, so force it
-  # on a normal x86-64 build and run the crypto KATs (SHA-3/SHAKE plus the
-  # SHAKE-heavy ML-DSA/ML-KEM) that exercise it.  No hardware or TI CGT needed,
-  # so unlike the compile-only guard above this always runs.
+  # WHAT: builds x86-64 with WC_SHA3_SPLIT64 forced and RUNS the wolfCrypt KATs
+  #       (SHA-3/SHAKE plus the SHAKE-heavy ML-DSA/ML-KEM) that exercise it.
+  #       This one is a real correctness test, not a compile guard.
+  # NOT:  nothing TI-specific here, and no hardware or TI CGT needed - so
+  #       unlike the job above, this always runs.
+  # WHY:  the WC_SHA3_SPLIT64 Keccak permutation was added for CHAR_BIT != 8
+  #       targets, but it is pure C and therefore testable on any host.
+  #       Without this it would only ever execute on hardware CI cannot reach.
   sha3_split64_host:
     name: SHA-3 split-64 host test
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
@@ -128,15 +145,18 @@ jobs:
           make
           ./wolfcrypt/test/testwolfcrypt
 
-  # Compile guard for WOLFSSL_WIDE_BYTE combined with BIG_ENDIAN_ORDER.
-  # WOLFSSL_WIDE_BYTE is derived from CHAR_BIT != 8 alone (types.h), with no
-  # endianness condition, so the big-endian wide-byte combination is a valid
-  # config even though the C28x itself is little-endian.  Its arms are
-  # otherwise only reachable on hardware nobody builds in CI, which is how a
-  # WIDE_BYTE arm referencing a LITTLE_ENDIAN_ORDER-only local went unnoticed.
-  # CHAR_BIT stays 8 on an x86-64 runner, so this is a compile guard, not a
-  # correctness test - the octet helpers degenerate to the 8-bit identity.
-  # No hardware or TI CGT needed, so like the job above this always runs.
+  # WHAT: gcc -fsyntax-only -Werror over the octet paths with both
+  #       WOLFSSL_WIDE_BYTE and BIG_ENDIAN_ORDER defined.  A pure compile
+  #       smoke test: it only catches "that arm does not compile".
+  # NOT:  not a correctness test.  Nothing is linked and nothing is run, and
+  #       CHAR_BIT stays 8 on an x86-64 runner, so the octet helpers here
+  #       degenerate to the 8-bit identity.  No hardware or TI CGT needed, so
+  #       like the job above this always runs.
+  # WHY:  WOLFSSL_WIDE_BYTE is derived from CHAR_BIT != 8 alone (types.h) with
+  #       no endianness condition, so wide-byte + big-endian is a valid config
+  #       even though the C28x itself is little-endian.  Those arms are
+  #       otherwise unreachable in CI, which is how a WIDE_BYTE arm
+  #       referencing a LITTLE_ENDIAN_ORDER-only local once went unnoticed.
   wide_byte_be_compile:
     name: WIDE_BYTE + big-endian compile guard
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
