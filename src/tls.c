@@ -9842,8 +9842,9 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
          * falls through to the cleanup code below. */
     }
 
-    /* done with key share, release resources */
-    if (ssl->peerX25519Key != NULL) {
+    /* done with key share, release resources unless the peer key was asked
+     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake */
+    if ((ssl->peerX25519Key != NULL) && !ssl->options.keepResources) {
         wc_curve25519_free(ssl->peerX25519Key);
         XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
         ssl->peerX25519Key = NULL;
@@ -9955,8 +9956,18 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
                     ssOutput, ssOutSz, EC448_LITTLE_ENDIAN);
     }
 
-    wc_curve448_free(peerX448Key);
-    XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+    /* Keep the peer key when it was asked for - wolfSSL_get_peer_tmp_key()
+     * needs it after the handshake. Freed with the other peer keys on
+     * teardown. */
+    if ((ret == 0) && ssl->options.keepResources) {
+        FreeKey(ssl, DYNAMIC_TYPE_CURVE448, (void**)&ssl->peerX448Key);
+        ssl->peerX448Key = peerX448Key;
+        ssl->peerX448KeyPresent = 1;
+    }
+    else {
+        wc_curve448_free(peerX448Key);
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+    }
     wc_curve448_free((curve448_key*)keyShareEntry->key);
     XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     keyShareEntry->key = NULL;
@@ -10129,11 +10140,13 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
     #endif
     }
 
-    /* done with key share, release resources */
+    /* done with key share, release resources unless the peer key was asked
+     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake */
     if (ssl->peerEccKey != NULL
     #ifdef HAVE_PK_CALLBACKS
         && ssl->ctx->EccSharedSecretCb == NULL
     #endif
+        && !ssl->options.keepResources
     ) {
         wc_ecc_free(ssl->peerEccKey);
         XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);

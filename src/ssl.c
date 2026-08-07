@@ -4851,13 +4851,43 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
     }
 #endif
 
-    *pkey = ret;
-#ifdef HAVE_ECC
-    if (ret != NULL)
-        return WOLFSSL_SUCCESS;
-    else
+#ifdef HAVE_CURVE25519
+    if ((ret == NULL) && (ssl->peerX25519Key != NULL) &&
+            ssl->peerX25519KeyPresent) {
+        byte pub[CURVE25519_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        /* Raw X25519 keys are little-endian (RFC 7748). */
+        if (wc_curve25519_export_public_ex(ssl->peerX25519Key, pub, &pubSz,
+                EC25519_LITTLE_ENDIAN) != 0) {
+            WOLFSSL_MSG("get curve25519 public key failed");
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_EVP_PKEY_new_raw_public_key(WC_EVP_PKEY_X25519, NULL,
+            pub, (size_t)pubSz);
+    }
 #endif
-        return WOLFSSL_FAILURE;
+
+#ifdef HAVE_CURVE448
+    if ((ret == NULL) && (ssl->peerX448Key != NULL) &&
+            ssl->peerX448KeyPresent) {
+        byte pub[CURVE448_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        /* Raw X448 keys are little-endian (RFC 7748). */
+        if (wc_curve448_export_public_ex(ssl->peerX448Key, pub, &pubSz,
+                EC448_LITTLE_ENDIAN) != 0) {
+            WOLFSSL_MSG("get curve448 public key failed");
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_EVP_PKEY_new_raw_public_key(WC_EVP_PKEY_X448, NULL,
+            pub, (size_t)pubSz);
+    }
+#endif
+
+    *pkey = ret;
+
+    return (ret != NULL) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 #endif /* !NO_WOLFSSL_SERVER */
