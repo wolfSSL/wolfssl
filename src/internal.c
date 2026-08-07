@@ -24856,11 +24856,11 @@ static int CheckResumptionConsistency(WOLFSSL* ssl)
 #ifdef HAVE_SECRET_CALLBACK
     /* Skip the EMS checks for EAP-FAST (session-secret callback): the master
      * secret comes from the callback rather than the cached session. */
-    skipEmsCheck = ssl->sessionSecretCb != NULL
+    skipEmsCheck = (ssl->sessionSecretCb != NULL
 #ifdef HAVE_SESSION_TICKET
                 && ssl->session->ticketLen > 0
 #endif
-                ;
+                ) ? 1 : 0;
 #endif
     /* EMS must match (RFC 7627 5.3). */
     if (!skipEmsCheck && ssl->session->haveEMS != ssl->options.haveEMS) {
@@ -24871,7 +24871,7 @@ static int CheckResumptionConsistency(WOLFSSL* ssl)
         return EXT_MASTER_SECRET_NEEDED_E;
     }
 #ifdef HAVE_EXTENDED_MASTER
-    /* Resumption skips MakeTlsMasterSecret, so enforce required EMS here. */
+    /* Resumption skips MakeMasterSecret, so enforce required EMS here. */
     if (!skipEmsCheck && ssl->options.requireEMS && !ssl->options.haveEMS) {
         WOLFSSL_MSG("EMS required but not negotiated with peer");
         SendAlert(ssl, alert_fatal, handshake_failure);
@@ -41098,6 +41098,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
         }
 #endif /* HAVE_SESSION_TICKET && (HAVE_SNI || HAVE_ALPN) */
+
+#ifdef HAVE_EXTENDED_MASTER
+        /* Resumption skips MakeMasterSecret, so enforce required EMS here. */
+        if (ssl->options.requireEMS && !ssl->options.haveEMS) {
+            WOLFSSL_MSG("EMS required but not negotiated with peer");
+        #ifdef WOLFSSL_EXTRA_ALERTS
+            SendAlert(ssl, alert_fatal, handshake_failure);
+        #endif
+            WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+            return EXT_MASTER_SECRET_NEEDED_E;
+        }
+#endif /* HAVE_EXTENDED_MASTER */
+
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
         if (LowResTimer() > session->bornOn + ssl->timeout) {
@@ -41106,19 +41119,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 #endif /* !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
 
-#ifdef HAVE_EXTENDED_MASTER
-        else if (ssl->options.requireEMS && !ssl->options.haveEMS) {
-            /* Resumption skips MakeTlsMasterSecret, so enforce required EMS
-             * here. */
-            WOLFSSL_MSG("EMS required but not negotiated with peer");
-        #ifdef WOLFSSL_EXTRA_ALERTS
-            SendAlert(ssl, alert_fatal, handshake_failure);
-        #endif
-            ret = EXT_MASTER_SECRET_NEEDED_E;
-            WOLFSSL_ERROR_VERBOSE(ret);
+        if (!ssl->options.resuming) {
+            /* Expired above: DoClientHello falls back to a full handshake. */
+            return ret;
         }
-#endif /* HAVE_EXTENDED_MASTER */
-        else if (session->haveEMS != ssl->options.haveEMS) {
+
+        if (session->haveEMS != ssl->options.haveEMS) {
             /* RFC 7627, 5.3, server-side */
             /* if old sess didn't have EMS, but new does, full handshake */
             if (!session->haveEMS && ssl->options.haveEMS) {
@@ -41838,7 +41844,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef HAVE_EXTENDED_MASTER
                     /* Honor a user request to disable EMS on the server by
                      * ignoring the peer's extension. */
-                    else if (extId == HELLO_EXT_EXTMS && !ssl->options.disableEMS)
+                    else if (extId == HELLO_EXT_EXTMS &&
+                             !ssl->options.disableEMS)
                         ssl->options.haveEMS = 1;
 #endif
                     else

@@ -706,19 +706,6 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
     int ret;
 
-#ifdef HAVE_EXTENDED_MASTER
-    /* The user disabled the standard master secret and requires the Extended
-     * Master Secret extension (RFC 7627). If it was not negotiated with the
-     * peer, abort rather than derive a standard master secret. Only reachable
-     * for TLS 1.2 and earlier; TLS 1.3 uses a separate key schedule. */
-    if (ssl->options.requireEMS && !ssl->options.haveEMS) {
-        WOLFSSL_MSG("EMS required but not negotiated with peer");
-        SendAlert(ssl, alert_fatal, handshake_failure);
-        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
-        return EXT_MASTER_SECRET_NEEDED_E;
-    }
-#endif
-
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_KEYLOGFILE)
     /* If this is called from a sniffer session with keylog file support, obtain
      * the master secret from the callback */
