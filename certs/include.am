@@ -45,6 +45,10 @@ EXTRA_DIST += \
              certs/tsa-ecc-cert.pem \
              certs/tsa-ecc-key.pem \
              certs/tsa-key.pem \
+             certs/ech-public-cert.pem \
+             certs/ech-public-key.pem \
+             certs/tenant-a-cert.pem \
+             certs/tenant-b-cert.pem \
              certs/server-ecc.pem \
              certs/server-ecc-self.pem \
              certs/server-ecc-comp.pem \
@@ -135,6 +139,10 @@ EXTRA_DIST += \
              certs/tsa-extra-eku-cert.der \
              certs/tsa-chain-cert.der \
              certs/tsa-chain-key.der \
+             certs/ech-public-cert.der \
+             certs/ech-public-key.der \
+             certs/tenant-a-cert.der \
+             certs/tenant-b-cert.der \
              certs/server-ecc-comp.der \
              certs/server-ecc.der \
              certs/server-ecc-self.der \

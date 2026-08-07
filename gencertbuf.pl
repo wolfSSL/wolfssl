@@ -96,7 +96,9 @@ my @fileList_2048 = (
         [ "./certs/tsa-extra-eku-cert.der", "tsa_extra_eku_cert_der_2048" ],
         [ "./certs/intermediate/ca-int-cert.der", "ca_int_cert_der_2048" ],
         [ "./certs/tsa-chain-key.der", "tsa_chain_key_der_2048" ],
-        [ "./certs/tsa-chain-cert.der", "tsa_chain_cert_der_2048" ]
+        [ "./certs/tsa-chain-cert.der", "tsa_chain_cert_der_2048" ],
+        [ "./certs/ech-public-key.der", "ech_public_key_der_2048" ],
+        [ "./certs/ech-public-cert.der", "ech_public_cert_der_2048" ]
         );
 
 # 3072-bit certs/keys to be converted
