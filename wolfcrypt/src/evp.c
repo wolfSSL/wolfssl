@@ -3837,6 +3837,10 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
             #ifdef HAVE_CURVE448
                  ctx->pkey->type != WC_EVP_PKEY_X448 &&
             #endif
+            #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+                defined(HAVE_ED25519_MAKE_KEY)
+                 ctx->pkey->type != WC_EVP_PKEY_ED25519 &&
+            #endif
                  ctx->pkey->type != WC_EVP_PKEY_DH)) {
             WOLFSSL_MSG("Key not set or key type not supported");
             return WOLFSSL_FAILURE;
@@ -3963,6 +3967,86 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                 ret = WOLFSSL_SUCCESS;
             }
             break;
+#endif
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_MAKE_KEY)
+        case WC_EVP_PKEY_ED25519: {
+            /* Only free a key THIS call allocated on the failure path; a
+             * caller-supplied key (ownEd25519 already set) must survive. */
+            int newEd25519 = 0;
+            if (pkey->ed25519 == NULL) {
+                pkey->ed25519 = wolfSSL_ED25519_new(pkey->heap, INVALID_DEVID);
+                if (pkey->ed25519 == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+                pkey->ownEd25519 = 1;
+                newEd25519 = 1;
+            }
+            /* Reuse the RNG already initialized on the EVP_PKEY. */
+            if (wc_ed25519_make_key(&pkey->rng, ED25519_KEY_SIZE,
+                    pkey->ed25519) == 0) {
+                /* Cache the PKCS#8 PrivateKeyInfo DER so the EVP/SSL paths
+                 * (use_PrivateKey, EVP_PKEY2PKCS8) can load and serialize the
+                 * key, mirroring the state the decode path produces. */
+                int edDerSz = wc_Ed25519PrivateKeyToDer(pkey->ed25519, NULL, 0);
+                if (edDerSz > 0) {
+                    /* DYNAMIC_TYPE_PUBLIC_KEY: the tag wolfSSL_EVP_PKEY_free()
+                     * and the d2i path use for pkey.ptr. */
+                    byte* edDer = (byte*)XMALLOC((size_t)edDerSz, pkey->heap,
+                        DYNAMIC_TYPE_PUBLIC_KEY);
+                    if (edDer != NULL) {
+                        word32 hdrIdx = 0;
+                        word32 hdrAlg = 0;
+                        /* Locate the PKCS#8 header in the DER just built: its
+                         * length marks pkey.ptr as PKCS#8-wrapped, exactly as
+                         * d2i_evp_pkey() does on the decode path, and the
+                         * i2d_PrivateKey / EVP_PKEY2PKCS8 paths rely on it.
+                         * A blob we cannot parse back is unusable, so treat a
+                         * failure here as a keygen failure rather than caching
+                         * a DER whose pkcs8HeaderSz says "not PKCS#8". */
+                        if (wc_Ed25519PrivateKeyToDer(pkey->ed25519, edDer,
+                                (word32)edDerSz) == edDerSz &&
+                                ToTraditionalInline_ex(edDer, &hdrIdx,
+                                    (word32)edDerSz, &hdrAlg) >= 0) {
+                            XFREE(pkey->pkey.ptr, pkey->heap,
+                                DYNAMIC_TYPE_PUBLIC_KEY);
+                            pkey->pkey.ptr = (char*)edDer;
+                            pkey->pkey_sz = edDerSz;
+                            pkey->pkcs8HeaderSz = (word16)hdrIdx;
+                            ret = WOLFSSL_SUCCESS;
+                        }
+                        else {
+                            ForceZero(edDer, (word32)edDerSz);
+                            XFREE(edDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                        }
+                    }
+                }
+            }
+            /* Do not leave a half-initialized object behind on a FAILURE
+             * return.  wc_ed25519_make_key() has already overwritten (or, on
+             * its own failure, cleared) whatever key the EVP_PKEY held, so any
+             * cached DER now describes a key that is gone - drop it even for a
+             * caller-supplied EVP_PKEY, where the key object itself must
+             * survive because we did not allocate it. */
+            if (ret != WOLFSSL_SUCCESS) {
+                if (pkey->pkey.ptr != NULL) {
+                    if (pkey->pkey_sz > 0) {
+                        ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+                    }
+                    XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    pkey->pkey.ptr = NULL;
+                }
+                pkey->pkey_sz = 0;
+                pkey->pkcs8HeaderSz = 0;
+                if (newEd25519) {
+                    wolfSSL_ED25519_free(pkey->ed25519);
+                    pkey->ed25519 = NULL;
+                    pkey->ownEd25519 = 0;
+                }
+            }
+            break;
+        }
 #endif
         default:
             break;
@@ -4279,6 +4363,28 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
         break;
     }
 #endif /* HAVE_ECC */
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    case WC_EVP_PKEY_ED25519:
+    {
+        byte   pubA[ED25519_PUB_KEY_SIZE];
+        byte   pubB[ED25519_PUB_KEY_SIZE];
+        word32 pubASz = (word32)sizeof(pubA);
+        word32 pubBSz = (word32)sizeof(pubB);
+
+        if (a->ed25519 == NULL || b->ed25519 == NULL) {
+            return ret;
+        }
+        /* Compare the raw 32-byte public keys. */
+        if (wc_ed25519_export_public(a->ed25519, pubA, &pubASz) != 0 ||
+            wc_ed25519_export_public(b->ed25519, pubB, &pubBSz) != 0) {
+            return ret;
+        }
+        if (pubASz != pubBSz || XMEMCMP(pubA, pubB, pubASz) != 0) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+        break;
+    }
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
     default:
         return WS_RETURN_CODE(ret, -2);
     } /* switch (a->type) */

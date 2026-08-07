@@ -324,6 +324,22 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         return WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef HAVE_ED25519_MAKE_KEY
+    /* A PKCS#8 v1 PrivateKeyInfo carries only the private seed, so the
+     * decoded key has no public part.  Derive it (deterministic from the
+     * seed; wc_ed25519_make_public also stores it in the key) so the
+     * resulting EVP_PKEY is complete and callers can later export/embed the
+     * public key.  Best-effort: on failure the key is left private-only. */
+    if (priv && !edKey->pubKeySet) {
+        byte pub[ED25519_PUB_KEY_SIZE];
+
+        if (wc_ed25519_make_public(edKey, pub, sizeof(pub)) != 0) {
+            WOLFSSL_MSG("wc_ed25519_make_public failed; "
+                        "EVP_PKEY has no public part");
+        }
+    }
+#endif /* HAVE_ED25519_MAKE_KEY */
+
     /* Copy the consumed DER into pkey->pkey.ptr, unless the caller
      * pre-filled the EVP PKEY with the input bytes (d2i_evp_pkey()).
      * A reused key must be re-populated here. */
@@ -588,6 +604,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519: {
             ed25519_key* edKey;
+        #ifdef HAVE_ED25519_MAKE_KEY
+            byte edPub[ED25519_PUB_KEY_SIZE];
+        #endif
             if (len != ED25519_KEY_SIZE) {
                 break;
             }
@@ -600,6 +619,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
                 wolfSSL_ED25519_free(edKey);
                 break;
             }
+        #ifdef HAVE_ED25519_MAKE_KEY
+            /* The raw input is the seed alone, so the imported key has no
+             * public half.  Derive it (wc_ed25519_make_public stores it in the
+             * key) so a key built this way is interchangeable with one decoded
+             * from PKCS#8: i2d_PUBKEY, EVP_PKEY_cmp and signing all need it. */
+            if (wc_ed25519_make_public(edKey, edPub, sizeof(edPub)) != 0) {
+                wolfSSL_ED25519_free(edKey);
+                break;
+            }
+        #endif
             pkey->type       = WC_EVP_PKEY_ED25519;
             pkey->ed25519    = edKey;
             pkey->ownEd25519 = 1;
@@ -1703,6 +1732,29 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 
     /* Take off PKCS#8 wrapper if found. */
     if ((len = ToTraditionalInline_ex(der, &idx, keyLen, &algId)) >= 0) {
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        if (algId == ED25519k) {
+            word32 seqIdx = 0;
+            int seqLen = 0;
+
+            /* Ed25519's inner key is an OCTET STRING, not a SEQUENCE, so the
+             * RSA/ECC element-count heuristic below cannot classify it.
+             * Decode the full PKCS#8 PrivateKeyInfo directly (keeps the
+             * cached DER complete so the key can be re-loaded later).  Pass
+             * the size of the whole PrivateKeyInfo, taken from its outer
+             * SEQUENCE header: ToTraditionalInline_ex() reports the offset and
+             * length of the inner privateKey OCTET STRING only, and RFC 5958
+             * allows optional attributes and a publicKey to follow it - the
+             * form wolfSSL's own wc_Ed25519KeyToDer() emits - which that offset
+             * would cut off.  With the object size, *pp advances by exactly one
+             * object and no trailing bytes are cached. */
+            if (GetSequence(der, &seqIdx, &seqLen, keyLen) < 0) {
+                return NULL;
+            }
+            return wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_ED25519, pkey, pp,
+                (long)seqIdx + (long)seqLen);
+        }
+    #endif
         der += idx;
         keyLen = (word32)len;
     }
@@ -2480,6 +2532,56 @@ static int wolfssl_i_i2d_ecpublickey(const WOLFSSL_EVP_PKEY* key,
 }
 #endif
 
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+/* Encode an Ed25519 public key as DER SubjectPublicKeyInfo.  Follows the
+ * i2d output convention: der == NULL returns the size only; *der == NULL
+ * allocates the buffer (caller frees); otherwise writes into *der and
+ * advances it.  Returns the DER size or WOLFSSL_FATAL_ERROR. */
+static int wolfssl_i_i2d_ed25519_pubkey(const ed25519_key* key,
+    unsigned char **der)
+{
+    int derSz;
+    unsigned char* buf;
+
+    if (key == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* withAlg = 1 -> wrap the raw key in a SubjectPublicKeyInfo. */
+    derSz = wc_Ed25519PublicKeyToDer(key, NULL, 0, 1);
+    if (derSz <= 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    if (der == NULL) {
+        return derSz;
+    }
+
+    if (*der != NULL) {
+        /* Caller supplied the buffer: the size is known up front, so encode
+         * straight into it and advance past the encoding. */
+        if (wc_Ed25519PublicKeyToDer(key, *der, (word32)derSz, 1) != derSz) {
+            return WOLFSSL_FATAL_ERROR;
+        }
+        *der += derSz;
+        return derSz;
+    }
+
+    buf = (unsigned char*)XMALLOC((size_t)derSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (buf == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    if (wc_Ed25519PublicKeyToDer(key, buf, (word32)derSz, 1)
+            != derSz) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* Hand the buffer to the caller (no advance, per the i2d convention). */
+    *der = buf;
+
+    return derSz;
+}
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
+
 /* Encode the WOLFSSL_EVP_PKEY object as public key DER.
  *
  * @param [in]  key  WOLFSLS_EVP_PKEY object to encode.
@@ -2507,6 +2609,16 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     #ifdef HAVE_ECC
         case WC_EVP_PKEY_EC:
             return wolfssl_i_i2d_ecpublickey(key, key->ecc, der);
+    #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+        /* Emit a SubjectPublicKeyInfo (withAlg=1) rather than the bare key:
+         * wolfSSL_i2d_PUBKEY aliases to this function (below), so the SPKI is
+         * what wolfSSL_d2i_PUBKEY has to be able to read back.  Matches the
+         * adjacent EC case, which encodes with withAlg=1 for the same reason.
+         * (Note this differs from OpenSSL, where i2d_PublicKey emits the raw
+         * key for Ed25519 and only i2d_PUBKEY emits the SPKI.) */
+        case WC_EVP_PKEY_ED25519:
+            return wolfssl_i_i2d_ed25519_pubkey(key->ed25519, der);
     #endif
         default:
             ret = WOLFSSL_FATAL_ERROR;
