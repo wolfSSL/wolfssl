@@ -2110,3 +2110,276 @@ int test_dtls13_reuse_after_clear(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#define TEST_DTLS13_KEY_UPDATE_ROUNDS DTLS13_EPOCH_SIZE
+
+int test_dtls13_epoch_slot_reuse_replay(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "APP-DATA-REPLAY-CANARY";
+    const int msgLen = (int)sizeof(msg) - 1;
+    const w64wrapper retiredEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    const w64wrapper peerEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    char replay[512];
+    int replayLen = (int)sizeof(replay);
+    char readBuf[64];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    }
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    /* Capture an application-data record sent in the peer's current epoch. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    ExpectIntEQ(test_memio_copy_message(&test_ctx, 0, replay, &replayLen, 0), 0);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+
+    /* Control: while that epoch is still live, the replay window rejects it. */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, replay, replayLen), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* this avoid the client to request the server to send a keyUpdate back */
+    if (ssl_c != NULL)
+        ssl_c->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    /* drop the ACK */
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, peerEpoch));
+    ExpectTrue(w64Equal(ssl_c->dtls13Epoch, retiredEpoch));
+    ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 1);
+
+    /* That still-in-flight epoch is what parks ssl->dtls13DecryptEpoch on the
+     * slot Dtls13NewEpochSlot() is about to consider for eviction. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+    ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+    ExpectTrue(w64Equal(ssl_s->dtls13DecryptEpoch->epochNumber, retiredEpoch));
+
+    /* Server key updates. PeerEpoch, PeerEpoch - 1 and Epoch must be preserved */
+    for (i = 0; i < TEST_DTLS13_KEY_UPDATE_ROUNDS; i++) {
+        if (ssl_s != NULL)
+            ssl_s->keys.updateResponseReq = 1;
+        ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+        /* wolfSSL_update_keys() reports success without sending while an
+         * earlier KeyUpdate is unacked, so check the round actually closed. */
+        ExpectIntEQ(ssl_s->dtls13WaitKeyUpdateAck, 0);
+        ExpectTrue(w64Equal(ssl_s->dtls13Epoch,
+            w64From32(0, DTLS13_EPOCH_TRAFFIC0 + (word32)i + 1)));
+    }
+
+    ExpectNull(Dtls13GetEpoch(ssl_s, w64From32(0, 0)));
+    ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, peerEpoch));
+    ExpectTrue(w64Equal(ssl_c->dtls13Epoch, retiredEpoch));
+
+    /* The retired epoch's record must not be delivered a second time. */
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, replay, replayLen), 0);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* The peer is still transmitting in that epoch, so it must keep working.
+     * Dropping its traffic instead of the replay is not a fix. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_epoch_slot_reuse_decrypt_epoch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "APP-DATA-AFTER-SLOT-REUSE";
+    const int msgLen = (int)sizeof(msg) - 1;
+    const w64wrapper plaintextEpoch = w64From32(0, 0);
+    const w64wrapper trafficEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    const w64wrapper ownEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    const w64wrapper peerEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 2);
+    byte plaintextRec[DTLS_RECORD_HEADER_SZ];
+    char readBuf[64];
+    int i;
+
+    XMEMSET(plaintextRec, 0, sizeof(plaintextRec));
+    plaintextRec[0] = handshake;
+    plaintextRec[1] = DTLS_MAJOR;
+    plaintextRec[2] = DTLSv1_2_MINOR;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    }
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+    ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+    ExpectTrue(w64Equal(ssl_s->dtls13DecryptEpoch->epochNumber, trafficEpoch));
+
+    if (ssl_s != NULL)
+        ssl_s->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(ssl_s->dtls13WaitKeyUpdateAck, 0);
+    ExpectTrue(w64Equal(ssl_s->dtls13Epoch, ownEpoch));
+
+    for (i = 0; i < 2; i++) {
+        if (ssl_c != NULL)
+            ssl_c->keys.updateResponseReq = 1;
+        ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 0);
+    }
+    ExpectTrue(w64Equal(ssl_s->dtls13Epoch, ownEpoch));
+    ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, peerEpoch));
+    ExpectTrue(w64Equal(ssl_c->dtls13Epoch, peerEpoch));
+    ExpectNotNull(Dtls13GetEpoch(ssl_s, trafficEpoch));
+
+    if (ssl_s != NULL)
+        ssl_s->dtls13DecryptEpoch = Dtls13GetEpoch(ssl_s, trafficEpoch);
+    ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+
+    for (i = 0; ssl_s != NULL && i < 2 * DTLS13_EPOCH_SIZE &&
+            Dtls13GetEpoch(ssl_s, trafficEpoch) != NULL; i++) {
+        ExpectIntEQ(Dtls13NewEpoch(ssl_s,
+            w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 4 + (word32)i),
+            ENCRYPT_SIDE_ONLY), 0);
+    }
+    ExpectNull(Dtls13GetEpoch(ssl_s, trafficEpoch));
+    ExpectNull(Dtls13GetEpoch(ssl_s, plaintextEpoch));
+    ExpectNull(ssl_s->dtls13DecryptEpoch);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+        (const char*)plaintextRec, (int)sizeof(plaintextRec)), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNull(ssl_s->dtls13DecryptEpoch);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+    ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+    ExpectTrue(w64Equal(ssl_s->dtls13DecryptEpoch->epochNumber, peerEpoch));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_plaintext_ack_after_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "APP-DATA-AFTER-PLAINTEXT-ACK";
+    const int msgLen = (int)sizeof(msg) - 1;
+    const w64wrapper plaintextEpoch = w64From32(0, 0);
+    const w64wrapper trafficEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    /* ahead of the receiving window of every epoch of this connection */
+    const word32 ackSeq = 1000;
+    /* DTLSPlaintext record holding an ACK with an empty record_numbers list */
+    byte plaintextAck[DTLS_RECORD_HEADER_SZ + OPAQUE16_LEN];
+    char readBuf[64];
+    int i;
+
+    XMEMSET(plaintextAck, 0, sizeof(plaintextAck));
+    plaintextAck[0] = ack;
+    plaintextAck[1] = DTLS_MAJOR;
+    plaintextAck[2] = DTLSv1_2_MINOR;
+    /* epoch (2 bytes) is 0, sequence number is the low 32 bits of the 48 bit
+     * field that follows it */
+    c32toa(ackSeq, plaintextAck + ENUM_LEN + VERSION_SZ + OPAQUE16_LEN +
+        OPAQUE16_LEN);
+    c16toa(OPAQUE16_LEN, plaintextAck + DTLS_RECORD_HEADER_SZ - LENGTH_SZ);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    }
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+    ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+    ExpectTrue(w64Equal(ssl_s->dtls13DecryptEpoch->epochNumber, trafficEpoch));
+
+    /* The epoch 0 slot is still around at this point, so setting it as the
+     * decrypting epoch would succeed. An unprotected record received after the
+     * handshake must be dropped before that: no record of epoch 0 can be
+     * accepted anymore, and epoch 0 may well have been recycled already. */
+    ExpectNotNull(Dtls13GetEpoch(ssl_s, plaintextEpoch));
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+        (const char*)plaintextAck, (int)sizeof(plaintextAck)), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+    ExpectTrue(w64Equal(ssl_s->dtls13DecryptEpoch->epochNumber, trafficEpoch));
+
+    /* the connection must keep working */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
+    ExpectStrEQ(readBuf, msg);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

@@ -12928,9 +12928,6 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     if (w64IsZero(epochNumber))
         return SEQUENCE_ERROR;
 
-    if (ssl->dtls13DecryptEpoch == NULL)
-        return BAD_STATE_E;
-
 #ifdef WOLFSSL_EARLY_DATA
     if (w64Equal(epochNumber, w64From32(0x0, DTLS13_EPOCH_EARLYDATA)) &&
             ssl->options.handShakeDone) {
@@ -12939,7 +12936,8 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if (!w64Equal(ssl->dtls13DecryptEpoch->epochNumber, epochNumber)) {
+    if (ssl->dtls13DecryptEpoch == NULL ||
+        !w64Equal(ssl->dtls13DecryptEpoch->epochNumber, epochNumber)) {
         ret = Dtls13SetEpochKeys(ssl, epochNumber, DECRYPT_SIDE_ONLY);
         if (ret != 0)
             return SEQUENCE_ERROR;
@@ -13087,8 +13085,18 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
             return SEQUENCE_ERROR;
 
         w64Zero(&ssl->keys.curEpoch64);
-        if (!w64IsZero(ssl->dtls13DecryptEpoch->epochNumber))
-            Dtls13SetEpochKeys(ssl, ssl->keys.curEpoch64, DECRYPT_SIDE_ONLY);
+
+        /* no plaintext messages after the handshake is done */
+        if (ssl->options.handShakeDone)
+            return SEQUENCE_ERROR;
+
+        if (ssl->dtls13DecryptEpoch == NULL ||
+                !w64IsZero(ssl->dtls13DecryptEpoch->epochNumber)) {
+            ret = Dtls13SetEpochKeys(ssl, ssl->keys.curEpoch64,
+                DECRYPT_SIDE_ONLY);
+            if (ret != 0)
+                return SEQUENCE_ERROR;
+        }
     }
 #endif /* WOLFSSL_DTLS13 */
 
