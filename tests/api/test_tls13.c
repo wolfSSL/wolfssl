@@ -6970,10 +6970,13 @@ int test_tls13_sha1_cert_chain(void)
 
 #if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS)
     /* Same certificate, but this client advertises rsa_pkcs1_sha1, which the
-     * RFC allows the server to honor. */
+     * RFC allows the server to honor. Verification is off for the same reason
+     * as the signature_algorithms_cert case below. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
     ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
         WOLFSSL_SUCCESS);
     /* The signature algorithm list parser has no name for SHA-1 once old TLS
@@ -7049,10 +7052,15 @@ int test_tls13_sha1_cert_chain(void)
 
     /* signature_algorithms_cert covers the chain on its own: this client
      * offers no SHA-1 for handshake signatures but does allow a SHA-1 signed
-     * certificate, so the SHA-1 leaf may be sent. */
+     * certificate, so the SHA-1 leaf may be sent. What is under test is the
+     * chain the server sends, so verification is off: a platform validator
+     * such as Apple's Security framework refuses a SHA-1 signature outright
+     * and would fail the handshake for an unrelated reason. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
     ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
         WOLFSSL_SUCCESS);
     if (EXPECT_SUCCESS()) {
@@ -7119,9 +7127,12 @@ int test_tls13_sha1_cert_chain(void)
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
 
-#if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS)
+#if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     /* Same client chain, but the CertificateRequest advertises
-     * rsa_pkcs1_sha1, so the client sends its real certificate. */
+     * rsa_pkcs1_sha1, so the client sends its real certificate. The server has
+     * to request and then accept that chain, so it cannot run where the
+     * platform validator rejects SHA-1 for wolfSSL. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
@@ -7148,7 +7159,8 @@ int test_tls13_sha1_cert_chain(void)
     wolfSSL_free(ssl_s);    ssl_s = NULL;
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
-#endif /* OPENSSL_EXTRA && WC_RSA_PSS */
+#endif /* OPENSSL_EXTRA && WC_RSA_PSS &&
+        * !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 #endif
 
     return EXPECT_RESULT();
