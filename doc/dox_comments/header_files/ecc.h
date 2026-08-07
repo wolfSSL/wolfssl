@@ -1453,7 +1453,11 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
     \ingroup ECC
 
     \brief This function fills an ecc_key structure with the raw components
-    of an ECC signature.
+    of an ECC key.
+
+    \note This function does not check that the imported public point lies on
+    the curve. Define WOLFSSL_VALIDATE_ECC_IMPORT to validate the point on
+    import, or call wc_ecc_check_key before the key is used.
 
     \return 0 Returned upon successfully importing into the ecc_key structure
     \return ECC_BAD_ARG_E Returned if any of the input values evaluate to NULL
@@ -3038,6 +3042,10 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r,
     \ingroup ECC
     \brief Imports raw key with curve ID.
 
+    \note This function does not check that the imported public point lies on
+    the curve. Define WOLFSSL_VALIDATE_ECC_IMPORT to validate the point on
+    import, or call wc_ecc_check_key before the key is used.
+
     \return 0 on success
     \return negative on error
 
@@ -3062,6 +3070,10 @@ int wc_ecc_import_raw_ex(ecc_key* key, const char* qx,
 /*!
     \ingroup ECC
     \brief Imports unsigned key with curve ID.
+
+    \note This function does not check that the imported public point lies on
+    the curve. Define WOLFSSL_VALIDATE_ECC_IMPORT to validate the point on
+    import, or call wc_ecc_check_key before the key is used.
 
     \return 0 on success
     \return negative on error
