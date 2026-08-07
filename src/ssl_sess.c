@@ -1121,8 +1121,8 @@ static int SessionTicketNoncePrealloc(byte** buf, byte* len, void *heap)
 #endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
 
 static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
-    WOLFSSL_SESSION* output, int avoidSysCalls, byte* ticketNonceBuf,
-    byte* ticketNonceLen, byte* preallocUsed);
+    WOLFSSL_SESSION* output, int avoidSysCalls, int transferExData,
+    byte* ticketNonceBuf, byte* ticketNonceLen, byte* preallocUsed);
 
 void TlsSessionCacheUnlockRow(word32 row)
 {
@@ -1406,7 +1406,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 
     if (error == WOLFSSL_SUCCESS) {
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
-        error = wolfSSL_DupSessionEx(sess, output, 1,
+        error = wolfSSL_DupSessionEx(sess, output, 1, 1,
             preallocNonce, &preallocNonceLen, &preallocNonceUsed);
 #else
         error = wolfSSL_DupSession(sess, output, 1);
@@ -2046,7 +2046,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
     defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                   \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-    ret = (wolfSSL_DupSessionEx(addSession, cacheSession, 1, preallocNonce,
+    ret = (wolfSSL_DupSessionEx(addSession, cacheSession, 1, 1, preallocNonce,
                                 &preallocNonceLen, &preallocNonceUsed)
            == WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 #else
@@ -2271,18 +2271,11 @@ int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session)
     cacheSession = &sessRow->Sessions[col];
 #endif
     if (cacheSession) {
-#ifdef HAVE_EX_DATA
-        /* The copy keeps its own ex_data. The struct copy below carries over
-         * the cache's pointers, which the cache frees when the entry goes. */
-        WOLFSSL_CRYPTO_EX_DATA exData;
-        XMEMCPY(&exData, &session->ex_data, sizeof(exData));
-#endif
         /* Must not alias the ticket, peer cert and ex_data the cache owns and
-         * frees on overwrite or eviction. */
-        result = wolfSSL_DupSession(cacheSession, session, 0);
-#ifdef HAVE_EX_DATA
-        XMEMCPY(&session->ex_data, &exData, sizeof(exData));
-#endif
+         * frees on overwrite or eviction. The caller keeps this copy, so it
+         * does not take over the cache's ex_data either. */
+        result = wolfSSL_DupSessionEx(cacheSession, session, 0, 0, NULL, NULL,
+            NULL);
     }
     else {
         result = WOLFSSL_FAILURE;
@@ -3889,6 +3882,9 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
  *                      sessions from cache. When a cache row is locked, we
  *                      don't want to block other threads with long running
  *                      system calls.
+ * @param transferExData If true, the output takes over the input's ex_data.
+ *                      Set false when the caller keeps the output and the
+ *                      input's ex_data stays owned elsewhere, e.g. the cache.
  * @param ticketNonceBuf If not null and @avoidSysCalls is true, the copy of the
  *                      ticketNonce will happen in this pre allocated buffer
  * @param ticketNonceLen @ticketNonceBuf len as input, used length on output
@@ -3897,18 +3893,22 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
  *                      WOLFSSL_FAILURE on failure
  */
 static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
-    WOLFSSL_SESSION* output, int avoidSysCalls, byte* ticketNonceBuf,
-    byte* ticketNonceLen, byte* preallocUsed)
+    WOLFSSL_SESSION* output, int avoidSysCalls, int transferExData,
+    byte* ticketNonceBuf, byte* ticketNonceLen, byte* preallocUsed)
 {
 #ifdef HAVE_SESSION_TICKET
     word16 ticLenAlloc = 0;
     byte *ticBuff = NULL;
+#endif
+#ifdef HAVE_EX_DATA
+    WOLFSSL_CRYPTO_EX_DATA exData;
 #endif
     const size_t copyOffset = WC_OFFSETOF(WOLFSSL_SESSION, heap) +
         sizeof(input->heap);
     int ret = WOLFSSL_SUCCESS;
 
     (void)avoidSysCalls;
+    (void)transferExData;
     (void)ticketNonceBuf;
     (void)ticketNonceLen;
     (void)preallocUsed;
@@ -3957,6 +3957,13 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
         wolfSSL_X509_free(output->peer);
         output->peer = NULL;
     }
+#endif
+
+#ifdef HAVE_EX_DATA
+    /* ex_data sits after the heap member so the copy below carries over the
+     * input's pointers. Stash the output's to put them back. */
+    if (!transferExData)
+        XMEMCPY(&exData, &output->ex_data, sizeof(exData));
 #endif
 
     XMEMCPY((byte*)output + copyOffset, (byte*)input + copyOffset,
@@ -4118,12 +4125,17 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
 #endif /* HAVE_SESSION_TICKET */
 
 #ifdef HAVE_EX_DATA_CRYPTO
-    if (input->type != WOLFSSL_SESSION_TYPE_CACHE &&
+    if (transferExData && input->type != WOLFSSL_SESSION_TYPE_CACHE &&
             output->type != WOLFSSL_SESSION_TYPE_CACHE) {
         /* Not called with cache as that passes ownership of ex_data */
         ret = crypto_ex_cb_dup_data(&input->ex_data, &output->ex_data,
                                     crypto_ex_cb_ctx_session);
     }
+#endif
+
+#ifdef HAVE_EX_DATA
+    if (!transferExData)
+        XMEMCPY(&output->ex_data, &exData, sizeof(exData));
 #endif
 
     return ret;
@@ -4145,7 +4157,8 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
 int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
         int avoidSysCalls)
 {
-    return wolfSSL_DupSessionEx(input, output, avoidSysCalls, NULL, NULL, NULL);
+    return wolfSSL_DupSessionEx(input, output, avoidSysCalls, 1, NULL, NULL,
+        NULL);
 }
 
 WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
