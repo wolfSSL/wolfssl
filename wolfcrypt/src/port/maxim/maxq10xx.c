@@ -2390,9 +2390,8 @@ int wolfSSL_maxq10xx_load_certificate(WOLFSSL *ssl) {
 
     ssl->maxq_ctx.device_cert = maxq_der;
 
-    if (ssl->buffers.weOwnCert) {
-        FreeDer(&ssl->buffers.certificate);
-    }
+    /* Let go of the old certificate before taking on the device one. */
+    FreeSslDer(&ssl->buffers.certificate, &ssl->buffers.weOwnCert);
 
     ssl->buffers.certificate = maxq_der;
     ssl->buffers.weOwnCert = 1;
