@@ -30,6 +30,23 @@ int test_wolfSSL_get_peer_chain(void);
 int test_wolfSSL_get_chain_X509(void);
 int test_wolfSSL_get_chain_cert_pem(void);
 int test_wolfSSL_cmp_peer_cert_to_file(void);
+int test_wolfSSL_CTX_set_client_cert_cb(void);
+int test_wolfSSL_CTX_set_cert_cb(void);
+int test_wolfSSL_cert_setup_cb_ret(void);
+int test_wolfSSL_get_peer_cert_chain(void);
+int test_wolfSSL_set_peer_cert_chain(void);
+int test_wolfSSL_get0_verified_chain(void);
+int test_wolfSSL_CA_list_add(void);
+int test_wolfSSL_CA_list_get(void);
+int test_wolfSSL_load_client_CA_file(void);
+int test_wolfSSL_mutual_auth(void);
+int test_wolfSSL_post_handshake_auth(void);
+int test_wolfSSL_verify_cert_store(void);
+int test_wolfSSL_verify_cert_store_follows_ctx(void);
+int test_wolfSSL_CTX_cert_store_manager_link(void);
+int test_wolfSSL_cert_cb_ctx(void);
+int test_wolfSSL_get_certificate_api(void);
+int test_wolfSSL_cert_unload(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_mode),             \
@@ -37,8 +54,27 @@ int test_wolfSSL_cmp_peer_cert_to_file(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_callback),         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_get_extra_chain_certs),   \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_peer_chain),              \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_X509),             \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_cert_pem),         \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cmp_peer_cert_to_file)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_X509),              \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_cert_pem),          \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cmp_peer_cert_to_file),       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_client_cert_cb),      \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_cert_cb),             \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_setup_cb_ret),           \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_peer_cert_chain),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_set_peer_cert_chain),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get0_verified_chain),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_add),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_get),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_client_CA_file),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_mutual_auth),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_post_handshake_auth),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_cert_store),           \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_cert_store_follows_ctx),                       \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_CTX_cert_store_manager_link),                         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_cb_ctx),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_certificate_api),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload)
 
 #endif /* TESTS_API_SSL_CERT_H */

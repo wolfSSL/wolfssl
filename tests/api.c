@@ -256,8 +256,11 @@
 #include <tests/api/test_dtls.h>
 #include <tests/api/test_dtls13.h>
 #include <tests/api/test_ssl_cert.h>
+#include <tests/api/test_ssl_crl_ocsp.h>
 #include <tests/api/test_ssl_pk.h>
 #include <tests/api/test_ssl_ext.h>
+#include <tests/api/test_ssl_rw.h>
+#include <tests/api/test_ssl_hs.h>
 #include <tests/api/test_ocsp.h>
 #include <tests/api/test_evp.h>
 #include <tests/api/test_tls_ext.h>
@@ -4942,6 +4945,7 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
 #ifdef HAVE_CRL_IO
     ExpectIntEQ(wolfSSL_CTX_SetCRL_IOCb(NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_SetCRL_IOCb(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
     ExpectIntEQ(wolfSSL_EnableCRL(NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_DisableCRL(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -4951,6 +4955,10 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
     ExpectIntEQ(wolfSSL_LoadCRLBuffer(NULL, (const unsigned char*)"x", 1,
         WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_FILESYSTEM
+    ExpectIntEQ(wolfSSL_CTX_LoadCRL(NULL, "./certs/crl",
+        WOLFSSL_FILETYPE_PEM, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(NULL, "./certs/crl/cliCrl.pem",
+        WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_LoadCRL(NULL, "./certs/crl", WOLFSSL_FILETYPE_PEM, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_LoadCRLFile(NULL, "./certs/crl/cliCrl.pem",
@@ -4978,7 +4986,6 @@ static int test_wolfSSL_crl_ocsp_object_api(void)
     ExpectIntNE(wolfSSL_LoadCRLBuffer(clientSsl, (const unsigned char*)"x", 1,
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 #ifdef HAVE_CRL_IO
-    ExpectIntEQ(wolfSSL_SetCRL_IOCb(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_SetCRL_IOCb(clientSsl, NULL), WOLFSSL_SUCCESS);
 #endif
 #endif
@@ -23103,62 +23110,6 @@ static int test_wolfSSL_OCSP_resp_get0(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_OCSP_parse_url(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_OCSP)
-#define CK_OPU_OK(u, h, po, pa, s) do { \
-    char* host = NULL; \
-    char* port = NULL; \
-    char* path = NULL; \
-    int isSsl = 0; \
-    ExpectIntEQ(OCSP_parse_url(u, &host, &port, &path, &isSsl), 1); \
-    ExpectStrEQ(host, h); \
-    ExpectStrEQ(port, po); \
-    ExpectStrEQ(path, pa); \
-    ExpectIntEQ(isSsl, s); \
-    XFREE(host, NULL, DYNAMIC_TYPE_OPENSSL); \
-    XFREE(port, NULL, DYNAMIC_TYPE_OPENSSL); \
-    XFREE(path, NULL, DYNAMIC_TYPE_OPENSSL); \
-} while(0)
-
-#define CK_OPU_FAIL(u) do { \
-    char* host = NULL; \
-    char* port = NULL; \
-    char* path = NULL; \
-    int isSsl = 0; \
-    ExpectIntEQ(OCSP_parse_url(u, &host, &port, &path, &isSsl), 0); \
-    XFREE(host, NULL, DYNAMIC_TYPE_OPENSSL); \
-    XFREE(port, NULL, DYNAMIC_TYPE_OPENSSL); \
-    XFREE(path, NULL, DYNAMIC_TYPE_OPENSSL); \
-} while(0)
-
-    CK_OPU_OK("http://localhost", "localhost", "80", "/", 0);
-    CK_OPU_OK("https://wolfssl.com", "wolfssl.com", "443", "/", 1);
-    CK_OPU_OK("https://www.wolfssl.com/fips-140-3-announcement-to-the-world/",
-         "www.wolfssl.com", "443", "/fips-140-3-announcement-to-the-world/", 1);
-    CK_OPU_OK("http://localhost:1234", "localhost", "1234", "/", 0);
-    CK_OPU_OK("https://localhost:1234", "localhost", "1234", "/", 1);
-
-    CK_OPU_FAIL("ftp://localhost");
-    /* two strings to cppcheck doesn't mark it as a c++ style comment */
-    CK_OPU_FAIL("http/""/localhost");
-    CK_OPU_FAIL("http:/localhost");
-    CK_OPU_FAIL("https://localhost/path:1234");
-    /* CR/LF anywhere in the URL, paired or bare. */
-    CK_OPU_FAIL("http://localhost/\r\nX-Injected: yes");
-    CK_OPU_FAIL("http://localhost\r\n:1234/");
-    CK_OPU_FAIL("http://localhost/\nX-Injected: yes");
-    CK_OPU_FAIL("http://localhost/\rX-Injected: yes");
-    CK_OPU_FAIL("http://localhost\n:1234/");
-    CK_OPU_FAIL("http://localhost:12\r\n34/");
-
-#undef CK_OPU_OK
-#undef CK_OPU_FAIL
-#endif
-    return EXPECT_RESULT();
-}
-
 static int test_wolfIO_OcspDestAllowed(void)
 {
     EXPECT_DECLS;
@@ -39056,7 +39007,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_OCSP_single_get0_status),
     TEST_DECL(test_wolfSSL_OCSP_resp_count),
     TEST_DECL(test_wolfSSL_OCSP_resp_get0),
-    TEST_DECL(test_wolfSSL_OCSP_parse_url),
     TEST_DECL(test_wolfIO_OcspDestAllowed),
     TEST_DECL(test_wolfIO_OcspDestAllowed_fallback),
     TEST_DECL(test_wolfSSL_OCSP_REQ_CTX),
@@ -39501,8 +39451,11 @@ TEST_CASE testCases[] = {
     TEST_DTLS_DECLS,
     TEST_DTLS13_DECLS,
     TEST_SSL_CERT_DECLS,
+    TEST_SSL_CRL_OCSP_DECLS,
     TEST_SSL_PK_DECLS,
     TEST_SSL_EXT_DECLS,
+    TEST_SSL_RW_DECLS,
+    TEST_SSL_HS_DECLS,
     TEST_DECL(test_tls_multi_handshakes_one_record),
     TEST_DECL(test_write_dup),
     TEST_DECL(test_write_dup_want_write),

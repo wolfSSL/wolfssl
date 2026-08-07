@@ -1090,8 +1090,7 @@ error:
 * RETURNS:
 * returns pointer to a PKCS7 structure on success, otherwise returns NULL
 */
-PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
-        WOLFSSL_BIO** bcont)
+PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in, WOLFSSL_BIO** bcont)
 {
     MimeHdr* allHdrs = NULL;
     MimeHdr* curHdr = NULL;

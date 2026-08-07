@@ -851,7 +851,8 @@ void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx)
  * @param [in] ctx  SSL/TLS context.
  * @param [in] cb   ECC sign callback.
  */
-WOLFSSL_ABI void wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb)
+WOLFSSL_ABI
+void wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb)
 {
     if (ctx != NULL) {
         ctx->EccSignCb = cb;
