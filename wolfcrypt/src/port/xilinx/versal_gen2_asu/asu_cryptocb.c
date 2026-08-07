@@ -40,6 +40,9 @@
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_HMAC
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_hmac.h>
 #endif
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_ECC
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecc.h>
+#endif
 
 #ifndef WOLF_CRYPTO_CB
     #error "WOLFSSL_VERSAL_GEN2_ASU requires WOLF_CRYPTO_CB"
@@ -132,6 +135,9 @@ static int wc_AsuCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
         case WC_ALGO_TYPE_CMAC:   /* M2 asu_aes  */
             break;
         case WC_ALGO_TYPE_PK:     /* M3 asu_rsa and asu_ecc */
+        #ifdef WOLFSSL_VERSAL_GEN2_ASU_ECC
+            ret = wc_AsuEcc(info);
+        #endif
             break;
         case WC_ALGO_TYPE_COPY:   /* context copy: route by sub-algo to its engine */
             ret = wc_AsuCopy(info);

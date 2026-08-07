@@ -4684,7 +4684,13 @@ static void* benchmarks_do(void* args)
             (bench_asym_algs & BENCH_ECC_ALL) ||
             (bench_asym_algs & BENCH_ECC_ENCRYPT)) {
 
+        /* WOLFSSL_BENCH_ECC_ALL: let a plain 'bench all' run sweep every
+         * compiled-in curve, not just P-256, so HW/SW compare across all. */
+#ifdef WOLFSSL_BENCH_ECC_ALL
+        if ((bench_asym_algs & BENCH_ECC_ALL) || bench_all) {
+#else
         if (bench_asym_algs & BENCH_ECC_ALL) {
+#endif
             #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
             printf("%snot supported in FIPS mode (no ending enum value)\n",
                    err_prefix);
@@ -13807,6 +13813,12 @@ void bench_ecc(int useDeviceID, int curveId)
     }
     if (dgstSize > WC_MAX_DIGEST_SIZE) {
         dgstSize = WC_MAX_DIGEST_SIZE;
+    }
+    /* Small curves (P-192) map to a 20-byte digest, below the ECDSA sign
+     * minimum, so wc_ecc_sign_hash returns BAD_LENGTH_E. Clamp up so every
+     * enabled curve can be benchmarked. */
+    if (dgstSize < WC_MIN_DIGEST_SIZE_FOR_SIGN) {
+        dgstSize = WC_MIN_DIGEST_SIZE_FOR_SIGN;
     }
 
     /* init keys */
