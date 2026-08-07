@@ -79443,8 +79443,17 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             (void)pqcType;
             if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
                 SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sig_kg.key;
+                const byte* seed = info->pk.pqc_sig_kg.seed;
                 sk->devId = INVALID_DEVID;
-                ret = wc_SlhDsaKey_MakeKey(sk, info->pk.pqc_sig_kg.rng);
+                if (seed != NULL) {
+                    /* SK.seed || SK.prf || PK.seed, each of n bytes. */
+                    word32 n = info->pk.pqc_sig_kg.seedSz / 3;
+                    ret = wc_SlhDsaKey_MakeKeyWithRandom(sk, seed, n,
+                        seed + n, n, seed + 2 * n, n);
+                }
+                else {
+                    ret = wc_SlhDsaKey_MakeKey(sk, info->pk.pqc_sig_kg.rng);
+                }
                 sk->devId = devIdArg;
                 myCtx->exampleVar++;
             }
@@ -79456,28 +79465,81 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sign.key;
                 enum wc_HashType phType =
                     (enum wc_HashType)info->pk.pqc_sign.preHashType;
+                const byte* addRnd = info->pk.pqc_sign.addRnd;
                 sk->devId = INVALID_DEVID;
                 if (phType == WC_HASH_TYPE_NONE) {
-                    ret = wc_SlhDsaKey_Sign(sk,
-                        info->pk.pqc_sign.context,
-                        info->pk.pqc_sign.contextLen,
-                        info->pk.pqc_sign.in,
-                        info->pk.pqc_sign.inlen,
-                        info->pk.pqc_sign.out,
-                        info->pk.pqc_sign.outlen,
-                        info->pk.pqc_sign.rng);
+                    if (addRnd != NULL) {
+                        ret = wc_SlhDsaKey_SignWithRandom(sk,
+                            info->pk.pqc_sign.context,
+                            info->pk.pqc_sign.contextLen,
+                            info->pk.pqc_sign.in,
+                            info->pk.pqc_sign.inlen,
+                            info->pk.pqc_sign.out,
+                            info->pk.pqc_sign.outlen,
+                            addRnd);
+                    }
+                    else {
+                        ret = wc_SlhDsaKey_Sign(sk,
+                            info->pk.pqc_sign.context,
+                            info->pk.pqc_sign.contextLen,
+                            info->pk.pqc_sign.in,
+                            info->pk.pqc_sign.inlen,
+                            info->pk.pqc_sign.out,
+                            info->pk.pqc_sign.outlen,
+                            info->pk.pqc_sign.rng);
+                    }
                 }
                 else {
-                    ret = wc_SlhDsaKey_SignHash(sk,
-                        info->pk.pqc_sign.context,
-                        info->pk.pqc_sign.contextLen,
-                        info->pk.pqc_sign.in,
-                        info->pk.pqc_sign.inlen,
-                        phType,
-                        info->pk.pqc_sign.out,
-                        info->pk.pqc_sign.outlen,
-                        info->pk.pqc_sign.rng);
+                    if (addRnd != NULL) {
+                        ret = wc_SlhDsaKey_SignHashWithRandom(sk,
+                            info->pk.pqc_sign.context,
+                            info->pk.pqc_sign.contextLen,
+                            info->pk.pqc_sign.in,
+                            info->pk.pqc_sign.inlen,
+                            phType,
+                            info->pk.pqc_sign.out,
+                            info->pk.pqc_sign.outlen,
+                            addRnd);
+                    }
+                    else {
+                        ret = wc_SlhDsaKey_SignHash(sk,
+                            info->pk.pqc_sign.context,
+                            info->pk.pqc_sign.contextLen,
+                            info->pk.pqc_sign.in,
+                            info->pk.pqc_sign.inlen,
+                            phType,
+                            info->pk.pqc_sign.out,
+                            info->pk.pqc_sign.outlen,
+                            info->pk.pqc_sign.rng);
+                    }
                 }
+                sk->devId = devIdArg;
+                myCtx->exampleVar++;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN_MSG) {
+            int pqcType = info->pk.pqc_sign.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sign.key;
+                sk->devId = INVALID_DEVID;
+                ret = wc_SlhDsaKey_SignMsgWithRandom(sk,
+                    info->pk.pqc_sign.in,
+                    info->pk.pqc_sign.inlen,
+                    info->pk.pqc_sign.out,
+                    info->pk.pqc_sign.outlen,
+                    info->pk.pqc_sign.addRnd);
+                sk->devId = devIdArg;
+                myCtx->exampleVar++;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY) {
+            int pqcType = info->pk.pqc_sig_check.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sig_check.key;
+                sk->devId = INVALID_DEVID;
+                ret = wc_SlhDsaKey_CheckKey(sk);
                 sk->devId = devIdArg;
                 myCtx->exampleVar++;
             }
@@ -79518,6 +79580,29 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 }
                 /* SIG_VERIFY_E is a validity signal, not a crypto error, so
                  * translate it back to success for the dispatcher. */
+                if (verifyRet == WC_NO_ERR_TRACE(SIG_VERIFY_E))
+                    verifyRet = 0;
+                ret = verifyRet;
+                myCtx->exampleVar++;
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY_MSG) {
+            int pqcType = info->pk.pqc_verify.type;
+            (void)pqcType;
+            if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
+                SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_verify.key;
+                int verifyRet;
+                sk->devId = INVALID_DEVID;
+                verifyRet = wc_SlhDsaKey_VerifyMsg(sk,
+                    info->pk.pqc_verify.msg,
+                    info->pk.pqc_verify.msglen,
+                    info->pk.pqc_verify.sig,
+                    info->pk.pqc_verify.siglen);
+                sk->devId = devIdArg;
+                if (info->pk.pqc_verify.res != NULL) {
+                    *info->pk.pqc_verify.res = (verifyRet == 0) ? 1 : 0;
+                }
+                /* SIG_VERIFY_E is a validity signal, not a crypto error. */
                 if (verifyRet == WC_NO_ERR_TRACE(SIG_VERIFY_E))
                     verifyRet = 0;
                 ret = verifyRet;

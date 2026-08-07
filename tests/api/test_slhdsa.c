@@ -1332,6 +1332,100 @@ int test_wc_slhdsa_sign_msg(void)
 }
 
 /*
+ * Cross-check that the signing randomness and the externally built M' reach
+ * the signer unchanged. Under WOLF_CRYPTO_CB_ONLY_SLHDSA every call below
+ * runs on the registered device, so this is what catches a callback that
+ * drops addRnd or mishandles the internal interface: a device that quietly
+ * substituted its own randomness would still produce a signature that
+ * verifies, and every round-trip test would still pass.
+ *
+ * M' for a pure signature is toByte(0,1) || toByte(|ctx|,1) || ctx || M
+ * (FIPS 205 Algorithm 22 Step 8), so signing that M' through the internal
+ * interface must reproduce the external signature byte for byte.
+ */
+int test_wc_slhdsa_sign_addrnd(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    SlhDsaKey key;
+    byte  seed[3 * WC_SLHDSA_MAX_SEED];
+    byte  addRnd[WC_SLHDSA_MAX_SEED];
+    byte  mprime[2 + 4 + 12];
+    const byte ctx[4] = { 'c', 't', 'x', '!' };
+    const byte msg[] = "hello slhdsa";
+    byte* sigExt = NULL;
+    byte* sigInt = NULL;
+    word32 sigExtLen;
+    word32 sigIntLen;
+    word32 n = (word32)TEST_SLHDSA_DEFAULT_SEED_LEN;
+    word32 idx = 0;
+
+    sigExt = (byte*)XMALLOC(WC_SLHDSA_MAX_SIG_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    sigInt = (byte*)XMALLOC(WC_SLHDSA_MAX_SIG_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sigExt);
+    ExpectNotNull(sigInt);
+
+    XMEMSET(seed, 0x2B, sizeof(seed));
+    XMEMSET(addRnd, 0x55, sizeof(addRnd));
+
+    /* M' = 0x00 || ctxSz || ctx || msg */
+    mprime[idx++] = 0x00;
+    mprime[idx++] = (byte)sizeof(ctx);
+    XMEMCPY(mprime + idx, ctx, sizeof(ctx));
+    idx += (word32)sizeof(ctx);
+    XMEMCPY(mprime + idx, msg, sizeof(msg) - 1);
+    idx += (word32)sizeof(msg) - 1;
+
+    /* A seeded key so the whole test is reproducible. */
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, seed, n, seed + n, n,
+        seed + 2 * n, n), 0);
+
+    /* Deterministic: addRnd is PK.seed on both paths, so the two signatures
+     * must be identical. */
+    sigExtLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignDeterministic(&key, ctx, (byte)sizeof(ctx),
+        msg, (word32)sizeof(msg) - 1, sigExt, &sigExtLen), 0);
+    sigIntLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignMsgDeterministic(&key, mprime, idx, sigInt,
+        &sigIntLen), 0);
+    ExpectIntEQ(sigIntLen, sigExtLen);
+    ExpectBufEQ(sigInt, sigExt, sigExtLen);
+
+    /* Both must verify through their own interface. */
+    ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sigExt, sigExtLen), 0);
+    ExpectIntEQ(wc_SlhDsaKey_VerifyMsg(&key, mprime, idx, sigInt, sigIntLen),
+        0);
+
+    /* A different addRnd must change the signature. This is what proves the
+     * value is honoured rather than replaced with fresh randomness. */
+    sigIntLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sigInt, &sigIntLen, addRnd), 0);
+    ExpectIntEQ(sigIntLen, sigExtLen);
+    ExpectIntNE(XMEMCMP(sigInt, sigExt, sigExtLen), 0);
+    ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sigInt, sigIntLen), 0);
+
+    /* The same explicit addRnd on the internal interface reproduces it. */
+    sigExtLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, mprime, idx, sigExt,
+        &sigExtLen, addRnd), 0);
+    ExpectIntEQ(sigExtLen, sigIntLen);
+    ExpectBufEQ(sigExt, sigInt, sigIntLen);
+
+    wc_SlhDsaKey_Free(&key);
+    XFREE(sigExt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sigInt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
  * Test export and import for SLH-DSA keys.
  */
 int test_wc_slhdsa_export_import(void)
