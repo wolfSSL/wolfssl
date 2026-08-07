@@ -6462,8 +6462,7 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
  * @param [in]      psk    A pre-shared key from the extension.
  * @param [out]     suite  Cipher suite to use with PSK.
  * @param [out]     err    Error code.
- *                         PSK_KEY_ERROR when key is too big or ticket age is
- *                         invalid,
+ *                         PSK_KEY_ERROR when key is too big,
  *                         UNSUPPORTED_SUITE on invalid suite.
  *                         Other error when attempting to derive early secret.
  * @return  1 when a match found - but check error code.
@@ -6492,17 +6491,12 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
 #endif
             ssl->options.verifyPeer = 0;
 
-        /* PSK age is always zero. */
-        if (psk->ticketAge != 0) {
-            ret = PSK_KEY_ERROR;
-            WOLFSSL_ERROR_VERBOSE(ret);
-        }
-        if (ret == 0) {
-            /* Set PSK ciphersuite into SSL. */
-            ssl->options.cipherSuite0 = foundSuite[0];
-            ssl->options.cipherSuite  = foundSuite[1];
-            ret = SetCipherSpecs(ssl);
-        }
+        /* obfuscated_ticket_age is not checked: RFC 8446 Section 4.2.11
+         * requires servers to ignore it for an external identity. */
+        /* Set PSK ciphersuite into SSL. */
+        ssl->options.cipherSuite0 = foundSuite[0];
+        ssl->options.cipherSuite  = foundSuite[1];
+        ret = SetCipherSpecs(ssl);
         if (ret == 0) {
             /* Derive the early secret using the PSK. */
             ret = DeriveEarlySecret(ssl);
@@ -6913,6 +6907,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 )
     #endif
         {
+            /* Reused for identity protection: an unknown identity must look
+             * like a bad binder, so keep the error code shared. */
             WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
             return BAD_BINDER;
         }
@@ -7094,16 +7090,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         TLSX_Remove(&ssl->extensions, TLSX_CERT_WITH_EXTERN_PSK, ssl->heap);
         ssl->options.certWithExternPsk = 0;
 #endif
-    #ifndef NO_CERTS
-        if (ssl->buffers.certificate != NULL
-        #ifdef WOLFSSL_CERT_SETUP_CB
-                || ssl->ctx->certSetupCb != NULL
-        #endif
-                )
-            return 0;
-    #endif
-        WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
-        return BAD_BINDER;
+        /* No PSK negotiated; the check above already aborted when there is no
+         * certificate. Fall through so the trace is emitted here too. */
     }
 
     WOLFSSL_LEAVE("CheckPreSharedKeys", ret);
