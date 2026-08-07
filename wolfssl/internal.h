@@ -5325,6 +5325,24 @@ typedef struct Buffers {
 #endif
 } Buffers;
 
+/* Every DER buffer an SSL object points at is held by it: either it allocated
+ * the buffer itself, or it took a reference on the context's. These two calls
+ * are the only way to change one of those pointers, so the hold is always
+ * taken and always let go.
+ *
+ * weOwn records which of the two it is. It still matters without reference
+ * counting, where the context's buffer must be left alone. */
+#ifndef NO_CERTS
+WOLFSSL_LOCAL void FreeSslDer(DerBuffer** pDer, byte* weOwn);
+WOLFSSL_LOCAL int AliasSslDer(DerBuffer** pDer, byte* weOwn, DerBuffer* src);
+#endif
+
+#ifndef NO_DH
+/* Give the SSL object its own copy of the context's DH parameters. They are
+ * not reference counted, so a session must not point at the context's. */
+WOLFSSL_LOCAL int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
+#endif
+
 /* sub-states for send/do key share (key exchange) */
 enum asyncState {
     TLS_ASYNC_BEGIN = 0,

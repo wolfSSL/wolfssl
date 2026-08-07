@@ -791,6 +791,24 @@ typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
 #define wolfSSL_RefCur(ref) wolfSSL_RefWithMutexCur(ref)
 #endif
 
+/* Reference count the DER buffers a context shares with its sessions, so the
+ * certificate or key can be replaced while sessions still use the one they
+ * started with. Servers that reload certificates at runtime need this.
+ *
+ * It is on wherever the counter is cheap: a wolfSSL_Ref is a bare int when
+ * there are atomics or the build is single threaded. On a 64-bit target that
+ * int lands in tail padding DerBuffer already has, so the structure does not
+ * grow; on a 32-bit one it adds four bytes. Without atomics on a threaded
+ * build a wolfSSL_Ref carries a mutex instead, which would cost far more in
+ * every DerBuffer plus a mutex init on every allocation, so it is left off
+ * there. Define WOLFSSL_NO_DER_REFCOUNT to force it off, or
+ * WOLFSSL_DER_REFCOUNT to force it on. */
+#if !defined(WOLFSSL_DER_REFCOUNT) && !defined(WOLFSSL_NO_DER_REFCOUNT)
+    #if defined(WOLFSSL_ATOMIC_OPS) || defined(SINGLE_THREADED)
+        #define WOLFSSL_DER_REFCOUNT
+    #endif
+#endif
+
 #if defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)
 
 #define wolfSSL_RefInit(ref, err)            \

@@ -7512,6 +7512,51 @@ static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
+/* Let go of the DER buffer an SSL object holds.
+ *
+ * @param [in, out] pDer   Buffer to release. May hold NULL.
+ * @param [in, out] weOwn  Whether the buffer was this object's own.
+ */
+void FreeSslDer(DerBuffer** pDer, byte* weOwn)
+{
+#ifdef WOLFSSL_DER_REFCOUNT
+    /* Held either way, so let go either way. */
+    FreeDer(pDer);
+#else
+    /* Only the owner may free it; the context's buffer is left alone. */
+    if (*weOwn) {
+        FreeDer(pDer);
+    }
+    *pDer = NULL;
+#endif
+    *weOwn = 0;
+}
+
+/* Point an SSL object's DER buffer at the context's, taking a hold on it.
+ *
+ * Whatever the buffer held before is let go of first.
+ *
+ * @param [in, out] pDer   Buffer to point at the context's.
+ * @param [in, out] weOwn  Whether the buffer was this object's own.
+ * @param [in]      src    Context's buffer. May be NULL.
+ * @return  1 on success.
+ * @return  0 when the hold could not be taken.
+ */
+int AliasSslDer(DerBuffer** pDer, byte* weOwn, DerBuffer* src)
+{
+    int ret = 1;
+
+    FreeSslDer(pDer, weOwn);
+    if (!RefDer(src)) {
+        ret = 0;
+    }
+    else {
+        *pDer = src;
+    }
+
+    return ret;
+}
+
 /* Copy the certificate, certificate chain and private key buffers from the
  * CTX into the SSL object. Returns 0 on success. */
 static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
@@ -7542,8 +7587,14 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 #else
     /* ctx still owns certificate, certChain, key, dh, and cm */
-    ssl->buffers.certificate = ctx->certificate;
-    ssl->buffers.certChain = ctx->certChain;
+    if (!AliasSslDer(&ssl->buffers.certificate, &ssl->buffers.weOwnCert,
+            ctx->certificate)) {
+        return BAD_MUTEX_E;
+    }
+    if (!AliasSslDer(&ssl->buffers.certChain, &ssl->buffers.weOwnCertChain,
+            ctx->certChain)) {
+        return BAD_MUTEX_E;
+    }
 #endif
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
@@ -7560,11 +7611,11 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
         ssl->buffers.weOwnKey = 1;
     }
-    else {
-        ssl->buffers.key      = ctx->privateKey;
-    }
 #else
-    ssl->buffers.key      = ctx->privateKey;
+    if (!AliasSslDer(&ssl->buffers.key, &ssl->buffers.weOwnKey,
+            ctx->privateKey)) {
+        return BAD_MUTEX_E;
+    }
 #endif
 #else
     if (ctx->privateKey != NULL) {
@@ -7594,7 +7645,10 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.keyDevId = ctx->privateKeyDevId;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
-    ssl->buffers.altKey   = ctx->altPrivateKey;
+    if (!AliasSslDer(&ssl->buffers.altKey, &ssl->buffers.weOwnAltKey,
+            ctx->altPrivateKey)) {
+        return BAD_MUTEX_E;
+    }
 #else
     if (ctx->altPrivateKey != NULL) {
         ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,
@@ -7623,6 +7677,58 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     return ret;
 }
 #endif /* NO_CERTS */
+
+#ifndef NO_DH
+/* Give the SSL object its own copy of the context's DH parameters.
+ *
+ * The parameters are plain buffers with no reference count on them, so a
+ * session must not point at the context's: the context is free to replace
+ * them at any time. They are small and only present when the application
+ * asked for them, so a copy per session is the cheap way to keep them safe.
+ *
+ * @param [in, out] ssl  SSL object. Any parameters it owns are let go of.
+ * @param [in]      ctx  SSL context object.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    byte* p;
+    byte* g;
+
+    if ((ctx->serverDH_P.buffer == NULL) || (ctx->serverDH_G.buffer == NULL)) {
+        return 0;
+    }
+
+    p = (byte*)XMALLOC(ctx->serverDH_P.length, ssl->heap,
+        DYNAMIC_TYPE_PUBLIC_KEY);
+    g = (byte*)XMALLOC(ctx->serverDH_G.length, ssl->heap,
+        DYNAMIC_TYPE_PUBLIC_KEY);
+    if ((p == NULL) || (g == NULL)) {
+        XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(g, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        return MEMORY_E;
+    }
+
+    /* Let go of any parameters this object already had. */
+    if (ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+
+    XMEMCPY(p, ctx->serverDH_P.buffer, ctx->serverDH_P.length);
+    XMEMCPY(g, ctx->serverDH_G.buffer, ctx->serverDH_G.length);
+    ssl->buffers.serverDH_P.buffer = p;
+    ssl->buffers.serverDH_P.length = ctx->serverDH_P.length;
+    ssl->buffers.serverDH_G.buffer = g;
+    ssl->buffers.serverDH_G.length = ctx->serverDH_G.length;
+    ssl->buffers.weOwnDH = 1;
+
+    return 0;
+}
+#endif /* !NO_DH */
 
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
@@ -7812,8 +7918,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         !defined(HAVE_SELFTEST)
         ssl->options.dhKeyTested = ctx->dhKeyTested;
     #endif
-    ssl->buffers.serverDH_P = ctx->serverDH_P;
-    ssl->buffers.serverDH_G = ctx->serverDH_G;
+    if (CopySSL_CTX_DhParams(ssl, ctx) != 0) {
+        return MEMORY_E;
+    }
 #endif
 
 #if defined(HAVE_RPK)
@@ -9688,7 +9795,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    /* parameters (p,g) may be owned by ctx */
     if (ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -9697,6 +9803,12 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifndef NO_CERTS
     ssl->keepCert = 0; /* make sure certificate is free'd */
     wolfSSL_UnloadCertsKeys(ssl);
+    FreeSslDer(&ssl->buffers.certificate, &ssl->buffers.weOwnCert);
+    FreeSslDer(&ssl->buffers.certChain, &ssl->buffers.weOwnCertChain);
+    FreeSslDer(&ssl->buffers.key, &ssl->buffers.weOwnKey);
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    FreeSslDer(&ssl->buffers.altKey, &ssl->buffers.weOwnAltKey);
+#endif
 #endif
 #ifndef NO_RSA
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
@@ -10077,7 +10189,6 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     ssl->buffers.serverDH_Priv.buffer = NULL;
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     ssl->buffers.serverDH_Pub.buffer = NULL;
-    /* parameters (p,g) may be owned by ctx */
     if (ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;

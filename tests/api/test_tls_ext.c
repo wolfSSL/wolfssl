@@ -510,6 +510,74 @@ int test_scr_verify_data_mismatch(void)
     return EXPECT_RESULT();
 }
 
+/* A TLS 1.2 server whose DH parameters came from the context must still have
+ * them for a renegotiation: the first handshake's cleanup must not take them
+ * away. */
+int test_scr_dhe_ctx_params_survive(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
+        defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) && \
+        !defined(NO_DH) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    byte data;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "DHE-RSA-AES128-GCM-SHA256";
+
+    /* Put the DH parameters on the context before any session takes them.
+     * A context made here is used as-is, so it gets the certificate and the
+     * memio wiring that test_memio_setup would otherwise have given it. */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s, test_ctx.s_ciphers),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx_s, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseSecureRenegotiation(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The server still holds the parameters it needs to offer DHE again. */
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->buffers.serverDH_P.buffer);
+        ExpectNotNull(ssl_s->buffers.serverDH_G.buffer);
+    }
+
+    /* Drive a renegotiation and check the server does not run out of them. */
+    (void)wolfSSL_Rehandshake(ssl_c);
+    (void)wolfSSL_read(ssl_s, &data, 1);
+    (void)wolfSSL_read(ssl_c, &data, 1);
+    ExpectIntNE(wolfSSL_get_error(ssl_s, 0), WC_NO_ERR_TRACE(NO_DH_PARAMS));
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->buffers.serverDH_P.buffer);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 /* F-4144: WOLFSSL_OP_NO_RENEGOTIATION on the server must refuse a
  * client-initiated renegotiation with a no_renegotiation *warning* while
  * keeping the established connection alive, rather than aborting it. */

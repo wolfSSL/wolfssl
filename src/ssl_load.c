@@ -242,10 +242,8 @@ static int ProcessUserChainRetain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     /* Store in SSL object if available. */
     if (ssl != NULL) {
-        /* Dispose of old chain if not reference to context's. */
-        if (ssl->buffers.weOwnCertChain) {
-            FreeDer(&ssl->buffers.certChain);
-        }
+        /* Let go of the old chain before taking on a new one. */
+        FreeSslDer(&ssl->buffers.certChain, &ssl->buffers.weOwnCertChain);
         /* Allocate and copy the buffer into SSL object. */
         ret = AllocCopyDer(&ssl->buffers.certChain, chainBuffer, len, type,
             heap);
@@ -1402,13 +1400,12 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (type == ALT_PRIVATEKEY_TYPE) {
         /* Put in alternate private key fields of objects. */
         if (ssl != NULL) {
-            /* Dispose of previous key if not context's. */
-            if (ssl->buffers.weOwnAltKey) {
-                FreeDer(&ssl->buffers.altKey);
-            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                FreeDer(&ssl->buffers.altKeyMask);
-            #endif
-            }
+            /* Let go of the old key before taking on a new one. */
+            FreeSslDer(&ssl->buffers.altKey, &ssl->buffers.weOwnAltKey);
+        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+            /* The mask goes with the key it was made for. */
+            FreeDer(&ssl->buffers.altKeyMask);
+        #endif
             ssl->buffers.altKeyId = 0;
             ssl->buffers.altKeyLabel = 0;
             ssl->buffers.altKeyDevId = INVALID_DEVID;
@@ -1435,13 +1432,12 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     else
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
     if (ssl != NULL) {
-        /* Dispose of previous key if not context's. */
-        if (ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
-        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-            FreeDer(&ssl->buffers.keyMask);
-        #endif
-        }
+        /* Let go of the old key before taking on a new one. */
+        FreeSslDer(&ssl->buffers.key, &ssl->buffers.weOwnKey);
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        /* The mask goes with the key it was made for. */
+        FreeDer(&ssl->buffers.keyMask);
+    #endif
         ssl->buffers.keyId = 0;
         ssl->buffers.keyLabel = 0;
         ssl->buffers.keyDevId = INVALID_DEVID;
@@ -2466,15 +2462,15 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* Leaf certificate - our certificate. */
     else if (type == CERT_TYPE) {
         if (ssl != NULL) {
-            /* Free previous certificate if we own it. */
+        #ifdef KEEP_OUR_CERT
             if (ssl->buffers.weOwnCert) {
-                FreeDer(&ssl->buffers.certificate);
-            #ifdef KEEP_OUR_CERT
                 /* Dispose of X509 version of certificate. */
                 wolfSSL_X509_free(ssl->ourCert);
                 ssl->ourCert = NULL;
-            #endif
             }
+        #endif
+            /* Let go of the old certificate before taking on a new one. */
+            FreeSslDer(&ssl->buffers.certificate, &ssl->buffers.weOwnCert);
             /* Store certificate as ours. */
             ssl->buffers.certificate = der;
         #ifdef KEEP_OUR_CERT
@@ -4876,13 +4872,11 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
         return 0;
     }
 
-    /* Dispose of old private key if owned and allocate and copy in id. */
-    if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.keyMask);
-    #endif
-    }
+    /* Let go of the old key, then allocate and copy in the id. */
+    FreeSslDer(&ssl->buffers.key, &ssl->buffers.weOwnKey);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ssl->buffers.keyMask);
+#endif
     if (AllocCopyDer(&ssl->buffers.key, id, (word32)sz, PRIVATEKEY_TYPE,
             ssl->heap) != 0) {
         ret = 0;
@@ -4952,13 +4946,11 @@ int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
 
     sz = (word32)XSTRLEN(label) + 1;
 
-    /* Dispose of old private key if owned and allocate and copy in label. */
-    if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
-    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        FreeDer(&ssl->buffers.keyMask);
-    #endif
-    }
+    /* Let go of the old key, then allocate and copy in the label. */
+    FreeSslDer(&ssl->buffers.key, &ssl->buffers.weOwnKey);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ssl->buffers.keyMask);
+#endif
     if (AllocCopyDer(&ssl->buffers.key, (const byte*)label, (word32)sz,
             PRIVATEKEY_TYPE, ssl->heap) != 0) {
         ret = 0;
@@ -4998,12 +4990,12 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
     }
 
     if (ret == 1) {
-        if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
-        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-            FreeDer(&ssl->buffers.altKeyMask);
-        #endif
-        }
+        /* Let go of the old key before taking on a new one. */
+        FreeSslDer(&ssl->buffers.altKey, &ssl->buffers.weOwnAltKey);
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        /* The mask goes with the key it was made for. */
+        FreeDer(&ssl->buffers.altKeyMask);
+    #endif
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ssl->heap) != 0) {
             ret = 0;
@@ -5046,12 +5038,12 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
 
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
-        if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
-        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-            FreeDer(&ssl->buffers.altKeyMask);
-        #endif
-        }
+        /* Let go of the old key before taking on a new one. */
+        FreeSslDer(&ssl->buffers.altKey, &ssl->buffers.weOwnAltKey);
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        /* The mask goes with the key it was made for. */
+        FreeDer(&ssl->buffers.altKeyMask);
+    #endif
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ssl->heap) != 0) {
             ret = 0;
@@ -5132,15 +5124,15 @@ int wolfSSL_use_certificate_chain_buffer(WOLFSSL* ssl, const unsigned char* in,
 /* Add certificate to chain.
  *
  * @param [in, out] chain   Buffer holding encoded certificate for TLS.
- * @param [in]      weOwn   Indicates we need to free chain if repleced.
+ * @param [in, out] weOwn   Whether the chain was this object's own.
  * @param [in]      cert    Buffer holding DER encoded certificate.
  * @param [in]      certSz  Size of DER encoded certificate in bytes.
  * @param [in]      heap    Dynamic memory allocation hint.
  * @return  1 on success.
  * @return  0 on failure.
  */
-static int wolfssl_add_to_chain(DerBuffer** chain, int weOwn, const byte* cert,
-    word32 certSz, void* heap)
+static int wolfssl_add_to_chain(DerBuffer** chain, byte* weOwn,
+    const byte* cert, word32 certSz, void* heap)
 {
     int res = 1;
     int ret;
@@ -5177,12 +5169,11 @@ static int wolfssl_add_to_chain(DerBuffer** chain, int weOwn, const byte* cert,
         c32to24(certSz, newChain->buffer + len);
         XMEMCPY(newChain->buffer + len + CERT_HEADER_SZ, cert, certSz);
 
-        /* Dispose of old chain if we own it. */
-        if (weOwn) {
-            FreeDer(chain);
-        }
+        /* Let go of the old chain before taking on the new one. */
+        FreeSslDer(chain, weOwn);
         /* Replace chain. */
         *chain = newChain;
+        *weOwn = 1;
     }
 
     return res;
@@ -5222,9 +5213,11 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
     }
 
     if (res == 1) {
+         /* The context always owns its own chain. */
+         byte weOwn = 1;
          /* Add chain to DER buffer. */
-         res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz,
-             ctx->heap);
+         res = wolfssl_add_to_chain(&ctx->certChain, &weOwn, der,
+             (word32)derSz, ctx->heap);
     #ifdef WOLFSSL_TLS13
         /* Update count of certificates. */
         ctx->certChainCnt++;
@@ -5414,8 +5407,10 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
         ret = wolfSSL_CTX_load_verify_buffer(ctx, x509->derCert->buffer,
             x509->derCert->length, WOLFSSL_FILETYPE_ASN1);
         if (ret == 1) {
+            /* The context always owns its own chain. */
+            byte weOwn = 1;
             /* Add DER encoding to chain. */
-            ret = wolfssl_add_to_chain(&ctx->certChain, 1,
+            ret = wolfssl_add_to_chain(&ctx->certChain, &weOwn,
                 x509->derCert->buffer, x509->derCert->length, ctx->heap);
         }
         /* Store cert in stack to free it later. */
@@ -5479,11 +5474,9 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
     else if (ret == 1) {
         /* Add DER encoding to chain. */
         ret = wolfssl_add_to_chain(&ssl->buffers.certChain,
-            ssl->buffers.weOwnCertChain, x509->derCert->buffer,
+            &ssl->buffers.weOwnCertChain, x509->derCert->buffer,
             x509->derCert->length, ssl->heap);
         if (ret == 1) {
-            /* We now own cert chain. */
-            ssl->buffers.weOwnCertChain = 1;
             /* Account for the certificate just added to the chain. */
             ssl->buffers.certChainCnt++;
             /* Create a stack to put certificate into. */
