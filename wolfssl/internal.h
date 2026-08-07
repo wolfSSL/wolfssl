@@ -2837,6 +2837,9 @@ typedef struct ProcPeerCertArgs {
 #endif
 #ifndef NO_ASN
     DecodedCert* dCert;
+    byte*  tempCAs;    /* subject hashes of chain CAs added as
+                        * WOLFSSL_TEMP_CA, removed when this message is done */
+    int    tempCACount;
 #endif
     word32 idx;
     word32 begin;
