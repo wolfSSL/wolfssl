@@ -42,6 +42,10 @@ int test_dtls_fallback_scsv(void);
 int test_dtls_fallback_scsv_no_downgrade(void);
 int test_tls_fallback_scsv_no_downgrade(void);
 int test_tls_fallback_scsv_no_downgrade_runtime_max(void);
+int test_tls_no_acceptable_version_alert(void);
+int test_tls_lesser_version_alerts(void);
+int test_tls_version_mask_alert_record(void);
+int test_tls_version_error_alert_mapping(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls12_resume_ticket_wrong_suite(void);
 int test_tls12_resume_ticket_decline_fallback(void);
@@ -85,6 +89,10 @@ int test_wolfSSL_get_shared_ciphers(void);
         TEST_DECL_GROUP("tls", test_dtls_fallback_scsv_no_downgrade),          \
         TEST_DECL_GROUP("tls", test_tls_fallback_scsv_no_downgrade),           \
         TEST_DECL_GROUP("tls", test_tls_fallback_scsv_no_downgrade_runtime_max),\
+        TEST_DECL_GROUP("tls", test_tls_no_acceptable_version_alert),          \
+        TEST_DECL_GROUP("tls", test_tls_lesser_version_alerts),                \
+        TEST_DECL_GROUP("tls", test_tls_version_mask_alert_record),            \
+        TEST_DECL_GROUP("tls", test_tls_version_error_alert_mapping),          \
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_wrong_suite),          \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_decline_fallback),     \

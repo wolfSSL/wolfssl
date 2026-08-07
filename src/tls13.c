@@ -14893,7 +14893,15 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     alertType = TranslateErrorToAlert(ret);
 
-    if (alertType != invalid_alert) {
+    /* Skip when a fatal alert already went out for this error. The message
+     * handlers reached above send their own, more specific alert before
+     * returning (a protocol_version from the version checks in DoClientHello,
+     * decode_error, illegal_parameter, inappropriate_fallback), and a second
+     * fatal alert on a connection that is already being torn down is not a
+     * message the peer can act on. Matches the guard in
+     * SendFatalAlertOnly(). */
+    if (alertType != invalid_alert &&
+            ssl->alert_history.last_tx.level != alert_fatal) {
 #ifdef WOLFSSL_DTLS13
         if (type == client_hello && ssl->options.dtls)
             DtlsSetSeqNumForReply(ssl);

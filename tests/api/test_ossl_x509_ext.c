@@ -850,6 +850,52 @@ int test_wolfSSL_X509_EXTENSION_get_data(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_EXTENSION_set_data(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_STRING* str = NULL;
+#ifndef WOLFSSL_OLD_EXTDATA_FMT
+    WOLFSSL_ASN1_STRING* cur = NULL;
+#endif
+    /* Long enough that the ASN.1 STRING data is dynamically allocated. */
+    byte longData[CTC_NAME_SIZE * 2];
+
+    XMEMSET(longData, 'A', sizeof(longData));
+
+    ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
+    ExpectNotNull(str = wolfSSL_ASN1_STRING_new());
+    ExpectIntEQ(wolfSSL_ASN1_STRING_set(str, longData, (int)sizeof(longData)),
+        1);
+
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(NULL, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(NULL, str),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* Replace a dynamically allocated value with another one. */
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, str), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, str), WOLFSSL_SUCCESS);
+
+#ifndef WOLFSSL_OLD_EXTDATA_FMT
+    /* Set the value from itself. */
+    ExpectNotNull(cur = wolfSSL_X509_EXTENSION_get_data(ext));
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, cur), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(cur = wolfSSL_X509_EXTENSION_get_data(ext));
+    ExpectIntEQ(cur->length, (int)sizeof(longData));
+    ExpectBufEQ(cur->data, longData, sizeof(longData));
+#endif
+
+    wolfSSL_ASN1_STRING_free(str);
+    wolfSSL_X509_EXTENSION_free(ext);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_EXTENSION_get_critical(void)
 {
     EXPECT_DECLS;
