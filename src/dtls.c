@@ -437,9 +437,11 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
 static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID,
                                int* resume)
 {
+#ifndef NO_SESSION_CACHE
     const WOLFSSL_SESSION* sess;
     word32 sessRow;
     int ret;
+#endif
 #ifdef HAVE_EXT_CACHE
     int copy;
 #endif
@@ -474,6 +476,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
 #endif
 
 
+#ifndef NO_SESSION_CACHE
     ret = TlsSessionCacheGetAndRdLock(sessionID.elements, &sess, &sessRow,
             ssl->options.side);
     if (ret == 0 && sess != NULL) {
@@ -486,6 +489,7 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
             *resume = TRUE;
         TlsSessionCacheUnlockRow(sessRow);
     }
+#endif /* !NO_SESSION_CACHE */
 
     return 0;
 }
