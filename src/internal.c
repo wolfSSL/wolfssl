@@ -16614,11 +16614,99 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 }
 #endif
 
+#ifndef NO_ASN
+/* Build a signer for a chain CA the verify callback waived */
+static int ProcessPeerCertAddWaivedCA(WOLFSSL* ssl, ProcPeerCertArgs* args,
+                                      buffer* cert)
+{
+    int ret = 0;
+    WC_DECLARE_VAR(dCertAdd, DecodedCert, 1, 0);
+    int dCertAdd_inited = 0;
+    DerBuffer* derBuffer = NULL;
+    Signer* s = NULL;
+
+    WC_ALLOC_VAR_EX(dCertAdd, DecodedCert, 1, ssl->heap,
+        DYNAMIC_TYPE_TMP_BUFFER,
+    {
+        ret = MEMORY_E;
+        goto exit_waived;
+    });
+    InitDecodedCert(dCertAdd, cert->buffer, cert->length, ssl->heap);
+    dCertAdd_inited = 1;
+    ret = ParseCert(dCertAdd, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
+    if (ret != 0)
+        goto exit_waived;
+
+    if (!dCertAdd->isCA) {
+        WOLFSSL_MSG("Waived chain cert is not a CA, not usable as a signer");
+        goto exit_waived;
+    }
+#ifndef ALLOW_INVALID_CERTSIGN
+    if (!dCertAdd->selfSigned && dCertAdd->extKeyUsageSet &&
+            (dCertAdd->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        WOLFSSL_MSG("Waived chain cert doesn't have key usage cert signing");
+        ret = NOT_CA_ERROR;
+        goto exit_waived;
+    }
+#endif
+
+    ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
+    if (ret != 0 || derBuffer == NULL)
+        goto exit_waived;
+    XMEMCPY(derBuffer->buffer, cert->buffer, cert->length);
+
+    s = MakeSigner(SSL_CM(ssl)->heap);
+    if (s == NULL) {
+        ret = MEMORY_E;
+        goto exit_waived;
+    }
+    ret = FillSigner(s, dCertAdd, WOLFSSL_TEMP_CA, derBuffer);
+    if (ret != 0)
+        goto exit_waived;
+
+    s->next = args->waivedCAs;
+    args->waivedCAs = s;
+    s = NULL;
+
+exit_waived:
+    if (s != NULL)
+        FreeSigner(s, SSL_CM(ssl)->heap);
+    if (derBuffer != NULL)
+        FreeDer(&derBuffer);
+    if (dCertAdd_inited)
+        FreeDecodedCert(dCertAdd);
+    WC_FREE_VAR_EX(dCertAdd, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+static int ProcessPeerCertIsWaivedCA(ProcPeerCertArgs* args, const Signer* ca)
+{
+    const Signer* s;
+
+    for (s = args->waivedCAs; s != NULL; s = s->next) {
+        if (s == ca)
+            return 1;
+    }
+
+    return 0;
+}
+#endif /* !NO_ASN */
+
 static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 {
     ProcPeerCertArgs* args = (ProcPeerCertArgs*)pArgs;
 
     (void)ssl;
+
+#ifndef NO_ASN
+    while (args->waivedCAs != NULL) {
+        Signer* s = args->waivedCAs;
+
+        args->waivedCAs = s->next;
+        FreeSigner(s, SSL_CM(ssl)->heap);
+    }
+#endif
 
     XFREE(args->certs, ssl->heap, DYNAMIC_TYPE_DER);
     args->certs = NULL;
@@ -16849,6 +16937,7 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     byte* subjectHash = NULL;
     int alreadySigner = 0;
     Signer *extraSigners = NULL;
+    Signer *waivedTail = NULL;
 #if defined(HAVE_RPK)
     int cType;
 #endif
@@ -16956,7 +17045,18 @@ PRAGMA_GCC_DIAG_POP
     }
 #endif
     /* Parse Certificate */
+    if (args->waivedCAs != NULL) {
+        waivedTail = args->waivedCAs;
+        while (waivedTail->next != NULL)
+            waivedTail = waivedTail->next;
+        waivedTail->next = extraSigners;
+        extraSigners = args->waivedCAs;
+    }
+
     ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
+
+    if (waivedTail != NULL)
+        waivedTail->next = NULL;
 
 #if defined(HAVE_RPK)
     /* Confirm the received certificate's form (X.509 vs raw public key) matches
@@ -18485,6 +18585,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
+                    int preCbRet;
+                    int caIsTemp = 0;
 
                     /* select last certificate */
                     args->certIdx = args->count - 1;
@@ -18770,7 +18872,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
                     /* Do verify callback */
+                    preCbRet = ret;
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    if (ret == 0 && preCbRet != 0)
+                        caIsTemp = 1;
+                    if (ret == 0 && args->dCert->ca != NULL &&
+                            ProcessPeerCertIsWaivedCA(args, args->dCert->ca))
+                        caIsTemp = 1;
                     if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||
                                ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED) ||
@@ -18787,7 +18895,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     if (ret == 0 && addToPendingCAs && !alreadySigner &&
-                            !ssl->options.verifyNone && !skipAddCA) {
+                            !ssl->options.verifyNone && !skipAddCA &&
+                            !caIsTemp) {
                         /* The verifyNone and skipAddCA conditions mirror the
                          * guards on the AddCA() call below. A certificate the
                          * surrounding code has already declined to admit as a
@@ -18822,7 +18931,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 cert->buffer, cert->length);
                         }
                     #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
-                        if (!alreadySigner) {
+                        if (caIsTemp) {
+                            ret = ProcessPeerCertAddWaivedCA(ssl, args, cert);
+                        }
+                        else if (!alreadySigner) {
                             DerBuffer* add = NULL;
                             ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
                             if (ret < 0)
