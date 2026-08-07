@@ -221,6 +221,17 @@
     extern "C" {
 #endif
 
+/* ML-KEM client support requires generating a key pair (encapsulation key) and
+ * decapsulating the server's ciphertext. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    #define WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT
+#endif
+/* ML-KEM server support requires encapsulating to the client's key. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
+    #define WOLFSSL_HAVE_MLKEM_SERVER_SUPPORT
+#endif
+
 /* Define or comment out the cipher suites you'd like to be compiled in
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
 
@@ -854,7 +865,10 @@
 #if !defined(WOLFCRYPT_ONLY) && defined(NO_PSK) && \
     (defined(NO_DH) || !defined(HAVE_ANON)) && \
     defined(NO_RSA) && !defined(HAVE_ECC) && \
-    !defined(HAVE_ED25519) && !defined(HAVE_ED448)
+    !defined(HAVE_ED25519) && !defined(HAVE_ED448) && \
+    (!defined(WOLFSSL_TLS13) || \
+     (!defined(HAVE_FALCON) && !defined(WOLFSSL_HAVE_MLDSA) && \
+      !defined(WOLFSSL_HAVE_SLHDSA)))
    #error "No cipher suites available with this build"
 #endif
 

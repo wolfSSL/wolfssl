@@ -4672,17 +4672,6 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
-/* ML-KEM client support requires generating a key pair (encapsulation key) and
- * decapsulating the server's ciphertext. */
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
-     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
-    #define WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT
-#endif
-/* ML-KEM server support requires encapsulating to the client's key. */
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
-    #define WOLFSSL_HAVE_MLKEM_SERVER_SUPPORT
-#endif
-
 #if defined(HAVE_SUPPORTED_CURVES) || \
     (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES))
 
@@ -16752,7 +16741,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     modes = 1 << PSK_KE;
                 }
             #if !defined(NO_DH) || defined(HAVE_ECC) || \
-                          defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+                          defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+                          (defined(WOLFSSL_HAVE_MLKEM_CLIENT_SUPPORT) && \
+                           !defined(WOLFSSL_TLS_NO_MLKEM_STANDALONE))
                 if (!ssl->options.noPskDheKe) {
                     modes |= 1 << PSK_DHE_KE;
                 }

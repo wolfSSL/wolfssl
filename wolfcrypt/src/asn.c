@@ -29346,11 +29346,23 @@ static int SetValidity(byte* before, byte* after, int daysValid)
 
 
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+/* MakeSignatureCb backs both MakeSignature()'s local RSA/ECC signing and the
+ * wc_SignCert_cb() offload path, so either one needs it. */
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+     !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)) || \
+    defined(WOLFSSL_CERT_SIGN_CB)
 /* Forward declaration for internal use */
 static int MakeSignatureCb(CertSignCtx* certSignCtx, const byte* buf,
     word32 sz, byte* sig, word32 sigSz, int sigAlgoType, int keyType,
     wc_SignCertCb signCb, void* signCtx, WC_RNG* rng, void* heap);
+#endif /* (!NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY) ||
+        * (HAVE_ECC && HAVE_ECC_SIGN) || WOLFSSL_CERT_SIGN_CB */
 
+/* InternalSignCb is only used by MakeSignature()'s local signing path. */
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+     !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_SIGN))
 /* Internal context for default signing operations (when no callback provided) */
 typedef struct {
     void* key;
@@ -29437,6 +29449,8 @@ static int InternalSignCb(const byte* in, word32 inLen,
 
     return ret;
 }
+#endif /* (!NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY) ||
+        * (HAVE_ECC && HAVE_ECC_SIGN) */
 #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_REQ */
 
 
@@ -29716,10 +29730,13 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
 {
     int ret = 0;
 
+    (void)certSignCtx;
     (void)buf;
     (void)sz;
     (void)sig;
     (void)sigSz;
+    (void)rsaKey;
+    (void)eccKey;
     (void)ed25519Key;
     (void)ed448Key;
     (void)falconKey;
@@ -29728,6 +29745,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     (void)lmsKey;
     (void)xmssKey;
     (void)rng;
+    (void)sigAlgoType;
     (void)heap;
 
     /* For RSA and ECC, use the callback path to eliminate duplication */
@@ -29843,7 +29861,12 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     if (ret == -1)
         ret = ALGO_ID_E;
 
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+     !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_SIGN))
 exit_ms:
+#endif /* (!NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY) ||
+        * (HAVE_ECC && HAVE_ECC_SIGN) */
     if (ret < 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
     }
@@ -30861,6 +30884,10 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 
 
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+     !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)) || \
+    defined(WOLFSSL_CERT_SIGN_CB)
 /* Internal function to create signature using callback
  * This allows external signing implementations (e.g., TPM, HSM) without
  * requiring the crypto callback infrastructure.
@@ -30993,6 +31020,8 @@ exit_ms:
 
     return ret;
 }
+#endif /* (!NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY) ||
+        * (HAVE_ECC && HAVE_ECC_SIGN) || WOLFSSL_CERT_SIGN_CB */
 #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_REQ */
 
 

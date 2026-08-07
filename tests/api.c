@@ -11073,7 +11073,10 @@ static int test_wolfSSL_PKCS8(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
     !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && \
     (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
-#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
+/* Without RSA, ECC or PEM decoding every key load below compiles out, leaving
+ * nothing to test. */
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(WOLFSSL_PEM_TO_DER))
     byte buff[FOURK_BUF];
     byte der[FOURK_BUF];
     #ifndef NO_RSA
@@ -11289,7 +11292,8 @@ static int test_wolfSSL_PKCS8(void)
 #endif /* HAVE_ECC */
 
     wolfSSL_CTX_free(ctx);
-#endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
+#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) &&
+        * (!NO_RSA || HAVE_ECC || WOLFSSL_PEM_TO_DER) */
 #endif /* !NO_FILESYSTEM && !NO_ASN && HAVE_PKCS8 */
     return EXPECT_RESULT();
 }
