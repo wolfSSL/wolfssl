@@ -412,6 +412,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set1_groups_list        wolfSSL_CTX_set1_groups_list
 #define SSL_set1_groups_list            wolfSSL_set1_groups_list
 
+#define SSL_get_negotiated_group        wolfSSL_get_negotiated_group
+#define SSL_group_to_name               wolfSSL_group_to_name
+
 #define SSL_set_ex_data                 wolfSSL_set_ex_data
 #define SSL_get_shutdown                wolfSSL_get_shutdown
 #define SSL_get_finished                wolfSSL_get_finished
