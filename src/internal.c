@@ -15964,59 +15964,6 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         use_cb = 1;
     }
 #endif
-#if defined(OPENSSL_EXTRA)
-    /* Perform domain and IP check only for the leaf certificate */
-    if (args->certIdx == 0) {
-        /* perform domain name check on the peer certificate */
-        if (args->dCertInit && args->dCert && (ssl != NULL) &&
-                ssl->param && ssl->param->hostName[0]) {
-            /* If altNames names is present, then subject common name is ignored */
-            if (args->dCert->altNames != NULL) {
-                if (CheckForAltNames(args->dCert, ssl->param->hostName,
-                    (word32)XSTRLEN(ssl->param->hostName), NULL, 0, 0) != 1) {
-                    if (cert_err == 0) {
-                        ret = DOMAIN_NAME_MISMATCH;
-                        WOLFSSL_ERROR_VERBOSE(ret);
-                    }
-                }
-            }
-        #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
-            else {
-                if (args->dCert->subjectCN) {
-                    if (MatchDomainName(
-                            args->dCert->subjectCN,
-                            args->dCert->subjectCNLen,
-                            ssl->param->hostName,
-                            (word32)XSTRLEN(ssl->param->hostName), 0) == 0) {
-                        if (cert_err == 0) {
-                            ret = DOMAIN_NAME_MISMATCH;
-                            WOLFSSL_ERROR_VERBOSE(ret);
-                        }
-                    }
-                }
-            }
-        #else
-            else {
-                if (cert_err == 0) {
-                    ret = DOMAIN_NAME_MISMATCH;
-                    WOLFSSL_ERROR_VERBOSE(ret);
-                }
-            }
-        #endif /* !WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY */
-        }
-
-        /* perform IP address check on the peer certificate */
-        if ((args->dCertInit != 0) && (args->dCert != NULL) && (ssl != NULL) &&
-            (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
-            if (CheckIPAddr(args->dCert, ssl->param->ipasc) != 0) {
-                if (cert_err == 0) {
-                    ret = IPADDR_MISMATCH;
-                    WOLFSSL_ERROR_VERBOSE(ret);
-                }
-            }
-        }
-    }
-#endif
     /* if verify callback has been set */
     if ((use_cb && (ssl != NULL) && ((ssl->verifyCallback != NULL)
     #ifdef OPENSSL_ALL
@@ -18749,6 +18696,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif
 
                 domainName = (char*)ssl->buffers.domainName.buffer;
+            #ifdef OPENSSL_EXTRA
+                /* X509_VERIFY_PARAM_set1_host() is the OpenSSL way of naming
+                 * the expected peer. */
+                if ((domainName == NULL) && (ssl->param != NULL) &&
+                        (ssl->param->hostName[0] != '\0')) {
+                    domainName = ssl->param->hostName;
+                }
+            #endif
             #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_ECH)
                 /* RFC 9849 s6.1.7: ECH offered but rejected by the server...
                  * verify cert is valid for ECHConfig.public_name */
@@ -18823,16 +18778,29 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_ALL_NO_CN_IN_SAN */
                 }
 
-#ifndef OPENSSL_EXTRA
-                if (!ssl->options.verifyNone && ssl->buffers.ipasc.buffer) {
-                    if (CheckIPAddr(args->dCert,
-                            (const char*)ssl->buffers.ipasc.buffer) != 0) {
-                        WOLFSSL_MSG("IPAddr match on alt names failed");
-                        ret = IPADDR_MISMATCH;
-                        WOLFSSL_ERROR_VERBOSE(ret);
+                {
+                    const char* ipasc = NULL;
+
+                    if (ssl->buffers.ipasc.buffer != NULL) {
+                        ipasc = (const char*)ssl->buffers.ipasc.buffer;
+                    }
+                #ifdef OPENSSL_EXTRA
+                    /* X509_VERIFY_PARAM_set1_ip() sets the expected address
+                     * here rather than on the WOLFSSL buffers. */
+                    else if ((ssl->param != NULL) &&
+                            (ssl->param->ipasc[0] != '\0')) {
+                        ipasc = ssl->param->ipasc;
+                    }
+                #endif
+
+                    if (!ssl->options.verifyNone && (ipasc != NULL)) {
+                        if (CheckIPAddr(args->dCert, ipasc) != 0) {
+                            WOLFSSL_MSG("IPAddr match on alt names failed");
+                            ret = IPADDR_MISMATCH;
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                        }
                     }
                 }
-#endif
 
                 /* decode peer key */
                 if (ProcessPeerCertDecodeKey(ssl, args, &ret))

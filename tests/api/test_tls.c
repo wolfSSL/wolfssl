@@ -297,6 +297,97 @@ int test_tls_record_overflow_alert(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+
+static int test_peer_name_cb_err = 0;
+static int test_peer_name_cb_preverify = -1;
+
+static int test_peer_name_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    /* Only record the first failure - later certificates in the chain would
+     * otherwise overwrite it. */
+    if (!preverify && (test_peer_name_cb_err == 0)) {
+        test_peer_name_cb_preverify = preverify;
+        test_peer_name_cb_err = wolfSSL_X509_STORE_CTX_get_error(store);
+    }
+    return preverify;
+}
+
+/* mode: 0 = check_ip_address(), 1 = set1_ip_asc(), 2 = set1_host() */
+static int test_peer_name_mismatch(int mode, const char* name, int expectErr)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    test_peer_name_cb_err = 0;
+    test_peer_name_cb_preverify = -1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_peer_name_verify_cb);
+
+    if (mode == 0) {
+        ExpectIntEQ(wolfSSL_check_ip_address(ssl_c, name), WOLFSSL_SUCCESS);
+    }
+    else if (mode == 1) {
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(
+            wolfSSL_get0_param(ssl_c), name), WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(
+            wolfSSL_get0_param(ssl_c), name, 0), WOLFSSL_SUCCESS);
+    }
+
+    if (expectErr == 0) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(test_peer_name_cb_err, 0);
+    }
+    else {
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* The mismatch has to reach the application's verify callback so it
+         * can apply its own policy, not just fail the handshake. */
+        ExpectIntEQ(test_peer_name_cb_preverify, 0);
+        ExpectIntEQ(test_peer_name_cb_err, expectErr);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A peer name mismatch must be reported through SSL_set_verify()'s callback,
+ * whichever API named the expected peer. */
+int test_tls_peer_name_mismatch_verify_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA256)
+#ifdef WOLFSSL_IP_ALT_NAME
+    /* certs/server-cert.pem carries IP:127.0.0.1 and DNS:example.com. */
+    ExpectIntEQ(test_peer_name_mismatch(0, "127.0.0.2",
+        WC_NO_ERR_TRACE(IPADDR_MISMATCH)), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_name_mismatch(1, "127.0.0.2",
+        WC_NO_ERR_TRACE(IPADDR_MISMATCH)), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_name_mismatch(0, "127.0.0.1", 0), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_peer_name_mismatch(2, "wrong.example.com",
+        WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH)), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_name_mismatch(2, "example.com", 0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* SSL_get_negotiated_group() and SSL_group_to_name() report the group that was
  * negotiated, using the names OpenSSL gives the TLS supported groups. */
 int test_tls_get_negotiated_group(void)
