@@ -27,6 +27,10 @@
 #include <wolfssl/error-ssl.h>
 
 #include <wolfssl/wolfcrypt/async.h>
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+#include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 
 static WC_ASYNC_DEV* wolfAsync_GetDev(WOLF_EVENT* event)
@@ -417,10 +421,50 @@ int wolfAsync_DevCtxInit(WC_ASYNC_DEV* asyncDev, word32 marker, void* heap,
     /* always clear async device context */
     XMEMSET(asyncDev, 0, sizeof(WC_ASYNC_DEV));
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+    asyncDev->cryptocb.devId = INVALID_DEVID;
+#endif
+
     /* negative device Id's are invalid */
     if (devId >= 0) {
         asyncDev->marker = marker;
         asyncDev->heap = heap;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+        /* Route the two async record ciphers (AES, 3DES) to poll completion;
+         * every other op keeps the re-invoke model. This split follows how
+         * the TLS record layer resumes each op:
+         *
+         *  - Record ciphers: Encrypt()/Decrypt() advance encrypt.state to
+         *    CIPHER_STATE_END *before* the WC_PENDING_E check, so on resume the
+         *    op does NOT call EncryptDo again -- it reads the output buffer as
+         *    already filled. Re-invocation would never re-run the cipher, so
+         *    the only way to finish the job is for the poll to fill that buffer
+         *    (wc_CryptoCb_Poll during wolfSSL_AsyncPoll). This is the QAT/Nitrox
+         *    completion model.
+         *
+         *  - Handshake PK (RSA/ECC/DH/X25519): the TLS_ASYNC_* state machine
+         *    resumes *at* the crypto call and re-invokes it (WC_ASYNC_FLAG_
+         *    CALL_AGAIN), so the callback is driven to completion by repeated
+         *    calls. Poll routing would send it WC_ALGO_TYPE_ASYNC_POLL, which a
+         *    PK device does not answer -> broken handshake.
+         *
+         * devId flows in from the WOLFSSL object: wolfSSL_CTX_SetDevId ->
+         * SetKeys -> wc_AesInit()/wc_Des3Init() -> here, and is re-stamped on
+         * every key setup (including rekey/KeyUpdate).
+         *
+         * Only route when crypto callbacks are the async backend for bulk
+         * ciphers. With a hardware/SW backend present that backend completes
+         * the op, so stamping here would make the poll re-enter a device that
+         * is not a crypto callback. */
+    #if !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM) && \
+        !defined(WOLFSSL_ASYNC_CRYPT_SW)
+        if (marker == WOLFSSL_ASYNC_MARKER_AES ||
+            marker == WOLFSSL_ASYNC_MARKER_3DES) {
+            asyncDev->cryptocb.devId = devId;
+        }
+    #endif
+#endif
 
     #ifdef HAVE_CAVIUM
         ret = NitroxAllocContext(asyncDev, devId, CONTEXT_SSL);
@@ -561,6 +605,17 @@ int wolfAsync_EventPoll(WOLF_EVENT* event, WOLF_EVENT_FLAG flags)
         ret = IntelQaPoll(asyncDev);
     #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
         event->ret = wolfAsync_DoSw(asyncDev);
+    #endif
+
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLF_CRYPTO_CB) && \
+        defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+        /* Re-enter the crypto callback to complete the job and fill the output
+         * buffer, like the hardware polls above. Poll only while the event is
+         * still pending so a completed result is not overwritten. */
+        if (asyncDev->cryptocb.devId != INVALID_DEVID &&
+            event->ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            event->ret = wc_CryptoCb_Poll(asyncDev->cryptocb.devId);
+        }
     #endif
 
         /* If not pending then mark as done */
@@ -720,11 +775,27 @@ int wolfAsync_EventQueuePoll(WOLF_EVENT_QUEUE* queue, void* context_filter,
                             event->ret = wolfAsync_DoSw(asyncDev);
                         }
                 #elif defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
-                    /* Crypto/PK callbacks manage their own retry state.
-                     * Leave event->ret as WC_PENDING_E so that
-                     * wolfSSL_AsyncPop can detect the pending state and
-                     * remove the event, allowing the operation to be
-                     * retried with a fresh callback invocation. */
+                    #if defined(WOLFSSL_ASYNC_CRYPT) && \
+                        defined(WOLF_CRYPTO_CB) && \
+                        defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+                    if (asyncDev->cryptocb.devId != INVALID_DEVID) {
+                        /* Re-enter the crypto callback to complete the job and
+                         * fill the output buffer. Poll only while still pending
+                         * so a completed result is not overwritten. */
+                        if (event->ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                            event->ret =
+                                wc_CryptoCb_Poll(asyncDev->cryptocb.devId);
+                        }
+                    }
+                    else
+                    #endif
+                    {
+                        /* Re-invoke model: crypto/PK callbacks manage their own
+                         * retry state. Leave event->ret as WC_PENDING_E so that
+                         * wolfSSL_AsyncPop can detect the pending state and
+                         * remove the event, allowing the operation to be
+                         * retried with a fresh callback invocation. */
+                    }
 
                 #else
                     #warning No async crypt device defined!
