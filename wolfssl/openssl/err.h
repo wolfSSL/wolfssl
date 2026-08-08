@@ -83,6 +83,7 @@
 
 /* reasons */
 #define ERR_R_SYS_LIB                            WOLFSSL_ERR_R_SYS_LIB
+#define ERR_R_BUF_LIB                            WOLFSSL_ERR_R_BUF_LIB
 #define PKCS12_R_MAC_VERIFY_FAILURE              WOLFSSL_PKCS12_R_MAC_VERIFY_FAILURE
 
 #define RSAerr(f,r)  wolfSSL_RSAerr(f,r)
