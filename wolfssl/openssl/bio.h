@@ -75,6 +75,12 @@
 
 #define WOLFSSL_BIO_FP_WRITE               0x04
 
+#define WOLFSSL_BIO_TYPE_DESCRIPTOR  0x0100
+#define WOLFSSL_BIO_TYPE_SOURCE_SINK 0x0400
+/* Application BIO type indexes are handed out starting after this value
+ * by wolfSSL_BIO_get_new_index(), like OpenSSL's BIO_TYPE_START. */
+#define WOLFSSL_BIO_TYPE_START       128
+
 #ifndef OPENSSL_COEXIST
 
 #define BIO_FLAGS_BASE64_NO_NL WOLFSSL_BIO_FLAG_BASE64_NO_NL
@@ -187,12 +193,6 @@
 #define BIO_meth_set_ctrl          wolfSSL_BIO_meth_set_ctrl
 #define BIO_meth_set_create        wolfSSL_BIO_meth_set_create
 #define BIO_meth_set_destroy       wolfSSL_BIO_meth_set_destroy
-
-#define WOLFSSL_BIO_TYPE_DESCRIPTOR  0x0100
-#define WOLFSSL_BIO_TYPE_SOURCE_SINK 0x0400
-/* Application BIO type indexes are handed out starting after this value
- * by wolfSSL_BIO_get_new_index(), like OpenSSL's BIO_TYPE_START. */
-#define WOLFSSL_BIO_TYPE_START       128
 
 #define BIO_TYPE_DESCRIPTOR        WOLFSSL_BIO_TYPE_DESCRIPTOR
 #define BIO_TYPE_SOURCE_SINK       WOLFSSL_BIO_TYPE_SOURCE_SINK

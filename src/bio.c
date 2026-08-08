@@ -2119,12 +2119,6 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     return WOLFSSL_SUCCESS;
 }
 
-#ifndef WOLFSSL_BIO_TYPE_START
-/* Matches WOLFSSL_BIO_TYPE_START in wolfssl/openssl/bio.h (OpenSSL's
- * BIO_TYPE_START), which is only included with OPENSSL_EXTRA. */
-#define WOLFSSL_BIO_TYPE_START 128
-#endif
-
 /* Return a new type index for a custom BIO, starting at
  * WOLFSSL_BIO_TYPE_START like OpenSSL's BIO_get_new_index().
  * Thread-safe when atomic operations are available; otherwise falls

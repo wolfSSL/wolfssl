@@ -130,6 +130,12 @@
     HAVE_LIGHTY || HAVE_STUNNEL || \
     WOLFSSL_WPAS_SMALL */
 
+/* Must equal HANDSHAKE_DONE in the internal 'enum states'
+ * (wolfssl/internal.h), returned by wolfSSL_get_state(); enforced by a
+ * wc_static_assert in src/ssl.c. */
+#define WOLFSSL_TLS_ST_OK               16
+#define WOLFSSL_SSL_ST_OK               WOLFSSL_TLS_ST_OK
+
 #if !defined(OPENSSL_COEXIST) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 
@@ -1583,11 +1589,6 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_state                   wolfSSL_get_state
 #define SSL_state_string_long           wolfSSL_state_string_long
 
-/* Must equal HANDSHAKE_DONE in the internal 'enum states'
- * (wolfssl/internal.h), returned by wolfSSL_get_state(); enforced by a
- * wc_static_assert in src/ssl.c. */
-#define WOLFSSL_TLS_ST_OK               16
-#define WOLFSSL_SSL_ST_OK               WOLFSSL_TLS_ST_OK
 #define TLS_ST_OK                       WOLFSSL_TLS_ST_OK
 #define SSL_ST_OK                       WOLFSSL_SSL_ST_OK
 #define SSL_F_SSL_SET_FD                WOLFSSL_SSL_F_SSL_SET_FD
