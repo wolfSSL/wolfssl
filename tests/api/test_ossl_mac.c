@@ -28,11 +28,28 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* Included standalone after tests/unit.h has completed the
+ * <wolfssl/ssl.h> parse: hmac.h must provide the EVP_* declarations by
+ * itself, like OpenSSL's hmac.h; see test_wolfSSL_hmac_includes_evp. */
 #include <wolfssl/openssl/hmac.h>
 #include <wolfssl/openssl/cmac.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_mac.h>
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+/* Referencing an EVP_* symbol pins the include contract above. */
+static const WOLFSSL_EVP_MD* (*ossl_mac_evp_md_ref)(void) = EVP_sha256;
+#endif
+
+int test_wolfSSL_hmac_includes_evp(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    ExpectNotNull(ossl_mac_evp_md_ref());
+#endif
+    return EXPECT_RESULT();
+}
 
 /*******************************************************************************
  * MAC OpenSSL compatibility API Testing

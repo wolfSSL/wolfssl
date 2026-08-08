@@ -99,7 +99,12 @@
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/openssl/bn.h>
     #ifndef WOLFCRYPT_ONLY
+        /* Tell hmac.h that wolfssl/ssl.h is still being parsed, so it
+         * must not include evp.h (which leads back into openssl/ssl.h
+         * and would see this header only partially declared). */
+        #define WOLFSSL_SSL_H_PARSING
         #include <wolfssl/openssl/hmac.h>
+        #undef WOLFSSL_SSL_H_PARSING
     #endif
     #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
         #include <wolfssl/openssl/cmac.h>
@@ -2201,6 +2206,7 @@ WOLFSSL_API int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio);
 WOLFSSL_API int wolfSSL_BIO_should_read(WOLFSSL_BIO *bio);
 WOLFSSL_API int wolfSSL_BIO_should_write(WOLFSSL_BIO *bio);
 
+WOLFSSL_API int wolfSSL_BIO_get_new_index(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char* name);
 WOLFSSL_API void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD* biom);
 WOLFSSL_API int wolfSSL_BIO_meth_set_write(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_write_cb biom_write);
@@ -2210,6 +2216,13 @@ WOLFSSL_API int wolfSSL_BIO_meth_set_gets(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_
 WOLFSSL_API int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_ctrl_get_cb biom_ctrl);
 WOLFSSL_API int wolfSSL_BIO_meth_set_create(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_create_cb biom_create);
 WOLFSSL_API int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_destroy_cb biom_destroy);
+WOLFSSL_API wolfSSL_BIO_meth_gets_cb wolfSSL_BIO_meth_get_gets(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_puts_cb wolfSSL_BIO_meth_get_puts(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_ctrl_get_cb wolfSSL_BIO_meth_get_ctrl(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_create_cb wolfSSL_BIO_meth_get_create(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfSSL_BIO_meth_destroy_cb wolfSSL_BIO_meth_get_destroy(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API wolfssl_BIO_meth_ctrl_info_cb wolfSSL_BIO_meth_get_callback_ctrl(const WOLFSSL_BIO_METHOD* biom);
+WOLFSSL_API int wolfSSL_BIO_meth_set_callback_ctrl(WOLFSSL_BIO_METHOD* biom, wolfssl_BIO_meth_ctrl_info_cb biom_callback_ctrl);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(const void* buf, int len);
 
 WOLFSSL_API long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int flag);
@@ -5283,6 +5296,9 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn);
 
 WOLFSSL_API const char* wolfSSL_OBJ_nid2sn(int n);
 WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+WOLFSSL_API int wolfSSL_OBJ_find_sigid_algs(int sigid, int *pdig, int *ppkey);
+#endif
 WOLFSSL_API int wolfSSL_OBJ_get_type(const WOLFSSL_ASN1_OBJECT *o);
 WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
 WOLFSSL_API size_t wolfSSL_OBJ_length(const WOLFSSL_ASN1_OBJECT* o);

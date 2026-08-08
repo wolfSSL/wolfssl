@@ -29,6 +29,7 @@
 #endif
 
 #include <wolfssl/openssl/objects.h>
+#include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/pkcs12.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_obj.h>
@@ -463,3 +464,59 @@ int test_wolfSSL_OBJ_sn(void)
     return EXPECT_RESULT();
 }
 
+
+int test_wolfSSL_OBJ_find_sigid_algs(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    int dig = -1;
+    int pkey = -1;
+
+    /* Unsupported algorithm NID: returns 0 and leaves outputs untouched. */
+    ExpectIntEQ(wolfSSL_OBJ_find_sigid_algs(WC_NID_undef, &dig, &pkey), 0);
+    ExpectIntEQ(dig, -1);
+    ExpectIntEQ(pkey, -1);
+
+#ifndef NO_RSA
+    ExpectIntEQ(wolfSSL_OBJ_find_sigid_algs(WC_NID_sha256WithRSAEncryption,
+        &dig, &pkey), 1);
+    ExpectIntEQ(dig, WC_NID_sha256);
+    ExpectIntEQ(pkey, WC_NID_rsaEncryption);
+
+    /* NULL out-params are tolerated. */
+    ExpectIntEQ(wolfSSL_OBJ_find_sigid_algs(WC_NID_sha512WithRSAEncryption,
+        NULL, NULL), 1);
+
+#ifndef NO_MD5
+    dig = -1; pkey = -1;
+    ExpectIntEQ(wolfSSL_OBJ_find_sigid_algs(WC_NID_md5WithRSAEncryption,
+        &dig, &pkey), 1);
+    ExpectIntEQ(dig, WC_NID_md5);
+    ExpectIntEQ(pkey, WC_NID_rsaEncryption);
+#endif
+#ifdef WC_RSA_PSS
+    /* RSA-PSS reports digest 'undef' like OpenSSL. */
+    dig = -1; pkey = -1;
+    ExpectIntEQ(wolfSSL_OBJ_find_sigid_algs(WC_NID_rsassaPss, &dig, &pkey),
+        1);
+    ExpectIntEQ(dig, WC_NID_undef);
+    ExpectIntEQ(pkey, WC_NID_rsassaPss);
+#endif
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+    dig = -1; pkey = -1;
+    ExpectIntEQ(wolfSSL_OBJ_find_sigid_algs(WC_NID_ecdsa_with_SHA384,
+        &dig, &pkey), 1);
+    ExpectIntEQ(dig, WC_NID_sha384);
+    ExpectIntEQ(pkey, WC_NID_X9_62_id_ecPublicKey);
+#endif
+#ifdef HAVE_ED25519
+    /* EdDSA reports digest 'undef' like OpenSSL. */
+    dig = -1; pkey = -1;
+    ExpectIntEQ(wolfSSL_OBJ_find_sigid_algs(WC_NID_ED25519, &dig, &pkey), 1);
+    ExpectIntEQ(dig, WC_NID_undef);
+    ExpectIntEQ(pkey, WC_NID_ED25519);
+#endif
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+    return EXPECT_RESULT();
+}

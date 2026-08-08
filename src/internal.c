@@ -10326,6 +10326,7 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
     c32toa(seq[1], out + OPAQUE32_LEN);
 }
 
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_AEAD)
 /* Same as WriteSEQ() but does not advance the per-direction TLS sequence
  * counter. Lets a caller share the 64-bit record sequence between fields
  * that are written more than once per record (e.g. AES-GCM nonce_explicit
@@ -10356,6 +10357,7 @@ static WC_INLINE void PeekSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
     c32toa(seq[0], out);
     c32toa(seq[1], out + OPAQUE32_LEN);
 }
+#endif /* !WOLFSSL_NO_TLS12 && HAVE_AEAD */
 #endif /* WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 */
 #endif /* !NO_OLD_TLS || WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 ||
         *     ((HAVE_CHACHA || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_SM4_GCM ||

@@ -19152,6 +19152,43 @@ static int test_wolfSSL_ERR_get_error_order(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_ERR_GET_REASON_version_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    unsigned long err;
+    int found = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_ERR_clear_error();
+
+    /* A TLS 1.3-only client and a TLS 1.2-only server cannot agree on a
+     * protocol version. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The version failure must surface through ERR_GET_REASON() as
+     * OpenSSL's SSL_R_WRONG_VERSION_NUMBER. */
+    while ((err = wolfSSL_ERR_get_error()) != 0) {
+        if (wolfSSL_ERR_GET_REASON(err) == SSL_R_WRONG_VERSION_NUMBER)
+            found = 1;
+    }
+    ExpectIntEQ(found, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #ifndef NO_BIO
 
 static int test_wolfSSL_ERR_print_errors(void)
@@ -39133,6 +39170,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_error_queue_per_thread),
     TEST_DECL(test_wolfSSL_ERR_put_error),
     TEST_DECL(test_wolfSSL_ERR_get_error_order),
+    TEST_DECL(test_wolfSSL_ERR_GET_REASON_version_mismatch),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_ERR_print_errors),
 #endif

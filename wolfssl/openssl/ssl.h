@@ -44,6 +44,7 @@
 #include <wolfssl/openssl/evp.h>
 #endif
 #include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/err.h>
 #ifdef OPENSSL_EXTRA
 #include <wolfssl/openssl/crypto.h>
 #endif
@@ -128,6 +129,12 @@
     WOLFSSL_MYSQL_COMPATIBLE || OPENSSL_EXTRA || \
     HAVE_LIGHTY || HAVE_STUNNEL || \
     WOLFSSL_WPAS_SMALL */
+
+/* Must equal HANDSHAKE_DONE in the internal 'enum states'
+ * (wolfssl/internal.h), returned by wolfSSL_get_state(); enforced by a
+ * wc_static_assert in src/ssl.c. */
+#define WOLFSSL_TLS_ST_OK               16
+#define WOLFSSL_SSL_ST_OK               WOLFSSL_TLS_ST_OK
 
 #if !defined(OPENSSL_COEXIST) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -1582,6 +1589,10 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_state                   wolfSSL_get_state
 #define SSL_state_string_long           wolfSSL_state_string_long
 
+#define TLS_ST_OK                       WOLFSSL_TLS_ST_OK
+#define SSL_ST_OK                       WOLFSSL_SSL_ST_OK
+#define SSL_F_SSL_SET_FD                WOLFSSL_SSL_F_SSL_SET_FD
+
 #define GENERAL_NAME_new                wolfSSL_GENERAL_NAME_new
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAME_dup                wolfSSL_GENERAL_NAME_dup
@@ -1752,12 +1763,22 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_R_DATA_LENGTH_TOO_LONG                 BUFFER_ERROR
 #define SSL_R_ENCRYPTED_LENGTH_TOO_LONG            BUFFER_ERROR
 #define SSL_R_BAD_LENGTH                           BUFFER_ERROR
-#define SSL_R_UNKNOWN_PROTOCOL                     VERSION_ERROR
-#define SSL_R_WRONG_VERSION_NUMBER                 VERSION_ERROR
+#define SSL_R_UNKNOWN_PROTOCOL WOLFSSL_SSL_R_UNKNOWN_PROTOCOL
+#define SSL_R_WRONG_VERSION_NUMBER WOLFSSL_SSL_R_WRONG_VERSION_NUMBER
 #define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC  ENCRYPT_ERROR
 #define SSL_R_HTTPS_PROXY_REQUEST                  PARSE_ERROR
 #define SSL_R_HTTP_REQUEST                         PARSE_ERROR
-#define SSL_R_UNSUPPORTED_PROTOCOL                 VERSION_ERROR
+#define SSL_R_UNSUPPORTED_PROTOCOL WOLFSSL_SSL_R_UNSUPPORTED_PROTOCOL
+#define SSL_R_NO_PROTOCOLS_AVAILABLE \
+    WOLFSSL_SSL_R_NO_PROTOCOLS_AVAILABLE
+#define SSL_R_BAD_PROTOCOL_VERSION_NUMBER \
+    WOLFSSL_SSL_R_BAD_PROTOCOL_VERSION_NUMBER
+#define SSL_R_UNKNOWN_SSL_VERSION WOLFSSL_SSL_R_UNKNOWN_SSL_VERSION
+#define SSL_R_UNSUPPORTED_SSL_VERSION \
+    WOLFSSL_SSL_R_UNSUPPORTED_SSL_VERSION
+#define SSL_R_WRONG_SSL_VERSION WOLFSSL_SSL_R_WRONG_SSL_VERSION
+#define SSL_R_TLSV1_ALERT_PROTOCOL_VERSION \
+    WOLFSSL_SSL_R_TLSV1_ALERT_PROTOCOL_VERSION
 #define SSL_R_CERTIFICATE_VERIFY_FAILED            VERIFY_CERT_ERROR
 #define SSL_R_CERT_CB_ERROR                        CLIENT_CERT_CB_ERROR
 #define SSL_R_NULL_SSL_METHOD_PASSED               BAD_FUNC_ARG

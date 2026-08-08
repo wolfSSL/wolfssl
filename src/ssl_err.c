@@ -462,6 +462,13 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
         (ret <= WC_SPAN2_FIRST_E && ret >= WC_SPAN2_LAST_E) ||
         (ret <= WOLFSSL_FIRST_E && ret >= WOLFSSL_LAST_E))
     {
+        /* Every protocol-version mismatch is reported internally as
+         * VERSION_ERROR, while the SSL_R_* version reasons carry real
+         * OpenSSL values so that consumers can use them as distinct
+         * switch cases; translate so that ERR_GET_REASON() comparisons
+         * against SSL_R_WRONG_VERSION_NUMBER keep matching. */
+        if (ret == WC_NO_ERR_TRACE(VERSION_ERROR))
+            return WOLFSSL_SSL_R_WRONG_VERSION_NUMBER;
         return ret;
     }
     else {
