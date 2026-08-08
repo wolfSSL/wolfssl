@@ -1926,6 +1926,28 @@ int test_wolfSSL_BIO_get_init(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_BIO_app_data(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EX_DATA)
+    BIO* bio = NULL;
+    int meth_data = 0;
+    int app_data = 0;
+
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+
+    /* app_data lives in ex_data slot 0, independent of the method data
+     * pointer accessed through BIO_{get,set}_data(). */
+    BIO_set_data(bio, &meth_data);
+    ExpectIntEQ(BIO_set_app_data(bio, &app_data), WOLFSSL_SUCCESS);
+    ExpectTrue(BIO_get_data(bio) == &meth_data);
+    ExpectTrue(BIO_get_app_data(bio) == &app_data);
+
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_BIO_get_new_index(void)
 {
     EXPECT_DECLS;

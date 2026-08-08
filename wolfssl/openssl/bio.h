@@ -199,14 +199,11 @@
 #define BIO_TYPE_START             WOLFSSL_BIO_TYPE_START
 
 /* Like OpenSSL, back app_data with BIO ex_data slot 0 so it does not share
- * storage with BIO_get_data()/BIO_set_data(); without HAVE_EX_DATA fall back
- * to sharing the BIO data pointer. */
+ * storage with BIO_get_data()/BIO_set_data(). Left undefined without
+ * HAVE_EX_DATA so use of app_data fails loudly at compile time. */
 #ifdef HAVE_EX_DATA
 #define BIO_get_app_data(bio)       wolfSSL_BIO_get_ex_data((bio), 0)
 #define BIO_set_app_data(bio, data) wolfSSL_BIO_set_ex_data((bio), 0, (data))
-#else
-#define BIO_get_app_data(bio)       wolfSSL_BIO_get_data(bio)
-#define BIO_set_app_data(bio, data) wolfSSL_BIO_set_data((bio), (data))
 #endif
 
 #define BIO_get_new_index          wolfSSL_BIO_get_new_index
