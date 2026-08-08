@@ -40,6 +40,12 @@
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_HMAC
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_hmac.h>
 #endif
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_CIPHER
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cipher.h>
+#endif
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_CMAC
+    #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cmac.h>
+#endif
 
 #ifndef WOLF_CRYPTO_CB
     #error "WOLFSSL_VERSAL_GEN2_ASU requires WOLF_CRYPTO_CB"
@@ -87,6 +93,11 @@ static int wc_AsuFree(wc_CryptoInfo* info)
             ret = wc_AsuHmac(info);
             break;
     #endif
+    #ifdef WOLFSSL_VERSAL_GEN2_ASU_CMAC
+        case WC_ALGO_TYPE_CMAC:
+            ret = wc_AsuCmac(info);
+            break;
+    #endif
         default:
             break;
     }
@@ -127,9 +138,15 @@ static int wc_AsuCryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             ret = wc_AsuRng(info);
         #endif
             break;
-        case WC_ALGO_TYPE_CIPHER: /* M2 asu_aes  */
+        case WC_ALGO_TYPE_CIPHER: /* M2 asu_cipher */
+        #ifdef WOLFSSL_VERSAL_GEN2_ASU_CIPHER
+            ret = wc_AsuCipher(info);
+        #endif
             break;
-        case WC_ALGO_TYPE_CMAC:   /* M2 asu_aes  */
+        case WC_ALGO_TYPE_CMAC:   /* M2 asu_cmac */
+        #ifdef WOLFSSL_VERSAL_GEN2_ASU_CMAC
+            ret = wc_AsuCmac(info);
+        #endif
             break;
         case WC_ALGO_TYPE_PK:     /* M3 asu_rsa and asu_ecc */
             break;
