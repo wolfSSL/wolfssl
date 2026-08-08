@@ -13635,6 +13635,10 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     *inOutIdx += LENGTH_SZ;
     if ((*inOutIdx - begin) + length > size)
         return BUFFER_ERROR;
+    /* note: we reject zero length ticket here, and not in SetTicket(),
+     * because zero length is valid for TLS 1.2 */
+    if (length == 0)
+        return BUFFER_ERROR;
 
     if ((ret = SetTicket(ssl, input + *inOutIdx, length)) != 0)
         return ret;
