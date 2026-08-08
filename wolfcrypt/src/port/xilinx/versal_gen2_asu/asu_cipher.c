@@ -422,12 +422,14 @@ static int wc_AsuCipherGcm(wc_CryptoInfo* info)
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    /* The ASU client takes whole 16-byte plaintext and AAD within the DMA limit
-     * and a 8..16 byte tag; anything else runs in software. */
+    /* The ASU GCM engine takes a 96-bit or 128-bit IV, whole 16-byte data/AAD
+     * within the DMA limit, and an 8..16 byte tag; anything else runs in software. */
     if ((info->cipher.aesgcm_enc.sz % XASU_AES_BLOCK_SIZE_IN_BYTES) != 0 ||
         (info->cipher.aesgcm_enc.authInSz % XASU_AES_BLOCK_SIZE_IN_BYTES) != 0 ||
         info->cipher.aesgcm_enc.sz > XASU_ASU_DMA_MAX_TRANSFER_LENGTH ||
         info->cipher.aesgcm_enc.authInSz > XASU_ASU_DMA_MAX_TRANSFER_LENGTH ||
+        (info->cipher.aesgcm_enc.ivSz != XASU_AES_IV_SIZE_96BIT_IN_BYTES &&
+         info->cipher.aesgcm_enc.ivSz != XASU_AES_IV_SIZE_128BIT_IN_BYTES) ||
         info->cipher.aesgcm_enc.authTagSz < XASU_AES_RECOMMENDED_TAG_LENGTH_IN_BYTES ||
         info->cipher.aesgcm_enc.authTagSz > XASU_AES_MAX_TAG_LENGTH_IN_BYTES) {
         return CRYPTOCB_UNAVAILABLE;
