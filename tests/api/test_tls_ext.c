@@ -29,6 +29,11 @@
 #endif
 
 #include <wolfssl/internal.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+/* Must precede certs_test.h: defines USE_CERT_BUFFERS_2048. */
+#include <tests/api/api.h>
+#include <wolfssl/certs_test.h>
 #include <tests/utils.h>
 #include <tests/api/test_tls_ext.h>
 
@@ -2155,6 +2160,480 @@ int test_TLSX_PointFormat_uncompressed_required(void)
     ssl = NULL;
 
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ------------------------------------------------------------------------- */
+/* Tests for the native certificate_authorities API                          */
+/* ------------------------------------------------------------------------- */
+
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
+
+/* Minimal valid DER X.509 Name contents: RDN set containing CN=<byte>. 12 bytes.
+ * The outer SEQUENCE header is added by the library on the wire. Varying byte
+ * 11 yields a unique, parseable DN without touching the outer length. */
+static const byte kMinDnTemplate[] = {
+    0x31, 0x0A, 0x30, 0x08, 0x06, 0x03,
+    0x55, 0x04, 0x03, 0x0C, 0x01, 0x41
+};
+
+static void make_min_dn(byte* out, byte tag)
+{
+    XMEMCPY(out, kMinDnTemplate, sizeof(kMinDnTemplate));
+    out[11] = tag;
+}
+
+#endif
+
+int test_wolfSSL_UseCertificateAuthority_args(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte dn[sizeof(kMinDnTemplate)];
+
+    make_min_dn(dn, 'X');
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* NULL ssl / ctx */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(NULL, dn, sizeof(dn)),
+            BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(NULL, dn, sizeof(dn)),
+            BAD_FUNC_ARG);
+
+    /* NULL dn */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, NULL, 5), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, NULL, 5),
+            BAD_FUNC_ARG);
+
+    /* dnSz == 0 */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn, 0), BAD_FUNC_ARG);
+
+    /* dnSz above the content limit */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn, 0xFFFCU),
+            BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn, 0x10000U),
+            BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn, 0xFFFFFFFFU),
+            BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn, 0x10000U),
+            BAD_FUNC_ARG);
+
+    /* Valid */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, dn, sizeof(dn)), 0);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn, sizeof(dn)), 0);
+
+    /* Clear accepts NULL and may be called repeatedly */
+    wolfSSL_ClearCertificateAuthorities(NULL);
+    wolfSSL_CTX_ClearCertificateAuthorities(NULL);
+    wolfSSL_ClearCertificateAuthorities(ssl);
+    wolfSSL_ClearCertificateAuthorities(ssl);
+    wolfSSL_CTX_ClearCertificateAuthorities(ctx);
+    wolfSSL_CTX_ClearCertificateAuthorities(ctx);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_UseCertificateAuthority_size_limits(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte* bigDn = NULL;
+    byte oneByte = 0x30;
+    unsigned int maxSz = WOLFSSL_MAX_16BIT - MAX_SEQ_SZ;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Minimum: 1 byte */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, &oneByte, 1), 0);
+    wolfSSL_ClearCertificateAuthorities(ssl);
+
+    /* The API caps content at WOLFSSL_MAX_16BIT - MAX_SEQ_SZ (wire entry
+     * length is word16 and must include the DER SEQUENCE header added by
+     * the library). */
+    ExpectNotNull(bigDn =
+            (byte*)XMALLOC(maxSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (bigDn != NULL)
+        XMEMSET(bigDn, 0x42, maxSz);
+
+    /* Just under the limit */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, bigDn, maxSz - 1), 0);
+    wolfSSL_ClearCertificateAuthorities(ssl);
+
+    /* Exactly at the limit */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, bigDn, maxSz), 0);
+    wolfSSL_ClearCertificateAuthorities(ssl);
+
+    /* Just over the limit */
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, bigDn, maxSz + 1),
+            BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl, bigDn, 0x10000U),
+            BAD_FUNC_ARG);
+
+    /* Same checks on the CTX */
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, bigDn, maxSz), 0);
+    wolfSSL_CTX_ClearCertificateAuthorities(ctx);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, bigDn, maxSz + 1),
+            BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, bigDn, 0x10000U),
+            BAD_FUNC_ARG);
+
+    XFREE(bigDn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_UseCertificateAuthority_counts(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    /* Add many names through the public API, run a handshake, and verify
+     * the server's peer count matches what the client added. */
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_cli = NULL;
+    WOLFSSL_CTX* ctx_srv = NULL;
+    WOLFSSL* ssl_cli = NULL;
+    WOLFSSL* ssl_srv = NULL;
+    byte dn[sizeof(kMinDnTemplate)];
+    int i;
+    const int count = 200;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(0, test_memio_setup(&test_ctx, &ctx_cli, &ctx_srv,
+            &ssl_cli, &ssl_srv, wolfTLSv1_3_client_method,
+            wolfTLSv1_3_server_method));
+
+    for (i = 0; i < count; i++) {
+        make_min_dn(dn, (byte)(i & 0x7F));
+        ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl_cli, dn, sizeof(dn)),
+                0);
+    }
+
+    /* Clear wipes the list: a handshake started fresh afterward sends zero
+     * names. We verify the full cycle below. */
+    wolfSSL_ClearCertificateAuthorities(ssl_cli);
+    wolfSSL_ClearCertificateAuthorities(ssl_cli); /* idempotent */
+
+    /* Re-populate with the final count. */
+    for (i = 0; i < count; i++) {
+        make_min_dn(dn, (byte)(i & 0x7F));
+        ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl_cli, dn, sizeof(dn)),
+                0);
+    }
+
+    ExpectIntEQ(0, test_memio_do_handshake(ssl_cli, ssl_srv, 10, NULL));
+    ExpectIntEQ(wolfSSL_GetPeerCertificateAuthorityCount(ssl_srv), count);
+
+    wolfSSL_free(ssl_cli);
+    wolfSSL_CTX_free(ctx_cli);
+    wolfSSL_free(ssl_srv);
+    wolfSSL_CTX_free(ctx_srv);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_GetPeerCertificateAuthority_empty(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    unsigned char buf[16];
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* NULL ssl */
+    ExpectIntEQ(wolfSSL_GetPeerCertificateAuthorityCount(NULL), 0);
+    ExpectIntLT(
+            wolfSSL_GetPeerCertificateAuthority(NULL, 0, buf, sizeof(buf)), 0);
+    ExpectIntLT(wolfSSL_GetPeerCertificateAuthority(NULL, 0, NULL, 0), 0);
+
+    /* Empty peer list */
+    ExpectIntEQ(wolfSSL_GetPeerCertificateAuthorityCount(ssl), 0);
+    ExpectIntLT(
+            wolfSSL_GetPeerCertificateAuthority(ssl, 0, buf, sizeof(buf)), 0);
+    ExpectIntLT(wolfSSL_GetPeerCertificateAuthority(ssl, 0, NULL, 0), 0);
+
+    /* Negative indices always fail */
+    ExpectIntLT(
+            wolfSSL_GetPeerCertificateAuthority(ssl, -1, buf, sizeof(buf)), 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CertificateAuthority_handshake(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    /* Exercise the full send/parse pipeline at several name counts,
+     * including empty, one, a handful, and enough to force many list nodes. */
+    const int counts[] = { 0, 1, 3, 17 };
+    size_t ci;
+
+    for (ci = 0; ci < sizeof(counts) / sizeof(*counts); ci++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX* ctx_cli = NULL;
+        WOLFSSL_CTX* ctx_srv = NULL;
+        WOLFSSL* ssl_cli = NULL;
+        WOLFSSL* ssl_srv = NULL;
+        byte dn[sizeof(kMinDnTemplate)];
+        int i;
+        const int count = counts[ci];
+        int peerCount;
+
+        if (EXPECT_FAIL())
+            break;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(0, test_memio_setup(&test_ctx, &ctx_cli, &ctx_srv,
+                &ssl_cli, &ssl_srv, wolfTLSv1_3_client_method,
+                wolfTLSv1_3_server_method));
+
+        for (i = 0; i < count; i++) {
+            make_min_dn(dn, (byte)('A' + i));
+            ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl_cli, dn,
+                    sizeof(dn)), 0);
+        }
+
+        ExpectIntEQ(0, test_memio_do_handshake(ssl_cli, ssl_srv, 10, NULL));
+
+        /* Empty set: the extension should not have been emitted, so the
+         * server's peer list stays empty. */
+        peerCount = wolfSSL_GetPeerCertificateAuthorityCount(ssl_srv);
+        ExpectIntEQ(peerCount, count);
+
+        if (count > 0 && peerCount == count) {
+            /* Each Add appends, and the parser preserves wire order, so the
+             * server sees the DNs in the order the client added them. */
+            for (i = 0; i < count; i++) {
+                byte expected[sizeof(kMinDnTemplate)];
+                byte buf[sizeof(kMinDnTemplate)];
+
+                make_min_dn(expected, (byte)('A' + i));
+                ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl_srv, i,
+                        buf, (unsigned int)sizeof(buf)),
+                        (int)sizeof(expected));
+                ExpectBufEQ(buf, expected, (int)sizeof(expected));
+            }
+
+            /* Sizing query on index 0: NULL buf returns the DN length. */
+            ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl_srv, 0,
+                    NULL, 0), (int)sizeof(kMinDnTemplate));
+
+            /* Too-small buffer returns BUFFER_E and leaves the out buffer
+             * untouched. */
+            {
+                byte buf[sizeof(kMinDnTemplate)];
+                byte guard[sizeof(kMinDnTemplate)];
+                XMEMSET(buf, 0xCD, sizeof(buf));
+                XMEMSET(guard, 0xCD, sizeof(guard));
+                ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl_srv, 0,
+                        buf, (unsigned int)sizeof(buf) - 1), BUFFER_E);
+                ExpectIntEQ(XMEMCMP(buf, guard, sizeof(buf)), 0);
+            }
+
+            /* Exact-size buffer succeeds. */
+            {
+                byte buf[sizeof(kMinDnTemplate)];
+                ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl_srv, 0,
+                        buf, (unsigned int)sizeof(buf)),
+                        (int)sizeof(kMinDnTemplate));
+            }
+
+            /* Out-of-range idx returns BAD_FUNC_ARG. */
+            {
+                byte buf[sizeof(kMinDnTemplate)];
+                ExpectIntLT(wolfSSL_GetPeerCertificateAuthority(ssl_srv,
+                        peerCount, buf, sizeof(buf)), 0);
+                ExpectIntLT(wolfSSL_GetPeerCertificateAuthority(ssl_srv,
+                        peerCount + 100, buf, sizeof(buf)), 0);
+            }
+        }
+
+        /* Clearing the sent list on an already-handshook SSL is still
+         * valid. */
+        wolfSSL_ClearCertificateAuthorities(ssl_cli);
+
+        wolfSSL_free(ssl_cli);
+        wolfSSL_CTX_free(ctx_cli);
+        wolfSSL_free(ssl_srv);
+        wolfSSL_CTX_free(ctx_srv);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CertificateAuthority_ctx_handshake(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    /* CA names set on the CTX (not the SSL) must still be emitted on the
+     * wire via the WS_CA_NAMES(ssl) fallback. */
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_cli = NULL;
+    WOLFSSL_CTX* ctx_srv = NULL;
+    WOLFSSL* ssl_cli = NULL;
+    WOLFSSL* ssl_srv = NULL;
+    byte dn[sizeof(kMinDnTemplate)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(0, test_memio_setup(&test_ctx, &ctx_cli, &ctx_srv,
+            &ssl_cli, &ssl_srv, wolfTLSv1_3_client_method,
+            wolfTLSv1_3_server_method));
+
+    /* Two names on the CTX; SSL has none of its own. */
+    make_min_dn(dn, 'P');
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx_cli, dn, sizeof(dn)), 0);
+    make_min_dn(dn, 'Q');
+    ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx_cli, dn, sizeof(dn)), 0);
+
+    ExpectIntEQ(0, test_memio_do_handshake(ssl_cli, ssl_srv, 10, NULL));
+
+    /* Server's peer list has both CTX entries. */
+    ExpectIntEQ(wolfSSL_GetPeerCertificateAuthorityCount(ssl_srv), 2);
+
+    wolfSSL_free(ssl_cli);
+    wolfSSL_CTX_free(ctx_cli);
+    wolfSSL_free(ssl_srv);
+    wolfSSL_CTX_free(ctx_srv);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_CERT_SETUP_CB) && !defined(NO_FILESYSTEM) && \
+    defined(USE_CERT_BUFFERS_2048) && \
+    (!defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT))
+
+#define SVR_DN_MAX 1024
+
+struct cert_cb_arg {
+    int     peerCount;
+    byte    firstDn[SVR_DN_MAX];
+    int     firstDnSz;
+    int     loadedCert;
+};
+
+/* Server cert_cb: record the peer CA list seen via the native getters,
+ * then load the server cert. */
+static int native_ca_cert_cb(WOLFSSL* ssl, void* arg)
+{
+    struct cert_cb_arg* out = (struct cert_cb_arg*)arg;
+    int sz;
+
+    out->peerCount = wolfSSL_GetPeerCertificateAuthorityCount(ssl);
+    if (out->peerCount > 0) {
+        sz = wolfSSL_GetPeerCertificateAuthority(ssl, 0, out->firstDn,
+                (unsigned int)sizeof(out->firstDn));
+        if (sz > 0)
+            out->firstDnSz = sz;
+    }
+
+    if (wolfSSL_use_certificate_file(ssl, svrCertFile, SSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS)
+        return 0;
+    if (wolfSSL_use_PrivateKey_file(ssl, svrKeyFile, SSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS)
+        return 0;
+    out->loadedCert = 1;
+    return 1;
+}
+#endif
+
+int test_wolfSSL_CertificateAuthority_cert_cb(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_CERT_SETUP_CB) && !defined(NO_FILESYSTEM) && \
+    defined(USE_CERT_BUFFERS_2048) && \
+    (!defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT))
+    /* Announce the actual subject DN of the server cert as an acceptable CA,
+     * then verify the server's cert_cb sees it via the native getters. */
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+    } params[] = {
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method},
+#ifdef WOLFSSL_DTLS13
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method},
+#endif
+    };
+    size_t i;
+    DecodedCert decoded;
+    const byte* subject = NULL;
+    int         subjectSz = 0;
+
+    wc_InitDecodedCert(&decoded, server_cert_der_2048,
+            (word32)sizeof_server_cert_der_2048, NULL);
+    ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
+    ExpectIntEQ(wc_GetDecodedCertSubjectRaw(&decoded, &subject, &subjectSz), 0);
+    ExpectIntGT(subjectSz, 0);
+
+    for (i = 0; i < sizeof(params) / sizeof(*params) && !EXPECT_FAIL(); i++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX* ctx_cli = NULL;
+        WOLFSSL_CTX* ctx_srv = NULL;
+        WOLFSSL* ssl_cli = NULL;
+        WOLFSSL* ssl_srv = NULL;
+        struct cert_cb_arg cb_arg;
+
+        XMEMSET(&cb_arg, 0, sizeof(cb_arg));
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(0, test_memio_setup(&test_ctx, &ctx_cli, &ctx_srv,
+                &ssl_cli, &ssl_srv, params[i].client_meth,
+                params[i].server_meth));
+
+        wolfSSL_CTX_set_cert_cb(ctx_srv, native_ca_cert_cb, &cb_arg);
+
+        ExpectIntEQ(wolfSSL_UseCertificateAuthority(ssl_cli, subject,
+                (unsigned int)subjectSz), 0);
+
+        ExpectIntEQ(0, test_memio_do_handshake(ssl_cli, ssl_srv, 10, NULL));
+
+        ExpectIntEQ(cb_arg.loadedCert, 1);
+        ExpectIntEQ(cb_arg.peerCount, 1);
+        ExpectIntEQ(cb_arg.firstDnSz, subjectSz);
+        ExpectBufEQ(cb_arg.firstDn, subject, subjectSz);
+
+        wolfSSL_free(ssl_cli);
+        wolfSSL_CTX_free(ctx_cli);
+        wolfSSL_free(ssl_srv);
+        wolfSSL_CTX_free(ctx_srv);
+    }
+
+    wc_FreeDecodedCert(&decoded);
 #endif
     return EXPECT_RESULT();
 }
