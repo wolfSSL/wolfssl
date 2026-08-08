@@ -5613,12 +5613,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
     const char* wolfSSLeay_version(int type)
     {
-        (void)type;
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
         return wolfSSL_OpenSSL_version(type);
-#else
-        return wolfSSL_OpenSSL_version();
-#endif
     }
 #endif /* OPENSSL_EXTRA */
 
@@ -6050,19 +6045,39 @@ const char* wolfSSL_lib_version(void)
 }
 
 #ifdef OPENSSL_EXTRA
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-const char* wolfSSL_OpenSSL_version(int a)
+/* Signature deliberately does not depend on OPENSSL_VERSION_NUMBER. That macro
+ * can evaluate differently in the library and in the application (e.g. under
+ * OPENSSL_COEXIST the library also sees the real OpenSSL headers), which would
+ * make the caller and the definition disagree on the argument list. */
+const char* wolfSSL_OpenSSL_version(int type)
 {
-    (void)a;
-    return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
-}
+    WOLFSSL_ENTER("wolfSSL_OpenSSL_version");
+    switch (type) {
+        case OPENSSL_VERSION:
+            return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
+        case OPENSSL_CFLAGS:
+            return "compiler: information not available";
+        case OPENSSL_BUILT_ON:
+        /* Kernel module builds compile with -Werror=date-time.  Define
+         * WOLFSSL_OPENSSL_NO_BUILD_DATE to drop the date without needing the
+         * full reproducible-build option. */
+#if defined(HAVE_REPRODUCIBLE_BUILD) || defined(WOLFSSL_LINUXKM) || \
+    defined(WOLFSSL_OPENSSL_NO_BUILD_DATE)
+            return "built on: date not available";
 #else
-const char* wolfSSL_OpenSSL_version(void)
-{
-    return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
-}
-#endif /* WOLFSSL_QT */
+            return "built on: " __DATE__ " " __TIME__;
 #endif
+        case OPENSSL_PLATFORM:
+            return "platform: information not available";
+        case OPENSSL_DIR:
+            return "OPENSSLDIR: N/A";
+        case OPENSSL_ENGINES_DIR:
+            return "ENGINESDIR: N/A";
+        default:
+            return "not available";
+    }
+}
+#endif /* OPENSSL_EXTRA */
 
 
 /* current library version in hex */

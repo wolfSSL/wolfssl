@@ -20699,6 +20699,73 @@ defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_i2d_PUBKEY_bio(void)
+{
+    EXPECT_DECLS;
+/* Guards must match wolfSSL_i2d_PUBKEY_bio() in wolfcrypt/src/evp_pk.c. */
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_CERTS) && !defined(NO_BIO) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED)
+    BIO* bio = NULL;
+    EVP_PKEY* pkey = NULL;
+    EVP_PKEY* pkey2 = NULL;
+
+    /* NULL parameter tests */
+    ExpectIntEQ(wolfSSL_i2d_PUBKEY_bio(NULL, NULL), WOLFSSL_FAILURE);
+
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    {
+        const unsigned char* p = client_keypub_der_2048;
+        /* Load an RSA public key from DER buffer */
+        ExpectNotNull(pkey = d2i_PUBKEY(NULL, &p,
+            sizeof_client_keypub_der_2048));
+
+        /* Write it to BIO */
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(i2d_PUBKEY_bio(bio, pkey), WOLFSSL_SUCCESS);
+
+        /* Read it back and verify round-trip */
+        ExpectNotNull(pkey2 = d2i_PUBKEY_bio(bio, NULL));
+
+        EVP_PKEY_free(pkey2);
+        pkey2 = NULL;
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+        BIO_free(bio);
+        bio = NULL;
+    }
+#endif
+
+#if defined(USE_CERT_BUFFERS_256) && defined(HAVE_ECC)
+    {
+        const unsigned char* p = ecc_clikeypub_der_256;
+        /* Load an ECC public key from DER buffer */
+        ExpectNotNull(pkey = d2i_PUBKEY(NULL, &p,
+            sizeof_ecc_clikeypub_der_256));
+
+        /* Write it to BIO */
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(i2d_PUBKEY_bio(bio, pkey), WOLFSSL_SUCCESS);
+
+        /* Read it back and verify round-trip */
+        ExpectNotNull(pkey2 = d2i_PUBKEY_bio(bio, NULL));
+
+        EVP_PKEY_free(pkey2);
+        pkey2 = NULL;
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+        BIO_free(bio);
+        bio = NULL;
+    }
+#endif
+
+    (void)pkey;
+    (void)pkey2;
+    (void)bio;
+#endif
+    return EXPECT_RESULT();
+}
+
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA) && \
     !defined(NO_TLS)
 static int test_wolfSSL_d2i_PrivateKeys_bio(void)
@@ -30870,16 +30937,41 @@ static int test_wolfSSL_CTX_set_timeout(void)
 static int test_wolfSSL_OpenSSL_version(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     const char* ver;
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-    ExpectNotNull(ver = OpenSSL_version(0));
+    ExpectNotNull(ver = OpenSSL_version(OPENSSL_VERSION));
+    ExpectStrEQ(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING);
+
+    /* Test OPENSSL_CFLAGS type */
+    ExpectNotNull(ver = OpenSSL_version(OPENSSL_CFLAGS));
+    ExpectStrEQ(ver, "compiler: information not available");
+
+    /* Test OPENSSL_BUILT_ON type */
+    ExpectNotNull(ver = OpenSSL_version(OPENSSL_BUILT_ON));
+#ifdef HAVE_REPRODUCIBLE_BUILD
+    ExpectStrEQ(ver, "built on: date not available");
 #else
-    ExpectNotNull(ver = OpenSSL_version());
+    /* __DATE__/__TIME__ differ between translation units, so just check
+     * the prefix is present. */
+    ExpectNotNull(XSTRSTR(ver, "built on: "));
 #endif
-    ExpectIntEQ(XMEMCMP(ver, "wolfSSL " LIBWOLFSSL_VERSION_STRING,
-        XSTRLEN("wolfSSL " LIBWOLFSSL_VERSION_STRING)), 0);
+
+    /* Test OPENSSL_PLATFORM type */
+    ExpectNotNull(ver = OpenSSL_version(OPENSSL_PLATFORM));
+    ExpectStrEQ(ver, "platform: information not available");
+
+    /* Test OPENSSL_DIR type */
+    ExpectNotNull(ver = OpenSSL_version(OPENSSL_DIR));
+    ExpectStrEQ(ver, "OPENSSLDIR: N/A");
+
+    /* Test OPENSSL_ENGINES_DIR type */
+    ExpectNotNull(ver = OpenSSL_version(OPENSSL_ENGINES_DIR));
+    ExpectStrEQ(ver, "ENGINESDIR: N/A");
+
+    /* Unknown selector returns the OpenSSL fallback string. */
+    ExpectNotNull(ver = OpenSSL_version(99));
+    ExpectStrEQ(ver, "not available");
 #endif
     return EXPECT_RESULT();
 }
@@ -39002,6 +39094,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_d2i_and_i2d_PublicKey_ecc),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_d2i_PUBKEY),
+    TEST_DECL(test_wolfSSL_i2d_PUBKEY_bio),
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_MLDSA) && \
     defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44) && \
     !defined(WOLFSSL_NO_ML_DSA_65) && !defined(WOLFSSL_MLDSA_NO_VERIFY)

@@ -782,6 +782,13 @@ enum BIO_TYPE {
     WOLFSSL_BIO_NULL   = 10
 };
 
+/* Starting index for custom BIO types returned by wolfSSL_BIO_get_new_index.
+ * Matches OpenSSL BIO_TYPE_START (128). */
+#define WOLFSSL_BIO_TYPE_START  128
+#define WOLFSSL_BIO_TYPE_MAX    255
+/* Mask for the BIO type bits. Matches OpenSSL BIO_TYPE_MASK (0xFF). */
+#define WOLFSSL_BIO_TYPE_MASK   0xFF
+
 enum BIO_FLAGS {
     WOLFSSL_BIO_FLAG_BASE64_NO_NL = 0x01,
     WOLFSSL_BIO_FLAG_READ         = 0x02,
@@ -2201,6 +2208,7 @@ WOLFSSL_API int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio);
 WOLFSSL_API int wolfSSL_BIO_should_read(WOLFSSL_BIO *bio);
 WOLFSSL_API int wolfSSL_BIO_should_write(WOLFSSL_BIO *bio);
 
+WOLFSSL_API int wolfSSL_BIO_get_new_index(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char* name);
 WOLFSSL_API void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD* biom);
 WOLFSSL_API int wolfSSL_BIO_meth_set_write(WOLFSSL_BIO_METHOD* biom, wolfSSL_BIO_meth_write_cb biom_write);
@@ -2497,6 +2505,8 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,
         const unsigned char** in, long inSz);
 WOLFSSL_API int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der);
+WOLFSSL_API int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio,
+    const WOLFSSL_EVP_PKEY* key);
 WOLFSSL_API int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
                                         unsigned char** der);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** pkey,
@@ -3541,11 +3551,7 @@ WOLFSSL_API void   wolfSSL_set_security_level(WOLFSSL * ssl, int level);
 
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-WOLFSSL_API const char* wolfSSL_OpenSSL_version(int a);
-#else
-WOLFSSL_API const char* wolfSSL_OpenSSL_version(void);
-#endif
+WOLFSSL_API const char* wolfSSL_OpenSSL_version(int type);
 /* which library version do we have in hex */
 WOLFSSL_API word32 wolfSSL_lib_version_hex(void);
 
