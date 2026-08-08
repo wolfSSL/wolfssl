@@ -2307,6 +2307,9 @@ int wc_CryptoCb_AesKeyWrap(Aes* aes, const byte* in, word32 inSz, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
         if (ret == 0) {
             /* device reports the wrapped length */
+            if (cryptoInfo.cipher.aeskeywrap.outResSz > outSz) {
+                return BUFFER_E;
+            }
             return (int)cryptoInfo.cipher.aeskeywrap.outResSz;
         }
     }
@@ -2346,6 +2349,9 @@ int wc_CryptoCb_AesKeyUnWrap(Aes* aes, const byte* in, word32 inSz, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
         if (ret == 0) {
             /* device reports the recovered length */
+            if (cryptoInfo.cipher.aeskeywrap.outResSz > outSz) {
+                return BUFFER_E;
+            }
             return (int)cryptoInfo.cipher.aeskeywrap.outResSz;
         }
     }
