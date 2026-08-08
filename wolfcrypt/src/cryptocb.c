@@ -637,7 +637,7 @@ int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
  * signature and digest so the device does the whole verify and returns a verdict. */
 int wc_CryptoCb_RsaPssVerify(const byte* sig, word32 sigSz, const byte* digest,
     word32 digestSz, enum wc_HashType hash, int mgf, int saltLen, RsaKey* key,
-    int* res)
+    int* res, byte* out, word32 outSz, word32* outLen)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -662,6 +662,9 @@ int wc_CryptoCb_RsaPssVerify(const byte* sig, word32 sigSz, const byte* digest,
         cryptoInfo.pk.rsa_pss_verify.saltLen = saltLen;
         cryptoInfo.pk.rsa_pss_verify.key = key;
         cryptoInfo.pk.rsa_pss_verify.res = res;
+        cryptoInfo.pk.rsa_pss_verify.out = out;
+        cryptoInfo.pk.rsa_pss_verify.outSz = outSz;
+        cryptoInfo.pk.rsa_pss_verify.outLen = outLen;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

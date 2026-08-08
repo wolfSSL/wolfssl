@@ -4645,8 +4645,7 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
  * key    Public RSA key.
  * returns the length of the PSS data on success and negative indicates failure.
  *
- * Note: when a crypto callback device performs the verify, *out is set to NULL
- * even though a positive length is returned; callers must not dereference *out.
+ * Note: a device that recovers nothing sets *out to NULL, so check *out first.
  */
 int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                            const byte* digest, word32 digestLen,
@@ -4691,16 +4690,39 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
     if (key != NULL)
     #endif
     {
-        int res = 0;
+        int    res = 0;
+        word32 recovered = 0;
+
         ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
-                                       saltLen, key, &res);
+                                       saltLen, key, &res, in, inLen,
+                                       &recovered);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             if (ret == 0) {
-                /* Device verified internally; no recovered PSS block to expose,
-                 * so report no inline output rather than a misleading pointer. */
-                if (out != NULL)
-                    *out = NULL;
-                ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
+                if (recovered > inLen) {
+                    recovered = 0;
+                }
+                if (res == 0) {
+                    ret = SIG_VERIFY_E;
+                }
+                else if (recovered > 0) {
+                    if (out != NULL) {
+                        *out = in;
+                    }
+                    ret = (int)recovered;
+                }
+                else if (inLen < (word32)(saltLen + hLen)) {
+                    ret = RSA_BUFFER_E;
+                }
+                else {
+                    /* Device gave a verdict only; nothing to expose. */
+                    if (out != NULL) {
+                        *out = NULL;
+                    }
+                    ret = saltLen + hLen;
+                }
+            }
+            else if (ret > 0) {
+                ret = SIG_VERIFY_E;
             }
             return ret;
         }
@@ -4777,12 +4799,37 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
     if (key != NULL)
     #endif
     {
-        int res = 0;
+        int    res = 0;
+        word32 recovered = 0;
+
         ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
-                                       saltLen, key, &res);
+                                       saltLen, key, &res, out, outLen,
+                                       &recovered);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret == 0)
-                ret = (res != 0) ? (int)inLen : SIG_VERIFY_E;
+            if (ret == 0) {
+                if (recovered > outLen) {
+                    recovered = 0;
+                }
+                if (res == 0) {
+                    ret = SIG_VERIFY_E;
+                }
+                else if (recovered > 0) {
+                    ret = (int)recovered;
+                }
+                else if (outLen < (word32)(saltLen + hLen)) {
+                    ret = RSA_BUFFER_E;
+                }
+                else {
+                    /* Device gave a verdict only; leave no stale data behind. */
+                    if (out != NULL) {
+                        XMEMSET(out, 0, (word32)(saltLen + hLen));
+                    }
+                    ret = saltLen + hLen;
+                }
+            }
+            else if (ret > 0) {
+                ret = SIG_VERIFY_E;
+            }
             return ret;
         }
         ret = 0;

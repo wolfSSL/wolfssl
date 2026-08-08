@@ -211,6 +211,9 @@ typedef struct wc_CryptoInfo {
                 int              saltLen;
                 RsaKey*          key;
                 int*             res;
+                byte*            out;
+                word32           outSz;
+                word32*          outLen;
             } rsa_pss_verify;
         #endif
         #endif
@@ -851,7 +854,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng, RsaPadding *padding);
 WOLFSSL_LOCAL int wc_CryptoCb_RsaPssVerify(const byte* sig, word32 sigSz,
     const byte* digest, word32 digestSz, enum wc_HashType hash, int mgf,
-    int saltLen, RsaKey* key, int* res);
+    int saltLen, RsaKey* key, int* res, byte* out, word32 outSz,
+    word32* outLen);
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
