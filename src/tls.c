@@ -7420,15 +7420,20 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
         major = input[0];
         minor = input[OPAQUE8_LEN];
 
+        /* RFC 8446 4.2.1: a version in the ServerHello supported_versions that
+         * the client did not offer, or one prior to TLS 1.3, must be rejected
+         * with illegal_parameter, so return INVALID_PARAMETER rather than
+         * VERSION_ERROR (which maps to protocol_version). */
+
         if (major != ssl->ctx->method->version.major) {
-            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
-            return VERSION_ERROR;
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
         }
 
         /* Can't downgrade with this extension below TLS v1.3. */
         if (versionIsLesser(isDtls, minor, tls13minor)) {
-            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
-            return VERSION_ERROR;
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
         }
 
         /* Version is TLS v1.2 to handle downgrading from TLS v1.3+. */
@@ -7439,21 +7444,21 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
 
         /* No upgrade allowed. */
         if (versionIsLesser(isDtls, ssl->version.minor, minor)) {
-            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
-            return VERSION_ERROR;
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
         }
 
         /* Check downgrade. */
         if (versionIsGreater(isDtls, ssl->version.minor, minor)) {
             if (!ssl->options.downgrade) {
-                WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
-                return VERSION_ERROR;
+                WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+                return INVALID_PARAMETER;
             }
 
             if (versionIsLesser(
                     isDtls, minor, ssl->options.minDowngrade)) {
-                WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
-                return VERSION_ERROR;
+                WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+                return INVALID_PARAMETER;
             }
 
             /* Downgrade the version. */

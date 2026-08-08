@@ -34035,12 +34035,112 @@ static int test_tls13_trunc_ext_sh_alert(void)
     return test_tls13_sh_expect_alert(test_tls13_trunc_ext_sh,
         (int)sizeof(test_tls13_trunc_ext_sh), decode_error);
 }
+
+/* A well-formed ServerHello that DOES carry a supported_versions extension,
+ * but selects TLS 1.2 in it - a version prior to TLS 1.3. Unlike the absent
+ * extension case above (RFC 8446 6.2, protocol_version), sending the extension
+ * at all means the server has spoken TLS 1.3, so a bad value in it is a
+ * malformed parameter and RFC 8446 4.2.1 requires illegal_parameter (47).
+ *
+ * Layout: legacy_version = 0x0303, 32-byte random, 32-byte session id,
+ * cipher_suite = TLS_AES_128_GCM_SHA256 (0x1301), null compression, and a
+ * 6-byte extensions block holding only supported_versions (type 0x002b). */
+static const byte test_tls13_sv_old_sh[] = {
+    /* record: handshake, TLS 1.2, len 82 */
+    0x16, 0x03, 0x03, 0x00, 0x52,
+    /* server_hello, body len 78 */
+    0x02, 0x00, 0x00, 0x4e,
+    /* legacy_version = TLS 1.2 */
+    0x03, 0x03,
+    /* 32-byte random (not the HelloRetryRequest magic) */
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    /* legacy_session_id length = 32 */
+    0x20,
+    /* 32-byte session id */
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    /* cipher_suite =TLS_AES_128_GCM_SHA256 */
+    0x13, 0x01,
+    /* compression = null */
+    0x00,
+    /* extensions length = 6 */
+    0x00, 0x06,
+    /* supported_versions, length 2 */
+    0x00, 0x2b, 0x00, 0x02,
+    /* selected_version = TLS 1.2 */
+    0x03, 0x03
+};
+
+/* RFC 8446 4.2.1: a supported_versions in the ServerHello holding a version
+ * prior to TLS 1.3 must be rejected with illegal_parameter (47), not
+ * protocol_version (70). */
+static int test_tls13_sv_old_sh_alert(void)
+{
+    return test_tls13_sh_expect_alert(test_tls13_sv_old_sh,
+        (int)sizeof(test_tls13_sv_old_sh), illegal_parameter);
+}
+
+/* Identical to test_tls13_sv_old_sh but selecting 0x0305, an undefined version
+ * above TLS 1.3 that the client never offered, which reaches the "No upgrade
+ * allowed" check rather than the pre-TLS-1.3 one. */
+static const byte test_tls13_sv_unoffered_sh[] = {
+    /* record: handshake, TLS 1.2, len 82 */
+    0x16, 0x03, 0x03, 0x00, 0x52,
+    /* server_hello, body len 78 */
+    0x02, 0x00, 0x00, 0x4e,
+    /* legacy_version = TLS 1.2 */
+    0x03, 0x03,
+    /* 32-byte random (not the HelloRetryRequest magic) */
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
+    /* legacy_session_id length = 32 */
+    0x20,
+    /* 32-byte session id */
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+    /* cipher_suite =TLS_AES_128_GCM_SHA256 */
+    0x13, 0x01,
+    /* compression = null */
+    0x00,
+    /* extensions length = 6 */
+    0x00, 0x06,
+    /* supported_versions, length 2 */
+    0x00, 0x2b, 0x00, 0x02,
+    /* selected_version = 0x0305, not offered by the client */
+    0x03, 0x05
+};
+
+/* RFC 8446 4.2.1: a supported_versions in the ServerHello holding a version
+ * the client did not offer must be rejected with illegal_parameter (47), not
+ * protocol_version (70). */
+static int test_tls13_sv_unoffered_sh_alert(void)
+{
+    return test_tls13_sh_expect_alert(test_tls13_sv_unoffered_sh,
+        (int)sizeof(test_tls13_sv_unoffered_sh), illegal_parameter);
+}
 #else
 static int test_tls13_no_ext_sh_alert(void)
 {
     return TEST_SKIPPED;
 }
 static int test_tls13_trunc_ext_sh_alert(void)
+{
+    return TEST_SKIPPED;
+}
+static int test_tls13_sv_old_sh_alert(void)
+{
+    return TEST_SKIPPED;
+}
+static int test_tls13_sv_unoffered_sh_alert(void)
 {
     return TEST_SKIPPED;
 }
@@ -39593,6 +39693,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wrong_cs_downgrade),
     TEST_DECL(test_tls13_no_ext_sh_alert),
     TEST_DECL(test_tls13_trunc_ext_sh_alert),
+    TEST_DECL(test_tls13_sv_old_sh_alert),
+    TEST_DECL(test_tls13_sv_unoffered_sh_alert),
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
