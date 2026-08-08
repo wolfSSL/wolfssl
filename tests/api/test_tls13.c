@@ -2508,27 +2508,13 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
         XMEMCPY(&suitesBefore, ctx->suites, sizeof(Suites));
     }
 
-#ifdef WOLFSSL_CIPHER_LIST_NO_SILENT_IGNORE
+    /* A TLS 1.3-only list is unusable on this ctx: the call must fail and
+     * must not mutate the previously configured suites. */
     ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_FAILURE);
-    /* Rejected call must not mutate the previously configured suites. */
     if (ctx != NULL && ctx->suites != NULL) {
         ExpectIntEQ(test_tls13_suites_eq(ctx->suites, &suitesBefore), 1);
     }
-#else
-    /* Default OpenSSL-compat behavior: succeed but leave ctx->suites
-     * untouched since the TLS 1.3-only list is unusable on this ctx.
-     * Confirm the suite list is actually unchanged, not just that the
-     * call reported success. */
-    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES128-GCM-SHA256"),
-        WOLFSSL_SUCCESS);
-    if (ctx != NULL) {
-        ExpectNotNull(ctx->suites);
-        if (ctx->suites != NULL) {
-            ExpectIntEQ(test_tls13_suites_eq(ctx->suites, &suitesBefore), 1);
-        }
-    }
-#endif
 
     /* ssl->version inherits the same TLS 1.2 cap from ctx->method, so
      * wolfSSL_set_cipher_list() must behave the same as the ctx call
@@ -2542,22 +2528,11 @@ int test_tls13_cipher_list_no_tls13_ctx(void)
         XMEMCPY(&suitesBefore, ssl->suites, sizeof(Suites));
     }
 
-#ifdef WOLFSSL_CIPHER_LIST_NO_SILENT_IGNORE
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
         WOLFSSL_FAILURE);
     if (ssl != NULL && ssl->suites != NULL) {
         ExpectIntEQ(test_tls13_suites_eq(ssl->suites, &suitesBefore), 1);
     }
-#else
-    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
-        WOLFSSL_SUCCESS);
-    if (ssl != NULL) {
-        ExpectNotNull(ssl->suites);
-        if (ssl->suites != NULL) {
-            ExpectIntEQ(test_tls13_suites_eq(ssl->suites, &suitesBefore), 1);
-        }
-    }
-#endif
     wolfSSL_free(ssl);
 
     wolfSSL_CTX_free(ctx);

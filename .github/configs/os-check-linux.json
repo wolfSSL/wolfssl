@@ -78,7 +78,7 @@
  "configure": ["--enable-dtls", "--enable-dtls13", "--enable-dtls-frag-ch",
   "--enable-dtls-mtu", "CPPFLAGS=-DWOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS"]},
 {"name": "opensslextra-no-ca-names", "minutes": 2.6,
- "configure": ["--enable-opensslextra", "CPPFLAGS=-DWOLFSSL_NO_CA_NAMES -DWOLFSSL_STRICT_CIPHER_LIST"]},
+ "configure": ["--enable-opensslextra", "CPPFLAGS=-DWOLFSSL_NO_CA_NAMES"]},
 {"name": "sessionexport-dtls13", "minutes": 2.6,
  "configure": ["--enable-sessionexport", "--enable-dtls", "--enable-dtls13"]},
 {"name": "lms-xmss-verify-only", "minutes": 2.5,

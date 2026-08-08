@@ -41,12 +41,6 @@
  *                  Enable SHA-2 cipher suites for pre-TLS 1.2         default: off
  * WOLFSSL_NO_STRICT_CIPHER_SUITE:
  *                  Relax strict cipher suite validation               default: off
- * WOLFSSL_CIPHER_LIST_NO_SILENT_IGNORE: Fail wolfSSL_CTX/SSL_set_cipher_list()
- *                  when a TLS 1.3-only suite list is not negotiable on
- *                  the ctx/ssl version, instead of silently ignoring
- *                  it; see wolfSSL_parse_cipher_list() for caveats
- *                  (crypto-policy interaction, set_ciphersuites alias,
- *                  option-mask detection limits)                      default: off
  * NO_RESUME_SUITE_CHECK:      Skip cipher suite check on resume       default: off
  * NO_FORCE_SCR_SAME_SUITE:    Allow different suite in renegotiation  default: off
  * CIPHER_NONCE:               Per-record cipher nonce for AEAD        default: off
