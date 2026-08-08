@@ -5764,10 +5764,36 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
     err = NOT_COMPILED_IN;
 #endif /* HAVE_ECC_MAKE_PUB */
 
-    /* change key state if public part is cached */
-    if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {
+    /* Change key state if public part is cached. WC_PENDING_E counts as
+     * success here: the async result lands directly in key->pubkey and the
+     * operation is not re-issued, so callers that re-enter on resume (e.g.
+     * wc_ecc_verify_hash_ex's public-key recovery) must see ECC_PRIVATEKEY or
+     * they re-run make-pub forever. Matches _ecc_make_key_ex() above. */
+    if (((err == MP_OKAY)
+    #ifdef WOLFSSL_ASYNC_CRYPT
+         || (err == WC_NO_ERR_TRACE(WC_PENDING_E))
+    #endif
+        ) && (key->type == ECC_PRIVATEKEY_ONLY) && (pubOut == NULL)) {
         key->type = ECC_PRIVATEKEY;
     }
+
+#ifdef WOLFSSL_ECC_BLIND_K
+    /* ecc_get_k() leaves the unblinded scalar in key->ku; don't let it outlive
+     * the operation. Safe to clear unconditionally - ecc_get_k() recomputes it
+     * from k ^ kb on every call, and mp_forcezero() tolerates a NULL ku (only
+     * reachable under ALT_ECC_SIZE, where ku is a pointer rather than a
+     * one-element array) - but not while an async op may still be reading it.
+     *
+     * Note: The async completion path does not currently re-run this scrub,
+     * deferring it to wc_ecc_free() instead. This is a known limitation.
+     */
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    if (err != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #endif
+    {
+        mp_forcezero(key->ku);
+    }
+#endif
 
     return err;
 }
@@ -6472,7 +6498,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     alt_fp_init(key->k);
 #ifdef WOLFSSL_ECC_BLIND_K
     key->kb = (mp_int*)key->kba;
-    key->ku = (mp_int*)key->kia;
+    key->ku = (mp_int*)key->kua;
     alt_fp_init(key->kb);
     alt_fp_init(key->ku);
 #endif

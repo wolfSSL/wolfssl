@@ -1571,9 +1571,11 @@ void wolfSSL_set_accept_state(WOLFSSL* ssl)
                      * the check entirely. */
                     WOLFSSL_MSG("Unable to unmask private key");
                 }
-                /* Not an EC key, so withdraw the ECC capabilities. */
-                else if (wc_EccPrivateKeyDecode(privKey->buffer, &idx, key,
-                        privKey->length) != 0) {
+                /* Not an EC key, so withdraw the ECC capabilities. Pure
+                 * type/success probe - key is freed right below, so skip the
+                 * best-effort public point derivation done on decode. */
+                else if (EccPrivateKeyDecodeEx(privKey->buffer, &idx, key,
+                        privKey->length, 0) != 0) {
                     ssl->options.haveECDSAsig = 0;
                     ssl->options.haveECC = 0;
                     ssl->options.haveStaticECC = 0;
