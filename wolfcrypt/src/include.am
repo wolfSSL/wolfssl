@@ -139,6 +139,14 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/devcrypto/devcrypto_hash.c \
               wolfcrypt/src/port/devcrypto/wc_devcrypto.c \
               wolfcrypt/src/port/devcrypto/README.md \
+              wolfcrypt/src/port/altera/altera_fcs_glue.c \
+              wolfcrypt/src/port/altera/altera_fcs_rng.c \
+              wolfcrypt/src/port/altera/altera_fcs_hash.c \
+              wolfcrypt/src/port/altera/altera_fcs_aes.c \
+              wolfcrypt/src/port/altera/altera_fcs_ecc.c \
+              wolfcrypt/src/port/altera/altera_fcs_hmac.c \
+              wolfcrypt/src/port/altera/altera_fcs_cryptocb.c \
+              wolfcrypt/src/port/altera/README.md \
               wolfcrypt/src/port/mynewt/mynewt_port.c \
               wolfcrypt/src/port/Espressif/esp32_aes.c \
               wolfcrypt/src/port/Espressif/esp32_sha.c \
@@ -197,6 +205,26 @@ endif
 
 if BUILD_PKCS11
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_pkcs11.c
+endif
+
+if BUILD_ALTERA_FCS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/altera/altera_fcs_glue.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/altera/altera_fcs_cryptocb.c
+if BUILD_ALTERA_FCS_RNG
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/altera/altera_fcs_rng.c
+endif
+if BUILD_ALTERA_FCS_HASH
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/altera/altera_fcs_hash.c
+endif
+if BUILD_ALTERA_FCS_AES
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/altera/altera_fcs_aes.c
+endif
+if BUILD_ALTERA_FCS_ECC
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/altera/altera_fcs_ecc.c
+endif
+if BUILD_ALTERA_FCS_HMAC
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/altera/altera_fcs_hmac.c
+endif
 endif
 
 if BUILD_DEVCRYPTO
