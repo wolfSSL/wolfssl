@@ -99,7 +99,12 @@
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/openssl/bn.h>
     #ifndef WOLFCRYPT_ONLY
+        /* Tell hmac.h that wolfssl/ssl.h is still being parsed, so it
+         * must not include evp.h (which leads back into openssl/ssl.h
+         * and would see this header only partially declared). */
+        #define WOLFSSL_SSL_H_PARSING
         #include <wolfssl/openssl/hmac.h>
+        #undef WOLFSSL_SSL_H_PARSING
     #endif
     #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
         #include <wolfssl/openssl/cmac.h>
