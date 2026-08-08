@@ -83,7 +83,19 @@ jobs:
            "configure": ["CXX=g++-12",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
            "check": false,
-           "run": [["make", "dist"]]},
+           "run": [
+            ["make", "dist"],
+            ["sh", "-c",
+             "../.github/scripts/check-barrier-arms.sh gcc-12"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. gcc-12 -O2"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. gcc-12 -O3"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. gcc-12 -O2 -flto -ffat-lto-objects"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. --link gcc-12 -O2 -flto -ffat-lto-objects -DWOLFSSL_NO_ASM"]
+           ]},
           {"name": "clang-14", "minutes": 1.5,
            "cc": "ccache clang-14",
            "configure": ["CXX=clang++-14",
@@ -95,7 +107,17 @@ jobs:
            "configure": ["CXX=clang++-19",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
            "check": false,
-           "run": [["make", "dist"]]}
+           "run": [
+            ["make", "dist"],
+            ["sh", "-c",
+             "../.github/scripts/check-barrier-arms.sh clang-19"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. clang-19 -O2"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. clang-19 -O3"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. --link clang-19 -O2 -flto -DWOLFSSL_NO_ASM"]
+           ]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \

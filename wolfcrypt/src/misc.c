@@ -689,37 +689,41 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 #endif /* !WOLFSSL_NO_XOR_OPS */
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
-/* This routine fills the first len bytes of the memory area pointed by mem
-   with zeros. It ensures compiler optimization doesn't skip it. */
+/* Zeros mem, resistant to dead-store elimination (not a plain memset). */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
     byte *zb = (byte *)mem;
     unsigned long *zl;
 
-    XFENCE();
+    /* Compiler barrier to stop dead-store elimination. */
+    WC_BARRIER();
 
-    while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
-        if (len == 0)
-            return;
+    while (len > 0 &&
+           (((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) != 0)) {
         *zb++ = 0;
         --len;
     }
 
-    zl = (unsigned long *)zb;
+    /* zb is aligned here whenever len > 0; skip the cast otherwise so a
+     * misaligned pointer is never formed as unsigned long *. */
+    if (len > 0) {
+        zl = (unsigned long *)zb;
 
-    while (len >= sizeof(unsigned long)) {
-        *zl++ = 0;
-        len -= sizeof(unsigned long);
+        while (len >= sizeof(unsigned long)) {
+            *zl++ = 0;
+            len -= sizeof(unsigned long);
+        }
+
+        zb = (byte *)zl;
     }
-
-    zb = (byte *)zl;
 
     while (len) {
         *zb++ = 0;
         --len;
     }
 
-    XFENCE();
+    /* Compiler barrier to stop dead-store elimination. */
+    WC_BARRIER_DATA(mem);
 }
 #endif
 
