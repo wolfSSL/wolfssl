@@ -18316,7 +18316,9 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
 #if SP_WORD_SIZE >= 16
         /* Handle leftovers. */
         if (i >= 0) {
-    #ifdef BIG_ENDIAN_ORDER
+    #if defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
+            /* Shift-based packing; CHAR_BIT-agnostic, unlike the byte-aliasing
+             * path below (which assumes one octet per cell - wrong on C28x). */
             int s;
 
             /* Place remaining bytes into last digit. */
