@@ -2126,11 +2126,20 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 #endif
 
 /* Return a new type index for a custom BIO, starting at
- * WOLFSSL_BIO_TYPE_START like OpenSSL's BIO_get_new_index(). */
+ * WOLFSSL_BIO_TYPE_START like OpenSSL's BIO_get_new_index().
+ * Thread-safe when atomic operations are available; otherwise falls
+ * back to a plain counter. */
 int wolfSSL_BIO_get_new_index(void)
 {
+#if !defined(SINGLE_THREADED) && defined(WOLFSSL_ATOMIC_OPS) && \
+    defined(WOLFSSL_ATOMIC_INITIALIZER)
+    static wolfSSL_Atomic_Int bio_idx =
+        WOLFSSL_ATOMIC_INITIALIZER(WOLFSSL_BIO_TYPE_START);
+    return (int)wolfSSL_Atomic_Int_FetchAdd(&bio_idx, 1);
+#else
     static int bio_idx = WOLFSSL_BIO_TYPE_START;
     return bio_idx++;
+#endif
 }
 
 /* creates a new custom WOLFSSL_BIO_METHOD */

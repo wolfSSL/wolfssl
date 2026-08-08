@@ -1932,7 +1932,7 @@ int test_wolfSSL_BIO_get_new_index(void)
     int prev;
 
     /* First call hands out BIO_TYPE_START, later calls increment by one.
-     * The index counter is process-global, so this test must stay the only
+     * The index counter is process-global, so this test must stay the first
      * consumer in the test suite. */
     ExpectIntEQ(prev = BIO_get_new_index(), BIO_TYPE_START);
 
@@ -1944,6 +1944,56 @@ int test_wolfSSL_BIO_get_new_index(void)
     BIO_meth_free(method);
 
     ExpectIntEQ(BIO_get_new_index(), prev + 1);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(SINGLE_THREADED)
+
+#define TEST_BIO_NEW_INDEX_THREADS     4
+#define TEST_BIO_NEW_INDEX_PER_THREAD 16
+
+static int bio_new_index_results[TEST_BIO_NEW_INDEX_THREADS]
+                                [TEST_BIO_NEW_INDEX_PER_THREAD];
+
+static THREAD_RETURN WOLFSSL_THREAD test_BIO_get_new_index_worker(void* args)
+{
+    int tno = ((func_args*)args)->argc;
+    int i;
+
+    for (i = 0; i < TEST_BIO_NEW_INDEX_PER_THREAD; i++)
+        bio_new_index_results[tno][i] = BIO_get_new_index();
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+int test_wolfSSL_BIO_get_new_index_threaded(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(SINGLE_THREADED)
+    THREAD_TYPE threads[TEST_BIO_NEW_INDEX_THREADS];
+    func_args   args[TEST_BIO_NEW_INDEX_THREADS];
+    int total = TEST_BIO_NEW_INDEX_THREADS * TEST_BIO_NEW_INDEX_PER_THREAD;
+    int i, j;
+
+    XMEMSET(args, 0, sizeof(args));
+    for (i = 0; i < TEST_BIO_NEW_INDEX_THREADS; i++) {
+        args[i].argc = i;
+        start_thread(test_BIO_get_new_index_worker, &args[i], &threads[i]);
+    }
+    for (i = 0; i < TEST_BIO_NEW_INDEX_THREADS; i++)
+        join_thread(threads[i]);
+
+    /* Concurrent callers must never receive the same type index. */
+    for (i = 0; i < total; i++) {
+        for (j = i + 1; j < total; j++) {
+            ExpectIntNE(
+                bio_new_index_results[i / TEST_BIO_NEW_INDEX_PER_THREAD]
+                                     [i % TEST_BIO_NEW_INDEX_PER_THREAD],
+                bio_new_index_results[j / TEST_BIO_NEW_INDEX_PER_THREAD]
+                                     [j % TEST_BIO_NEW_INDEX_PER_THREAD]);
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
