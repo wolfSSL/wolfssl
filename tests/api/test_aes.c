@@ -10868,9 +10868,9 @@ int test_wc_AesSivEncryptDecrypt(void)
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
-/* Test CryptoCB device IDs (must be unique across test_aes.c); 7/8/9 are used
- * by the SetKey/AES-GCM/TLS13 tests above. */
-#define TEST_CRYPTOCB_KEYWRAP_DEVID  10
+/* Test CryptoCB device IDs must be unique across test_aes.c. Taken below:
+ * 7 SetKey, 8 AES-GCM, 9 TLS13, 10 AES-CFB, 11 AES-OFB. */
+#define TEST_CRYPTOCB_KEYWRAP_DEVID  13
 
 static int cbKwWrapCalled = 0;
 static int cbKwUnwrapCalled = 0;
@@ -11039,7 +11039,7 @@ int test_wc_CryptoCb_AesKeyWrap(void)
  * dispatches and declines them so the real work falls back to software - proving
  * key wrap routes its blocks through the ECB callback even when the device has
  * no key wrap support. (Needs a software AES fallback, so not for CB_ONLY_AES.) */
-#define TEST_CRYPTOCB_KEYWRAP_ECB_DEVID 11
+#define TEST_CRYPTOCB_KEYWRAP_ECB_DEVID 14
 
 static int cbKwEcbEncCalled = 0;
 static int cbKwEcbDecCalled = 0;
