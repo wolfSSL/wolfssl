@@ -720,7 +720,7 @@ int test_wc_AesCmacVerify_CryptoCb_LenMismatch(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesCmacVerify_CryptoCb_LenMismatch */
 
-/* Test that wc_CmacFree() dispatches a WC_ALGO_TYPE_FREE / WC_ALGO_TYPE_CMAC
+/* Test that wc_CmacFree() sends a WC_ALGO_TYPE_FREE / WC_ALGO_TYPE_CMAC
  * request to a registered crypto callback (CryptoCb) device. */
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE) && \
     defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)

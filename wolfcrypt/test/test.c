@@ -78873,8 +78873,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             XFREE(pssOut, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-            /* Only a real verdict maps to res; a genuine internal error (e.g.
-             * MEMORY_E) is propagated so it is not masked as a bad signature. */
+            /* Only a pass or fail sets res. A real error such as MEMORY_E is
+             * returned as-is, so it is not mistaken for a bad signature. */
             if (pssVer > 0) {
                 if (info->pk.rsa_pss_verify.res != NULL)
                     *info->pk.rsa_pss_verify.res = 1;
