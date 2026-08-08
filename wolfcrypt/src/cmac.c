@@ -407,9 +407,6 @@ int wc_CmacFree(Cmac* cmac)
         (void)cmac;
     }
     ForceZero(cmac, sizeof(Cmac));
-#ifdef WOLF_CRYPTO_CB
-    cmac->devId = INVALID_DEVID;
-#endif
     return 0;
 }
 
