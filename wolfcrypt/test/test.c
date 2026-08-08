@@ -23942,12 +23942,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
         forgeBlk[3] = 0xa6;
         forgeBlk[8] = 0x11; /* arbitrary recovered plaintext octet */
         fr = wc_AesInit(faes, HEAP_HINT, devId);
-        if (fr == 0)
+        /* faes is uninitialized malloc, so only free it if wc_AesInit ran. */
+        if (fr == 0) {
             fr = wc_AesSetKey(faes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
                               AES_ENCRYPTION);
-        if (fr == 0)
-            fr = wc_AesEncryptDirect(faes, forged, forgeBlk);
-        wc_AesFree(faes);
+            if (fr == 0)
+                fr = wc_AesEncryptDirect(faes, forged, forgeBlk);
+            wc_AesFree(faes);
+        }
         if (fr != 0) {
             XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
             return WC_TEST_RET_ENC_EC(fr);
@@ -23967,12 +23969,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_pad_test(void)
         forgeBlk[8] = 0x41; /* the one real octet... */
         forgeBlk[9] = 0xff; /* ...followed by a nonzero pad octet -> rejected */
         fr = wc_AesInit(faes, HEAP_HINT, devId);
-        if (fr == 0)
+        /* faes is uninitialized malloc, so only free it if wc_AesInit ran. */
+        if (fr == 0) {
             fr = wc_AesSetKey(faes, test_kwp[0].kek, test_kwp[0].kekLen, NULL,
                               AES_ENCRYPTION);
-        if (fr == 0)
-            fr = wc_AesEncryptDirect(faes, forged, forgeBlk);
-        wc_AesFree(faes);
+            if (fr == 0)
+                fr = wc_AesEncryptDirect(faes, forged, forgeBlk);
+            wc_AesFree(faes);
+        }
         if (fr != 0) {
             XFREE(faes, HEAP_HINT, DYNAMIC_TYPE_AES);
             return WC_TEST_RET_ENC_EC(fr);
