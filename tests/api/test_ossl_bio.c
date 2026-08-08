@@ -1707,11 +1707,14 @@ int test_wolfSSL_BIO_custom_method(void)
     ExpectTrue(BIO_meth_get_ctrl(method) == custom_bio_ctrlCb);
     ExpectTrue(BIO_meth_get_create(NULL) == NULL);
 
-    /* callback_ctrl accepts only NULL and stores nothing */
-    ExpectIntEQ(BIO_meth_set_callback_ctrl(method, NULL), WOLFSSL_SUCCESS);
+    /* callback_ctrl round-trips like OpenSSL, though wolfSSL never
+     * invokes the stored callback */
     ExpectIntEQ(BIO_meth_set_callback_ctrl(method, custom_bio_info_cb),
-            WOLFSSL_FAILURE);
+            WOLFSSL_SUCCESS);
+    ExpectTrue(BIO_meth_get_callback_ctrl(method) == custom_bio_info_cb);
+    ExpectIntEQ(BIO_meth_set_callback_ctrl(method, NULL), WOLFSSL_SUCCESS);
     ExpectTrue(BIO_meth_get_callback_ctrl(method) == NULL);
+    ExpectIntEQ(BIO_meth_set_callback_ctrl(NULL, NULL), WOLFSSL_FAILURE);
 
     /* Create BIO - should invoke createCb */
     ExpectNotNull(bio = BIO_new(method));

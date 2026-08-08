@@ -2320,16 +2320,20 @@ wolfssl_BIO_meth_ctrl_info_cb wolfSSL_BIO_meth_get_callback_ctrl(
 }
 
 
+/* Store the callback so it round-trips through
+ * wolfSSL_BIO_meth_get_callback_ctrl() like OpenSSL. wolfSSL BIO
+ * processing never invokes the stored callback. */
 int wolfSSL_BIO_meth_set_callback_ctrl(WOLFSSL_BIO_METHOD *biom,
         wolfssl_BIO_meth_ctrl_info_cb biom_callback_ctrl)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_set_callback_ctrl");
-    /* wolfSSL BIO processing never invokes an info callback, so storing a
-     * real one would be misleading: succeed only for NULL. */
-    if (biom == NULL || biom_callback_ctrl != NULL) {
+    if (biom == NULL) {
         return WOLFSSL_FAILURE;
     }
-    biom->ctrlInfoCb = NULL;
+    if (biom_callback_ctrl != NULL) {
+        WOLFSSL_MSG("callback_ctrl stored but never invoked by wolfSSL");
+    }
+    biom->ctrlInfoCb = biom_callback_ctrl;
     return WOLFSSL_SUCCESS;
 }
 
