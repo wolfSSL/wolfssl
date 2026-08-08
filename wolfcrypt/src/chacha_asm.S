@@ -65,7 +65,7 @@ _chacha_encrypt_x64:
         pushq	%r15
         subq	$0x48, %rsp
         cmpl	$0x40, %ecx
-        jl	L_chacha_x64_small
+        jb	L_chacha_x64_small
 L_chacha_x64_start:
         subq	$48, %rsp
         movq	%rdx, 24(%rsp)
@@ -261,7 +261,7 @@ L_chacha_x64_block_crypt_start:
         addq	$0x40, %rsi
         addq	$0x40, %rdx
         cmpl	$0x40, %ecx
-        jge	L_chacha_x64_start
+        jae	L_chacha_x64_start
 L_chacha_x64_small:
         cmpl	$0x00, %ecx
         je	L_chacha_x64_done
@@ -850,7 +850,7 @@ L_chacha20_avx1_loop128:
         subl	$0x100, %ecx
         vmovdqa	%xmm12, 192(%r9)
         cmpl	$0x100, %ecx
-        jl	L_chacha20_avx1_done128
+        jb	L_chacha20_avx1_done128
         vmovdqa	(%r9), %xmm0
         vmovdqa	16(%r9), %xmm1
         vmovdqa	32(%r9), %xmm2
@@ -873,7 +873,7 @@ L_chacha20_avx1_done128:
         addl	%eax, 48(%rdi)
 L_chacha20_avx1_end128:
         cmpl	$0x40, %ecx
-        jl	L_chacha20_avx1_block_done
+        jb	L_chacha20_avx1_block_done
 L_chacha20_avx1_block_start:
         vmovdqu	(%rdi), %xmm0
         vmovdqu	16(%rdi), %xmm1
@@ -946,7 +946,7 @@ L_chacha20_avx1_block_crypt_start:
         addq	$0x40, %rsi
         addq	$0x40, %rdx
         cmpl	$0x40, %ecx
-        jge	L_chacha20_avx1_block_start
+        jae	L_chacha20_avx1_block_start
 L_chacha20_avx1_block_done:
         cmpl	$0x00, %ecx
         je	L_chacha20_avx1_partial_done
@@ -1439,7 +1439,7 @@ L_chacha20_avx2_loop256:
         subl	$0x200, %ecx
         vmovdqa	%ymm12, 384(%r9)
         cmpl	$0x200, %ecx
-        jl	L_chacha20_avx2_done256
+        jb	L_chacha20_avx2_done256
         vmovdqa	(%r9), %ymm0
         vmovdqa	32(%r9), %ymm1
         vmovdqa	64(%r9), %ymm2
