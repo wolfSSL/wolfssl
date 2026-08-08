@@ -22457,6 +22457,46 @@ static int test_wolfSSL_get_ciphers_compat_empty(void)
     return EXPECT_RESULT();
 }
 
+/* SSL_get_cipher_list() walks the cipher list configured on the SSL, highest
+ * priority first, and returns NULL once past the end. No handshake has run
+ * here, so there is no negotiated suite to report. */
+static int test_wolfSSL_get_cipher_list_compat(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    SSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    STACK_OF(SSL_CIPHER)* ciphers = NULL;
+    const char* name = NULL;
+    int num = 0;
+    int i;
+
+    ExpectNotNull(ctx = SSL_CTX_new(SSLv23_client_method()));
+    ExpectNotNull(ssl = SSL_new(ctx));
+
+    ExpectNull(SSL_get_cipher_list(NULL, 0));
+    ExpectNull(SSL_get_cipher_list(ssl, -1));
+
+    ExpectNotNull(name = SSL_get_cipher_list(ssl, 0));
+    ExpectStrNE(name, "None");
+
+    /* Must agree with the stack SSL_get_ciphers() returns, entry for entry. */
+    ExpectNotNull(ciphers = SSL_get_ciphers(ssl));
+    ExpectIntGT(num = sk_SSL_CIPHER_num(ciphers), 0);
+    for (i = 0; i < num; i++) {
+        ExpectNotNull(name = SSL_get_cipher_list(ssl, i));
+        ExpectStrEQ(name,
+            SSL_CIPHER_get_name(sk_SSL_CIPHER_value(ciphers, i)));
+    }
+
+    ExpectNull(SSL_get_cipher_list(ssl, num));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_ctrl(void)
 {
     EXPECT_DECLS;
@@ -39204,6 +39244,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_sk_CIPHER_description),
     TEST_DECL(test_wolfSSL_get_ciphers_compat),
     TEST_DECL(test_wolfSSL_get_ciphers_compat_empty),
+    TEST_DECL(test_wolfSSL_get_cipher_list_compat),
 
     TEST_DECL(test_wolfSSL_CTX_ctrl),
 #endif /* OPENSSL_ALL */

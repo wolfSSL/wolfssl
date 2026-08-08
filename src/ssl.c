@@ -9181,6 +9181,49 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     }
     return ssl->suitesStack;
 }
+
+/* Get the name of the cipher at index priority in the cipher list configured
+ * on this SSL. Index 0 is the highest priority suite. Returns NULL once
+ * priority is past the end of the list. Matches OpenSSL SSL_get_cipher_list().
+ */
+const char* wolfSSL_get_cipher_list_compat(const WOLFSSL* ssl, int priority)
+{
+    const Suites* suites;
+    int i;
+    int idx = 0;
+
+    WOLFSSL_ENTER("wolfSSL_get_cipher_list_compat");
+
+    if (ssl == NULL || priority < 0)
+        return NULL;
+
+    suites = WOLFSSL_SUITES(ssl);
+    if (suites == NULL)
+        return NULL;
+
+    for (i = 0; i < suites->suiteSz; i += 2) {
+        /* A couple of suites are placeholders for special options, skip
+         * those. */
+        if (SCSV_Check(suites->suites[i], suites->suites[i+1])
+                || sslCipherMinMaxCheck(ssl, suites->suites[i],
+                                        suites->suites[i+1])) {
+            continue;
+        }
+
+        if (idx++ == priority) {
+            /* Report the same name that SSL_CIPHER_get_name() would. */
+        #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && \
+            !defined(NO_ERROR_STRINGS) && !defined(WOLFSSL_QT)
+            return GetCipherNameIana(suites->suites[i], suites->suites[i+1]);
+        #else
+            return wolfSSL_get_cipher_name_from_suite(suites->suites[i],
+                    suites->suites[i+1]);
+        #endif
+        }
+    }
+
+    return NULL;
+}
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 #ifdef OPENSSL_ALL
 /* returned pointer is to an internal element in WOLFSSL struct and should not
