@@ -2252,7 +2252,7 @@ wolfSSL_BIO_meth_gets_cb wolfSSL_BIO_meth_get_gets(
         const WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_get_gets");
-    if (biom) {
+    if (biom != NULL) {
         return biom->getsCb;
     }
     return NULL;
@@ -2263,7 +2263,7 @@ wolfSSL_BIO_meth_puts_cb wolfSSL_BIO_meth_get_puts(
         const WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_get_puts");
-    if (biom) {
+    if (biom != NULL) {
         return biom->putsCb;
     }
     return NULL;
@@ -2274,7 +2274,7 @@ wolfSSL_BIO_meth_ctrl_get_cb wolfSSL_BIO_meth_get_ctrl(
         const WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_get_ctrl");
-    if (biom) {
+    if (biom != NULL) {
         return biom->ctrlCb;
     }
     return NULL;
@@ -2285,7 +2285,7 @@ wolfSSL_BIO_meth_create_cb wolfSSL_BIO_meth_get_create(
         const WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_get_create");
-    if (biom) {
+    if (biom != NULL) {
         return biom->createCb;
     }
     return NULL;
@@ -2296,7 +2296,7 @@ wolfSSL_BIO_meth_destroy_cb wolfSSL_BIO_meth_get_destroy(
         const WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_get_destroy");
-    if (biom) {
+    if (biom != NULL) {
         return biom->freeCb;
     }
     return NULL;
@@ -2307,7 +2307,7 @@ wolfssl_BIO_meth_ctrl_info_cb wolfSSL_BIO_meth_get_callback_ctrl(
         const WOLFSSL_BIO_METHOD *biom)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_get_callback_ctrl");
-    if (biom) {
+    if (biom != NULL) {
         return biom->ctrlInfoCb;
     }
     return NULL;
