@@ -1696,8 +1696,11 @@ enum wc_PkType {
 #endif
     WC_PK_TYPE_CURVE25519_MAKE_PUB = 40,
     WC_PK_TYPE_CURVE25519_GENERIC  = 41,
+    WC_PK_TYPE_RSA_PSS_VERIFY   = 42,
+    /* Ed448 sign reuses WC_PK_TYPE_ED448 (12); verify needs its own type. */
+    WC_PK_TYPE_ED448_VERIFY     = 43,
     #undef _WC_PK_TYPE_MAX
-    #define _WC_PK_TYPE_MAX WC_PK_TYPE_CURVE25519_GENERIC
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_VERIFY
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 

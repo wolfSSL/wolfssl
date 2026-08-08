@@ -597,11 +597,16 @@ int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
     The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING is enabled.
 
     \return the length of the PSS data on success and negative indicates failure.
+    A crypto callback device that returns recovered data fills out and the
+    return is that length. A device that reports only a verdict recovers
+    nothing: out is zeroed and the return is the length the data would have
+    been, so callers must not read out on that path.
     \return MEMORY_E memory exception.
 
     \param in The byte array to be decrypted.
     \param inLen The length of in.
-    \param out Pointer to address containing the PSS data.
+    \param out Pointer to address containing the PSS data. Zeroed when a
+    crypto callback device reported only a verdict (see \return).
     \param outLen The length of out.
     \param digest Hash of the data that is being verified.
     \param digestLen Length of hash.
@@ -742,10 +747,15 @@ int  wc_RsaPSS_VerifyCheck_ex(byte* in, word32 inLen,
     The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING is enabled.
 
     \return the length of the PSS data on success and negative indicates failure.
+    A crypto callback device that returns recovered data points *out into in and
+    the return is that length. A device that reports only a verdict recovers
+    nothing: *out is set to NULL though the return stays positive, so callers
+    must check *out before dereferencing it.
 
     \param in The byte array to be decrypted.
     \param inLen The length of in.
-    \param out The byte array for the decrypted data to be stored.
+    \param out The byte array for the decrypted data to be stored. Set to NULL
+    when a crypto callback device reported only a verdict (see \return).
     \param digest Hash of the data that is being verified.
     \param digestLen Length of hash.
     \param hash The hash type to be in message
