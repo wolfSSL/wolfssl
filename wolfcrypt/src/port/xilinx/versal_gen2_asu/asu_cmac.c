@@ -308,6 +308,15 @@ int wc_AsuCmac(wc_CryptoInfo* info)
         if (keep == NULL) {
             return CRYPTOCB_UNAVAILABLE;
         }
+        /* A one-shot generate whose key was set at init sends the message as
+         * info->cmac.in; add it to the buffer here so it is not dropped. */
+        if (info->cmac.in != NULL && info->cmac.inSz > 0) {
+            ret = _wc_Hash_Grow(&keep->msg, &keep->used, &keep->len,
+                info->cmac.in, (int)info->cmac.inSz, NULL);
+            if (ret != 0) {
+                return ret;
+            }
+        }
         ret = wc_AsuCmacProduce(keep->key, keep->keyLen, keep->msg, keep->used,
             info->cmac.out, info->cmac.outSz);
         wc_AsuCmacKeepFree(keep);
