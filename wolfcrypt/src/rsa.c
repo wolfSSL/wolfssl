@@ -4645,8 +4645,7 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
  * key    Public RSA key.
  * returns the length of the PSS data on success and negative indicates failure.
  *
- * Note: when a crypto callback device performs the verify, *out is set to NULL
- * even though a positive length is returned; callers must not dereference *out.
+ * Note: a device that recovers nothing sets *out to NULL, so check *out first.
  */
 int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                            const byte* digest, word32 digestLen,
