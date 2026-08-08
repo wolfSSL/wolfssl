@@ -2336,7 +2336,7 @@ int test_wc_CryptoCb_RsaPssVerifyRecover(void)
         ExpectIntGE(cbCtx.seen, 1);
         allZero = 1;
         if (WC_VAR_OK(rec)) {
-            for (i = 0; i < 512; i++) {
+            for (i = 0; i < swRet; i++) {
                 if (rec[i] != 0) {
                     allZero = 0;
                     break;

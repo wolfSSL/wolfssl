@@ -4711,6 +4711,9 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                     }
                     ret = (int)recovered;
                 }
+                else if (inLen < (word32)(saltLen + hLen)) {
+                    ret = RSA_BUFFER_E;
+                }
                 else {
                     /* Device gave a verdict only; nothing to expose. */
                     if (out != NULL) {
@@ -4814,10 +4817,13 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
                 else if (recovered > 0) {
                     ret = (int)recovered;
                 }
+                else if (outLen < (word32)(saltLen + hLen)) {
+                    ret = RSA_BUFFER_E;
+                }
                 else {
                     /* Device gave a verdict only; leave no stale data behind. */
                     if (out != NULL) {
-                        XMEMSET(out, 0, outLen);
+                        XMEMSET(out, 0, (word32)(saltLen + hLen));
                     }
                     ret = saltLen + hLen;
                 }
