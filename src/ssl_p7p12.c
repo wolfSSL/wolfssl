@@ -903,6 +903,7 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 {
     int ret;
     WOLFSSL_PKCS7* p7;
+    WOLFSSL_STACK* certHead = certs;
     WOLFSSL_ENTER("wolfSSL_PKCS7_encode_certs");
 
     if (!pkcs7 || !certs || !out) {
@@ -911,10 +912,6 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     }
 
     p7 = (WOLFSSL_PKCS7*)pkcs7;
-
-    /* take ownership of certs */
-    p7->certs = certs;
-    /* TODO: takes ownership even on failure below but not on above failure. */
 
     if (pkcs7->certList) {
         WOLFSSL_MSG("wolfSSL_PKCS7_encode_certs called multiple times on same "
@@ -956,6 +953,9 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         }
         certs = certs->next;
     }
+
+    /* certs are now incorporated into pkcs7; take ownership (earlier failures leave ownership with the caller). */
+    p7->certs = certHead;
 
     if (wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID) != 0) {
         WOLFSSL_MSG("wc_PKCS7_SetSignerIdentifierType error");
