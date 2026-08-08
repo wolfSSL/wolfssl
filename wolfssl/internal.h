@@ -5325,6 +5325,12 @@ typedef struct Buffers {
 #endif
 } Buffers;
 
+#ifndef NO_DH
+/* Give the SSL object its own copy of the context's DH parameters. They are
+ * not reference counted, so a session must not point at the context's. */
+WOLFSSL_LOCAL int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
+#endif
+
 /* sub-states for send/do key share (key exchange) */
 enum asyncState {
     TLS_ASYNC_BEGIN = 0,

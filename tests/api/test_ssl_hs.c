@@ -810,10 +810,15 @@ int test_wolfSSL_set_accept_state_reinit(void)
 
     wolfSSL_set_accept_state(ssl);
 
+    /* Picked up as the object's own copy, not the context's buffers. */
     if ((ssl != NULL) && (ctx != NULL)) {
         ExpectIntEQ(ssl->options.haveDH, 1);
-        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
-        ExpectPtrEq(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectNotNull(ssl->buffers.serverDH_G.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectIntEQ(ssl->buffers.serverDH_P.length, ctx->serverDH_P.length);
+        ExpectIntEQ(ssl->buffers.serverDH_G.length, ctx->serverDH_G.length);
     }
 
     wolfSSL_free(ssl);
@@ -968,8 +973,8 @@ int test_wolfSSL_SSL_do_handshake_quic(void)
 /* Test that wolfSSL_set_connect_state() discards server DH parameters.
  *
  * A client generates its own DH parameters, so any server ones are dropped.
- * Parameters the object owns are freed; parameters merely borrowed from the
- * context are only unlinked, since the context still owns them.
+ * The object holds its own copy either way, whether set on it directly or
+ * taken from the context, so the context is left untouched.
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -1016,7 +1021,7 @@ int test_wolfSSL_set_connect_state_dh(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
-    /* Parameters borrowed from the context are left for the context to free. */
+    /* Parameters taken from the context are a copy the object owns. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
@@ -1026,10 +1031,11 @@ int test_wolfSSL_set_connect_state_dh(void)
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    /* Inherited from the context, so not owned here. */
-    if (ssl != NULL) {
-        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
-        ExpectIntEQ(ssl->buffers.weOwnDH, 0);
+    /* Copied from the context, so owned here. */
+    if ((ssl != NULL) && (ctx != NULL)) {
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectIntEQ(ssl->buffers.weOwnDH, 1);
     }
 
     wolfSSL_set_connect_state(ssl);
@@ -1044,13 +1050,123 @@ int test_wolfSSL_set_connect_state_dh(void)
         ExpectNotNull(ctx->serverDH_G.buffer);
     }
     ExpectNotNull(ssl2 = wolfSSL_new(ctx));
-    if (ssl2 != NULL) {
-        ExpectPtrEq(ssl2->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+    if ((ssl2 != NULL) && (ctx != NULL)) {
+        ExpectNotNull(ssl2->buffers.serverDH_P.buffer);
+        ExpectPtrNE(ssl2->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
     }
 
     wolfSSL_free(ssl2);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* DH parameters taken from the context are the object's own copy, and they
+ * last as long as the object does.
+ *
+ * The copy is what lets the context replace its parameters while sessions are
+ * running. Since the session then holds the only copy it will ever have, the
+ * end of a handshake must not take it away: a reused object needs it again.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_dh_ctx_params_reuse(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    const byte* startP = NULL;
+    const byte* startG = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "DHE-RSA-AES128-GCM-SHA256";
+
+    /* The parameters go on the context before any session takes them. A
+     * context made here is used as-is, so it gets the credentials and the
+     * memio wiring that test_memio_setup would otherwise have given it. */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s, test_ctx.s_ciphers),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx_s, dhParamFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* test_memio_setup puts its own parameters on the server session, which
+     * would stand in for the ones under test. Take a fresh session from the
+     * same context so the parameters really are the context's. */
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+
+    /* Its own copy, matching the context's but not the same buffers. */
+    if ((ssl_s != NULL) && (ctx_s != NULL)) {
+        ExpectNotNull(ssl_s->buffers.serverDH_P.buffer);
+        ExpectNotNull(ssl_s->buffers.serverDH_G.buffer);
+        ExpectPtrNE(ssl_s->buffers.serverDH_P.buffer, ctx_s->serverDH_P.buffer);
+        ExpectPtrNE(ssl_s->buffers.serverDH_G.buffer, ctx_s->serverDH_G.buffer);
+        ExpectIntEQ(ssl_s->buffers.serverDH_P.length, ctx_s->serverDH_P.length);
+        ExpectIntEQ(ssl_s->buffers.serverDH_G.length, ctx_s->serverDH_G.length);
+        ExpectIntEQ(ssl_s->buffers.weOwnDH, 1);
+        startP = ssl_s->buffers.serverDH_P.buffer;
+        startG = ssl_s->buffers.serverDH_G.buffer;
+    }
+
+    /* Offering no FFDHE group keeps the server on the parameters it was
+     * given, rather than switching to a named group and dropping them. */
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl_c, WOLFSSL_ECC_SECP256R1),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The handshake used them and the cleanup after it left them alone. */
+    if (ssl_s != NULL) {
+        ExpectPtrEq(ssl_s->buffers.serverDH_P.buffer, startP);
+        ExpectPtrEq(ssl_s->buffers.serverDH_G.buffer, startG);
+    }
+
+    /* So the object can be handed a second connection. */
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl_c, WOLFSSL_ECC_SECP256R1),
+        WOLFSSL_SUCCESS);
+    test_ctx.c_len = test_ctx.s_len = 0;
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntNE(wolfSSL_get_error(ssl_s, 0), WC_NO_ERR_TRACE(NO_DH_PARAMS));
+
+    /* And the context still has its own to hand out. */
+    if (ctx_s != NULL) {
+        ExpectNotNull(ctx_s->serverDH_P.buffer);
+        ExpectNotNull(ctx_s->serverDH_G.buffer);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

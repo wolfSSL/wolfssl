@@ -37,6 +37,7 @@ int test_wolfSSL_set_accept_state_static_ecc(void);
 int test_wolfSSL_negotiate_bad_args(void);
 int test_wolfSSL_SSL_do_handshake_quic(void);
 int test_wolfSSL_set_connect_state_dh(void);
+int test_wolfSSL_dh_ctx_params_reuse(void);
 int test_wolfSSL_connect_bad_args(void);
 int test_wolfSSL_accept_bad_args(void);
 int test_wolfSSL_connect_step_failures(void);
@@ -62,6 +63,7 @@ int test_wolfSSL_hs_info_cb(void);
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_negotiate_bad_args),            \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_do_handshake_quic),         \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_set_connect_state_dh),          \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_dh_ctx_params_reuse),           \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_connect_bad_args),              \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_accept_bad_args),               \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_connect_step_failures),         \
