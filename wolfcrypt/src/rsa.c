@@ -4691,21 +4691,32 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
     if (key != NULL)
     #endif
     {
-        int res = 0;
+        int    res = 0;
+        word32 recovered = 0;
+
         ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
-                                       saltLen, key, &res);
+                                       saltLen, key, &res, in, inLen,
+                                       &recovered);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             if (ret == 0) {
-                /* Device verified internally; no recovered PSS block to expose,
-                 * so report no inline output rather than a misleading pointer. */
-                if (out != NULL) {
-                    *out = NULL;
+                if (recovered > inLen) {
+                    recovered = 0;
                 }
-                if (res != 0) {
-                    ret = saltLen + hLen;
+                if (res == 0) {
+                    ret = SIG_VERIFY_E;
+                }
+                else if (recovered > 0) {
+                    if (out != NULL) {
+                        *out = in;
+                    }
+                    ret = (int)recovered;
                 }
                 else {
-                    ret = SIG_VERIFY_E;
+                    /* Device gave a verdict only; nothing to expose. */
+                    if (out != NULL) {
+                        *out = NULL;
+                    }
+                    ret = saltLen + hLen;
                 }
             }
             else if (ret > 0) {
@@ -4786,16 +4797,29 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
     if (key != NULL)
     #endif
     {
-        int res = 0;
+        int    res = 0;
+        word32 recovered = 0;
+
         ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
-                                       saltLen, key, &res);
+                                       saltLen, key, &res, out, outLen,
+                                       &recovered);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             if (ret == 0) {
-                if (res != 0) {
-                    ret = saltLen + hLen;
+                if (recovered > outLen) {
+                    recovered = 0;
+                }
+                if (res == 0) {
+                    ret = SIG_VERIFY_E;
+                }
+                else if (recovered > 0) {
+                    ret = (int)recovered;
                 }
                 else {
-                    ret = SIG_VERIFY_E;
+                    /* Device gave a verdict only; leave no stale data behind. */
+                    if (out != NULL) {
+                        XMEMSET(out, 0, outLen);
+                    }
+                    ret = saltLen + hLen;
                 }
             }
             else if (ret > 0) {
