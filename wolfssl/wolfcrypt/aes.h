@@ -189,6 +189,10 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     #include "cy_crypto_common.h"
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
+#ifdef WOLFSSL_TI_AM64X
+    #include "security/security_common/drivers/crypto/crypto.h"
+#endif
+
 /* Backends that replace one or more AES mode entry points, either with a
  * hardware arm in aes.c or with a port file. Those entry points do not carry
  * the key-set guard, so the check is not applied on these builds. */
@@ -521,6 +525,9 @@ struct Aes {
     cy_stc_crypto_aes_gcm_state_t aes_gcm_state;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
+#ifdef WOLFSSL_TI_AM64X
+    XALIGNED(16) SA2UL_ContextObject scObj;
+#endif
 
     /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
      * GcmSetKey), including when a crypto callback takes ownership of it.
