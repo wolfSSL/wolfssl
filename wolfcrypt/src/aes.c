@@ -17707,10 +17707,14 @@ int wc_AesKeyUnWrap_Pad_ex(Aes* aes, const byte* in, word32 inSz, byte* out,
     /* Validate the three RFC 5649 checks in constant time: fold failures into
      * one mask and branch once, so timing does not reveal which check failed. */
     {
-        word32 dataSz  = inSz - KEYWRAP_BLOCK_SIZE;    /* 8*n plaintext octets  */
-        word32 lastBlk = dataSz - KEYWRAP_BLOCK_SIZE;  /* offset 8*(n-1)         */
+        word32 dataSz  = inSz - KEYWRAP_BLOCK_SIZE;   /* 8*n plaintext octets */
+        word32 lastBlk = dataSz - KEYWRAP_BLOCK_SIZE; /* offset 8*(n-1)       */
         word32 fail;
         word32 j;
+#ifndef WORD64_AVAILABLE
+        byte   lowMask = (byte)~(byte)(0u - ((mli >> 31) & 1u));
+        int    mliInt  = (int)(mli & 0x7FFFFFFFu);
+#endif
 
         /* check 1: MSB(32,A) == constant */
         fail = (word32)ctMaskNotEq(ConstantCompare(a, expConst,
@@ -17718,7 +17722,7 @@ int wc_AesKeyUnWrap_Pad_ex(Aes* aes, const byte* in, word32 inSz, byte* out,
 
 #ifdef WORD64_AVAILABLE
         /* check 2: 8*(n-1) < MLI <= 8*n */
-        fail |= ~(ctMaskWord32GTE(mli, lastBlk + 1)   /* MLI >= 8*(n-1)+1 */
+        fail |= ~(ctMaskWord32GTE(mli, lastBlk + 1)    /* MLI >= 8*(n-1)+1 */
                 & ctMaskWord32GTE(dataSz, mli));       /* 8*n >= MLI       */
 
         /* check 3: octets in [MLI, 8*n) are zero.  A valid MLI is in the final
@@ -17731,22 +17735,18 @@ int wc_AesKeyUnWrap_Pad_ex(Aes* aes, const byte* in, word32 inSz, byte* out,
 #else
         /* No word64: compare in int range.  MLI with its high bit set (>= 2^31
          * > 8*n) is forced to fail so the int compares see valid values. */
-        {
-            byte lowMask = (byte)~(byte)(0u - ((mli >> 31) & 1u));
-            int  mliInt  = (int)(mli & 0x7FFFFFFFu);
 
-            /* check 2: 8*(n-1) < MLI <= 8*n */
-            fail |= (word32)(byte)~(byte)(ctMaskGT(mliInt, (int)lastBlk)
-                                        & ctMaskLTE(mliInt, (int)dataSz)
-                                        & lowMask);
+        /* check 2: 8*(n-1) < MLI <= 8*n */
+        fail |= (word32)(byte)~(byte)(ctMaskGT(mliInt, (int)lastBlk)
+                                    & ctMaskLTE(mliInt, (int)dataSz)
+                                    & lowMask);
 
-            /* check 3: octets in [MLI, 8*n) are zero (see note above). */
-            for (j = 0; j < KEYWRAP_BLOCK_SIZE; j++) {
-                int  off   = (int)(lastBlk + j);
-                byte isPad = (byte)(ctMaskGTE(off, mliInt) & lowMask);
-                fail |= (word32)(byte)(isPad &
-                                       ctMaskNotEq((int)out[lastBlk + j], 0));
-            }
+        /* check 3: octets in [MLI, 8*n) are zero (see note above). */
+        for (j = 0; j < KEYWRAP_BLOCK_SIZE; j++) {
+            int  off   = (int)(lastBlk + j);
+            byte isPad = (byte)(ctMaskGTE(off, mliInt) & lowMask);
+            fail |= (word32)(byte)(isPad &
+                                   ctMaskNotEq((int)out[lastBlk + j], 0));
         }
 #endif
 
