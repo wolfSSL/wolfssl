@@ -193,7 +193,7 @@ static int ti_sa2ul_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
     byte tmp_iv[16];
 
     SA2UL_ContextParams_init(&scParams);
-    
+
     scParams.opType       = SA2UL_OP_ENC;
     scParams.encAlg       = SA2UL_ENC_ALG_AES;
     scParams.encMode      = SA2UL_ENC_MODE_CBC;
@@ -277,7 +277,7 @@ static int ti_sa2ul_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
     SA2UL_ContextParams scParams;
 
     SA2UL_ContextParams_init(&scParams);
-    
+
     scParams.opType       = SA2UL_OP_ENC;
     scParams.encAlg       = SA2UL_ENC_ALG_AES;
     scParams.encMode      = SA2UL_ENC_MODE_ECB;
@@ -398,7 +398,7 @@ static int ti_sa2ul_AesGcmEncrypt(Aes* aes, byte* out,
             xorbuf(authTag, scratch, authTagSz);
         }
     }
-    
+
     return ret;
 }
 
@@ -475,7 +475,7 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
                 ret = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
         }
     }
-    
+
     return ret;
 }
 #endif /* HAVE_AES_DECRYPT */
@@ -483,7 +483,7 @@ static int ti_sa2ul_AesGcmDecrypt(Aes* aes, byte* out,
 #endif /* !NO_AES */
 
 
-#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512) 
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512)
 /* The ti mcu plus sdk sa2ul driver requires an output buffer of at least
  * the size of the input buffer, and it will write data to it, though we don't
  * use the data.  So, we consider this a scratch buffer, but it also limits
@@ -504,7 +504,7 @@ static int ti_sa2ul_InitSha256_ctx(wc_Sha256* sha256)
     /* default length to all ff's, final will override when known */
     scParams.inputLen = 0xffffffffUL;
     sha256->scObj.totalLengthInBytes = 0xffffffffUL;
-    
+
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
                            &sha256->scObj, &scParams) != SystemP_SUCCESS)
     {
@@ -520,9 +520,9 @@ static int ti_sa2ul_Sha256Free_ctx(wc_Sha256* sha256)
 {
     (void)SA2UL_contextFree(&sha256->scObj);
     XMEMSET(&sha256->scObj, 0, sizeof(sha256->scObj));
-    
+
     sa2ul_hash_in_use = 0;
-    
+
     return 0;
 }
 
@@ -637,7 +637,7 @@ static int ti_sa2ul_InitSha512_ctx(wc_Sha512* sha512)
     /* default length to all ff's, final will override when known */
     scParams.inputLen = 0xffffffffUL;
     sha512->scObj.totalLengthInBytes = 0xffffffffUL;
-    
+
     if (SA2UL_contextAlloc(cryptoCtx.drvHandle,
                            &sha512->scObj, &scParams) != SystemP_SUCCESS)
     {
@@ -650,7 +650,7 @@ static int ti_sa2ul_Sha512Free_ctx(wc_Sha512* sha512)
 {
     (void)SA2UL_contextFree(&sha512->scObj);
     XMEMSET(&sha512->scObj, 0, sizeof(sha512->scObj));
-    
+
     return 0;
 }
 
