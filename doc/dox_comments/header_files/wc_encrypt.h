@@ -271,6 +271,7 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
     \return BAD_FUNC_ARG if info->keySz > WC_MAX_SYM_KEY_SIZE
     \return ALGO_ID_E if info->cipherType is not one of the cipher types
     this function handles
+    \return BUFFER_E if IV buffer is too small
     \return NOT_COMPILED_IN if info->cipherType is a cipher type this
     function handles, but support for it was disabled in this build
     \return Negative value on error
