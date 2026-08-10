@@ -254,7 +254,7 @@ int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
                     pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* info->keySz > WC_MAX_SYM_KEY_SIZE */
-    info.keySz = 128;
+    info.keySz = WC_MAX_SYM_KEY_SIZE + 1;
     ExpectIntEQ(wc_BufferKeyEncrypt(&info, der, (word32)sizeof(der),
                     pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -280,7 +280,7 @@ int test_wc_BufferKeyEncryptDecryptDecisionCoverage(void)
     ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, (word32)sizeof(der),
                     pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    info.keySz = 128;
+    info.keySz = WC_MAX_SYM_KEY_SIZE + 1;
     ExpectIntEQ(wc_BufferKeyDecrypt(&info, der, (word32)sizeof(der),
                     pw, (int)sizeof(pw), WC_HASH_TYPE_SHA),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
