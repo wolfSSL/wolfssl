@@ -14981,7 +14981,9 @@ static int SetDNSEntry(void* heap, DNS_entry* pool, word32* poolUsed,
         /* Set tag type, name length, name and NUL terminate name. */
         dnsEntry->type = type;
         dnsEntry->len = strLen;
-        XMEMCPY(dnsEntry_name, str, (size_t)strLen);
+        if (str != NULL && strLen > 0) {
+            XMEMCPY(dnsEntry_name, str, (size_t)strLen);
+        }
         dnsEntry_name[strLen] = '\0';
 
 #ifdef WOLFSSL_RID_ALT_NAME
