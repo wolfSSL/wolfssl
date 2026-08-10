@@ -104,6 +104,15 @@ static void wb_miller_rabin(void)
     (void)mp_set(&b, 2);
     (void)mp_prime_miller_rabin(&a, &b, &res);  /* composite */
 
+    /* Squaring loop that ENDS because the witness reached n1 rather than
+     * because the round counter ran out. 17-1 = 2^4, so s-1 is 3 and base 2
+     * walks 2 -> 4 -> 16 == n1 at j == 3: the loop's second operand decides
+     * the exit while the first is still true, which base 3 (which only
+     * reaches n1 once j has already passed s-1) never shows. */
+    (void)mp_set(&a, 17);
+    (void)mp_set(&b, 2);
+    (void)mp_prime_miller_rabin(&a, &b, &res);
+
     mp_clear(&a);
     mp_clear(&b);
     WB_NOTE("mp_prime_miller_rabin prime/composite exercised");
@@ -302,35 +311,60 @@ static void wb_s_mp_add_sub_null_dp(void)
 static void wb_s_mp_mul_high_digs_null_dp(void)
 {
     mp_int a, b, c;
+    /* The slow path is taken when a->used + b->used + 1 >= MP_WARRAY. The
+     * WIDTH is carried entirely by 'b' and 'a' is left at a single digit on
+     * purpose: the inner loop aliases 'b' at b->dp + (digs - ix), so an 'a'
+     * wider than one digit walks that alias BACKWARDS off the front of b's
+     * buffer. With pa == 1 and digs == 0 the only offset used is 0 and every
+     * read stays inside b. (An earlier version of this driver put the width
+     * on 'a' instead and read up to 600 digits in front of b->dp; it survived
+     * only because the preceding allocations happened to leave mapped memory
+     * there, and faulted as soon as anything else ran first.) */
+    int pb = (int)MP_WARRAY;
+    int i;
 
     XMEMSET(&a, 0, sizeof(a));
     XMEMSET(&b, 0, sizeof(b));
     XMEMSET(&c, 0, sizeof(c));
-    mp_init(&a);
-    mp_init(&b);
-    mp_init(&c);
+    if ((mp_init(&a) != MP_OKAY) || (mp_init(&b) != MP_OKAY) ||
+            (mp_init(&c) != MP_OKAY)) {
+        WB_NOTE("mul_high_digs: init failed, skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (mp_grow(&b, pb) != MP_OKAY) {
+        WB_NOTE("mul_high_digs: grow failed, skipped");
+        wb_fail = 1;
+        goto out;
+    }
+    for (i = 0; i < pb; i++) {
+        b.dp[i] = (mp_digit)(i + 1);
+    }
+    b.used = pb;
 
-    /* Corrupted 'a': ->used large enough to both force the slow path
-     * (a->used + b->used + 1 >= MP_WARRAY) and make pa > 0, but ->dp
-     * stays NULL - the loop condition's short-circuit ("a->dp" checked
-     * after "ix < pa") means dereferencing a->dp[ix] never happens. */
-    a.used = 600;
-    mp_set(&b, 3);
+    /* Corrupted 'a': ->used nonzero so pa > 0, but ->dp stays NULL - the
+     * loop condition's short-circuit ("a->dp" checked after "ix < pa")
+     * means dereferencing a->dp[ix] never happens. */
+    a.used = 1;
     (void)s_mp_mul_high_digs(&a, &b, &c, 0);
-    a.used = 0; /* restore before mp_clear below */
+    a.used = 0; /* restore before the grow below */
 
-    /* Same slow-path shape, but with a REAL (grown, non-corrupted) large
-     * 'a' - completes the "a->dp" truthy side within this same binary. */
-    mp_grow(&a, 600);
-    a.used = 600;
-    XMEMSET(a.dp, 0, sizeof(mp_digit) * 600);
+    /* Same slow-path shape, but with a REAL (allocated) 'a' - completes the
+     * "a->dp" truthy side within this same binary. */
+    if (mp_grow(&a, 1) != MP_OKAY) {
+        WB_NOTE("mul_high_digs: grow failed, skipped");
+        wb_fail = 1;
+        goto out;
+    }
     a.dp[0] = 3;
+    a.used  = 1;
     (void)s_mp_mul_high_digs(&a, &b, &c, 0);
 
+    WB_NOTE("s_mp_mul_high_digs 'a->dp' loop guard both sides exercised");
+out:
     mp_clear(&a);
     mp_clear(&b);
     mp_clear(&c);
-    WB_NOTE("s_mp_mul_high_digs 'a->dp' loop guard both sides exercised");
 }
 
 /* ------------------------------------------------------------------------- *
@@ -900,10 +934,239 @@ static void wb_IntegerDecisionCoverage(void)
     WB_NOTE("IntegerDecisionCoverage decision branches exercised");
 }
 
+/* ------------------------------------------------------------------------- *
+ * Class 4: the mp_add_d() / mp_sub_d() destination-alias sanity checks.
+ *
+ *   tmpa = a->dp;
+ *   tmpc = c->dp;
+ *   if (tmpa == NULL || tmpc == NULL) { return MP_MEM; }
+ *
+ * Both functions grow the destination first, so by the time the aliases are
+ * taken c->dp is NULL only if c arrived claiming capacity it does not have
+ * (->alloc >= a->used + 1 while ->dp == NULL) - the grow is skipped and the
+ * destination alias is NULL while the SOURCE alias is not. That is exactly
+ * the second operand's independence row, and no public mutator can build the
+ * state, so it is set up here directly: the pointer is parked, the call made,
+ * and the pointer put back before the value is cleared.
+ * ------------------------------------------------------------------------- */
+static void wb_add_sub_d_null_dp(void)
+{
+    mp_int a, c;
+    mp_digit* saved;
+
+    XMEMSET(&a, 0, sizeof(a));
+    XMEMSET(&c, 0, sizeof(c));
+
+    if ((mp_init(&a) != MP_OKAY) || (mp_init(&c) != MP_OKAY)) {
+        WB_NOTE("add/sub_d alias rows: init failed, skipped");
+        wb_fail = 1;
+        return;
+    }
+    /* a = 5 (one digit, positive) and a destination with real capacity. */
+    if ((mp_set(&a, 5) != MP_OKAY) || (mp_grow(&c, 8) != MP_OKAY)) {
+        WB_NOTE("add/sub_d alias rows: setup failed, skipped");
+        wb_fail = 1;
+        goto out;
+    }
+
+    /* Ordinary rows first: both aliases non-NULL, in this same binary. */
+    (void)mp_add_d(&a, 1, &c);
+    (void)mp_sub_d(&a, 1, &c);
+
+    /* Destination alias NULL while the source alias is not. The recorded
+     * capacity is left alone so the grow is skipped and the guard is the
+     * first thing that sees the missing buffer. */
+    saved = c.dp;
+    c.dp  = NULL;
+    (void)mp_add_d(&a, 1, &c);
+    (void)mp_sub_d(&a, 1, &c);
+    c.dp  = saved;
+
+    WB_NOTE("mp_add_d/mp_sub_d destination-alias rows exercised");
+out:
+    mp_clear(&a);
+    mp_clear(&c);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Class 5: mp_mul_d()'s destination capacity guard.
+ *
+ *   if (c->dp == NULL || c->alloc < a->used + 1) { mp_grow(...) }
+ *
+ * mp_init() defers allocation, so the first use of any destination takes the
+ * dp==NULL arm and the capacity operand is never evaluated; after that the
+ * grown destination is comfortably large for the single-digit multiplicands
+ * the suite uses, so the capacity operand is only ever seen false. A
+ * multiplicand wider than the destination's grown capacity supplies its true
+ * row, and repeating the call once the destination has been grown to fit
+ * supplies the false row.
+ * ------------------------------------------------------------------------- */
+static void wb_mul_d_capacity(void)
+{
+    mp_int a, c;
+
+    XMEMSET(&a, 0, sizeof(a));
+    XMEMSET(&c, 0, sizeof(c));
+
+    if ((mp_init(&a) != MP_OKAY) || (mp_init(&c) != MP_OKAY)) {
+        WB_NOTE("mul_d capacity rows: init failed, skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    /* First use: the destination has no buffer at all (first operand true). */
+    if (mp_set(&a, 7) != MP_OKAY) {
+        wb_fail = 1;
+        goto out;
+    }
+    (void)mp_mul_d(&a, 3, &c);
+
+    /* A multiplicand far wider than the destination's grown capacity: the
+     * destination now has a buffer, so the capacity operand decides. */
+    if ((mp_set(&a, 1) != MP_OKAY) ||
+            (mp_mul_2d(&a, 4096 * DIGIT_BIT, &a) != MP_OKAY)) {
+        wb_fail = 1;
+        goto out;
+    }
+    (void)mp_mul_d(&a, 3, &c);
+
+    /* Same call again: the destination was grown to fit by the previous one,
+     * so both operands are false. */
+    (void)mp_mul_d(&a, 3, &c);
+
+    WB_NOTE("mp_mul_d destination capacity rows exercised");
+out:
+    mp_clear(&a);
+    mp_clear(&c);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Class 6: mp_exptmod_base_2()'s Montgomery-backend selector.
+ *
+ *   if (((P->used * 2 + 1) < (int)MP_WARRAY) && P->used < (1L << ...))
+ *
+ * The comba ("fast") Montgomery reduction is selected whenever the modulus
+ * fits the fixed-width accumulator array; every modulus the suite uses does,
+ * so the generic reduction is never chosen and the first operand's false row
+ * is missing. A modulus wide enough to overflow the accumulator selects the
+ * generic backend. Only the FIRST operand is closable: the second operand is
+ * implied by the first (2u+1 < 2^(k+1) and u < 2^k are the same predicate on
+ * an integer u), so it has no independence pair - see the residuals note.
+ *
+ * The exponent is deliberately tiny: the decision is about the modulus width,
+ * and the generic reduction is quadratic in it.
+ * ------------------------------------------------------------------------- */
+static void wb_exptmod_base_2_wide(void)
+{
+    mp_int g, x, p, y;
+    int    digits = (int)((MP_WARRAY + 1) / 2);
+
+    XMEMSET(&g, 0, sizeof(g)); XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p)); XMEMSET(&y, 0, sizeof(y));
+
+    if (digits > 1024) {
+        WB_NOTE("accumulator width needs an impractical modulus; skipped");
+        return;
+    }
+
+    if (mp_init_multi(&g, &x, &p, &y, NULL, NULL) != MP_OKAY) {
+        WB_NOTE("wide-modulus base-2 rows: init failed, skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    /* p = 2^(digits*DIGIT_BIT) + 1: odd, and one digit past the width at
+     * which the accumulator array can still hold the product. */
+    if ((mp_set(&g, 2) != MP_OKAY) || (mp_set(&x, 3) != MP_OKAY) ||
+            (mp_set(&p, 1) != MP_OKAY) ||
+            (mp_mul_2d(&p, digits * DIGIT_BIT, &p) != MP_OKAY) ||
+            (mp_add_d(&p, 1, &p) != MP_OKAY)) {
+        WB_NOTE("wide-modulus base-2 rows: setup failed, skipped");
+        wb_fail = 1;
+        goto out;
+    }
+    (void)mp_exptmod(&g, &x, &p, &y);
+
+    /* The ordinary row: a modulus the accumulator does hold. */
+    if ((mp_set(&p, 1) == MP_OKAY) && (mp_mul_2d(&p, 127, &p) == MP_OKAY) &&
+            (mp_add_d(&p, 1, &p) == MP_OKAY)) {
+        (void)mp_exptmod(&g, &x, &p, &y);
+    }
+
+    WB_NOTE("mp_exptmod_base_2 wide-modulus rows exercised");
+out:
+    mp_clear(&g); mp_clear(&x); mp_clear(&p); mp_clear(&y);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Class 7: mp_prime_is_prime_ex()'s random-witness rejection.
+ *
+ *   if (mp_cmp_d(&b, 2) != MP_GT || mp_cmp(&b, &c) != MP_LT) { ix--; continue; }
+ *
+ * The witness is drawn at random and masked down to the CANDIDATE's bit
+ * width. For the multi-hundred-bit candidates the suite tests, a draw of 0, 1
+ * or 2 has probability ~2^-bits and is never observed, so the first operand's
+ * true row is missing. A deliberately small candidate shrinks the draw space
+ * until the arm is certain to be taken inside a bounded number of trials.
+ *
+ * 2039 is prime, is past the end of the small-prime table (so the up-front
+ * table lookup and trial division do not answer it), and sits just under
+ * 2^11, so an 11-bit witness is out of range only 14 times in 2048 - rare
+ * enough that the retry loop always makes progress. At 3 draws in 2048 for
+ * the arm of interest, this many trials misses it with probability ~e^-29.
+ * ------------------------------------------------------------------------- */
+#ifndef WC_NO_RNG
+#define WB_SMALL_WITNESS_TRIALS 20000
+
+static void wb_prime_small_witness(void)
+{
+    WC_RNG rng;
+    mp_int a;
+    int    res = 0;
+    int    i;
+
+    XMEMSET(&a, 0, sizeof(a));
+    if (mp_init(&a) != MP_OKAY) {
+        wb_fail = 1;
+        return;
+    }
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("RNG init failed; small-witness rows skipped");
+        mp_clear(&a);
+        return;
+    }
+    if (mp_set(&a, 2039) != MP_OKAY) {
+        wb_fail = 1;
+        goto out;
+    }
+
+    for (i = 0; i < WB_SMALL_WITNESS_TRIALS; i++) {
+        if (mp_prime_is_prime_ex(&a, 1, &res, &rng) != MP_OKAY) {
+            wb_fail = 1;
+            break;
+        }
+    }
+
+    WB_NOTE("random-witness rejection rows exercised");
+out:
+    (void)wc_FreeRng(&rng);
+    mp_clear(&a);
+}
+#else
+static void wb_prime_small_witness(void)
+{
+    WB_NOTE("no RNG in this build; random-witness rows skipped");
+}
+#endif /* !WC_NO_RNG */
+
 #endif /* USE_INTEGER_HEAP_MATH && WOLFSSL_PUBLIC_MP */
 
 int main(void)
 {
+    /* Unbuffered: on a timeout the process is killed and anything still
+     * buffered is lost, which reads as an empty log. */
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("integer.c white-box MC/DC supplement\n");
 #if defined(USE_FAST_MATH) || !defined(USE_INTEGER_HEAP_MATH) || \
     defined(WOLFSSL_SP_MATH) || defined(NO_BIG_INT)
@@ -923,6 +1186,10 @@ int main(void)
     wb_mp_set_bit_corrupted();
     wb_mp_cnt_lsb_all_zero_digits();
     wb_IntegerDecisionCoverage();
+    wb_add_sub_d_null_dp();
+    wb_mul_d_capacity();
+    wb_exptmod_base_2_wide();
+    wb_prime_small_witness();
 #endif
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures surface as skips, not failures: a nonzero exit makes the
