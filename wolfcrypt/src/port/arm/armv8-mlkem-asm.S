@@ -9767,17 +9767,17 @@ L_sha3_aarch64_r:
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text
-.globl	mlkem_sha3_blocksx3_neon
-WC_ASM_ATT_HIDDEN(mlkem_sha3_blocksx3_neon)
-.type	mlkem_sha3_blocksx3_neon,@function
+.globl	mlkem_sha3_blocksx3_crypto
+WC_ASM_ATT_HIDDEN(mlkem_sha3_blocksx3_crypto)
+.type	mlkem_sha3_blocksx3_crypto,@function
 .align	2
-mlkem_sha3_blocksx3_neon:
+mlkem_sha3_blocksx3_crypto:
 #else
 .section	__TEXT,__text
-.globl	_mlkem_sha3_blocksx3_neon
-WC_ASM_ATT_HIDDEN(_mlkem_sha3_blocksx3_neon)
+.globl	_mlkem_sha3_blocksx3_crypto
+WC_ASM_ATT_HIDDEN(_mlkem_sha3_blocksx3_crypto)
 .p2align	2
-_mlkem_sha3_blocksx3_neon:
+_mlkem_sha3_blocksx3_crypto:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -9830,7 +9830,7 @@ _mlkem_sha3_blocksx3_neon:
 	ldr	x26, [x0, #192]
 	mov	x28, #24
 	# Start of 24 rounds
-L_SHA3_transform_blocksx3_neon_begin:
+L_SHA3_transform_blocksx3_crypto_begin:
 	stp	x27, x28, [x29, #48]
 	# Col Mix
 	eor3	v31.16b, v0.16b, v5.16b, v10.16b
@@ -10046,7 +10046,7 @@ L_SHA3_transform_blocksx3_neon_begin:
 	mov	v30.d[1], x0
 	eor	x1, x1, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_transform_blocksx3_neon_begin
+	bne	L_SHA3_transform_blocksx3_crypto_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -10090,21 +10090,21 @@ L_SHA3_transform_blocksx3_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	mlkem_sha3_blocksx3_neon,.-mlkem_sha3_blocksx3_neon
+	.size	mlkem_sha3_blocksx3_crypto,.-mlkem_sha3_blocksx3_crypto
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	mlkem_shake128_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(mlkem_shake128_blocksx3_seed_neon)
-.type	mlkem_shake128_blocksx3_seed_neon,@function
+.globl	mlkem_shake128_blocksx3_seed_crypto
+WC_ASM_ATT_HIDDEN(mlkem_shake128_blocksx3_seed_crypto)
+.type	mlkem_shake128_blocksx3_seed_crypto,@function
 .align	2
-mlkem_shake128_blocksx3_seed_neon:
+mlkem_shake128_blocksx3_seed_crypto:
 #else
 .section	__TEXT,__text
-.globl	_mlkem_shake128_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(_mlkem_shake128_blocksx3_seed_neon)
+.globl	_mlkem_shake128_blocksx3_seed_crypto
+WC_ASM_ATT_HIDDEN(_mlkem_shake128_blocksx3_seed_crypto)
 .p2align	2
-_mlkem_shake128_blocksx3_seed_neon:
+_mlkem_shake128_blocksx3_seed_crypto:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -10179,7 +10179,7 @@ _mlkem_shake128_blocksx3_seed_neon:
 	dup	v20.2d, x23
 	mov	x1, #24
 	# Start of 24 rounds
-L_SHA3_shake128_blocksx3_seed_neon_begin:
+L_SHA3_shake128_blocksx3_seed_crypto_begin:
 	stp	x28, x1, [x29, #48]
 	# Col Mix
 	eor3	v31.16b, v0.16b, v5.16b, v10.16b
@@ -10395,7 +10395,7 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 	mov	v30.d[1], x0
 	eor	x2, x2, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake128_blocksx3_seed_neon_begin
+	bne	L_SHA3_shake128_blocksx3_seed_crypto_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -10439,21 +10439,21 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	mlkem_shake128_blocksx3_seed_neon,.-mlkem_shake128_blocksx3_seed_neon
+	.size	mlkem_shake128_blocksx3_seed_crypto,.-mlkem_shake128_blocksx3_seed_crypto
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	mlkem_shake256_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(mlkem_shake256_blocksx3_seed_neon)
-.type	mlkem_shake256_blocksx3_seed_neon,@function
+.globl	mlkem_shake256_blocksx3_seed_crypto
+WC_ASM_ATT_HIDDEN(mlkem_shake256_blocksx3_seed_crypto)
+.type	mlkem_shake256_blocksx3_seed_crypto,@function
 .align	2
-mlkem_shake256_blocksx3_seed_neon:
+mlkem_shake256_blocksx3_seed_crypto:
 #else
 .section	__TEXT,__text
-.globl	_mlkem_shake256_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(_mlkem_shake256_blocksx3_seed_neon)
+.globl	_mlkem_shake256_blocksx3_seed_crypto
+WC_ASM_ATT_HIDDEN(_mlkem_shake256_blocksx3_seed_crypto)
 .p2align	2
-_mlkem_shake256_blocksx3_seed_neon:
+_mlkem_shake256_blocksx3_seed_crypto:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -10528,7 +10528,7 @@ _mlkem_shake256_blocksx3_seed_neon:
 	dup	v16.2d, x19
 	mov	x1, #24
 	# Start of 24 rounds
-L_SHA3_shake256_blocksx3_seed_neon_begin:
+L_SHA3_shake256_blocksx3_seed_crypto_begin:
 	stp	x28, x1, [x29, #48]
 	# Col Mix
 	eor3	v31.16b, v0.16b, v5.16b, v10.16b
@@ -10744,7 +10744,7 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	mov	v30.d[1], x0
 	eor	x2, x2, x0
 	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake256_blocksx3_seed_neon_begin
+	bne	L_SHA3_shake256_blocksx3_seed_crypto_begin
 	ldr	x0, [x29, #40]
 	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
@@ -10788,1290 +10788,1289 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	mlkem_shake256_blocksx3_seed_neon,.-mlkem_shake256_blocksx3_seed_neon
-#endif /* __APPLE__ */
-#else
-#ifndef __APPLE__
-.text
-.globl	mlkem_sha3_blocksx3_neon
-WC_ASM_ATT_HIDDEN(mlkem_sha3_blocksx3_neon)
-.type	mlkem_sha3_blocksx3_neon,@function
-.align	2
-mlkem_sha3_blocksx3_neon:
-#else
-.section	__TEXT,__text
-.globl	_mlkem_sha3_blocksx3_neon
-WC_ASM_ATT_HIDDEN(_mlkem_sha3_blocksx3_neon)
-.p2align	2
-_mlkem_sha3_blocksx3_neon:
-#endif /* __APPLE__ */
-	stp	x29, x30, [sp, #-224]!
-	add	x29, sp, #0
-	stp	x17, x19, [x29, #72]
-	stp	x20, x21, [x29, #88]
-	stp	x22, x23, [x29, #104]
-	stp	x24, x25, [x29, #120]
-	stp	x26, x27, [x29, #136]
-	str	x28, [x29, #152]
-	stp	d8, d9, [x29, #160]
-	stp	d10, d11, [x29, #176]
-	stp	d12, d13, [x29, #192]
-	stp	d14, d15, [x29, #208]
-#ifndef __APPLE__
-	adrp x27, L_sha3_aarch64_r
-	add  x27, x27, :lo12:L_sha3_aarch64_r
-#else
-	adrp x27, L_sha3_aarch64_r@PAGE
-	add  x27, x27, L_sha3_aarch64_r@PAGEOFF
-#endif /* __APPLE__ */
-	str	x0, [x29, #40]
-	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
-	ld4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
-	ld4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
-	ld4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
-	ld4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
-	ld4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
-	ld1	{v24.d}[0], [x0]
-	add	x0, x0, #8
-	ld4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
-	ld4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
-	ld4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
-	ld4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
-	ld4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
-	ld4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
-	ld1	{v24.d}[1], [x0]
-	add	x0, x0, #8
-	ldp	x1, x2, [x0]
-	ldp	x3, x4, [x0, #16]
-	ldp	x5, x6, [x0, #32]
-	ldp	x7, x8, [x0, #48]
-	ldp	x9, x10, [x0, #64]
-	ldp	x11, x12, [x0, #80]
-	ldp	x13, x14, [x0, #96]
-	ldp	x15, x16, [x0, #112]
-	ldp	x17, x19, [x0, #128]
-	ldp	x20, x21, [x0, #144]
-	ldp	x22, x23, [x0, #160]
-	ldp	x24, x25, [x0, #176]
-	ldr	x26, [x0, #192]
-	mov	x28, #24
-	# Start of 24 rounds
-L_SHA3_transform_blocksx3_neon_begin:
-	stp	x27, x28, [x29, #48]
-	# Col Mix NEON
-	eor	v30.16b, v4.16b, v9.16b
-	eor	x0, x5, x10
-	eor	v27.16b, v1.16b, v6.16b
-	eor	x30, x1, x6
-	eor	v30.16b, v30.16b, v14.16b
-	eor	x28, x3, x8
-	eor	v27.16b, v27.16b, v11.16b
-	eor	x0, x0, x15
-	eor	v30.16b, v30.16b, v19.16b
-	eor	x30, x30, x11
-	eor	v27.16b, v27.16b, v16.16b
-	eor	x28, x28, x13
-	eor	v30.16b, v30.16b, v24.16b
-	eor	x0, x0, x21
-	eor	v27.16b, v27.16b, v21.16b
-	eor	x30, x30, x16
-	ushr	v25.2d, v27.2d, #63
-	eor	x28, x28, x19
-	sli	v25.2d, v27.2d, #1
-	eor	x0, x0, x26
-	eor	v25.16b, v25.16b, v30.16b
-	eor	x30, x30, x22
-	eor	v31.16b, v0.16b, v5.16b
-	eor	x28, x28, x24
-	eor	v28.16b, v2.16b, v7.16b
-	str	x0, [x29, #32]
-	eor	v31.16b, v31.16b, v10.16b
-	str	x28, [x29, #24]
-	eor	v28.16b, v28.16b, v12.16b
-	eor	x27, x2, x7
-	eor	v31.16b, v31.16b, v15.16b
-	eor	x28, x4, x9
-	eor	v28.16b, v28.16b, v17.16b
-	eor	x27, x27, x12
-	eor	v31.16b, v31.16b, v20.16b
-	eor	x28, x28, x14
-	eor	v28.16b, v28.16b, v22.16b
-	eor	x27, x27, x17
-	ushr	v29.2d, v30.2d, #63
-	eor	x28, x28, x20
-	ushr	v26.2d, v28.2d, #63
-	eor	x27, x27, x23
-	sli	v29.2d, v30.2d, #1
-	eor	x28, x28, x25
-	sli	v26.2d, v28.2d, #1
-	eor	x0, x0, x27, ror 63
-	eor	v28.16b, v28.16b, v29.16b
-	eor	x27, x27, x28, ror 63
-	eor	v29.16b, v3.16b, v8.16b
-	eor	x1, x1, x0
-	eor	v26.16b, v26.16b, v31.16b
-	eor	x6, x6, x0
-	eor	v29.16b, v29.16b, v13.16b
-	eor	x11, x11, x0
-	eor	v29.16b, v29.16b, v18.16b
-	eor	x16, x16, x0
-	eor	v29.16b, v29.16b, v23.16b
-	eor	x22, x22, x0
-	ushr	v30.2d, v29.2d, #63
-	eor	x3, x3, x27
-	sli	v30.2d, v29.2d, #1
-	eor	x8, x8, x27
-	eor	v27.16b, v27.16b, v30.16b
-	eor	x13, x13, x27
-	ushr	v30.2d, v31.2d, #63
-	eor	x19, x19, x27
-	sli	v30.2d, v31.2d, #1
-	eor	x24, x24, x27
-	eor	v29.16b, v29.16b, v30.16b
-	ldr	x0, [x29, #32]
-	# Swap Rotate NEON
-	eor	v0.16b, v0.16b, v25.16b
-	eor	v31.16b, v1.16b, v26.16b
-	ldr	x27, [x29, #24]
-	eor	v6.16b, v6.16b, v26.16b
-	eor	x28, x28, x30, ror 63
-	ushr	v30.2d, v31.2d, #63
-	eor	x30, x30, x27, ror 63
-	ushr	v1.2d, v6.2d, #20
-	eor	x27, x27, x0, ror 63
-	sli	v30.2d, v31.2d, #1
-	eor	x5, x5, x28
-	sli	v1.2d, v6.2d, #44
-	eor	x10, x10, x28
-	eor	v31.16b, v9.16b, v29.16b
-	eor	x15, x15, x28
-	eor	v22.16b, v22.16b, v27.16b
-	eor	x21, x21, x28
-	ushr	v6.2d, v31.2d, #44
-	eor	x26, x26, x28
-	ushr	v9.2d, v22.2d, #3
-	eor	x2, x2, x30
-	sli	v6.2d, v31.2d, #20
-	eor	x7, x7, x30
-	sli	v9.2d, v22.2d, #61
-	eor	x12, x12, x30
-	eor	v31.16b, v14.16b, v29.16b
-	eor	x17, x17, x30
-	eor	v20.16b, v20.16b, v25.16b
-	eor	x23, x23, x30
-	ushr	v22.2d, v31.2d, #25
-	eor	x4, x4, x27
-	ushr	v14.2d, v20.2d, #46
-	eor	x9, x9, x27
-	sli	v22.2d, v31.2d, #39
-	eor	x14, x14, x27
-	sli	v14.2d, v20.2d, #18
-	eor	x20, x20, x27
-	eor	v31.16b, v2.16b, v27.16b
-	eor	x25, x25, x27
-	# Swap Rotate Base
-	eor	v12.16b, v12.16b, v27.16b
-	ror	x0, x2, #63
-	ushr	v20.2d, v31.2d, #2
-	ror	x2, x7, #20
-	ushr	v2.2d, v12.2d, #21
-	ror	x7, x10, #44
-	sli	v20.2d, v31.2d, #62
-	ror	x10, x24, #3
-	sli	v2.2d, v12.2d, #43
-	ror	x24, x15, #25
-	eor	v31.16b, v13.16b, v28.16b
-	ror	x15, x22, #46
-	eor	v19.16b, v19.16b, v29.16b
-	ror	x22, x3, #2
-	ushr	v12.2d, v31.2d, #39
-	ror	x3, x13, #21
-	ushr	v13.2d, v19.2d, #56
-	ror	x13, x14, #39
-	sli	v12.2d, v31.2d, #25
-	ror	x14, x21, #56
-	sli	v13.2d, v19.2d, #8
-	ror	x21, x25, #8
-	eor	v31.16b, v23.16b, v28.16b
-	ror	x25, x16, #23
-	eor	v15.16b, v15.16b, v25.16b
-	ror	x16, x5, #37
-	ushr	v19.2d, v31.2d, #8
-	ror	x5, x26, #50
-	ushr	v23.2d, v15.2d, #23
-	ror	x26, x23, #62
-	sli	v19.2d, v31.2d, #56
-	ror	x23, x9, #9
-	sli	v23.2d, v15.2d, #41
-	ror	x9, x17, #19
-	eor	v31.16b, v4.16b, v29.16b
-	ror	x17, x6, #28
-	eor	v24.16b, v24.16b, v29.16b
-	ror	x6, x4, #36
-	ushr	v15.2d, v31.2d, #37
-	ror	x4, x20, #43
-	ushr	v4.2d, v24.2d, #50
-	ror	x20, x19, #49
-	sli	v15.2d, v31.2d, #27
-	ror	x19, x12, #54
-	sli	v4.2d, v24.2d, #14
-	ror	x12, x8, #58
-	eor	v31.16b, v21.16b, v26.16b
-	ror	x8, x11, #61
-	# Row Mix Base
-	eor	v8.16b, v8.16b, v28.16b
-	bic	x11, x3, x2
-	ushr	v24.2d, v31.2d, #62
-	bic	x27, x4, x3
-	ushr	v21.2d, v8.2d, #9
-	bic	x28, x1, x5
-	sli	v24.2d, v31.2d, #2
-	bic	x30, x2, x1
-	sli	v21.2d, v8.2d, #55
-	eor	x1, x1, x11
-	eor	v31.16b, v16.16b, v26.16b
-	eor	x2, x2, x27
-	eor	v5.16b, v5.16b, v25.16b
-	bic	x11, x5, x4
-	ushr	v8.2d, v31.2d, #19
-	eor	x4, x4, x28
-	ushr	v16.2d, v5.2d, #28
-	eor	x3, x3, x11
-	sli	v8.2d, v31.2d, #45
-	eor	x5, x5, x30
-	sli	v16.2d, v5.2d, #36
-	bic	x11, x8, x7
-	eor	v31.16b, v3.16b, v28.16b
-	bic	x27, x9, x8
-	eor	v18.16b, v18.16b, v28.16b
-	bic	x28, x6, x10
-	ushr	v5.2d, v31.2d, #36
-	bic	x30, x7, x6
-	ushr	v3.2d, v18.2d, #43
-	eor	x6, x6, x11
-	sli	v5.2d, v31.2d, #28
-	eor	x7, x7, x27
-	sli	v3.2d, v18.2d, #21
-	bic	x11, x10, x9
-	eor	v31.16b, v17.16b, v27.16b
-	eor	x9, x9, x28
-	eor	v11.16b, v11.16b, v26.16b
-	eor	x8, x8, x11
-	ushr	v18.2d, v31.2d, #49
-	eor	x10, x10, x30
-	ushr	v17.2d, v11.2d, #54
-	bic	x11, x13, x12
-	sli	v18.2d, v31.2d, #15
-	bic	x27, x14, x13
-	sli	v17.2d, v11.2d, #10
-	bic	x28, x0, x15
-	eor	v31.16b, v7.16b, v27.16b
-	bic	x30, x12, x0
-	eor	v10.16b, v10.16b, v25.16b
-	eor	x11, x0, x11
-	ushr	v11.2d, v31.2d, #58
-	eor	x12, x12, x27
-	ushr	v7.2d, v10.2d, #61
-	bic	x0, x15, x14
-	sli	v11.2d, v31.2d, #6
-	eor	x14, x14, x28
-	sli	v7.2d, v10.2d, #3
-	eor	x13, x13, x0
-	# Row Mix NEON
-	bic	v25.16b, v2.16b, v1.16b
-	eor	x15, x15, x30
-	bic	v26.16b, v3.16b, v2.16b
-	bic	x0, x19, x17
-	bic	v27.16b, v4.16b, v3.16b
-	bic	x27, x20, x19
-	bic	v28.16b, v0.16b, v4.16b
-	bic	x28, x16, x21
-	bic	v29.16b, v1.16b, v0.16b
-	bic	x30, x17, x16
-	eor	v0.16b, v0.16b, v25.16b
-	eor	x16, x16, x0
-	eor	v1.16b, v1.16b, v26.16b
-	eor	x17, x17, x27
-	eor	v2.16b, v2.16b, v27.16b
-	bic	x0, x21, x20
-	eor	v3.16b, v3.16b, v28.16b
-	eor	x20, x20, x28
-	eor	v4.16b, v4.16b, v29.16b
-	eor	x19, x19, x0
-	bic	v25.16b, v7.16b, v6.16b
-	eor	x21, x21, x30
-	bic	v26.16b, v8.16b, v7.16b
-	bic	x0, x24, x23
-	bic	v27.16b, v9.16b, v8.16b
-	bic	x27, x25, x24
-	bic	v28.16b, v5.16b, v9.16b
-	bic	x28, x22, x26
-	bic	v29.16b, v6.16b, v5.16b
-	bic	x30, x23, x22
-	eor	v5.16b, v5.16b, v25.16b
-	eor	x22, x22, x0
-	eor	v6.16b, v6.16b, v26.16b
-	eor	x23, x23, x27
-	eor	v7.16b, v7.16b, v27.16b
-	bic	x0, x26, x25
-	eor	v8.16b, v8.16b, v28.16b
-	eor	x25, x25, x28
-	eor	v9.16b, v9.16b, v29.16b
-	eor	x24, x24, x0
-	bic	v25.16b, v12.16b, v11.16b
-	eor	x26, x26, x30
-	bic	v26.16b, v13.16b, v12.16b
-	bic	v27.16b, v14.16b, v13.16b
-	bic	v28.16b, v30.16b, v14.16b
-	bic	v29.16b, v11.16b, v30.16b
-	eor	v10.16b, v30.16b, v25.16b
-	eor	v11.16b, v11.16b, v26.16b
-	eor	v12.16b, v12.16b, v27.16b
-	eor	v13.16b, v13.16b, v28.16b
-	eor	v14.16b, v14.16b, v29.16b
-	bic	v25.16b, v17.16b, v16.16b
-	bic	v26.16b, v18.16b, v17.16b
-	bic	v27.16b, v19.16b, v18.16b
-	bic	v28.16b, v15.16b, v19.16b
-	bic	v29.16b, v16.16b, v15.16b
-	eor	v15.16b, v15.16b, v25.16b
-	eor	v16.16b, v16.16b, v26.16b
-	eor	v17.16b, v17.16b, v27.16b
-	eor	v18.16b, v18.16b, v28.16b
-	eor	v19.16b, v19.16b, v29.16b
-	bic	v25.16b, v22.16b, v21.16b
-	bic	v26.16b, v23.16b, v22.16b
-	bic	v27.16b, v24.16b, v23.16b
-	bic	v28.16b, v20.16b, v24.16b
-	bic	v29.16b, v21.16b, v20.16b
-	eor	v20.16b, v20.16b, v25.16b
-	eor	v21.16b, v21.16b, v26.16b
-	eor	v22.16b, v22.16b, v27.16b
-	eor	v23.16b, v23.16b, v28.16b
-	eor	v24.16b, v24.16b, v29.16b
-	# Done transforming
-	ldp	x27, x28, [x29, #48]
-	ldr	x0, [x27], #8
-	subs	x28, x28, #1
-	mov	v30.d[0], x0
-	mov	v30.d[1], x0
-	eor	x1, x1, x0
-	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_transform_blocksx3_neon_begin
-	ldr	x0, [x29, #40]
-	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
-	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
-	st4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
-	st4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
-	st4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
-	st4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
-	st1	{v24.d}[0], [x0]
-	add	x0, x0, #8
-	st4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
-	st4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
-	st4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
-	st4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
-	st4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
-	st4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
-	st1	{v24.d}[1], [x0]
-	add	x0, x0, #8
-	stp	x1, x2, [x0]
-	stp	x3, x4, [x0, #16]
-	stp	x5, x6, [x0, #32]
-	stp	x7, x8, [x0, #48]
-	stp	x9, x10, [x0, #64]
-	stp	x11, x12, [x0, #80]
-	stp	x13, x14, [x0, #96]
-	stp	x15, x16, [x0, #112]
-	stp	x17, x19, [x0, #128]
-	stp	x20, x21, [x0, #144]
-	stp	x22, x23, [x0, #160]
-	stp	x24, x25, [x0, #176]
-	str	x26, [x0, #192]
-	ldp	x17, x19, [x29, #72]
-	ldp	x20, x21, [x29, #88]
-	ldp	x22, x23, [x29, #104]
-	ldp	x24, x25, [x29, #120]
-	ldp	x26, x27, [x29, #136]
-	ldr	x28, [x29, #152]
-	ldp	d8, d9, [x29, #160]
-	ldp	d10, d11, [x29, #176]
-	ldp	d12, d13, [x29, #192]
-	ldp	d14, d15, [x29, #208]
-	ldp	x29, x30, [sp], #0xe0
-	ret
-#ifndef __APPLE__
-	.size	mlkem_sha3_blocksx3_neon,.-mlkem_sha3_blocksx3_neon
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	mlkem_shake128_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(mlkem_shake128_blocksx3_seed_neon)
-.type	mlkem_shake128_blocksx3_seed_neon,@function
-.align	2
-mlkem_shake128_blocksx3_seed_neon:
-#else
-.section	__TEXT,__text
-.globl	_mlkem_shake128_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(_mlkem_shake128_blocksx3_seed_neon)
-.p2align	2
-_mlkem_shake128_blocksx3_seed_neon:
-#endif /* __APPLE__ */
-	stp	x29, x30, [sp, #-224]!
-	add	x29, sp, #0
-	stp	x17, x19, [x29, #72]
-	stp	x20, x21, [x29, #88]
-	stp	x22, x23, [x29, #104]
-	stp	x24, x25, [x29, #120]
-	stp	x26, x27, [x29, #136]
-	str	x28, [x29, #152]
-	stp	d8, d9, [x29, #160]
-	stp	d10, d11, [x29, #176]
-	stp	d12, d13, [x29, #192]
-	stp	d14, d15, [x29, #208]
-#ifndef __APPLE__
-	adrp x28, L_sha3_aarch64_r
-	add  x28, x28, :lo12:L_sha3_aarch64_r
-#else
-	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
-#endif /* __APPLE__ */
-	str	x0, [x29, #40]
-	add	x0, x0, #32
-	ld1	{v4.d}[0], [x0]
-	ldp	x2, x3, [x1], #16
-	add	x0, x0, #0xc8
-	ld1	{v4.d}[1], [x0]
-	ldp	x4, x5, [x1], #16
-	ldr	x6, [x0, #200]
-	eor	v5.16b, v5.16b, v5.16b
-	eor	x7, x7, x7
-	eor	v6.16b, v6.16b, v6.16b
-	eor	x8, x8, x8
-	eor	v7.16b, v7.16b, v7.16b
-	eor	x9, x9, x9
-	eor	v8.16b, v8.16b, v8.16b
-	eor	x10, x10, x10
-	eor	v9.16b, v9.16b, v9.16b
-	eor	x11, x11, x11
-	eor	v10.16b, v10.16b, v10.16b
-	eor	x12, x12, x12
-	eor	v11.16b, v11.16b, v11.16b
-	eor	x13, x13, x13
-	eor	v12.16b, v12.16b, v12.16b
-	eor	x14, x14, x14
-	eor	v13.16b, v13.16b, v13.16b
-	eor	x15, x15, x15
-	eor	v14.16b, v14.16b, v14.16b
-	eor	x16, x16, x16
-	eor	v15.16b, v15.16b, v15.16b
-	eor	x17, x17, x17
-	eor	v16.16b, v16.16b, v16.16b
-	eor	x19, x19, x19
-	eor	v17.16b, v17.16b, v17.16b
-	eor	x20, x20, x20
-	eor	v18.16b, v18.16b, v18.16b
-	eor	x21, x21, x21
-	eor	v19.16b, v19.16b, v19.16b
-	eor	x22, x22, x22
-	movz	x23, #0x8000, lsl 48
-	eor	v21.16b, v21.16b, v21.16b
-	eor	x24, x24, x24
-	eor	v22.16b, v22.16b, v22.16b
-	eor	x25, x25, x25
-	eor	v23.16b, v23.16b, v23.16b
-	eor	x26, x26, x26
-	eor	v24.16b, v24.16b, v24.16b
-	eor	x27, x27, x27
-	dup	v0.2d, x2
-	dup	v1.2d, x3
-	dup	v2.2d, x4
-	dup	v3.2d, x5
-	dup	v20.2d, x23
-	mov	x1, #24
-	# Start of 24 rounds
-L_SHA3_shake128_blocksx3_seed_neon_begin:
-	stp	x28, x1, [x29, #48]
-	# Col Mix NEON
-	eor	v30.16b, v4.16b, v9.16b
-	eor	x0, x6, x11
-	eor	v27.16b, v1.16b, v6.16b
-	eor	x30, x2, x7
-	eor	v30.16b, v30.16b, v14.16b
-	eor	x28, x4, x9
-	eor	v27.16b, v27.16b, v11.16b
-	eor	x0, x0, x16
-	eor	v30.16b, v30.16b, v19.16b
-	eor	x30, x30, x12
-	eor	v27.16b, v27.16b, v16.16b
-	eor	x28, x28, x14
-	eor	v30.16b, v30.16b, v24.16b
-	eor	x0, x0, x22
-	eor	v27.16b, v27.16b, v21.16b
-	eor	x30, x30, x17
-	ushr	v25.2d, v27.2d, #63
-	eor	x28, x28, x20
-	sli	v25.2d, v27.2d, #1
-	eor	x0, x0, x27
-	eor	v25.16b, v25.16b, v30.16b
-	eor	x30, x30, x23
-	eor	v31.16b, v0.16b, v5.16b
-	eor	x28, x28, x25
-	eor	v28.16b, v2.16b, v7.16b
-	str	x0, [x29, #32]
-	eor	v31.16b, v31.16b, v10.16b
-	str	x28, [x29, #24]
-	eor	v28.16b, v28.16b, v12.16b
-	eor	x1, x3, x8
-	eor	v31.16b, v31.16b, v15.16b
-	eor	x28, x5, x10
-	eor	v28.16b, v28.16b, v17.16b
-	eor	x1, x1, x13
-	eor	v31.16b, v31.16b, v20.16b
-	eor	x28, x28, x15
-	eor	v28.16b, v28.16b, v22.16b
-	eor	x1, x1, x19
-	ushr	v29.2d, v30.2d, #63
-	eor	x28, x28, x21
-	ushr	v26.2d, v28.2d, #63
-	eor	x1, x1, x24
-	sli	v29.2d, v30.2d, #1
-	eor	x28, x28, x26
-	sli	v26.2d, v28.2d, #1
-	eor	x0, x0, x1, ror 63
-	eor	v28.16b, v28.16b, v29.16b
-	eor	x1, x1, x28, ror 63
-	eor	v29.16b, v3.16b, v8.16b
-	eor	x2, x2, x0
-	eor	v26.16b, v26.16b, v31.16b
-	eor	x7, x7, x0
-	eor	v29.16b, v29.16b, v13.16b
-	eor	x12, x12, x0
-	eor	v29.16b, v29.16b, v18.16b
-	eor	x17, x17, x0
-	eor	v29.16b, v29.16b, v23.16b
-	eor	x23, x23, x0
-	ushr	v30.2d, v29.2d, #63
-	eor	x4, x4, x1
-	sli	v30.2d, v29.2d, #1
-	eor	x9, x9, x1
-	eor	v27.16b, v27.16b, v30.16b
-	eor	x14, x14, x1
-	ushr	v30.2d, v31.2d, #63
-	eor	x20, x20, x1
-	sli	v30.2d, v31.2d, #1
-	eor	x25, x25, x1
-	eor	v29.16b, v29.16b, v30.16b
-	ldr	x0, [x29, #32]
-	# Swap Rotate NEON
-	eor	v0.16b, v0.16b, v25.16b
-	eor	v31.16b, v1.16b, v26.16b
-	ldr	x1, [x29, #24]
-	eor	v6.16b, v6.16b, v26.16b
-	eor	x28, x28, x30, ror 63
-	ushr	v30.2d, v31.2d, #63
-	eor	x30, x30, x1, ror 63
-	ushr	v1.2d, v6.2d, #20
-	eor	x1, x1, x0, ror 63
-	sli	v30.2d, v31.2d, #1
-	eor	x6, x6, x28
-	sli	v1.2d, v6.2d, #44
-	eor	x11, x11, x28
-	eor	v31.16b, v9.16b, v29.16b
-	eor	x16, x16, x28
-	eor	v22.16b, v22.16b, v27.16b
-	eor	x22, x22, x28
-	ushr	v6.2d, v31.2d, #44
-	eor	x27, x27, x28
-	ushr	v9.2d, v22.2d, #3
-	eor	x3, x3, x30
-	sli	v6.2d, v31.2d, #20
-	eor	x8, x8, x30
-	sli	v9.2d, v22.2d, #61
-	eor	x13, x13, x30
-	eor	v31.16b, v14.16b, v29.16b
-	eor	x19, x19, x30
-	eor	v20.16b, v20.16b, v25.16b
-	eor	x24, x24, x30
-	ushr	v22.2d, v31.2d, #25
-	eor	x5, x5, x1
-	ushr	v14.2d, v20.2d, #46
-	eor	x10, x10, x1
-	sli	v22.2d, v31.2d, #39
-	eor	x15, x15, x1
-	sli	v14.2d, v20.2d, #18
-	eor	x21, x21, x1
-	eor	v31.16b, v2.16b, v27.16b
-	eor	x26, x26, x1
-	# Swap Rotate Base
-	eor	v12.16b, v12.16b, v27.16b
-	ror	x0, x3, #63
-	ushr	v20.2d, v31.2d, #2
-	ror	x3, x8, #20
-	ushr	v2.2d, v12.2d, #21
-	ror	x8, x11, #44
-	sli	v20.2d, v31.2d, #62
-	ror	x11, x25, #3
-	sli	v2.2d, v12.2d, #43
-	ror	x25, x16, #25
-	eor	v31.16b, v13.16b, v28.16b
-	ror	x16, x23, #46
-	eor	v19.16b, v19.16b, v29.16b
-	ror	x23, x4, #2
-	ushr	v12.2d, v31.2d, #39
-	ror	x4, x14, #21
-	ushr	v13.2d, v19.2d, #56
-	ror	x14, x15, #39
-	sli	v12.2d, v31.2d, #25
-	ror	x15, x22, #56
-	sli	v13.2d, v19.2d, #8
-	ror	x22, x26, #8
-	eor	v31.16b, v23.16b, v28.16b
-	ror	x26, x17, #23
-	eor	v15.16b, v15.16b, v25.16b
-	ror	x17, x6, #37
-	ushr	v19.2d, v31.2d, #8
-	ror	x6, x27, #50
-	ushr	v23.2d, v15.2d, #23
-	ror	x27, x24, #62
-	sli	v19.2d, v31.2d, #56
-	ror	x24, x10, #9
-	sli	v23.2d, v15.2d, #41
-	ror	x10, x19, #19
-	eor	v31.16b, v4.16b, v29.16b
-	ror	x19, x7, #28
-	eor	v24.16b, v24.16b, v29.16b
-	ror	x7, x5, #36
-	ushr	v15.2d, v31.2d, #37
-	ror	x5, x21, #43
-	ushr	v4.2d, v24.2d, #50
-	ror	x21, x20, #49
-	sli	v15.2d, v31.2d, #27
-	ror	x20, x13, #54
-	sli	v4.2d, v24.2d, #14
-	ror	x13, x9, #58
-	eor	v31.16b, v21.16b, v26.16b
-	ror	x9, x12, #61
-	# Row Mix Base
-	eor	v8.16b, v8.16b, v28.16b
-	bic	x12, x4, x3
-	ushr	v24.2d, v31.2d, #62
-	bic	x1, x5, x4
-	ushr	v21.2d, v8.2d, #9
-	bic	x28, x2, x6
-	sli	v24.2d, v31.2d, #2
-	bic	x30, x3, x2
-	sli	v21.2d, v8.2d, #55
-	eor	x2, x2, x12
-	eor	v31.16b, v16.16b, v26.16b
-	eor	x3, x3, x1
-	eor	v5.16b, v5.16b, v25.16b
-	bic	x12, x6, x5
-	ushr	v8.2d, v31.2d, #19
-	eor	x5, x5, x28
-	ushr	v16.2d, v5.2d, #28
-	eor	x4, x4, x12
-	sli	v8.2d, v31.2d, #45
-	eor	x6, x6, x30
-	sli	v16.2d, v5.2d, #36
-	bic	x12, x9, x8
-	eor	v31.16b, v3.16b, v28.16b
-	bic	x1, x10, x9
-	eor	v18.16b, v18.16b, v28.16b
-	bic	x28, x7, x11
-	ushr	v5.2d, v31.2d, #36
-	bic	x30, x8, x7
-	ushr	v3.2d, v18.2d, #43
-	eor	x7, x7, x12
-	sli	v5.2d, v31.2d, #28
-	eor	x8, x8, x1
-	sli	v3.2d, v18.2d, #21
-	bic	x12, x11, x10
-	eor	v31.16b, v17.16b, v27.16b
-	eor	x10, x10, x28
-	eor	v11.16b, v11.16b, v26.16b
-	eor	x9, x9, x12
-	ushr	v18.2d, v31.2d, #49
-	eor	x11, x11, x30
-	ushr	v17.2d, v11.2d, #54
-	bic	x12, x14, x13
-	sli	v18.2d, v31.2d, #15
-	bic	x1, x15, x14
-	sli	v17.2d, v11.2d, #10
-	bic	x28, x0, x16
-	eor	v31.16b, v7.16b, v27.16b
-	bic	x30, x13, x0
-	eor	v10.16b, v10.16b, v25.16b
-	eor	x12, x0, x12
-	ushr	v11.2d, v31.2d, #58
-	eor	x13, x13, x1
-	ushr	v7.2d, v10.2d, #61
-	bic	x0, x16, x15
-	sli	v11.2d, v31.2d, #6
-	eor	x15, x15, x28
-	sli	v7.2d, v10.2d, #3
-	eor	x14, x14, x0
-	# Row Mix NEON
-	bic	v25.16b, v2.16b, v1.16b
-	eor	x16, x16, x30
-	bic	v26.16b, v3.16b, v2.16b
-	bic	x0, x20, x19
-	bic	v27.16b, v4.16b, v3.16b
-	bic	x1, x21, x20
-	bic	v28.16b, v0.16b, v4.16b
-	bic	x28, x17, x22
-	bic	v29.16b, v1.16b, v0.16b
-	bic	x30, x19, x17
-	eor	v0.16b, v0.16b, v25.16b
-	eor	x17, x17, x0
-	eor	v1.16b, v1.16b, v26.16b
-	eor	x19, x19, x1
-	eor	v2.16b, v2.16b, v27.16b
-	bic	x0, x22, x21
-	eor	v3.16b, v3.16b, v28.16b
-	eor	x21, x21, x28
-	eor	v4.16b, v4.16b, v29.16b
-	eor	x20, x20, x0
-	bic	v25.16b, v7.16b, v6.16b
-	eor	x22, x22, x30
-	bic	v26.16b, v8.16b, v7.16b
-	bic	x0, x25, x24
-	bic	v27.16b, v9.16b, v8.16b
-	bic	x1, x26, x25
-	bic	v28.16b, v5.16b, v9.16b
-	bic	x28, x23, x27
-	bic	v29.16b, v6.16b, v5.16b
-	bic	x30, x24, x23
-	eor	v5.16b, v5.16b, v25.16b
-	eor	x23, x23, x0
-	eor	v6.16b, v6.16b, v26.16b
-	eor	x24, x24, x1
-	eor	v7.16b, v7.16b, v27.16b
-	bic	x0, x27, x26
-	eor	v8.16b, v8.16b, v28.16b
-	eor	x26, x26, x28
-	eor	v9.16b, v9.16b, v29.16b
-	eor	x25, x25, x0
-	bic	v25.16b, v12.16b, v11.16b
-	eor	x27, x27, x30
-	bic	v26.16b, v13.16b, v12.16b
-	bic	v27.16b, v14.16b, v13.16b
-	bic	v28.16b, v30.16b, v14.16b
-	bic	v29.16b, v11.16b, v30.16b
-	eor	v10.16b, v30.16b, v25.16b
-	eor	v11.16b, v11.16b, v26.16b
-	eor	v12.16b, v12.16b, v27.16b
-	eor	v13.16b, v13.16b, v28.16b
-	eor	v14.16b, v14.16b, v29.16b
-	bic	v25.16b, v17.16b, v16.16b
-	bic	v26.16b, v18.16b, v17.16b
-	bic	v27.16b, v19.16b, v18.16b
-	bic	v28.16b, v15.16b, v19.16b
-	bic	v29.16b, v16.16b, v15.16b
-	eor	v15.16b, v15.16b, v25.16b
-	eor	v16.16b, v16.16b, v26.16b
-	eor	v17.16b, v17.16b, v27.16b
-	eor	v18.16b, v18.16b, v28.16b
-	eor	v19.16b, v19.16b, v29.16b
-	bic	v25.16b, v22.16b, v21.16b
-	bic	v26.16b, v23.16b, v22.16b
-	bic	v27.16b, v24.16b, v23.16b
-	bic	v28.16b, v20.16b, v24.16b
-	bic	v29.16b, v21.16b, v20.16b
-	eor	v20.16b, v20.16b, v25.16b
-	eor	v21.16b, v21.16b, v26.16b
-	eor	v22.16b, v22.16b, v27.16b
-	eor	v23.16b, v23.16b, v28.16b
-	eor	v24.16b, v24.16b, v29.16b
-	# Done transforming
-	ldp	x28, x1, [x29, #48]
-	ldr	x0, [x28], #8
-	subs	x1, x1, #1
-	mov	v30.d[0], x0
-	mov	v30.d[1], x0
-	eor	x2, x2, x0
-	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake128_blocksx3_seed_neon_begin
-	ldr	x0, [x29, #40]
-	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
-	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
-	st4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
-	st4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
-	st4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
-	st4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
-	st1	{v24.d}[0], [x0]
-	add	x0, x0, #8
-	st4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
-	st4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
-	st4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
-	st4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
-	st4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
-	st4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
-	st1	{v24.d}[1], [x0]
-	add	x0, x0, #8
-	stp	x2, x3, [x0]
-	stp	x4, x5, [x0, #16]
-	stp	x6, x7, [x0, #32]
-	stp	x8, x9, [x0, #48]
-	stp	x10, x11, [x0, #64]
-	stp	x12, x13, [x0, #80]
-	stp	x14, x15, [x0, #96]
-	stp	x16, x17, [x0, #112]
-	stp	x19, x20, [x0, #128]
-	stp	x21, x22, [x0, #144]
-	stp	x23, x24, [x0, #160]
-	stp	x25, x26, [x0, #176]
-	str	x27, [x0, #192]
-	ldp	x17, x19, [x29, #72]
-	ldp	x20, x21, [x29, #88]
-	ldp	x22, x23, [x29, #104]
-	ldp	x24, x25, [x29, #120]
-	ldp	x26, x27, [x29, #136]
-	ldr	x28, [x29, #152]
-	ldp	d8, d9, [x29, #160]
-	ldp	d10, d11, [x29, #176]
-	ldp	d12, d13, [x29, #192]
-	ldp	d14, d15, [x29, #208]
-	ldp	x29, x30, [sp], #0xe0
-	ret
-#ifndef __APPLE__
-	.size	mlkem_shake128_blocksx3_seed_neon,.-mlkem_shake128_blocksx3_seed_neon
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-.text
-.globl	mlkem_shake256_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(mlkem_shake256_blocksx3_seed_neon)
-.type	mlkem_shake256_blocksx3_seed_neon,@function
-.align	2
-mlkem_shake256_blocksx3_seed_neon:
-#else
-.section	__TEXT,__text
-.globl	_mlkem_shake256_blocksx3_seed_neon
-WC_ASM_ATT_HIDDEN(_mlkem_shake256_blocksx3_seed_neon)
-.p2align	2
-_mlkem_shake256_blocksx3_seed_neon:
-#endif /* __APPLE__ */
-	stp	x29, x30, [sp, #-224]!
-	add	x29, sp, #0
-	stp	x17, x19, [x29, #72]
-	stp	x20, x21, [x29, #88]
-	stp	x22, x23, [x29, #104]
-	stp	x24, x25, [x29, #120]
-	stp	x26, x27, [x29, #136]
-	str	x28, [x29, #152]
-	stp	d8, d9, [x29, #160]
-	stp	d10, d11, [x29, #176]
-	stp	d12, d13, [x29, #192]
-	stp	d14, d15, [x29, #208]
-#ifndef __APPLE__
-	adrp x28, L_sha3_aarch64_r
-	add  x28, x28, :lo12:L_sha3_aarch64_r
-#else
-	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
-#endif /* __APPLE__ */
-	str	x0, [x29, #40]
-	add	x0, x0, #32
-	ld1	{v4.d}[0], [x0]
-	ldp	x2, x3, [x1], #16
-	add	x0, x0, #0xc8
-	ld1	{v4.d}[1], [x0]
-	ldp	x4, x5, [x1], #16
-	ldr	x6, [x0, #200]
-	eor	v5.16b, v5.16b, v5.16b
-	eor	x7, x7, x7
-	eor	v6.16b, v6.16b, v6.16b
-	eor	x8, x8, x8
-	eor	v7.16b, v7.16b, v7.16b
-	eor	x9, x9, x9
-	eor	v8.16b, v8.16b, v8.16b
-	eor	x10, x10, x10
-	eor	v9.16b, v9.16b, v9.16b
-	eor	x11, x11, x11
-	eor	v10.16b, v10.16b, v10.16b
-	eor	x12, x12, x12
-	eor	v11.16b, v11.16b, v11.16b
-	eor	x13, x13, x13
-	eor	v12.16b, v12.16b, v12.16b
-	eor	x14, x14, x14
-	eor	v13.16b, v13.16b, v13.16b
-	eor	x15, x15, x15
-	eor	v14.16b, v14.16b, v14.16b
-	eor	x16, x16, x16
-	eor	v15.16b, v15.16b, v15.16b
-	eor	x17, x17, x17
-	movz	x19, #0x8000, lsl 48
-	eor	v17.16b, v17.16b, v17.16b
-	eor	x20, x20, x20
-	eor	v18.16b, v18.16b, v18.16b
-	eor	x21, x21, x21
-	eor	v19.16b, v19.16b, v19.16b
-	eor	x22, x22, x22
-	eor	v20.16b, v20.16b, v20.16b
-	eor	x23, x23, x23
-	eor	v21.16b, v21.16b, v21.16b
-	eor	x24, x24, x24
-	eor	v22.16b, v22.16b, v22.16b
-	eor	x25, x25, x25
-	eor	v23.16b, v23.16b, v23.16b
-	eor	x26, x26, x26
-	eor	v24.16b, v24.16b, v24.16b
-	eor	x27, x27, x27
-	dup	v0.2d, x2
-	dup	v1.2d, x3
-	dup	v2.2d, x4
-	dup	v3.2d, x5
-	dup	v16.2d, x19
-	mov	x1, #24
-	# Start of 24 rounds
-L_SHA3_shake256_blocksx3_seed_neon_begin:
-	stp	x28, x1, [x29, #48]
-	# Col Mix NEON
-	eor	v30.16b, v4.16b, v9.16b
-	eor	x0, x6, x11
-	eor	v27.16b, v1.16b, v6.16b
-	eor	x30, x2, x7
-	eor	v30.16b, v30.16b, v14.16b
-	eor	x28, x4, x9
-	eor	v27.16b, v27.16b, v11.16b
-	eor	x0, x0, x16
-	eor	v30.16b, v30.16b, v19.16b
-	eor	x30, x30, x12
-	eor	v27.16b, v27.16b, v16.16b
-	eor	x28, x28, x14
-	eor	v30.16b, v30.16b, v24.16b
-	eor	x0, x0, x22
-	eor	v27.16b, v27.16b, v21.16b
-	eor	x30, x30, x17
-	ushr	v25.2d, v27.2d, #63
-	eor	x28, x28, x20
-	sli	v25.2d, v27.2d, #1
-	eor	x0, x0, x27
-	eor	v25.16b, v25.16b, v30.16b
-	eor	x30, x30, x23
-	eor	v31.16b, v0.16b, v5.16b
-	eor	x28, x28, x25
-	eor	v28.16b, v2.16b, v7.16b
-	str	x0, [x29, #32]
-	eor	v31.16b, v31.16b, v10.16b
-	str	x28, [x29, #24]
-	eor	v28.16b, v28.16b, v12.16b
-	eor	x1, x3, x8
-	eor	v31.16b, v31.16b, v15.16b
-	eor	x28, x5, x10
-	eor	v28.16b, v28.16b, v17.16b
-	eor	x1, x1, x13
-	eor	v31.16b, v31.16b, v20.16b
-	eor	x28, x28, x15
-	eor	v28.16b, v28.16b, v22.16b
-	eor	x1, x1, x19
-	ushr	v29.2d, v30.2d, #63
-	eor	x28, x28, x21
-	ushr	v26.2d, v28.2d, #63
-	eor	x1, x1, x24
-	sli	v29.2d, v30.2d, #1
-	eor	x28, x28, x26
-	sli	v26.2d, v28.2d, #1
-	eor	x0, x0, x1, ror 63
-	eor	v28.16b, v28.16b, v29.16b
-	eor	x1, x1, x28, ror 63
-	eor	v29.16b, v3.16b, v8.16b
-	eor	x2, x2, x0
-	eor	v26.16b, v26.16b, v31.16b
-	eor	x7, x7, x0
-	eor	v29.16b, v29.16b, v13.16b
-	eor	x12, x12, x0
-	eor	v29.16b, v29.16b, v18.16b
-	eor	x17, x17, x0
-	eor	v29.16b, v29.16b, v23.16b
-	eor	x23, x23, x0
-	ushr	v30.2d, v29.2d, #63
-	eor	x4, x4, x1
-	sli	v30.2d, v29.2d, #1
-	eor	x9, x9, x1
-	eor	v27.16b, v27.16b, v30.16b
-	eor	x14, x14, x1
-	ushr	v30.2d, v31.2d, #63
-	eor	x20, x20, x1
-	sli	v30.2d, v31.2d, #1
-	eor	x25, x25, x1
-	eor	v29.16b, v29.16b, v30.16b
-	ldr	x0, [x29, #32]
-	# Swap Rotate NEON
-	eor	v0.16b, v0.16b, v25.16b
-	eor	v31.16b, v1.16b, v26.16b
-	ldr	x1, [x29, #24]
-	eor	v6.16b, v6.16b, v26.16b
-	eor	x28, x28, x30, ror 63
-	ushr	v30.2d, v31.2d, #63
-	eor	x30, x30, x1, ror 63
-	ushr	v1.2d, v6.2d, #20
-	eor	x1, x1, x0, ror 63
-	sli	v30.2d, v31.2d, #1
-	eor	x6, x6, x28
-	sli	v1.2d, v6.2d, #44
-	eor	x11, x11, x28
-	eor	v31.16b, v9.16b, v29.16b
-	eor	x16, x16, x28
-	eor	v22.16b, v22.16b, v27.16b
-	eor	x22, x22, x28
-	ushr	v6.2d, v31.2d, #44
-	eor	x27, x27, x28
-	ushr	v9.2d, v22.2d, #3
-	eor	x3, x3, x30
-	sli	v6.2d, v31.2d, #20
-	eor	x8, x8, x30
-	sli	v9.2d, v22.2d, #61
-	eor	x13, x13, x30
-	eor	v31.16b, v14.16b, v29.16b
-	eor	x19, x19, x30
-	eor	v20.16b, v20.16b, v25.16b
-	eor	x24, x24, x30
-	ushr	v22.2d, v31.2d, #25
-	eor	x5, x5, x1
-	ushr	v14.2d, v20.2d, #46
-	eor	x10, x10, x1
-	sli	v22.2d, v31.2d, #39
-	eor	x15, x15, x1
-	sli	v14.2d, v20.2d, #18
-	eor	x21, x21, x1
-	eor	v31.16b, v2.16b, v27.16b
-	eor	x26, x26, x1
-	# Swap Rotate Base
-	eor	v12.16b, v12.16b, v27.16b
-	ror	x0, x3, #63
-	ushr	v20.2d, v31.2d, #2
-	ror	x3, x8, #20
-	ushr	v2.2d, v12.2d, #21
-	ror	x8, x11, #44
-	sli	v20.2d, v31.2d, #62
-	ror	x11, x25, #3
-	sli	v2.2d, v12.2d, #43
-	ror	x25, x16, #25
-	eor	v31.16b, v13.16b, v28.16b
-	ror	x16, x23, #46
-	eor	v19.16b, v19.16b, v29.16b
-	ror	x23, x4, #2
-	ushr	v12.2d, v31.2d, #39
-	ror	x4, x14, #21
-	ushr	v13.2d, v19.2d, #56
-	ror	x14, x15, #39
-	sli	v12.2d, v31.2d, #25
-	ror	x15, x22, #56
-	sli	v13.2d, v19.2d, #8
-	ror	x22, x26, #8
-	eor	v31.16b, v23.16b, v28.16b
-	ror	x26, x17, #23
-	eor	v15.16b, v15.16b, v25.16b
-	ror	x17, x6, #37
-	ushr	v19.2d, v31.2d, #8
-	ror	x6, x27, #50
-	ushr	v23.2d, v15.2d, #23
-	ror	x27, x24, #62
-	sli	v19.2d, v31.2d, #56
-	ror	x24, x10, #9
-	sli	v23.2d, v15.2d, #41
-	ror	x10, x19, #19
-	eor	v31.16b, v4.16b, v29.16b
-	ror	x19, x7, #28
-	eor	v24.16b, v24.16b, v29.16b
-	ror	x7, x5, #36
-	ushr	v15.2d, v31.2d, #37
-	ror	x5, x21, #43
-	ushr	v4.2d, v24.2d, #50
-	ror	x21, x20, #49
-	sli	v15.2d, v31.2d, #27
-	ror	x20, x13, #54
-	sli	v4.2d, v24.2d, #14
-	ror	x13, x9, #58
-	eor	v31.16b, v21.16b, v26.16b
-	ror	x9, x12, #61
-	# Row Mix Base
-	eor	v8.16b, v8.16b, v28.16b
-	bic	x12, x4, x3
-	ushr	v24.2d, v31.2d, #62
-	bic	x1, x5, x4
-	ushr	v21.2d, v8.2d, #9
-	bic	x28, x2, x6
-	sli	v24.2d, v31.2d, #2
-	bic	x30, x3, x2
-	sli	v21.2d, v8.2d, #55
-	eor	x2, x2, x12
-	eor	v31.16b, v16.16b, v26.16b
-	eor	x3, x3, x1
-	eor	v5.16b, v5.16b, v25.16b
-	bic	x12, x6, x5
-	ushr	v8.2d, v31.2d, #19
-	eor	x5, x5, x28
-	ushr	v16.2d, v5.2d, #28
-	eor	x4, x4, x12
-	sli	v8.2d, v31.2d, #45
-	eor	x6, x6, x30
-	sli	v16.2d, v5.2d, #36
-	bic	x12, x9, x8
-	eor	v31.16b, v3.16b, v28.16b
-	bic	x1, x10, x9
-	eor	v18.16b, v18.16b, v28.16b
-	bic	x28, x7, x11
-	ushr	v5.2d, v31.2d, #36
-	bic	x30, x8, x7
-	ushr	v3.2d, v18.2d, #43
-	eor	x7, x7, x12
-	sli	v5.2d, v31.2d, #28
-	eor	x8, x8, x1
-	sli	v3.2d, v18.2d, #21
-	bic	x12, x11, x10
-	eor	v31.16b, v17.16b, v27.16b
-	eor	x10, x10, x28
-	eor	v11.16b, v11.16b, v26.16b
-	eor	x9, x9, x12
-	ushr	v18.2d, v31.2d, #49
-	eor	x11, x11, x30
-	ushr	v17.2d, v11.2d, #54
-	bic	x12, x14, x13
-	sli	v18.2d, v31.2d, #15
-	bic	x1, x15, x14
-	sli	v17.2d, v11.2d, #10
-	bic	x28, x0, x16
-	eor	v31.16b, v7.16b, v27.16b
-	bic	x30, x13, x0
-	eor	v10.16b, v10.16b, v25.16b
-	eor	x12, x0, x12
-	ushr	v11.2d, v31.2d, #58
-	eor	x13, x13, x1
-	ushr	v7.2d, v10.2d, #61
-	bic	x0, x16, x15
-	sli	v11.2d, v31.2d, #6
-	eor	x15, x15, x28
-	sli	v7.2d, v10.2d, #3
-	eor	x14, x14, x0
-	# Row Mix NEON
-	bic	v25.16b, v2.16b, v1.16b
-	eor	x16, x16, x30
-	bic	v26.16b, v3.16b, v2.16b
-	bic	x0, x20, x19
-	bic	v27.16b, v4.16b, v3.16b
-	bic	x1, x21, x20
-	bic	v28.16b, v0.16b, v4.16b
-	bic	x28, x17, x22
-	bic	v29.16b, v1.16b, v0.16b
-	bic	x30, x19, x17
-	eor	v0.16b, v0.16b, v25.16b
-	eor	x17, x17, x0
-	eor	v1.16b, v1.16b, v26.16b
-	eor	x19, x19, x1
-	eor	v2.16b, v2.16b, v27.16b
-	bic	x0, x22, x21
-	eor	v3.16b, v3.16b, v28.16b
-	eor	x21, x21, x28
-	eor	v4.16b, v4.16b, v29.16b
-	eor	x20, x20, x0
-	bic	v25.16b, v7.16b, v6.16b
-	eor	x22, x22, x30
-	bic	v26.16b, v8.16b, v7.16b
-	bic	x0, x25, x24
-	bic	v27.16b, v9.16b, v8.16b
-	bic	x1, x26, x25
-	bic	v28.16b, v5.16b, v9.16b
-	bic	x28, x23, x27
-	bic	v29.16b, v6.16b, v5.16b
-	bic	x30, x24, x23
-	eor	v5.16b, v5.16b, v25.16b
-	eor	x23, x23, x0
-	eor	v6.16b, v6.16b, v26.16b
-	eor	x24, x24, x1
-	eor	v7.16b, v7.16b, v27.16b
-	bic	x0, x27, x26
-	eor	v8.16b, v8.16b, v28.16b
-	eor	x26, x26, x28
-	eor	v9.16b, v9.16b, v29.16b
-	eor	x25, x25, x0
-	bic	v25.16b, v12.16b, v11.16b
-	eor	x27, x27, x30
-	bic	v26.16b, v13.16b, v12.16b
-	bic	v27.16b, v14.16b, v13.16b
-	bic	v28.16b, v30.16b, v14.16b
-	bic	v29.16b, v11.16b, v30.16b
-	eor	v10.16b, v30.16b, v25.16b
-	eor	v11.16b, v11.16b, v26.16b
-	eor	v12.16b, v12.16b, v27.16b
-	eor	v13.16b, v13.16b, v28.16b
-	eor	v14.16b, v14.16b, v29.16b
-	bic	v25.16b, v17.16b, v16.16b
-	bic	v26.16b, v18.16b, v17.16b
-	bic	v27.16b, v19.16b, v18.16b
-	bic	v28.16b, v15.16b, v19.16b
-	bic	v29.16b, v16.16b, v15.16b
-	eor	v15.16b, v15.16b, v25.16b
-	eor	v16.16b, v16.16b, v26.16b
-	eor	v17.16b, v17.16b, v27.16b
-	eor	v18.16b, v18.16b, v28.16b
-	eor	v19.16b, v19.16b, v29.16b
-	bic	v25.16b, v22.16b, v21.16b
-	bic	v26.16b, v23.16b, v22.16b
-	bic	v27.16b, v24.16b, v23.16b
-	bic	v28.16b, v20.16b, v24.16b
-	bic	v29.16b, v21.16b, v20.16b
-	eor	v20.16b, v20.16b, v25.16b
-	eor	v21.16b, v21.16b, v26.16b
-	eor	v22.16b, v22.16b, v27.16b
-	eor	v23.16b, v23.16b, v28.16b
-	eor	v24.16b, v24.16b, v29.16b
-	# Done transforming
-	ldp	x28, x1, [x29, #48]
-	ldr	x0, [x28], #8
-	subs	x1, x1, #1
-	mov	v30.d[0], x0
-	mov	v30.d[1], x0
-	eor	x2, x2, x0
-	eor	v0.16b, v0.16b, v30.16b
-	bne	L_SHA3_shake256_blocksx3_seed_neon_begin
-	ldr	x0, [x29, #40]
-	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
-	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
-	st4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
-	st4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
-	st4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
-	st4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
-	st1	{v24.d}[0], [x0]
-	add	x0, x0, #8
-	st4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
-	st4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
-	st4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
-	st4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
-	st4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
-	st4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
-	st1	{v24.d}[1], [x0]
-	add	x0, x0, #8
-	stp	x2, x3, [x0]
-	stp	x4, x5, [x0, #16]
-	stp	x6, x7, [x0, #32]
-	stp	x8, x9, [x0, #48]
-	stp	x10, x11, [x0, #64]
-	stp	x12, x13, [x0, #80]
-	stp	x14, x15, [x0, #96]
-	stp	x16, x17, [x0, #112]
-	stp	x19, x20, [x0, #128]
-	stp	x21, x22, [x0, #144]
-	stp	x23, x24, [x0, #160]
-	stp	x25, x26, [x0, #176]
-	str	x27, [x0, #192]
-	ldp	x17, x19, [x29, #72]
-	ldp	x20, x21, [x29, #88]
-	ldp	x22, x23, [x29, #104]
-	ldp	x24, x25, [x29, #120]
-	ldp	x26, x27, [x29, #136]
-	ldr	x28, [x29, #152]
-	ldp	d8, d9, [x29, #160]
-	ldp	d10, d11, [x29, #176]
-	ldp	d12, d13, [x29, #192]
-	ldp	d14, d15, [x29, #208]
-	ldp	x29, x30, [sp], #0xe0
-	ret
-#ifndef __APPLE__
-	.size	mlkem_shake256_blocksx3_seed_neon,.-mlkem_shake256_blocksx3_seed_neon
+	.size	mlkem_shake256_blocksx3_seed_crypto,.-mlkem_shake256_blocksx3_seed_crypto
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
+#ifndef __APPLE__
+.text
+.globl	mlkem_sha3_blocksx3_neon
+WC_ASM_ATT_HIDDEN(mlkem_sha3_blocksx3_neon)
+.type	mlkem_sha3_blocksx3_neon,@function
+.align	2
+mlkem_sha3_blocksx3_neon:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_sha3_blocksx3_neon
+WC_ASM_ATT_HIDDEN(_mlkem_sha3_blocksx3_neon)
+.p2align	2
+_mlkem_sha3_blocksx3_neon:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-224]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #72]
+	stp	x20, x21, [x29, #88]
+	stp	x22, x23, [x29, #104]
+	stp	x24, x25, [x29, #120]
+	stp	x26, x27, [x29, #136]
+	str	x28, [x29, #152]
+	stp	d8, d9, [x29, #160]
+	stp	d10, d11, [x29, #176]
+	stp	d12, d13, [x29, #192]
+	stp	d14, d15, [x29, #208]
+#ifndef __APPLE__
+	adrp x27, L_sha3_aarch64_r
+	add  x27, x27, :lo12:L_sha3_aarch64_r
+#else
+	adrp x27, L_sha3_aarch64_r@PAGE
+	add  x27, x27, L_sha3_aarch64_r@PAGEOFF
+#endif /* __APPLE__ */
+	str	x0, [x29, #40]
+	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
+	ld4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
+	ld4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
+	ld4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
+	ld4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
+	ld4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
+	ld1	{v24.d}[0], [x0]
+	add	x0, x0, #8
+	ld4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
+	ld4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
+	ld4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
+	ld4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
+	ld4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
+	ld4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
+	ld1	{v24.d}[1], [x0]
+	add	x0, x0, #8
+	ldp	x1, x2, [x0]
+	ldp	x3, x4, [x0, #16]
+	ldp	x5, x6, [x0, #32]
+	ldp	x7, x8, [x0, #48]
+	ldp	x9, x10, [x0, #64]
+	ldp	x11, x12, [x0, #80]
+	ldp	x13, x14, [x0, #96]
+	ldp	x15, x16, [x0, #112]
+	ldp	x17, x19, [x0, #128]
+	ldp	x20, x21, [x0, #144]
+	ldp	x22, x23, [x0, #160]
+	ldp	x24, x25, [x0, #176]
+	ldr	x26, [x0, #192]
+	mov	x28, #24
+	# Start of 24 rounds
+L_SHA3_transform_blocksx3_neon_begin:
+	stp	x27, x28, [x29, #48]
+	# Col Mix NEON
+	eor	v30.16b, v4.16b, v9.16b
+	eor	x0, x5, x10
+	eor	v27.16b, v1.16b, v6.16b
+	eor	x30, x1, x6
+	eor	v30.16b, v30.16b, v14.16b
+	eor	x28, x3, x8
+	eor	v27.16b, v27.16b, v11.16b
+	eor	x0, x0, x15
+	eor	v30.16b, v30.16b, v19.16b
+	eor	x30, x30, x11
+	eor	v27.16b, v27.16b, v16.16b
+	eor	x28, x28, x13
+	eor	v30.16b, v30.16b, v24.16b
+	eor	x0, x0, x21
+	eor	v27.16b, v27.16b, v21.16b
+	eor	x30, x30, x16
+	ushr	v25.2d, v27.2d, #63
+	eor	x28, x28, x19
+	sli	v25.2d, v27.2d, #1
+	eor	x0, x0, x26
+	eor	v25.16b, v25.16b, v30.16b
+	eor	x30, x30, x22
+	eor	v31.16b, v0.16b, v5.16b
+	eor	x28, x28, x24
+	eor	v28.16b, v2.16b, v7.16b
+	str	x0, [x29, #32]
+	eor	v31.16b, v31.16b, v10.16b
+	str	x28, [x29, #24]
+	eor	v28.16b, v28.16b, v12.16b
+	eor	x27, x2, x7
+	eor	v31.16b, v31.16b, v15.16b
+	eor	x28, x4, x9
+	eor	v28.16b, v28.16b, v17.16b
+	eor	x27, x27, x12
+	eor	v31.16b, v31.16b, v20.16b
+	eor	x28, x28, x14
+	eor	v28.16b, v28.16b, v22.16b
+	eor	x27, x27, x17
+	ushr	v29.2d, v30.2d, #63
+	eor	x28, x28, x20
+	ushr	v26.2d, v28.2d, #63
+	eor	x27, x27, x23
+	sli	v29.2d, v30.2d, #1
+	eor	x28, x28, x25
+	sli	v26.2d, v28.2d, #1
+	eor	x0, x0, x27, ror 63
+	eor	v28.16b, v28.16b, v29.16b
+	eor	x27, x27, x28, ror 63
+	eor	v29.16b, v3.16b, v8.16b
+	eor	x1, x1, x0
+	eor	v26.16b, v26.16b, v31.16b
+	eor	x6, x6, x0
+	eor	v29.16b, v29.16b, v13.16b
+	eor	x11, x11, x0
+	eor	v29.16b, v29.16b, v18.16b
+	eor	x16, x16, x0
+	eor	v29.16b, v29.16b, v23.16b
+	eor	x22, x22, x0
+	ushr	v30.2d, v29.2d, #63
+	eor	x3, x3, x27
+	sli	v30.2d, v29.2d, #1
+	eor	x8, x8, x27
+	eor	v27.16b, v27.16b, v30.16b
+	eor	x13, x13, x27
+	ushr	v30.2d, v31.2d, #63
+	eor	x19, x19, x27
+	sli	v30.2d, v31.2d, #1
+	eor	x24, x24, x27
+	eor	v29.16b, v29.16b, v30.16b
+	ldr	x0, [x29, #32]
+	# Swap Rotate NEON
+	eor	v0.16b, v0.16b, v25.16b
+	eor	v31.16b, v1.16b, v26.16b
+	ldr	x27, [x29, #24]
+	eor	v6.16b, v6.16b, v26.16b
+	eor	x28, x28, x30, ror 63
+	ushr	v30.2d, v31.2d, #63
+	eor	x30, x30, x27, ror 63
+	ushr	v1.2d, v6.2d, #20
+	eor	x27, x27, x0, ror 63
+	sli	v30.2d, v31.2d, #1
+	eor	x5, x5, x28
+	sli	v1.2d, v6.2d, #44
+	eor	x10, x10, x28
+	eor	v31.16b, v9.16b, v29.16b
+	eor	x15, x15, x28
+	eor	v22.16b, v22.16b, v27.16b
+	eor	x21, x21, x28
+	ushr	v6.2d, v31.2d, #44
+	eor	x26, x26, x28
+	ushr	v9.2d, v22.2d, #3
+	eor	x2, x2, x30
+	sli	v6.2d, v31.2d, #20
+	eor	x7, x7, x30
+	sli	v9.2d, v22.2d, #61
+	eor	x12, x12, x30
+	eor	v31.16b, v14.16b, v29.16b
+	eor	x17, x17, x30
+	eor	v20.16b, v20.16b, v25.16b
+	eor	x23, x23, x30
+	ushr	v22.2d, v31.2d, #25
+	eor	x4, x4, x27
+	ushr	v14.2d, v20.2d, #46
+	eor	x9, x9, x27
+	sli	v22.2d, v31.2d, #39
+	eor	x14, x14, x27
+	sli	v14.2d, v20.2d, #18
+	eor	x20, x20, x27
+	eor	v31.16b, v2.16b, v27.16b
+	eor	x25, x25, x27
+	# Swap Rotate Base
+	eor	v12.16b, v12.16b, v27.16b
+	ror	x0, x2, #63
+	ushr	v20.2d, v31.2d, #2
+	ror	x2, x7, #20
+	ushr	v2.2d, v12.2d, #21
+	ror	x7, x10, #44
+	sli	v20.2d, v31.2d, #62
+	ror	x10, x24, #3
+	sli	v2.2d, v12.2d, #43
+	ror	x24, x15, #25
+	eor	v31.16b, v13.16b, v28.16b
+	ror	x15, x22, #46
+	eor	v19.16b, v19.16b, v29.16b
+	ror	x22, x3, #2
+	ushr	v12.2d, v31.2d, #39
+	ror	x3, x13, #21
+	ushr	v13.2d, v19.2d, #56
+	ror	x13, x14, #39
+	sli	v12.2d, v31.2d, #25
+	ror	x14, x21, #56
+	sli	v13.2d, v19.2d, #8
+	ror	x21, x25, #8
+	eor	v31.16b, v23.16b, v28.16b
+	ror	x25, x16, #23
+	eor	v15.16b, v15.16b, v25.16b
+	ror	x16, x5, #37
+	ushr	v19.2d, v31.2d, #8
+	ror	x5, x26, #50
+	ushr	v23.2d, v15.2d, #23
+	ror	x26, x23, #62
+	sli	v19.2d, v31.2d, #56
+	ror	x23, x9, #9
+	sli	v23.2d, v15.2d, #41
+	ror	x9, x17, #19
+	eor	v31.16b, v4.16b, v29.16b
+	ror	x17, x6, #28
+	eor	v24.16b, v24.16b, v29.16b
+	ror	x6, x4, #36
+	ushr	v15.2d, v31.2d, #37
+	ror	x4, x20, #43
+	ushr	v4.2d, v24.2d, #50
+	ror	x20, x19, #49
+	sli	v15.2d, v31.2d, #27
+	ror	x19, x12, #54
+	sli	v4.2d, v24.2d, #14
+	ror	x12, x8, #58
+	eor	v31.16b, v21.16b, v26.16b
+	ror	x8, x11, #61
+	# Row Mix Base
+	eor	v8.16b, v8.16b, v28.16b
+	bic	x11, x3, x2
+	ushr	v24.2d, v31.2d, #62
+	bic	x27, x4, x3
+	ushr	v21.2d, v8.2d, #9
+	bic	x28, x1, x5
+	sli	v24.2d, v31.2d, #2
+	bic	x30, x2, x1
+	sli	v21.2d, v8.2d, #55
+	eor	x1, x1, x11
+	eor	v31.16b, v16.16b, v26.16b
+	eor	x2, x2, x27
+	eor	v5.16b, v5.16b, v25.16b
+	bic	x11, x5, x4
+	ushr	v8.2d, v31.2d, #19
+	eor	x4, x4, x28
+	ushr	v16.2d, v5.2d, #28
+	eor	x3, x3, x11
+	sli	v8.2d, v31.2d, #45
+	eor	x5, x5, x30
+	sli	v16.2d, v5.2d, #36
+	bic	x11, x8, x7
+	eor	v31.16b, v3.16b, v28.16b
+	bic	x27, x9, x8
+	eor	v18.16b, v18.16b, v28.16b
+	bic	x28, x6, x10
+	ushr	v5.2d, v31.2d, #36
+	bic	x30, x7, x6
+	ushr	v3.2d, v18.2d, #43
+	eor	x6, x6, x11
+	sli	v5.2d, v31.2d, #28
+	eor	x7, x7, x27
+	sli	v3.2d, v18.2d, #21
+	bic	x11, x10, x9
+	eor	v31.16b, v17.16b, v27.16b
+	eor	x9, x9, x28
+	eor	v11.16b, v11.16b, v26.16b
+	eor	x8, x8, x11
+	ushr	v18.2d, v31.2d, #49
+	eor	x10, x10, x30
+	ushr	v17.2d, v11.2d, #54
+	bic	x11, x13, x12
+	sli	v18.2d, v31.2d, #15
+	bic	x27, x14, x13
+	sli	v17.2d, v11.2d, #10
+	bic	x28, x0, x15
+	eor	v31.16b, v7.16b, v27.16b
+	bic	x30, x12, x0
+	eor	v10.16b, v10.16b, v25.16b
+	eor	x11, x0, x11
+	ushr	v11.2d, v31.2d, #58
+	eor	x12, x12, x27
+	ushr	v7.2d, v10.2d, #61
+	bic	x0, x15, x14
+	sli	v11.2d, v31.2d, #6
+	eor	x14, x14, x28
+	sli	v7.2d, v10.2d, #3
+	eor	x13, x13, x0
+	# Row Mix NEON
+	bic	v25.16b, v2.16b, v1.16b
+	eor	x15, x15, x30
+	bic	v26.16b, v3.16b, v2.16b
+	bic	x0, x19, x17
+	bic	v27.16b, v4.16b, v3.16b
+	bic	x27, x20, x19
+	bic	v28.16b, v0.16b, v4.16b
+	bic	x28, x16, x21
+	bic	v29.16b, v1.16b, v0.16b
+	bic	x30, x17, x16
+	eor	v0.16b, v0.16b, v25.16b
+	eor	x16, x16, x0
+	eor	v1.16b, v1.16b, v26.16b
+	eor	x17, x17, x27
+	eor	v2.16b, v2.16b, v27.16b
+	bic	x0, x21, x20
+	eor	v3.16b, v3.16b, v28.16b
+	eor	x20, x20, x28
+	eor	v4.16b, v4.16b, v29.16b
+	eor	x19, x19, x0
+	bic	v25.16b, v7.16b, v6.16b
+	eor	x21, x21, x30
+	bic	v26.16b, v8.16b, v7.16b
+	bic	x0, x24, x23
+	bic	v27.16b, v9.16b, v8.16b
+	bic	x27, x25, x24
+	bic	v28.16b, v5.16b, v9.16b
+	bic	x28, x22, x26
+	bic	v29.16b, v6.16b, v5.16b
+	bic	x30, x23, x22
+	eor	v5.16b, v5.16b, v25.16b
+	eor	x22, x22, x0
+	eor	v6.16b, v6.16b, v26.16b
+	eor	x23, x23, x27
+	eor	v7.16b, v7.16b, v27.16b
+	bic	x0, x26, x25
+	eor	v8.16b, v8.16b, v28.16b
+	eor	x25, x25, x28
+	eor	v9.16b, v9.16b, v29.16b
+	eor	x24, x24, x0
+	bic	v25.16b, v12.16b, v11.16b
+	eor	x26, x26, x30
+	bic	v26.16b, v13.16b, v12.16b
+	bic	v27.16b, v14.16b, v13.16b
+	bic	v28.16b, v30.16b, v14.16b
+	bic	v29.16b, v11.16b, v30.16b
+	eor	v10.16b, v30.16b, v25.16b
+	eor	v11.16b, v11.16b, v26.16b
+	eor	v12.16b, v12.16b, v27.16b
+	eor	v13.16b, v13.16b, v28.16b
+	eor	v14.16b, v14.16b, v29.16b
+	bic	v25.16b, v17.16b, v16.16b
+	bic	v26.16b, v18.16b, v17.16b
+	bic	v27.16b, v19.16b, v18.16b
+	bic	v28.16b, v15.16b, v19.16b
+	bic	v29.16b, v16.16b, v15.16b
+	eor	v15.16b, v15.16b, v25.16b
+	eor	v16.16b, v16.16b, v26.16b
+	eor	v17.16b, v17.16b, v27.16b
+	eor	v18.16b, v18.16b, v28.16b
+	eor	v19.16b, v19.16b, v29.16b
+	bic	v25.16b, v22.16b, v21.16b
+	bic	v26.16b, v23.16b, v22.16b
+	bic	v27.16b, v24.16b, v23.16b
+	bic	v28.16b, v20.16b, v24.16b
+	bic	v29.16b, v21.16b, v20.16b
+	eor	v20.16b, v20.16b, v25.16b
+	eor	v21.16b, v21.16b, v26.16b
+	eor	v22.16b, v22.16b, v27.16b
+	eor	v23.16b, v23.16b, v28.16b
+	eor	v24.16b, v24.16b, v29.16b
+	# Done transforming
+	ldp	x27, x28, [x29, #48]
+	ldr	x0, [x27], #8
+	subs	x28, x28, #1
+	mov	v30.d[0], x0
+	mov	v30.d[1], x0
+	eor	x1, x1, x0
+	eor	v0.16b, v0.16b, v30.16b
+	bne	L_SHA3_transform_blocksx3_neon_begin
+	ldr	x0, [x29, #40]
+	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
+	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
+	st4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
+	st4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
+	st4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
+	st4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
+	st1	{v24.d}[0], [x0]
+	add	x0, x0, #8
+	st4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
+	st4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
+	st4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
+	st4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
+	st4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
+	st4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
+	st1	{v24.d}[1], [x0]
+	add	x0, x0, #8
+	stp	x1, x2, [x0]
+	stp	x3, x4, [x0, #16]
+	stp	x5, x6, [x0, #32]
+	stp	x7, x8, [x0, #48]
+	stp	x9, x10, [x0, #64]
+	stp	x11, x12, [x0, #80]
+	stp	x13, x14, [x0, #96]
+	stp	x15, x16, [x0, #112]
+	stp	x17, x19, [x0, #128]
+	stp	x20, x21, [x0, #144]
+	stp	x22, x23, [x0, #160]
+	stp	x24, x25, [x0, #176]
+	str	x26, [x0, #192]
+	ldp	x17, x19, [x29, #72]
+	ldp	x20, x21, [x29, #88]
+	ldp	x22, x23, [x29, #104]
+	ldp	x24, x25, [x29, #120]
+	ldp	x26, x27, [x29, #136]
+	ldr	x28, [x29, #152]
+	ldp	d8, d9, [x29, #160]
+	ldp	d10, d11, [x29, #176]
+	ldp	d12, d13, [x29, #192]
+	ldp	d14, d15, [x29, #208]
+	ldp	x29, x30, [sp], #0xe0
+	ret
+#ifndef __APPLE__
+	.size	mlkem_sha3_blocksx3_neon,.-mlkem_sha3_blocksx3_neon
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_shake128_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(mlkem_shake128_blocksx3_seed_neon)
+.type	mlkem_shake128_blocksx3_seed_neon,@function
+.align	2
+mlkem_shake128_blocksx3_seed_neon:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_shake128_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(_mlkem_shake128_blocksx3_seed_neon)
+.p2align	2
+_mlkem_shake128_blocksx3_seed_neon:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-224]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #72]
+	stp	x20, x21, [x29, #88]
+	stp	x22, x23, [x29, #104]
+	stp	x24, x25, [x29, #120]
+	stp	x26, x27, [x29, #136]
+	str	x28, [x29, #152]
+	stp	d8, d9, [x29, #160]
+	stp	d10, d11, [x29, #176]
+	stp	d12, d13, [x29, #192]
+	stp	d14, d15, [x29, #208]
+#ifndef __APPLE__
+	adrp x28, L_sha3_aarch64_r
+	add  x28, x28, :lo12:L_sha3_aarch64_r
+#else
+	adrp x28, L_sha3_aarch64_r@PAGE
+	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
+#endif /* __APPLE__ */
+	str	x0, [x29, #40]
+	add	x0, x0, #32
+	ld1	{v4.d}[0], [x0]
+	ldp	x2, x3, [x1], #16
+	add	x0, x0, #0xc8
+	ld1	{v4.d}[1], [x0]
+	ldp	x4, x5, [x1], #16
+	ldr	x6, [x0, #200]
+	eor	v5.16b, v5.16b, v5.16b
+	eor	x7, x7, x7
+	eor	v6.16b, v6.16b, v6.16b
+	eor	x8, x8, x8
+	eor	v7.16b, v7.16b, v7.16b
+	eor	x9, x9, x9
+	eor	v8.16b, v8.16b, v8.16b
+	eor	x10, x10, x10
+	eor	v9.16b, v9.16b, v9.16b
+	eor	x11, x11, x11
+	eor	v10.16b, v10.16b, v10.16b
+	eor	x12, x12, x12
+	eor	v11.16b, v11.16b, v11.16b
+	eor	x13, x13, x13
+	eor	v12.16b, v12.16b, v12.16b
+	eor	x14, x14, x14
+	eor	v13.16b, v13.16b, v13.16b
+	eor	x15, x15, x15
+	eor	v14.16b, v14.16b, v14.16b
+	eor	x16, x16, x16
+	eor	v15.16b, v15.16b, v15.16b
+	eor	x17, x17, x17
+	eor	v16.16b, v16.16b, v16.16b
+	eor	x19, x19, x19
+	eor	v17.16b, v17.16b, v17.16b
+	eor	x20, x20, x20
+	eor	v18.16b, v18.16b, v18.16b
+	eor	x21, x21, x21
+	eor	v19.16b, v19.16b, v19.16b
+	eor	x22, x22, x22
+	movz	x23, #0x8000, lsl 48
+	eor	v21.16b, v21.16b, v21.16b
+	eor	x24, x24, x24
+	eor	v22.16b, v22.16b, v22.16b
+	eor	x25, x25, x25
+	eor	v23.16b, v23.16b, v23.16b
+	eor	x26, x26, x26
+	eor	v24.16b, v24.16b, v24.16b
+	eor	x27, x27, x27
+	dup	v0.2d, x2
+	dup	v1.2d, x3
+	dup	v2.2d, x4
+	dup	v3.2d, x5
+	dup	v20.2d, x23
+	mov	x1, #24
+	# Start of 24 rounds
+L_SHA3_shake128_blocksx3_seed_neon_begin:
+	stp	x28, x1, [x29, #48]
+	# Col Mix NEON
+	eor	v30.16b, v4.16b, v9.16b
+	eor	x0, x6, x11
+	eor	v27.16b, v1.16b, v6.16b
+	eor	x30, x2, x7
+	eor	v30.16b, v30.16b, v14.16b
+	eor	x28, x4, x9
+	eor	v27.16b, v27.16b, v11.16b
+	eor	x0, x0, x16
+	eor	v30.16b, v30.16b, v19.16b
+	eor	x30, x30, x12
+	eor	v27.16b, v27.16b, v16.16b
+	eor	x28, x28, x14
+	eor	v30.16b, v30.16b, v24.16b
+	eor	x0, x0, x22
+	eor	v27.16b, v27.16b, v21.16b
+	eor	x30, x30, x17
+	ushr	v25.2d, v27.2d, #63
+	eor	x28, x28, x20
+	sli	v25.2d, v27.2d, #1
+	eor	x0, x0, x27
+	eor	v25.16b, v25.16b, v30.16b
+	eor	x30, x30, x23
+	eor	v31.16b, v0.16b, v5.16b
+	eor	x28, x28, x25
+	eor	v28.16b, v2.16b, v7.16b
+	str	x0, [x29, #32]
+	eor	v31.16b, v31.16b, v10.16b
+	str	x28, [x29, #24]
+	eor	v28.16b, v28.16b, v12.16b
+	eor	x1, x3, x8
+	eor	v31.16b, v31.16b, v15.16b
+	eor	x28, x5, x10
+	eor	v28.16b, v28.16b, v17.16b
+	eor	x1, x1, x13
+	eor	v31.16b, v31.16b, v20.16b
+	eor	x28, x28, x15
+	eor	v28.16b, v28.16b, v22.16b
+	eor	x1, x1, x19
+	ushr	v29.2d, v30.2d, #63
+	eor	x28, x28, x21
+	ushr	v26.2d, v28.2d, #63
+	eor	x1, x1, x24
+	sli	v29.2d, v30.2d, #1
+	eor	x28, x28, x26
+	sli	v26.2d, v28.2d, #1
+	eor	x0, x0, x1, ror 63
+	eor	v28.16b, v28.16b, v29.16b
+	eor	x1, x1, x28, ror 63
+	eor	v29.16b, v3.16b, v8.16b
+	eor	x2, x2, x0
+	eor	v26.16b, v26.16b, v31.16b
+	eor	x7, x7, x0
+	eor	v29.16b, v29.16b, v13.16b
+	eor	x12, x12, x0
+	eor	v29.16b, v29.16b, v18.16b
+	eor	x17, x17, x0
+	eor	v29.16b, v29.16b, v23.16b
+	eor	x23, x23, x0
+	ushr	v30.2d, v29.2d, #63
+	eor	x4, x4, x1
+	sli	v30.2d, v29.2d, #1
+	eor	x9, x9, x1
+	eor	v27.16b, v27.16b, v30.16b
+	eor	x14, x14, x1
+	ushr	v30.2d, v31.2d, #63
+	eor	x20, x20, x1
+	sli	v30.2d, v31.2d, #1
+	eor	x25, x25, x1
+	eor	v29.16b, v29.16b, v30.16b
+	ldr	x0, [x29, #32]
+	# Swap Rotate NEON
+	eor	v0.16b, v0.16b, v25.16b
+	eor	v31.16b, v1.16b, v26.16b
+	ldr	x1, [x29, #24]
+	eor	v6.16b, v6.16b, v26.16b
+	eor	x28, x28, x30, ror 63
+	ushr	v30.2d, v31.2d, #63
+	eor	x30, x30, x1, ror 63
+	ushr	v1.2d, v6.2d, #20
+	eor	x1, x1, x0, ror 63
+	sli	v30.2d, v31.2d, #1
+	eor	x6, x6, x28
+	sli	v1.2d, v6.2d, #44
+	eor	x11, x11, x28
+	eor	v31.16b, v9.16b, v29.16b
+	eor	x16, x16, x28
+	eor	v22.16b, v22.16b, v27.16b
+	eor	x22, x22, x28
+	ushr	v6.2d, v31.2d, #44
+	eor	x27, x27, x28
+	ushr	v9.2d, v22.2d, #3
+	eor	x3, x3, x30
+	sli	v6.2d, v31.2d, #20
+	eor	x8, x8, x30
+	sli	v9.2d, v22.2d, #61
+	eor	x13, x13, x30
+	eor	v31.16b, v14.16b, v29.16b
+	eor	x19, x19, x30
+	eor	v20.16b, v20.16b, v25.16b
+	eor	x24, x24, x30
+	ushr	v22.2d, v31.2d, #25
+	eor	x5, x5, x1
+	ushr	v14.2d, v20.2d, #46
+	eor	x10, x10, x1
+	sli	v22.2d, v31.2d, #39
+	eor	x15, x15, x1
+	sli	v14.2d, v20.2d, #18
+	eor	x21, x21, x1
+	eor	v31.16b, v2.16b, v27.16b
+	eor	x26, x26, x1
+	# Swap Rotate Base
+	eor	v12.16b, v12.16b, v27.16b
+	ror	x0, x3, #63
+	ushr	v20.2d, v31.2d, #2
+	ror	x3, x8, #20
+	ushr	v2.2d, v12.2d, #21
+	ror	x8, x11, #44
+	sli	v20.2d, v31.2d, #62
+	ror	x11, x25, #3
+	sli	v2.2d, v12.2d, #43
+	ror	x25, x16, #25
+	eor	v31.16b, v13.16b, v28.16b
+	ror	x16, x23, #46
+	eor	v19.16b, v19.16b, v29.16b
+	ror	x23, x4, #2
+	ushr	v12.2d, v31.2d, #39
+	ror	x4, x14, #21
+	ushr	v13.2d, v19.2d, #56
+	ror	x14, x15, #39
+	sli	v12.2d, v31.2d, #25
+	ror	x15, x22, #56
+	sli	v13.2d, v19.2d, #8
+	ror	x22, x26, #8
+	eor	v31.16b, v23.16b, v28.16b
+	ror	x26, x17, #23
+	eor	v15.16b, v15.16b, v25.16b
+	ror	x17, x6, #37
+	ushr	v19.2d, v31.2d, #8
+	ror	x6, x27, #50
+	ushr	v23.2d, v15.2d, #23
+	ror	x27, x24, #62
+	sli	v19.2d, v31.2d, #56
+	ror	x24, x10, #9
+	sli	v23.2d, v15.2d, #41
+	ror	x10, x19, #19
+	eor	v31.16b, v4.16b, v29.16b
+	ror	x19, x7, #28
+	eor	v24.16b, v24.16b, v29.16b
+	ror	x7, x5, #36
+	ushr	v15.2d, v31.2d, #37
+	ror	x5, x21, #43
+	ushr	v4.2d, v24.2d, #50
+	ror	x21, x20, #49
+	sli	v15.2d, v31.2d, #27
+	ror	x20, x13, #54
+	sli	v4.2d, v24.2d, #14
+	ror	x13, x9, #58
+	eor	v31.16b, v21.16b, v26.16b
+	ror	x9, x12, #61
+	# Row Mix Base
+	eor	v8.16b, v8.16b, v28.16b
+	bic	x12, x4, x3
+	ushr	v24.2d, v31.2d, #62
+	bic	x1, x5, x4
+	ushr	v21.2d, v8.2d, #9
+	bic	x28, x2, x6
+	sli	v24.2d, v31.2d, #2
+	bic	x30, x3, x2
+	sli	v21.2d, v8.2d, #55
+	eor	x2, x2, x12
+	eor	v31.16b, v16.16b, v26.16b
+	eor	x3, x3, x1
+	eor	v5.16b, v5.16b, v25.16b
+	bic	x12, x6, x5
+	ushr	v8.2d, v31.2d, #19
+	eor	x5, x5, x28
+	ushr	v16.2d, v5.2d, #28
+	eor	x4, x4, x12
+	sli	v8.2d, v31.2d, #45
+	eor	x6, x6, x30
+	sli	v16.2d, v5.2d, #36
+	bic	x12, x9, x8
+	eor	v31.16b, v3.16b, v28.16b
+	bic	x1, x10, x9
+	eor	v18.16b, v18.16b, v28.16b
+	bic	x28, x7, x11
+	ushr	v5.2d, v31.2d, #36
+	bic	x30, x8, x7
+	ushr	v3.2d, v18.2d, #43
+	eor	x7, x7, x12
+	sli	v5.2d, v31.2d, #28
+	eor	x8, x8, x1
+	sli	v3.2d, v18.2d, #21
+	bic	x12, x11, x10
+	eor	v31.16b, v17.16b, v27.16b
+	eor	x10, x10, x28
+	eor	v11.16b, v11.16b, v26.16b
+	eor	x9, x9, x12
+	ushr	v18.2d, v31.2d, #49
+	eor	x11, x11, x30
+	ushr	v17.2d, v11.2d, #54
+	bic	x12, x14, x13
+	sli	v18.2d, v31.2d, #15
+	bic	x1, x15, x14
+	sli	v17.2d, v11.2d, #10
+	bic	x28, x0, x16
+	eor	v31.16b, v7.16b, v27.16b
+	bic	x30, x13, x0
+	eor	v10.16b, v10.16b, v25.16b
+	eor	x12, x0, x12
+	ushr	v11.2d, v31.2d, #58
+	eor	x13, x13, x1
+	ushr	v7.2d, v10.2d, #61
+	bic	x0, x16, x15
+	sli	v11.2d, v31.2d, #6
+	eor	x15, x15, x28
+	sli	v7.2d, v10.2d, #3
+	eor	x14, x14, x0
+	# Row Mix NEON
+	bic	v25.16b, v2.16b, v1.16b
+	eor	x16, x16, x30
+	bic	v26.16b, v3.16b, v2.16b
+	bic	x0, x20, x19
+	bic	v27.16b, v4.16b, v3.16b
+	bic	x1, x21, x20
+	bic	v28.16b, v0.16b, v4.16b
+	bic	x28, x17, x22
+	bic	v29.16b, v1.16b, v0.16b
+	bic	x30, x19, x17
+	eor	v0.16b, v0.16b, v25.16b
+	eor	x17, x17, x0
+	eor	v1.16b, v1.16b, v26.16b
+	eor	x19, x19, x1
+	eor	v2.16b, v2.16b, v27.16b
+	bic	x0, x22, x21
+	eor	v3.16b, v3.16b, v28.16b
+	eor	x21, x21, x28
+	eor	v4.16b, v4.16b, v29.16b
+	eor	x20, x20, x0
+	bic	v25.16b, v7.16b, v6.16b
+	eor	x22, x22, x30
+	bic	v26.16b, v8.16b, v7.16b
+	bic	x0, x25, x24
+	bic	v27.16b, v9.16b, v8.16b
+	bic	x1, x26, x25
+	bic	v28.16b, v5.16b, v9.16b
+	bic	x28, x23, x27
+	bic	v29.16b, v6.16b, v5.16b
+	bic	x30, x24, x23
+	eor	v5.16b, v5.16b, v25.16b
+	eor	x23, x23, x0
+	eor	v6.16b, v6.16b, v26.16b
+	eor	x24, x24, x1
+	eor	v7.16b, v7.16b, v27.16b
+	bic	x0, x27, x26
+	eor	v8.16b, v8.16b, v28.16b
+	eor	x26, x26, x28
+	eor	v9.16b, v9.16b, v29.16b
+	eor	x25, x25, x0
+	bic	v25.16b, v12.16b, v11.16b
+	eor	x27, x27, x30
+	bic	v26.16b, v13.16b, v12.16b
+	bic	v27.16b, v14.16b, v13.16b
+	bic	v28.16b, v30.16b, v14.16b
+	bic	v29.16b, v11.16b, v30.16b
+	eor	v10.16b, v30.16b, v25.16b
+	eor	v11.16b, v11.16b, v26.16b
+	eor	v12.16b, v12.16b, v27.16b
+	eor	v13.16b, v13.16b, v28.16b
+	eor	v14.16b, v14.16b, v29.16b
+	bic	v25.16b, v17.16b, v16.16b
+	bic	v26.16b, v18.16b, v17.16b
+	bic	v27.16b, v19.16b, v18.16b
+	bic	v28.16b, v15.16b, v19.16b
+	bic	v29.16b, v16.16b, v15.16b
+	eor	v15.16b, v15.16b, v25.16b
+	eor	v16.16b, v16.16b, v26.16b
+	eor	v17.16b, v17.16b, v27.16b
+	eor	v18.16b, v18.16b, v28.16b
+	eor	v19.16b, v19.16b, v29.16b
+	bic	v25.16b, v22.16b, v21.16b
+	bic	v26.16b, v23.16b, v22.16b
+	bic	v27.16b, v24.16b, v23.16b
+	bic	v28.16b, v20.16b, v24.16b
+	bic	v29.16b, v21.16b, v20.16b
+	eor	v20.16b, v20.16b, v25.16b
+	eor	v21.16b, v21.16b, v26.16b
+	eor	v22.16b, v22.16b, v27.16b
+	eor	v23.16b, v23.16b, v28.16b
+	eor	v24.16b, v24.16b, v29.16b
+	# Done transforming
+	ldp	x28, x1, [x29, #48]
+	ldr	x0, [x28], #8
+	subs	x1, x1, #1
+	mov	v30.d[0], x0
+	mov	v30.d[1], x0
+	eor	x2, x2, x0
+	eor	v0.16b, v0.16b, v30.16b
+	bne	L_SHA3_shake128_blocksx3_seed_neon_begin
+	ldr	x0, [x29, #40]
+	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
+	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
+	st4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
+	st4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
+	st4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
+	st4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
+	st1	{v24.d}[0], [x0]
+	add	x0, x0, #8
+	st4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
+	st4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
+	st4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
+	st4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
+	st4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
+	st4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
+	st1	{v24.d}[1], [x0]
+	add	x0, x0, #8
+	stp	x2, x3, [x0]
+	stp	x4, x5, [x0, #16]
+	stp	x6, x7, [x0, #32]
+	stp	x8, x9, [x0, #48]
+	stp	x10, x11, [x0, #64]
+	stp	x12, x13, [x0, #80]
+	stp	x14, x15, [x0, #96]
+	stp	x16, x17, [x0, #112]
+	stp	x19, x20, [x0, #128]
+	stp	x21, x22, [x0, #144]
+	stp	x23, x24, [x0, #160]
+	stp	x25, x26, [x0, #176]
+	str	x27, [x0, #192]
+	ldp	x17, x19, [x29, #72]
+	ldp	x20, x21, [x29, #88]
+	ldp	x22, x23, [x29, #104]
+	ldp	x24, x25, [x29, #120]
+	ldp	x26, x27, [x29, #136]
+	ldr	x28, [x29, #152]
+	ldp	d8, d9, [x29, #160]
+	ldp	d10, d11, [x29, #176]
+	ldp	d12, d13, [x29, #192]
+	ldp	d14, d15, [x29, #208]
+	ldp	x29, x30, [sp], #0xe0
+	ret
+#ifndef __APPLE__
+	.size	mlkem_shake128_blocksx3_seed_neon,.-mlkem_shake128_blocksx3_seed_neon
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	mlkem_shake256_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(mlkem_shake256_blocksx3_seed_neon)
+.type	mlkem_shake256_blocksx3_seed_neon,@function
+.align	2
+mlkem_shake256_blocksx3_seed_neon:
+#else
+.section	__TEXT,__text
+.globl	_mlkem_shake256_blocksx3_seed_neon
+WC_ASM_ATT_HIDDEN(_mlkem_shake256_blocksx3_seed_neon)
+.p2align	2
+_mlkem_shake256_blocksx3_seed_neon:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-224]!
+	add	x29, sp, #0
+	stp	x17, x19, [x29, #72]
+	stp	x20, x21, [x29, #88]
+	stp	x22, x23, [x29, #104]
+	stp	x24, x25, [x29, #120]
+	stp	x26, x27, [x29, #136]
+	str	x28, [x29, #152]
+	stp	d8, d9, [x29, #160]
+	stp	d10, d11, [x29, #176]
+	stp	d12, d13, [x29, #192]
+	stp	d14, d15, [x29, #208]
+#ifndef __APPLE__
+	adrp x28, L_sha3_aarch64_r
+	add  x28, x28, :lo12:L_sha3_aarch64_r
+#else
+	adrp x28, L_sha3_aarch64_r@PAGE
+	add  x28, x28, L_sha3_aarch64_r@PAGEOFF
+#endif /* __APPLE__ */
+	str	x0, [x29, #40]
+	add	x0, x0, #32
+	ld1	{v4.d}[0], [x0]
+	ldp	x2, x3, [x1], #16
+	add	x0, x0, #0xc8
+	ld1	{v4.d}[1], [x0]
+	ldp	x4, x5, [x1], #16
+	ldr	x6, [x0, #200]
+	eor	v5.16b, v5.16b, v5.16b
+	eor	x7, x7, x7
+	eor	v6.16b, v6.16b, v6.16b
+	eor	x8, x8, x8
+	eor	v7.16b, v7.16b, v7.16b
+	eor	x9, x9, x9
+	eor	v8.16b, v8.16b, v8.16b
+	eor	x10, x10, x10
+	eor	v9.16b, v9.16b, v9.16b
+	eor	x11, x11, x11
+	eor	v10.16b, v10.16b, v10.16b
+	eor	x12, x12, x12
+	eor	v11.16b, v11.16b, v11.16b
+	eor	x13, x13, x13
+	eor	v12.16b, v12.16b, v12.16b
+	eor	x14, x14, x14
+	eor	v13.16b, v13.16b, v13.16b
+	eor	x15, x15, x15
+	eor	v14.16b, v14.16b, v14.16b
+	eor	x16, x16, x16
+	eor	v15.16b, v15.16b, v15.16b
+	eor	x17, x17, x17
+	movz	x19, #0x8000, lsl 48
+	eor	v17.16b, v17.16b, v17.16b
+	eor	x20, x20, x20
+	eor	v18.16b, v18.16b, v18.16b
+	eor	x21, x21, x21
+	eor	v19.16b, v19.16b, v19.16b
+	eor	x22, x22, x22
+	eor	v20.16b, v20.16b, v20.16b
+	eor	x23, x23, x23
+	eor	v21.16b, v21.16b, v21.16b
+	eor	x24, x24, x24
+	eor	v22.16b, v22.16b, v22.16b
+	eor	x25, x25, x25
+	eor	v23.16b, v23.16b, v23.16b
+	eor	x26, x26, x26
+	eor	v24.16b, v24.16b, v24.16b
+	eor	x27, x27, x27
+	dup	v0.2d, x2
+	dup	v1.2d, x3
+	dup	v2.2d, x4
+	dup	v3.2d, x5
+	dup	v16.2d, x19
+	mov	x1, #24
+	# Start of 24 rounds
+L_SHA3_shake256_blocksx3_seed_neon_begin:
+	stp	x28, x1, [x29, #48]
+	# Col Mix NEON
+	eor	v30.16b, v4.16b, v9.16b
+	eor	x0, x6, x11
+	eor	v27.16b, v1.16b, v6.16b
+	eor	x30, x2, x7
+	eor	v30.16b, v30.16b, v14.16b
+	eor	x28, x4, x9
+	eor	v27.16b, v27.16b, v11.16b
+	eor	x0, x0, x16
+	eor	v30.16b, v30.16b, v19.16b
+	eor	x30, x30, x12
+	eor	v27.16b, v27.16b, v16.16b
+	eor	x28, x28, x14
+	eor	v30.16b, v30.16b, v24.16b
+	eor	x0, x0, x22
+	eor	v27.16b, v27.16b, v21.16b
+	eor	x30, x30, x17
+	ushr	v25.2d, v27.2d, #63
+	eor	x28, x28, x20
+	sli	v25.2d, v27.2d, #1
+	eor	x0, x0, x27
+	eor	v25.16b, v25.16b, v30.16b
+	eor	x30, x30, x23
+	eor	v31.16b, v0.16b, v5.16b
+	eor	x28, x28, x25
+	eor	v28.16b, v2.16b, v7.16b
+	str	x0, [x29, #32]
+	eor	v31.16b, v31.16b, v10.16b
+	str	x28, [x29, #24]
+	eor	v28.16b, v28.16b, v12.16b
+	eor	x1, x3, x8
+	eor	v31.16b, v31.16b, v15.16b
+	eor	x28, x5, x10
+	eor	v28.16b, v28.16b, v17.16b
+	eor	x1, x1, x13
+	eor	v31.16b, v31.16b, v20.16b
+	eor	x28, x28, x15
+	eor	v28.16b, v28.16b, v22.16b
+	eor	x1, x1, x19
+	ushr	v29.2d, v30.2d, #63
+	eor	x28, x28, x21
+	ushr	v26.2d, v28.2d, #63
+	eor	x1, x1, x24
+	sli	v29.2d, v30.2d, #1
+	eor	x28, x28, x26
+	sli	v26.2d, v28.2d, #1
+	eor	x0, x0, x1, ror 63
+	eor	v28.16b, v28.16b, v29.16b
+	eor	x1, x1, x28, ror 63
+	eor	v29.16b, v3.16b, v8.16b
+	eor	x2, x2, x0
+	eor	v26.16b, v26.16b, v31.16b
+	eor	x7, x7, x0
+	eor	v29.16b, v29.16b, v13.16b
+	eor	x12, x12, x0
+	eor	v29.16b, v29.16b, v18.16b
+	eor	x17, x17, x0
+	eor	v29.16b, v29.16b, v23.16b
+	eor	x23, x23, x0
+	ushr	v30.2d, v29.2d, #63
+	eor	x4, x4, x1
+	sli	v30.2d, v29.2d, #1
+	eor	x9, x9, x1
+	eor	v27.16b, v27.16b, v30.16b
+	eor	x14, x14, x1
+	ushr	v30.2d, v31.2d, #63
+	eor	x20, x20, x1
+	sli	v30.2d, v31.2d, #1
+	eor	x25, x25, x1
+	eor	v29.16b, v29.16b, v30.16b
+	ldr	x0, [x29, #32]
+	# Swap Rotate NEON
+	eor	v0.16b, v0.16b, v25.16b
+	eor	v31.16b, v1.16b, v26.16b
+	ldr	x1, [x29, #24]
+	eor	v6.16b, v6.16b, v26.16b
+	eor	x28, x28, x30, ror 63
+	ushr	v30.2d, v31.2d, #63
+	eor	x30, x30, x1, ror 63
+	ushr	v1.2d, v6.2d, #20
+	eor	x1, x1, x0, ror 63
+	sli	v30.2d, v31.2d, #1
+	eor	x6, x6, x28
+	sli	v1.2d, v6.2d, #44
+	eor	x11, x11, x28
+	eor	v31.16b, v9.16b, v29.16b
+	eor	x16, x16, x28
+	eor	v22.16b, v22.16b, v27.16b
+	eor	x22, x22, x28
+	ushr	v6.2d, v31.2d, #44
+	eor	x27, x27, x28
+	ushr	v9.2d, v22.2d, #3
+	eor	x3, x3, x30
+	sli	v6.2d, v31.2d, #20
+	eor	x8, x8, x30
+	sli	v9.2d, v22.2d, #61
+	eor	x13, x13, x30
+	eor	v31.16b, v14.16b, v29.16b
+	eor	x19, x19, x30
+	eor	v20.16b, v20.16b, v25.16b
+	eor	x24, x24, x30
+	ushr	v22.2d, v31.2d, #25
+	eor	x5, x5, x1
+	ushr	v14.2d, v20.2d, #46
+	eor	x10, x10, x1
+	sli	v22.2d, v31.2d, #39
+	eor	x15, x15, x1
+	sli	v14.2d, v20.2d, #18
+	eor	x21, x21, x1
+	eor	v31.16b, v2.16b, v27.16b
+	eor	x26, x26, x1
+	# Swap Rotate Base
+	eor	v12.16b, v12.16b, v27.16b
+	ror	x0, x3, #63
+	ushr	v20.2d, v31.2d, #2
+	ror	x3, x8, #20
+	ushr	v2.2d, v12.2d, #21
+	ror	x8, x11, #44
+	sli	v20.2d, v31.2d, #62
+	ror	x11, x25, #3
+	sli	v2.2d, v12.2d, #43
+	ror	x25, x16, #25
+	eor	v31.16b, v13.16b, v28.16b
+	ror	x16, x23, #46
+	eor	v19.16b, v19.16b, v29.16b
+	ror	x23, x4, #2
+	ushr	v12.2d, v31.2d, #39
+	ror	x4, x14, #21
+	ushr	v13.2d, v19.2d, #56
+	ror	x14, x15, #39
+	sli	v12.2d, v31.2d, #25
+	ror	x15, x22, #56
+	sli	v13.2d, v19.2d, #8
+	ror	x22, x26, #8
+	eor	v31.16b, v23.16b, v28.16b
+	ror	x26, x17, #23
+	eor	v15.16b, v15.16b, v25.16b
+	ror	x17, x6, #37
+	ushr	v19.2d, v31.2d, #8
+	ror	x6, x27, #50
+	ushr	v23.2d, v15.2d, #23
+	ror	x27, x24, #62
+	sli	v19.2d, v31.2d, #56
+	ror	x24, x10, #9
+	sli	v23.2d, v15.2d, #41
+	ror	x10, x19, #19
+	eor	v31.16b, v4.16b, v29.16b
+	ror	x19, x7, #28
+	eor	v24.16b, v24.16b, v29.16b
+	ror	x7, x5, #36
+	ushr	v15.2d, v31.2d, #37
+	ror	x5, x21, #43
+	ushr	v4.2d, v24.2d, #50
+	ror	x21, x20, #49
+	sli	v15.2d, v31.2d, #27
+	ror	x20, x13, #54
+	sli	v4.2d, v24.2d, #14
+	ror	x13, x9, #58
+	eor	v31.16b, v21.16b, v26.16b
+	ror	x9, x12, #61
+	# Row Mix Base
+	eor	v8.16b, v8.16b, v28.16b
+	bic	x12, x4, x3
+	ushr	v24.2d, v31.2d, #62
+	bic	x1, x5, x4
+	ushr	v21.2d, v8.2d, #9
+	bic	x28, x2, x6
+	sli	v24.2d, v31.2d, #2
+	bic	x30, x3, x2
+	sli	v21.2d, v8.2d, #55
+	eor	x2, x2, x12
+	eor	v31.16b, v16.16b, v26.16b
+	eor	x3, x3, x1
+	eor	v5.16b, v5.16b, v25.16b
+	bic	x12, x6, x5
+	ushr	v8.2d, v31.2d, #19
+	eor	x5, x5, x28
+	ushr	v16.2d, v5.2d, #28
+	eor	x4, x4, x12
+	sli	v8.2d, v31.2d, #45
+	eor	x6, x6, x30
+	sli	v16.2d, v5.2d, #36
+	bic	x12, x9, x8
+	eor	v31.16b, v3.16b, v28.16b
+	bic	x1, x10, x9
+	eor	v18.16b, v18.16b, v28.16b
+	bic	x28, x7, x11
+	ushr	v5.2d, v31.2d, #36
+	bic	x30, x8, x7
+	ushr	v3.2d, v18.2d, #43
+	eor	x7, x7, x12
+	sli	v5.2d, v31.2d, #28
+	eor	x8, x8, x1
+	sli	v3.2d, v18.2d, #21
+	bic	x12, x11, x10
+	eor	v31.16b, v17.16b, v27.16b
+	eor	x10, x10, x28
+	eor	v11.16b, v11.16b, v26.16b
+	eor	x9, x9, x12
+	ushr	v18.2d, v31.2d, #49
+	eor	x11, x11, x30
+	ushr	v17.2d, v11.2d, #54
+	bic	x12, x14, x13
+	sli	v18.2d, v31.2d, #15
+	bic	x1, x15, x14
+	sli	v17.2d, v11.2d, #10
+	bic	x28, x0, x16
+	eor	v31.16b, v7.16b, v27.16b
+	bic	x30, x13, x0
+	eor	v10.16b, v10.16b, v25.16b
+	eor	x12, x0, x12
+	ushr	v11.2d, v31.2d, #58
+	eor	x13, x13, x1
+	ushr	v7.2d, v10.2d, #61
+	bic	x0, x16, x15
+	sli	v11.2d, v31.2d, #6
+	eor	x15, x15, x28
+	sli	v7.2d, v10.2d, #3
+	eor	x14, x14, x0
+	# Row Mix NEON
+	bic	v25.16b, v2.16b, v1.16b
+	eor	x16, x16, x30
+	bic	v26.16b, v3.16b, v2.16b
+	bic	x0, x20, x19
+	bic	v27.16b, v4.16b, v3.16b
+	bic	x1, x21, x20
+	bic	v28.16b, v0.16b, v4.16b
+	bic	x28, x17, x22
+	bic	v29.16b, v1.16b, v0.16b
+	bic	x30, x19, x17
+	eor	v0.16b, v0.16b, v25.16b
+	eor	x17, x17, x0
+	eor	v1.16b, v1.16b, v26.16b
+	eor	x19, x19, x1
+	eor	v2.16b, v2.16b, v27.16b
+	bic	x0, x22, x21
+	eor	v3.16b, v3.16b, v28.16b
+	eor	x21, x21, x28
+	eor	v4.16b, v4.16b, v29.16b
+	eor	x20, x20, x0
+	bic	v25.16b, v7.16b, v6.16b
+	eor	x22, x22, x30
+	bic	v26.16b, v8.16b, v7.16b
+	bic	x0, x25, x24
+	bic	v27.16b, v9.16b, v8.16b
+	bic	x1, x26, x25
+	bic	v28.16b, v5.16b, v9.16b
+	bic	x28, x23, x27
+	bic	v29.16b, v6.16b, v5.16b
+	bic	x30, x24, x23
+	eor	v5.16b, v5.16b, v25.16b
+	eor	x23, x23, x0
+	eor	v6.16b, v6.16b, v26.16b
+	eor	x24, x24, x1
+	eor	v7.16b, v7.16b, v27.16b
+	bic	x0, x27, x26
+	eor	v8.16b, v8.16b, v28.16b
+	eor	x26, x26, x28
+	eor	v9.16b, v9.16b, v29.16b
+	eor	x25, x25, x0
+	bic	v25.16b, v12.16b, v11.16b
+	eor	x27, x27, x30
+	bic	v26.16b, v13.16b, v12.16b
+	bic	v27.16b, v14.16b, v13.16b
+	bic	v28.16b, v30.16b, v14.16b
+	bic	v29.16b, v11.16b, v30.16b
+	eor	v10.16b, v30.16b, v25.16b
+	eor	v11.16b, v11.16b, v26.16b
+	eor	v12.16b, v12.16b, v27.16b
+	eor	v13.16b, v13.16b, v28.16b
+	eor	v14.16b, v14.16b, v29.16b
+	bic	v25.16b, v17.16b, v16.16b
+	bic	v26.16b, v18.16b, v17.16b
+	bic	v27.16b, v19.16b, v18.16b
+	bic	v28.16b, v15.16b, v19.16b
+	bic	v29.16b, v16.16b, v15.16b
+	eor	v15.16b, v15.16b, v25.16b
+	eor	v16.16b, v16.16b, v26.16b
+	eor	v17.16b, v17.16b, v27.16b
+	eor	v18.16b, v18.16b, v28.16b
+	eor	v19.16b, v19.16b, v29.16b
+	bic	v25.16b, v22.16b, v21.16b
+	bic	v26.16b, v23.16b, v22.16b
+	bic	v27.16b, v24.16b, v23.16b
+	bic	v28.16b, v20.16b, v24.16b
+	bic	v29.16b, v21.16b, v20.16b
+	eor	v20.16b, v20.16b, v25.16b
+	eor	v21.16b, v21.16b, v26.16b
+	eor	v22.16b, v22.16b, v27.16b
+	eor	v23.16b, v23.16b, v28.16b
+	eor	v24.16b, v24.16b, v29.16b
+	# Done transforming
+	ldp	x28, x1, [x29, #48]
+	ldr	x0, [x28], #8
+	subs	x1, x1, #1
+	mov	v30.d[0], x0
+	mov	v30.d[1], x0
+	eor	x2, x2, x0
+	eor	v0.16b, v0.16b, v30.16b
+	bne	L_SHA3_shake256_blocksx3_seed_neon_begin
+	ldr	x0, [x29, #40]
+	st4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
+	st4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32
+	st4	{v8.d, v9.d, v10.d, v11.d}[0], [x0], #32
+	st4	{v12.d, v13.d, v14.d, v15.d}[0], [x0], #32
+	st4	{v16.d, v17.d, v18.d, v19.d}[0], [x0], #32
+	st4	{v20.d, v21.d, v22.d, v23.d}[0], [x0], #32
+	st1	{v24.d}[0], [x0]
+	add	x0, x0, #8
+	st4	{v0.d, v1.d, v2.d, v3.d}[1], [x0], #32
+	st4	{v4.d, v5.d, v6.d, v7.d}[1], [x0], #32
+	st4	{v8.d, v9.d, v10.d, v11.d}[1], [x0], #32
+	st4	{v12.d, v13.d, v14.d, v15.d}[1], [x0], #32
+	st4	{v16.d, v17.d, v18.d, v19.d}[1], [x0], #32
+	st4	{v20.d, v21.d, v22.d, v23.d}[1], [x0], #32
+	st1	{v24.d}[1], [x0]
+	add	x0, x0, #8
+	stp	x2, x3, [x0]
+	stp	x4, x5, [x0, #16]
+	stp	x6, x7, [x0, #32]
+	stp	x8, x9, [x0, #48]
+	stp	x10, x11, [x0, #64]
+	stp	x12, x13, [x0, #80]
+	stp	x14, x15, [x0, #96]
+	stp	x16, x17, [x0, #112]
+	stp	x19, x20, [x0, #128]
+	stp	x21, x22, [x0, #144]
+	stp	x23, x24, [x0, #160]
+	stp	x25, x26, [x0, #176]
+	str	x27, [x0, #192]
+	ldp	x17, x19, [x29, #72]
+	ldp	x20, x21, [x29, #88]
+	ldp	x22, x23, [x29, #104]
+	ldp	x24, x25, [x29, #120]
+	ldp	x26, x27, [x29, #136]
+	ldr	x28, [x29, #152]
+	ldp	d8, d9, [x29, #160]
+	ldp	d10, d11, [x29, #176]
+	ldp	d12, d13, [x29, #192]
+	ldp	d14, d15, [x29, #208]
+	ldp	x29, x30, [sp], #0xe0
+	ret
+#ifndef __APPLE__
+	.size	mlkem_shake256_blocksx3_seed_neon,.-mlkem_shake256_blocksx3_seed_neon
+#endif /* __APPLE__ */
 #endif /* WOLFSSL_HAVE_MLKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
