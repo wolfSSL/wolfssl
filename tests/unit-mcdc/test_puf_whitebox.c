@@ -89,6 +89,25 @@ static void puf_whitebox_drive(void)
     wb_calls += (wc_PufSetTestData(NULL, wb_buf, (word32)sizeof(wb_buf)) != 0);
     wb_calls += (wc_PufSetTestData(&wb_ctx, NULL, (word32)sizeof(wb_buf)) != 0);
 
+    /* wc_PufGetParams: the all-NULL rejection is a five-operand chain, so each
+     * operand needs the vector where it alone is non-NULL. */
+    {
+        int v;
+
+        wb_calls += (wc_PufGetParams(NULL, NULL, NULL, NULL, NULL) != 0);
+        wb_calls += (wc_PufGetParams(&v, NULL, NULL, NULL, NULL) == 0);
+        wb_calls += (wc_PufGetParams(NULL, &v, NULL, NULL, NULL) == 0);
+        wb_calls += (wc_PufGetParams(NULL, NULL, &v, NULL, NULL) == 0);
+        wb_calls += (wc_PufGetParams(NULL, NULL, NULL, &v, NULL) == 0);
+        wb_calls += (wc_PufGetParams(NULL, NULL, NULL, NULL, &v) == 0);
+    }
+
+    /* wc_PufGetHelperData: ctx == NULL || helper == NULL */
+    wb_calls += (wc_PufGetHelperData(NULL, wb_buf,
+                                     (word32)sizeof(wb_buf)) != 0);
+    wb_calls += (wc_PufGetHelperData(&wb_ctx, NULL,
+                                     (word32)sizeof(wb_buf)) != 0);
+
     (void)wc_PufZeroize(&wb_ctx);
 }
 
