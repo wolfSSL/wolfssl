@@ -4631,6 +4631,66 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
 }
 
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+/* Let a device verify an RSA-PSS signature and its padding in one shot (it gets
+ * the digest, which the RsaPad path does not). Shared by the two verify and
+ * check entry points below.
+ *
+ * out       Buffer the device may write the recovered PSS block into.
+ * outSz     Size of that buffer.
+ * recovered Set to the number of bytes the device wrote, 0 for a verdict only.
+ * returns the length the caller should report, a negative error, or
+ * CRYPTOCB_UNAVAILABLE when no device handled it.
+ */
+static int RsaPssVerifyDevice(const byte* in, word32 inLen, const byte* digest,
+    word32 digestLen, enum wc_HashType hash, int mgf, int saltLen, int hLen,
+    RsaKey* key, byte* out, word32 outSz, word32* recovered)
+{
+    int    ret;
+    int    res = 0;
+    word32 recSz = 0;
+
+    *recovered = 0;
+
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (key == NULL || key->devId == INVALID_DEVID)
+#else
+    if (key == NULL)
+#endif
+    {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
+                                   saltLen, key, &res, out, outSz, &recSz);
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        return ret;
+    }
+    if (ret > 0) {
+        /* A handler returns 0 with res set, or a negative error. */
+        return SIG_VERIFY_E;
+    }
+    if (ret != 0) {
+        return ret;
+    }
+    if (recSz > outSz) {
+        recSz = 0;
+    }
+    if (res == 0) {
+        return SIG_VERIFY_E;
+    }
+    if (recSz > 0) {
+        *recovered = recSz;
+        return (int)recSz;
+    }
+    if (outSz < (word32)(saltLen + hLen)) {
+        return RSA_BUFFER_E;
+    }
+    return saltLen + hLen;
+}
+#endif
+
+
 /* Verify the message signed with RSA-PSS.
  * The input buffer is reused for the output buffer.
  * Salt length is equal to hash length.
@@ -4682,47 +4742,20 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
     #endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
-    /* Let a device verify signature + padding in one shot (it gets the digest,
-     * which the RsaPad path does not). Fall through to software if unavailable. */
-    #ifndef WOLF_CRYPTO_CB_FIND
-    if (key != NULL && key->devId != INVALID_DEVID)
-    #else
-    if (key != NULL)
-    #endif
     {
-        int    res = 0;
         word32 recovered = 0;
 
-        ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
-                                       saltLen, key, &res, in, inLen,
-                                       &recovered);
+        ret = RsaPssVerifyDevice(in, inLen, digest, digestLen, hash, mgf,
+                                 saltLen, hLen, key, in, inLen, &recovered);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret == 0) {
-                if (recovered > inLen) {
-                    recovered = 0;
-                }
-                if (res == 0) {
-                    ret = SIG_VERIFY_E;
-                }
-                else if (recovered > 0) {
-                    if (out != NULL) {
-                        *out = in;
-                    }
-                    ret = (int)recovered;
-                }
-                else if (inLen < (word32)(saltLen + hLen)) {
-                    ret = RSA_BUFFER_E;
+            if ((ret > 0) && (out != NULL)) {
+                if (recovered > 0) {
+                    *out = in;
                 }
                 else {
-                    /* Device gave a verdict only; nothing to expose. */
-                    if (out != NULL) {
-                        *out = NULL;
-                    }
-                    ret = saltLen + hLen;
+                    /* Device reported a verdict only; nothing to expose. */
+                    *out = NULL;
                 }
-            }
-            else if (ret > 0) {
-                ret = SIG_VERIFY_E;
             }
             return ret;
         }
@@ -4791,44 +4824,15 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
     #endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
-    /* Let a device verify signature + padding in one shot (it gets the digest,
-     * which the RsaPad path does not). Fall through to software if unavailable. */
-    #ifndef WOLF_CRYPTO_CB_FIND
-    if (key != NULL && key->devId != INVALID_DEVID)
-    #else
-    if (key != NULL)
-    #endif
     {
-        int    res = 0;
         word32 recovered = 0;
 
-        ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
-                                       saltLen, key, &res, out, outLen,
-                                       &recovered);
+        ret = RsaPssVerifyDevice(in, inLen, digest, digestLen, hash, mgf,
+                                 saltLen, hLen, key, out, outLen, &recovered);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            if (ret == 0) {
-                if (recovered > outLen) {
-                    recovered = 0;
-                }
-                if (res == 0) {
-                    ret = SIG_VERIFY_E;
-                }
-                else if (recovered > 0) {
-                    ret = (int)recovered;
-                }
-                else if (outLen < (word32)(saltLen + hLen)) {
-                    ret = RSA_BUFFER_E;
-                }
-                else {
-                    /* Device gave a verdict only; leave no stale data behind. */
-                    if (out != NULL) {
-                        XMEMSET(out, 0, (word32)(saltLen + hLen));
-                    }
-                    ret = saltLen + hLen;
-                }
-            }
-            else if (ret > 0) {
-                ret = SIG_VERIFY_E;
+            if ((ret > 0) && (recovered == 0) && (out != NULL)) {
+                /* Device gave a verdict only; leave no stale data behind. */
+                XMEMSET(out, 0, (word32)ret);
             }
             return ret;
         }
