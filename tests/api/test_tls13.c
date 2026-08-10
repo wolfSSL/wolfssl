@@ -7354,8 +7354,8 @@ int test_tls13_zero_length_session_ticket(void)
     byte rec[256];
     byte ticketMsg[18];
     int  recSz = 0;
-    size_t i = 0;
-    size_t idx = 0;
+    int  i = 0;
+    int  idx = 0;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
