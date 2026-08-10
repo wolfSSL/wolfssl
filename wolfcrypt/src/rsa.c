@@ -4631,6 +4631,66 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
 }
 
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+/* Let a device verify an RSA-PSS signature and its padding in one shot (it gets
+ * the digest, which the RsaPad path does not). Shared by the two verify and
+ * check entry points below.
+ *
+ * out       Buffer the device may write the recovered PSS block into.
+ * outSz     Size of that buffer.
+ * recovered Set to the number of bytes the device wrote, 0 for a verdict only.
+ * returns the length the caller should report, a negative error, or
+ * CRYPTOCB_UNAVAILABLE when no device handled it.
+ */
+static int RsaPssVerifyDevice(const byte* in, word32 inLen, const byte* digest,
+    word32 digestLen, enum wc_HashType hash, int mgf, int saltLen, int hLen,
+    RsaKey* key, byte* out, word32 outSz, word32* recovered)
+{
+    int    ret;
+    int    res = 0;
+    word32 recSz = 0;
+
+    *recovered = 0;
+
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (key == NULL || key->devId == INVALID_DEVID)
+#else
+    if (key == NULL)
+#endif
+    {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    ret = wc_CryptoCb_RsaPssVerify(in, inLen, digest, digestLen, hash, mgf,
+                                   saltLen, key, &res, out, outSz, &recSz);
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        return ret;
+    }
+    if (ret > 0) {
+        /* A handler returns 0 with res set, or a negative error. */
+        return SIG_VERIFY_E;
+    }
+    if (ret != 0) {
+        return ret;
+    }
+    if (recSz > outSz) {
+        recSz = 0;
+    }
+    if (res == 0) {
+        return SIG_VERIFY_E;
+    }
+    if (recSz > 0) {
+        *recovered = recSz;
+        return (int)recSz;
+    }
+    if (outSz < (word32)(saltLen + hLen)) {
+        return RSA_BUFFER_E;
+    }
+    return saltLen + hLen;
+}
+#endif
+
+
 /* Verify the message signed with RSA-PSS.
  * The input buffer is reused for the output buffer.
  * Salt length is equal to hash length.
@@ -4644,6 +4704,8 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
  * mgf    Mask generation function.
  * key    Public RSA key.
  * returns the length of the PSS data on success and negative indicates failure.
+ *
+ * Note: a device that recovers nothing sets *out to NULL, so check *out first.
  */
 int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                            const byte* digest, word32 digestLen,
@@ -4678,6 +4740,28 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    {
+        word32 recovered = 0;
+
+        ret = RsaPssVerifyDevice(in, inLen, digest, digestLen, hash, mgf,
+                                 saltLen, hLen, key, in, inLen, &recovered);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if ((ret > 0) && (out != NULL)) {
+                if (recovered > 0) {
+                    *out = in;
+                }
+                else {
+                    /* Device reported a verdict only; nothing to expose. */
+                    *out = NULL;
+                }
+            }
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
 
     verify = wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, saltLen, key);
     if (verify > 0)
@@ -4738,6 +4822,23 @@ int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
             saltLen = RSA_PSS_SALT_MAX_SZ;
     #endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+    {
+        word32 recovered = 0;
+
+        ret = RsaPssVerifyDevice(in, inLen, digest, digestLen, hash, mgf,
+                                 saltLen, hLen, key, out, outLen, &recovered);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if ((ret > 0) && (recovered == 0) && (out != NULL)) {
+                /* Device gave a verdict only; leave no stale data behind. */
+                XMEMSET(out, 0, (word32)ret);
+            }
+            return ret;
+        }
+        ret = 0;
+    }
+#endif
 
     verify = wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash,
                                  mgf, saltLen, key);
