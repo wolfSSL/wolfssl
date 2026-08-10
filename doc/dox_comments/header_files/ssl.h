@@ -17377,8 +17377,10 @@ int wolfSSL_set_scr_check_enabled(WOLFSSL* ssl, byte enabled);
     \ingroup Setup
     \brief Disables the TLS Extended Master Secret extension (RFC 7627) on
     the context: a client stops advertising it and a server ignores the
-    peer's request, so a standard master secret is negotiated. TLS 1.2 and
-    earlier only. Requires HAVE_EXTENDED_MASTER.
+    peer's request, so a standard master secret is negotiated. A server also
+    declines resumption of sessions or tickets that used EMS and does a full
+    handshake instead. TLS 1.2 and earlier only. Requires
+    HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ctx is NULL.
@@ -17401,8 +17403,10 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
     \ingroup Setup
     \brief Disables the TLS Extended Master Secret extension (RFC 7627) on
     the SSL object: a client stops advertising it and a server ignores the
-    peer's request, so a standard master secret is negotiated. TLS 1.2 and
-    earlier only. Requires HAVE_EXTENDED_MASTER.
+    peer's request, so a standard master secret is negotiated. A server also
+    declines resumption of sessions or tickets that used EMS and does a full
+    handshake instead. TLS 1.2 and earlier only. Requires
+    HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ssl is NULL.
@@ -17472,7 +17476,8 @@ int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl);
     \brief Makes the TLS Extended Master Secret extension (RFC 7627)
     mandatory on the context: if it is not negotiated, the connection
     is aborted with EXT_MASTER_SECRET_NEEDED_E. A client advertises
-    the extension even after a previous disable. TLS 1.2 and earlier
+    the extension even after a previous disable. Sessions using a
+    session-secret callback (EAP-FAST) are exempt. TLS 1.2 and earlier
     only. Requires HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
@@ -17497,8 +17502,9 @@ int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx);
     \brief Makes the TLS Extended Master Secret extension (RFC 7627)
     mandatory on the SSL object: if it is not negotiated, including on
     resumption, the connection is aborted with EXT_MASTER_SECRET_NEEDED_E. A
-    client advertises the extension even after a previous disable. TLS 1.2
-    and earlier only. Requires HAVE_EXTENDED_MASTER.
+    client advertises the extension even after a previous disable. Sessions
+    using a session-secret callback (EAP-FAST) are exempt. TLS 1.2 and
+    earlier only. Requires HAVE_EXTENDED_MASTER.
 
     \return WOLFSSL_SUCCESS on success.
     \return BAD_FUNC_ARG if ssl is NULL.
