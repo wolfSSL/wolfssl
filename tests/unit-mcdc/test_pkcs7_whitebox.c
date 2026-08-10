@@ -1905,6 +1905,132 @@ static void wb_verify_signed_data_guards(void)
     WB_CHECK(ret < 0, "malformed short SignedData rejected (exercises wrapper)");
 }
 
+
+/* Public-entry argument chains. Each operand gets the vector where it alone
+ * fires, plus the all-false vector -- without the latter no operand in the
+ * chain gets an independence pair inside this binary. The accepting vectors
+ * only have to pass the guard; failing further in is fine and expected. */
+static void wb_public_arg_guards(void)
+{
+    wc_PKCS7 pkcs7;
+    byte key[32];
+    byte content[32];
+    byte out[4096];
+    byte salt[8];
+
+    XMEMSET(key, 0x0b, sizeof(key));
+    XMEMSET(content, 0x0c, sizeof(content));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(salt, 0x0d, sizeof(salt));
+
+    if (wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_PKCS7_Init failed; wb_public_arg_guards skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    /* pkcs7 == NULL || key == NULL || keySz == 0 */
+    (void)wc_PKCS7_SetKey(NULL, key, (word32)sizeof(key));
+    (void)wc_PKCS7_SetKey(&pkcs7, NULL, (word32)sizeof(key));
+    (void)wc_PKCS7_SetKey(&pkcs7, key, 0);
+    (void)wc_PKCS7_SetKey(&pkcs7, key, (word32)sizeof(key));
+
+    /* pkcs7 == NULL || (in == NULL && inSz > 0) */
+    (void)wc_PKCS7_SetCustomSKID(NULL, key, (word16)sizeof(key));
+    (void)wc_PKCS7_SetCustomSKID(&pkcs7, NULL, (word16)sizeof(key));
+    (void)wc_PKCS7_SetCustomSKID(&pkcs7, NULL, 0);
+    (void)wc_PKCS7_SetCustomSKID(&pkcs7, key, (word16)sizeof(key));
+
+#if defined(HAVE_PKCS7) && !defined(NO_PKCS7_ENCRYPTED_DATA)
+    /* pkcs7 == NULL || privateKey == NULL || privateKeySz == 0 ||
+     * content == NULL || contentSz == 0 || output == NULL || outputSz == 0 */
+    (void)wc_PKCS7_EncodeSignedFPD(NULL, (byte*)client_key_der_2048,
+        (word32)sizeof_client_key_der_2048, RSAk, SHA256h, content,
+        (word32)sizeof(content), NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedFPD(&pkcs7, NULL,
+        (word32)sizeof_client_key_der_2048, RSAk, SHA256h, content,
+        (word32)sizeof(content), NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedFPD(&pkcs7, (byte*)client_key_der_2048, 0,
+        RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0, out,
+        (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedFPD(&pkcs7, (byte*)client_key_der_2048,
+        (word32)sizeof_client_key_der_2048, RSAk, SHA256h, NULL,
+        (word32)sizeof(content), NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedFPD(&pkcs7, (byte*)client_key_der_2048,
+        (word32)sizeof_client_key_der_2048, RSAk, SHA256h, content, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedFPD(&pkcs7, (byte*)client_key_der_2048,
+        (word32)sizeof_client_key_der_2048, RSAk, SHA256h, content,
+        (word32)sizeof(content), NULL, 0, NULL, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedFPD(&pkcs7, (byte*)client_key_der_2048,
+        (word32)sizeof_client_key_der_2048, RSAk, SHA256h, content,
+        (word32)sizeof(content), NULL, 0, out, 0);
+    (void)wc_PKCS7_EncodeSignedFPD(&pkcs7, (byte*)client_key_der_2048,
+        (word32)sizeof_client_key_der_2048, RSAk, SHA256h, content,
+        (word32)sizeof(content), NULL, 0, out, (word32)sizeof(out));
+
+    /* pkcs7 == NULL || encryptKey == NULL || encryptKeySz == 0 || ... */
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(NULL, key, (word32)sizeof(key),
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, NULL, (word32)sizeof(key),
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, 0,
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, (word32)sizeof(key),
+        NULL, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, (word32)sizeof(key),
+        (byte*)client_key_der_2048, 0,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, (word32)sizeof(key),
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, NULL, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, (word32)sizeof(key),
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, 0, NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, (word32)sizeof(key),
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, NULL, (word32)sizeof(out));
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, (word32)sizeof(key),
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, 0);
+    (void)wc_PKCS7_EncodeSignedEncryptedFPD(&pkcs7, key, (word32)sizeof(key),
+        (byte*)client_key_der_2048, (word32)sizeof_client_key_der_2048,
+        AES256CBCb, RSAk, SHA256h, content, (word32)sizeof(content), NULL, 0,
+        NULL, 0, out, (word32)sizeof(out));
+#endif
+
+#if defined(HAVE_PKCS7) && !defined(NO_PWDBASED)
+    /* pkcs7 == NULL || passwd == NULL || pLen == 0 || salt == NULL || ... */
+    (void)wc_PKCS7_AddRecipient_PWRI(NULL, key, (word32)sizeof(key), salt,
+        (word32)sizeof(salt), PBKDF2_OID, WC_SHA256, 1000, AES256_WRAP, 0);
+    (void)wc_PKCS7_AddRecipient_PWRI(&pkcs7, NULL, (word32)sizeof(key), salt,
+        (word32)sizeof(salt), PBKDF2_OID, WC_SHA256, 1000, AES256_WRAP, 0);
+    (void)wc_PKCS7_AddRecipient_PWRI(&pkcs7, key, 0, salt,
+        (word32)sizeof(salt), PBKDF2_OID, WC_SHA256, 1000, AES256_WRAP, 0);
+    (void)wc_PKCS7_AddRecipient_PWRI(&pkcs7, key, (word32)sizeof(key), NULL,
+        (word32)sizeof(salt), PBKDF2_OID, WC_SHA256, 1000, AES256_WRAP, 0);
+    (void)wc_PKCS7_AddRecipient_PWRI(&pkcs7, key, (word32)sizeof(key), salt, 0,
+        PBKDF2_OID, WC_SHA256, 1000, AES256_WRAP, 0);
+    (void)wc_PKCS7_AddRecipient_PWRI(&pkcs7, key, (word32)sizeof(key), salt,
+        (word32)sizeof(salt), PBKDF2_OID, WC_SHA256, 1000, AES256_WRAP, 0);
+#endif
+
+    wc_PKCS7_Free(&pkcs7);
+}
+
 int main(void)
 {
     printf("pkcs7.c white-box MC/DC supplement\n");
@@ -1926,6 +2052,7 @@ int main(void)
     wb_parse_signer_info();
     wb_handle_octet_strings();
     wb_verify_signed_data_guards();
+    wb_public_arg_guards();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
