@@ -12855,7 +12855,7 @@ static wc_test_ret_t des_key_wrap_test(void)
     /* Test invalid hash type - only applies to wc_PBKDF1 call */
     ret = wc_BufferKeyEncrypt(&info, cipher, sizeof(cipher), key,
             sizeof(key), WC_HASH_TYPE_NONE);
-    if (ret == 0)
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
 
     /* Same test for wc_BufferKeyDecrypt.  It Base16-decodes info.iv in place
@@ -12869,7 +12869,7 @@ static wc_test_ret_t des_key_wrap_test(void)
 
     ret = wc_BufferKeyDecrypt(&info, cipher, sizeof(cipher), key,
             sizeof(key), WC_HASH_TYPE_NONE);
-    if (ret == 0)
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
 #endif /* !NO_PWDBASED */
 
