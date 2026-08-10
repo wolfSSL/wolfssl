@@ -165,7 +165,12 @@ static int wb_mp_set_ones(mp_int* m, int nbytes)
  * range guard too. */
 static int wb_mp_set_at_bit_boundary(mp_int* m, int fieldBits)
 {
-    byte buf[96];
+    /* Sized for the widest caller (RSA/DH 4096-bit moduli), not just the ECC
+     * field widths: a buffer too small to hold fieldBits silently produced a
+     * SHORTER value, which made every sp_RsaPublic_ and sp_DhExp_ call below
+     * bail at its "mp_count_bits(mod) != N" guard instead of reaching the
+     * FFDHE fast path, the windowed modexp and the leading-zero trim loop. */
+    byte buf[512];
     int  fieldBytes = (fieldBits + 7) / 8;
     int  topBits = fieldBits - (fieldBytes - 1) * 8;
     byte topMask = (byte)((topBits >= 8) ? 0xFFu :
@@ -1187,12 +1192,28 @@ static void wb_run_rsa_dh_bounds(void)
 #if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH)
 #ifndef WOLFSSL_SP_NO_2048
     if (wb_mp_set_at_bit_boundary(&mm, 2048) == MP_OKAY) {
+        mp_set(&base, 2); /* dp[0]==2 true, top digit all-ones: true */
+        outLen = (word32)sizeof(out);
+        (void)sp_DhExp_2048(&base, &one, 1, &mm, out, &outLen);
         mp_set(&base, 3); /* FFDHE fast-path dp[0]==2 operand: false */
         outLen = (word32)sizeof(out);
         (void)sp_DhExp_2048(&base, &one, 1, &mm, out, &outLen);
         mp_set(&base, 0); /* result == 0: trim loop runs to the boundary */
         outLen = (word32)sizeof(out);
         (void)sp_DhExp_2048(&base, &one, 1, &mm, out, &outLen);
+    }
+    {
+        /* dp[0]==2 true, top digit NOT all-ones: closes that operand's
+         * independence pair without disturbing the other two. */
+        byte buf2048[256];
+        XMEMSET(buf2048, 0xFF, sizeof(buf2048));
+        buf2048[0] = 0xFE;
+        if (mp_read_unsigned_bin(&mm, buf2048, (word32)sizeof(buf2048))
+                == MP_OKAY) {
+            mp_set(&base, 2);
+            outLen = (word32)sizeof(out);
+            (void)sp_DhExp_2048(&base, &one, 1, &mm, out, &outLen);
+        }
     }
 #endif
 #if !defined(WOLFSSL_SP_NO_3072) && defined(HAVE_FFDHE_3072)
@@ -1231,11 +1252,13 @@ static void wb_run_rsa_dh_bounds(void)
         (void)sp_DhExp_4096(&base, &one, 1, &mm, out, &outLen);
 
         /* Wider exponent: drives the windowed modexp digit-scan loop
-         * through its full natural termination (see file header). */
+         * `for (; i>=0 || c>=4; )` past the end of the exponent array, so
+         * both its operands see a false row (i < 0 with c >= 4, then i < 0
+         * with c < 4). Nine bytes is enough to spill past one 64-bit digit
+         * while keeping the 4096-bit modexp cheap on an emulated lane. */
         mp_set(&base, 3);
         outLen = (word32)sizeof(out);
-        (void)sp_DhExp_4096(&base, exp32, (word32)sizeof(exp32), &mm, out,
-            &outLen);
+        (void)sp_DhExp_4096(&base, exp32, 9, &mm, out, &outLen);
     }
 #endif
 #endif /* WOLFSSL_HAVE_SP_DH && !NO_DH */
@@ -1254,6 +1277,170 @@ static void wb_run_rsa_dh_bounds(void)
              "rsa/dh bounds skipped");
 }
 #endif /* (WOLFSSL_HAVE_SP_RSA && !NO_RSA) || (WOLFSSL_HAVE_SP_DH && !NO_DH) */
+
+/* ----------------------------------------------------------------------- *
+ * sp_ecc_check_key_<n>(): the private-key cross-check
+ *
+ *     if ((err == MP_OKAY) &&
+ *             ((sp_<n>_cmp_<w>(p->x, pub->x) != 0) ||
+ *              (sp_<n>_cmp_<w>(p->y, pub->y) != 0)))
+ *
+ * Real callers only ever pass a matching (pub, priv) pair, so both comparison
+ * operands are permanently false. Three vectors close them:
+ *   - (pub, its own priv)          -> (F, F): the existing all-match row;
+ *   - (pub, ANOTHER key's priv)    -> (T, -): X differs, second operand
+ *                                     short-circuited;
+ *   - ((pubX, prime - pubY), priv) -> (F, T): the negated public point is
+ *     still on the curve and still of full order, so it passes every earlier
+ *     guard, and base*priv then matches its X but not its Y -- the only way to
+ *     reach the second operand's true row.
+ * ----------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    (defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER))
+static void wb_run_check_key_priv(int curve_id, int fieldSz, const char* label,
+    int (*check_key)(const mp_int*, const mp_int*, const mp_int*, void*))
+{
+    ecc_key keyA;
+    ecc_key keyB;
+    WC_RNG  rng;
+    mp_int  prime;
+    mp_int  negY;
+    int     curveIdx;
+    const ecc_set_type* dp;
+
+    XMEMSET(&keyA, 0, sizeof(keyA));
+    XMEMSET(&keyB, 0, sizeof(keyB));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    if (wc_ecc_init(&keyA) != 0 || wc_ecc_init(&keyB) != 0 ||
+            wc_InitRng(&rng) != 0) {
+        WB_NOTE("init failed (check_key priv)");
+        wb_fail = 1;
+        wc_ecc_free(&keyA);
+        wc_ecc_free(&keyB);
+        return;
+    }
+
+    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0 ||
+            wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id) != 0) {
+        WB_NOTE("wc_ecc_make_key_ex failed (check_key priv)");
+        wb_fail = 1;
+    }
+    else if (mp_init(&prime) != MP_OKAY) {
+        WB_NOTE("mp_init(prime) failed (check_key priv)");
+        wb_fail = 1;
+    }
+    else {
+        if (mp_init(&negY) == MP_OKAY) {
+            curveIdx = wc_ecc_get_curve_idx(curve_id);
+            dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+
+            /* Matching pair: both comparison operands false. */
+            (void)check_key(keyA.pubkey.x, keyA.pubkey.y, ecc_get_k(&keyA),
+                keyA.heap);
+            /* Foreign private key: the X comparison alone is true. */
+            (void)check_key(keyA.pubkey.x, keyA.pubkey.y, ecc_get_k(&keyB),
+                keyA.heap);
+            /* Negated public point: X matches, Y does not. */
+            if (dp != NULL &&
+                    mp_read_radix(&prime, dp->prime, 16) == MP_OKAY &&
+                    mp_sub(&prime, keyA.pubkey.y, &negY) == MP_OKAY) {
+                (void)check_key(keyA.pubkey.x, &negY, ecc_get_k(&keyA),
+                    keyA.heap);
+            }
+            else {
+                WB_NOTE("curve prime unavailable; negated-Y vector skipped");
+            }
+            mp_clear(&negY);
+        }
+        mp_clear(&prime);
+    }
+
+    wc_FreeRng(&rng);
+    wc_ecc_free(&keyA);
+    wc_ecc_free(&keyB);
+    WB_NOTE(label);
+}
+
+static void wb_run_check_key_priv_all(void)
+{
+#ifndef WOLFSSL_SP_NO_256
+    wb_run_check_key_priv(ECC_SECP256R1, 32,
+        "P-256 check_key private-key cross-check exercised",
+        sp_ecc_check_key_256);
+#endif
+#ifdef WOLFSSL_SP_384
+    wb_run_check_key_priv(ECC_SECP384R1, 48,
+        "P-384 check_key private-key cross-check exercised",
+        sp_ecc_check_key_384);
+#endif
+#ifdef WOLFSSL_SP_521
+    wb_run_check_key_priv(ECC_SECP521R1, 66,
+        "P-521 check_key private-key cross-check exercised",
+        sp_ecc_check_key_521);
+#endif
+}
+#else
+static void wb_run_check_key_priv_all(void)
+{
+    WB_NOTE("sp_ecc_check_key_<n> not compiled; priv cross-check skipped");
+}
+#endif
+
+/* ----------------------------------------------------------------------- *
+ * sp_<n>_mod_inv_<w>(): the binary extended-GCD loops
+ *
+ *     while (ut > 1 && vt > 1) { ... do { ... } while (ut > 0 && even(u)); }
+ *
+ * The only caller is sp_<n>_calc_vfy_point_<w>(), which always hands it a
+ * signature's s -- a uniformly random unit -- so the loop always terminates the
+ * same way and the operands' false rows are never seen. The helper is file
+ * static, which is exactly what this white-box has access to, so it is called
+ * here directly with the degenerate operands the caller cannot produce:
+ *   - a == 1: v has one bit on entry, so the outer loop's SECOND operand is
+ *     false before the body ever runs;
+ *   - a == m: u and v are equal, so the first subtraction makes u zero and the
+ *     inner do-while's FIRST operand is false;
+ *   - small a: ordinary termination, which lands on u == 1 for some values and
+ *     v == 1 for others, giving the outer loop's first operand its false row.
+ * a == 0 is deliberately NOT used: v would stay zero and the pre-loop that
+ * shifts even operands right would never terminate.
+ * ----------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_SP_SMALL)
+#define WB_MOD_INV_SWEEP(WORDS, FN, ORDER)                                  \
+    do {                                                                    \
+        sp_digit wbA[WORDS];                                                \
+        sp_digit wbR[WORDS];                                                \
+        int      wbI;                                                       \
+        XMEMCPY(wbA, (ORDER), sizeof(wbA));                                 \
+        (void)FN(wbR, wbA, (ORDER));                                        \
+        for (wbI = 1; wbI <= 40; wbI++) {                                   \
+            XMEMSET(wbA, 0, sizeof(wbA));                                   \
+            wbA[0] = (sp_digit)wbI;                                         \
+            (void)FN(wbR, wbA, (ORDER));                                    \
+        }                                                                   \
+    } while (0)
+
+static void wb_run_mod_inv(void)
+{
+    /* P-256 is omitted on this backend: sp_256_mod_inv_4() is hand-written
+     * AArch64 assembly with no C-level decision to drive. */
+#ifdef WOLFSSL_SP_384
+    WB_MOD_INV_SWEEP(6, sp_384_mod_inv_6, p384_order);
+    WB_NOTE("P-384 sp_384_mod_inv_6 degenerate operands exercised");
+#endif
+#ifdef WOLFSSL_SP_521
+    WB_MOD_INV_SWEEP(9, sp_521_mod_inv_9, p521_order);
+    WB_NOTE("P-521 sp_521_mod_inv_9 degenerate operands exercised");
+#endif
+}
+#else
+static void wb_run_mod_inv(void)
+{
+    WB_NOTE("sp_<n>_mod_inv_<w> not compiled; mod-inv sweep skipped");
+}
+#endif
 
 /* FP-ECC cache guard, once per curve:
  *
@@ -1360,6 +1547,8 @@ int main(void)
     wb_run_point_specials_all();
     wb_run_ecc_extra_all();
     wb_run_rsa_dh_bounds();
+    wb_run_check_key_priv_all();
+    wb_run_mod_inv();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else

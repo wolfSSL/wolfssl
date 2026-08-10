@@ -1764,6 +1764,262 @@ static void wb_run_cache_mutex(void)
 }
 #endif
 
+/* ======================================================================= *
+ * Residual closers added in the 2026-08-10 lane pass. Each takes one freshly
+ * made key pair per curve size and drives three decisions that the ordinary
+ * sign/verify/check_key traffic above cannot reach:
+ *
+ * 1. sp_ecc_check_key_<n>():
+ *        if ((err == MP_OKAY) &&
+ *                ((sp_<n>_cmp_<w>(p->x, pub->x) != 0) ||
+ *                 (sp_<n>_cmp_<w>(p->y, pub->y) != 0)))
+ *    A mismatched private key disagrees on BOTH ordinates, so the second
+ *    operand is short-circuited and only ever seen false. The NEGATED public
+ *    point (x, prime - y) is still on the curve and still of full order, so it
+ *    passes every earlier guard, and base*priv then matches its X but not its
+ *    Y -- the only input that reaches the second operand's true row.
+ *
+ * 2. sp_ecc_verify_<n>():
+ *        if ((*res == 0) && (c < 0))
+ *    A valid signature gives the (false, -) row. A small r gives
+ *    r + order < prime, i.e. (true, true). r = prime - order + 5 makes
+ *    r + order land at or past prime -- either c > 0, or the addition carries
+ *    out of the field width and c keeps its initial 0 -- which is the missing
+ *    (true, false) row. The signature is not valid in any of these calls; only
+ *    which branch is taken matters.
+ *
+ * 3. sp_ecc_sign_<n>():
+ *        if (km == NULL || mp_iszero(km))
+ *    wc_ecc_sign_hash() always passes km == NULL, so the second operand is
+ *    never evaluated. Passing a non-NULL km, zero and then non-zero, reaches
+ *    both of its values with the first operand false throughout.
+ * ======================================================================= */
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN)
+
+typedef int (*wb_rx_verify_fn)(const byte*, word32, const mp_int*,
+    const mp_int*, const mp_int*, const mp_int*, const mp_int*, int*, void*);
+typedef int (*wb_rx_sign_fn)(const byte*, word32, WC_RNG*, const mp_int*,
+    mp_int*, mp_int*, mp_int*, void*);
+typedef int (*wb_rx_check_key_fn)(const mp_int*, const mp_int*, const mp_int*,
+    void*);
+
+static void wb_run_residual_extra(int curve_id, int fieldSz, const char* label,
+    wb_rx_verify_fn verify, wb_rx_sign_fn sign,
+    wb_rx_check_key_fn check_key)
+{
+    ecc_key keyA;
+    ecc_key keyB;
+    WC_RNG  rng;
+    mp_int  prime;
+    mp_int  order;
+    mp_int  tmpm;
+    mp_int  sigR;
+    mp_int  sigS;
+    mp_int  smVal;
+    mp_int  rSmall;
+    mp_int  one;
+    int     curveIdx;
+    const ecc_set_type* dp;
+    int     res;
+    int     nInit = 0;
+    mp_int* inits[8];
+
+    XMEMSET(&keyA, 0, sizeof(keyA));
+    XMEMSET(&keyB, 0, sizeof(keyB));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    if (wc_ecc_init(&keyA) != 0 || wc_ecc_init(&keyB) != 0 ||
+            wc_InitRng(&rng) != 0) {
+        WB_NOTE("init failed (residual extra)");
+        wb_fail = 1;
+        wc_ecc_free(&keyA);
+        wc_ecc_free(&keyB);
+        return;
+    }
+    if (wc_ecc_make_key_ex(&rng, fieldSz, &keyA, curve_id) != 0 ||
+            wc_ecc_make_key_ex(&rng, fieldSz, &keyB, curve_id) != 0) {
+        WB_NOTE("wc_ecc_make_key_ex failed (residual extra)");
+        wb_fail = 1;
+        wc_FreeRng(&rng);
+        wc_ecc_free(&keyA);
+        wc_ecc_free(&keyB);
+        return;
+    }
+
+    inits[0] = &prime;  inits[1] = &order;  inits[2] = &tmpm;
+    inits[3] = &sigR;   inits[4] = &sigS;   inits[5] = &smVal;
+    inits[6] = &rSmall; inits[7] = &one;
+    for (nInit = 0; nInit < 8; nInit++) {
+        if (mp_init(inits[nInit]) != MP_OKAY) {
+            break;
+        }
+    }
+    if (nInit < 8) {
+        WB_NOTE("mp_init failed (residual extra)");
+        wb_fail = 1;
+    }
+    else {
+        curveIdx = wc_ecc_get_curve_idx(curve_id);
+        dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+
+        (void)mp_set(&one, 1);
+        (void)mp_set(&rSmall, 7);
+        (void)mp_set(&smVal, 17);
+
+        if (dp != NULL &&
+                mp_read_radix(&prime, dp->prime, 16) == MP_OKAY &&
+                mp_read_radix(&order, dp->order, 16) == MP_OKAY) {
+            /* 1. check_key: matching priv, foreign priv, negated public Y. */
+            if (check_key != NULL) {
+                (void)check_key(keyA.pubkey.x, keyA.pubkey.y,
+                    ecc_get_k(&keyA), keyA.heap);
+                (void)check_key(keyA.pubkey.x, keyA.pubkey.y,
+                    ecc_get_k(&keyB), keyA.heap);
+                if (mp_sub(&prime, keyA.pubkey.y, &tmpm) == MP_OKAY) {
+                    (void)check_key(keyA.pubkey.x, &tmpm, ecc_get_k(&keyA),
+                        keyA.heap);
+                }
+            }
+
+            /* 2. verify: r + order below prime, then at/past it. */
+            res = -1;
+            (void)verify(wb_digest, (word32)sizeof(wb_digest), keyA.pubkey.x,
+                keyA.pubkey.y, &one, &rSmall, &smVal, &res, keyA.heap);
+            if (mp_sub(&prime, &order, &tmpm) == MP_OKAY &&
+                    mp_add_d(&tmpm, 5, &tmpm) == MP_OKAY) {
+                res = -1;
+                (void)verify(wb_digest, (word32)sizeof(wb_digest),
+                    keyA.pubkey.x, keyA.pubkey.y, &one, &tmpm, &smVal, &res,
+                    keyA.heap);
+            }
+        }
+        else {
+            WB_NOTE("curve params unavailable (residual extra)");
+        }
+
+        /* 3. sign with an explicit km: zero, then non-zero. */
+        (void)mp_zero(&tmpm);
+        (void)sign(wb_digest, (word32)sizeof(wb_digest), &rng,
+            ecc_get_k(&keyA), &sigR, &sigS, &tmpm, keyA.heap);
+        (void)mp_set(&tmpm, 12345);
+        (void)sign(wb_digest, (word32)sizeof(wb_digest), &rng,
+            ecc_get_k(&keyA), &sigR, &sigS, &tmpm, keyA.heap);
+    }
+
+    while (nInit-- > 0) {
+        mp_clear(inits[nInit]);
+    }
+    wc_FreeRng(&rng);
+    wc_ecc_free(&keyA);
+    wc_ecc_free(&keyB);
+    WB_NOTE(label);
+}
+
+static void wb_run_residual_extra_all(void)
+{
+#ifndef WOLFSSL_SP_NO_256
+    wb_run_residual_extra(ECC_SECP256R1, 32,
+        "P-256 check_key negated-Y / verify r+order>=prime / explicit km "
+        "exercised",
+        sp_ecc_verify_256, sp_ecc_sign_256,
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+        sp_ecc_check_key_256
+#else
+        NULL
+#endif
+        );
+#endif
+#ifdef WOLFSSL_SP_384
+    wb_run_residual_extra(ECC_SECP384R1, 48,
+        "P-384 check_key negated-Y / verify r+order>=prime / explicit km "
+        "exercised",
+        sp_ecc_verify_384, sp_ecc_sign_384,
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+        sp_ecc_check_key_384
+#else
+        NULL
+#endif
+        );
+#endif
+#ifdef WOLFSSL_SP_521
+    wb_run_residual_extra(ECC_SECP521R1, 66,
+        "P-521 check_key negated-Y / verify r+order>=prime / explicit km "
+        "exercised",
+        sp_ecc_verify_521, sp_ecc_sign_521,
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+        sp_ecc_check_key_521
+#else
+        NULL
+#endif
+        );
+#endif
+}
+#else
+static void wb_run_residual_extra_all(void)
+{
+    WB_NOTE("SP ECC sign/verify not both compiled; residual extras skipped");
+}
+#endif
+
+/* ----------------------------------------------------------------------- *
+ * sp_<n>_mod_inv_<w>(): the binary extended-GCD loops
+ *
+ *     while (ut > 1 && vt > 1) { ... do { ... } while (ut > 0 && even(u)); }
+ *
+ * The only caller is sp_<n>_calc_vfy_point_<w>(), which always hands it a
+ * signature's s -- a uniformly random unit -- so the loop always terminates the
+ * same way and several operands never see a false row. The helper is file
+ * static, which is exactly what a white-box that includes the .c can reach, so
+ * it is called here directly with the degenerate operands the caller cannot
+ * produce:
+ *   - a == m: u and v start equal, so the first subtraction makes u zero and
+ *     the inner do-while's FIRST operand (ut > 0) is false;
+ *   - a == 1: v has a single bit on entry, so the outer loop's SECOND operand
+ *     (vt > 1) is false before the body ever runs;
+ *   - small a: ordinary termination, which lands on u == 1 for some values and
+ *     v == 1 for others, giving the outer loop's first operand its false row.
+ * a == 0 is deliberately NOT used: v would stay zero and the pre-loop that
+ * shifts even operands right would never terminate.
+ * ----------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    !defined(WOLFSSL_SP_SMALL)
+#define WB_MOD_INV_SWEEP(WORDS, FN, ORDER)                                  \
+    do {                                                                    \
+        sp_digit wbA[WORDS];                                                \
+        sp_digit wbR[WORDS];                                                \
+        int      wbI;                                                       \
+        XMEMCPY(wbA, (ORDER), sizeof(wbA));                                 \
+        (void)FN(wbR, wbA, (ORDER));                                        \
+        for (wbI = 1; wbI <= 40; wbI++) {                                   \
+            XMEMSET(wbA, 0, sizeof(wbA));                                   \
+            wbA[0] = (sp_digit)wbI;                                         \
+            (void)FN(wbR, wbA, (ORDER));                                    \
+        }                                                                   \
+    } while (0)
+
+static void wb_run_mod_inv(void)
+{
+#ifndef WOLFSSL_SP_NO_256
+    WB_MOD_INV_SWEEP(8, sp_256_mod_inv_8, p256_order);
+    WB_NOTE("P-256 sp_256_mod_inv_8 degenerate operands exercised");
+#endif
+#ifdef WOLFSSL_SP_384
+    WB_MOD_INV_SWEEP(12, sp_384_mod_inv_12, p384_order);
+    WB_NOTE("P-384 sp_384_mod_inv_12 degenerate operands exercised");
+#endif
+#ifdef WOLFSSL_SP_521
+    WB_MOD_INV_SWEEP(17, sp_521_mod_inv_17, p521_order);
+    WB_NOTE("P-521 sp_521_mod_inv_17 degenerate operands exercised");
+#endif
+}
+#else
+static void wb_run_mod_inv(void)
+{
+    WB_NOTE("sp_<n>_mod_inv_<w> not compiled; mod-inv sweep skipped");
+}
+#endif
+
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
 int main(void)
@@ -1783,6 +2039,8 @@ int main(void)
     wb_run_gap_521();
     wb_run_rsa_gaps();
     wb_run_dh_gaps();
+    wb_run_residual_extra_all();
+    wb_run_mod_inv();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else
