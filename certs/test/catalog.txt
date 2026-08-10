@@ -16,5 +16,6 @@ cert-ext-oid-collide.der:
   Non-critical extension whose 4-byte OID has the same wc_oid_sum() as
   prime256v1, so it maps to a NID with a longer canonical OID. Tests that
   wolfSSL_X509_set_ext() sizes the ASN1_OBJECT buffer from the certificate's
-  OID, not the mapped one. Signature is invalid; only ever parsed, never
-  verified. Regenerate with certs/test/gen-oid-collide-cert.sh.
+  OID, not the mapped one. Does not collide under WOLFSSL_OLD_OID_SUM.
+  Signature is invalid; only ever parsed, never verified. Regenerate with
+  certs/test/gen-oid-collide-cert.sh.

@@ -2689,8 +2689,11 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void)
 int test_wolfSSL_X509_set_ext_oid_collision(void)
 {
     EXPECT_DECLS;
+/* The fixture's OID collides under wc_oid_sum() only. With WOLFSSL_OLD_OID_SUM
+ * it maps elsewhere, no canonical OID is cached, and there is nothing to
+ * shrink. */
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) && !defined(WOLFSSL_OLD_OID_SUM)
     /* The fixture's extension OID, tag and length included. */
     static const unsigned char certOid[] = {
         0x06, 0x04, 0xE8, 0x85, 0xB6, 0x49
@@ -2724,6 +2727,7 @@ int test_wolfSSL_X509_set_ext_oid_collision(void)
     }
 
     X509_free(x509);
-#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && HAVE_ECC */
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && HAVE_ECC &&
+        * !WOLFSSL_OLD_OID_SUM */
     return EXPECT_RESULT();
 }
