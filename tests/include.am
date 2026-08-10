@@ -178,10 +178,15 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_sp_arm32_whitebox.c \
               tests/unit-mcdc/test_sp_arm64_whitebox.c \
               tests/unit-mcdc/test_sp_armthumb_whitebox.c \
+              tests/unit-mcdc/test_sp_c32_fault_whitebox.c \
               tests/unit-mcdc/test_sp_c32_whitebox.c \
+              tests/unit-mcdc/test_sp_c64_fault_whitebox.c \
               tests/unit-mcdc/test_sp_c64_whitebox.c \
               tests/unit-mcdc/test_sp_cortexm_whitebox.c \
+              tests/unit-mcdc/test_sp_fault_common.h \
+              tests/unit-mcdc/test_sp_int_fault_whitebox.c \
               tests/unit-mcdc/test_sp_int_whitebox.c \
+              tests/unit-mcdc/test_sp_x86_64_fault_whitebox.c \
               tests/unit-mcdc/test_sp_x86_64_whitebox.c \
               tests/unit-mcdc/test_tfm_whitebox.c \
               tests/unit-mcdc/test_tsp_fault_whitebox.c \
