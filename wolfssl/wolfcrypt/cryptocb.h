@@ -201,6 +201,9 @@ typedef struct wc_CryptoInfo {
                 int*          keySize;
             } rsa_get_size;
         #ifdef WOLF_CRYPTO_CB_RSA_PAD
+            /* WC_PK_TYPE_RSA_PSS_VERIFY handler: return 0 with *res set
+             * (1 good, 0 bad), or a negative error. Anything positive is
+             * counted as a failed verify. Filling out is optional. */
             struct {
                 const byte*      sig;
                 word32           sigSz;
