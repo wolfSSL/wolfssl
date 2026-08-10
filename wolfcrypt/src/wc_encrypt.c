@@ -241,29 +241,28 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
     switch (info->cipherType)
     {
+    case WC_CIPHER_DES:
 #ifndef NO_DES3
-    case WC_CIPHER_DES:
         ret = wc_Des_CbcDecryptWithKey(der, der, derSz, key, info->iv);
-        break;
-    case WC_CIPHER_DES3:
-        ret = wc_Des3_CbcDecryptWithKey(der, der, derSz, key, info->iv);
-        break;
 #else
-    case WC_CIPHER_DES:
-    case WC_CIPHER_DES3:
         ret = NOT_COMPILED_IN;
+#endif
         break;
-#endif /* NO_DES3 */
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+    case WC_CIPHER_DES3:
+#ifndef NO_DES3
+        ret = wc_Des3_CbcDecryptWithKey(der, der, derSz, key, info->iv);
+#else
+        ret = NOT_COMPILED_IN;
+#endif
+        break;
     case WC_CIPHER_AES_CBC:
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
         ret = wc_AesCbcDecryptWithKey(der, der, derSz, key, info->keySz,
             info->iv);
-        break;
 #else
-    case WC_CIPHER_AES_CBC:
         ret = NOT_COMPILED_IN;
-        break;
 #endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
+        break;
     default:
         ret = ALGO_ID_E;
         break;
@@ -318,29 +317,28 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
     switch (info->cipherType)
     {
+    case WC_CIPHER_DES:
 #ifndef NO_DES3
-    case WC_CIPHER_DES:
         ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
-        break;
-    case WC_CIPHER_DES3:
-        ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
-        break;
 #else
-    case WC_CIPHER_DES:
-    case WC_CIPHER_DES3:
         ret = NOT_COMPILED_IN;
+#endif
         break;
-#endif /* NO_DES3 */
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    case WC_CIPHER_DES3:
+#ifndef NO_DES3
+        ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
+#else
+        ret = NOT_COMPILED_IN;
+#endif
+        break;
     case WC_CIPHER_AES_CBC:
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
         ret = wc_AesCbcEncryptWithKey(der, der, derSz, key, info->keySz,
             info->iv);
-        break;
 #else
-    case WC_CIPHER_AES_CBC:
         ret = NOT_COMPILED_IN;
-        break;
 #endif /* !NO_AES && HAVE_AES_CBC */
+        break;
     default:
         ret = ALGO_ID_E;
         break;
