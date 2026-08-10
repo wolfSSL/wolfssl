@@ -232,8 +232,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif
 
     if (ret == 0) {
-        switch (info->cipherType)
-        {
+        switch (info->cipherType) {
         case WC_CIPHER_DES:
 #ifndef NO_DES3
             ret = wc_Des_CbcDecryptWithKey(der, der, derSz, key, info->iv);
@@ -302,8 +301,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif
 
     if (ret == 0) {
-        switch (info->cipherType)
-        {
+        switch (info->cipherType) {
         case WC_CIPHER_DES:
 #ifndef NO_DES3
             ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
