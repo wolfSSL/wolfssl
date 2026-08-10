@@ -1564,6 +1564,23 @@ int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
 
 #ifdef HAVE_EXTENDED_MASTER
 
+/* EMS applies to (D)TLS 1.0-1.2 only; the same version gate is applied by
+ * InitSSL_Ctx and InitSSL_Side when arming the default advertisement. */
+static int EmsAllowedForVersion(ProtocolVersion pv)
+{
+    int allowed = 0;
+
+    if (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR)
+        allowed = 1;
+#ifdef WOLFSSL_DTLS
+    if (pv.major == DTLS_MAJOR)
+        allowed = 1;
+#endif
+
+    return allowed;
+}
+
+
 /* Disable the Extended Master Secret extension on the context.
  *
  * For a client this stops the extension being advertised. For a server this
@@ -1642,7 +1659,8 @@ int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
         /* Re-arm client advertising. A side-less (wolfSSLv23) object is
          * armed by InitSSL_Side instead; arming it here would make a server
          * echo an unsolicited extension. */
-        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ctx->method->version))
             ctx->haveEMS = 1;
     }
 
@@ -1672,7 +1690,8 @@ int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
         /* Re-arm client advertising. A side-less (wolfSSLv23) object is
          * armed by InitSSL_Side instead; arming it here would make a server
          * echo an unsolicited extension. */
-        if (ssl->options.side == WOLFSSL_CLIENT_END)
+        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ssl->ctx->method->version))
             ssl->options.haveEMS = 1;
     }
 
@@ -1706,7 +1725,8 @@ int wolfSSL_CTX_RequireExtendedMasterSecret(WOLFSSL_CTX* ctx)
         /* Re-arm client advertising. A side-less (wolfSSLv23) object is
          * armed by InitSSL_Side instead; arming it here would make a server
          * echo an unsolicited extension. */
-        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END)
+        if (ctx->method != NULL && ctx->method->side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ctx->method->version))
             ctx->haveEMS = 1;
     }
 
@@ -1738,7 +1758,8 @@ int wolfSSL_RequireExtendedMasterSecret(WOLFSSL* ssl)
         /* Re-arm client advertising. A side-less (wolfSSLv23) object is
          * armed by InitSSL_Side instead; arming it here would make a server
          * echo an unsolicited extension. */
-        if (ssl->options.side == WOLFSSL_CLIENT_END)
+        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                EmsAllowedForVersion(ssl->ctx->method->version))
             ssl->options.haveEMS = 1;
     }
 
