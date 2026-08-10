@@ -227,45 +227,39 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
 
 #ifndef NO_PWDBASED
-    if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        (int)info->keySz, hashType)) != 0) {
-        ForceZero(key, WC_MAX_SYM_KEY_SIZE);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
-        wc_MemZero_Check(key, WC_MAX_SYM_KEY_SIZE);
-#endif
-        return ret;
-    }
+    ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
+                                        (int)info->keySz, hashType);
 #endif
 
-    switch (info->cipherType)
-    {
-    case WC_CIPHER_DES:
+    if (ret == 0) {
+        switch (info->cipherType)
+        {
+        case WC_CIPHER_DES:
 #ifndef NO_DES3
-        ret = wc_Des_CbcDecryptWithKey(der, der, derSz, key, info->iv);
+            ret = wc_Des_CbcDecryptWithKey(der, der, derSz, key, info->iv);
 #else
-        ret = NOT_COMPILED_IN;
+            ret = NOT_COMPILED_IN;
 #endif
-        break;
-    case WC_CIPHER_DES3:
+            break;
+        case WC_CIPHER_DES3:
 #ifndef NO_DES3
-        ret = wc_Des3_CbcDecryptWithKey(der, der, derSz, key, info->iv);
+            ret = wc_Des3_CbcDecryptWithKey(der, der, derSz, key, info->iv);
 #else
-        ret = NOT_COMPILED_IN;
+            ret = NOT_COMPILED_IN;
 #endif
-        break;
-    case WC_CIPHER_AES_CBC:
+            break;
+        case WC_CIPHER_AES_CBC:
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
-        ret = wc_AesCbcDecryptWithKey(der, der, derSz, key, info->keySz,
-            info->iv);
+            ret = wc_AesCbcDecryptWithKey(der, der, derSz, key, info->keySz,
+                info->iv);
 #else
-        ret = NOT_COMPILED_IN;
+            ret = NOT_COMPILED_IN;
 #endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
-        break;
-    default:
-        ret = ALGO_ID_E;
-        break;
+            break;
+        default:
+            ret = ALGO_ID_E;
+            break;
+        }
     }
 
     ForceZero(key, WC_MAX_SYM_KEY_SIZE);
@@ -303,45 +297,39 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
 
 #ifndef NO_PWDBASED
-    if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        (int)info->keySz, hashType)) != 0) {
-        ForceZero(key, WC_MAX_SYM_KEY_SIZE);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
-        wc_MemZero_Check(key, WC_MAX_SYM_KEY_SIZE);
-#endif
-        return ret;
-    }
+    ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
+                                        (int)info->keySz, hashType);
 #endif
 
-    switch (info->cipherType)
-    {
-    case WC_CIPHER_DES:
+    if (ret == 0) {
+        switch (info->cipherType)
+        {
+        case WC_CIPHER_DES:
 #ifndef NO_DES3
-        ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
+            ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
 #else
-        ret = NOT_COMPILED_IN;
+            ret = NOT_COMPILED_IN;
 #endif
-        break;
-    case WC_CIPHER_DES3:
+            break;
+        case WC_CIPHER_DES3:
 #ifndef NO_DES3
-        ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
+            ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
 #else
-        ret = NOT_COMPILED_IN;
+            ret = NOT_COMPILED_IN;
 #endif
-        break;
-    case WC_CIPHER_AES_CBC:
+            break;
+        case WC_CIPHER_AES_CBC:
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
-        ret = wc_AesCbcEncryptWithKey(der, der, derSz, key, info->keySz,
-            info->iv);
+            ret = wc_AesCbcEncryptWithKey(der, der, derSz, key, info->keySz,
+                info->iv);
 #else
-        ret = NOT_COMPILED_IN;
+            ret = NOT_COMPILED_IN;
 #endif /* !NO_AES && HAVE_AES_CBC */
-        break;
-    default:
-        ret = ALGO_ID_E;
-        break;
+            break;
+        default:
+            ret = ALGO_ID_E;
+            break;
+        }
     }
 
     ForceZero(key, WC_MAX_SYM_KEY_SIZE);
