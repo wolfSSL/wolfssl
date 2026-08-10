@@ -179,6 +179,179 @@ static void wb_fault_ecc(int curveId, int fieldSz)
 }
 #endif
 
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    !defined(MCDC_FA_UNAVAILABLE)
+/* -------------------------------------------------------------------- *
+ * The multi-condition `err` chains this module still owes are NOT in the
+ * wc_* API's call graph.
+ *
+ * Shapes like
+ *
+ *     if ((err == MP_OKAY) && (!inMont)) { ... }
+ *     if ((err == MP_OKAY) && sp_<n>_iszero_<n>(p1->z)) { ... }
+ *     if ((err == MP_OKAY) && ((sp_<n>_cmp_<n>(p->x, pub->x) != 0) || ...))
+ *
+ * live in sp_ecc_mulmod_add_<n>, sp_ecc_mulmod_base_add_<n>,
+ * sp_ecc_check_key_<n>, sp_ecc_verify_<n> and sp_ecc_sign_<n>. Some of
+ * those entry points nothing in wc_* reaches at all on this
+ * configuration; the ones it does reach it reaches through wrappers that
+ * allocate first, so a sweep aimed at the wrapper lands its failure
+ * before the callee is entered.
+ *
+ * So each entry point is called DIRECTLY, with its own arming hugging
+ * the one call and every input built while disarmed. The depth only has
+ * to walk a couple of SP_ALLOC_VARs past the start of each function --
+ * the injector fails allocation n and every later one, so a shallow
+ * sweep already puts `err` on the wrong side of every checkpoint in the
+ * function.
+ * -------------------------------------------------------------------- */
+#ifndef SP_FAULT_DIRECT_N
+    #define SP_FAULT_DIRECT_N 6
+#endif
+
+#define SP_FAULT_DEFINE_DIRECT(BITS, SZ, CURVE_ID)                          \
+static void wb_fault_direct_##BITS(void)                                    \
+{                                                                           \
+    ecc_key     key;                                                        \
+    WC_RNG      rng;                                                        \
+    ecc_point*  rp = NULL;                                                  \
+    mp_int      k;                                                          \
+    mp_int      one;                                                        \
+    mp_int      rmv;                                                        \
+    mp_int      smv;                                                        \
+    mp_int      rmv2;                                                       \
+    mp_int      smv2;                                                       \
+    byte        digest[32];                                                 \
+    int         res = 0;                                                    \
+    int         n;                                                          \
+    int         haveSig = 0;                                                \
+                                                                            \
+    XMEMSET(&key, 0, sizeof(key));                                          \
+    XMEMSET(&rng, 0, sizeof(rng));                                          \
+    XMEMSET(digest, 0x5a, sizeof(digest));                                  \
+                                                                            \
+    if (wc_InitRng(&rng) != 0) {                                            \
+        return;                                                             \
+    }                                                                       \
+    if (wc_ecc_init(&key) != 0) {                                           \
+        wc_FreeRng(&rng);                                                   \
+        return;                                                             \
+    }                                                                       \
+    if (mp_init_multi(&k, &one, &rmv, &smv, &rmv2, &smv2) != MP_OKAY) {     \
+        wc_ecc_free(&key);                                                  \
+        wc_FreeRng(&rng);                                                   \
+        return;                                                             \
+    }                                                                       \
+    (void)mp_set(&k, 5);                                                    \
+    (void)mp_set(&one, 1);                                                  \
+    rp = wc_ecc_new_point();                                                \
+                                                                            \
+    if ((rp != NULL) &&                                                     \
+            (wc_ecc_make_key_ex(&rng, SZ, &key, CURVE_ID) == 0)) {          \
+        SP_FAULT_SIGN_SETUP(BITS)                                           \
+        for (n = 1; n <= SP_FAULT_DIRECT_N; n++) {                          \
+            mcdc_fa_arm(n);                                                 \
+            (void)sp_ecc_mulmod_add_##BITS(&k, &key.pubkey, &key.pubkey,    \
+                0, rp, 1, NULL);                                            \
+            mcdc_fa_disarm();                                               \
+                                                                            \
+            mcdc_fa_arm(n);                                                 \
+            (void)sp_ecc_mulmod_base_add_##BITS(&k, &key.pubkey, 0, rp, 1,  \
+                NULL);                                                      \
+            mcdc_fa_disarm();                                               \
+                                                                            \
+            mcdc_fa_arm(n);                                                 \
+            (void)sp_ecc_mulmod_##BITS(&k, &key.pubkey, rp, 1, NULL);       \
+            mcdc_fa_disarm();                                               \
+                                                                            \
+            mcdc_fa_arm(n);                                                 \
+            (void)sp_ecc_mulmod_base_##BITS(&k, rp, 1, NULL);               \
+            mcdc_fa_disarm();                                               \
+                                                                            \
+            mcdc_fa_arm(n);                                                 \
+            (void)sp_ecc_is_point_##BITS(key.pubkey.x, key.pubkey.y);       \
+            mcdc_fa_disarm();                                               \
+                                                                            \
+            SP_FAULT_CHECK_KEY_ARM(BITS)                                    \
+            SP_FAULT_SIGNVFY_ARM(BITS)                                      \
+        }                                                                   \
+    }                                                                       \
+                                                                            \
+    if (rp != NULL) {                                                       \
+        wc_ecc_del_point(rp);                                               \
+    }                                                                       \
+    mp_clear(&smv2);                                                        \
+    mp_clear(&rmv2);                                                        \
+    mp_clear(&smv);                                                         \
+    mp_clear(&rmv);                                                         \
+    mp_clear(&one);                                                         \
+    mp_clear(&k);                                                           \
+    wc_ecc_free(&key);                                                      \
+    wc_FreeRng(&rng);                                                       \
+    (void)res;                                                              \
+    (void)haveSig;                                                          \
+}
+
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+#define SP_FAULT_CHECK_KEY_ARM(BITS)                                        \
+            mcdc_fa_arm(n);                                                 \
+            (void)sp_ecc_check_key_##BITS(key.pubkey.x, key.pubkey.y,       \
+                ecc_get_k(&key), NULL);                                     \
+            mcdc_fa_disarm();
+#else
+#define SP_FAULT_CHECK_KEY_ARM(BITS) /* not compiled in this config */
+#endif
+
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+/* A real signature, made disarmed, so the armed verify below starts from
+ * valid inputs and the failure lands inside the verify. */
+#define SP_FAULT_SIGN_SETUP(BITS)                                           \
+        haveSig = (sp_ecc_sign_##BITS(digest, 32, &rng, ecc_get_k(&key),    \
+            &rmv, &smv, NULL, NULL) == 0);
+#define SP_FAULT_SIGNVFY_ARM(BITS)                                          \
+            mcdc_fa_arm(n);                                                 \
+            (void)sp_ecc_sign_##BITS(digest, 32, &rng, ecc_get_k(&key),     \
+                &rmv2, &smv2, NULL, NULL);                                  \
+            mcdc_fa_disarm();                                               \
+            if (haveSig) {                                                  \
+                mcdc_fa_arm(n);                                             \
+                (void)sp_ecc_verify_##BITS(digest, 32, key.pubkey.x,        \
+                    key.pubkey.y, &one, &rmv, &smv, &res, NULL);            \
+                mcdc_fa_disarm();                                           \
+            }
+#else
+#define SP_FAULT_SIGN_SETUP(BITS)    /* needs HAVE_ECC_SIGN/VERIFY */
+#define SP_FAULT_SIGNVFY_ARM(BITS)   /* needs HAVE_ECC_SIGN/VERIFY */
+#endif
+
+#ifndef WOLFSSL_SP_NO_256
+SP_FAULT_DEFINE_DIRECT(256, 32, ECC_SECP256R1)
+#endif
+#ifdef WOLFSSL_SP_384
+SP_FAULT_DEFINE_DIRECT(384, 48, ECC_SECP384R1)
+#endif
+#ifdef WOLFSSL_SP_521
+SP_FAULT_DEFINE_DIRECT(521, 66, ECC_SECP521R1)
+#endif
+
+static void wb_fault_direct_all(void)
+{
+#ifndef WOLFSSL_SP_NO_256
+    wb_fault_direct_256();
+#endif
+#ifdef WOLFSSL_SP_384
+    wb_fault_direct_384();
+#endif
+#ifdef WOLFSSL_SP_521
+    wb_fault_direct_521();
+#endif
+}
+#else
+static void wb_fault_direct_all(void)
+{
+}
+#endif /* WOLFSSL_HAVE_SP_ECC && HAVE_ECC && !MCDC_FA_UNAVAILABLE */
+
 #if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH) && \
     !defined(MCDC_FA_UNAVAILABLE)
 /* DH: key agreement over a compiled-in FFDHE group. */
@@ -306,6 +479,12 @@ int main(void)
 
     wb_fault_dh();
     wb_fault_rsa();
+
+    /* Direct SP entry points, one arming per call: the multi-condition
+     * `err` chains this module still owes are all behind entry points the
+     * wc_* API either never takes or only reaches through a wrapper that
+     * allocates first. */
+    wb_fault_direct_all();
 
     mcdc_fa_disarm();
     mcdc_fa_restore();
