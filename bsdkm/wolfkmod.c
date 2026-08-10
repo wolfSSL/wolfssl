@@ -763,6 +763,19 @@ static int wolfkdriv_cbc_work(device_t dev, wolfkdriv_session_t * session,
         is_encrypt = 0;
         memcpy(&aes, &session->aes_ctx.aes_decrypt, sizeof(aes));
     }
+#if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
+   !defined(WOLFSSL_AESNI)
+    aes.streamData = NULL;
+#endif
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+    {
+        error = wc_debug_CipherLifecycleInit(&aes.CipherLifecycleTag, NULL);
+        if (error) {
+            error = EINVAL;
+            goto cbc_work_out;
+        }
+    }
+#endif
 
     /* must be multiple of block size */
     if (data_len % WC_AES_BLOCK_SIZE) {
@@ -910,6 +923,15 @@ static int wolfkdriv_gcm_work(device_t dev, wolfkdriv_session_t * session,
 #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
    !defined(WOLFSSL_AESNI)
     aes.streamData = NULL;
+#endif
+#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+    {
+        error = wc_debug_CipherLifecycleInit(&aes.CipherLifecycleTag, NULL);
+        if (error) {
+            error = EINVAL;
+            goto gcm_work_out;
+        }
+    }
 #endif
 
     data_len = crp->crp_payload_length;
