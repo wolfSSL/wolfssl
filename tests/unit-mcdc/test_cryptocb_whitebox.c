@@ -883,7 +883,48 @@ int main(void)
             "key-slot state, out of scope for this pass");
 #endif
 
-    /* ---- Curve25519 MakePub / Generic, and the ECIES pair ----
+    /* ---- ECIES encrypt/decrypt dispatch (HAVE_ECC_ENCRYPT) ----
+     * Both bodies resolve their device from privKey->devId and then take the
+     * usual `if (dev && dev->cb)` guard, so the standard three-vector sweep
+     * applies. Nothing but privKey->devId is read before the guard, and the
+     * registered callback (wb_cb) ignores the wc_CryptoInfo it is handed and
+     * reports CRYPTOCB_UNAVAILABLE, so a zeroed ecc_key with no key material
+     * is sufficient and safe here -- no curve arithmetic runs. */
+#ifdef HAVE_ECC_ENCRYPT
+    {
+        ecc_key  ecPriv;
+        byte     eciesMsg[16];
+        byte     eciesOut[128];
+        word32   eciesOutSz;
+
+        XMEMSET(&ecPriv, 0, sizeof(ecPriv));
+        XMEMSET(eciesMsg, 0x5e, sizeof(eciesMsg));
+        XMEMSET(eciesOut, 0, sizeof(eciesOut));
+
+        eciesOutSz = (word32)sizeof(eciesOut);
+        WB_DRIVE3(ecPriv.devId,
+            wc_CryptoCb_EciesEncrypt(&ecPriv, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0));
+
+        eciesOutSz = (word32)sizeof(eciesOut);
+        WB_DRIVE3(ecPriv.devId,
+            wc_CryptoCb_EciesDecrypt(&ecPriv, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL));
+
+        /* privKey == NULL early return (both entry points). */
+        eciesOutSz = (word32)sizeof(eciesOut);
+        (void)wc_CryptoCb_EciesEncrypt(NULL, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0);
+        (void)wc_CryptoCb_EciesDecrypt(NULL, NULL, eciesMsg,
+                (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL);
+
+        WB_NOTE("ECIES Encrypt/Decrypt dev&&dev->cb three-vector driven");
+    }
+#else
+    WB_NOTE("HAVE_ECC_ENCRYPT not defined; ECIES dispatch skipped");
+#endif
+
+    /* ---- Curve25519 MakePub / Generic ----
      * These take no devId: they resolve a device with FindDevice(INVALID_DEVID)
      * and fall back to FindDeviceByIndex(0), so their `if (dev && dev->cb)`
      * guard is driven by what is registered rather than by an argument. Run

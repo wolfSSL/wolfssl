@@ -313,6 +313,18 @@ static void wb_privkey_decode_raw(void)
     (void)_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 0, b, 4, b, 4, b, 4, b, 4, &key);    /* uSz==0    */
     (void)_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4, b, 0, b, 4, &key);    /* dP!=NULL && dPSz==0 */
     (void)_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4, b, 4, b, 0, &key);    /* dQ!=NULL && dQSz==0 */
+
+    /* The "dP != NULL" / "dQ != NULL" operands themselves (idx 2 and idx 4)
+     * need their FALSE side, which every call above holds true: dP/dQ are
+     * optional CRT components, so passing them absent is a legitimate,
+     * memory-safe call shape that simply skips their size cross-check.
+     *   dP==NULL, dQ==NULL          -> idx2 F (idx4 then F)  decision F
+     *   dP valid,  dQ==NULL         -> idx2 T, idx3 F, idx4 F  decision F
+     *   dP==NULL,  dQ valid         -> idx2 F, idx4 T, idx5 F  decision F
+     * paired against the idx2/idx4 TRUE vectors just above. */
+    (void)_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4, NULL, 0, NULL, 0, &key);
+    (void)_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4, b, 4, NULL, 0, &key);
+    (void)_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4, NULL, 0, b, 4, &key);
 #endif
 
     /* all-false side of both checks: every required arg valid, u/dP/dQ valid.
@@ -589,8 +601,112 @@ static void wb_rsa_function_nonblock(void)
 static void wb_rsa_function_nonblock(void) { WB_NOTE("WC_RSA_NONBLOCK off; wc_RsaFunctionNonBlock skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Class 12: wc_RsaPrivateKeyDecodeRaw() (the PUBLIC wrapper, lines ~6051 and
+ * ~6059) -- distinct decisions from the _RsaPrivateKeyDecodeRaw static above.
+ *
+ *   6051: if (n==NULL||nSz==0||e==NULL||eSz==0||d==NULL||dSz==0
+ *             ||p==NULL||pSz==0||q==NULL||qSz==0||key==NULL)   [idx10 = key]
+ *   6059: if ((u==NULL||uSz==0)||(dP!=NULL&&dPSz==0)||(dQ!=NULL&&dQSz==0))
+ *                                                    [idx2..idx5 = dP/dQ]
+ *
+ * The wrapper sets err rather than returning, so a rejected call falls through
+ * a chain of "if (err == MP_OKAY)" guards and never dereferences key. All
+ * accepted calls import 4-byte dummy components into the same initialized key
+ * (mp_read_unsigned_bin accepts any bytes); when dP/dQ are omitted the wrapper
+ * derives them with CalcDX() from the (equally dummy) p/q/d, which is a plain
+ * bounded modular reduction -- no key generation, no primality search.
+ * ------------------------------------------------------------------------- */
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+static void wb_pub_privkey_decode_raw(void)
+{
+    RsaKey key;
+    byte   b[4] = { 1, 2, 3, 4 };
+
+    if (wc_InitRsaKey(&key, NULL) != 0) {
+        WB_NOTE("wc_InitRsaKey failed (wc_RsaPrivateKeyDecodeRaw skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    /* line 6051 idx10: key==NULL true side (every other operand false). */
+    (void)wc_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4,
+        b, 4, b, 4, NULL);
+
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    /* line 6059 idx2..idx5: the dP/dQ presence + size cross-checks. u stays
+     * valid throughout so idx0/idx1 are false and the dP/dQ operands are the
+     * ones being evaluated. */
+    (void)wc_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4,
+        b, 0, b, 4, &key);            /* idx2 T, idx3 T            -> T */
+    (void)wc_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4,
+        b, 4, b, 0, &key);            /* idx2 T, idx3 F, idx4 T, idx5 T -> T */
+    (void)wc_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4,
+        NULL, 0, NULL, 0, &key);      /* idx2 F, idx4 F            -> F */
+    (void)wc_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4,
+        b, 4, NULL, 0, &key);         /* idx2 T, idx3 F, idx4 F    -> F */
+    (void)wc_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4,
+        NULL, 0, b, 4, &key);         /* idx2 F, idx4 T, idx5 F    -> F */
+#endif
+
+    /* all-false baseline in the same binary. */
+    (void)wc_RsaPrivateKeyDecodeRaw(b, 4, b, 4, b, 4, b, 4, b, 4, b, 4,
+        b, 4, b, 4, &key);
+
+    wc_FreeRsaKey(&key);
+    WB_NOTE("wc_RsaPrivateKeyDecodeRaw key/dP/dQ guard pairs exercised");
+}
+#else
+static void wb_pub_privkey_decode_raw(void)
+{ WB_NOTE("RSA_PUBLIC_ONLY on; wc_RsaPrivateKeyDecodeRaw skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 13: wc_RsaSetNonBlockTime() argument guard (line ~5909, 2 conditions).
+ *
+ *   if (key == NULL || key->nb == NULL)
+ *
+ * Compiled only under WC_RSA_NONBLOCK_TIME && USE_FAST_MATH (the "nonblock"
+ * variant). No tests/api caller reaches it with a key that has no RsaNb
+ * attached, so the idx1 operand and the all-false side are white-box only.
+ * Both early returns happen before key->nb is dereferenced.
+ * ------------------------------------------------------------------------- */
+#if defined(WC_RSA_NONBLOCK) && defined(WC_RSA_NONBLOCK_TIME) && \
+    defined(USE_FAST_MATH)
+static void wb_rsa_set_nonblock_time(void)
+{
+    RsaKey key;
+    RsaNb  nb;
+
+    if (wc_InitRsaKey(&key, NULL) != 0) {
+        WB_NOTE("wc_InitRsaKey failed (wc_RsaSetNonBlockTime skipped)");
+        wb_fail = 1;
+        return;
+    }
+    XMEMSET(&nb, 0, sizeof(nb));
+
+    /* idx0 true: key==NULL (short-circuits before key->nb). */
+    (void)wc_RsaSetNonBlockTime(NULL, 100, 1000);
+    /* idx0 false, idx1 true: no RsaNb has been attached yet. */
+    (void)wc_RsaSetNonBlockTime(&key, 100, 1000);
+    /* all-false: attach the RsaNb, then the guard passes. */
+    if (wc_RsaSetNonBlock(&key, &nb) == 0) {
+        (void)wc_RsaSetNonBlockTime(&key, 100, 1000);
+    }
+    /* Detach before free so the stack RsaNb does not outlive the key. */
+    (void)wc_RsaSetNonBlock(&key, NULL);
+
+    wc_FreeRsaKey(&key);
+    WB_NOTE("wc_RsaSetNonBlockTime key/key->nb NULL guard pairs exercised");
+}
+#else
+static void wb_rsa_set_nonblock_time(void)
+{ WB_NOTE("WC_RSA_NONBLOCK_TIME/USE_FAST_MATH off; wc_RsaSetNonBlockTime skipped"); }
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("rsa.c white-box MC/DC supplement\n");
 #ifdef NO_RSA
     printf("  NO_RSA defined; nothing to exercise\n");
@@ -607,6 +723,8 @@ int main(void)
     wb_rsa_cleanup();
     wb_check_probable_prime_ex_qraw();
     wb_rsa_function_nonblock();
+    wb_pub_privkey_decode_raw();
+    wb_rsa_set_nonblock_time();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */

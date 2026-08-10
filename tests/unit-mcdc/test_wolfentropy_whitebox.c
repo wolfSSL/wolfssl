@@ -68,7 +68,12 @@
  * visible to this TU) immediately before calling the public entry point.
  */
 
+#include "mcdc_fault_mutex.h"
+
 #include <wolfcrypt/src/wolfentropy.c>
+
+#define MCDC_FM_IMPL
+#include "mcdc_fault_mutex.h"
 
 #include <stdio.h>
 
@@ -290,8 +295,65 @@ static void wb_get_loop_early_exit(void)
 
 #endif /* HAVE_ENTROPY_MEMUSE */
 
+/* ---- wc_Entropy_Get() mutex-failure vectors ------------------------------ *
+ *
+ *   881: if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0))
+ *   893: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
+ *
+ * A live, correctly initialised mutex always locks, so 881 only ever shows
+ * (T,F) and 893 only ever shows its idx0 TRUE half. mcdc_fault_mutex.h
+ * redirects this TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes
+ * the NEXT lock -- and only that one -- refuse:
+ *
+ *   armed   -> 881 (T,T) -> ret = BAD_MUTEX_E, which then makes 893's idx0
+ *              FALSE at the very next decision (same call, same binary)
+ *   unarmed -> 881 (T,F) and 893 idx0 TRUE
+ *
+ * A refused lock is the one path wc_Entropy_Get() must NOT unlock on, and it
+ * doesn't: the tail is guarded on the mutex error code, so no unlock of an
+ * unheld mutex happens and no global state is touched. The idx0 operand of
+ * 881 itself stays a justified residual: outside HAVE_FIPS builds nothing
+ * runs between "ret = 0" and this test, so ret is 0 by construction and the
+ * operand has no independence pair here.
+ * ------------------------------------------------------------------------ */
+#if defined(HAVE_ENTROPY_MEMUSE) && !defined(MCDC_FM_UNAVAILABLE)
+static void wb_entropy_get_mutex(void)
+{
+    byte out[32];
+    int  ret;
+
+    XMEMSET(out, 0, sizeof(out));
+
+    /* Warm-up while unarmed so lazy initialisation (which locks the same
+     * mutex) is done before the one-shot fault is armed. */
+    (void)wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
+
+    /* Armed: the collection lock is refused exactly once. */
+    mcdc_fm_lock_once = 1;
+    ret = wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
+    mcdc_fm_lock_once = 0;
+    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+        WB_NOTE("wc_Entropy_Get did not report BAD_MUTEX_E on refused lock");
+        wb_fail = 1;
+    }
+
+    /* Unarmed baseline in the same binary. */
+    if (wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out)) != 0) {
+        WB_NOTE("wc_Entropy_Get unarmed baseline failed");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("wc_Entropy_Get lock-failure / ret-propagation pairs exercised");
+}
+#else
+static void wb_entropy_get_mutex(void)
+{ WB_NOTE("HAVE_ENTROPY_MEMUSE off or mutex injector unavailable; "
+          "wc_Entropy_Get mutex vectors skipped"); }
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("wolfentropy.c white-box supplement\n");
     /* Collection path first (clean global health state), then the crafted
      * threshold streams (each resets the health state it touches), then the
@@ -302,6 +364,7 @@ int main(void)
     wb_proportion();
     wb_startup_retrigger();
     wb_get_loop_early_exit();
+    wb_entropy_get_mutex();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
      * campaign discard this variant's coverage. */

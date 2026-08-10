@@ -108,14 +108,87 @@ static void wb_poly1305_dispatch(void)
 
 #endif
 
+/* ---- wc_Poly1305SetKey() argument guard (~line 850) ---------------------- *
+ *
+ *   if ((ctx == NULL) || (key == NULL) || (keySz != 32))
+ *
+ * MEASURED RESULT: idx1 (key == NULL) is UNSATISFIABLE, and this function is
+ * the evidence. wc_Poly1305SetKey() opens with a separate, earlier
+ *
+ *     if (key == NULL) return BAD_FUNC_ARG;
+ *
+ * (~line 836), so by the time the compound at ~850 is evaluated key is
+ * non-NULL by construction: idx1 is a redundant re-check that can only ever
+ * be observed FALSE, and no independence pair for it exists through any entry
+ * point. Calling wc_Poly1305SetKey(ctx, NULL, 32) here returns from the
+ * earlier guard and never reaches line 850 -- confirmed by the white-box
+ * binary's own MC/DC record, which shows idx0/idx2 covered and idx1 not.
+ * The three satisfiable vectors plus the all-false baseline are kept as
+ * same-binary regression evidence for idx0/idx2.
+ *
+ * Also NOT chased (structurally unsatisfiable): wc_Poly1305_Pad()'s
+ * "(paddingLen > 0) && (paddingLen < WC_POLY1305_PAD_SZ)" idx1. paddingLen is
+ * computed as "(-(int)lenToPad) & (WC_POLY1305_PAD_SZ - 1)", i.e. masked into
+ * [0, WC_POLY1305_PAD_SZ-1], so whenever idx1 is evaluated it is TRUE by
+ * construction -- no call shape can make it false, so no independence pair
+ * exists.
+ * ------------------------------------------------------------------------ */
+#ifdef HAVE_POLY1305
+static void wb_poly1305_setkey_guard(void)
+{
+    Poly1305 ctx;
+    static const byte key[32] = {
+        0x85,0xd6,0xbe,0x78,0x57,0x55,0x6d,0x33,
+        0x7f,0x44,0x52,0xfe,0x42,0xd5,0x06,0xa8,
+        0x01,0x03,0x80,0x8a,0xfb,0x0d,0xb2,0xfd,
+        0x4a,0xbf,0xf6,0xaf,0x41,0x49,0xf5,0x1b
+    };
+    byte tag[WC_POLY1305_MAC_SZ];
+
+    XMEMSET(&ctx, 0, sizeof(ctx));
+
+    /* idx0 true: ctx == NULL. */
+    if (wc_Poly1305SetKey(NULL, key, (word32)sizeof(key)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("wc_Poly1305SetKey(ctx==NULL) not rejected");
+        wb_fail = 1;
+    }
+    /* idx0 false, idx1 TRUE: valid ctx, absent key. */
+    if (wc_Poly1305SetKey(&ctx, NULL, (word32)sizeof(key)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("wc_Poly1305SetKey(key==NULL) not rejected");
+        wb_fail = 1;
+    }
+    /* idx0/idx1 false, idx2 true: wrong key size. */
+    if (wc_Poly1305SetKey(&ctx, key, 16) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("wc_Poly1305SetKey(keySz!=32) not rejected");
+        wb_fail = 1;
+    }
+    /* All-false baseline in the same binary, run to completion. */
+    if (wc_Poly1305SetKey(&ctx, key, (word32)sizeof(key)) != 0 ||
+            wc_Poly1305Update(&ctx, key, (word32)sizeof(key)) != 0 ||
+            wc_Poly1305Final(&ctx, tag) != 0) {
+        WB_NOTE("wc_Poly1305SetKey valid sequence failed");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("wc_Poly1305SetKey ctx/key/keySz guard pairs exercised");
+}
+#else
+static void wb_poly1305_setkey_guard(void)
+{ WB_NOTE("HAVE_POLY1305 off; wc_Poly1305SetKey guard skipped"); }
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("poly1305.c white-box supplement\n");
 #ifndef HAVE_POLY1305
     printf("  HAVE_POLY1305 not defined; nothing to exercise\n");
     return 0;
 #else
     wb_poly1305_dispatch();
+    wb_poly1305_setkey_guard();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */

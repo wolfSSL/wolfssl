@@ -82,6 +82,8 @@
 
 #include <wolfcrypt/src/random.c>
 
+#include "mcdc_fault_alloc.h"
+
 #include <stdio.h>
 
 static int wb_fail = 0;
@@ -506,8 +508,193 @@ static void wb_rng_healthtest512_internal(void)
 
 #endif /* HAVE_HASHDRBG && WOLFSSL_DRBG_SHA512 */
 
+/* ---- Hash_gen()/Hash512_gen() small-stack scratch allocation guards ------- *
+ *
+ *   779:  if (data == NULL || digest == NULL)      (Hash_gen)
+ *   1379: if (data == NULL || digest == NULL)      (Hash512_gen)
+ *
+ * Compiled only under WOLFSSL_SMALL_STACK && !WOLFSSL_SMALL_STACK_CACHE, where
+ * the per-call seed/digest scratch is heap-allocated by two back-to-back
+ * XMALLOC()s. Both operands stay false in every normal run, so the true sides
+ * need the allocator to fail. mcdc_fault_alloc.h fails the n-th and every
+ * later allocation, which maps exactly onto the two operands:
+ *
+ *   arm(1) -> data==NULL (and digest==NULL)  -> idx0 T                -> T
+ *   arm(2) -> data!=NULL, digest==NULL       -> idx0 F, idx1 T        -> T
+ *   unarmed-> both non-NULL                  -> idx0 F, idx1 F        -> F
+ *
+ * The guard returns DRBG_FAILURE immediately on either failure after XFREE-ing
+ * whatever was obtained (XFREE(NULL) is a no-op), so nothing downstream runs
+ * with a NULL scratch pointer. Each arm brackets exactly ONE Hash*_gen call;
+ * the DRBG is instantiated up front while disarmed so its own allocations
+ * succeed, and it is a scratch object not reused by any later check.
+ * ------------------------------------------------------------------------ */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE) && \
+    !defined(MCDC_FA_UNAVAILABLE)
+static void wb_hash_gen_alloc_guard(void)
+{
+    DRBG_internal drbg;
+    byte seed[48];
+    byte nonce[16];
+    byte out[32];
+    word32 i;
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)(i + 7);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)(i + 8);
+
+    mcdc_fa_install();
+
+    /* Setup runs DISARMED so every allocation it needs succeeds. */
+    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+        nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Instantiate failed; skip Hash_gen alloc guard");
+        mcdc_fa_restore();
+        return;
+    }
+
+    mcdc_fa_arm(1);                                     /* data == NULL   */
+    (void)Hash_gen(&drbg, out, (word32)sizeof(out), drbg.V);
+    mcdc_fa_disarm();
+
+    mcdc_fa_arm(2);                                     /* digest == NULL */
+    (void)Hash_gen(&drbg, out, (word32)sizeof(out), drbg.V);
+    mcdc_fa_disarm();
+
+    /* All-false baseline in the SAME binary. */
+    if (Hash_gen(&drbg, out, (word32)sizeof(out), drbg.V) != DRBG_SUCCESS) {
+        WB_NOTE("Hash_gen unarmed baseline failed");
+        wb_fail = 1;
+    }
+
+    (void)Hash_DRBG_Uninstantiate(&drbg);
+    mcdc_fa_restore();
+    WB_NOTE("Hash_gen data/digest XMALLOC guard pairs exercised");
+}
+#else
+static void wb_hash_gen_alloc_guard(void)
+{ WB_NOTE("not SMALL_STACK-without-CACHE (or no injector); Hash_gen alloc "
+          "guard skipped"); }
+#endif
+
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE) && \
+    !defined(MCDC_FA_UNAVAILABLE)
+static void wb_hash512_gen_alloc_guard(void)
+{
+    DRBG_SHA512_internal drbg;
+    byte seed[32];
+    byte nonce[16];
+    byte out[32];
+    word32 i;
+    int ret;
+
+    XMEMSET(&drbg, 0, sizeof(drbg));
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)(i + 9);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)(i + 10);
+
+    mcdc_fa_install();
+
+    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+        nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("Instantiate512 failed; skip Hash512_gen alloc guard");
+        mcdc_fa_restore();
+        return;
+    }
+
+    mcdc_fa_arm(1);                                     /* data == NULL   */
+    (void)Hash512_gen(&drbg, out, (word32)sizeof(out), drbg.V);
+    mcdc_fa_disarm();
+
+    mcdc_fa_arm(2);                                     /* digest == NULL */
+    (void)Hash512_gen(&drbg, out, (word32)sizeof(out), drbg.V);
+    mcdc_fa_disarm();
+
+    if (Hash512_gen(&drbg, out, (word32)sizeof(out), drbg.V) != DRBG_SUCCESS) {
+        WB_NOTE("Hash512_gen unarmed baseline failed");
+        wb_fail = 1;
+    }
+
+    (void)Hash512_DRBG_Uninstantiate(&drbg);
+    mcdc_fa_restore();
+    WB_NOTE("Hash512_gen data/digest XMALLOC guard pairs exercised");
+}
+#else
+static void wb_hash512_gen_alloc_guard(void)
+{ WB_NOTE("not SMALL_STACK-without-CACHE + DRBG_SHA512 (or no injector); "
+          "Hash512_gen alloc guard skipped"); }
+#endif
+
+/* ---- wc_GenerateSeed() output-buffer guard (line ~5940) ------------------- *
+ *
+ *   if (os == NULL || output == NULL) return BAD_FUNC_ARG;
+ *
+ * The generic (POSIX host) arm of random.c's long wc_GenerateSeed #if/#elif
+ * chain validates its arguments before any entropy backend touches them. No
+ * tests/api caller passes NULL for either, so both operands need this direct
+ * pairing plus a same-binary valid seed read.
+ *
+ * BUILD-AXIS GUARD: that chain compiles exactly ONE wc_GenerateSeed body, and
+ * the other arms neither share this guard nor, in the CUSTOM_RAND_GENERATE_BLOCK
+ * case, define wc_GenerateSeed at all (that variant would not even link this
+ * TU). The condition below excludes every arm reachable from this campaign's
+ * variant set and from a host build, so the NULL vectors are only compiled
+ * where the guard that catches them is.
+ * ------------------------------------------------------------------------ */
+#if !defined(WC_NO_RNG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED) && !defined(NO_DEV_RANDOM) && \
+    !defined(USE_WINDOWS_API) && !defined(WOLFSSL_LINUXKM) && \
+    !defined(WOLFSSL_BSDKM) && !defined(WOLFSSL_SAFERTOS) && \
+    !defined(WOLFSSL_LEANPSK) && !defined(WOLFSSL_GENSEED_FORTEST)
+static void wb_generate_seed_guard(void)
+{
+    OS_Seed os;
+    byte    output[16];
+    int     ret;
+
+    XMEMSET(&os, 0, sizeof(os));
+    XMEMSET(output, 0, sizeof(output));
+#ifdef WOLF_CRYPTO_CB
+    os.devId = INVALID_DEVID;
+#endif
+
+    /* idx0 true: os == NULL (short-circuits before output is looked at). */
+    if (wc_GenerateSeed(NULL, output, (word32)sizeof(output)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("wc_GenerateSeed(os==NULL) not rejected");
+        wb_fail = 1;
+    }
+    /* idx0 false, idx1 true: os valid, output == NULL. */
+    if (wc_GenerateSeed(&os, NULL, (word32)sizeof(output)) !=
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("wc_GenerateSeed(output==NULL) not rejected");
+        wb_fail = 1;
+    }
+    /* All-false baseline: a real (small, bounded) seed read. */
+    ret = wc_GenerateSeed(&os, output, (word32)sizeof(output));
+    if (ret != 0) {
+        WB_NOTE("wc_GenerateSeed valid call failed");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("wc_GenerateSeed os/output NULL guard pairs exercised");
+}
+#else
+static void wb_generate_seed_guard(void)
+{ WB_NOTE("this variant compiles a different wc_GenerateSeed arm; skipped"); }
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("random.c white-box supplement\n");
 #ifdef WC_NO_RNG
     printf("  WC_NO_RNG defined; nothing to exercise\n");
@@ -522,6 +709,9 @@ int main(void)
     wb_hash512_df_multiblock();
     wb_hash512_drbg_generate_reseed();
     wb_rng_healthtest512_internal();
+    wb_generate_seed_guard();
+    wb_hash_gen_alloc_guard();
+    wb_hash512_gen_alloc_guard();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
      * campaign treats a nonzero exit as a failed variant and discards its

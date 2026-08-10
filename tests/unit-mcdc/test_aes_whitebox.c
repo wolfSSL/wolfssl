@@ -297,6 +297,26 @@ static void wb_aesni(void)
         (void)AES_set_decrypt_key_AESNI(key,  128, NULL); /* !userKey F, !aes T */
     }
 
+    {   /* The all-FALSE half of the same two guards. MC/DC is per binary, so
+         * the rejections above prove nothing without a valid expansion in
+         * THIS binary -- and the only public caller that reaches
+         * AES_set_decrypt_key_AESNI (wc_AesSetKey with AES_DECRYPTION) lives
+         * in unit.test, a different binary. A wc_AesInit'd Aes gives the
+         * ALIGN16 key schedule the AES-NI aligned stores require. */
+        Aes  aes;
+        byte key[16];
+        XMEMSET(key, 0x1d, sizeof(key));
+        if (wc_AesInit(&aes, NULL, INVALID_DEVID) == 0) {
+            (void)AES_set_encrypt_key_AESNI(key, 128, &aes);
+            (void)AES_set_decrypt_key_AESNI(key, 128, &aes);
+            wc_AesFree(&aes);
+        }
+        else {
+            WB_NOTE("wc_AesInit failed; AES-NI key-expansion all-false skipped");
+            wb_fail = 1;
+        }
+    }
+
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
     {   /* AES-NI GCM streaming ptr guards; both halves within this binary */
         Aes  aes;
@@ -538,8 +558,268 @@ static void wb_aarch64_gcm_ptr_guards(void)
 { WB_NOTE("aarch64 GCM streaming ptr guards not compiled in this variant; skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Class 5: wc_AesSetKey() userKey guard (line ~5027) and wc_AesGcmInit()'s
+ * iv/ivSz cross-check (line ~14321, operand idx5).
+ *
+ *   5027:  if ((aes == NULL) || (userKey == NULL))
+ *   14321: if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
+ *
+ * BUILD-AXIS GUARD (learned the hard way): aes.c defines TEN different
+ * wc_AesSetKey() bodies in one #if/#elif chain and they do NOT share this
+ * guard. The one at ~5027 belongs to the ARM32-ARMASM arm
+ * ("#elif !defined(__aarch64__) && defined(WOLFSSL_ARMASM)"); the generic
+ * host arm at ~6046 checks only "aes == NULL" and hands userKey straight to
+ * wc_AesSetKeyLocal()'s XMEMCPY. Passing userKey == NULL on a host build
+ * therefore segfaults instead of being rejected, so the vector is compiled
+ * only where the guard that catches it is.
+ *              ((ivSz == 0) && (iv != NULL)) || ((ivSz > 0) && (iv == NULL)))
+ *
+ * Both are public entry points, but the AES API groups only reach them with a
+ * real key and with iv/ivSz always consistent, so wc_AesSetKey's userKey
+ * operand and wc_AesGcmInit's "ivSz > 0" operand never get their independence
+ * pair. Every rejected call short-circuits before the pointer is read.
+ *
+ * wc_AesGcmInit idx5 pair, both with aes/key valid so the earlier groups are
+ * false:
+ *   iv == NULL, ivSz == 0  -> idx3 T, idx4 F (group false), idx5 F -> accept
+ *   iv == NULL, ivSz  > 0  -> idx3 F (group false), idx5 T, idx6 T -> reject
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_AES) && defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+static void wb_aes_setkey_guard(void)
+{
+    Aes  aes;
+    byte key[16];
+    byte iv[WC_AES_BLOCK_SIZE];
+
+    XMEMSET(key, 0x2f, sizeof(key));
+    XMEMSET(iv, 0x3f, sizeof(iv));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (wc_AesSetKey guard skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    /* idx0 true: aes == NULL. */
+    (void)wc_AesSetKey(NULL, key, (word32)sizeof(key), iv, AES_ENCRYPTION);
+    /* idx0 false, idx1 TRUE: valid aes, absent key. */
+    (void)wc_AesSetKey(&aes, NULL, (word32)sizeof(key), iv, AES_ENCRYPTION);
+    /* All-false baseline in the same binary. */
+    if (wc_AesSetKey(&aes, key, (word32)sizeof(key), iv, AES_ENCRYPTION) != 0) {
+        WB_NOTE("wc_AesSetKey valid call failed");
+        wb_fail = 1;
+    }
+
+    wc_AesFree(&aes);
+    WB_NOTE("wc_AesSetKey aes/userKey guard pairs exercised");
+}
+#else
+static void wb_aes_setkey_guard(void)
+{ WB_NOTE("this variant compiles a different wc_AesSetKey arm (no userKey "
+          "guard); skipped"); }
+#endif
+
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+static void wb_aesgcm_init_ivsz(void)
+{
+    Aes  aes;
+    byte key[16];
+    byte iv[12];
+
+    XMEMSET(key, 0x4f, sizeof(key));
+    XMEMSET(iv, 0x5f, sizeof(iv));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (wc_AesGcmInit ivSz guard skipped)");
+        wb_fail = 1;
+        return;
+    }
+
+    /* idx5 FALSE: no IV supplied and none claimed -- accepted (the key is
+     * installed and the IV is expected from a later call). */
+    (void)wc_AesGcmInit(&aes, key, (word32)sizeof(key), NULL, 0);
+    /* idx5 TRUE (with idx6 TRUE): a length is claimed but no IV given. */
+    (void)wc_AesGcmInit(&aes, key, (word32)sizeof(key), NULL,
+        (word32)sizeof(iv));
+    /* Fully valid baseline in the same binary. */
+    if (wc_AesGcmInit(&aes, key, (word32)sizeof(key), iv,
+            (word32)sizeof(iv)) != 0) {
+        WB_NOTE("wc_AesGcmInit valid call failed");
+        wb_fail = 1;
+    }
+
+    wc_AesFree(&aes);
+    WB_NOTE("wc_AesGcmInit ivSz/iv cross-check pair exercised");
+}
+#else
+static void wb_aesgcm_init_ivsz(void)
+{ WB_NOTE("AESGCM stream off; wc_AesGcmInit ivSz guard skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 6: AES_GCM_encrypt_C()/AES_GCM_decrypt_C() AAD guards
+ * (lines ~11133 and ~11999, operand idx1).
+ *
+ *   if (authInSz != 0 && authIn != NULL)
+ *
+ * The public wc_AesGcmEncrypt/Decrypt reject "authInSz != 0 with authIn ==
+ * NULL" before dispatching, so the software cores never see that combination
+ * and idx1's FALSE side is white-box only. Calling the core directly with a
+ * fully initialised Aes is safe: the whole AAD block is skipped when the
+ * guard is false, so the NULL is never dereferenced.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_AESGCM) && !defined(WOLFSSL_AESNI) && \
+    !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
+static void wb_aesgcm_core_aad(void)
+{
+    Aes    aes;
+    byte   key[16];
+    byte   iv[12];
+    byte   pt[WC_AES_BLOCK_SIZE];
+    byte   ct[WC_AES_BLOCK_SIZE];
+    byte   dec[WC_AES_BLOCK_SIZE];
+    byte   tag[WC_AES_BLOCK_SIZE];
+    byte   aad[16];
+
+    XMEMSET(key, 0x6f, sizeof(key));
+    XMEMSET(iv, 0x7f, sizeof(iv));
+    XMEMSET(pt, 0x8f, sizeof(pt));
+    XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(dec, 0, sizeof(dec));
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(aad, 0x9f, sizeof(aad));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (GCM core AAD guard skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_AesGcmSetKey(&aes, key, (word32)sizeof(key)) != 0) {
+        WB_NOTE("wc_AesGcmSetKey failed (GCM core AAD guard skipped)");
+        wb_fail = 1;
+        wc_AesFree(&aes);
+        return;
+    }
+
+    /* (T,T): a real AAD -- also produces the tag reused below. */
+    if (AES_GCM_encrypt_C(&aes, ct, pt, (word32)sizeof(pt),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            aad, (word32)sizeof(aad)) != 0) {
+        WB_NOTE("AES_GCM_encrypt_C with AAD failed");
+        wb_fail = 1;
+    }
+    /* (T,F): a length is claimed but no AAD buffer -- the block is skipped. */
+    (void)AES_GCM_encrypt_C(&aes, ct, pt, (word32)sizeof(pt),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            NULL, (word32)sizeof(aad));
+    /* (F,-): no AAD at all. */
+    (void)AES_GCM_encrypt_C(&aes, ct, pt, (word32)sizeof(pt),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag), NULL, 0);
+
+    /* Same three vectors on the decrypt core. Authentication failure is an
+     * expected, harmless outcome for the mismatched-AAD vectors. */
+    (void)AES_GCM_decrypt_C(&aes, dec, ct, (word32)sizeof(ct),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            aad, (word32)sizeof(aad));
+    (void)AES_GCM_decrypt_C(&aes, dec, ct, (word32)sizeof(ct),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            NULL, (word32)sizeof(aad));
+    (void)AES_GCM_decrypt_C(&aes, dec, ct, (word32)sizeof(ct),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag), NULL, 0);
+
+    wc_AesFree(&aes);
+    WB_NOTE("AES_GCM_{en,de}crypt_C authIn/authInSz guard pairs exercised");
+}
+#else
+static void wb_aesgcm_core_aad(void)
+{ WB_NOTE("GCM software cores not the compiled backend here; AAD guard "
+          "skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 6b: the ASM twins of the same AAD guards, AES_GCM_encrypt_ASM() /
+ * AES_GCM_decrypt_ASM() (lines ~11133 and ~11999, operand idx1).
+ *
+ * aes.c picks ONE GCM core per build:
+ *     #if  !WOLFSSL_ARMASM && !PPC          -> AES_GCM_{en,de}crypt_C
+ *     #elif (__aarch64__ || ARMASM_NO_HW_CRYPTO || ARM32_AES_DISPATCH || PPC)
+ *                                           -> AES_GCM_{en,de}crypt_ASM
+ * so the two lines the union reports at 11133/11999 belong to the *_ASM
+ * bodies compiled by the armasm lanes, not to the host *_C bodies handled
+ * above. Same three vectors, same reasoning; the guard below mirrors the
+ * library's #elif exactly so this section only exists where those functions
+ * do.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_AESGCM) && \
+    (defined(WOLFSSL_ARMASM) || defined(WOLFSSL_PPC64_ASM) || \
+     defined(WOLFSSL_PPC32_ASM)) && \
+    (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || \
+     defined(WOLFSSL_ARM32_AES_DISPATCH) || defined(WOLFSSL_PPC64_ASM) || \
+     defined(WOLFSSL_PPC32_ASM))
+static void wb_aesgcm_asm_aad(void)
+{
+    Aes    aes;
+    byte   key[16];
+    byte   iv[12];
+    byte   pt[WC_AES_BLOCK_SIZE];
+    byte   ct[WC_AES_BLOCK_SIZE];
+    byte   dec[WC_AES_BLOCK_SIZE];
+    byte   tag[WC_AES_BLOCK_SIZE];
+    byte   aad[16];
+
+    XMEMSET(key, 0x6f, sizeof(key));
+    XMEMSET(iv, 0x7f, sizeof(iv));
+    XMEMSET(pt, 0x8f, sizeof(pt));
+    XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(dec, 0, sizeof(dec));
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(aad, 0x9f, sizeof(aad));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (GCM ASM AAD guard skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_AesGcmSetKey(&aes, key, (word32)sizeof(key)) != 0) {
+        WB_NOTE("wc_AesGcmSetKey failed (GCM ASM AAD guard skipped)");
+        wb_fail = 1;
+        wc_AesFree(&aes);
+        return;
+    }
+
+    /* (T,T) then (T,F) then (F,-) on the encrypt core. */
+    (void)AES_GCM_encrypt_ASM(&aes, ct, pt, (word32)sizeof(pt),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            aad, (word32)sizeof(aad));
+    (void)AES_GCM_encrypt_ASM(&aes, ct, pt, (word32)sizeof(pt),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            NULL, (word32)sizeof(aad));
+    (void)AES_GCM_encrypt_ASM(&aes, ct, pt, (word32)sizeof(pt),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag), NULL, 0);
+
+    /* Same three on the decrypt core (authentication failure on the
+     * mismatched-AAD vectors is expected and harmless). */
+    (void)AES_GCM_decrypt_ASM(&aes, dec, ct, (word32)sizeof(ct),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            aad, (word32)sizeof(aad));
+    (void)AES_GCM_decrypt_ASM(&aes, dec, ct, (word32)sizeof(ct),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag),
+            NULL, (word32)sizeof(aad));
+    (void)AES_GCM_decrypt_ASM(&aes, dec, ct, (word32)sizeof(ct),
+            iv, (word32)sizeof(iv), tag, (word32)sizeof(tag), NULL, 0);
+
+    wc_AesFree(&aes);
+    WB_NOTE("AES_GCM_{en,de}crypt_ASM authIn/authInSz guard pairs exercised");
+}
+#else
+static void wb_aesgcm_asm_aad(void)
+{ WB_NOTE("GCM ASM cores not the compiled backend here; AAD guard skipped"); }
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("aes.c white-box MC/DC supplement\n");
 #ifdef NO_AES
     printf("  NO_AES defined; nothing to exercise\n");
@@ -551,6 +831,10 @@ int main(void)
     wb_aesni();
     wb_aarch64_hwcrypto_dispatch();
     wb_aarch64_gcm_ptr_guards();
+    wb_aes_setkey_guard();
+    wb_aesgcm_init_ivsz();
+    wb_aesgcm_core_aad();
+    wb_aesgcm_asm_aad();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */

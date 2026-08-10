@@ -121,6 +121,8 @@ DISTCLEANFILES+= tests/.libs/unit.test
 EXTRA_DIST += \
               tests/unit-mcdc/README.md \
               tests/unit-mcdc/mcdc_fault_alloc.h \
+              tests/unit-mcdc/mcdc_fault_hash.h \
+              tests/unit-mcdc/mcdc_fault_mp.h \
               tests/unit-mcdc/mcdc_fault_mutex.h \
               tests/unit-mcdc/test_aes_whitebox.c \
               tests/unit-mcdc/test_asn_cert_whitebox.c \
@@ -148,11 +150,14 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_frodokem_fault_common.h \
               tests/unit-mcdc/test_frodokem_fault_whitebox.c \
               tests/unit-mcdc/test_frodokem_mat_fault_whitebox.c \
+              tests/unit-mcdc/test_frodokem_mat_hash_fault_whitebox.c \
               tests/unit-mcdc/test_hpke_fault_whitebox.c \
               tests/unit-mcdc/test_hpke_whitebox.c \
               tests/unit-mcdc/test_integer_fault_whitebox.c \
               tests/unit-mcdc/test_integer_whitebox.c \
+              tests/unit-mcdc/test_kdf_whitebox.c \
               tests/unit-mcdc/test_lms_fault_whitebox.c \
+              tests/unit-mcdc/test_lms_hash_fault_whitebox.c \
               tests/unit-mcdc/test_logging_globalq_whitebox.c \
               tests/unit-mcdc/test_logging_whitebox.c \
               tests/unit-mcdc/test_memory_whitebox.c \
@@ -161,8 +166,10 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_pkcs12_fault_whitebox.c \
               tests/unit-mcdc/test_pkcs12_parse_whitebox.c \
               tests/unit-mcdc/test_pkcs12_whitebox.c \
+              tests/unit-mcdc/test_pkcs7_arg_whitebox.c \
               tests/unit-mcdc/test_pkcs7_decode_whitebox.c \
               tests/unit-mcdc/test_pkcs7_fault_whitebox.c \
+              tests/unit-mcdc/test_pkcs7_mutate_whitebox.c \
               tests/unit-mcdc/test_pkcs7_whitebox.c \
               tests/unit-mcdc/test_poly1305_whitebox.c \
               tests/unit-mcdc/test_puf_whitebox.c \
@@ -174,6 +181,8 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_sha256_whitebox.c \
               tests/unit-mcdc/test_sha3_whitebox.c \
               tests/unit-mcdc/test_sha512_whitebox.c \
+              tests/unit-mcdc/test_she_whitebox.c \
+              tests/unit-mcdc/test_slhdsa_hash_fault_whitebox.c \
               tests/unit-mcdc/test_slhdsa_whitebox.c \
               tests/unit-mcdc/test_sp_arm32_whitebox.c \
               tests/unit-mcdc/test_sp_arm64_whitebox.c \
@@ -199,4 +208,5 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_wc_port_whitebox.c \
               tests/unit-mcdc/test_wc_xmss_impl_whitebox.c \
               tests/unit-mcdc/test_wolfentropy_whitebox.c \
-              tests/unit-mcdc/test_xmss_fault_whitebox.c
+              tests/unit-mcdc/test_xmss_fault_whitebox.c \
+              tests/unit-mcdc/test_xmss_hash_fault_whitebox.c

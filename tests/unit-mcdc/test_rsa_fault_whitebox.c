@@ -242,6 +242,84 @@ static void wb_makersakey_alloc_guard(WC_RNG* rng)
     WB_NOTE("wc_MakeRsaKey p/q/tmp* NULL-guard swept (n=1..8)");
 }
 
+/* ---------------------------------------------------------------------------
+ * wc_RsaPSS_CheckPadding_ex2() long-salt scratch buffer (WOLFSSL_PSS_LONG_SALT)
+ *
+ *   4586:  if ((ret == 0) && (sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz +
+ *                                                    (word32)saltLen)))
+ *   4617:  if (sigCheck != NULL && sigCheck != sigCheckBuf)
+ *
+ * sigCheck starts as the on-stack sigCheckBuf (WC_MAX_DIGEST_SIZE*2 +
+ * RSA_PSS_PAD_SZ = 136 bytes) and is only replaced by an XMALLOC'd buffer when
+ * the salt pushes 8 + inSz + saltLen past that. Three same-binary vectors:
+ *
+ *   short salt      -> sigCheck == sigCheckBuf     4617 (T,F) -> F
+ *   long salt, OK   -> sigCheck == heap buffer     4617 (T,T) -> T
+ *   long salt, OOM  -> sigCheck == NULL            4617 (F,-) -> F
+ *
+ * and for 4586 the same calls give (T,F)/(T,T) plus a pre-rejected call
+ * (in==NULL sets ret=BAD_FUNC_ARG upstream) for the (F,-) half.
+ *
+ * Sizing: SHA-512 digest (inSz 64) with saltLen 70 -> 8+64+70 = 142 > 136, so
+ * the heap path is taken; sigSz must equal inSz+saltLen = 134, and the code
+ * reads sig[saltLen .. saltLen+inSz), so the sig buffer is 134 bytes. The
+ * padding never verifies (the input is not a real PSS block) -- BAD_PADDING_E
+ * is the expected, harmless outcome; only the buffer-selection decisions
+ * matter here. The OOM vector is armed around this ONE call with everything
+ * else built while disarmed.
+ * ------------------------------------------------------------------------ */
+#if defined(WOLFSSL_PSS_LONG_SALT) && defined(WC_RSA_PSS)
+static void wb_pss_checkpadding_sigcheck(void)
+{
+    byte in[WC_MAX_DIGEST_SIZE];
+    byte sig[WC_MAX_DIGEST_SIZE * 2 + 16];
+    int  digSz;
+
+#ifdef WOLFSSL_SHA512
+    const enum wc_HashType ht = WC_HASH_TYPE_SHA512;
+    const int longSalt = 70;
+#else
+    const enum wc_HashType ht = WC_HASH_TYPE_SHA256;
+    const int longSalt = 110;   /* 8 + 32 + 110 = 150 > 136 */
+#endif
+
+    XMEMSET(in, 0x5a, sizeof(in));
+    XMEMSET(sig, 0xa5, sizeof(sig));
+
+    digSz = wc_HashGetDigestSize(ht);
+    if (digSz <= 0 || (word32)(digSz + longSalt) > (word32)sizeof(sig)) {
+        WB_NOTE("PSS long-salt sizing unavailable; sigCheck check skipped");
+        return;
+    }
+
+    /* (F,-) half of 4586: rejected upstream, ret != 0 at the size test. */
+    (void)wc_RsaPSS_CheckPadding_ex2(NULL, (word32)digSz, sig,
+        (word32)digSz * 2, ht, digSz, 0, NULL);
+
+    /* short salt: stack buffer, 4586 (T,F) / 4617 (T,F). */
+    (void)wc_RsaPSS_CheckPadding_ex2(in, (word32)digSz, sig,
+        (word32)(digSz * 2), ht, digSz, 0, NULL);
+
+    /* long salt, allocation succeeds: 4586 (T,T) / 4617 (T,T). */
+    (void)wc_RsaPSS_CheckPadding_ex2(in, (word32)digSz, sig,
+        (word32)(digSz + longSalt), ht, longSalt, 0, NULL);
+
+#ifndef MCDC_FA_UNAVAILABLE
+    /* long salt, allocation fails: sigCheck == NULL -> 4617 (F,-). Armed
+     * around this single call only; nothing built here needs the heap. */
+    mcdc_fa_arm(1);
+    (void)wc_RsaPSS_CheckPadding_ex2(in, (word32)digSz, sig,
+        (word32)(digSz + longSalt), ht, longSalt, 0, NULL);
+    mcdc_fa_disarm();
+#endif
+
+    WB_NOTE("wc_RsaPSS_CheckPadding_ex2 sigCheck stack/heap/NULL pairs done");
+}
+#else
+static void wb_pss_checkpadding_sigcheck(void)
+{ WB_NOTE("WOLFSSL_PSS_LONG_SALT/WC_RSA_PSS off; sigCheck check skipped"); }
+#endif
+
 int main(int argc, char** argv)
 {
     int      do_baseline = (argc > 1 && strcmp(argv[1], "baseline") == 0);
@@ -318,6 +396,12 @@ int main(int argc, char** argv)
     ret = wc_RsaKeyToDer(&key, der, sizeof(der));
     if (ret > 0) derLen = ret;
 #endif
+
+    /* Cheap and independent of the fault sweeps below, so run it here rather
+     * than after them: the RSA_LOW_MEM variant's sweep can hit the harness
+     * wall-clock limit, and anything queued behind it would be lost with the
+     * whole run. */
+    wb_pss_checkpadding_sigcheck();
 
 #ifndef MCDC_FA_UNAVAILABLE
     if (do_probe) {
