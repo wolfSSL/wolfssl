@@ -1682,6 +1682,93 @@ static void wb_parse_x509_acert(void)
 }
 #endif
 
+
+/* PEM->DER entry guards. Each rejection vector is paired with the accepting
+ * one in the same binary; the accepting vector only has to get PAST the guard,
+ * so a well-sized garbage buffer is enough for the argument chain, and a real
+ * PEM is built only where a successful conversion is required. */
+#if !defined(NO_CERTS) && defined(WOLFSSL_PEM_TO_DER)
+static void wb_pem_to_der_guards(void)
+{
+    byte  pem[4096];
+    byte  out[4096];
+    word32 b64Len = (word32)sizeof(pem);
+    int   pemSz = 0;
+    static const char hdr[] = "-----BEGIN CERTIFICATE-----\n";
+    static const char ftr[] = "-----END CERTIFICATE-----\n";
+
+    XMEMSET(pem, 0, sizeof(pem));
+    XMEMSET(out, 0, sizeof(out));
+
+    /* pem == NULL || buff == NULL || buffSz <= 0 || pemSz <= 0 */
+    (void)wc_CertPemToDer(NULL, 32, out, (int)sizeof(out), CERT_TYPE);
+    (void)wc_CertPemToDer(out, 32, NULL, (int)sizeof(out), CERT_TYPE);
+    (void)wc_CertPemToDer(out, 32, out, 0, CERT_TYPE);
+    (void)wc_CertPemToDer(out, 0, out, (int)sizeof(out), CERT_TYPE);
+    (void)wc_CertPemToDer(out, 32, out, (int)sizeof(out), CERT_TYPE);
+
+    /* pem == NULL || (buff != NULL && buffSz <= 0) || pemSz <= 0 */
+    (void)wc_KeyPemToDer(NULL, 32, out, (int)sizeof(out), NULL);
+    (void)wc_KeyPemToDer(out, 32, out, 0, NULL);
+    (void)wc_KeyPemToDer(out, 0, out, (int)sizeof(out), NULL);
+    (void)wc_KeyPemToDer(out, 32, NULL, 0, NULL);
+    (void)wc_KeyPemToDer(out, 32, out, (int)sizeof(out), NULL);
+
+    (void)wc_PubKeyPemToDer(NULL, 32, out, (int)sizeof(out));
+    (void)wc_PubKeyPemToDer(out, 32, out, 0);
+    (void)wc_PubKeyPemToDer(out, 0, out, (int)sizeof(out));
+    (void)wc_PubKeyPemToDer(out, 32, NULL, 0);
+    (void)wc_PubKeyPemToDer(out, 32, out, (int)sizeof(out));
+
+    /* A real PEM, so the post-conversion `ret < 0 || der == NULL` guard sees
+     * its accepting vector too. */
+    XMEMCPY(pem, hdr, sizeof(hdr) - 1);
+    pemSz = (int)(sizeof(hdr) - 1);
+    b64Len = (word32)(sizeof(pem) - (size_t)pemSz - sizeof(ftr));
+    if (Base64_Encode(client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048, pem + pemSz, &b64Len) == 0) {
+        pemSz += (int)b64Len;
+        XMEMCPY(pem + pemSz, ftr, sizeof(ftr) - 1);
+        pemSz += (int)(sizeof(ftr) - 1);
+        (void)wc_CertPemToDer(pem, pemSz, out, (int)sizeof(out), CERT_TYPE);
+    }
+    else {
+        WB_NOTE("Base64_Encode failed; PEM accepting vector skipped");
+    }
+}
+#else
+static void wb_pem_to_der_guards(void)
+{
+    WB_NOTE("PEM-to-DER not compiled; skipped");
+}
+#endif
+
+/* wc_EncryptedInfoParse: info == NULL || pBuffer == NULL || bufSz == 0 */
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_CERTS)
+static void wb_encrypted_info_parse_guards(void)
+{
+    EncryptedInfo info;
+    static const char body[] =
+        "Proc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC,0123456789ABCDEF\n\n";
+    const char* p = body;
+
+    XMEMSET(&info, 0, sizeof(info));
+
+    (void)wc_EncryptedInfoParse(NULL, &p, sizeof(body) - 1);
+    p = body;
+    (void)wc_EncryptedInfoParse(&info, NULL, sizeof(body) - 1);
+    p = body;
+    (void)wc_EncryptedInfoParse(&info, &p, 0);
+    p = body;
+    (void)wc_EncryptedInfoParse(&info, &p, sizeof(body) - 1);
+}
+#else
+static void wb_encrypted_info_parse_guards(void)
+{
+    WB_NOTE("WOLFSSL_ENCRYPTED_KEYS off; skipped");
+}
+#endif
+
 int main(void)
 {
     printf("asn.c certgen white-box MC/DC supplement\n");
@@ -1713,6 +1800,9 @@ int main(void)
     wb_decode_holder_issuer_guards();
     wb_verify_x509_acert_bad_args();
     wb_parse_x509_acert();
+
+    wb_pem_to_der_guards();
+    wb_encrypted_info_parse_guards();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
