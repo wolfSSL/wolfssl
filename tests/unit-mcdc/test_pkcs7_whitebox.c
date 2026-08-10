@@ -1918,6 +1918,11 @@ static void wb_public_arg_guards(void)
     byte out[4096];
     byte salt[8];
 
+    /* wc_PKCS7_Init() reads pkcs7->isDynamic BEFORE it zeroes the struct and
+     * writes the value back, so an unzeroed stack fixture whose garbage bit
+     * happens to be set makes the later wc_PKCS7_Free() release a stack
+     * address. Zero it first. */
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
     XMEMSET(key, 0x0b, sizeof(key));
     XMEMSET(content, 0x0c, sizeof(content));
     XMEMSET(out, 0, sizeof(out));
