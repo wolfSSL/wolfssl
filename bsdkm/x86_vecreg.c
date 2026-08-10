@@ -129,11 +129,13 @@ void wolfkmod_vecreg_exit(void)
         fpu_kern_leave(curthread, NULL);                                     \
     } while (0)
 #else
-    #define wolfkmod_fpu_kern_enter()                                        \
-        fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
+    #define wolfkmod_fpu_kern_enter() do {                                   \
+        fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);                     \
+    } while (0)
 
-    #define wolfkmod_fpu_kern_leave()                                        \
-        fpu_kern_leave(curthread, NULL);
+    #define wolfkmod_fpu_kern_leave() do {                                   \
+        fpu_kern_leave(curthread, NULL);                                     \
+    } while (0)
 #endif /* WOLFSSL_BSDKM_FPU_DEBUG */
 
 int wolfkmod_vecreg_save(int flags_unused)
