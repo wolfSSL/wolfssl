@@ -123,6 +123,14 @@
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
+/* Crafted-input driver shared with the other two SP host-backend
+ * white-boxes: the SP entry points nothing in the wc_* API reaches on
+ * this configuration, plus the guards that only unlock once an earlier
+ * step has SUCCEEDED (a real key through sp_ecc_check_key_<n>, a
+ * failing sp_ecc_verify_<n>, an infinity verification point). See its
+ * header comment. */
+#include "test_sp_crafted_common.h"
+
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
     defined(WOLFSSL_HAVE_SP_DH)
 
@@ -1211,6 +1219,7 @@ int main(void)
     wb_run_gap_256();
     wb_run_gap_384();
     wb_run_gap_521();
+    wb_spc_all();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else
