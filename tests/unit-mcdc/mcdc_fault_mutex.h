@@ -82,6 +82,10 @@
 
 static int mcdc_fm_init_fail = 0;
 static int mcdc_fm_lock_fail = 0;
+/* One-shot: fail the next lock only, then disarm. For guards whose first
+ * operand is an error a *different*, earlier lock produced -- arming the whole
+ * process would short-circuit the very decision under test. */
+static int mcdc_fm_lock_once = 0;
 
 #ifndef MCDC_FM_UNAVAILABLE
     #define wc_InitMutex(m) mcdc_fm_init(m)
@@ -110,6 +114,10 @@ int mcdc_fm_init(wolfSSL_Mutex* m)
 
 int mcdc_fm_lock(wolfSSL_Mutex* m)
 {
+    if (mcdc_fm_lock_once) {
+        mcdc_fm_lock_once = 0;
+        return BAD_MUTEX_E;
+    }
     if (mcdc_fm_lock_fail) {
         return BAD_MUTEX_E;
     }

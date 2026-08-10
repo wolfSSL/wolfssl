@@ -1558,8 +1558,246 @@ static void wb_make_pub_privatekey_only(void)
 
 #endif /* HAVE_ECC && !WOLF_CRYPTO_CB_ONLY_ECC */
 
+
+/* Argument-guard vectors that ordinary use never produces. Each guard needs
+ * BOTH halves inside THIS binary: llvm-cov derives MC/DC per binary, so a
+ * rejection vector on its own proves nothing without the accepting vector of
+ * the same decision to pair it against. */
+static void wb_arg_guards(void)
+{
+    WC_RNG rng;
+    ecc_key key;
+    ecc_point* pt = NULL;
+    mp_int m1;
+    word32 sz = 0;
+    byte   buf[256];
+    word32 bufLen = (word32)sizeof(buf);
+    int    haveKey = 0;
+    int    haveM1 = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&m1, 0, sizeof(m1));
+    XMEMSET(buf, 0, sizeof(buf));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; wb_arg_guards skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_ecc_init(&key) == 0) {
+        haveKey = (wc_ecc_make_key_ex(&rng, 0, &key, ECC_SECP256R1) == 0);
+    }
+    if (!haveKey) {
+        WB_NOTE("key setup failed; wb_arg_guards skipped");
+        wb_fail = 1;
+        wc_ecc_free(&key);
+        wc_FreeRng(&rng);
+        return;
+    }
+    pt = wc_ecc_new_point();
+    haveM1 = (mp_init(&m1) == MP_OKAY);
+
+    /* The import guards run against a scratch key: their accepting vectors
+     * overwrite whatever they are handed, and the operations further down need
+     * `key` to still hold a valid point. */
+    {
+        ecc_key imp;
+        word32 xLen = (word32)sizeof(buf);
+        int haveImp = (wc_ecc_init(&imp) == 0);
+
+        /* key == NULL || qx == NULL || qy == NULL */
+        (void)_ecc_import_raw_private(NULL, "1", "1", "1", ECC_SECP256R1,
+            WC_TYPE_HEX_STR);
+        if (haveImp) {
+            (void)_ecc_import_raw_private(&imp, NULL, "1", "1", ECC_SECP256R1,
+                WC_TYPE_HEX_STR);
+            (void)_ecc_import_raw_private(&imp, "1", NULL, "1", ECC_SECP256R1,
+                WC_TYPE_HEX_STR);
+            (void)_ecc_import_raw_private(&imp, "1", "1", "1", ECC_SECP256R1,
+                WC_TYPE_HEX_STR);
+        }
+
+        /* in == NULL || key == NULL */
+        (void)_ecc_import_x963_ex2(NULL, 1, &imp, ECC_SECP256R1, 0);
+        (void)_ecc_import_x963_ex2(buf, 1, NULL, ECC_SECP256R1, 0);
+        if (haveImp && wc_ecc_export_x963(&key, buf, &xLen) == 0) {
+            wc_ecc_free(&imp);
+            if (wc_ecc_init(&imp) == 0) {
+                (void)_ecc_import_x963_ex2(buf, xLen, &imp, ECC_SECP256R1, 0);
+            }
+        }
+        if (haveImp) {
+            wc_ecc_free(&imp);
+        }
+    }
+
+    /* ecc_public_key_size: key == NULL || key->dp == NULL */
+    {
+        const ecc_set_type* savedDp = key.dp;
+
+        (void)ecc_public_key_size(NULL, &sz);
+        key.dp = NULL;
+        (void)ecc_public_key_size(&key, &sz);
+        key.dp = savedDp;
+        (void)ecc_public_key_size(&key, &sz);
+    }
+
+    /* The accepting vectors below need the real curve constants: a zero
+     * modulus/order would make wc_ecc_gen_deterministic_k's RFC 6979 retry
+     * loop spin, and the campaign kills the variant on TEST_TIMEOUT. */
+    {
+        mp_int prime;
+        mp_int order;
+        mp_int af;
+        int    haveCurve = 0;
+
+        XMEMSET(&prime, 0, sizeof(prime));
+        XMEMSET(&order, 0, sizeof(order));
+        XMEMSET(&af, 0, sizeof(af));
+
+        if (key.dp != NULL && mp_init(&prime) == MP_OKAY) {
+            if (mp_init(&order) == MP_OKAY) {
+                if (mp_init(&af) == MP_OKAY) {
+                    haveCurve =
+                        (mp_read_radix(&prime, key.dp->prime, 16) == MP_OKAY) &&
+                        (mp_read_radix(&order, key.dp->order, 16) == MP_OKAY) &&
+                        (mp_read_radix(&af, key.dp->Af, 16) == MP_OKAY);
+                }
+            }
+        }
+
+        /* hash == NULL || k == NULL || order == NULL */
+        if (haveM1 && haveCurve) {
+            (void)wc_ecc_gen_deterministic_k(NULL, 32, WC_HASH_TYPE_SHA256,
+                key.k, &m1, &order, key.heap);
+            (void)wc_ecc_gen_deterministic_k(buf, 32, WC_HASH_TYPE_SHA256,
+                key.k, NULL, &order, key.heap);
+            (void)wc_ecc_gen_deterministic_k(buf, 32, WC_HASH_TYPE_SHA256,
+                key.k, &m1, NULL, key.heap);
+            (void)wc_ecc_gen_deterministic_k(buf, 32, WC_HASH_TYPE_SHA256,
+                key.k, &m1, &order, key.heap);
+        }
+
+        /* wc_ecc_mulmod_ex / _ex2 NULL chains, then the accepting vector. */
+        if (pt != NULL && haveCurve &&
+                wc_ecc_copy_point(&key.pubkey, pt) == MP_OKAY) {
+            ecc_point* out = wc_ecc_new_point();
+
+#ifdef WOLFSSL_SP_MATH
+            /* Only the SP build rejects these: the generic implementation has
+             * no such guard and dereferences both operands. */
+            (void)wc_ecc_mulmod_ex(key.k, pt, pt, NULL, &prime, 1, key.heap);
+            (void)wc_ecc_mulmod_ex2(key.k, pt, pt, NULL, &prime, &order, &rng,
+                1, key.heap);
+            (void)wc_ecc_mulmod_ex2(key.k, pt, pt, &af, &prime, NULL, &rng, 1,
+                key.heap);
+#endif
+            if (out != NULL) {
+                (void)wc_ecc_mulmod_ex(key.k, pt, out, &af, &prime, 1,
+                    key.heap);
+                (void)wc_ecc_mulmod_ex2(key.k, pt, out, &af, &prime, &order,
+                    &rng, 1, key.heap);
+                wc_ecc_del_point(out);
+            }
+
+            /* point == NULL || out == NULL || outLen == NULL */
+            sz = (word32)sizeof(buf);
+            (void)wc_ecc_export_point_der_compressed(key.idx, pt, buf, NULL);
+            (void)wc_ecc_export_point_der_compressed(key.idx, pt, buf, &sz);
+        }
+
+        mp_free(&af);
+        mp_free(&order);
+        mp_free(&prime);
+    }
+
+#ifdef WC_ECC_NONBLOCK
+    /* wc_ecc_set_nonblock: key->nb_ctx != NULL && key->nb_ctx != ctx */
+    {
+        ecc_nb_ctx_t nb;
+
+        XMEMSET(&nb, 0, sizeof(nb));
+        (void)wc_ecc_set_nonblock(&key, &nb);
+        (void)wc_ecc_set_nonblock(&key, &nb);
+        (void)wc_ecc_set_nonblock(&key, NULL);
+    }
+#endif
+
+    /* The is_valid_idx/dp family: an invalid idx fires the first operand, a
+     * valid idx with dp cleared fires the second, an untouched key neither. */
+    {
+        const ecc_set_type* savedDp = key.dp;
+        int savedIdx = key.idx;
+        mp_int r;
+        mp_int s;
+        int    stat = 0;
+
+        key.idx = ECC_CUSTOM_IDX - 1;
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &key, buf, &bufLen);
+        (void)wc_ecc_shared_secret_ex(&key, &key.pubkey, buf, &bufLen);
+        key.idx = savedIdx;
+
+        key.dp = NULL;
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &key, buf, &bufLen);
+        (void)wc_ecc_shared_secret_ex(&key, &key.pubkey, buf, &bufLen);
+        key.dp = savedDp;
+
+        PRIVATE_KEY_UNLOCK();
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &key, buf, &bufLen);
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret_ex(&key, &key.pubkey, buf, &bufLen);
+        PRIVATE_KEY_LOCK();
+
+        if (mp_init(&r) == MP_OKAY) {
+            if (mp_init(&s) == MP_OKAY) {
+                key.idx = ECC_CUSTOM_IDX - 1;
+                (void)wc_ecc_sign_hash_ex(buf, 32, &rng, &key, &r, &s);
+                (void)wc_ecc_verify_hash_ex(&r, &s, buf, 32, &stat, &key);
+                key.idx = savedIdx;
+
+                key.dp = NULL;
+                (void)wc_ecc_sign_hash_ex(buf, 32, &rng, &key, &r, &s);
+                (void)wc_ecc_verify_hash_ex(&r, &s, buf, 32, &stat, &key);
+                key.dp = savedDp;
+
+                if (wc_ecc_sign_hash_ex(buf, 32, &rng, &key, &r, &s) == 0) {
+                    (void)wc_ecc_verify_hash_ex(&r, &s, buf, 32, &stat, &key);
+                }
+                mp_free(&s);
+            }
+            mp_free(&r);
+        }
+    }
+
+    if (pt != NULL) {
+        wc_ecc_del_point(pt);
+    }
+    if (haveM1) {
+        mp_free(&m1);
+    }
+    wc_ecc_free(&key);
+    wc_FreeRng(&rng);
+
+    /* wc_ecc_free: key->deallocSet && key->dp != NULL */
+    {
+        ecc_key k2;
+
+        if (wc_ecc_init(&k2) == 0) {
+            k2.dp = NULL;
+            (void)wc_ecc_free(&k2);
+        }
+    }
+}
+
 int main(void)
 {
+    /* Unbuffered: on a timeout or a fault the process is killed and anything
+     * still buffered is lost, which reads as an empty log. */
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("ecc.c white-box MC/DC supplement\n");
 #if !defined(HAVE_ECC) || defined(WOLF_CRYPTO_CB_ONLY_ECC)
     printf("  HAVE_ECC off (or crypto-cb-only build); nothing to exercise\n");
@@ -1583,6 +1821,7 @@ int main(void)
     wb_export_x963_internal();
     wb_idx_dp_guard_export_paths();
     wb_make_pub_privatekey_only();
+    wb_arg_guards();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */
