@@ -12911,8 +12911,15 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte modes;
 
     ret = TLSX_PskKeyModes_Parse_Modes(input, length, msgType, &modes);
-    if (ret == 0)
+    if (ret == 0) {
+        /* Keep the modes in the options: the extension list may be freed
+         * before a post-handshake ticket is sent. */
+        ssl->options.pskKeModesRecvd = 1;
+        ssl->options.pskKeModeKe = ((modes & (1 << PSK_KE)) != 0);
+        ssl->options.pskKeModeDheKe = ((modes & (1 << PSK_DHE_KE)) != 0);
+
         ret = TLSX_PskKeyModes_Use(ssl, modes);
+    }
 
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);

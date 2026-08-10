@@ -6790,6 +6790,39 @@ cleanup:
     return ret;
 }
 
+/* Check whether a PSK can be used with a key exchange mode the client
+ * advertised in psk_key_exchange_modes.
+ *
+ * RFC 8446 Section 4.2.9: the advertised modes restrict both the PSKs offered
+ * in this ClientHello and any the server later sends in a NewSessionTicket.
+ *
+ * Modes come from the options, not ssl->extensions, which
+ * FreeHandshakeResources() may free before a post-handshake ticket is sent.
+ * Policy comes from noPskDheKeCfg, not noPskDheKe, which is cleared when the
+ * handshake ends up using no PSK.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 1 when a PSK is usable and 0 when no advertised mode is acceptable.
+ */
+static int PskKeyModesUsable(const WOLFSSL* ssl)
+{
+    /* Modes unknown without the extension, so impose no restriction. */
+    if (!ssl->options.pskKeModesRecvd)
+        return 1;
+
+#ifdef HAVE_SUPPORTED_CURVES
+    if (ssl->options.pskKeModeDheKe && !ssl->options.noPskDheKeCfg)
+        return 1;
+    if (ssl->options.pskKeModeKe && !ssl->options.onlyPskDheKe)
+        return 1;
+
+    return 0;
+#else
+    /* Without (EC)DHE support only psk_ke can be negotiated. */
+    return ssl->options.pskKeModeKe != 0;
+#endif
+}
+
 /* Handle any Pre-Shared Key (PSK) extension.
  * Must do this in ClientHello as it requires a hash of the truncated message.
  * Don't know size of binders until Pre-Shared Key extension has been parsed.
@@ -6807,6 +6840,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     TLSX*  ext;
     word16 bindersLen;
     int    first = 0;
+    int    modesUsable;
 #ifndef WOLFSSL_PSK_ONE_ID
     int    i;
     const Suites* suites;
@@ -6844,6 +6878,12 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
      * prepend new entries to ssl->extensions before this point and would
      * otherwise trip a head-of-list check here. */
 
+    /* RFC 8446 Section 4.2.11: an unusable PSK is ignored and a non-PSK
+     * handshake performed instead, so leave the offered keys untried. */
+    modesUsable = PskKeyModesUsable(ssl);
+    if (!modesUsable)
+        WOLFSSL_MSG("No advertised PSK mode is usable; ignoring offered PSKs");
+
     /* Assume we are going to resume with a pre-shared key. */
     ssl->options.resuming = 1;
 
@@ -6867,7 +6907,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     suites = WOLFSSL_SUITES(ssl);
     /* Server list has only common suites from refining in server or client
      * order. */
-    for (i = 0; !(*usingPSK) && i < suites->suiteSz; i += 2) {
+    for (i = 0; modesUsable && !(*usingPSK) && i < suites->suiteSz; i += 2) {
         ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
                 suites->suites + i, usingPSK, &first);
         if (ret != 0) {
@@ -6885,11 +6925,13 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     CleanupClientTickets((PreSharedKey*)ext->data);
 #endif
 #else
-    ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
-        &first);
-    if (ret != 0) {
-        WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
-        return ret;
+    if (modesUsable) {
+        ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
+            &first);
+        if (ret != 0) {
+            WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
+            return ret;
+        }
     }
 #endif
 
@@ -13846,6 +13888,14 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         return 0;
     }
 
+    /* RFC 8446 Section 4.2.9: don't send a ticket that no advertised mode
+     * could resume with. */
+    if (!PskKeyModesUsable(ssl)) {
+        WOLFSSL_MSG("Ticket not usable with advertised PSK modes; "
+                    "skipping ticket");
+        return 0;
+    }
+
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
         idx = Dtls13GetRlHeaderLength(ssl, 1) + DTLS_HANDSHAKE_HEADER_SZ;
@@ -15964,6 +16014,7 @@ int wolfSSL_no_dhe_psk(WOLFSSL* ssl)
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ssl->options.noPskDheKe = 1;
+    ssl->options.noPskDheKeCfg = 1;
 #endif
 
     return 0;

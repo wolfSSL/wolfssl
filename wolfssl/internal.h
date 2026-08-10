@@ -5426,11 +5426,21 @@ struct Options {
     word16            usingAnon_cipher:1; /* are we using an anon cipher */
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     word16            noPskDheKe:1;       /* Don't use (EC)DHE with PSK */
+    word16            noPskDheKeCfg:1;    /* noPskDheKe as configured, since
+                                           * noPskDheKe is cleared when the
+                                           * handshake uses no PSK */
 #ifdef HAVE_SUPPORTED_CURVES
     word16            onlyPskDheKe:1;     /* Only use (EC)DHE with PSK */
 #endif
 #if defined(WOLFSSL_CERT_WITH_EXTERN_PSK)
     word16            certWithExternPsk:1; /* Cert auth with external PSK */
+#endif
+#ifdef WOLFSSL_TLS13
+    /* psk_key_exchange_modes advertised in the ClientHello. Kept here as
+     * ssl->extensions may be freed before a post-handshake ticket is sent. */
+    word16            pskKeModesRecvd:1;  /* extension was received */
+    word16            pskKeModeKe:1;      /* psk_ke advertised */
+    word16            pskKeModeDheKe:1;   /* psk_dhe_ke advertised */
 #endif
 #endif
     word16            partialWrite:1;     /* only one msg per write call */

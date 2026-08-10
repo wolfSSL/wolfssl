@@ -91,6 +91,10 @@ int test_tls13_fail_if_no_psk_server_rejects_offered_psk(void);
 int test_tls13_fail_if_no_psk_no_cert_server(void);
 int test_tls13_fail_if_no_psk_dtls13_handshake(void);
 int test_tls13_fail_if_no_psk_dtls13_rejects_no_psk(void);
+int test_tls13_psk_mode_no_incompatible_ticket(void);
+int test_tls13_psk_mode_incompatible_falls_back(void);
+int test_tls13_psk_mode_policy_survives_hrr(void);
+int test_tls13_psk_mode_post_handshake_ticket(void);
 int test_tls13_ticket_peer_cert_reverify(void);
 int test_tls13_clear_preserves_psk_dhe(void);
 int test_tls13_cipher_fuzz_aes128_gcm_sha256(void);
@@ -175,6 +179,10 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_no_cert_server), \
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_handshake), \
     TEST_DECL_GROUP("tls13", test_tls13_fail_if_no_psk_dtls13_rejects_no_psk), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_mode_no_incompatible_ticket), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_mode_incompatible_falls_back), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_mode_policy_survives_hrr), \
+    TEST_DECL_GROUP("tls13", test_tls13_psk_mode_post_handshake_ticket), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_peer_cert_reverify), \
     TEST_DECL_GROUP("tls13", test_tls13_clear_preserves_psk_dhe), \
     TEST_DECL_GROUP("tls13", test_tls13_cipher_fuzz_aes128_gcm_sha256), \

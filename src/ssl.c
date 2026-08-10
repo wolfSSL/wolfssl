@@ -5705,9 +5705,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         ssl->options.noPskDheKe = ssl->ctx->noPskDheKe;
+        ssl->options.noPskDheKeCfg = ssl->ctx->noPskDheKe;
         #ifdef HAVE_SUPPORTED_CURVES
         ssl->options.onlyPskDheKe = ssl->ctx->onlyPskDheKe;
         #endif
+        /* Modes advertised on the previous handshake must not carry over. */
+        ssl->options.pskKeModesRecvd = 0;
+        ssl->options.pskKeModeKe = 0;
+        ssl->options.pskKeModeDheKe = 0;
     #endif
     #endif
     #ifdef HAVE_SESSION_TICKET
