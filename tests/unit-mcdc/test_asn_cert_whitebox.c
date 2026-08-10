@@ -1527,6 +1527,1033 @@ static void wb_parse_cert_relative_matrix(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section: manufactured certificate fixtures for the ParseCertRelative()
+ * decision chain.
+ *
+ * The matrix above sweeps verify-mode x cert-type x CA-presence over the
+ * certificates bundled in wolfssl/certs_test.h. That bundle only contains
+ * *well-formed, currently-valid, conventionally-shaped* certificates, so a
+ * whole family of ParseCertRelative() operands is pinned at one value no
+ * matter how the matrix is swept:
+ *
+ *   - every bundled leaf carries a subjectKeyIdentifier, so the
+ *     "recompute the SKID from the public key" gate is never entered;
+ *   - every bundled serial number is non-zero, so the RFC 5280 4.1.2.2
+ *     zero-serial guard and its trust-anchor exemption are never evaluated;
+ *   - no bundled non-CA certificate asserts keyCertSign, so the
+ *     keyUsage/basicConstraints consistency guard never fires;
+ *   - the issuer name of a bundled leaf always matches the subject name of
+ *     its CA, so the "CA found by key id but the names disagree" arm is
+ *     dead;
+ *   - the bundle has no three-level chain with a *non-self-signed*
+ *     intermediate, so the name-constraint ancestor walk always terminates
+ *     on its first iteration;
+ *   - every bundled certificate is valid *today*, so the notBefore /
+ *     notAfter checks in DecodeCertInternal() only ever succeed.
+ *
+ * Rather than adding new fixture files, this section manufactures the
+ * missing shapes at run time with wolfSSL's own certificate generator
+ * (wc_InitCert / wc_MakeCert / wc_SignCert) using the bundled RSA and ECC
+ * *keys* as both subject and signing keys -- no key generation, so the
+ * whole section costs a few tens of milliseconds. The Cert fields that the
+ * generator exposes (serial, beforeDate/afterDate, skidSz, akid/akidSz,
+ * keyUsage, isCA, pathLen, and the issuer CertName) are exactly the knobs
+ * needed to hit each operand above, and everything stays regenerable.
+ *
+ * Signature verification of these fixtures is deliberately *not* asserted:
+ * several of them are intentionally inconsistent (an authority key id that
+ * points at a CA which did not sign them, an issuer name that does not
+ * match any CA), and the decisions of interest are all evaluated before
+ * ParseCertRelative() reaches its ConfirmSignature() block. Loading a CA
+ * into a WOLFSSL_CERT_MANAGER uses CA_TYPE, which by construction skips
+ * signature confirmation, so a deliberately mis-parented intermediate can
+ * still be installed as a trust store entry.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_CERTS) && !defined(WOLFCRYPT_ONLY) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && !defined(NO_ASN_TIME) && !defined(NO_SKID) && \
+    defined(USE_CERT_BUFFERS_2048)
+
+#define WB_FIX_DER_SZ 4096
+
+/* One manufactured certificate: its DER plus the subject key identifier the
+ * generator put in it, so a child fixture can point its AKID at it. */
+typedef struct WbFix {
+    byte der[WB_FIX_DER_SZ];
+    int  sz;
+    byte skid[CTC_MAX_SKID_SIZE];
+    int  skidSz;
+} WbFix;
+
+/* Declarative description of a fixture. Anything left zero/NULL means
+ * "generator default", which for wc_InitCert() is: v3, random serial,
+ * self-signed, not a CA, no extensions beyond what is asked for here. */
+typedef struct WbSpec {
+    const char*  cn;          /* subject common name                       */
+    const char*  issuerCn;    /* explicit issuer CN (no matching CA needed) */
+    const WbFix* issuerFix;   /* take the issuer name from this fixture     */
+    RsaKey*      subjectKey;  /* subject public key (RSA)                   */
+    ecc_key*     subjectEcc;  /* ... or ECC                                 */
+    RsaKey*      signKey;     /* signing key (RSA)                          */
+    ecc_key*     signEcc;     /* ... or ECC                                 */
+    int          isCA;
+    int          pathLen;     /* < 0: do not emit a pathLenConstraint       */
+    int          keyUsage;    /* < 0: do not emit a keyUsage extension      */
+    int          withSkid;    /* emit subjectKeyIdentifier from the pub key */
+    const byte*  skid;        /* ... or emit this literal key id instead    */
+    int          skidSz;
+    const byte*  akid;        /* emit authorityKeyIdentifier (key id form)  */
+    int          akidSz;
+    const char*  notBefore;   /* 13-char UTCTime body "YYMMDDHHMMSSZ"       */
+    const char*  notAfter;    /* NULL with notBefore set: only notBefore    */
+    int          zeroSerial;  /* emit serial number 0 (RFC-non-conforming)  */
+    int          version;     /* > 0: encode this raw version value         */
+} WbSpec;
+
+static WC_RNG  wbRng;
+static int     wbRngOk = 0;
+static byte    wbSerialCounter = 1;
+static RsaKey  wbKeyRoot;    /* ca_key_der_2048     */
+static RsaKey  wbKeyInter;   /* client_key_der_2048 */
+static RsaKey  wbKeyLeaf;    /* server_key_der_2048 */
+static int     wbKeysOk = 0;
+#ifdef HAVE_ECC
+static ecc_key wbKeyEcc;     /* ecc_key_der_256     */
+static int     wbEccOk = 0;
+#endif
+
+static void wb_fill_name(CertName* name, const char* cn)
+{
+    XSTRNCPY(name->country, "US", CTC_NAME_SIZE);
+    name->countryEnc = CTC_PRINTABLE;
+    XSTRNCPY(name->state, "Oregon", CTC_NAME_SIZE);
+    name->stateEnc = CTC_UTF8;
+    XSTRNCPY(name->locality, "Portland", CTC_NAME_SIZE);
+    name->localityEnc = CTC_UTF8;
+    XSTRNCPY(name->org, "wolfSSL MCDC", CTC_NAME_SIZE);
+    name->orgEnc = CTC_UTF8;
+    XSTRNCPY(name->unit, "asn", CTC_NAME_SIZE);
+    name->unitEnc = CTC_UTF8;
+    XSTRNCPY(name->commonName, cn, CTC_NAME_SIZE);
+    name->commonNameEnc = CTC_UTF8;
+}
+
+/* Build one fixture. Returns 0 on success. Never asserts on the *content*
+ * of the result beyond "the generator accepted it": the whole point of some
+ * of these shapes is that a strict parser will later reject them. */
+static int wb_make_fixture(WbFix* out, const WbSpec* spec)
+{
+    Cert* cert;
+    int   ret;
+    int   bodySz;
+
+    XMEMSET(out, 0, sizeof(*out));
+    cert = (Cert*)XMALLOC(sizeof(Cert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL) {
+        return MEMORY_E;
+    }
+
+    ret = wc_InitCert(cert);
+    if (ret != 0) {
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    wb_fill_name(&cert->subject, spec->cn);
+
+    if (spec->issuerFix != NULL) {
+        /* Issuer name lifted out of a previously generated certificate;
+         * this also clears the self-signed flag. */
+        ret = wc_SetIssuerBuffer(cert, spec->issuerFix->der,
+                spec->issuerFix->sz);
+    }
+    else if (spec->issuerCn != NULL) {
+        /* Issuer name that need not correspond to any real certificate. */
+        wb_fill_name(&cert->issuer, spec->issuerCn);
+        cert->selfSigned = 0;
+    }
+
+    if (ret == 0) {
+        cert->isCA = spec->isCA;
+        if (spec->isCA) {
+            cert->basicConstSet = 1;
+        }
+        if (spec->pathLen >= 0) {
+            cert->pathLen = (byte)spec->pathLen;
+            cert->pathLenSet = 1;
+            cert->basicConstSet = 1;
+        }
+        if (spec->keyUsage >= 0) {
+            cert->keyUsage = (word16)spec->keyUsage;
+        }
+        cert->daysValid = 3650;
+
+        if (spec->version > 0) {
+            /* The generator writes this straight into the version INTEGER
+             * with no range check of its own, which is what makes an
+             * out-of-range version reachable at all. */
+            cert->version = spec->version;
+        }
+
+        if (spec->signEcc != NULL) {
+            cert->sigType = CTC_SHA256wECDSA;
+        }
+        else {
+            cert->sigType = CTC_SHA256wRSA;
+        }
+
+        if (spec->zeroSerial) {
+            XMEMSET(cert->serial, 0, sizeof(cert->serial));
+            cert->serialSz = 1;
+        }
+        else {
+            /* Deterministic, positive, high-bit-clear serial. */
+            XMEMSET(cert->serial, 0, sizeof(cert->serial));
+            cert->serial[0] = 0x11;
+            cert->serial[1] = wbSerialCounter++;
+            cert->serialSz = 2;
+        }
+
+        if (spec->notBefore != NULL) {
+            cert->beforeDate[0] = ASN_UTC_TIME;
+            cert->beforeDate[1] = ASN_UTC_TIME_SIZE - 1;
+            XMEMCPY(cert->beforeDate + 2, spec->notBefore,
+                    ASN_UTC_TIME_SIZE - 1);
+            cert->beforeDateSz = ASN_UTC_TIME_SIZE + 1;
+        }
+        if (spec->notAfter != NULL) {
+            cert->afterDate[0] = ASN_UTC_TIME;
+            cert->afterDate[1] = ASN_UTC_TIME_SIZE - 1;
+            XMEMCPY(cert->afterDate + 2, spec->notAfter,
+                    ASN_UTC_TIME_SIZE - 1);
+            cert->afterDateSz = ASN_UTC_TIME_SIZE + 1;
+        }
+
+        if (spec->skid != NULL && spec->skidSz > 0) {
+            /* Literal key id: lets two certificates with different subject
+             * names advertise the SAME subjectKeyIdentifier, which the
+             * public-key-derived form can never produce. */
+            XMEMCPY(cert->skid, spec->skid, (size_t)spec->skidSz);
+            cert->skidSz = spec->skidSz;
+        }
+        else if (spec->withSkid) {
+            ret = wc_SetSubjectKeyIdFromPublicKey(cert, spec->subjectKey,
+                    spec->subjectEcc);
+        }
+    }
+
+    if (ret == 0 && spec->akid != NULL && spec->akidSz > 0) {
+        XMEMCPY(cert->akid, spec->akid, (size_t)spec->akidSz);
+        cert->akidSz = spec->akidSz;
+#ifdef WOLFSSL_AKID_NAME
+        cert->rawAkid = 0;
+#endif
+    }
+
+    if (ret == 0) {
+        ret = wc_MakeCert(cert, out->der, WB_FIX_DER_SZ, spec->subjectKey,
+                spec->subjectEcc, &wbRng);
+        if (ret > 0) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        bodySz = cert->bodySz;
+        ret = wc_SignCert(bodySz, cert->sigType, out->der, WB_FIX_DER_SZ,
+                spec->signKey, spec->signEcc, &wbRng);
+        if (ret > 0) {
+            out->sz = ret;
+            ret = 0;
+        }
+        else if (ret == 0) {
+            ret = -1;
+        }
+    }
+    if (ret == 0 && (spec->withSkid || spec->skidSz > 0)) {
+        XMEMCPY(out->skid, cert->skid, sizeof(out->skid));
+        out->skidSz = cert->skidSz;
+    }
+
+    wc_SetCert_Free(cert);
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+/* Parse one fixture through the real entry point and throw the result away:
+ * only the decisions evaluated on the way matter here. A DecodedCert is
+ * ~4KB, so it lives on the heap for the small_stack variant's benefit. */
+static void wb_parse_one(const WbFix* fix, int type, int verify,
+                         void* cm, Signer* extraCAList)
+{
+    DecodedCert* dc;
+
+    if (fix == NULL || fix->sz <= 0) {
+        return;
+    }
+    dc = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+    if (dc == NULL) {
+        return;
+    }
+    wc_InitDecodedCert(dc, fix->der, (word32)fix->sz, NULL);
+    printf("PARSE sz=%d type=%d verify=%d -> %d\n", fix->sz, type, verify,
+        ParseCertRelative(dc, type, verify, cm, extraCAList));
+    wc_FreeDecodedCert(dc);
+    XFREE(dc, NULL, DYNAMIC_TYPE_DCERT);
+}
+
+/* Turn a fixture into a standalone Signer, the shape ParseCertRelative()
+ * accepts through its extraCAList argument (the certificate-status-request
+ * v2 path). FillSigner() takes ownership of the decoded public key and
+ * subject CN, so the DecodedCert can be released immediately after. */
+static Signer* wb_make_signer(const WbFix* fix)
+{
+    DecodedCert* dc;
+    DerBuffer*   der = NULL;
+    Signer*      signer;
+    int          ret;
+
+    if (fix == NULL || fix->sz <= 0) {
+        return NULL;
+    }
+    signer = MakeSigner(NULL);
+    if (signer == NULL) {
+        return NULL;
+    }
+    dc = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+    if (dc == NULL) {
+        FreeSigner(signer, NULL);
+        return NULL;
+    }
+    wc_InitDecodedCert(dc, fix->der, (word32)fix->sz, NULL);
+    ret = ParseCert(dc, CA_TYPE, NO_VERIFY, NULL);
+    if (ret == 0) {
+        ret = AllocDer(&der, (word32)fix->sz, CA_TYPE, NULL);
+    }
+    if (ret == 0) {
+        XMEMCPY(der->buffer, fix->der, (size_t)fix->sz);
+        ret = FillSigner(signer, dc, CA_TYPE, der);
+    }
+    FreeDer(&der);
+    wc_FreeDecodedCert(dc);
+    XFREE(dc, NULL, DYNAMIC_TYPE_DCERT);
+    if (ret != 0) {
+        FreeSigner(signer, NULL);
+        return NULL;
+    }
+    return signer;
+}
+
+/* The fixture set. File-scope so the small_stack variant does not put ~80KB
+ * of certificate DER on the stack. */
+static WbFix wbRootA;        /* self-signed CA, pathLen 1, keyCertSign      */
+static WbFix wbRootADupRsa;  /* same DN as wbRootA, different RSA key       */
+#ifdef HAVE_ECC
+static WbFix wbRootADupEcc;  /* same DN as wbRootA, ECC key (size differs)  */
+#endif
+static WbFix wbInter;        /* CA under wbRootA, AKID -> wbRootA           */
+static WbFix wbInterNoKU;    /* CA under wbRootA with no keyUsage extension */
+static WbFix wbInterMismatch;/* CA whose AKID -> wbRootA but issuer DN does not */
+static WbFix wbInterBadAkid; /* CA whose AKID matches nothing               */
+static WbFix wbInterKuNoCS;  /* CA under wbRootA, keyUsage WITHOUT certSign */
+static WbFix wbSkidTwin;     /* CA advertising wbRootA's key id, other DN   */
+static WbFix wbBadVersion;   /* version INTEGER above the supported maximum */
+static WbFix wbLeafByInter;  /* leaf under wbInter (3-level chain)          */
+static WbFix wbLeafUnderMism;/* leaf under wbInterMismatch                  */
+static WbFix wbLeafNoSkid;   /* leaf under wbRootA with no SKID extension   */
+static WbFix wbLeafNoAkid;   /* leaf under wbRootA with no AKID extension   */
+static WbFix wbLeafBadAkid;  /* leaf under wbRootA, AKID matches nothing    */
+static WbFix wbLeafBadName;  /* AKID -> wbRootA but issuer DN differs       */
+static WbFix wbLeafKuCertSign;  /* non-CA leaf asserting keyCertSign        */
+static WbFix wbLeafKuNoCertSign;/* non-CA leaf, keyUsage without keyCertSign */
+static WbFix wbZeroSerialRoot;  /* self-signed CA, serial 0                 */
+static WbFix wbZeroSerialLeaf;  /* leaf, serial 0                           */
+static WbFix wbZeroSerialSubCA; /* CA under wbRootA, serial 0               */
+static WbFix wbExpiredLeaf;     /* notAfter in the past                     */
+static WbFix wbFutureLeaf;      /* notBefore in the future                  */
+static WbFix wbOnlyNotBefore;   /* generator side: beforeDate set, after not */
+static WbFix wbNcX;             /* CA "NC X" issued by "NC Y"               */
+static WbFix wbNcY;             /* CA "NC Y" issued by "NC X"  (A->B->A)    */
+static WbFix wbLeafNcX;         /* leaf under "NC X"                        */
+static int   wbFixturesOk = 0;
+
+static int wb_load_keys(void)
+{
+    word32 idx;
+    int    ret;
+
+    ret = wc_InitRng(&wbRng);
+    if (ret != 0) {
+        return ret;
+    }
+    wbRngOk = 1;
+
+    ret = wc_InitRsaKey(&wbKeyRoot, NULL);
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&wbKeyInter, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&wbKeyLeaf, NULL);
+    }
+    if (ret == 0) {
+        wbKeysOk = 1;
+        idx = 0;
+        ret = wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &wbKeyRoot,
+                (word32)sizeof_ca_key_der_2048);
+    }
+    if (ret == 0) {
+        idx = 0;
+        ret = wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &wbKeyInter,
+                (word32)sizeof_client_key_der_2048);
+    }
+    if (ret == 0) {
+        idx = 0;
+        ret = wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &wbKeyLeaf,
+                (word32)sizeof_server_key_der_2048);
+    }
+#ifdef HAVE_ECC
+    if (ret == 0 && wc_ecc_init(&wbKeyEcc) == 0) {
+        idx = 0;
+        if (wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &wbKeyEcc,
+                    (word32)sizeof_ecc_key_der_256) == 0) {
+            wbEccOk = 1;
+        }
+        else {
+            wc_ecc_free(&wbKeyEcc);
+        }
+    }
+#endif
+    return ret;
+}
+
+static void wb_free_keys(void)
+{
+    if (wbKeysOk) {
+        wc_FreeRsaKey(&wbKeyRoot);
+        wc_FreeRsaKey(&wbKeyInter);
+        wc_FreeRsaKey(&wbKeyLeaf);
+        wbKeysOk = 0;
+    }
+#ifdef HAVE_ECC
+    if (wbEccOk) {
+        wc_ecc_free(&wbKeyEcc);
+        wbEccOk = 0;
+    }
+#endif
+    if (wbRngOk) {
+        wc_FreeRng(&wbRng);
+        wbRngOk = 0;
+    }
+}
+
+#define WB_MK(dst, ...) do {                                                  \
+        WbSpec _s;                                                            \
+        XMEMSET(&_s, 0, sizeof(_s));                                          \
+        _s.pathLen = -1;                                                      \
+        _s.keyUsage = -1;                                                     \
+        _s.subjectKey = &wbKeyLeaf;                                           \
+        _s.signKey = &wbKeyRoot;                                              \
+        __VA_ARGS__;                                                          \
+        if (wb_make_fixture(&(dst), &_s) != 0) {                              \
+            WB_CHECK(0, "manufacture " #dst);                                 \
+            wbFixturesOk = 0;                                                 \
+        }                                                                     \
+    } while (0)
+
+static void wb_build_fixtures(void)
+{
+    byte bogusKid[KEYID_SIZE];
+
+    XMEMSET(bogusKid, 0xAA, sizeof(bogusKid));
+    if (wb_load_keys() != 0) {
+        WB_CHECK(0, "load the bundled signing keys");
+        return;
+    }
+    wbFixturesOk = 1;
+
+    /* --- trust anchors ------------------------------------------------ */
+    WB_MK(wbRootA,
+        _s.cn = "MCDC Root A"; _s.subjectKey = &wbKeyRoot;
+        _s.isCA = 1; _s.pathLen = 1; _s.withSkid = 1;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN);
+
+    /* Same DN, different key of the same size: exercises the trust-anchor
+     * public-key comparison in the path-length block on its "same length,
+     * different bytes" arm. No AKID, so the CA lookup falls through to the
+     * name-based one and keeps the match. */
+    WB_MK(wbRootADupRsa,
+        _s.cn = "MCDC Root A"; _s.subjectKey = &wbKeyInter;
+        _s.signKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+
+#ifdef HAVE_ECC
+    if (wbEccOk) {
+        /* Same DN again, but an ECC key: different public-key *length*. */
+        WB_MK(wbRootADupEcc,
+            _s.cn = "MCDC Root A"; _s.subjectKey = NULL;
+            _s.subjectEcc = &wbKeyEcc;
+            _s.signKey = NULL; _s.signEcc = &wbKeyEcc;
+            _s.isCA = 1; _s.withSkid = 1;
+            _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+    }
+#endif
+
+    /* --- intermediates ------------------------------------------------ */
+    WB_MK(wbInter,
+        _s.cn = "MCDC Inter"; _s.issuerFix = &wbRootA;
+        _s.subjectKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN);
+
+    WB_MK(wbInterNoKU,
+        _s.cn = "MCDC Inter NoKU"; _s.issuerFix = &wbRootA;
+        _s.subjectKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz);
+
+    /* A CA that DOES carry a keyUsage extension but leaves keyCertSign
+     * clear. The pathLen block's trailing guard reads
+     *   (!extKeyUsageSet || (extKeyUsage & keyCertSign) != 0)
+     * and every other fixture drives it through one of the two true arms:
+     * wbInterNoKU has no extension at all (first operand true) and wbInter
+     * asserts keyCertSign (second operand true). This is the only shape
+     * that makes BOTH operands false, which is what the pathLen guard
+     * needs to be shown independent of either. */
+    WB_MK(wbInterKuNoCS,
+        _s.cn = "MCDC Inter NoCS"; _s.issuerFix = &wbRootA;
+        _s.subjectKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_CRL_SIGN | KEYUSE_DIGITAL_SIG);
+
+    /* A CA whose subjectKeyIdentifier is literally the root's, but whose
+     * subject name is not. Nothing derived from a public key can produce
+     * this collision, and it is the only way to drive the "key id matched
+     * but the name did not" operand of the extra-CA-list scan. */
+    WB_MK(wbSkidTwin,
+        _s.cn = "MCDC Skid Twin"; _s.issuerCn = "MCDC Skid Twin";
+        _s.subjectKey = &wbKeyLeaf; _s.signKey = &wbKeyLeaf;
+        _s.isCA = 1;
+        _s.skid = wbRootA.skid; _s.skidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+
+    /* A structurally well-formed certificate whose version INTEGER is above
+     * the highest X.509 version the decoder supports. Every bundled and
+     * generated certificate is version 3, so the decoder's version ceiling
+     * is otherwise only ever satisfied. */
+    WB_MK(wbBadVersion,
+        _s.cn = "MCDC Bad Version"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1; _s.version = 4;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG);
+
+    /* AKID points at the root, but the issuer name does not: the ancestor
+     * walk's "key id hit, name mismatch" rejection. */
+    WB_MK(wbInterMismatch,
+        _s.cn = "MCDC Inter M"; _s.issuerCn = "MCDC Nowhere";
+        _s.subjectKey = &wbKeyLeaf;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+
+    WB_MK(wbInterBadAkid,
+        _s.cn = "MCDC Inter B"; _s.issuerFix = &wbRootA;
+        _s.subjectKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.akid = bogusKid; _s.akidSz = (int)sizeof(bogusKid);
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+
+    /* --- leaves ------------------------------------------------------- */
+    WB_MK(wbLeafByInter,
+        _s.cn = "MCDC Leaf I"; _s.issuerFix = &wbInter;
+        _s.signKey = &wbKeyInter; _s.withSkid = 1;
+        _s.akid = wbInter.skid; _s.akidSz = wbInter.skidSz;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG | KEYUSE_KEY_ENCIPHER);
+
+    WB_MK(wbLeafUnderMism,
+        _s.cn = "MCDC Leaf M"; _s.issuerFix = &wbInterMismatch;
+        _s.signKey = &wbKeyLeaf;
+        _s.akid = wbInterMismatch.skid; _s.akidSz = wbInterMismatch.skidSz;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG);
+
+    /* No subjectKeyIdentifier: forces the SKID-from-public-key recompute. */
+    WB_MK(wbLeafNoSkid,
+        _s.cn = "MCDC Leaf NoSkid"; _s.issuerFix = &wbRootA;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz);
+
+    WB_MK(wbLeafNoAkid,
+        _s.cn = "MCDC Leaf NoAkid"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG);
+
+    WB_MK(wbLeafBadAkid,
+        _s.cn = "MCDC Leaf BadAkid"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1;
+        _s.akid = bogusKid; _s.akidSz = (int)sizeof(bogusKid);
+        _s.keyUsage = KEYUSE_DIGITAL_SIG);
+
+    WB_MK(wbLeafBadName,
+        _s.cn = "MCDC Leaf BadName"; _s.issuerCn = "MCDC Other Root";
+        _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG);
+
+    /* Non-CA certificate that asserts keyCertSign: rejected by the
+     * basicConstraints/keyUsage consistency guard. */
+    WB_MK(wbLeafKuCertSign,
+        _s.cn = "MCDC Leaf KU"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG | KEYUSE_KEY_CERT_SIGN);
+
+    WB_MK(wbLeafKuNoCertSign,
+        _s.cn = "MCDC Leaf KU2"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG | KEYUSE_CRL_SIGN);
+
+    /* --- zero serial numbers ------------------------------------------ */
+    WB_MK(wbZeroSerialRoot,
+        _s.cn = "MCDC ZS Root"; _s.subjectKey = &wbKeyRoot;
+        _s.isCA = 1; _s.withSkid = 1; _s.zeroSerial = 1;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+
+    WB_MK(wbZeroSerialLeaf,
+        _s.cn = "MCDC ZS Leaf"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1; _s.zeroSerial = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz);
+
+    WB_MK(wbZeroSerialSubCA,
+        _s.cn = "MCDC ZS SubCA"; _s.issuerFix = &wbRootA;
+        _s.subjectKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1; _s.zeroSerial = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+
+    /* --- validity-period shapes --------------------------------------- */
+    WB_MK(wbExpiredLeaf,
+        _s.cn = "MCDC Expired"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.notBefore = "100101000000Z"; _s.notAfter = "110101000000Z");
+
+    WB_MK(wbFutureLeaf,
+        _s.cn = "MCDC Future"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1;
+        _s.akid = wbRootA.skid; _s.akidSz = wbRootA.skidSz;
+        _s.notBefore = "400101000000Z"; _s.notAfter = "410101000000Z");
+
+    /* Only one of the two explicit date fields set: the generator has to
+     * fall back to computing the whole validity period itself. */
+    WB_MK(wbOnlyNotBefore,
+        _s.cn = "MCDC OneDate"; _s.issuerFix = &wbRootA;
+        _s.withSkid = 1;
+        _s.notBefore = "200101000000Z");
+
+    /* --- an A->B->A authority-key-id cycle ---------------------------- */
+    WB_MK(wbNcX,
+        _s.cn = "MCDC NC X"; _s.issuerCn = "MCDC NC Y";
+        _s.subjectKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+    WB_MK(wbNcY,
+        _s.cn = "MCDC NC Y"; _s.issuerCn = "MCDC NC X";
+        _s.subjectKey = &wbKeyLeaf;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.akid = wbNcX.skid; _s.akidSz = wbNcX.skidSz;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+    /* Regenerate X now that Y's SKID is known, closing the cycle. */
+    WB_MK(wbNcX,
+        _s.cn = "MCDC NC X"; _s.issuerCn = "MCDC NC Y";
+        _s.subjectKey = &wbKeyInter;
+        _s.isCA = 1; _s.withSkid = 1;
+        _s.akid = wbNcY.skid; _s.akidSz = wbNcY.skidSz;
+        _s.keyUsage = KEYUSE_KEY_CERT_SIGN);
+
+    WB_MK(wbLeafNcX,
+        _s.cn = "MCDC NC Leaf"; _s.issuerCn = "MCDC NC X";
+        _s.signKey = &wbKeyInter;
+        _s.akid = wbNcX.skid; _s.akidSz = wbNcX.skidSz;
+        _s.keyUsage = KEYUSE_DIGITAL_SIG);
+}
+
+/* Load a fixture as a trust store entry. CA_TYPE skips signature
+ * confirmation, which is what lets the deliberately mis-parented
+ * intermediates above be installed. */
+static int wb_load_ca(WOLFSSL_CERT_MANAGER* cm, const WbFix* fix,
+                      const char* what)
+{
+    int ret;
+
+    if (fix->sz <= 0) {
+        return -1;
+    }
+    ret = wolfSSL_CertManagerLoadCABuffer(cm, fix->der, (long)fix->sz,
+            WOLFSSL_FILETYPE_ASN1);
+    WB_CHECK(ret == WOLFSSL_SUCCESS, what);
+    return ret;
+}
+
+
+static void wb_fixture_parse_matrix(void)
+{
+    WOLFSSL_CERT_MANAGER* cm;
+    Signer* rootSigner = NULL;
+    Signer* interSigner = NULL;
+    size_t v;
+    static const int verifyModes[] = {
+        NO_VERIFY, VERIFY, VERIFY_SKIP_DATE, VERIFY_OCSP, VERIFY_NAME
+    };
+
+    WB_NOTE("ParseCertRelative(): manufactured-fixture sweep "
+            "[:24444,:24450,:24464,:24476,:24508,:24522,:24545,:24583,"
+            ":24610,:24861]");
+
+    wb_build_fixtures();
+    if (!wbFixturesOk) {
+        WB_NOTE("fixture generation failed; sweep skipped");
+        wb_free_keys();
+        return;
+    }
+
+    cm = wolfSSL_CertManagerNew();
+    WB_CHECK(cm != NULL, "wolfSSL_CertManagerNew (fixture store)");
+    if (cm == NULL) {
+        wb_free_keys();
+        return;
+    }
+    (void)wb_load_ca(cm, &wbRootA, "load the manufactured root");
+    (void)wb_load_ca(cm, &wbInter, "load the manufactured intermediate");
+    (void)wb_load_ca(cm, &wbInterMismatch,
+            "load the mis-parented intermediate");
+    (void)wb_load_ca(cm, &wbInterBadAkid,
+            "load the dangling-AKID intermediate");
+    (void)wb_load_ca(cm, &wbInterNoKU,
+            "load the keyUsage-less intermediate");
+
+    /* ---- zero-serial guard and its trust-anchor exemption [:24444,:24450]
+     * A zero serial is only tolerated for a self-signed CA that is being
+     * installed as an explicitly trusted anchor. Each operand of that
+     * exemption is driven true and false against the same guard. */
+    wb_parse_one(&wbZeroSerialRoot, CA_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialRoot, TRUSTED_PEER_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialRoot, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialRoot, CHAIN_CERT_TYPE, NO_VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialLeaf, CA_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialLeaf, TRUSTED_PEER_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialLeaf, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialSubCA, CA_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbZeroSerialSubCA, TRUSTED_PEER_TYPE, VERIFY, cm, NULL);
+
+    /* ---- basicConstraints / keyUsage consistency [:24464] ------------- */
+    wb_parse_one(&wbLeafKuCertSign, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafKuCertSign, CA_TYPE, NO_VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafKuNoCertSign, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafNoSkid, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbInter, CERT_TYPE, VERIFY, cm, NULL);
+
+    /* ---- recompute the SKID when the extension is absent [:24476] ----- */
+    wb_parse_one(&wbLeafNoSkid, CERT_TYPE, NO_VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafNoSkid, CA_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafUnderMism, CERT_TYPE, VERIFY, cm, NULL);
+
+    /* ---- CA lookup: key id hit with a disagreeing name [:24522],
+     *      name hit while an AKID is present [:24545] ------------------- */
+    wb_parse_one(&wbLeafBadName, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafBadName, CERT_TYPE, VERIFY_NAME, cm, NULL);
+    wb_parse_one(&wbLeafBadAkid, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafNoAkid, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafNoAkid, CERT_TYPE, VERIFY_OCSP, cm, NULL);
+
+    /* ---- path-length block: CA with and without a keyUsage extension,
+     *      and the self-issued trust-anchor public-key comparison
+     *      [:24583,:24610]. A self-signed certificate only gets a CA
+     *      lookup at all when the type is neither CA_TYPE nor
+     *      TRUSTED_PEER_TYPE, hence CHAIN_CERT_TYPE here. */
+    wb_parse_one(&wbInterNoKU, CA_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbInterNoKU, CHAIN_CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbInter, CA_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbInter, CHAIN_CERT_TYPE, VERIFY, cm, NULL);
+    /* Third arm of the same guard: a CA that HAS a keyUsage extension in
+     * which the certificate-signing bit is clear. wbInterNoKU above makes
+     * the "extension absent" operand true and wbInter makes the "bit set"
+     * operand true; only this fixture makes both false, so only with it in
+     * the same binary is either operand shown to decide the guard on its
+     * own. Loaded into the store as well, so the same shape is reachable
+     * as somebody else's issuer. */
+    (void)wb_load_ca(cm, &wbInterKuNoCS,
+            "load the CA whose keyUsage omits certificate signing");
+    wb_parse_one(&wbInterKuNoCS, CHAIN_CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbInterKuNoCS, CHAIN_CERT_TYPE, VERIFY_NAME, cm, NULL);
+    wb_parse_one(&wbInterKuNoCS, CA_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbInterKuNoCS, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbRootA, CHAIN_CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbRootADupRsa, CHAIN_CERT_TYPE, VERIFY, cm, NULL);
+#ifdef HAVE_ECC
+    if (wbEccOk) {
+        wb_parse_one(&wbRootADupEcc, CHAIN_CERT_TYPE, VERIFY, cm, NULL);
+    }
+#endif
+
+    /* ---- validity period: notBefore in the future, notAfter in the past,
+     *      each against the verify modes that do and do not check dates. */
+    for (v = 0; v < sizeof(verifyModes) / sizeof(verifyModes[0]); v++) {
+        wb_parse_one(&wbExpiredLeaf, CERT_TYPE, verifyModes[v], cm, NULL);
+        wb_parse_one(&wbFutureLeaf, CERT_TYPE, verifyModes[v], cm, NULL);
+    }
+    wb_parse_one(&wbOnlyNotBefore, CERT_TYPE, VERIFY, cm, NULL);
+
+    /* ---- version ceiling [:22632]. Driven against a version-3 sibling of
+     *      the same shape so the accepting vector for the same decision is
+     *      in this binary too. */
+    wb_parse_one(&wbBadVersion, CERT_TYPE, NO_VERIFY, cm, NULL);
+    wb_parse_one(&wbBadVersion, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbBadVersion, CA_TYPE, NO_VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafNoAkid, CERT_TYPE, NO_VERIFY, cm, NULL);
+    {
+        /* The same certificate cut short. The template walk fails, and the
+         * version ceiling above is then evaluated with a failure already in
+         * hand -- the only way its leading operand decides the guard on its
+         * own. Truncating between a quarter and three quarters of the way
+         * in keeps the outer SEQUENCE header intact so the failure happens
+         * inside the item walk rather than at the very first tag. */
+        static WbFix truncated;
+        size_t cut;
+
+        for (cut = 4; cut <= 12; cut += 4) {
+            XMEMCPY(&truncated, &wbLeafNoAkid, sizeof(truncated));
+            truncated.sz = (int)(((size_t)wbLeafNoAkid.sz * cut) / 16u);
+            wb_parse_one(&truncated, CERT_TYPE, NO_VERIFY, cm, NULL);
+            wb_parse_one(&truncated, CERT_TYPE, VERIFY, cm, NULL);
+        }
+    }
+
+    /* ---- the three-level chain and the extraCAList lookups ------------ */
+    rootSigner = wb_make_signer(&wbRootA);
+    interSigner = wb_make_signer(&wbInter);
+    WB_CHECK(rootSigner != NULL, "build a Signer from the manufactured root");
+
+    /* Ancestor walk with the full chain resolvable in the store. */
+    wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY_NAME, cm, NULL);
+    wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY, cm, rootSigner);
+    /* Ancestor walk that stops because the grandparent is unreachable. */
+    wb_parse_one(&wbLeafUnderMism, CERT_TYPE, VERIFY, cm, NULL);
+    wb_parse_one(&wbLeafUnderMism, CERT_TYPE, VERIFY, cm, rootSigner);
+    /* extraCAList satisfies the very first lookup, before any key id. */
+    wb_parse_one(&wbLeafNoAkid, CERT_TYPE, VERIFY, NULL, rootSigner);
+    wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY, NULL, interSigner);
+    /* Nothing in the extra list matches the AKID being resolved. */
+    wb_parse_one(&wbLeafBadAkid, CERT_TYPE, VERIFY, NULL, rootSigner);
+
+    if (rootSigner != NULL) {
+        FreeSigner(rootSigner, NULL);
+    }
+    if (interSigner != NULL) {
+        FreeSigner(interSigner, NULL);
+    }
+    wolfSSL_CertManagerFree(cm);
+
+    /* ---- the A->B->A cycle, in a store that holds only the two peers --- */
+    cm = wolfSSL_CertManagerNew();
+    WB_CHECK(cm != NULL, "wolfSSL_CertManagerNew (cycle store)");
+    if (cm != NULL) {
+        (void)wb_load_ca(cm, &wbNcX, "load cycle CA X");
+        (void)wb_load_ca(cm, &wbNcY, "load cycle CA Y");
+        wb_parse_one(&wbLeafNcX, CERT_TYPE, VERIFY, cm, NULL);
+        wb_parse_one(&wbLeafNcX, CERT_TYPE, VERIFY_NAME, cm, NULL);
+        wolfSSL_CertManagerFree(cm);
+    }
+
+    /* ---- a store holding the intermediate but not the root: the walk
+     *      terminates on a missing parent instead of a trust anchor.
+     *
+     * This is also the only configuration in which the ancestor walk's
+     * extra-CA-list scan runs at all. The scan is reached only when the
+     * trust store cannot resolve the ancestor's authority key id, so the
+     * sweeps above -- which all use a store that already holds the root --
+     * never enter its loop body. Here the root is deliberately missing,
+     * so each of the loop's two operands can be driven in turn:
+     *
+     *   - a list entry whose key id does not match at all;
+     *   - a list entry whose key id AND issuer name both match;
+     *   - a list entry whose key id matches while its subject name does
+     *     not, which is what wbSkidTwin exists for.
+     */
+    cm = wolfSSL_CertManagerNew();
+    WB_CHECK(cm != NULL, "wolfSSL_CertManagerNew (orphan store)");
+    if (cm != NULL) {
+        Signer* twinSigner;
+
+        (void)wb_load_ca(cm, &wbInter, "load the orphaned intermediate");
+        wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY, cm, NULL);
+        wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY_SKIP_DATE, cm, NULL);
+
+        rootSigner  = wb_make_signer(&wbRootA);
+        interSigner = wb_make_signer(&wbInter);
+        twinSigner  = wb_make_signer(&wbSkidTwin);
+        WB_CHECK(twinSigner != NULL,
+                 "build a Signer from the key-id twin CA");
+
+        /* key id does not match -> first operand false */
+        wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY, cm, interSigner);
+        /* key id and name both match -> both operands true, scan hits */
+        wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY, cm, rootSigner);
+        wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY_NAME, cm, rootSigner);
+        /* key id matches, name does not -> second operand false */
+        wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY, cm, twinSigner);
+        wb_parse_one(&wbLeafByInter, CERT_TYPE, VERIFY_NAME, cm, twinSigner);
+
+        if (twinSigner != NULL) {
+            FreeSigner(twinSigner, NULL);
+        }
+        if (interSigner != NULL) {
+            FreeSigner(interSigner, NULL);
+        }
+
+        /* ---- issuer known, but with no public key attached [:24610].
+         * A Signer only carries a public key when the DecodedCert it was
+         * filled from owned one; the trust store always supplies one, so
+         * the "issuer has no key" operand of the trust-anchor comparison
+         * is otherwise never false. Borrowing the root's own Signer and
+         * detaching its key for the duration of one parse reproduces that
+         * state exactly, with the pointer put back before the Signer is
+         * released so ownership is unchanged. */
+        if (rootSigner != NULL) {
+            const byte* savedKey = rootSigner->publicKey;
+            word32      savedSz  = rootSigner->pubKeySize;
+
+            /* Baseline: the same certificate against the same issuer with
+             * the key still attached, so the accepting vector for this
+             * decision is in this binary too. */
+            wb_parse_one(&wbRootA, CHAIN_CERT_TYPE, VERIFY, cm, rootSigner);
+
+            rootSigner->publicKey  = NULL;
+            rootSigner->pubKeySize = 0;
+            wb_parse_one(&wbRootA, CHAIN_CERT_TYPE, VERIFY, cm, rootSigner);
+            wb_parse_one(&wbInter, CHAIN_CERT_TYPE, VERIFY, cm, rootSigner);
+            rootSigner->publicKey  = savedKey;
+            rootSigner->pubKeySize = savedSz;
+
+            FreeSigner(rootSigner, NULL);
+        }
+        rootSigner = NULL;
+        interSigner = NULL;
+
+        wolfSSL_CertManagerFree(cm);
+    }
+
+    wb_free_keys();
+}
+#else
+static void wb_fixture_parse_matrix(void)
+{
+    WB_NOTE("cert generation or date support not compiled in; "
+            "manufactured-fixture sweep skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Section: the serial-number encoder and the DerBuffer lifecycle.
+ *
+ * These two helpers sit either side of the certificate fixtures above and
+ * have operands the certificate path cannot reach:
+ *
+ *   - SetSerialNumber() strips leading zero octets before it encodes. Under
+ *     the template encoder the certificate generator does not route through
+ *     it at all, and the callers that do route through it never hand it a
+ *     serial that begins with a zero octet, so neither the "still have
+ *     octets left" nor the "this octet is zero" operand of the strip loop is
+ *     ever shown to control it. Calling it directly with a serial that is
+ *     all zeros, one that merely starts with zeros, and one that starts with
+ *     a set high bit drives both operands and the sign-padding branch.
+ *
+ *   - FreeDer() zeroes the buffer only for the two private-key buffer types
+ *     and only when a buffer is actually attached. Certificate code only
+ *     ever frees certificate-typed buffers with a buffer attached, so the
+ *     alternative-private-key type and the detached-buffer case are dead
+ *     from that direction. AllocDer() places the buffer inside the same
+ *     allocation it returns, so clearing the pointer before the free is
+ *     safe: FreeDer() releases the containing block, not the buffer field.
+ * ------------------------------------------------------------------------- */
+static void wb_serial_and_der_helpers(void)
+{
+#if !defined(NO_CERTS)
+    DerBuffer* der = NULL;
+
+#if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS7)
+    {
+        byte out[64];
+        word32 osz = (word32)sizeof(out);
+        /* leading zero octets, then a payload: strip loop runs and stops */
+        static const byte snLeadingZeros[4] = { 0x00, 0x00, 0x00, 0x2A };
+        /* no leading zero: strip loop is entered and exits immediately */
+        static const byte snPlain[3]        = { 0x2A, 0x01, 0x02 };
+        /* every octet zero: strip loop consumes the whole input */
+        static const byte snAllZero[3]      = { 0x00, 0x00, 0x00 };
+        /* high bit set: the encoder reserves an extra sign octet */
+        static const byte snHighBit[3]      = { 0x80, 0x01, 0x02 };
+
+        WB_NOTE("SetSerialNumber(): leading-zero strip loop [:25156]");
+        WB_CHECK(SetSerialNumber(NULL, 4, out, osz, 20) < 0,
+                 "reject a NULL serial");
+        WB_CHECK(SetSerialNumber(snPlain, 3, NULL, osz, 20) < 0,
+                 "reject a NULL output buffer");
+        WB_CHECK(SetSerialNumber(snPlain, 3, out, osz, 20) > 0,
+                 "encode a serial with no leading zeros");
+        WB_CHECK(SetSerialNumber(snLeadingZeros, 4, out, osz, 20) > 0,
+                 "encode a serial after stripping its leading zeros");
+        WB_CHECK(SetSerialNumber(snAllZero, 3, out, osz, 20) < 0,
+                 "reject a serial that is entirely zero octets");
+        WB_CHECK(SetSerialNumber(snHighBit, 3, out, osz, 20) > 0,
+                 "encode a serial whose leading octet has its high bit set");
+    }
+#endif
+
+    WB_NOTE("FreeDer(): buffer-type and attached-buffer guards "
+            "[:25273,:25277]");
+    FreeDer(NULL);                 /* no handle at all         */
+    FreeDer(&der);                 /* handle present, no buffer */
+
+    if (AllocDer(&der, 16, CERT_TYPE, NULL) == 0) {
+        FreeDer(&der);             /* neither private-key type  */
+    }
+    if (AllocDer(&der, 16, PRIVATEKEY_TYPE, NULL) == 0) {
+        FreeDer(&der);             /* first private-key type    */
+    }
+    if (AllocDer(&der, 16, ALT_PRIVATEKEY_TYPE, NULL) == 0) {
+        FreeDer(&der);             /* second private-key type   */
+    }
+    if (AllocDer(&der, 16, PRIVATEKEY_TYPE, NULL) == 0) {
+        /* Private-key type with the buffer detached: the zeroing guard's
+         * last operand goes false while the type operands stay true. */
+        der->buffer = NULL;
+        FreeDer(&der);
+    }
+    WB_CHECK(der == NULL, "FreeDer clears the caller's handle");
+#endif /* !NO_CERTS */
+
+#if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_CERTS)
+    {
+        /* A carriage return, a line feed, then a payload octet: the loop
+         * takes its first operand true on every pass and its two character
+         * operands through all three combinations that can occur. */
+        static const char eol[] = "\r\nX";
+
+        WB_NOTE("SkipEndOfLineChars(): end-of-line scan [:25426]");
+        WB_CHECK(SkipEndOfLineChars(eol, eol + 3) == eol + 2,
+                 "skip both end-of-line characters and stop at the payload");
+        WB_CHECK(SkipEndOfLineChars(eol, eol) == eol,
+                 "stop immediately when the range is empty");
+        WB_CHECK(SkipEndOfLineChars(eol + 2, eol + 3) == eol + 2,
+                 "stop immediately on a non-end-of-line character");
+    }
+#endif
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -1556,6 +2583,8 @@ int main(void)
     wb_set_algo_id();
     wb_decode_dsa_asn1_sig();
     wb_parse_cert_relative_matrix();
+    wb_fixture_parse_matrix();
+    wb_serial_and_der_helpers();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
