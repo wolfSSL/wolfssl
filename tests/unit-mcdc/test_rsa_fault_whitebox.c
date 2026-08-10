@@ -80,9 +80,54 @@
  * binary with NO arguments -- gets full coverage.)
  */
 
+/* SECOND LEVER -- BIG-INTEGER FAULTS (mcdc_fault_mp.h)
+ * ----------------------------------------------------
+ * The heap sweep above cannot reach rsa.c's LARGEST residual class, the
+ * RsaFunctionPrivate / RsaFunctionSync big-integer success chains:
+ *
+ *   if (ret == 0 && mp_exptmod(tmp, &key->dQ, &key->q, tmpb) != MP_OKAY)
+ *   if (ret == 0 && mp_submod(tmpa, tmpb, &key->p, tmp) != MP_OKAY)
+ *   if ((ret == 0) && (mp_montgomery_setup(&key->n, &mp) != MP_OKAY))
+ *   if (ret == 0 && mp_read_unsigned_bin(tmp, in, inLen) != MP_OKAY)
+ *   ... and the same shape all through wc_MakeRsaKey / _CheckProbablePrime
+ *
+ * On a healthy machine no mp_* call ever fails, so the `mp_xxx(..) != MP_OKAY`
+ * operand is never TRUE and the `ret == 0` operand is never FALSE. The heap
+ * lever cannot substitute: with the base config's SP backend the mp scratch is
+ * not always heap, and even where it is, only the ALLOCATION can be failed,
+ * never the computation. mcdc_fault_mp.h macro-interposes the value-returning
+ * mp_* API for this translation unit only (installed BEFORE rsa.c is
+ * #included) and mcdc_fm_arm(n) makes the n-th mp_* call -- and every later
+ * one -- return MP_VAL. One sweep over n therefore drives BOTH operands of
+ * every guard in the chain. Predicates (mp_iszero / mp_cmp / mp_count_bits)
+ * and teardown (mp_clear / mp_forcezero) are NOT interposed, so cleanup keeps
+ * working and every armed call stays crash-safe; mp_init / mp_init_multi are
+ * likewise left alone (MCDC_FM_WITH_INIT is not defined) because rsa.c's
+ * INIT_MP_INT_SIZE failure path still runs mp_forcezero() over the
+ * unconstructed scratch.
+ */
+#include "mcdc_fault_mp.h"
+
+/* mp_montgomery_reduce_ct is the one computation in RsaFunctionPrivate's
+ * blinding-invert tail that mcdc_fault_mp.h does not interpose (it is a macro
+ * in every backend rather than an entry point of its own). Wrapping it here,
+ * on the shared mcdc_fm counter, keeps 3041's pair inside the same sweep. */
+#ifdef mp_montgomery_reduce_ct
+MCDC_FM_MAYBE_UNUSED static int mcdc_rsa_mont_red_ct(mp_int* a, mp_int* m,
+    mp_digit rho)
+{
+    if (mcdc_fm_hit())
+        return MCDC_FM_ERR;
+    return mp_montgomery_reduce_ct(a, m, rho);
+}
+#undef  mp_montgomery_reduce_ct
+#define mp_montgomery_reduce_ct(a, m, rho) mcdc_rsa_mont_red_ct((a), (m), (rho))
+#endif
+
 #include <wolfcrypt/src/rsa.c>
 
 #include "mcdc_fault_alloc.h"
+#include <time.h>
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <stdio.h>
@@ -320,6 +365,407 @@ static void wb_pss_checkpadding_sigcheck(void)
 { WB_NOTE("WOLFSSL_PSS_LONG_SALT/WC_RSA_PSS off; sigCheck check skipped"); }
 #endif
 
+/* ---------------------------------------------------------------------------
+ * FIPS 186-4 section 5.5 item (e): the default PSS salt length is the hash
+ * length EXCEPT for a 1024-bit modulus with SHA-512, where it is clamped to
+ * RSA_PSS_SALT_MAX_SZ. The guard
+ *
+ *     if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+ *
+ * appears in RsaUnPad_PSS and in both wc_RsaPSS_VerifyCheck* entry points,
+ * and every one of them is residual because the suite only ever signs with a
+ * 2048-bit key: the first operand is never TRUE. Three vectors give both
+ * operands their independence pair:
+ *
+ *     1024-bit key + SHA-512  -> (T,T)
+ *     1024-bit key + SHA-256  -> (T,F)
+ *     2048-bit key + SHA-512  -> (F,-)
+ *
+ * A 1024-bit key is only accepted where RSA_MIN_SIZE allows it (the
+ * min_size_1024 variant), which is enough: a condition counts as covered in
+ * the union as soon as ONE build that compiles it demonstrates the pair.
+ * ------------------------------------------------------------------------- */
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_SHA512) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && (RSA_MIN_SIZE <= 1024)
+static void wb_pss_saltlen_1024_sha512(RsaKey* key2048, WC_RNG* rng)
+{
+    RsaKey k1024;
+    byte   sig[256];
+    byte   out[256];
+    byte   dig[WC_SHA512_DIGEST_SIZE];
+    int    sz;
+    int    inited = 0;
+
+    XMEMSET(&k1024, 0, sizeof(k1024));
+    XMEMSET(dig, 0x5c, sizeof(dig));
+
+    if (wc_InitRsaKey(&k1024, NULL) != 0) {
+        wb_fail = 1;
+        return;
+    }
+    inited = 1;
+    if (wc_MakeRsaKey(&k1024, 1024, 65537, rng) != 0) {
+        WB_NOTE("1024-bit keygen refused; PSS salt-length vectors skipped");
+        wb_fail = 1;
+        goto out;
+    }
+
+    /* (T,T): 1024-bit modulus, SHA-512 digest -> clamped salt length */
+    sz = wc_RsaPSS_Sign(dig, WC_SHA512_DIGEST_SIZE, sig, sizeof(sig),
+                        WC_HASH_TYPE_SHA512, WC_MGF1SHA512, &k1024, rng);
+    if (sz > 0) {
+        (void)wc_RsaPSS_VerifyCheck(sig, (word32)sz, out, sizeof(out),
+                                    dig, WC_SHA512_DIGEST_SIZE,
+                                    WC_HASH_TYPE_SHA512, WC_MGF1SHA512,
+                                    &k1024);
+        {   /* the Inline form carries its own copy of the same guard */
+            byte  in2[256];
+            byte* p = NULL;
+            XMEMCPY(in2, sig, (size_t)sz);
+            (void)wc_RsaPSS_VerifyCheckInline(in2, (word32)sz, &p,
+                                              dig, WC_SHA512_DIGEST_SIZE,
+                                              WC_HASH_TYPE_SHA512,
+                                              WC_MGF1SHA512, &k1024);
+        }
+    }
+    else {
+        wb_fail = 1;
+    }
+
+    /* (T,F): same 1024-bit modulus, SHA-256 digest -> salt stays hLen */
+    sz = wc_RsaPSS_Sign(dig, WC_SHA256_DIGEST_SIZE, sig, sizeof(sig),
+                        WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &k1024, rng);
+    if (sz > 0) {
+        (void)wc_RsaPSS_VerifyCheck(sig, (word32)sz, out, sizeof(out),
+                                    dig, WC_SHA256_DIGEST_SIZE,
+                                    WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                                    &k1024);
+        {
+            byte  in2[256];
+            byte* p = NULL;
+            XMEMCPY(in2, sig, (size_t)sz);
+            (void)wc_RsaPSS_VerifyCheckInline(in2, (word32)sz, &p,
+                                              dig, WC_SHA256_DIGEST_SIZE,
+                                              WC_HASH_TYPE_SHA256,
+                                              WC_MGF1SHA256, &k1024);
+        }
+    }
+    else {
+        wb_fail = 1;
+    }
+
+    /* (F,-): the 2048-bit key already built by main, SHA-512 digest */
+    sz = wc_RsaPSS_Sign(dig, WC_SHA512_DIGEST_SIZE, sig, sizeof(sig),
+                        WC_HASH_TYPE_SHA512, WC_MGF1SHA512, key2048, rng);
+    if (sz > 0) {
+        (void)wc_RsaPSS_VerifyCheck(sig, (word32)sz, out, sizeof(out),
+                                    dig, WC_SHA512_DIGEST_SIZE,
+                                    WC_HASH_TYPE_SHA512, WC_MGF1SHA512,
+                                    key2048);
+        {
+            byte  in2[256];
+            byte* p = NULL;
+            XMEMCPY(in2, sig, (size_t)sz);
+            (void)wc_RsaPSS_VerifyCheckInline(in2, (word32)sz, &p,
+                                              dig, WC_SHA512_DIGEST_SIZE,
+                                              WC_HASH_TYPE_SHA512,
+                                              WC_MGF1SHA512, key2048);
+        }
+    }
+
+    WB_NOTE("PSS FIPS 5.5(e) 1024-bit/SHA-512 salt-length vectors done");
+
+out:
+    if (inited)
+        wc_FreeRsaKey(&k1024);
+}
+#else
+static void wb_pss_saltlen_1024_sha512(RsaKey* key2048, WC_RNG* rng)
+{
+    (void)key2048; (void)rng;
+    WB_NOTE("PSS/SHA-512/keygen off or RSA_MIN_SIZE > 1024; 5.5(e) skipped");
+}
+#endif
+
+/* ---------------------------------------------------------------------------
+ * RsaFunctionPrivate 2946: the five mp_iszero() CRT-component operands
+ *
+ *   if (ret == 0 && (mp_iszero(&key->p) || mp_iszero(&key->q) ||
+ *           mp_iszero(&key->dP) || mp_iszero(&key->dQ) || mp_iszero(&key->u)))
+ *
+ * Every key the API can produce carries a complete CRT set, so operands 1..5
+ * are all-FALSE forever and the non-CRT fallback exptmod is dead code from the
+ * public surface. A white-box can build the missing halves directly: five
+ * scratch keys, each a copy of the good key with exactly ONE component left at
+ * its post-wc_InitRsaKey zero, so in key i the i-th mp_iszero is the FIRST
+ * TRUE operand of the chain (every earlier one FALSE) -- the exact
+ * independence vector for that operand, with the all-FALSE partner supplied by
+ * every ordinary private op in this same binary.
+ *
+ * Scratch keys, never the shared one: the mutation is destructive, and the
+ * blinding/CRT ops that follow would be wrong for every later case.
+ * RsaFunctionPrivate is called directly (it is file-static, and the public
+ * entry points reject a key with a zero p before reaching it).
+ * ------------------------------------------------------------------------ */
+#if !defined(WOLFSSL_SP_MATH) && !defined(RSA_LOW_MEM) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+static void wb_priv_zero_crt_components(RsaKey* key, WC_RNG* rng)
+{
+    int i;
+
+    for (i = 0; i < 5; i++) {
+        RsaKey zk;
+        mp_int tmp;
+
+        if (wc_InitRsaKey(&zk, NULL) != 0) { wb_fail = 1; continue; }
+        if ((mp_copy(&key->n, &zk.n) != MP_OKAY) ||
+            (mp_copy(&key->e, &zk.e) != MP_OKAY) ||
+            (mp_copy(&key->d, &zk.d) != MP_OKAY)) {
+            wc_FreeRsaKey(&zk);
+            wb_fail = 1;
+            continue;
+        }
+        /* everything but the i-th component; the i-th stays zero */
+        if (i != 0) (void)mp_copy(&key->p,  &zk.p);
+        if (i != 1) (void)mp_copy(&key->q,  &zk.q);
+        if (i != 2) (void)mp_copy(&key->dP, &zk.dP);
+        if (i != 3) (void)mp_copy(&key->dQ, &zk.dQ);
+        if (i != 4) (void)mp_copy(&key->u,  &zk.u);
+
+        if (mp_init(&tmp) == MP_OKAY) {
+            /* any residue < n; the fallback path is a plain tmp^d mod n */
+            (void)mp_set(&tmp, 42);
+            (void)RsaFunctionPrivate(&tmp, &zk, rng);
+            mp_forcezero(&tmp);
+        }
+        wc_FreeRsaKey(&zk);
+    }
+    WB_NOTE("RsaFunctionPrivate zero-p/q/dP/dQ/u vectors done");
+}
+#else
+static void wb_priv_zero_crt_components(RsaKey* key, WC_RNG* rng)
+{
+    (void)key; (void)rng;
+    WB_NOTE("SP_MATH / LOW_MEM / reduced-surface build; zero-CRT vectors n/a");
+}
+#endif
+
+/* ---------------------------------------------------------------------------
+ * Padding-helper data vectors (no fault injection needed -- these operands are
+ * simply never produced by a well-formed block or a well-formed argument set,
+ * and the helpers are file-static or take the deciding value as a plain
+ * parameter, so only a white-box can supply them).
+ *
+ *   2043 idx1  pkcsBlock[1] != RSA_BLOCK_TYPE_1 with pkcsBlock[0] == 0
+ *   2056 idx0  separator found before RSA_MIN_PAD_SZ bytes of padding
+ *   2056 idx1  >= RSA_MIN_PAD_SZ bytes but the byte before the run end != 0
+ *   1794 idx0  RsaUnPad_OAEP with an unusable hash type (digest size < 0)
+ *   1794 idx1  usable hash, but pkcsBlockLen < 2*hLen + 2
+ *   1729 idx0/1  wc_RsaPad_ex(WC_RSA_NO_PAD) with bits <= 0 / a length mismatch
+ *   2148 idx0/1  the same pair on the un-pad side
+ *   4547 idx0/1  wc_RsaPSS_CheckPadding_ex2's FIPS 186-4 5.5(e) salt reduction:
+ *                `bits` is a plain parameter here, so the 1024-bit half needs
+ *                no 1024-bit key and no RSA_MIN_SIZE override
+ *   1528 idx1 / 1937 idx1  the same 5.5(e) test inside RsaPad_PSS /
+ *                RsaUnPad_PSS, both file-static and both taking `bits`
+ *                directly: hLen is varied (SHA-512 vs SHA-256) with bits
+ *                pinned at 1024 to flip operand 1 alone.
+ *
+ * Every vector's accepting partner is produced by the ordinary sign / verify /
+ * encrypt / decrypt traffic earlier in this same binary.
+ * ------------------------------------------------------------------------ */
+static void wb_pad_unpad_vectors(WC_RNG* rng)
+{
+    byte blk[512];
+    byte out[512];
+    const byte* cp = NULL;
+    byte*  op = NULL;
+
+    XMEMSET(blk, 0, sizeof(blk));
+    XMEMSET(out, 0, sizeof(out));
+
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    /* --- RsaUnPad block-type-1 formatting guards ------------------------- */
+    blk[0] = 0x00; blk[1] = 0x02;          /* 2043: idx0 F, idx1 T */
+    (void)RsaUnPad(blk, 64, &cp, RSA_BLOCK_TYPE_1);
+
+    blk[0] = 0x00; blk[1] = 0x01; blk[2] = 0x00;
+    (void)RsaUnPad(blk, 64, &cp, RSA_BLOCK_TYPE_1);   /* 2056: idx0 T */
+
+    XMEMSET(blk, 0, sizeof(blk));
+    blk[0] = 0x00; blk[1] = 0x01;
+    XMEMSET(blk + 2, 0xFF, 9);             /* indices 2..10 */
+    blk[11] = 0xAA;                        /* run ends at i=12, blk[11] != 0 */
+    (void)RsaUnPad(blk, 64, &cp, RSA_BLOCK_TYPE_1);   /* 2056: idx0 F, idx1 T */
+#endif
+
+#if !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    /* --- RsaUnPad_OAEP digest-size / block-length guard ------------------- */
+    XMEMSET(blk, 0, sizeof(blk));
+    /* idx0 T: wc_HashGetDigestSize(WC_HASH_TYPE_NONE) is negative */
+    (void)RsaUnPad_OAEP(blk, 64, &op, WC_HASH_TYPE_NONE, WC_MGF1SHA256,
+                        NULL, 0, NULL);
+    /* idx0 F, idx1 T: SHA-256 needs at least 2*32+2 = 66 bytes */
+    (void)RsaUnPad_OAEP(blk, 8, &op, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                        NULL, 0, NULL);
+#endif
+
+#ifdef WC_RSA_NO_PADDING
+    /* --- the no-padding exact-length guards, pad and un-pad side ---------- */
+    XMEMSET(blk, 0x5a, sizeof(blk));
+    /* 1729 idx0 T (bits <= 0) */
+    (void)wc_RsaPad_ex(blk, 256, out, sizeof(out), RSA_BLOCK_TYPE_2, rng,
+                       WC_RSA_NO_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                       NULL, 0, 0, 0, NULL);
+    /* 1729 idx0 F, idx1 T (2048 bits wants exactly 256 input bytes) */
+    (void)wc_RsaPad_ex(blk, 128, out, sizeof(out), RSA_BLOCK_TYPE_2, rng,
+                       WC_RSA_NO_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                       NULL, 0, 0, 2048, NULL);
+    /* 1729 all-false partner */
+    (void)wc_RsaPad_ex(blk, 256, out, sizeof(out), RSA_BLOCK_TYPE_2, rng,
+                       WC_RSA_NO_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                       NULL, 0, 0, 2048, NULL);
+
+    op = NULL;
+    /* 2148 idx0 T */
+    (void)wc_RsaUnPad_ex(blk, 256, &op, RSA_BLOCK_TYPE_2, WC_RSA_NO_PAD,
+                         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, 0, 0,
+                         NULL);
+    /* 2148 idx0 F, idx1 T */
+    (void)wc_RsaUnPad_ex(blk, 128, &op, RSA_BLOCK_TYPE_2, WC_RSA_NO_PAD,
+                         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, 0, 2048,
+                         NULL);
+    /* 2148 all-false partner */
+    (void)wc_RsaUnPad_ex(blk, 256, &op, RSA_BLOCK_TYPE_2, WC_RSA_NO_PAD,
+                         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, 0, 2048,
+                         NULL);
+#endif /* WC_RSA_NO_PADDING */
+
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_SHA512)
+    {
+        byte  in512[WC_SHA512_DIGEST_SIZE];
+        byte  in256[WC_SHA256_DIGEST_SIZE];
+        byte  sig[WC_SHA512_DIGEST_SIZE * 2];
+
+        XMEMSET(in512, 0x5a, sizeof(in512));
+        XMEMSET(in256, 0x5a, sizeof(in256));
+        XMEMSET(sig,   0xa5, sizeof(sig));
+
+        /* 4547 (T,T): bits == 1024 AND inSz == SHA-512 digest size. */
+        (void)wc_RsaPSS_CheckPadding_ex2(in512, sizeof(in512), sig,
+            (word32)(RSA_PSS_SALT_MAX_SZ + (int)sizeof(in512)),
+            WC_HASH_TYPE_SHA512, RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+        /* 4547 (F,-): same call at 2048 bits. */
+        (void)wc_RsaPSS_CheckPadding_ex2(in512, sizeof(in512), sig,
+            (word32)(2 * sizeof(in512)), WC_HASH_TYPE_SHA512,
+            RSA_PSS_SALT_LEN_DEFAULT, 2048, NULL);
+        /* 4547 (T,F): 1024 bits but a SHA-256 digest. */
+        (void)wc_RsaPSS_CheckPadding_ex2(in256, sizeof(in256), sig,
+            (word32)(2 * sizeof(in256)), WC_HASH_TYPE_SHA256,
+            RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+
+#ifndef WC_NO_RNG
+        /* 1528 idx1: RsaPad_PSS's own copy of the 5.5(e) test. bits pinned at
+         * 1024 for both calls so ONLY hLen differs -- that is the operand-1
+         * independence pair. The block never has to verify; the salt-length
+         * selection happens before any of that. */
+        (void)RsaPad_PSS(in512, sizeof(in512), out, 128, rng,
+                         WC_HASH_TYPE_SHA512, WC_MGF1SHA512,
+                         RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+        (void)RsaPad_PSS(in256, sizeof(in256), out, 128, rng,
+                         WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                         RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+#endif
+        /* 1937 idx1: the same test inside RsaUnPad_PSS. */
+        XMEMSET(blk, 0xbc, 128);
+        op = NULL;
+        (void)RsaUnPad_PSS(blk, 128, &op, WC_HASH_TYPE_SHA512, WC_MGF1SHA512,
+                           RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+        op = NULL;
+        (void)RsaUnPad_PSS(blk, 128, &op, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                           RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+    }
+#endif /* WC_RSA_PSS && WOLFSSL_SHA512 */
+
+    (void)rng; (void)cp; (void)op;
+    WB_NOTE("pad/un-pad formatting + FIPS 5.5(e) salt vectors done");
+}
+
+/* ---------------------------------------------------------------------------
+ * RsaPublicEncryptEx 3707 idx0: `sz < RSA_MIN_PAD_SZ`.
+ *
+ * sz is wc_RsaEncryptSize(key) = the byte length of n, and every key the API
+ * can build is at least RSA_MIN_SIZE bits, so the guard is dead from outside.
+ * A scratch key whose n is a single byte makes sz == 1 and drives operand 0
+ * TRUE; the FALSE-FALSE partner is every real encrypt in this binary. (The
+ * upper operand `sz > RSA_MAX_SIZE/8` is NOT attempted: n would have to exceed
+ * the math backend's own maximum bit width, so mp_read cannot build one --
+ * recorded as a residual rather than a gap.)
+ * ------------------------------------------------------------------------ */
+static void wb_encryptsize_lower_bound(WC_RNG* rng)
+{
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    RsaKey sk;
+    byte   in[4];
+    byte   out[64];
+
+    XMEMSET(in, 0x11, sizeof(in));
+    XMEMSET(out, 0, sizeof(out));
+
+    if (wc_InitRsaKey(&sk, NULL) != 0) { wb_fail = 1; return; }
+    if ((mp_set(&sk.n, 0x0b) == MP_OKAY) && (mp_set(&sk.e, 3) == MP_OKAY)) {
+        sk.type = RSA_PUBLIC;
+        (void)wc_RsaPublicEncrypt(in, 1, out, sizeof(out), &sk, rng);
+    }
+    else {
+        wb_fail = 1;
+    }
+    wc_FreeRsaKey(&sk);
+    WB_NOTE("RsaPublicEncryptEx sz < RSA_MIN_PAD_SZ vector done");
+#else
+    (void)rng;
+#endif
+}
+
+/* ---------------------------------------------------------------------------
+ * wc_RsaFunction 3593 idx1 / 3604 idx1: the bounds-check dispatch
+ *
+ *   if (type == RSA_PRIVATE_DECRYPT && key->state == RSA_STATE_DECRYPT_EXPTMOD)
+ *   if (type == RSA_PUBLIC_DECRYPT  && key->state == RSA_STATE_DECRYPT_EXPTMOD)
+ *
+ * Reached from wc_RsaPrivateDecrypt / wc_RsaSSL_Verify the state operand is
+ * always TRUE when the type operand is, so operand 1's FALSE half needs a
+ * direct call with the key parked in another state -- which is exactly what a
+ * caller driving wc_RsaFunction itself (the documented public entry point)
+ * does. Uses a scratch key so the shared key's state machine is untouched.
+ * ------------------------------------------------------------------------ */
+static void wb_rsafunction_state_operand(RsaKey* key, WC_RNG* rng,
+                                         const byte* ct, int ctLen)
+{
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
+    !defined(NO_RSA_BOUNDS_CHECK) && !defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    byte   out[WB_RSA_BYTES];
+    word32 outLen = sizeof(out);
+
+    if (ctLen <= 0)
+        return;
+    XMEMSET(out, 0, sizeof(out));
+
+    key->state = RSA_STATE_NONE;
+    (void)wc_RsaFunction(ct, (word32)ctLen, out, &outLen, RSA_PRIVATE_DECRYPT,
+                         key, rng);
+    key->state = RSA_STATE_NONE;
+    outLen = sizeof(out);
+    (void)wc_RsaFunction(ct, (word32)ctLen, out, &outLen, RSA_PUBLIC_DECRYPT,
+                         key, rng);
+    key->state = RSA_STATE_NONE;
+    WB_NOTE("wc_RsaFunction type/state dispatch operand-1 vectors done");
+#else
+    (void)key; (void)rng; (void)ct; (void)ctLen;
+#endif
+}
+
 int main(int argc, char** argv)
 {
     int      do_baseline = (argc > 1 && strcmp(argv[1], "baseline") == 0);
@@ -342,6 +788,7 @@ int main(int argc, char** argv)
     byte     der[WB_RSA_BYTES * 4];
     int      ctLen = 0, derLen = 0;
     int      n, rep, ret;
+    time_t   heap_t0 = 0;
 
     printf("rsa.c fault white-box (%s)\n",
            do_baseline ? "baseline" : (do_probe ? "probe" : "sweep"));
@@ -402,6 +849,16 @@ int main(int argc, char** argv)
      * wall-clock limit, and anything queued behind it would be lost with the
      * whole run. */
     wb_pss_checkpadding_sigcheck();
+    wb_pss_saltlen_1024_sha512(&key, &rng);
+
+    /* Data-only white-box vectors: no injector, microseconds each, and they
+     * must not sit behind the heap sweeps (whose RSA_LOW_MEM instance can hit
+     * the harness wall-clock limit and take the whole run's profile with it). */
+    wb_pad_unpad_vectors(&rng);
+    wb_encryptsize_lower_bound(&rng);
+    wb_priv_zero_crt_components(&key, &rng);
+    if (ctLen > 0)
+        wb_rsafunction_state_operand(&key, &rng, ct, ctLen);
 
 #ifndef MCDC_FA_UNAVAILABLE
     if (do_probe) {
@@ -440,10 +897,150 @@ int main(int argc, char** argv)
 #endif
 
     if (do_sweep) {
+        /* ---- big-integer fault sweeps (mcdc_fault_mp.h) -------------------
+         * FIRST, deliberately: these are the cheapest sweeps in the file (an
+         * armed mp_* call aborts its entry point within a handful of big-int
+         * operations) and they carry the largest single block of residuals in
+         * rsa.c, so they must not be queued behind the multi-thousand-index
+         * heap sweeps below -- under RSA_LOW_MEM those can reach the harness
+         * wall-clock limit, and a timed-out white-box contributes nothing.
+         *
+         * Each target is first run DISARMED: that supplies the all-TRUE
+         * (ret==0, every mp op OK) row of every guard in the chain IN THIS
+         * BINARY -- the accepting half without which the rejecting vectors
+         * below prove no independence pair -- and measures the sweep length K.
+         * Then the fail index is swept over [1..K]: index n drives operand 1
+         * TRUE at the n-th call site and operand 0 FALSE at every guard
+         * downstream of it. Inputs are rebuilt (or are read-only) while
+         * disarmed, so every armed call starts from the same known-good
+         * state. */
+        {
+            time_t t0 = time(NULL);
+            long   k, i;
+
+#define WB_MP_MAX      600
+#define WB_MP_DEADLINE 150
+#define WB_MP_EXPIRED() (difftime(time(NULL), t0) > (double)WB_MP_DEADLINE)
+#define WB_MP_SWEEP(lbl, ...)                                             \
+    do {                                                                  \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k = mcdc_fm_seen();                                               \
+        if (k > WB_MP_MAX)                                                \
+            k = WB_MP_MAX;                                                \
+        for (i = 1; (i <= k) && !WB_MP_EXPIRED(); i++) {                  \
+            mcdc_fm_arm(i);                                               \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k);                  \
+    } while (0)
+
+            if (WANT("mp")) {
+                byte o[WB_RSA_BYTES];
+
+                /* RsaFunctionSync public path: tmp read-in + exptmod. */
+                XMEMSET(o, 0, sizeof(o));
+                WB_MP_SWEEP("RsaPublicEncrypt",
+                    (void)wc_RsaPublicEncrypt(msg, sizeof(msg), o, sizeof(o),
+                                              &key, &rng));
+
+                /* RsaFunctionPrivate: the blinding invmod/exptmod/mulmod
+                 * chain, the CRT dP/dQ/u chain and the montgomery
+                 * blinding-invert tail -- the single largest residual block
+                 * in the file. */
+                WB_MP_SWEEP("RsaSSL_Sign",
+                    { byte s2[WB_RSA_BYTES];
+                      XMEMSET(s2, 0, sizeof(s2));
+                      (void)wc_RsaSSL_Sign(msg, sizeof(msg), s2, sizeof(s2),
+                                           &key, &rng); });
+
+                if (ctLen > 0) {
+                    WB_MP_SWEEP("RsaPrivateDecrypt",
+                        { byte d2[WB_RSA_BYTES];
+                          XMEMSET(d2, 0, sizeof(d2));
+                          (void)wc_RsaPrivateDecrypt(ct, (word32)ctLen, d2,
+                                                     sizeof(d2), &key); });
+                }
+
+                WB_MP_SWEEP("RsaSSL_Verify",
+                    { byte v2[WB_RSA_BYTES];
+                      XMEMSET(v2, 0, sizeof(v2));
+                      (void)wc_RsaSSL_Verify(sig, sizeof(sig), v2, sizeof(v2),
+                                             &key); });
+
+#ifdef WOLFSSL_RSA_KEY_CHECK
+                WB_MP_SWEEP("CheckRsaKey", (void)wc_CheckRsaKey(&key));
+#endif
+#ifdef WOLFSSL_KEY_TO_DER
+                WB_MP_SWEEP("RsaKeyToDer",
+                    (void)wc_RsaKeyToDer(&key, der, sizeof(der)));
+#endif
+                if (derLen > 0) {
+                    WB_MP_SWEEP("RsaPrivateKeyDecode",
+                        { RsaKey dk; word32 idx = 0;
+                          if (wc_InitRsaKey(&dk, NULL) == 0) {
+                              (void)wc_RsaPrivateKeyDecode(der, &idx, &dk,
+                                                           (word32)derLen);
+                              wc_FreeRsaKey(&dk);
+                          } });
+                }
+                mcdc_fm_disarm();
+            }
+
+            /* Prime-search err == MP_OKAY chains. Deliberately shallow: an
+             * armed wc_MakeRsaKey aborts as soon as the injected failure is
+             * reached, so a LOW fail index costs only the few prime
+             * candidates evaluated before it, while a high one would pay for
+             * a full 1024-bit prime search per iteration. WB_MAKEKEY_K is
+             * therefore small on purpose -- this white-box already carries
+             * the multi-thousand-index heap sweeps below, and under
+             * RSA_LOW_MEM the binary as a whole runs close to the harness
+             * wall-clock limit (a timed-out run yields NO profile at all, so
+             * "shallow but finished" strictly beats "deep but killed"). */
+#define WB_MAKEKEY_K 12
+            if (WANT("mpkeygen")) {
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+                int isPrime = 0;
+
+                /* 5249 idx1: |p-q| below the FIPS 186 bound with
+                 * wc_CompareDiffPQ itself succeeding -- q == p makes the
+                 * difference zero. The sweep right after supplies idx0 by
+                 * failing that same call. Real 1024-bit primes (the key built
+                 * at the top of main) so the whole function body runs, not
+                 * just its lower-bound rejection. */
+                (void)_CheckProbablePrime(&key.p, &key.p, &key.e,
+                                          WB_RSA_BITS, &isPrime, &rng);
+                WB_MP_SWEEP("CheckProbablePrime(q)",
+                    { int ip = 0;
+                      (void)_CheckProbablePrime(&key.p, &key.q, &key.e,
+                                                WB_RSA_BITS, &ip, &rng); });
+                WB_MP_SWEEP("CheckProbablePrime(p)",
+                    { int ip = 0;
+                      (void)_CheckProbablePrime(&key.p, NULL, &key.e,
+                                                WB_RSA_BITS, &ip, &rng); });
+
+                for (i = 1; (i <= WB_MAKEKEY_K) && !WB_MP_EXPIRED(); i++) {
+                    RsaKey mk;
+                    if (wc_InitRsaKey(&mk, NULL) != 0) { wb_fail = 1; continue; }
+                    mcdc_fm_arm(i);
+                    (void)wc_MakeRsaKey(&mk, WB_RSA_BITS, 65537, &rng);
+                    mcdc_fm_disarm();
+                    wc_FreeRsaKey(&mk);
+                }
+                printf("  [wb] mp sweep MakeRsaKey: K=%d\n", WB_MAKEKEY_K);
+#endif
+                mcdc_fm_disarm();
+            }
+            mcdc_fm_disarm();
+            WB_NOTE("big-integer fault sweeps done");
+        }
+
         /* --- wc_RsaPublicEncrypt: RsaFunctionSync public path -- tmp NEW/INIT,
          * mp_read_unsigned_bin (line 3075), mp_exptmod_nct. Faulting the n-th
          * alloc drives the tmp NULL/INIT-fail and the ret==0 && mp_*!=MP_OKAY
          * halves at 3075 and in RsaFunctionCheckIn (3499). --- */
+        heap_t0 = time(NULL);
         if (WANT("pub"))
         for (n = 1; n <= WB_SWEEP_K; n++) {
             byte o[WB_RSA_BYTES];
@@ -460,9 +1057,19 @@ int main(int argc, char** argv)
          * RNG value each call so the deeper mp scratch alloc counts drift;
          * repeat the sweep so the union reaches every op despite the drift.
          * The key is reused (private ops do not mutate it); output is fresh. --- */
+        /* Wall-clock guard. The harness kills a white-box at TEST_TIMEOUT and
+         * a killed run yields NO profile at all, so every vector before the
+         * kill is lost too -- "shallow but finished" strictly beats "deep but
+         * killed". RSA_LOW_MEM (non-CRT: one full-width private exptmod per
+         * iteration instead of two half-width ones) is several times slower
+         * per vector than the CRT variants, which is exactly the build that
+         * ran into the limit. The deadline is checked between vectors, so it
+         * truncates the sweep instead of aborting it. */
+#define WB_HEAP_DEADLINE 330
+#define WB_HEAP_EXPIRED() (difftime(time(NULL), heap_t0) > (double)WB_HEAP_DEADLINE)
         if (WANT("priv"))
         for (rep = 0; rep < WB_PRIV_REP; rep++) {
-            for (n = 1; n <= WB_PRIV_K; n++) {
+            for (n = 1; n <= WB_PRIV_K && !WB_HEAP_EXPIRED(); n++) {
                 byte s2[WB_RSA_BYTES];
                 XMEMSET(s2, 0, sizeof(s2));
                 mcdc_fa_arm(n);
@@ -470,7 +1077,7 @@ int main(int argc, char** argv)
                 mcdc_fa_disarm();
             }
             if (ctLen > 0) {
-                for (n = 1; n <= WB_PRIV_K; n++) {
+                for (n = 1; n <= WB_PRIV_K && !WB_HEAP_EXPIRED(); n++) {
                     byte d2[WB_RSA_BYTES];
                     XMEMSET(d2, 0, sizeof(d2));
                     mcdc_fa_arm(n);
@@ -541,6 +1148,7 @@ int main(int argc, char** argv)
 
     mcdc_fa_disarm();
     mcdc_fa_restore();
+    mcdc_fm_disarm();
     wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
 
