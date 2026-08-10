@@ -165,6 +165,11 @@
  * before the .c below pulls in any wolfSSL header -- routes every
  * SAVE_VECTOR_REGISTERS2() site through a variable this file controls. Same
  * arrangement as test_wc_mlkem_poly_whitebox.c. */
+/* Sweep depth for the allocation-failure pass. Each index repeats the
+ * whole dispatch+crafted driving, and TEST_TIMEOUT is wall clock under
+ * MAXPAR, so this stays modest. */
+#define WB_FAULT_MAX_N 20
+
 static int wb_intr_ret = 0;
 #define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
 
@@ -182,6 +187,8 @@ static int wb_intr_ret = 0;
 #define MCDC_FM_IMPL
 #include "mcdc_fault_mutex.h"
 
+
+#include "mcdc_fault_alloc.h"
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -1549,6 +1556,7 @@ static void wb_run_crafted_curve(int curve_id, int fieldSz,
     byte       bigbuf[80]; /* fieldSz+1 <= 67 (P-521); comfortably fits */
     int        inMont;
     int        map;
+    int        fa;
     int        ok = 1;
 
     XMEMSET(&keyA, 0, sizeof(keyA));
@@ -1605,6 +1613,18 @@ static void wb_run_crafted_curve(int curve_id, int fieldSz,
                         (void)mulmod_add(&km, &keyA.pubkey, &keyB.pubkey,
                             inMont, r, map, NULL);
                     }
+                }
+                /* The `(err == MP_OKAY) && (!inMont)` triples above only ever
+                 * see err holding. err can only move when SP_ALLOC_VAR is a
+                 * real allocation (WOLFSSL_SP_SMALL_STACK), and only for THIS
+                 * function's own two allocations -- so the arming has to hug
+                 * the call. Anything wider and the failure lands in the setup
+                 * and the target is never entered. */
+                for (fa = 1; fa <= 4; fa++) {
+                    mcdc_fa_arm(fa);
+                    (void)mulmod_add(&km, &keyA.pubkey, &keyB.pubkey, 0, r, 1,
+                        NULL);
+                    mcdc_fa_disarm();
                 }
                 mp_clear(&km);
             }
@@ -1905,6 +1925,12 @@ int main(void)
      * TT+FT+TF => full MC/DC of each BMI2&&ADX dispatch within this binary. */
     {
         cpuid_flags_t real = cpuid_get_flags();
+        int wb_n;
+
+        /* Installed before the first pass: the drivers below arm the injector
+         * around individual calls themselves, and an arm() with no allocators
+         * installed is a no-op. */
+        mcdc_fa_install();
 
         /* Many dispatches live inside data-dependent blocks (e.g.
          * sp_<size>_calc_vfy_point / ecc_is_point / calc_s), only reached with
@@ -1969,6 +1995,43 @@ int main(void)
         wb_intr_ret = 0;
 
         wb_run_rsa_free();
+
+        /* Allocation-failure pass.
+         *
+         * Under WOLFSSL_SP_SMALL_STACK, SP_ALLOC_VAR is a real XMALLOC whose
+         * result is checked, so a failed allocation is the only thing that can
+         * put `err` anywhere other than MP_OKAY -- which is what every
+         * `if ((err == MP_OKAY) && ...)` in this file needs to see its first
+         * operand go false. Without the macro those temporaries are stack
+         * arrays and the operand is dead by construction; the sweep then costs
+         * one pass and proves nothing, which is why it runs last.
+         *
+         * It reuses wb_run_dispatch()/wb_run_crafted() rather than the public
+         * API on purpose: the chains live in the file-static
+         * sp_*_ecc_mulmod_add/calc_vfy_point/calc_s family, and those two are
+         * already written to call every one of them.
+         *
+         * mcdc_fa_arm(n) fails allocation n AND every later one, so each pass
+         * gets its own arming with the setup done disarmed. */
+        cpuid_select_flags(real);
+        for (wb_n = 1; wb_n <= WB_FAULT_MAX_N; wb_n++) {
+            mcdc_fa_arm(wb_n);
+            wb_run_dispatch();
+            mcdc_fa_disarm();
+
+            mcdc_fa_arm(wb_n);
+            wb_run_rsa_signverify();
+            mcdc_fa_disarm();
+
+            mcdc_fa_arm(wb_n);
+            wb_run_dh();
+            mcdc_fa_disarm();
+        }
+        /* wb_run_crafted() is deliberately NOT wrapped: a blanket arming makes
+         * its own key setup fail, so it returns before reaching the targets.
+         * Its mulmod_add sweep is armed around the call itself instead. */
+        mcdc_fa_disarm();
+        mcdc_fa_restore();
     }
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
