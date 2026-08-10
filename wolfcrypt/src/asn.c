@@ -22557,6 +22557,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
 
 #if defined(HAVE_RPK)
     /* try to parse the cert as Raw Public Key cert */
+    word32 rpkStartIdx = cert->srcIdx;
     DECL_ASNGETDATA(RPKdataASN, RPKCertASN_Length);
     CALLOC_ASNGETDATA(RPKdataASN, RPKCertASN_Length, ret, cert->heap);
     GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID],
@@ -22596,10 +22597,22 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     FREE_ASNGETDATA(RPKdataASN, cert->heap);
 
     if (ret == 0) {
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* Data after the SubjectPublicKeyInfo is rejected the same way as
+         * data after a certificate's outer SEQUENCE below. */
+        if ((!stopAtPubKey) && (!stopAfterPubKey) && (!cert->allowTrailing) &&
+                (cert->srcIdx != cert->maxIdx)) {
+            WOLFSSL_MSG("Trailing data after certificate");
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            return ASN_PARSE_E;
+        }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
         return ret;
     }
     else {
-        ret = 0;    /* proceed to the original x509 parsing */
+        /* Restore the index and proceed to the original x509 parsing. */
+        cert->srcIdx = rpkStartIdx;
+        ret = 0;
     }
 #endif /* HAVE_RPK */
 
@@ -22630,6 +22643,19 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
 #endif
     }
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* cert->srcIdx is now just past the certificate's outer SEQUENCE. Reject
+     * any data after it, with two exceptions: the pubkey-only paths
+     * (stopAtPubKey/stopAfterPubKey), whose callers may pass larger buffers,
+     * and the TRUSTED CERTIFICATE format (cert->allowTrailing), which carries
+     * auxiliary trust data after the certificate. */
+    if ((ret == 0) && (!stopAtPubKey) && (!stopAfterPubKey) &&
+            (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)) {
+        WOLFSSL_MSG("Trailing data after certificate");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
+    }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
     /* Check version is valid/supported - can't be negative. */
     if ((ret == 0) && (version > MAX_X509_VERSION)) {
         WOLFSSL_MSG("Unexpected certificate version");
@@ -22864,31 +22890,6 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             }
         }
     }
-
-#ifndef WOLFSSL_NO_ASN_STRICT
-    /* Reject trailing data after the certificate's outer SEQUENCE.
-     *
-     * The template parser (GetASN_Items) only verifies that constructed items
-     * nested under the top-level item are fully consumed - it never checks that
-     * the outermost SEQUENCE spans all the way to maxIdx. Without this check,
-     * arbitrary bytes appended after a certificate are silently accepted and
-     * then returned/hashed verbatim by wolfSSL_i2d_X509 / wolfSSL_X509_get_der /
-     * wolfSSL_X509_digest (which operate on the stored source buffer of length
-     * maxIdx).
-     *
-     * cert->srcIdx points just past the certificate's outer SEQUENCE after the
-     * x509CertASN parse above. Only enforce this on a full parse; the
-     * pubkey-only paths (stopAtPubKey/stopAfterPubKey) intentionally parse the
-     * whole template but their callers may pass larger buffers. The TRUSTED
-     * CERTIFICATE format legitimately carries auxiliary trust data after the
-     * certificate, so allow it when cert->allowTrailing is set. */
-    if ((ret == 0) && (!done) &&
-            (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)) {
-        WOLFSSL_MSG("Trailing data after certificate");
-        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-        ret = ASN_PARSE_E;
-    }
-#endif /* !WOLFSSL_NO_ASN_STRICT */
 
     if ((ret == 0) && (!done) && (badDate != 0)) {
         /* Parsed whole certificate fine but return any date errors. */
@@ -24217,6 +24218,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         WOLFSSL_MSG("Parsed Past Key");
 #if defined(HAVE_RPK)
         if (cert->isRPK) {
+#ifndef WOLFSSL_NO_ASN_STRICT
+            /* A Raw Public Key cert is only the SubjectPublicKeyInfo; reject
+             * data after it like data after a certificate's outer SEQUENCE. */
+            if ((!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)) {
+                WOLFSSL_MSG("Trailing data after certificate");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                return ASN_PARSE_E;
+            }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
             return ret;
         }
 #endif /* HAVE_RPK */
@@ -35849,6 +35859,10 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
 #endif
 
     InitDecodedCert(cert, resp->cert, resp->certSz, heap);
+    /* The response's certs field may hold a chain (RFC 6960: SEQUENCE OF
+     * Certificate) and certSz spans all of it; only the first certificate is
+     * parsed and used, so permit the data that follows it. */
+    cert->allowTrailing = 1;
     ret = ParseCertRelative(cert, CERT_TYPE,
                             noVerify ? NO_VERIFY : VERIFY_OCSP_CERT,
                             cm, resp->pendingCAs);

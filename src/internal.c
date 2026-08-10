@@ -14761,6 +14761,27 @@ static void CopyDateToASN1_TIME(const byte* srcDate, int srcDateLen,
         dst->length = 0;
     }
 }
+
+/* Store the DER object at the start of source in a new DerBuffer, bounded by
+ * the end of the object rather than maxIdx (the full input length). With
+ * WOLFSSL_ASN_TEMPLATE, srcIdx is written only when the object's outer
+ * SEQUENCE parses and so marks its end. The original parser instead rebounds
+ * maxIdx to the outer SEQUENCE itself, while its srcIdx advances step by step
+ * and can rest inside the object, so there it is not a valid bound. */
+static int AllocCopyDecodedDer(DerBuffer** der, const byte* source,
+    word32 maxIdx, word32 srcIdx, void* heap)
+{
+    word32 derSz = maxIdx;
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+    if ((srcIdx > 0) && (srcIdx < derSz)) {
+        derSz = srcIdx;
+    }
+#else
+    (void)srcIdx;
+#endif
+    return AllocCopyDer(der, source, derSz, CERT_TYPE, heap);
+}
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
         *  OPENSSL_EXTRA_X509_SMALL || WOLFSSL_ACERT */
 
@@ -15288,23 +15309,11 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         ret = copyRet;
 
     /* if der contains original source buffer then store for potential
-     * retrieval */
+     * retrieval. Store only the certificate itself, never trailing bytes that
+     * may follow it in the source buffer. */
     if (dCert->source != NULL && dCert->maxIdx > 0) {
-        /* Store only the certificate itself, bounded by the end of its outer
-         * SEQUENCE (dCert->srcIdx), never any trailing bytes that may follow in
-         * the source buffer. This keeps wolfSSL_i2d_X509 / wolfSSL_X509_get_der
-         * / wolfSSL_X509_digest canonical - they operate on derCert - even on
-         * builds/paths that do not reject trailing data (e.g.
-         * WOLFSSL_NO_ASN_STRICT). It removes only bytes after the certificate,
-         * so the signed certificate bytes are preserved verbatim. */
-        word32 derCertSz = dCert->maxIdx;
-        if ((dCert->srcIdx > 0) && (dCert->srcIdx < derCertSz)) {
-            derCertSz = dCert->srcIdx;
-        }
-        if (AllocDer(&x509->derCert, derCertSz, CERT_TYPE, x509->heap) == 0) {
-            XMEMCPY(x509->derCert->buffer, dCert->source, derCertSz);
-        }
-        else {
+        if (AllocCopyDecodedDer(&x509->derCert, dCert->source, dCert->maxIdx,
+                dCert->srcIdx, x509->heap) != 0) {
             ret = MEMORY_E;
         }
     }
@@ -15505,18 +15514,11 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
     }
 
     /* if der contains original source buffer then store for potential
-     * retrieval */
+     * retrieval. Store only the attribute certificate itself, never trailing
+     * bytes that may follow it in the source buffer. */
     if (dAcert->source != NULL && dAcert->maxIdx > 0) {
-        /* Bound to the end of the attribute certificate's outer SEQUENCE so no
-         * trailing bytes after it are ever re-emitted by i2d / get_der. */
-        word32 derCertSz = dAcert->maxIdx;
-        if ((dAcert->srcIdx > 0) && (dAcert->srcIdx < derCertSz)) {
-            derCertSz = dAcert->srcIdx;
-        }
-        if (AllocDer(&x509->derCert, derCertSz, CERT_TYPE, x509->heap) == 0) {
-            XMEMCPY(x509->derCert->buffer, dAcert->source, derCertSz);
-        }
-        else {
+        if (AllocCopyDecodedDer(&x509->derCert, dAcert->source, dAcert->maxIdx,
+                dAcert->srcIdx, x509->heap) != 0) {
             ret = MEMORY_E;
         }
     }
