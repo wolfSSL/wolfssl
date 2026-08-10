@@ -997,23 +997,33 @@ static void wb_compare_ocsp_req_resp(void)
  * callback-dispatch branch is live, not compiled out.
  * ------------------------------------------------------------------------- */
 static int wbEntryCbCalls = 0;
+static int wbEntryCbRet = 0;
 static int wb_entry_ext_cb(const word16* oid, word32 oidSz, int crit,
         const unsigned char* der, word32 derSz)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
     wbEntryCbCalls++;
-    return 0;
+    return wbEntryCbRet;
+}
+
+static int wbEntryCbExCalls = 0;
+static int wbEntryCbExRet = 0;
+static int wb_entry_ext_cb_ex(const word16* oid, word32 oidSz, int crit,
+        const unsigned char* der, word32 derSz, void* ctx)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz; (void)ctx;
+    wbEntryCbExCalls++;
+    return wbEntryCbExRet;
 }
 
 /* Build one CRL-entry-extension SEQUENCE (reason code) or a generic one. */
 static word32 wb_build_reason_ext(byte* out, byte reasonVal)
 {
     byte enumTlv[3];
-    byte octet[5];
     word32 enumSz = wb_tlv(enumTlv, ASN_ENUMERATED, &reasonVal, 1);
-    word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, enumTlv, enumSz);
     static const byte reasonOid[] = { 0x55, 0x1d, 0x15 }; /* 2.5.29.21 */
-    return wb_ext(out, reasonOid, sizeof(reasonOid), 0, 0, octet, octetSz);
+    /* Bare ENUMERATED TLV: wb_ext() supplies the extension's OCTET STRING. */
+    return wb_ext(out, reasonOid, sizeof(reasonOid), 0, 0, enumTlv, enumSz);
 }
 
 static void wb_parse_crl_entry_extensions(void)
@@ -1041,21 +1051,107 @@ static void wb_parse_crl_entry_extensions(void)
      * optional-critical probe's tag==ASN_BOOLEAN branch [:36863,:36864]
      * true this time (probe found a BOOLEAN). */
     {
-        byte enumTlv[3], octet[5], seq[64];
+        byte enumTlv[3], seq[64];
         byte critB = 0x00;
         word32 idx = 0;
         static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
         word32 enumSz = wb_tlv(enumTlv, ASN_ENUMERATED, (byte*)"\x02", 1);
-        word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, enumTlv, enumSz);
         idx += wb_tlv(seq + idx, ASN_OBJECT_ID, reasonOid, sizeof(reasonOid));
         idx += wb_tlv(seq + idx, ASN_BOOLEAN, &critB, 1);
-        idx += wb_tlv(seq + idx, ASN_OCTET_STRING, octet, octetSz);
+        /* extnValue: OCTET STRING wrapping the ENUMERATED, once. */
+        idx += wb_tlv(seq + idx, ASN_OCTET_STRING, enumTlv, enumSz);
         sz = WB_SEQ(list, seq, idx);
     }
     reasonCode = -1;
     ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
     WB_CHECK(ret == 0 && reasonCode == 2,
             "reason-code extension with explicit critical=FALSE");
+
+    /* --- malformed entry-extension shapes ------------------------------- *
+     * The tokeniser walks each extension by hand (tag / length / content)
+     * and every probe is an AND whose second operand only shows its other
+     * value on a deliberately broken encoding. Real CRLs are well-formed, so
+     * these are white-box only. Each shape is parsed on its own; a break out
+     * of the loop is the expected outcome and reasonCode simply stays unset.
+     */
+    {
+        byte  seqBuf[64];
+        word32 idx2;
+        byte  b;
+
+        /* (a) first item is not an OBJECT IDENTIFIER -> the "tag !=
+         *     ASN_OBJECT_ID" operand true with a successful tag read. */
+        idx2 = 0;
+        b = 0x01;
+        idx2 += wb_tlv(seqBuf + idx2, ASN_INTEGER, &b, 1);
+        sz = WB_SEQ(list, seqBuf, idx2);
+        reasonCode = -1;
+        ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+        WB_CHECK(reasonCode == -1, "extension whose first item is not an OID");
+
+        /* (b) an empty extension SEQUENCE -> the tag read itself fails. */
+        sz = WB_SEQ(list, seqBuf, 0);
+        reasonCode = -1;
+        ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+        WB_CHECK(reasonCode == -1, "empty extension SEQUENCE (tag read fails)");
+
+        /* (c) reason OID with NOTHING after it -> the optional-critical
+         *     probe's tag read fails (1st operand false). */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1, "reason OID with no value (probe fails)");
+        }
+
+        /* (d) reason OID whose OCTET STRING holds an INTEGER instead of an
+         *     ENUMERATED -> the value probe's "tag == ASN_ENUMERATED"
+         *     operand false. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte inner[8], octet[16];
+            word32 innerSz, octetSz;
+
+            b = 0x02;
+            innerSz = wb_tlv(inner, ASN_INTEGER, &b, 1);
+            octetSz = wb_tlv(octet, ASN_OCTET_STRING, inner, innerSz);
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1, "reason value is INTEGER, not ENUMERATED");
+        }
+
+        /* (e) reason ENUMERATED carrying TWO content bytes -> the
+         *     "reasonLen == 1" operand false, so no reason is recorded. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte two[2] = { 0x00, 0x02 };
+            byte inner[8], octet[16];
+            word32 innerSz, octetSz;
+
+            innerSz = wb_tlv(inner, ASN_ENUMERATED, two, sizeof(two));
+            octetSz = wb_tlv(octet, ASN_OCTET_STRING, inner, innerSz);
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1, "reason ENUMERATED with length != 1");
+        }
+        (void)ret;
+    }
 
     /* Unknown (non-reason) OID, not critical, dcrl==NULL (no callback
      * dispatch possible) -> :36891 1st operand false (short-circuit);
@@ -1083,6 +1179,24 @@ static void wb_parse_crl_entry_extensions(void)
             ":36935 both true (unknown critical extension, no callback)");
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    /* Unknown OID, non-critical, dcrl != NULL but NEITHER callback
+     * registered -> :36891 1st operand true, both callback operands false,
+     * so the whole dispatch decision is false. Every other dcrl!=NULL row
+     * below registers at least one callback, and every no-callback row above
+     * passes dcrl==NULL (which short-circuits on the 1st operand), so this
+     * is the only row that can pair with them on the 2nd operand. */
+    dcrl.unknownExtCallback = NULL;
+    dcrl.unknownExtCallbackEx = NULL;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(list, wbOidOther, sizeof(wbOidOther), 1, 0, val,
+                sizeof(val));
+    }
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(ret == 0,
+            ":36891 dcrl!=NULL with no callbacks (2nd/3rd operands false)");
+
     /* Unknown OID, CRITICAL, dcrl!=NULL with a registered callback that
      * accepts it (returns 0) -> :36891/:36892 both true (via the 1st
      * disjunct), :36917 both true, :36935 not reached (handled=1). */
@@ -1100,10 +1214,72 @@ static void wb_parse_crl_entry_extensions(void)
             ":36891/:36892 true via unknownExtCallback!=NULL; :36917 both true");
 
     /* Same, but only unknownExtCallbackEx registered -> :36891/:36892 true
-     * via the 2nd disjunct; :36917 2nd operand false (unknownExtCallback ==
-     * NULL); :36921 both true. */
+     * via the 2nd disjunct (unknownExtCallback == NULL is the FALSE half of
+     * that operand); :36917 2nd operand false (unknownExtCallback == NULL);
+     * :36921 both true. */
     dcrl.unknownExtCallback = NULL;
-    dcrl.unknownExtCallbackEx = NULL; /* set below via a plain function ptr */
+    dcrl.unknownExtCallbackEx = wb_entry_ext_cb_ex;
+    wbEntryCbExCalls = 0;
+    wbEntryCbExRet = 0;
+    dcrl.unknownExtCallbackExCtx = NULL;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(list, wbOidOther, sizeof(wbOidOther), 1, 1, val,
+                sizeof(val));
+    }
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(ret == 0 && wbEntryCbExCalls == 1,
+            "Ex-only callback: :36891 1st disjunct false, :36917 2nd false, "
+            ":36921 both true");
+
+    /* First callback registered and REJECTING (returns non-zero): the
+     * cbRet==0 operand of the second dispatch decision (:36921) is then
+     * false, which no accepting-callback run can produce. Both callbacks are
+     * registered so the Ex operand stays true-capable but is never reached. */
+    dcrl.unknownExtCallback = wb_entry_ext_cb;
+    dcrl.unknownExtCallbackEx = wb_entry_ext_cb_ex;
+    wbEntryCbCalls = 0;
+    wbEntryCbExCalls = 0;
+    wbEntryCbRet = -1;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(list, wbOidOther, sizeof(wbOidOther), 1, 0, val,
+                sizeof(val));
+    }
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(ret != 0 && wbEntryCbCalls == 1 && wbEntryCbExCalls == 0,
+            ":36921 1st operand false (first callback rejected)");
+    wbEntryCbRet = 0;
+
+    /* An OID with more sub-identifiers than DecodeObjectId()'s output buffer
+     * holds: GetASN_ObjectId() still accepts the encoding, so the dispatch
+     * block is entered, but DecodeObjectId() returns BUFFER_E -- the only way
+     * to make the cbRet==0 operand of the FIRST dispatch decision (:36917)
+     * false. */
+    {
+        byte longOid[MAX_OID_SZ + 4];
+        byte val[2] = { 0xAA, 0xBB };
+        word32 i;
+
+        /* Every octet < 0x80 is a complete single-octet sub-identifier, so
+         * this is a well-formed OID body with MAX_OID_SZ+4 arcs. */
+        for (i = 0; i < (word32)sizeof(longOid); i++) {
+            longOid[i] = (byte)(0x2A + (i & 0x1F));
+        }
+        sz = wb_ext(list, longOid, (word32)sizeof(longOid), 1, 0, val,
+                sizeof(val));
+    }
+    dcrl.unknownExtCallback = wb_entry_ext_cb;
+    dcrl.unknownExtCallbackEx = wb_entry_ext_cb_ex;
+    wbEntryCbCalls = 0;
+    wbEntryCbExCalls = 0;
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(wbEntryCbCalls == 0 && wbEntryCbExCalls == 0,
+            ":36917/:36921 1st operand false (DecodeObjectId overflow)");
+    (void)ret;
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
     FreeDecodedCRL(&dcrl);
@@ -1122,11 +1298,14 @@ static word32 wb_build_crl_number_ext(byte* out, const byte* intContent,
         word32 intContentSz)
 {
     byte intTlv[32];
-    byte octet[36];
     word32 intSz = wb_tlv(intTlv, ASN_INTEGER, intContent, intContentSz);
-    word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, intTlv, intSz);
-    return wb_ext(out, wbOidCrlNumber, sizeof(wbOidCrlNumber), 0, 0, octet,
-            octetSz);
+
+    /* wb_ext() already wraps its value argument in the extension's OCTET
+     * STRING, so the INTEGER TLV is handed over bare -- wrapping it here as
+     * well produced an OCTET STRING inside an OCTET STRING, which the
+     * decoder rejected before ever reaching the CRL-number logic. */
+    return wb_ext(out, wbOidCrlNumber, sizeof(wbOidCrlNumber), 0, 0, intTlv,
+            intSz);
 }
 
 static void wb_parse_crl_extensions(void)
@@ -1536,6 +1715,21 @@ static void wb_make_crl_ex(void)
             ASN_GENERALIZED_TIME, nextDate, ASN_GENERALIZED_TIME, NULL, NULL,
             0, CTC_SHA256wRSA, 1, NULL, 0);
     WB_CHECK(ret > need, ":37906 both true (nextDate present, larger encoding)");
+
+    /* nextDate present but nextDateFmt == 0 -> :37906 2nd operand false
+     * (the encoding matches the no-nextDate baseline). Without this row the
+     * 2nd operand is only ever seen true. */
+    ret = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
+            ASN_GENERALIZED_TIME, nextDate, 0 /* no format */, NULL, NULL,
+            0, CTC_SHA256wRSA, 1, NULL, 0);
+    WB_CHECK(ret == need, ":37906 2nd operand false (nextDateFmt==0)");
+
+    /* crlNumber present, version >= 2, but crlNumberSz == 0 -> :37924 2nd
+     * operand false. */
+    ret = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
+            ASN_GENERALIZED_TIME, NULL, 0, NULL, crlNum, 0 /* zero size */,
+            CTC_SHA256wRSA, 2 /* v2 */, NULL, 0);
+    WB_CHECK(ret > 0, ":37924 2nd operand false (crlNumberSz==0)");
 
     /* crlNumber present but version < 2 -> :37924 3rd operand false
      * (version>=2 required); crlNumber ignored. */

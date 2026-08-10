@@ -1814,6 +1814,25 @@ static void wb_decode_asym_key_roundtrip(void)
             &privPtr, &privLen, &pubPtr, &pubLen, &keyType);
     WB_CHECK(ret != 0, "wrong expected keyType rejected");
 
+    /* seed AND seedLen both non-NULL on an otherwise valid call. This is the
+     * only combination that makes the guard's two seed sub-terms evaluate to
+     * false ((seed==NULL && seedLen!=NULL) is false because seed!=NULL, and
+     * (seed!=NULL && seedLen==NULL) is false because seedLen!=NULL) while the
+     * decision as a whole is false -- the independence-pair partner for the
+     * two rejection rows in wb_decode_asym_key_assign_guard() above, and the
+     * only row that makes allowSeed at :33848 true. An Ed25519 key carries no
+     * seed, so the priv-only branch resets *seed/*seedLen. */
+    {
+        const byte* seedPtr = (const byte*)der; /* non-NULL on entry */
+        word32      seedLenOut = 0;
+
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKey_Assign(der, &idx, (word32)derLen, &seedPtr,
+                &seedLenOut, &privPtr, &privLen, &pubPtr, &pubLen, &keyType);
+        WB_CHECK(ret == 0 && seedPtr == NULL && seedLenOut == 0,
+                "seed!=NULL && seedLen!=NULL (guard false, allowSeed true)");
+    }
+
     WB_NOTE("DecodeAsymKey(): privKeyPtrLen>*privKeyLen [:33881]; "
             "pubKeyLen!=NULL&&pubKeyPtrLen>*pubKeyLen [:33884]; "
             "privKeyPtr!=NULL idx1 [:33887]");

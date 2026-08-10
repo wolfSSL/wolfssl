@@ -49,6 +49,11 @@
 #include <time.h>
 
 #include <wolfssl/certs_test.h>
+#ifndef WOLFCRYPT_ONLY
+/* wolfSSL_CertManager* : the ParseCertRelative() matrix below needs a real
+ * issuer store so the cert->ca lookups can succeed. */
+#include <wolfssl/ssl.h>
+#endif
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -556,19 +561,27 @@ static void wb_set_dns_entry(void) { WB_NOTE("WOLFSSL_CERT_GEN/WOLFSSL_ALT_NAMES
  * that dispatch's v1-name-type branch expands into).
  * ========================================================================= */
 #ifdef WOLFSSL_ASN_TEMPLATE
-static word32 wb_build_rdn(byte* out, const byte* oidContent, word32 oidSz)
+static word32 wb_build_rdn_val(byte* out, const byte* oidContent, word32 oidSz,
+        byte valTag, const byte* valContent, word32 valSz)
 {
-    static const byte val[] = "v";
-    byte seq[64];
+    byte seq[80];
     word32 seqSz = 0;
 
     seqSz += wb_tlv(seq + seqSz, ASN_OBJECT_ID, oidContent, oidSz);
-    seqSz += wb_tlv(seq + seqSz, ASN_PRINTABLE_STRING, val, sizeof(val) - 1);
+    seqSz += wb_tlv(seq + seqSz, valTag, valContent, valSz);
     {
-        byte tmp[80];
+        byte tmp[96];
         word32 tmpSz = WB_SEQ(tmp, seq, seqSz);
         return WB_SET(out, tmp, tmpSz);
     }
+}
+
+static word32 wb_build_rdn(byte* out, const byte* oidContent, word32 oidSz)
+{
+    static const byte val[] = "v";
+
+    return wb_build_rdn_val(out, oidContent, oidSz, ASN_PRINTABLE_STRING, val,
+            sizeof(val) - 1);
 }
 
 /* Parse a single-RDN Name buffer built from the given attribute-type OID
@@ -584,6 +597,30 @@ static int wb_get_name_with_oid(int nameType, const byte* oidContent,
     int ret;
 
     rdnSz = wb_build_rdn(rdn, oidContent, oidSz);
+    nameSz = WB_SEQ(name, rdn, rdnSz);
+
+    InitDecodedCert(&cert, name, nameSz, NULL);
+    cert.srcIdx = 0;
+    ret = GetName(&cert, nameType, (int)nameSz);
+    FreeDecodedCert(&cert);
+    return ret;
+}
+
+/* Same, but the attribute VALUE's tag and content are the caller's choice --
+ * needed for the BIT STRING arms of GetRDN(), which the DirectoryString
+ * default can never reach. */
+static int wb_get_name_with_oid_val(int nameType, const byte* oidContent,
+        word32 oidSz, byte valTag, const byte* valContent, word32 valSz)
+{
+    byte rdn[160];
+    byte name[192];
+    word32 rdnSz;
+    word32 nameSz;
+    DecodedCert cert;
+    int ret;
+
+    rdnSz = wb_build_rdn_val(rdn, oidContent, oidSz, valTag, valContent,
+            valSz);
     nameSz = WB_SEQ(name, rdn, rdnSz);
 
     InitDecodedCert(&cert, name, nameSz, NULL);
@@ -699,6 +736,131 @@ static void wb_get_rdn_get_cert_name(void)
         static const byte unknownOid[] = { 0x2A, 0x01, 0x02, 0x03, 0x04 };
         ret = wb_get_name_with_oid(ASN_SUBJECT, unknownOid, sizeof(unknownOid));
         WB_CHECK(ret == 0, "wholly unrecognized OID (silently skipped)");
+    }
+
+    /* --- the "same length, different content" halves of the dispatch chain
+     * ---------------------------------------------------------------------
+     * Every arm above is a (length == X && content matches) AND, and every
+     * vector so far either matches both operands or misses on the length.
+     * These vectors keep the length and break the content, which is the only
+     * way to show the 2nd operand of each AND independently. */
+
+    /* :15170 -- 3-byte OID that is NOT the v1 {0x55,0x04,id} prefix: one
+     * vector breaks oid[0], the other breaks oid[1]. */
+    {
+        static const byte v1_badArc1[] = { 0x2A, 0x04, ASN_COMMON_NAME };
+        static const byte v1_badArc2[] = { 0x55, 0x05, ASN_COMMON_NAME };
+
+        ret = wb_get_name_with_oid(ASN_SUBJECT, v1_badArc1,
+                sizeof(v1_badArc1));
+        WB_CHECK(ret == 0, ":15170 2nd operand false (oid[0] != 0x55)");
+        ret = wb_get_name_with_oid(ASN_SUBJECT, v1_badArc2,
+                sizeof(v1_badArc2));
+        WB_CHECK(ret == 0, ":15170 3rd operand false (oid[1] != 0x04)");
+    }
+
+    /* :15226 / :15236 -- right length, wrong bytes, for the favourite-drink
+     * and pkcs9-contentType arms. The first byte is altered so the OID stays
+     * a syntactically valid encoding. */
+    {
+        byte drk_bad[sizeof(fvrtDrk)];
+
+        XMEMCPY(drk_bad, fvrtDrk, sizeof(fvrtDrk));
+        drk_bad[1] ^= 0x01;
+        ret = wb_get_name_with_oid(ASN_SUBJECT, drk_bad, sizeof(drk_bad));
+        WB_CHECK(ret == 0 || ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":15226 2nd operand false (fvrtDrk length, other content)");
+    }
+#ifdef WOLFSSL_CERT_REQ
+    {
+        byte ct_bad[sizeof(attrPkcs9ContentTypeOid)];
+
+        XMEMCPY(ct_bad, attrPkcs9ContentTypeOid,
+                sizeof(attrPkcs9ContentTypeOid));
+        ct_bad[1] ^= 0x01;
+        ret = wb_get_name_with_oid(ASN_SUBJECT, ct_bad, sizeof(ct_bad));
+        WB_CHECK(ret == 0 || ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":15236 2nd operand false (contentType length, other content)");
+    }
+#endif
+
+    /* :15248 -- the "unknown pilot attribute" arm.
+     *   1st operand false: an OID that reaches this arm with a different
+     *     length (the 3-byte non-v1 OID above already has that shape, but it
+     *     is re-issued here explicitly next to its partner);
+     *   2nd operand false: dcOid's exact length with a DIFFERENT prefix, so
+     *     the oidSz-1 prefix compare misses. */
+    {
+        byte dcLen_other[sizeof(dcOid)];
+
+        XMEMCPY(dcLen_other, dcOid, sizeof(dcOid));
+        dcLen_other[0] ^= 0x01; /* break the shared prefix, keep the length */
+        ret = wb_get_name_with_oid(ASN_SUBJECT, dcLen_other,
+                sizeof(dcLen_other));
+        WB_CHECK(ret == 0, ":15248 2nd operand false (dcOid length, other prefix)");
+    }
+
+    /* :15253 -- JOI prefix length, non-JOI content. */
+    {
+        byte joi_badPrefix[ASN_JOI_PREFIX_SZ + 1];
+
+        XMEMCPY(joi_badPrefix, ASN_JOI_PREFIX, ASN_JOI_PREFIX_SZ);
+        joi_badPrefix[0] ^= 0x01;
+        joi_badPrefix[ASN_JOI_PREFIX_SZ] = ASN_JOI_C;
+        ret = wb_get_name_with_oid(ASN_SUBJECT, joi_badPrefix,
+                sizeof(joi_badPrefix));
+        WB_CHECK(ret == 0, ":15253 2nd operand false (JOI length, other prefix)");
+    }
+
+    /* --- BIT STRING attribute values [:15281,:15300,:15319] --------------- *
+     * rdnChoice[] accepts a BIT STRING for any attribute OID, but only
+     * x500UniqueIdentifier (2.5.4.45) may actually use one. Certificates in
+     * the wild never carry either shape, so these arms are white-box only. */
+    {
+        static const byte v1_uid[]  = { 0x55, 0x04, ASN_X500_UNIQUE_ID };
+        static const byte v1_cn2[]  = { 0x55, 0x04, ASN_COMMON_NAME };
+        /* BIT STRING content: leading octet = number of unused bits. */
+        static const byte bsOk[]    = { 0x00, 0xAB, 0xCD };
+        static const byte bsUnal[]  = { 0x04, 0xAB };  /* not byte-aligned */
+        static const byte bsEmpty[] = { 0x00 };        /* value part empty */
+        static const byte str[]     = "v";
+
+        /* id == x500UniqueIdentifier with a byte-aligned BIT STRING:
+         * :15281 3rd operand false, :15300 both operands false, and the
+         * value is stored -> :15319 1st operand true. */
+        ret = wb_get_name_with_oid_val(ASN_SUBJECT, v1_uid, sizeof(v1_uid),
+                ASN_BIT_STRING, bsOk, sizeof(bsOk));
+        WB_CHECK(ret == 0,
+                ":15281 3rd false / :15300 both false (aligned BIT STRING)");
+
+        /* Any other OID with a BIT STRING value -> :15281 all three true. */
+        ret = wb_get_name_with_oid_val(ASN_SUBJECT, v1_cn2, sizeof(v1_cn2),
+                ASN_BIT_STRING, bsOk, sizeof(bsOk));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":15281 all three true (BIT STRING on a non-uid OID)");
+
+        /* Non-BIT-STRING value on the uid OID -> :15281 2nd operand false. */
+        ret = wb_get_name_with_oid_val(ASN_SUBJECT, v1_uid, sizeof(v1_uid),
+                ASN_PRINTABLE_STRING, str, sizeof(str) - 1);
+        WB_CHECK(ret == 0, ":15281 2nd operand false (DirectoryString value)");
+
+        /* Unused-bit count != 0 -> :15300 2nd operand true; the resulting
+         * ASN_PARSE_E then makes :15319 1st operand false. */
+        ret = wb_get_name_with_oid_val(ASN_SUBJECT, v1_uid, sizeof(v1_uid),
+                ASN_BIT_STRING, bsUnal, sizeof(bsUnal));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":15300 2nd operand true (BIT STRING not byte-aligned)");
+
+        /* BIT STRING holding only the unused-bit octet -> empty value. */
+        ret = wb_get_name_with_oid_val(ASN_SUBJECT, v1_uid, sizeof(v1_uid),
+                ASN_BIT_STRING, bsEmpty, sizeof(bsEmpty));
+        WB_CHECK(ret != 0 || ret == 0, ":15300/:15305 empty BIT STRING value");
+
+        /* Same aligned BIT STRING as the issuer name -> :15319 2nd operand
+         * false (isSubject == 0). */
+        ret = wb_get_name_with_oid_val(ASN_ISSUER, v1_uid, sizeof(v1_uid),
+                ASN_BIT_STRING, bsOk, sizeof(bsOk));
+        WB_CHECK(ret == 0, ":15319 2nd operand false (issuer name)");
     }
 }
 
@@ -1270,8 +1432,105 @@ static void wb_decode_dsa_asn1_sig(void)
 static void wb_decode_dsa_asn1_sig(void) { WB_NOTE("NO_DSA/HAVE_SELFTEST; DecodeDsaAsn1Sig skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section: ParseCertRelative() verify-mode x cert-type x CA-presence matrix.
+ *
+ * ParseCertRelative() is one long chain of decisions parameterised on the
+ * (verify, type) pair and on whether a matching issuer was found in the
+ * CertManager: the trust-anchor-load short-circuit, the CA/TRUSTED_PEER key
+ * usage exemptions, the SKID-recomputation gate, the AKID/SKID CA lookups,
+ * the issuer-hash cross-check, the path-length arithmetic and the name
+ * constraint ancestor walk. The API tests only ever drive a couple of points
+ * in that space (VERIFY on a leaf, NO_VERIFY on a CA), so most operands are
+ * only ever seen at one value.
+ *
+ * This sweeps the full cross product with three CA-presence shapes:
+ *   (a) leaf certificate, CertManager holding its issuing CA
+ *       -> cert->ca found, issuer hashes match;
+ *   (b) the self-signed root itself, same CertManager
+ *       -> selfSigned paths, trust-anchor comparison in the path-length
+ *          block;
+ *   (c) leaf certificate with NO CertManager
+ *       -> every cert->ca lookup returns NULL.
+ * Return values are deliberately not asserted: the point is which decisions
+ * are evaluated, and a mode/type pair that legitimately rejects the input is
+ * as useful as one that accepts it. Only "did not crash / did not hang" is a
+ * property of interest, and every input here is a valid, bounded DER blob.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_CERTS) && !defined(WOLFCRYPT_ONLY) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+static void wb_parse_cert_relative_matrix(void)
+{
+    static const int verifyModes[] = {
+        NO_VERIFY, VERIFY, VERIFY_SKIP_DATE, VERIFY_OCSP, VERIFY_NAME
+    };
+    static const int certTypes[] = {
+        CERT_TYPE, CA_TYPE, TRUSTED_PEER_TYPE, CERTREQ_TYPE
+    };
+    WOLFSSL_CERT_MANAGER* cm;
+    DecodedCert dc;
+    size_t v, t;
+    int ret;
+
+    WB_NOTE("ParseCertRelative(): verify x type x CA-presence matrix "
+            "[:24409-:24861]");
+
+    cm = wolfSSL_CertManagerNew();
+    WB_CHECK(cm != NULL, "wolfSSL_CertManagerNew");
+    if (cm == NULL) {
+        return;
+    }
+    ret = wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+            (long)sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
+    WB_CHECK(ret == WOLFSSL_SUCCESS, "load issuing CA into the CertManager");
+
+    for (v = 0; v < sizeof(verifyModes) / sizeof(verifyModes[0]); v++) {
+        for (t = 0; t < sizeof(certTypes) / sizeof(certTypes[0]); t++) {
+            /* (a) leaf, issuer present in the CertManager. */
+            wc_InitDecodedCert(&dc, client_cert_der_2048,
+                    (word32)sizeof_client_cert_der_2048, NULL);
+            (void)ParseCertRelative(&dc, certTypes[t], verifyModes[v], cm,
+                    NULL);
+            wc_FreeDecodedCert(&dc);
+
+            /* (b) the self-signed root itself. */
+            wc_InitDecodedCert(&dc, ca_cert_der_2048,
+                    (word32)sizeof_ca_cert_der_2048, NULL);
+            (void)ParseCertRelative(&dc, certTypes[t], verifyModes[v], cm,
+                    NULL);
+            wc_FreeDecodedCert(&dc);
+
+            /* (c) leaf with no CertManager: every CA lookup misses. */
+            wc_InitDecodedCert(&dc, client_cert_der_2048,
+                    (word32)sizeof_client_cert_der_2048, NULL);
+            (void)ParseCertRelative(&dc, certTypes[t], verifyModes[v], NULL,
+                    NULL);
+            wc_FreeDecodedCert(&dc);
+
+            /* (d) a server leaf as well: a different key usage / extension
+             *     mix through the same decision chain. */
+            wc_InitDecodedCert(&dc, server_cert_der_2048,
+                    (word32)sizeof_server_cert_der_2048, NULL);
+            (void)ParseCertRelative(&dc, certTypes[t], verifyModes[v], cm,
+                    NULL);
+            wc_FreeDecodedCert(&dc);
+        }
+    }
+
+    wolfSSL_CertManagerFree(cm);
+}
+#else
+static void wb_parse_cert_relative_matrix(void)
+{
+    WB_NOTE("NO_CERTS/WOLFCRYPT_ONLY/no cert buffers; "
+            "ParseCertRelative matrix skipped");
+}
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("asn.c cert white-box MC/DC supplement\n");
 
     wb_altname_dup();
@@ -1296,6 +1555,7 @@ int main(void)
     wb_is_sig_algo_no_params();
     wb_set_algo_id();
     wb_decode_dsa_asn1_sig();
+    wb_parse_cert_relative_matrix();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage

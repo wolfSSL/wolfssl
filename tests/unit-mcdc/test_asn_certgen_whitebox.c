@@ -359,6 +359,29 @@ static void wb_encode_name(void)
         WB_CHECK(ret == 0 && name.used == 0,
                 ":27901 2nd operand true (custom.oidSz==0)");
     }
+
+    /* type==ASN_CUSTOM_NAME with a real custom OID/value -> BOTH operands
+     * false, so the decision is false and encoding proceeds. This is the
+     * independence-pair partner of the two rows above; without it the guard
+     * only ever evaluates to true in this binary. */
+    {
+        CertName cn;
+        static byte customOid[] = { 0x2B, 0x06, 0x01, 0x04, 0x01 }; /* 1.3.6.1.4.1 */
+        static byte customVal[] = "custom-value";
+
+        XMEMSET(&cn, 0, sizeof(cn));
+        cn.custom.oid   = customOid;
+        cn.custom.oidSz = (int)sizeof(customOid);
+        cn.custom.val   = customVal;
+        cn.custom.valSz = (int)sizeof(customVal) - 1;
+        cn.custom.enc   = CTC_UTF8;
+
+        XMEMSET(&name, 0, sizeof(name));
+        ret = EncodeName(&name, (const char*)customVal, CTC_UTF8,
+                ASN_CUSTOM_NAME, ASN_UTF8STRING, &cn);
+        WB_CHECK(ret > 0 && name.used == 1,
+                ":27901 both operands false (custom OID present)");
+    }
 #else
     WB_NOTE(":27901 (WOLFSSL_CUSTOM_OID) not compiled; skipped");
 #endif
@@ -471,6 +494,19 @@ static void wb_set_name_rdn_items(void)
             ret = SetNameRdnItems(dataASN, namesASN, count, &name);
             WB_CHECK(ret == count,
                     ":28231/:28305 both true (dataASN&&namesASN non-NULL)");
+
+            /* dataASN non-NULL but namesASN NULL: the 2nd operand of both
+             * multi-attrib gates is false while the 1st stays true -- the
+             * independence-pair partner the count-only pass above cannot
+             * give (it short-circuits on the 1st operand).
+             * Safe ONLY because this CertName carries multi-attrib entries
+             * exclusively: every plain name field is empty, so nameLen[i] is
+             * 0 for all i and the middle block (which indexes namesASN under
+             * a "dataASN != NULL" test alone) is never entered. */
+            XMEMSET(dataASN, 0, (size_t)count * sizeof(ASNSetData));
+            ret = SetNameRdnItems(dataASN, NULL, count, &name);
+            WB_CHECK(ret == count,
+                    ":28231/:28305 2nd operand false (namesASN==NULL)");
         }
         XFREE(dataASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(namesASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1273,6 +1309,14 @@ static const char* wb_oid_name_cb(unsigned char* oid, word32 len)
     return "custom-oid-name";
 }
 
+/* A name callback that declines every OID: drives the false half of the
+ * "nameCb(...) != NULL" operand in PrintObjectIdText(). */
+static const char* wb_oid_name_cb_null(unsigned char* oid, word32 len)
+{
+    (void)oid; (void)len;
+    return NULL;
+}
+
 static void wb_asn1_print_all(XFILE file, const byte* data, word32 len,
         word32 indent, int drawBranch, int showData, int showHeaderData,
         int showOid, int showNoText, Asn1OidToNameCb nameCb,
@@ -1305,12 +1349,17 @@ static void wb_asn1_print(void)
 {
     /* SEQUENCE { OID 2.5.4.3(commonName-ish, arbitrary), INTEGER 5,
      *            OCTET STRING "ab", BOOLEAN TRUE, BIT STRING [00 F0] } */
+    /* NOTE: the SEQUENCE length must match the content exactly -- a short
+     * count makes wc_Asn1_PrintAll() stop with ASN_PARSE_E before any of the
+     * option-matrix decisions below are reached. Content is
+     * 5 + 3 + 4 + 3 + 4 = 19 = 0x13 bytes. */
     static const byte doc[] = {
-        0x30, 0x11,
+        0x30, 0x13,
               0x06, 0x03, 0x55, 0x04, 0x03,       /* OID 2.5.4.3 */
               0x02, 0x01, 0x05,                    /* INTEGER 5 */
               0x04, 0x02, 'a', 'b',                /* OCTET STRING "ab" */
               0x01, 0x01, 0xFF,                    /* BOOLEAN TRUE */
+              0x03, 0x02, 0x00, 0xF0               /* BIT STRING [00 F0] */
     };
     /* Truncated length byte claims more than is present -> ASN_LEN_E. */
     static const byte badLen[] = { 0x30, 0x7F, 0x02, 0x01 };
@@ -1406,8 +1455,72 @@ static void wb_asn1_print(void)
      * child never completes before running out of bytes -> stops mid-item,
      * exercising :39515 (part!=ASN_PART_TAG) and :39519 (depth!=0). */
     wb_asn1_print_all(devnull, incomplete, sizeof(incomplete), 2, 0, 0, 0, 0,
-            0, NULL, ":39515/:39519 incomplete document -> ASN_PARSE_E/ASN_DEPTH_E",
-            WC_NO_ERR_TRACE(ASN_PARSE_E));
+            0, NULL, "incomplete document -> ASN_LEN_E from the length read",
+            WC_NO_ERR_TRACE(ASN_LEN_E));
+
+    /* Document that runs out of bytes BETWEEN an item's tag and its length
+     * octet.
+     * RESIDUAL: wc_Asn1_PrintAll()'s two post-loop checks
+     * ("part != ASN_PART_TAG" -> ASN_PARSE_E and "depth != 0" ->
+     * ASN_DEPTH_E) are guarded by "ret == 0", but every way of stopping the
+     * parse mid-item makes wc_Asn1_Print() itself return ASN_LEN_E first
+     * (the length octet is read in the same call that consumed the tag, and
+     * a short buffer there is an error, not a partial state). Both were
+     * probed with a truncated item, a truncated header and a truncated
+     * constructed body; all three return ASN_LEN_E. The two "!= " operands
+     * therefore have no satisfiable independence pair in this build, and
+     * only their masked (ret != 0) side is driven here. */
+    {
+        static const byte partialTag[] = { 0x30, 0x03, 0x02 };
+
+        wb_asn1_print_all(devnull, partialTag, sizeof(partialTag), 2, 0, 0, 0,
+                0, 0, NULL, "stopped between tag and length -> ASN_LEN_E",
+                WC_NO_ERR_TRACE(ASN_LEN_E));
+    }
+
+    /* --- the string/number tag dispatch in PrintAsn1Text() ---------------- *
+     * Its first arm is a ten-way OR over "printable" tags and the dump arm
+     * is a three-way OR; the small document above only carries OBJECT ID /
+     * INTEGER / OCTET STRING / BOOLEAN / BIT STRING, so eight of those
+     * thirteen operands are never seen true. This document carries one item
+     * per remaining tag. Each value is one byte so the encoding stays
+     * trivially well-formed regardless of the tag's real syntax -- the
+     * dispatch is on the tag alone. */
+    {
+        static const byte tagDoc[] = {
+            0x30, 0x2B,
+                  0x0C, 0x01, 'u',      /* UTF8String        */
+                  0x16, 0x01, 'i',      /* IA5String         */
+                  0x13, 0x01, 'p',      /* PrintableString   */
+                  0x14, 0x01, 't',      /* T61String         */
+                  0x1E, 0x01, 'b',      /* BMPString         */
+                  0x17, 0x01, 'U',      /* UTCTime           */
+                  0x18, 0x01, 'G',      /* GeneralizedTime   */
+                  0x1C, 0x01, 'v',      /* UniversalString   */
+                  0x07, 0x01, 'd',      /* ObjectDescriptor  */
+                  0x1D, 0x01, 'c',      /* CharacterString   */
+                  0x0A, 0x01, 0x02,     /* ENUMERATED        */
+                  0x64, 0x03, 0x02, 0x01, 0x05, /* application, constructed */
+                  0x05, 0x00,           /* NULL: falls off every arm       */
+                  0x02, 0x01, 0x07      /* INTEGER (dump arm)              */
+        };
+
+        /* show_no_dump_text off (default) -> the dump arm is entered. */
+        wb_asn1_print_all(devnull, tagDoc, sizeof(tagDoc), 2, 0, 0, 0, 0, 0,
+                NULL, "PrintAsn1Text(): every string/number tag arm", 0);
+        /* Same document with the text dump suppressed. */
+        wb_asn1_print_all(devnull, tagDoc, sizeof(tagDoc), 2, 0, 0, 0, 0, 1,
+                NULL, "PrintAsn1Text(): same tags, show_no_text on", 0);
+    }
+
+    /* PrintObjectIdText(): a name callback that DECLINES the OID -> the
+     * "nameCb(...) != NULL" operand false, so the unknown-OID arm runs; and
+     * an accepting callback with show_oid OFF -> "(!known) || show_oid"
+     * false, the only combination that suppresses the numeric OID. */
+    wb_asn1_print_all(devnull, doc, sizeof(doc), 2, 0, 0, 0, 0, 0,
+            wb_oid_name_cb_null, "PrintObjectIdText(): nameCb declines", 0);
+    wb_asn1_print_all(devnull, doc, sizeof(doc), 2, 0, 0, 0, 0, 0,
+            wb_oid_name_cb, "PrintObjectIdText(): known OID, show_oid off", 0);
 
     fclose(devnull);
 
@@ -1761,6 +1874,45 @@ static void wb_encrypted_info_parse_guards(void)
     (void)wc_EncryptedInfoParse(&info, &p, 0);
     p = body;
     (void)wc_EncryptedInfoParse(&info, &p, sizeof(body) - 1);
+
+    /* --- the two malformed DEK-Info shapes that drive the body's own
+     * decisions [:25853,:25883] ----------------------------------------------
+     *   (a) no comma after the cipher name  -> `finish == NULL`, the 2nd
+     *       operand of ((start!=NULL) && (finish!=NULL) && (start<finish)).
+     *   (b) the comma is the FIRST character after "DEK-Info: " -> finish
+     *       lands exactly on start, so `start < finish` (3rd operand) is
+     *       false.  Both shapes make the decision false where the well-formed
+     *       header above makes it true.
+     *   (c) a comma but no end-of-line at all -> the "\r"/"\n" searches both
+     *       come back NULL, driving `newline != NULL` false at :25883.
+     * The 1st operand (`start != NULL`) is a RESIDUAL: the function has
+     * already returned BUFFER_E if the DEK-Info marker was absent, so start
+     * is non-NULL by construction wherever this decision is evaluated.
+     * The 2nd operand of :25883 (`newline > finish`) is likewise a residual:
+     * newline is searched starting AT finish for a character finish can never
+     * be (finish is the comma), so newline is either NULL or strictly greater.
+     */
+    {
+        static const char noComma[] =
+            "Proc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC\n\n";
+        static const char emptyName[] =
+            "Proc-Type: 4,ENCRYPTED\nDEK-Info: ,0123456789ABCDEF\n\n";
+        static const char noNewline[] =
+            "Proc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC,0123456789ABCDEF";
+        const char* q;
+
+        XMEMSET(&info, 0, sizeof(info));
+        q = noComma;
+        (void)wc_EncryptedInfoParse(&info, &q, sizeof(noComma) - 1);
+
+        XMEMSET(&info, 0, sizeof(info));
+        q = emptyName;
+        (void)wc_EncryptedInfoParse(&info, &q, sizeof(emptyName) - 1);
+
+        XMEMSET(&info, 0, sizeof(info));
+        q = noNewline;
+        (void)wc_EncryptedInfoParse(&info, &q, sizeof(noNewline) - 1);
+    }
 }
 #else
 static void wb_encrypted_info_parse_guards(void)
