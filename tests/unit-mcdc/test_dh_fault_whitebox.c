@@ -74,11 +74,30 @@
  * Invocation: ./test_dh_fault_whitebox (no args; always returns 0).
  */
 
+/* Installed BEFORE dh.c so its mp_* calls resolve to the fault wrappers.
+ * dh.c's residual class is the long big-integer success chain
+ *
+ *     if (ret == 0 && mp_copy(&key->p, p) != MP_OKAY) ...
+ *     if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY) ...
+ *     } while (ret == 0 && mp_cmp_d(tmp, 1) == MP_EQ);
+ *
+ * where BOTH operands are uncovered: on a healthy machine no mp_* call ever
+ * fails, so `mp_xxx(..) != MP_OKAY` is never TRUE and, with nothing upstream
+ * failing, `ret == 0` is never FALSE. The mp_int scratch here mostly lives on
+ * the stack, so the heap-fault lever has nothing to fault either.
+ * mcdc_fault_mp.h interposes the value-returning mp_* API for this TU only;
+ * mcdc_fm_arm(n) makes the n-th mp_* call (and every later one) return MP_VAL,
+ * so one sweep drives both operands of every guard in the chain. Predicates
+ * (mp_iszero/mp_cmp/mp_count_bits) and teardown (mp_clear/mp_forcezero) are
+ * NOT interposed, so cleanup keeps working and armed calls stay crash-safe. */
+#include "mcdc_fault_mp.h"
+
 #include <wolfcrypt/src/dh.c>
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -746,6 +765,160 @@ static void test_generate_params(void)
     wc_FreeRng(&rng);
 }
 
+/* ---- big-integer fault sweeps (mcdc_fault_mp.h) -------------------------
+ * Each entry point is run once DISARMED -- that is the all-true baseline row
+ * for every guard, in THIS binary (both halves in the same binary), and it
+ * also measures the sweep length K -- and then the fail index is swept over
+ * [1..K]. All inputs are built while disarmed; none of the swept calls
+ * mutates the shared key, and the ones that do (SetKey / GenerateParams) get
+ * a fresh key per iteration. Bounded by a point cap AND a wall-clock deadline
+ * so the binary can never reach the campaign's 600 s TEST_TIMEOUT. */
+#define WB_MP_MAX       400
+#define WB_MP_DEADLINE  120
+
+static time_t wb_mp_t0;
+
+static int wb_mp_expired(void)
+{
+    return difftime(time(NULL), wb_mp_t0) > (double)WB_MP_DEADLINE;
+}
+
+#define WB_MP_SWEEP(lbl, cap, ...)                                       \
+    do {                                                                  \
+        long k_, i_;                                                      \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fm_seen();                                              \
+        if (k_ > (long)(cap))                                             \
+            k_ = (long)(cap);                                             \
+        for (i_ = 1; (i_ <= k_) && !wb_mp_expired(); i_++) {              \
+            mcdc_fm_arm(i_);                                              \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k_);                 \
+    } while (0)
+
+static void test_mp_fault_sweeps(void)
+{
+    WC_RNG rng;
+    DhKey  dh;
+    byte   priv[512];
+    byte   pub[512];
+    byte   agree[512];
+    byte   p[512];
+    byte   g[512];
+    byte   q[512];
+    word32 privSz = (word32)sizeof(priv);
+    word32 pubSz  = (word32)sizeof(pub);
+    word32 agreeSz;
+    word32 pSz = (word32)sizeof(p);
+    word32 gSz = (word32)sizeof(g);
+    word32 qSz = (word32)sizeof(q);
+
+    wb_mp_t0 = time(NULL);
+    mcdc_fm_disarm();
+
+    XMEMSET(priv, 0, sizeof(priv));
+    XMEMSET(pub, 0, sizeof(pub));
+    XMEMSET(agree, 0, sizeof(agree));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; mp fault sweeps skipped");
+        return;
+    }
+    if (wc_InitDhKey(&dh) != 0) {
+        WB_NOTE("wc_InitDhKey failed; mp fault sweeps skipped");
+        wc_FreeRng(&rng);
+        return;
+    }
+    /* One real 1024-bit parameter set, generated DISARMED, is the fixture for
+     * every sweep below. */
+    if (wc_DhGenerateParams(&rng, 1024, &dh) != 0) {
+        WB_NOTE("wc_DhGenerateParams failed; mp fault sweeps skipped");
+        wc_FreeDhKey(&dh);
+        wc_FreeRng(&rng);
+        return;
+    }
+    if (wc_DhGenerateKeyPair(&dh, &rng, priv, &privSz, pub, &pubSz) != 0) {
+        WB_NOTE("wc_DhGenerateKeyPair failed; mp fault sweeps skipped");
+        wc_FreeDhKey(&dh);
+        wc_FreeRng(&rng);
+        return;
+    }
+    (void)wc_DhExportParamsRaw(&dh, p, &pSz, q, &qSz, g, &gSz);
+
+    {
+        byte   pv2[512];
+        byte   pb2[512];
+        word32 s1, s2;
+        s1 = (word32)sizeof(pv2); s2 = (word32)sizeof(pb2);
+        WB_MP_SWEEP("DhGenerateKeyPair", 200,
+            s1 = (word32)sizeof(pv2); s2 = (word32)sizeof(pb2);
+            (void)wc_DhGenerateKeyPair(&dh, &rng, pv2, &s1, pb2, &s2));
+    }
+
+    WB_MP_SWEEP("DhGeneratePublic", 200,
+        {
+            byte   pb2[512];
+            word32 s2 = (word32)sizeof(pb2);
+            (void)wc_DhGeneratePublic(&dh, priv, privSz, pb2, &s2);
+        });
+
+    WB_MP_SWEEP("DhCheckPubKey", 200,
+        (void)wc_DhCheckPubKey(&dh, pub, pubSz));
+
+    WB_MP_SWEEP("DhCheckPubKey_ex", 200,
+        (void)wc_DhCheckPubKey_ex(&dh, pub, pubSz, p, pSz));
+
+    WB_MP_SWEEP("DhCheckPrivKey", 200,
+        (void)wc_DhCheckPrivKey(&dh, priv, privSz));
+
+    WB_MP_SWEEP("DhCheckKeyPair", 200,
+        (void)wc_DhCheckKeyPair(&dh, pub, pubSz, priv, privSz));
+
+    WB_MP_SWEEP("DhAgree", 200,
+        {
+            agreeSz = (word32)sizeof(agree);
+            (void)wc_DhAgree(&dh, agree, &agreeSz, priv, privSz, pub, pubSz);
+        });
+
+    WB_MP_SWEEP("DhSetKey", 200,
+        {
+            DhKey k2;
+            if (wc_InitDhKey(&k2) == 0) {
+                (void)wc_DhSetKey(&k2, p, pSz, g, gSz);
+                wc_FreeDhKey(&k2);
+            }
+        });
+
+    WB_MP_SWEEP("DhExportParamsRaw", 200,
+        {
+            byte   pp[512], gg[512], qq[512];
+            word32 a1 = (word32)sizeof(pp), a2 = (word32)sizeof(qq),
+                   a3 = (word32)sizeof(gg);
+            (void)wc_DhExportParamsRaw(&dh, pp, &a1, qq, &a2, gg, &a3);
+        });
+
+    /* GenerateParams is by far the most expensive (prime search), so its cap
+     * is small: the residuals it owns (3346/3359/3365/3374) are all in the
+     * post-search g-derivation chain, which the deadline-bounded prefix
+     * reaches. */
+    WB_MP_SWEEP("DhGenerateParams", 40,
+        {
+            DhKey k2;
+            if (wc_InitDhKey(&k2) == 0) {
+                (void)wc_DhGenerateParams(&rng, 1024, &k2);
+                wc_FreeDhKey(&k2);
+            }
+        });
+
+    mcdc_fm_disarm();
+    wc_FreeDhKey(&dh);
+    wc_FreeRng(&rng);
+    WB_NOTE("big-integer fault sweeps done");
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -775,6 +948,7 @@ int main(void)
             "(2070/2085/2098/2116) skipped");
 #endif
     test_generate_params();
+    test_mp_fault_sweeps();
 
     printf("done (%s)\n", wb_fail ? "FAILURES" : "ok");
     return 0;

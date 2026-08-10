@@ -55,6 +55,27 @@
  * are prepared while DISARMED, and the harness never dereferences a value a
  * faulted call returned. Runs clean under -fsanitize=address.
  *
+ * SECOND LEVER -- BIG-INTEGER FAULTS (mcdc_fault_mp.h)
+ * ----------------------------------------------------
+ * The heap sweep above cannot reach the OTHER half of dsa.c's residuals, the
+ * long mp_* success chains:
+ *
+ *   if (err == MP_OKAY && !mp_iszero(tmp2))            (wc_DsaCheckPubKey)
+ *   the init/memory error-code pair guards ...          (MakeDsaParameters)
+ *   the same pair on the Sign / Verify cleanup path
+ *   if (mp_read_unsigned_bin(r, ..) != MP_OKAY || ..)  (Verify parse)
+ *
+ * On a healthy machine no mp_* call ever fails, so the `mp_xxx(..) != MP_OKAY`
+ * operands are never TRUE and the `err == MP_OKAY` operands are never FALSE --
+ * and where the mp_int scratch lives on the stack there is no allocation to
+ * fault either. mcdc_fault_mp.h macro-interposes the value-returning mp_* API
+ * for this translation unit only (installed before dsa.c is #included), and
+ * mcdc_fm_arm(n) makes the n-th mp_* call -- and every later one -- return
+ * MP_VAL. Sweeping n therefore drives BOTH operands of each guard from a
+ * single pass over each entry point. Predicates (mp_iszero/mp_cmp/...) and
+ * teardown (mp_clear/mp_forcezero) are NOT interposed, so cleanup keeps
+ * working and every armed call stays crash-safe.
+ *
  * Invocation:
  *   ./test_dsa_fault_whitebox            baseline: unarmed valid ops only
  *   ./test_dsa_fault_whitebox sweep      baseline + the fault-index sweeps
@@ -63,9 +84,16 @@
  * default via argv, see the modules.json entry note.)
  */
 
+/* Installed BEFORE dsa.c so its mp_* calls resolve to the fault wrappers --
+ * the only lever that can drive dsa.c's `mp_xxx(...) != MP_OKAY` operands TRUE
+ * and, downstream of them, its success-code and init-error-code operands
+ * FALSE. See the file header. */
+#include "mcdc_fault_mp.h"
+
 #include <wolfcrypt/src/dsa.c>
 
 #include "mcdc_fault_alloc.h"
+#include <time.h>
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <stdio.h>
@@ -128,6 +156,9 @@ int main(int argc, char** argv)
     int      n;
     int      ret;
 
+    /* Unbuffered: if an armed call ever crashes, the notes printed so far
+     * must survive to say WHICH sweep it died in. */
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("dsa.c fault white-box (%s)\n",
            (argc > 1 && strcmp(argv[1], "baseline") == 0) ? "baseline" : "sweep");
 
@@ -254,10 +285,77 @@ int main(int argc, char** argv)
             }
         }
         WB_NOTE("fault-index sweeps over Sign / Verify / CheckPubKey done");
+
+        /* ---- big-integer fault sweeps (mcdc_fault_mp.h) ----------------
+         * Each entry point is run once DISARMED (the all-true baseline row
+         * for every guard, in THIS binary, and the sweep length K), then the
+         * fail index is swept over [1..K]. Inputs are always prepared while
+         * disarmed and none of these entry points mutates the key, so every
+         * armed call starts from the same known-good state. */
+        {
+            time_t t0 = time(NULL);
+            long   k, i;
+            int    a = 0;
+
+#define WB_MP_MAX      400
+#define WB_MP_DEADLINE 120
+#define WB_MP_EXPIRED() (difftime(time(NULL), t0) > (double)WB_MP_DEADLINE)
+#define WB_MP_SWEEP(lbl, ...)                                            \
+    do {                                                                  \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k = mcdc_fm_seen();                                               \
+        if (k > WB_MP_MAX)                                                \
+            k = WB_MP_MAX;                                                \
+        for (i = 1; (i <= k) && !WB_MP_EXPIRED(); i++) {                  \
+            mcdc_fm_arm(i);                                               \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k);                  \
+    } while (0)
+
+            {
+                byte sig2[256];
+                XMEMSET(sig2, 0, sizeof(sig2));
+                WB_MP_SWEEP("DsaSign_ex",
+                    (void)wc_DsaSign_ex(digest, sizeof(digest), sig2, &key,
+                        &rng));
+            }
+            WB_MP_SWEEP("DsaVerify_ex",
+                (void)wc_DsaVerify_ex(digest, sizeof(digest), sig, &key, &a));
+#ifndef NO_DSA_PUBKEY_CHECK
+            WB_MP_SWEEP("DsaCheckPubKey", (void)wc_DsaCheckPubKey(&key));
+#endif
+            /* Import parses p/q/g through mp_read_radix; a fresh key each
+             * time because import populates it. */
+            {
+                DsaKey ik;
+                WB_MP_SWEEP("DsaImportParamsRaw",
+                    if (wc_InitDsaKey(&ik) == 0) {
+                        (void)wc_DsaImportParamsRaw(&ik, kP, kQ, kG);
+                        wc_FreeDsaKey(&ik);
+                    });
+            }
+            /* Key generation from valid parameters: mp_rand_prime-free, so
+             * the sweep lands squarely in the exptmod/mod chain. */
+            {
+                DsaKey mk;
+                WB_MP_SWEEP("MakeDsaKey",
+                    if (wc_InitDsaKey(&mk) == 0) {
+                        if (wc_DsaImportParamsRaw(&mk, kP, kQ, kG) == 0)
+                            (void)wc_MakeDsaKey(&rng, &mk);
+                        wc_FreeDsaKey(&mk);
+                    });
+            }
+            mcdc_fm_disarm();
+            WB_NOTE("big-integer fault sweeps done");
+        }
     }
 
     mcdc_fa_disarm();
     mcdc_fa_restore();
+    mcdc_fm_disarm();
     wc_FreeDsaKey(&key);
     wc_FreeRng(&rng);
 

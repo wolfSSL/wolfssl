@@ -79,6 +79,18 @@
  * default is the productive full sweep.
  */
 
+/* Installed BEFORE sakke.c so its mp_* calls resolve to the fault wrappers.
+ * sakke.c's residuals are the `(err == 0) && <next step>` halves of its
+ * big-integer chains (1490/1512/1515/1518 mp_cmp range checks, the 2653
+ * bit-scan loop, the 543 key-generation retry). No mp_* call fails on a
+ * healthy machine and the mp scratch is on the stack, so neither the ordinary
+ * tests nor the heap-fault sweep below can drive `err == 0` FALSE there.
+ * mcdc_fault_mp.h interposes the value-returning mp_* API for this TU only;
+ * mcdc_fm_arm(n) fails the n-th mp_* call and every later one. Predicates
+ * (mp_iszero/mp_cmp/mp_count_bits) and teardown (mp_free/mp_forcezero) are NOT
+ * interposed, so cleanup keeps working and armed calls stay crash-safe. */
+#include "mcdc_fault_mp.h"
+
 #include <wolfcrypt/src/sakke.c>
 
 #include "mcdc_fault_alloc.h"
@@ -86,6 +98,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -176,6 +189,101 @@ static int build_prepared(SakkeKey* key, WC_RNG* rng, ecc_point* rsk)
     } while (0)
 #endif
 
+/* ---- big-integer fault sweeps (mcdc_fault_mp.h) ------------------------- */
+#define WB_MP_DEADLINE  90
+
+static time_t wb_mp_t0;
+
+static int wb_mp_expired(void)
+{
+    return difftime(time(NULL), wb_mp_t0) > (double)WB_MP_DEADLINE;
+}
+
+/* Run the statement once DISARMED -- the all-true baseline row for every guard
+ * it touches, in THIS binary, and the sweep length K -- then sweep the fail
+ * index over [1..min(K, cap)]. */
+#define WB_MP_SWEEP(lbl, cap, ...)                                        \
+    do {                                                                  \
+        long k_, i_;                                                      \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fm_seen();                                              \
+        if (k_ > (long)(cap))                                             \
+            k_ = (long)(cap);                                             \
+        for (i_ = 1; (i_ <= k_) && !wb_mp_expired(); i_++) {              \
+            mcdc_fm_arm(i_);                                              \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k_);                 \
+    } while (0)
+
+static void wb_mp_sweeps(SakkeKey* key, WC_RNG* rng, ecc_point* rsk)
+{
+    byte   ssv2[128];
+    byte   auth2[257];
+    word16 aSz;
+
+    wb_mp_t0 = time(NULL);
+    mcdc_fm_disarm();
+    XMEMSET(ssv2, 0x5a, sizeof(ssv2));
+    XMEMSET(auth2, 0, sizeof(auth2));
+
+    /* Fresh key per iteration: MakeSakkeKey mutates it, and its retry loop
+     * (543) plus the point-I/RSK derivation chains are what the sweep is for. */
+    WB_MP_SWEEP("MakeSakkeKey", 150,
+        {
+            SakkeKey k2;
+            if (wc_InitSakkeKey_ex(&k2, 128, ECC_SAKKE_1, NULL,
+                    INVALID_DEVID) == 0) {
+                (void)wc_MakeSakkeKey(&k2, rng);
+                wc_FreeSakkeKey(&k2);
+            }
+        });
+
+    WB_MP_SWEEP("MakeSakkeRsk", 200,
+        {
+            ecc_point* r2 = wc_ecc_new_point();
+            if (r2 != NULL) {
+                (void)wc_MakeSakkeRsk(key, gId, gIdSz, r2);
+                wc_ecc_del_point(r2);
+            }
+        });
+
+    WB_MP_SWEEP("ValidateSakkeRsk", 250,
+        {
+            int v = -1;
+            (void)wc_ValidateSakkeRsk(key, gId, gIdSz, rsk, &v);
+        });
+
+    WB_MP_SWEEP("MakeSakkeEncapsulatedSSV", 250,
+        {
+            byte   s2[128];
+            byte   a2[257];
+            word16 z = (word16)sizeof(a2);
+            XMEMSET(s2, 0x5a, sizeof(s2));
+            (void)wc_MakeSakkeEncapsulatedSSV(key, WC_HASH_TYPE_SHA256, s2, 16,
+                a2, &z);
+        });
+
+    /* One valid encapsulation, produced DISARMED, for the derive sweep. */
+    mcdc_fm_disarm();
+    aSz = (word16)sizeof(auth2);
+    if (wc_MakeSakkeEncapsulatedSSV(key, WC_HASH_TYPE_SHA256, ssv2, 16, auth2,
+            &aSz) == 0) {
+        WB_MP_SWEEP("DeriveSakkeSSV", 250,
+            {
+                byte s3[128];
+                XMEMCPY(s3, ssv2, 16);
+                (void)wc_DeriveSakkeSSV(key, WC_HASH_TYPE_SHA256, s3, 16,
+                    auth2, aSz);
+            });
+    }
+
+    mcdc_fm_disarm();
+    WB_NOTE("big-integer fault sweeps done");
+}
+
 int main(int argc, char** argv)
 {
     int    do_baseline = (argc > 1 && strcmp(argv[1], "baseline") == 0);
@@ -190,6 +298,9 @@ int main(int argc, char** argv)
     int    n;
     int    ret;
 
+    /* Unbuffered: if an armed call ever crashes, the notes printed so far
+     * must survive to say WHICH sweep it died in. */
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("sakke.c fault white-box (%s)\n",
            do_baseline ? "baseline" : (do_probe ? "probe" : "sweep"));
 
@@ -471,6 +582,9 @@ int main(int argc, char** argv)
 
     mcdc_fa_disarm();
     mcdc_fa_restore();
+    if (!do_baseline && !do_probe)
+        wb_mp_sweeps(&key, &rng, rsk);
+    mcdc_fm_disarm();
     wc_FreeSakkeKey(&key);
     wc_ecc_forcezero_point(rsk);
     wc_ecc_del_point(rsk);

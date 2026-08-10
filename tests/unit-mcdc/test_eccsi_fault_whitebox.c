@@ -69,12 +69,24 @@
  *   ./test_eccsi_fault_whitebox probe      per-target allocation-site counts
  */
 
+/* Installed BEFORE eccsi.c so its mp_* calls resolve to the fault wrappers.
+ * eccsi.c's residuals are the `(err == 0) && <next step>` halves of its
+ * big-integer success chains (196/202/208 params->haveA/haveB/havePrime, the
+ * 924/1934 retry loops). No mp_* call ever fails on a healthy machine and the
+ * mp scratch is on the stack, so neither the ordinary tests nor the heap-fault
+ * sweep below can drive `err == 0` FALSE there. mcdc_fault_mp.h interposes the
+ * value-returning mp_* API for this TU only; mcdc_fm_arm(n) fails the n-th
+ * mp_* call and every later one. Predicates (mp_iszero/mp_cmp) and teardown
+ * (mp_free/mp_forcezero) are NOT interposed, so cleanup keeps working. */
+#include "mcdc_fault_mp.h"
+
 #include <wolfcrypt/src/eccsi.c>
 
 #include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #ifndef INVALID_DEVID
     #define INVALID_DEVID (-2)
@@ -102,6 +114,176 @@ static int reload_base(EccsiKey* key)
     return eccsi_load_base(key);
 }
 
+/* ---- big-integer fault sweeps (mcdc_fault_mp.h) ------------------------- */
+#define WB_MP_DEADLINE  90
+
+static time_t wb_mp_t0;
+
+static int wb_mp_expired(void)
+{
+    return difftime(time(NULL), wb_mp_t0) > (double)WB_MP_DEADLINE;
+}
+
+/* Run the statement once DISARMED -- the all-true baseline row for every guard
+ * it touches, in THIS binary, and the sweep length K -- then sweep the fail
+ * index over [1..min(K, cap)]. */
+#define WB_MP_SWEEP(lbl, cap, ...)                                        \
+    do {                                                                  \
+        long k_, i_;                                                      \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fm_seen();                                              \
+        if (k_ > (long)(cap))                                             \
+            k_ = (long)(cap);                                             \
+        for (i_ = 1; (i_ <= k_) && !wb_mp_expired(); i_++) {              \
+            mcdc_fm_arm(i_);                                              \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k_);                 \
+    } while (0)
+
+static void wb_mp_sweeps(WC_RNG* rng)
+{
+    EccsiKey  k;
+    ecc_point* pvt = NULL;
+    mp_int     ssk;
+    byte       id[] = "eccsi-mp-fault@wolfssl.com";
+    byte       hash[WC_MAX_DIGEST_SIZE];
+    byte       sig[257];
+    word32     sigSz;
+    int        verified = 0;
+    int        ready = 0;
+
+    wb_mp_t0 = time(NULL);
+    mcdc_fm_disarm();
+
+    XMEMSET(&k, 0, sizeof(k));
+    XMEMSET(&ssk, 0, sizeof(ssk));
+    XMEMSET(hash, 0x5a, sizeof(hash));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    if (wc_InitEccsiKey(&k, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_InitEccsiKey failed; mp sweeps skipped");
+        return;
+    }
+    pvt = wc_ecc_new_point_h(NULL);
+    if ((pvt != NULL) && (mp_init(&ssk) == 0) &&
+            (wc_MakeEccsiKey(&k, rng) == 0)) {
+        ready = 1;
+    }
+    if (!ready) {
+        WB_NOTE("eccsi fixture setup failed; mp sweeps skipped");
+        goto done;
+    }
+
+    /* Order matters: everything that needs a VALID (ssk, pvt) pair is driven
+     * first, because the MakeEccsiPair sweep leaves the key in whatever state
+     * a faulted call produced. */
+    mcdc_fm_disarm();
+    if (wc_MakeEccsiPair(&k, rng, WC_HASH_TYPE_SHA256, id, (word32)sizeof(id),
+            &ssk, pvt) != 0) {
+        WB_NOTE("wc_MakeEccsiPair baseline failed; mp sweeps skipped");
+        goto done;
+    }
+
+    WB_MP_SWEEP("ValidateEccsiPair", 200,
+        {
+            int v = 0;
+            (void)wc_ValidateEccsiPair(&k, WC_HASH_TYPE_SHA256, id,
+                (word32)sizeof(id), &ssk, pvt, &v);
+        });
+
+    mcdc_fm_disarm();
+    if ((wc_SetEccsiPair(&k, &ssk, pvt) == 0) &&
+            (wc_HashEccsiId(&k, WC_HASH_TYPE_SHA256, id, (word32)sizeof(id),
+                pvt, hash, NULL) == 0) &&
+            (wc_SetEccsiHash(&k, hash, WC_SHA256_DIGEST_SIZE) == 0)) {
+        WB_MP_SWEEP("SignEccsiHash", 200,
+            {
+                byte   s2[257];
+                word32 z = (word32)sizeof(s2);
+                (void)wc_SignEccsiHash(&k, rng, WC_HASH_TYPE_SHA256, hash,
+                    WC_SHA256_DIGEST_SIZE, s2, &z);
+            });
+
+        mcdc_fm_disarm();
+        sigSz = (word32)sizeof(sig);
+        if (wc_SignEccsiHash(&k, rng, WC_HASH_TYPE_SHA256, hash,
+                WC_SHA256_DIGEST_SIZE, sig, &sigSz) == 0) {
+            WB_MP_SWEEP("VerifyEccsiHash", 200,
+                (void)wc_VerifyEccsiHash(&k, WC_HASH_TYPE_SHA256, hash,
+                    WC_SHA256_DIGEST_SIZE, sig, sigSz, &verified));
+        }
+        else {
+            WB_NOTE("wc_SignEccsiHash baseline failed; verify sweep skipped");
+        }
+    }
+    else {
+        WB_NOTE("SetEccsiPair/HashEccsiId/SetEccsiHash failed; sign+verify "
+                "sweeps skipped");
+    }
+
+    /* 196/202/208 eccsi_load_ecc_params():
+     *     if ((err == 0) && (!params->haveA))     (and haveB / havePrime)
+     * The FALSE half of the err operand needs an earlier step in the SAME call
+     * to fail, with the second operand still true -- i.e. a key whose haveA/
+     * haveB/havePrime are still 0. Those flags latch on first use, and the
+     * public API caches them, so the only way to present a fresh key is to
+     * call the file-static helper directly (in scope via the #include at the
+     * top) on a key that has never loaded its parameters, with the fail index
+     * landing on eccsi_load_order()'s / this function's own mp_read_radix.
+     * The all-true row comes from the unarmed fixture setup above. */
+    {
+        long n;
+
+        for (n = 1; (n <= 6) && !wb_mp_expired(); n++) {
+            EccsiKey k2;
+
+            XMEMSET(&k2, 0, sizeof(k2));
+            if (wc_InitEccsiKey(&k2, NULL, INVALID_DEVID) == 0) {
+                mcdc_fm_disarm();
+                if (wc_MakeEccsiKey(&k2, rng) == 0) {
+                    /* Clear the latches so every guard's second operand is
+                     * true again for this armed call. */
+                    k2.params.haveA     = 0;
+                    k2.params.haveB     = 0;
+                    k2.params.havePrime = 0;
+                    mcdc_fm_arm(n);
+                    (void)eccsi_load_ecc_params(&k2);
+                    mcdc_fm_disarm();
+                }
+                wc_FreeEccsiKey(&k2);
+            }
+        }
+        printf("  [wb] mp sweep eccsi_load_ecc_params: 6 points\n");
+    }
+
+    /* Destructive sweeps last: each faulted call may leave the key or the
+     * pair unusable, so nothing above may depend on them. */
+    WB_MP_SWEEP("MakeEccsiPair", 200,
+        (void)wc_MakeEccsiPair(&k, rng, WC_HASH_TYPE_SHA256, id,
+            (word32)sizeof(id), &ssk, pvt));
+
+    WB_MP_SWEEP("MakeEccsiKey", 120,
+        {
+            EccsiKey k2;
+            XMEMSET(&k2, 0, sizeof(k2));
+            if (wc_InitEccsiKey(&k2, NULL, INVALID_DEVID) == 0) {
+                (void)wc_MakeEccsiKey(&k2, rng);
+                wc_FreeEccsiKey(&k2);
+            }
+        });
+
+done:
+    mcdc_fm_disarm();
+    mp_free(&ssk);
+    if (pvt != NULL)
+        wc_ecc_del_point_h(pvt, NULL);
+    wc_FreeEccsiKey(&k);
+    WB_NOTE("big-integer fault sweeps done");
+}
+
 int main(int argc, char** argv)
 {
     int      do_sweep   = !(argc > 1 && strcmp(argv[1], "baseline") == 0);
@@ -117,6 +299,9 @@ int main(int argc, char** argv)
     int      n_idx;
     const int K = 60; /* over-sweep past the mulmod/point-add allocation sites */
 
+    /* Unbuffered: if an armed call ever crashes, the notes printed so far
+     * must survive to say WHICH sweep it died in. */
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("eccsi.c fault white-box (%s)\n",
            do_probe ? "probe" : (do_sweep ? "sweep" : "baseline"));
 
@@ -245,6 +430,8 @@ int main(int argc, char** argv)
 cleanup:
     mcdc_fa_disarm();
     mcdc_fa_restore();
+    if (do_sweep)
+        wb_mp_sweeps(&rng);
     if (ptA != NULL) wc_ecc_del_point_h(ptA, NULL);
     if (ptB != NULL) wc_ecc_del_point_h(ptB, NULL);
     if (res != NULL) wc_ecc_del_point_h(res, NULL);
