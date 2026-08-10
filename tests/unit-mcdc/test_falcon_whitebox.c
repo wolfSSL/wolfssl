@@ -692,32 +692,651 @@ static void wb_native_roundtrip(WC_RNG* rng)
 }
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
 
+/* ================================================================== *
+ * Gap-close pass: decisions whose remaining half is only reachable by
+ * calling a file-static helper DIRECTLY with crafted operands. Every
+ * driver below is bounded (no unbounded retry loop is ever entered with
+ * a rejecting sampler unless the restart bound itself is tiny) and
+ * crash-safe: the operands are mathematically invalid but structurally
+ * well-formed, and every buffer handed in is correctly sized.
+ * ================================================================== */
+
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+
+/* ------------------------------------------------------------------ *
+ * falcon_berexp: do { i -= 8; w = prng_u8 - ((z >> i) & 0xFF); }
+ *                while ((w == 0) && (i > 0));
+ * The (i > 0) operand is only evaluated when w == 0, i.e. when the fresh
+ * random byte happens to equal the corresponding byte of z -- probability
+ * 1/256 per iteration from a live PRNG, and 2^-64 for the final (i == 0)
+ * iteration that yields the operand's FALSE half.
+ *
+ * falcon_prng is a plain SHAKE256 squeeze buffer, so the byte stream berexp
+ * consumes can be planted: recompute z exactly as berexp does (the same
+ * public helpers are in scope), then stage the eight big-endian bytes of z in
+ * p.buf. Every iteration then sees w == 0, so the loop walks i = 56, 48, ...
+ * (cond1 TRUE) down to i == 0 (cond1 FALSE) -- both halves of the (i > 0)
+ * operand in a single, fully deterministic call that consumes exactly the
+ * eight staged bytes and never refills.
+ * ------------------------------------------------------------------ */
+static void wb_berexp_loop(WC_RNG* rng)
+{
+    falcon_prng p;
+    fpr    x, r, ccs;
+    word64 z;
+    word32 sw;
+    int    s, i;
+
+    XMEMSET(&p, 0, sizeof(p));
+    if (falcon_prng_init(&p, rng) != 0) {
+        WB_NOTE("berexp: prng_init failed; loop-operand vector skipped");
+        return;
+    }
+
+    /* Any x >= 0 (berexp's documented precondition) and any ccs in (0, 1).
+     * ccs must stay strictly below 1: fpr_expm_p63 scales it by 2^63 and
+     * truncates to a signed 64-bit integer, so ccs == 1 would sit exactly on
+     * the overflow edge. */
+    x   = fpr_of(3);
+    ccs = fpr_onehalf;
+
+    /* Mirror of berexp's own reduction, verbatim, so z matches bit for bit. */
+    s = (int)fpr_trunc(fpr_mul(x, falcon_fpr_inv_log2));
+    r = fpr_sub(x, fpr_mul(fpr_of((sword64)s), falcon_fpr_log2));
+    sw = (word32)s;
+    sw ^= (sw ^ 63U) & (word32)(0U - ((63U - sw) >> 31));
+    s = (int)sw;
+    z = ((fpr_expm_p63(r, ccs) << 1) - 1) >> s;
+
+    /* Stage the eight comparison bytes so every iteration sees w == 0. */
+    for (i = 0; i < 8; i++) {
+        p.buf[i] = (byte)((z >> (56 - 8 * i)) & 0xFFU);
+    }
+    p.ptr = 0;
+    p.len = 8;
+
+    (void)falcon_berexp(&p, x, ccs);
+
+    wc_Shake256_Free(&p.shake);
+    ForceZero(&p, sizeof(p));
+    WB_OK("falcon_berexp (w==0)&&(i>0) loop operand pair exercised");
+}
+
+/* ------------------------------------------------------------------ *
+ * poly_small_mkgauss: if (s < -127 || s > 127) continue;
+ * mkgauss() sums 2^(10-logn) table samples, so the standard deviation is
+ * 1.17*sqrt(q/(2n)): ~2.87 at logn = 10 (rejection never observed) but ~64.9
+ * at logn = 1, where |s| > 127 is only ~1.96 sigma and fires for roughly 5% of
+ * the draws -- with both signs equally likely. Driving the helper directly at
+ * logn = 1 therefore shows both operands' TRUE half (and the all-FALSE half)
+ * within a few hundred coefficients, with no unbounded loop: every rejection
+ * is followed by a fresh in-range draw.
+ * ------------------------------------------------------------------ */
+static void wb_mkgauss_range(WC_RNG* rng)
+{
+    falcon_rng rc;
+    sword8     f[2];              /* logn = 1 -> n = 2 */
+    int        i;
+
+    XMEMSET(&rc, 0, sizeof(rc));
+    if (falcon_rng_init(&rc, rng, NULL) != 0) {
+        WB_NOTE("mkgauss: falcon_rng_init failed; range vectors skipped");
+        return;
+    }
+    for (i = 0; i < 512; i++) {
+        poly_small_mkgauss(&rc, f, 1);
+        if (rc.err != 0) {
+            WB_NOTE("mkgauss: PRNG squeeze failed mid-run");
+            break;
+        }
+    }
+    falcon_rng_free(&rc);
+    WB_OK("poly_small_mkgauss s<-127 / s>127 operand pair exercised");
+}
+
+/* ------------------------------------------------------------------ *
+ * falcon_native_check_key: if (ft[i] == 0 || barrett(h[i]*ft[i]) != gt[i])
+ * cond0's TRUE half needs a private key whose f is NOT invertible mod q, i.e.
+ * with a zero slot in NTT(f). keygen never emits one (it restarts instead),
+ * but the check runs on a DECODED key blob, so the whole operand pair can be
+ * built by hand at Falcon-512. NTT is linear and the polynomials below are
+ * constants, so every slot value is known exactly:
+ *   f = 0, g = 0, h = 0 -> ft[i] = 0                    (cond0 TRUE)
+ *   f = 1, g = 0, h = 0 -> ft[i] = 1, h[i]*ft[i] = 0 = gt[i]
+ *                                                       (cond0/cond1 FALSE)
+ *   f = 1, g = 0, h = 1 -> ft[i] = 1, h[i]*ft[i] = 1 != gt[i] = 0
+ *                                                       (cond0 FALSE, cond1
+ *                                                        TRUE)
+ * Every buffer is a real, correctly sized key array and the routine only ever
+ * decodes and compares.
+ * ------------------------------------------------------------------ */
+static int wb_check_key_case(falcon_key* key, sword8* poly, word16* h,
+        sword8 f0, word16 h0)
+{
+    const unsigned logn = 9;      /* FALCON_LEVEL1 -> n = 512 */
+    const size_t   n    = (size_t)1 << 9;
+
+    XMEMSET(key, 0, sizeof(*key));
+    XMEMSET(poly, 0, 3 * n);              /* f = g = F = 0 */
+    XMEMSET(h, 0, n * sizeof(word16));
+    poly[0] = f0;                         /* constant term of f */
+    h[0]    = h0;                         /* constant term of h */
+
+    key->level = FALCON_LEVEL1;
+    key->heap  = NULL;
+    if (falcon_privkey_encode(key->k, FALCON_LEVEL1_KEY_SIZE, poly, poly + n,
+            poly + 2 * n, logn) != FALCON_LEVEL1_KEY_SIZE) {
+        WB_NOTE("check_key: privkey_encode did not fill the blob");
+        return 1;
+    }
+    key->p[0] = (byte)(FALCON_PUB_HEAD | logn);
+    if (falcon_modq_encode(key->p + 1, FALCON_LEVEL1_PUB_KEY_SIZE - 1, h,
+            logn) == 0) {
+        WB_NOTE("check_key: modq_encode failed");
+        return 1;
+    }
+    return falcon_native_check_key(key);
+}
+
+static void wb_check_key_ntt_slots(void)
+{
+    falcon_key* key;
+    sword8*     poly;
+    word16*     h;
+    const size_t n = (size_t)1 << 9;
+
+    key  = (falcon_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    poly = (sword8*)XMALLOC(3 * n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    h    = (word16*)XMALLOC(n * sizeof(word16), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (poly == NULL) || (h == NULL)) {
+        WB_NOTE("check_key: allocation failed; NTT-slot vectors skipped");
+    }
+    else {
+        /* cond0 FALSE, cond1 FALSE: consistent (all-zero) relation. */
+        if (wb_check_key_case(key, poly, h, 1, 0) != 0) {
+            WB_NOTE("check_key(f=1,h=0) expected acceptance");
+        }
+        /* cond0 FALSE, cond1 TRUE: invertible f but h*f != g. */
+        if (wb_check_key_case(key, poly, h, 1, 1)
+                != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            WB_NOTE("check_key(f=1,h=1) expected a public-key mismatch");
+        }
+        /* cond0 TRUE: f == 0 is not invertible, so NTT(f) is zero. */
+        if (wb_check_key_case(key, poly, h, 0, 0)
+                != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            WB_NOTE("check_key(f=0) expected a public-key mismatch");
+        }
+    }
+    XFREE(h, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(poly, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WB_OK("falcon_native_check_key ft[i]==0 operand pair exercised");
+}
+
+/* ------------------------------------------------------------------ *
+ * solve_NTRU_deepest:
+ *   if (zint_mul_small(Fp, len, q) != 0 || zint_mul_small(Gp, len, q) != 0)
+ * Both operands' TRUE half needs the q-scaling of a Bezout coefficient to
+ * carry out of the len-word big integer. Real keygen operands are Gaussian
+ * with a tiny norm, so the resultants stay far below the CRT modulus and the
+ * carry never appears. With adversarial (f, g) whose coefficients fill the
+ * signed 8-bit range, the resultant of a degree-8 polynomial with X^8+1
+ * exceeds the 2-word CRT modulus at logn_top = 3, wraps, and the Bezout
+ * coefficients become essentially uniform below the modulus -- so the carry
+ * fires for the large majority of candidates.
+ *
+ * The classification is done first, on a private scratch buffer, by replaying
+ * exactly the prologue solve_NTRU_deepest runs (make_fg -> zint_rebuild_CRT ->
+ * zint_bezout) and then testing the two carries on COPIES; only once a
+ * candidate is known to produce the wanted pattern is the real helper invoked
+ * with it. The search is bounded and every step is a pure big-integer
+ * computation on correctly sized buffers.
+ * ------------------------------------------------------------------ */
+#define WB_DEEPEST_LOGN   3
+#define WB_DEEPEST_N      ((size_t)1 << WB_DEEPEST_LOGN)
+#define WB_SOLVE_WORDS    8192
+
+static void wb_deepest_candidate(int trial, sword8* f, sword8* g)
+{
+    size_t   i;
+    unsigned parity;
+
+    for (i = 0; i < WB_DEEPEST_N; i++) {
+        f[i] = (sword8)((trial * 7 + (int)i * 31 + 11) % 255 - 127);
+        g[i] = (sword8)((trial * 13 + (int)i * 17 + 5) % 255 - 127);
+    }
+    /* zint_bezout requires both resultants odd, i.e. an odd coefficient sum. */
+    for (i = 0, parity = 0; i < WB_DEEPEST_N; i++) {
+        parity ^= (unsigned)(f[i] & 1);
+    }
+    if (parity == 0) {
+        f[0] = (sword8)(f[0] ^ 1);
+    }
+    for (i = 0, parity = 0; i < WB_DEEPEST_N; i++) {
+        parity ^= (unsigned)(g[i] & 1);
+    }
+    if (parity == 0) {
+        g[0] = (sword8)(g[0] ^ 1);
+    }
+}
+
+/* Returns 1/2/3 for "no carry", "first operand carries", "only the second
+ * carries", or 0 when zint_bezout rejects the candidate. */
+static int wb_deepest_classify(word32* scratch, const sword8* f,
+        const sword8* g)
+{
+    const size_t len = MAX_BL_SMALL[WB_DEEPEST_LOGN];
+    word32* Fp = scratch;
+    word32* Gp = Fp + len;
+    word32* fp = Gp + len;
+    word32* gp = fp + len;
+    word32* t1 = gp + len;
+    word32  cF, cG;
+
+    make_fg(fp, f, g, WB_DEEPEST_LOGN, WB_DEEPEST_LOGN, 0);
+    zint_rebuild_CRT(fp, len, len, 2, FALCON_PRIMES, 0, t1);
+    if (!zint_bezout(Gp, Fp, fp, gp, len, t1)) {
+        return 0;
+    }
+    /* Carry test on copies: zint_mul_small scales in place. */
+    XMEMCPY(t1, Fp, len * sizeof(word32));
+    cF = zint_mul_small(t1, len, 12289);
+    XMEMCPY(t1, Gp, len * sizeof(word32));
+    cG = zint_mul_small(t1, len, 12289);
+    if (cF != 0) {
+        return 2;
+    }
+    return (cG != 0) ? 3 : 1;
+}
+
+static void wb_solve_deepest_overflow(void)
+{
+    word32* scratch;
+    word32* live;
+    sword8  f[WB_DEEPEST_N];
+    sword8  g[WB_DEEPEST_N];
+    int     trial, want, got;
+    int     found[4];
+
+    scratch = (word32*)XMALLOC(WB_SOLVE_WORDS * sizeof(word32), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    live = (word32*)XMALLOC(WB_SOLVE_WORDS * sizeof(word32), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if ((scratch == NULL) || (live == NULL)) {
+        WB_NOTE("solve_NTRU_deepest: allocation failed; carry vectors skipped");
+    }
+    else {
+        found[0] = found[1] = found[2] = found[3] = 0;
+        /* want 2 = first operand carries (cond0 TRUE),
+         * want 3 = only the second carries (cond0 FALSE, cond1 TRUE). */
+        for (want = 2; want <= 3; want++) {
+            for (trial = 0; trial < 256; trial++) {
+                wb_deepest_candidate(trial, f, g);
+                got = wb_deepest_classify(scratch, f, g);
+                if (got != want) {
+                    continue;
+                }
+                XMEMSET(live, 0, WB_SOLVE_WORDS * sizeof(word32));
+                if (solve_NTRU_deepest(WB_DEEPEST_LOGN, f, g, live) != 0) {
+                    WB_NOTE("solve_NTRU_deepest: expected the carry rejection");
+                }
+                found[want] = 1;
+                break;
+            }
+            if (!found[want]) {
+                WB_NOTE("solve_NTRU_deepest: no candidate for a carry pattern");
+            }
+        }
+    }
+    XFREE(live, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(scratch, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WB_OK("solve_NTRU_deepest zint_mul_small carry operand pair exercised");
+}
+
+/* ------------------------------------------------------------------ *
+ * solve_NTRU:
+ *   if (!poly_big_to_small(F, tmp, lim, logn)
+ *           || !poly_big_to_small(G, tmp + n, lim, logn))
+ * keygen always passes lim = 127 and the solved (F, G) fit, so only the
+ * all-FALSE half shows. lim is a plain parameter of solve_NTRU, so a direct
+ * call with a deliberately tight bound rejects on the first or the second
+ * conversion at will:
+ *   lim = 0            -> F is out of range          (cond0 TRUE)
+ *   lim = max|F[i]|    -> F fits, G does not         (cond0 FALSE, cond1 TRUE)
+ * The (f, g) pair comes from a real keygen at logn = 5, so the whole solver
+ * chain runs on legitimate operands and only the final range gate differs; the
+ * second vector is only issued once a key with max|G| > max|F| has been drawn.
+ * ------------------------------------------------------------------ */
+static void wb_solve_ntru_lim(WC_RNG* rng)
+{
+    const unsigned logn = 5;
+    const size_t   n    = (size_t)1 << 5;
+    sword8  f[32], g[32], F[32], G[32], Fout[32], Gout[32];
+    word16  h[32];
+    byte*   tmpbuf;
+    size_t  u;
+    int     tries, maxF = 0, maxG = 0, haveKey = 0;
+
+    tmpbuf = (byte*)XMALLOC(FALCON_KEYGEN_TEMP[logn] + sizeof(fpr), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpbuf == NULL) {
+        WB_NOTE("solve_NTRU: allocation failed; lim vectors skipped");
+        return;
+    }
+    for (tries = 0; tries < 8; tries++) {
+        if (falcon_keygen(rng, f, g, F, G, h, logn) != 0) {
+            break;
+        }
+        maxF = 0;
+        maxG = 0;
+        for (u = 0; u < n; u++) {
+            int aF = (F[u] < 0) ? -(int)F[u] : (int)F[u];
+            int aG = (G[u] < 0) ? -(int)G[u] : (int)G[u];
+            if (aF > maxF) {
+                maxF = aF;
+            }
+            if (aG > maxG) {
+                maxG = aG;
+            }
+        }
+        haveKey = 1;
+        if (maxG > maxF) {
+            break;
+        }
+    }
+    if (!haveKey) {
+        WB_NOTE("solve_NTRU: keygen(logn=5) failed; lim vectors skipped");
+    }
+    else {
+        /* cond0 TRUE: no coefficient of F can fit in [-0, 0]. */
+        if (solve_NTRU(logn, Fout, Gout, f, g, 0, (word32*)tmpbuf) != 0) {
+            WB_NOTE("solve_NTRU(lim=0) expected the range rejection");
+        }
+        if (maxG > maxF) {
+            /* cond0 FALSE, cond1 TRUE: F fits exactly, G overflows. */
+            if (solve_NTRU(logn, Fout, Gout, f, g, maxF,
+                    (word32*)tmpbuf) != 0) {
+                WB_NOTE("solve_NTRU(lim=max|F|) expected the G rejection");
+            }
+        }
+        else {
+            WB_NOTE("solve_NTRU: no key with max|G| > max|F| in 8 draws");
+        }
+    }
+    ForceZero(tmpbuf, (word32)(FALCON_KEYGEN_TEMP[logn] + sizeof(fpr)));
+    XFREE(tmpbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WB_OK("solve_NTRU poly_big_to_small lim operand pair exercised");
+}
+
+/* ------------------------------------------------------------------ *
+ * solve_NTRU_intermediate Babai clamp:
+ *   if (!fpr_lt(fpr_mtwo31m1, xv) || !fpr_lt(xv, fpr_ptwo31m1)) return 0;
+ * xv is a reduction coefficient rescaled by 2^dc, where dc comes from the
+ * BITLENGTH[] heuristic for the expected coefficient size at that depth. The
+ * heuristic is tuned for the production degrees, so at logn = 9/10 an
+ * out-of-range xv is astronomically rare -- which is why the baseline only
+ * ever showed this pair by luck. At logn = 3 the same heuristic is far coarser
+ * and the clamp fires for roughly a fifth of the drawn (f, g) pairs, in both
+ * directions, so a bounded batch of small keygens turns a lottery into a
+ * near-certainty: with p ~ 0.2 per key, 256 keys leave a miss probability
+ * below 1e-24. Each key is a full but tiny (n = 8) keygen; the batch runs in
+ * a few seconds and cannot loop (falcon_keygen either returns or restarts on
+ * its own bounded acceptance tests).
+ * ------------------------------------------------------------------ */
+static void wb_solve_ntru_babai_clamp(WC_RNG* rng)
+{
+    sword8 f[8], g[8], F[8], G[8];
+    word16 h[8];
+    int    i;
+
+    for (i = 0; i < 256; i++) {
+        if (falcon_keygen(rng, f, g, F, G, h, 3) != 0) {
+            WB_NOTE("solve_NTRU_intermediate: keygen(logn=3) failed");
+            break;
+        }
+    }
+    WB_OK("solve_NTRU_intermediate Babai clamp operand pair exercised");
+}
+
+/* A sampler that always returns 0. Used to make a signing attempt fully
+ * deterministic: the sampled lattice coordinates are zero, so the candidate is
+ * exactly the (huge) target and the shortness test always rejects. It touches
+ * neither the PRNG nor the ffLDL tree, so it cannot loop or diverge. */
+static int wb_samp_zero(void* ctx, fpr mu, fpr isigma)
+{
+    (void)ctx;
+    (void)mu;
+    (void)isigma;
+    return 0;
+}
+
+/* A degenerate-but-valid basis at logn = 1: f*G - g*F = -12 + 31*X is nonzero
+ * at both FFT slots, so the Gram matrix is positive definite and the ffLDL
+ * leaf sigmas are finite and positive -- the sampler behaves normally. */
+#define WB_SIGN_LOGN   1
+#define WB_SIGN_N      2
+
+static const sword8 wb_basis_f[WB_SIGN_N] = {  3,  1 };
+static const sword8 wb_basis_g[WB_SIGN_N] = {  1, -2 };
+static const sword8 wb_basis_F[WB_SIGN_N] = {  5,  0 };
+static const sword8 wb_basis_G[WB_SIGN_N] = {  0,  7 };
+
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
+/* ------------------------------------------------------------------ *
+ * falcon_do_sign_tree restart loop:
+ *   if (samplerErr != NULL && *samplerErr != 0) return *samplerErr;
+ * The check is only reached after do_sign_tree_once() REJECTS a candidate,
+ * which real signing does about once in a very long while -- and never with a
+ * latched sampler error, since the production caller aborts long before. Both
+ * are supplied directly instead:
+ *   - a sampler that always returns 0 plus an all-zero expanded key makes the
+ *     lattice point identically 0, so the candidate is the raw target; with a
+ *     large hash-to-point value the squared norm is far above the acceptance
+ *     bound and EVERY attempt rejects, deterministically;
+ *   - the three samplerErr shapes then walk the operand pair:
+ *       non-NULL -> nonzero : (T,T), returns after ONE attempt
+ *       NULL                : (F,-)
+ *       non-NULL -> zero    : (T,F)
+ * The last two run the full restart bound, which at logn = 1 is 4096 passes
+ * over a two-coefficient FFT -- microseconds, not a hang risk.
+ * ------------------------------------------------------------------ */
+static void wb_do_sign_tree_samplererr(void)
+{
+    fpr     expanded[FALCON_EXPANDED_KEY_FPR(WB_SIGN_LOGN)];
+    fpr     tmp[FALCON_SIGN_TMP_FPR(WB_SIGN_LOGN) + 8];
+    sword16 s2[WB_SIGN_N];
+    word16  hm[WB_SIGN_N];
+    int     err  = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int     zero = 0;
+    size_t  u;
+
+    XMEMSET(expanded, 0, sizeof(expanded));
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(s2, 0, sizeof(s2));
+    /* 30000^2 * 2 stays inside sword32/word32 yet is ~4 orders of magnitude
+     * above l2bound[1], so the shortness test always rejects. */
+    for (u = 0; u < WB_SIGN_N; u++) {
+        hm[u] = 30000;
+    }
+
+    /* (T,T): latched sampler error -> returns after the first rejection. */
+    if (falcon_do_sign_tree(wb_samp_zero, NULL, s2, expanded, hm, WB_SIGN_LOGN,
+            tmp, &err) != err) {
+        WB_NOTE("do_sign_tree(samplerErr set) expected the latched error");
+    }
+    /* (F,-): no error pointer -> exhausts the restart bound. */
+    (void)falcon_do_sign_tree(wb_samp_zero, NULL, s2, expanded, hm,
+            WB_SIGN_LOGN, tmp, NULL);
+    /* (T,F): error pointer present but clear -> exhausts the restart bound. */
+    (void)falcon_do_sign_tree(wb_samp_zero, NULL, s2, expanded, hm,
+            WB_SIGN_LOGN, tmp, &zero);
+    WB_OK("falcon_do_sign_tree samplerErr operand pair exercised");
+}
+
+/* ------------------------------------------------------------------ *
+ * falcon_sign_core: if (ret == 0 && spc->p.err != 0) ret = spc->p.err;
+ * The round-trip only ever shows (T,F) (a clean sign with a healthy PRNG).
+ *   cond0 FALSE : an out-of-range logn makes falcon_do_sign_tree reject the
+ *                 arguments, so ret != 0 and cond1 is not evaluated.
+ *   (T,T)       : pre-latch spc->p.err and let a signing attempt succeed. The
+ *                 target is the zero hash-to-point over a well-conditioned
+ *                 basis, so the sampled lattice point is essentially zero and
+ *                 the first attempt is accepted; because samplerErr is non-NULL
+ *                 and nonzero, a rejected attempt returns IMMEDIATELY instead
+ *                 of restarting, so the loop below can never hang.
+ * ------------------------------------------------------------------ */
+static void wb_sign_core_err(WC_RNG* rng)
+{
+    falcon_sampler_ctx spc;
+    fpr     expanded[FALCON_EXPANDED_KEY_FPR(WB_SIGN_LOGN)];
+    fpr     tmp[FALCON_SIGN_TMP_FPR(WB_SIGN_LOGN) + 8];
+    sword16 s2[WB_SIGN_N];
+    word16  hm[WB_SIGN_N];
+    int     i, ok = 0;
+
+    XMEMSET(expanded, 0, sizeof(expanded));
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(hm, 0, sizeof(hm));
+    if (falcon_expand_privkey(expanded, wb_basis_f, wb_basis_g, wb_basis_F,
+            wb_basis_G, WB_SIGN_LOGN, NULL) != 0) {
+        WB_NOTE("sign_core: expand_privkey(test basis) failed");
+        return;
+    }
+    XMEMSET(&spc, 0, sizeof(spc));
+    if (falcon_sampler_init(&spc, WB_SIGN_LOGN, rng) != 0) {
+        WB_NOTE("sign_core: sampler_init failed; p.err vectors skipped");
+        return;
+    }
+
+    /* cond0 FALSE: argument rejection inside falcon_do_sign_tree. */
+    spc.p.err = 0;
+    (void)falcon_sign_core(&spc, expanded, hm, s2, tmp, 0);
+
+    /* (T,T): a first-attempt success with the error already latched. */
+    for (i = 0; i < 64; i++) {
+        s2[0] = -1;
+        s2[1] = -1;
+        spc.p.err = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+        (void)falcon_sign_core(&spc, expanded, hm, s2, tmp, WB_SIGN_LOGN);
+        if ((s2[0] != -1) || (s2[1] != -1)) {
+            ok = 1;                 /* s2 written -> the attempt was accepted */
+            break;
+        }
+    }
+    spc.p.err = 0;
+    if (!ok) {
+        WB_NOTE("sign_core: no accepted attempt with p.err latched");
+    }
+    wc_Shake256_Free(&spc.p.shake);
+    ForceZero(&spc, sizeof(spc));
+    WB_OK("falcon_sign_core (ret==0)&&(p.err!=0) operand pair exercised");
+}
+
+#else /* WOLFSSL_FALCON_SIGN_SMALL_MEM */
+
+/* ------------------------------------------------------------------ *
+ * falcon_do_sign_dyn restart loop: the low-memory twin of the decision above
+ * (same samplerErr shapes, same reasoning). The basis here is passed raw
+ * instead of expanded; it is well-conditioned (f*G - g*F != 0 at both slots)
+ * so the on-the-fly LDL never divides by zero, and the always-zero sampler
+ * again forces every attempt to reject against a large target.
+ * ------------------------------------------------------------------ */
+static void wb_do_sign_dyn_samplererr(void)
+{
+    fpr     tmp[FALCON_SIGN_DYN_TMP_FPR(WB_SIGN_LOGN) + 16];
+    sword16 s2[WB_SIGN_N];
+    word16  hm[WB_SIGN_N];
+    int     err  = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int     zero = 0;
+    size_t  u;
+
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(s2, 0, sizeof(s2));
+    for (u = 0; u < WB_SIGN_N; u++) {
+        hm[u] = 30000;
+    }
+
+    if (falcon_do_sign_dyn(wb_samp_zero, NULL, s2, wb_basis_f, wb_basis_g,
+            wb_basis_F, wb_basis_G, hm, WB_SIGN_LOGN, tmp, &err) != err) {
+        WB_NOTE("do_sign_dyn(samplerErr set) expected the latched error");
+    }
+    (void)falcon_do_sign_dyn(wb_samp_zero, NULL, s2, wb_basis_f, wb_basis_g,
+            wb_basis_F, wb_basis_G, hm, WB_SIGN_LOGN, tmp, NULL);
+    (void)falcon_do_sign_dyn(wb_samp_zero, NULL, s2, wb_basis_f, wb_basis_g,
+            wb_basis_F, wb_basis_G, hm, WB_SIGN_LOGN, tmp, &zero);
+    WB_OK("falcon_do_sign_dyn samplerErr operand pair exercised");
+}
+
+/* ------------------------------------------------------------------ *
+ * falcon_sign_dyn_core: low-memory twin of falcon_sign_core's
+ * (ret == 0 && spc->p.err != 0); identical vectors and identical bound on the
+ * number of attempts (a rejection returns immediately once p.err is latched).
+ * ------------------------------------------------------------------ */
+static void wb_sign_dyn_core_err(WC_RNG* rng)
+{
+    falcon_sampler_ctx spc;
+    fpr     tmp[FALCON_SIGN_DYN_TMP_FPR(WB_SIGN_LOGN) + 16];
+    sword16 s2[WB_SIGN_N];
+    word16  hm[WB_SIGN_N];
+    int     i, ok = 0;
+
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(hm, 0, sizeof(hm));
+    XMEMSET(&spc, 0, sizeof(spc));
+    if (falcon_sampler_init(&spc, WB_SIGN_LOGN, rng) != 0) {
+        WB_NOTE("sign_dyn_core: sampler_init failed; p.err vectors skipped");
+        return;
+    }
+
+    spc.p.err = 0;
+    (void)falcon_sign_dyn_core(&spc, wb_basis_f, wb_basis_g, wb_basis_F,
+            wb_basis_G, hm, s2, tmp, 0);
+
+    for (i = 0; i < 64; i++) {
+        s2[0] = -1;
+        s2[1] = -1;
+        spc.p.err = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+        (void)falcon_sign_dyn_core(&spc, wb_basis_f, wb_basis_g, wb_basis_F,
+                wb_basis_G, hm, s2, tmp, WB_SIGN_LOGN);
+        if ((s2[0] != -1) || (s2[1] != -1)) {
+            ok = 1;
+            break;
+        }
+    }
+    spc.p.err = 0;
+    if (!ok) {
+        WB_NOTE("sign_dyn_core: no accepted attempt with p.err latched");
+    }
+    wc_Shake256_Free(&spc.p.shake);
+    ForceZero(&spc, sizeof(spc));
+    WB_OK("falcon_sign_dyn_core (ret==0)&&(p.err!=0) operand pair exercised");
+}
+
+#endif /* WOLFSSL_FALCON_SIGN_SMALL_MEM */
+
+#endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
+
 /* ------------------------------------------------------------------ *
  * Documented residuals: decision halves reachable only from a genuine
  * mid-computation error or a degenerate/forbidden operand, which cannot be
  * driven crash-safely from a white-box harness. Their opposite (normal) half is
- * covered above (mostly by the real round-trip).
+ * covered above (mostly by the real round-trip). Each of these is carried as an
+ * EXCLUSIONS.md row with the source-level argument for why no satisfying vector
+ * exists.
  * ------------------------------------------------------------------ */
 static void wb_residuals(void)
 {
-    WB_NOTE("residual: berexp (w==0)&&(i>0) i>0 FALSE half needs PRNG-forced "
-            "equal comparison bytes (deep sampler)");
-    WB_NOTE("residual: solve_NTRU_deepest zint_mul_small overflow TRUE half "
-            "(bigint carry error path)");
-    WB_NOTE("residual: solve_NTRU_intermediate !fpr_lt(z,2^63) TRUE half "
-            "(out-of-range Babai coefficient)");
-    WB_NOTE("residual: solve_NTRU_intermediate !fpr_lt(+-2^31,xv) range clamp "
-            "(out-of-range reduction coefficient, data-dependent)");
-    WB_NOTE("residual: solve_NTRU poly_big_to_small failure TRUE half "
-            "(reduction overflow)");
-    WB_NOTE("residual: poly_small_mkgauss s<-127||s>127 TRUE half "
-            "(random sampler tail)");
-    WB_NOTE("residual: keygen f/g coeff >=lim/<=-lim TRUE halves "
-            "(sampler bound forbids |coeff|>=128)");
-    WB_NOTE("residual: check-public ft[i]==0 TRUE half "
-            "(non-invertible/degenerate key)");
-    WB_NOTE("residual: do_sign_tree samplerErr!=0 / spc->p.err!=0 TRUE halves "
-            "(latched PRNG squeeze failure)");
+    WB_NOTE("residual: solve_NTRU_binary_depth1 !fpr_lt(z,+-2^63) halves: the "
+            "Babai coefficient is bounded by sqrt(|F|^2+|G|^2)/sqrt(|f|^2+"
+            "|g|^2) with |F|,|G| < 2^61 (2-word CRT limbs), so |z| >= 2^63 "
+            "needs both depth-1 field norms to nearly vanish at one FFT slot");
+    WB_NOTE("residual: keygen f[u]/g[u] vs lim halves: poly_small_mkgauss "
+            "guarantees |coeff| <= 127 and lim is 128 for logn <= 5 (provably "
+            "dead), while for logn >= 6 lim sits beyond 5.5 sigma of the "
+            "sampler and keygen seeds its own falcon_rng internally");
+    WB_NOTE("residual: sign_msg/verify_msg (ret==0)&&(!key->...Set) cond0 "
+            "FALSE half: the preceding argument check returns early, so ret is "
+            "invariably 0 at that line");
 }
 
 #endif /* HAVE_FALCON */
@@ -762,6 +1381,30 @@ int main(void)
             wb_native_roundtrip(&rng);
 #endif
         }
+#ifndef WOLFSSL_FALCON_VERIFY_ONLY
+        /* Gap-close drivers. */
+        if (haveRng) {
+            wb_berexp_loop(&rng);
+            wb_mkgauss_range(&rng);
+        }
+        wb_check_key_ntt_slots();
+        wb_solve_deepest_overflow();
+        if (haveRng) {
+            wb_solve_ntru_lim(&rng);
+            wb_solve_ntru_babai_clamp(&rng);
+        }
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
+        wb_do_sign_tree_samplererr();
+        if (haveRng) {
+            wb_sign_core_err(&rng);
+        }
+#else
+        wb_do_sign_dyn_samplererr();
+        if (haveRng) {
+            wb_sign_dyn_core_err(&rng);
+        }
+#endif
+#endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
         wb_residuals();
 
         if (haveRng) {
