@@ -196,7 +196,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
-    int ret;
+    int ret = 0;
     WC_DECLARE_VAR(key, byte, WC_MAX_SYM_KEY_SIZE, 0);
 
     (void)derSz;
@@ -274,7 +274,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
-    int ret;
+    int ret = 0;
     WC_DECLARE_VAR(key, byte, WC_MAX_SYM_KEY_SIZE, 0);
 
     (void)derSz;
