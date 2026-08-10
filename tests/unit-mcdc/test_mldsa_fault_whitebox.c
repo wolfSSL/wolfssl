@@ -301,6 +301,103 @@ static void sweep_decode(const byte* pubDer, word32 pubDerLen,
     }
 #endif /* WB_MLDSA_ASN1 */
 }
+
+/* ------------------------------------------------------------------------- *
+ * The nine AVX2 generators -- wc_mldsa_gen_matrix_{4x4,6x5,8x7}_avx2,
+ * wc_mldsa_gen_s_{4_4,5_6,7_8}_avx2 and wc_mldsa_gen_y_{4,5,7}_avx2 -- each
+ * open with
+ *
+ *     rand  = XMALLOC(...);
+ *     state = XMALLOC(...);
+ *     if ((rand == NULL) || (state == NULL)) { ... return MEMORY_E; }
+ *
+ * Despite reading like an argument check this is an ALLOCATION check, live
+ * only under WOLFSSL_SMALL_STACK (forced for this TU, see the file header).
+ * Its three rows map exactly onto the injector's fail-index:
+ *
+ *     armed at 1 -> first XMALLOC fails      -> (T,-)  decision true
+ *     armed at 2 -> only the second fails    -> (F,T)  decision true
+ *     disarmed   -> both succeed             -> (F,F)  decision false
+ *
+ * and cond 0 needs the (F,F) row as its pair partner, so the successful call
+ * is part of the proof, not just a sanity check.  Only ML-DSA-44 sizes are
+ * reachable from this file's WB_LEVEL key operations, so the 6x5 / 8x7 / 5_6 /
+ * 7_8 / y_5 / y_7 generators are called directly with their own buffers --
+ * they are file-static, and this TU #includes wc_mldsa.c, so they are in
+ * scope.  Each arming brackets ONE generator call with its buffers already
+ * built while disarmed.
+ * ------------------------------------------------------------------------- */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_65) && \
+    !defined(WOLFSSL_NO_ML_DSA_87)
+
+#define WB_GEN_AVX2
+
+/* Largest shapes: A is k x l (8 x 7 for ML-DSA-87), s1/s2 and y are at most 8
+ * polynomials.  File scope keeps ~90 KB off the stack. */
+static sword32 s_genA[8 * 7 * MLDSA_N];
+static sword32 s_genS1[8 * MLDSA_N];
+static sword32 s_genS2[8 * MLDSA_N];
+static sword32 s_genY[8 * MLDSA_N];
+/* Seed inputs are read, never written: MLDSA_GEN_A_SEED_SZ (34) for the matrix
+ * generators and MLDSA_PRIV_SEED_SZ (64) for the s/y generators. */
+static byte    s_genSeed[128];
+
+/* Disarmed call first (its allocations must succeed), then the two armed
+ * positions, each disarmed again immediately so the next row starts clean. */
+#define WB_GEN_ROWS(call)               \
+    do {                                \
+        mcdc_fa_disarm();               \
+        (void)(call);                   \
+        mcdc_fa_arm(1);                 \
+        (void)(call);                   \
+        mcdc_fa_disarm();               \
+        mcdc_fa_arm(2);                 \
+        (void)(call);                   \
+        mcdc_fa_disarm();               \
+    } while (0)
+
+static void sweep_gen_avx2_allocs(void)
+{
+    sword32* s[2];
+    wc_Shake shake256;
+    int      haveShake;
+
+    XMEMSET(s_genSeed, 0x3c, sizeof(s_genSeed));
+    XMEMSET(s_genA, 0, sizeof(s_genA));
+    XMEMSET(s_genS1, 0, sizeof(s_genS1));
+    XMEMSET(s_genS2, 0, sizeof(s_genS2));
+    XMEMSET(s_genY, 0, sizeof(s_genY));
+    s[0] = s_genS1;
+    s[1] = s_genS2;
+
+    /* Built while disarmed: gen_y_5 squeezes through this object. */
+    haveShake = (wc_InitShake256(&shake256, NULL, INVALID_DEVID) == 0);
+
+    WB_GEN_ROWS(wc_mldsa_gen_matrix_4x4_avx2(s_genA, s_genSeed));
+    WB_GEN_ROWS(wc_mldsa_gen_matrix_6x5_avx2(s_genA, s_genSeed));
+    WB_GEN_ROWS(wc_mldsa_gen_matrix_8x7_avx2(s_genA, s_genSeed));
+
+    WB_GEN_ROWS(wc_mldsa_gen_s_4_4_avx2(s, s_genSeed));
+    WB_GEN_ROWS(wc_mldsa_gen_s_5_6_avx2(s, s_genSeed));
+    WB_GEN_ROWS(wc_mldsa_gen_s_7_8_avx2(s, s_genSeed));
+
+    WB_GEN_ROWS(wc_mldsa_gen_y_4_avx2(s_genY, s_genSeed, 0));
+    if (haveShake) {
+        WB_GEN_ROWS(wc_mldsa_gen_y_5_avx2(s_genY, s_genSeed, 0, &shake256));
+    }
+    WB_GEN_ROWS(wc_mldsa_gen_y_7_avx2(s_genY, s_genSeed, 0));
+
+    if (haveShake) {
+        wc_Shake256_Free(&shake256);
+    }
+    WB_NOTE("AVX2 generator rand/state allocation rows exercised");
+}
+
+#endif /* WB_GEN_AVX2 conditions */
 #endif /* !MCDC_FA_UNAVAILABLE */
 
 int main(int argc, char** argv)
@@ -453,6 +550,9 @@ int main(int argc, char** argv)
         sweep_export(&key);
         sweep_decode(s_pubDer, (word32)pubDerLen, s_privDer,
             (word32)privDerLen);
+#ifdef WB_GEN_AVX2
+        sweep_gen_avx2_allocs();
+#endif
         WB_NOTE("fault-index sweeps over MakeKey / Sign / Verify / Export / "
                 "Decode done");
     }

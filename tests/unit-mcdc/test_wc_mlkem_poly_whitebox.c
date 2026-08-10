@@ -68,10 +68,197 @@
  * fail_clause) form, whose expansion also changes under this hook, appears
  * nowhere here.
  */
-static int wb_intr_ret = 0;
-#define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
+/* The hook is a function rather than a plain variable so a single pass can put
+ * the save-refused answer at a CHOSEN call index instead of only "always" or
+ * "never".  Two dispatch guards nest inside one another:
+ *
+ *     mlkem_gen_matrix()                 if (IS_INTEL_AVX2(..) && save == 0)
+ *       mlkem_gen_matrix_k3_avx2()         for (..) { if (IS_INTEL_BMI2(..))
+ *                                                    else if (IS_INTEL_AVX2(..)
+ *                                                          && save == 0)
+ *
+ * so the inner guard's operands can only be reached when the OUTER one was
+ * already satisfied.  A process-wide "always refuse" therefore never lets the
+ * inner site run at all, and its false side would stay unreachable.  Letting
+ * call 0..n-1 succeed and calls >= n refuse gives the inner site a genuine
+ * (T,F) row while the outer one still took (T,T).
+ *
+ * wb_intr_action is the same idea for the cpuid operand of the inner guard:
+ * the action runs after IS_INTEL_AVX2() has already been evaluated for THIS
+ * decision, so clearing CPUID_AVX2 from wc_mlkem_poly.c's own dispatch word
+ * inside the hook leaves the current iteration on its (T,T) row and flips the
+ * NEXT iteration of the same loop to (F,-).  Both rows land in one binary, at
+ * one source line, without the outer dispatch ever changing its mind. */
+static int  wb_intr_ret = 0;        /* != 0: refuse every save (blanket) */
+static long wb_intr_count = 0;      /* SAVE_VECTOR_REGISTERS2() calls seen */
+static long wb_intr_fail_from = -1; /* >= 0: refuse from this call index on */
+static void (*wb_intr_action)(long ix) = 0; /* runs on every call */
+
+static int wb_intr_hook(void)
+{
+    long ix = wb_intr_count++;
+
+    if (wb_intr_action != 0) {
+        wb_intr_action(ix);
+    }
+    if (wb_intr_ret != 0) {
+        return wb_intr_ret;
+    }
+    if ((wb_intr_fail_from >= 0) && (ix >= wb_intr_fail_from)) {
+        return 1;
+    }
+    return 0;
+}
+#define WC_CHECK_FOR_INTR_SIGNALS() wb_intr_hook()
+
+/* ------------------------------------------------------------------------- *
+ * Rejection-sampling lane interposition.
+ *
+ * Nine decisions in this file have the shape
+ *
+ *     ctr[i] = mlkem_rej_uniform_n_ins(...);        (i = 0..3 or 0..7)
+ *     while ((ctr[0] < MLKEM_N) || (ctr[1] < MLKEM_N) || ... ) { ... }
+ *
+ * The loop only runs when a lane came up short, and each operand only gets an
+ * independence pair when THAT lane is the first short one.  Uniform random
+ * seeds fill all lanes on the first block with overwhelming probability, so in
+ * practice the vector is always (F,F,..,F): the operands are undriven, and
+ * which of them a nightly run happens to catch is pure luck -- the origin of
+ * this module's 68 -> 74 -> 69 gate flapping.
+ *
+ * mlkem_rej_uniform_n_ins()/mlkem_rej_uniform_ins() are static WC_INLINE (or
+ * plain #defines) inside the .c, so a macro on THEM would rename the library's
+ * own definition rather than wrap it.  The leaf samplers they dispatch to are
+ * WOLFSSL_LOCAL functions declared in wc_mlkem.h, so declaring that header
+ * FIRST keeps the real prototypes under their real names, and the renames
+ * below then only rewrite the uses inside wc_mlkem_poly.c.
+ *
+ * Only the FIRST-round samplers (the _n_ forms) are wrapped.  The loop body
+ * calls the non-_n_ forms to top the short lane up, and those are left alone
+ * so every loop provably terminates. */
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/wc_mlkem.h>
+
+static unsigned int wb_rej_trim(unsigned int got, unsigned int len);
+
+#if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+
+static unsigned int wb_rej_n_avx2(sword16* p, unsigned int len, const byte* r,
+    unsigned int rLen);
+#define mlkem_rej_uniform_n_avx2                wb_rej_n_avx2
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+static unsigned int wb_rej_n_avx512(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#define mlkem_rej_uniform_n_avx512              wb_rej_n_avx512
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+static unsigned int wb_rej_n_avx512_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#define mlkem_rej_uniform_n_avx512_vbmi2        wb_rej_n_avx512_vbmi2
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+static unsigned int wb_rej_n_avx512_vbmi(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#define mlkem_rej_uniform_n_avx512_vbmi         wb_rej_n_avx512_vbmi
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+static unsigned int wb_rej_n_avx512_vbmi_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#define mlkem_rej_uniform_n_avx512_vbmi_vbmi2   wb_rej_n_avx512_vbmi_vbmi2
+#endif
+#endif
+#endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
+
+#endif /* USE_INTEL_SPEEDUP && !WC_SHA3_NO_ASM */
 
 #include <wolfcrypt/src/wc_mlkem_poly.c>
+
+#if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+#undef mlkem_rej_uniform_n_avx2
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+#undef mlkem_rej_uniform_n_avx512
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+#undef mlkem_rej_uniform_n_avx512_vbmi2
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+#undef mlkem_rej_uniform_n_avx512_vbmi
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+#undef mlkem_rej_uniform_n_avx512_vbmi_vbmi2
+#endif
+#endif
+#endif
+#endif
+
+/* Index of the first-round sampler call within the current pass, and the lane
+ * (call index mod 8) whose result is reported one sample short.  MLKEM_N-1 of
+ * MLKEM_N samples are genuinely present; the loop's own top-up call fills the
+ * last one, so the matrix that comes out is still a valid uniform matrix -- the
+ * only thing that changed is that the code took the "some lane was short" path
+ * it takes in the field roughly once every few thousand key generations. */
+static unsigned int wb_rej_ix = 0;
+static int          wb_rej_lane = -1;
+/* Absolute-index form: short exactly ONE sampler call in the whole pass.  The
+ * mod-8 form assumes each group of samplers starts at an index that is a
+ * multiple of 8; the absolute form does not, so sweeping it over the number of
+ * polynomials in the largest matrix reaches every lane of every group whatever
+ * the grouping turns out to be. */
+static long         wb_rej_abs = -1;
+
+static unsigned int wb_rej_trim(unsigned int got, unsigned int len)
+{
+    long ix = (long)wb_rej_ix++;
+    int  hit = 0;
+
+    if ((wb_rej_lane >= 0) && ((ix & 7L) == (long)wb_rej_lane)) {
+        hit = 1;
+    }
+    if ((wb_rej_abs >= 0) && (ix == wb_rej_abs)) {
+        hit = 1;
+    }
+    if (hit && (got == len) && (len > 0)) {
+        got = len - 1;
+    }
+    return got;
+}
+
+#if defined(USE_INTEL_SPEEDUP) && !defined(WC_SHA3_NO_ASM)
+
+static unsigned int wb_rej_n_avx2(sword16* p, unsigned int len, const byte* r,
+    unsigned int rLen)
+{
+    return wb_rej_trim(mlkem_rej_uniform_n_avx2(p, len, r, rLen), len);
+}
+
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512
+static unsigned int wb_rej_n_avx512(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen)
+{
+    return wb_rej_trim(mlkem_rej_uniform_n_avx512(p, len, r, rLen), len);
+}
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+static unsigned int wb_rej_n_avx512_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen)
+{
+    return wb_rej_trim(mlkem_rej_uniform_n_avx512_vbmi2(p, len, r, rLen), len);
+}
+#endif
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
+static unsigned int wb_rej_n_avx512_vbmi(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen)
+{
+    return wb_rej_trim(mlkem_rej_uniform_n_avx512_vbmi(p, len, r, rLen), len);
+}
+#ifdef WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
+static unsigned int wb_rej_n_avx512_vbmi_vbmi2(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen)
+{
+    return wb_rej_trim(
+        mlkem_rej_uniform_n_avx512_vbmi_vbmi2(p, len, r, rLen), len);
+}
+#endif
+#endif
+#endif /* WOLFSSL_MLKEM_HAVE_INTEL_AVX512 */
+
+#endif /* USE_INTEL_SPEEDUP && !WC_SHA3_NO_ASM */
 
 #include <stdio.h>
 
@@ -313,6 +500,10 @@ static void wb_get_noise_c_vec2_null(void)
  * mlkem_vec_compress_11 or mlkem_compress_5 (du=11,dv=5, the 1024 params) --
  * and the matrix generators are specialised per k, so one parameter set alone
  * leaves most of the SIMD dispatches unexecuted. */
+/* WC_ML_KEM_512 is enum value 0 (wc_mlkem.h), so a 0 terminator here silently
+ * dropped the entire ML-KEM-512 axis: its k == WC_ML_KEM_512_K arms in
+ * mlkem_gen_matrix() / mlkem_get_noise() and the k2 matrix generators were
+ * never entered by any row.  The list carries its own length instead. */
 static const int wb_kem_types[] = {
 #ifdef WOLFSSL_WC_ML_KEM_512
     WC_ML_KEM_512,
@@ -323,8 +514,29 @@ static const int wb_kem_types[] = {
 #ifdef WOLFSSL_WC_ML_KEM_1024
     WC_ML_KEM_1024,
 #endif
-    0 /* sentinel keeps the array non-empty if none are enabled */
+#if !defined(WOLFSSL_WC_ML_KEM_512) && !defined(WOLFSSL_WC_ML_KEM_768) && \
+    !defined(WOLFSSL_WC_ML_KEM_1024)
+    /* wc_mlkem.h forces at least one parameter set on, so this only keeps the
+     * initialiser well-formed if that ever changes. */
+    WC_ML_KEM_512,
+#endif
 };
+#define WB_KEM_TYPE_CNT ((unsigned)(sizeof(wb_kem_types) / sizeof(int)))
+
+/* One key generation only: the matrix generators and their rejection-sampling
+ * loops all hang off wc_MlKemKey_MakeKey(), and keeping the per-pass work to a
+ * single keygen is what lets the lane sweep below afford ~100 passes inside the
+ * campaign's wall-clock budget. */
+static void wb_run_keygen(WC_RNG* rng, int type)
+{
+    MlKemKey key;
+
+    if (wc_MlKemKey_Init(&key, type, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    (void)wc_MlKemKey_MakeKey(&key, rng);
+    wc_MlKemKey_Free(&key);
+}
 
 static void wb_run_cycle(WC_RNG* rng, int type)
 {
@@ -332,11 +544,12 @@ static void wb_run_cycle(WC_RNG* rng, int type)
     byte     ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
     byte     ss[WC_ML_KEM_SS_SZ];
     byte     ss2[WC_ML_KEM_SS_SZ];
+    byte     pub[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    byte     priv[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
     word32   ctSz = 0;
+    word32   pubSz = 0;
+    word32   privSz = 0;
 
-    if (type == 0) {
-        return;
-    }
     if (wc_MlKemKey_Init(&key, type, NULL, INVALID_DEVID) != 0) {
         return;
     }
@@ -347,7 +560,233 @@ static void wb_run_cycle(WC_RNG* rng, int type)
             (void)wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz);
         }
     }
+
+    /* mlkem_to_bytes() / mlkem_from_bytes() are reached only by the key
+     * encode/decode entry points, never by keygen/encap/decap, so without this
+     * round trip their AVX512-VBMI / AVX512 / AVX2 dispatch chain is dead code
+     * in this binary no matter which cpuid row is installed. */
+    if (wc_MlKemKey_PublicKeySize(&key, &pubSz) == 0 &&
+            pubSz <= (word32)sizeof(pub) &&
+            wc_MlKemKey_EncodePublicKey(&key, pub, pubSz) == 0) {
+        (void)wc_MlKemKey_DecodePublicKey(&key, pub, pubSz);
+    }
+    if (wc_MlKemKey_PrivateKeySize(&key, &privSz) == 0 &&
+            privSz <= (word32)sizeof(priv) &&
+            wc_MlKemKey_EncodePrivateKey(&key, priv, privSz) == 0) {
+        (void)wc_MlKemKey_DecodePrivateKey(&key, priv, privSz);
+    }
+
     wc_MlKemKey_Free(&key);
+}
+
+/* Install a cpuid word derived from the host's REAL flags with exactly the
+ * named features removed, so a "present" row never claims a feature this CPU
+ * lacks and a "absent" row can only ever select a slower, equally correct
+ * path.  cpuid_flags is wc_mlkem_poly.c's own file-static dispatch word and
+ * mlkem_init() refreshes it only while it still holds WC_CPUID_INITIALIZER, so
+ * the value written here stays put for the rest of the pass. */
+static void wb_set_flags(cpuid_flags_t clear)
+{
+    cpuid_flags = WC_CPUID_INITIALIZER;
+    (void)cpuid_get_flags_ex(&cpuid_flags);
+    cpuid_flags &= (cpuid_flags_t)~clear;
+}
+
+/* wb_intr_action for the inner sha3-block dispatch: drop AVX2 from the file's
+ * dispatch word once the loop has already taken its (T,T) row, so the next
+ * iteration of the SAME loop evaluates IS_INTEL_AVX2() false. */
+static cpuid_flags_t wb_action_clear = 0;
+static long          wb_action_at = -1;
+
+static void wb_clear_flags_at(long ix)
+{
+    if ((wb_action_at >= 0) && (ix == wb_action_at)) {
+        cpuid_flags &= (cpuid_flags_t)~wb_action_clear;
+    }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Rejection-sampling lane rows.
+ *
+ * For an N-way OR, operand j's independence pair needs one evaluation where
+ * every earlier operand is false and j is true, plus the all-false evaluation.
+ * Pass s reports the sampler call whose index mod 8 is s one sample short, so
+ * the group containing that call yields exactly the (F..F,T,-,..) vector for
+ * lane s; the eight passes together cover every lane of the 8-wide AVX512
+ * loops and (twice over) every lane of the 4-wide AVX2 loops.  The unmodified
+ * rows elsewhere in this file supply the all-false vector.
+ *
+ * The sweep is repeated per feature row because the 4-wide loops live in the
+ * AVX2 generators and the 8-wide ones in the AVX512 generators, and because
+ * mlkem_rej_uniform_ins()'s own VBMI/VBMI2 dispatch is only ever reached from
+ * inside these loop bodies -- with no short lane it is unexecuted code.
+ * ------------------------------------------------------------------------- */
+static void wb_rejection_lanes(WC_RNG* rng)
+{
+    static const cpuid_flags_t famRows[] = {
+        0,
+        CPUID_AVX512_VBMI2,
+        CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2,
+        CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512
+    };
+    unsigned f;
+    int      s;
+    unsigned t;
+
+    for (f = 0; f < sizeof(famRows) / sizeof(famRows[0]); f++) {
+        for (s = 0; s < 8; s++) {
+            for (t = 0; t < WB_KEM_TYPE_CNT; t++) {
+                wb_set_flags(famRows[f]);
+                /* Reset per keygen so call index 0 is the first lane of the
+                 * first group; the lane-to-index mapping depends on it. */
+                wb_rej_ix = 0;
+                wb_rej_lane = s;
+                wb_run_keygen(rng, wb_kem_types[t]);
+            }
+        }
+    }
+    wb_rej_lane = -1;
+
+    for (f = 0; f < sizeof(famRows) / sizeof(famRows[0]); f++) {
+        for (s = 0; s < 16; s++) {
+            for (t = 0; t < WB_KEM_TYPE_CNT; t++) {
+                wb_set_flags(famRows[f]);
+                wb_rej_ix = 0;
+                wb_rej_abs = s;
+                wb_run_keygen(rng, wb_kem_types[t]);
+            }
+        }
+    }
+
+    wb_rej_abs = -1;
+    wb_rej_ix = 0;
+    WB_NOTE("rejection-sampling short-lane rows exercised");
+}
+
+/* ------------------------------------------------------------------------- *
+ * sha3-block dispatch rows.
+ *
+ * Inside each AVX2/AVX512 matrix generator every SHA3 block is squeezed with
+ *
+ *     if (IS_INTEL_BMI2(cpuid_flags))            sha3_block_bmi2()
+ *     else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+ *     else                                       BlockSha3()
+ *
+ * Every x86-64 CPU that has AVX2 also has BMI2, so the first arm always wins
+ * and the second is never evaluated: clearing CPUID_BMI2 is the only way to
+ * reach it at all.  Its two operands then need rows the OUTER dispatch would
+ * normally forbid (see the wb_intr_hook comment at the top of this file):
+ * wb_action_at flips AVX2 off between two iterations of the same loop, and
+ * wb_intr_fail_from refuses the save only from a later call index, both after
+ * the enclosing generator has already been entered on its (T,T) row.
+ * ------------------------------------------------------------------------- */
+static void wb_sha3_block_rows(WC_RNG* rng)
+{
+    /* AVX512 generators first (BMI2 cleared only), then AVX2 generators
+     * (BMI2 + the AVX512 ladder cleared): the same three source sites exist in
+     * both families. */
+    static const cpuid_flags_t famRows[] = {
+        CPUID_BMI2,
+        CPUID_BMI2 | CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2 | CPUID_AVX512
+    };
+    unsigned f;
+    unsigned t;
+    long     at;
+
+    /* The k3 generators squeeze their ninth polynomial in a tail loop that only
+     * runs when that lane came up short, and it carries its own copy of the
+     * same three-way sha3 dispatch.  Shorting lane 0 (the tail sampler is call
+     * index 8, and 8 mod 8 == 0) makes the tail loop execute in every pass
+     * below, so the BMI2-cleared rows reach that copy too. */
+    wb_rej_lane = 0;
+
+    for (f = 0; f < sizeof(famRows) / sizeof(famRows[0]); f++) {
+        for (t = 0; t < WB_KEM_TYPE_CNT; t++) {
+            /* (T,T): BMI2 absent, AVX2 present, save accepted. */
+            wb_set_flags(famRows[f]);
+            wb_rej_ix = 0;
+            wb_run_keygen(rng, wb_kem_types[t]);
+
+            /* (T,F): the enclosing generator is entered on the very first
+             * save, then every later save is refused, so the inner site sees
+             * AVX2 true and the save refused. */
+            for (at = 1; at <= 3; at++) {
+                wb_set_flags(famRows[f]);
+                wb_intr_count = 0;
+                wb_rej_ix = 0;
+                wb_intr_fail_from = at;
+                wb_run_keygen(rng, wb_kem_types[t]);
+                wb_intr_fail_from = -1;
+            }
+
+            /* (F,-): AVX2 is dropped after the site has run once, so the next
+             * iteration of the same loop takes the portable BlockSha3 arm. */
+            for (at = 0; at <= 3; at++) {
+                wb_set_flags(famRows[f]);
+                wb_intr_count = 0;
+                wb_rej_ix = 0;
+                wb_action_clear = CPUID_AVX2;
+                wb_action_at = at;
+                wb_intr_action = wb_clear_flags_at;
+                wb_run_keygen(rng, wb_kem_types[t]);
+                wb_intr_action = NULL;
+                wb_action_at = -1;
+                wb_action_clear = 0;
+            }
+        }
+    }
+
+    wb_rej_lane = -1;
+    wb_rej_ix = 0;
+    WB_NOTE("sha3-block (BMI2 / AVX2 / portable) rows exercised");
+}
+
+/* ------------------------------------------------------------------------- *
+ * The same three-way sha3-block dispatch also sits in two leaf helpers that
+ * the AVX2/AVX512 key paths never call: mlkem_prf() (the SHAKE-256 PRF used by
+ * the portable noise generator) and mlkem_get_noise_eta2_avx2().  Reaching
+ * them through the public API needs the outer dispatch to have already chosen
+ * a path that skips them, so they are called directly here -- with no outer
+ * guard in the way, a blanket save-refused setting is enough for the second
+ * operand's false side. */
+static void wb_leaf_sha3_rows(void)
+{
+    static const struct {
+        cpuid_flags_t clear;
+        int           intr;
+    } rows[] = {
+        { CPUID_BMI2,               0 },  /* BMI2 F, AVX2 T, save accepted */
+        { CPUID_BMI2,               1 },  /* BMI2 F, AVX2 T, save refused  */
+        { CPUID_BMI2 | CPUID_AVX2,  0 }   /* BMI2 F, AVX2 F -> BlockSha3   */
+    };
+    MLKEM_PRF_T prf;
+    byte        key[WC_ML_KEM_SYM_SZ + 1];
+    byte        out[3 * WC_SHA3_256_BLOCK_SIZE];
+    unsigned    i;
+#if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
+    defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+    sword16     p[MLKEM_N];
+#endif
+
+    XMEMSET(key, 0x5a, sizeof(key));
+    mlkem_prf_init(&prf);
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        wb_set_flags(rows[i].clear);
+        wb_intr_ret = rows[i].intr;
+
+        /* Several output blocks so the dispatch is evaluated more than once. */
+        (void)mlkem_prf(&prf, out, (unsigned int)sizeof(out), key);
+#if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
+    defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+        XMEMSET(p, 0, sizeof(p));
+        (void)mlkem_get_noise_eta2_avx2(&prf, p, key);
+#endif
+    }
+
+    wb_intr_ret = 0;
+    mlkem_prf_free(&prf);
+    WB_NOTE("leaf sha3-block dispatch (mlkem_prf / eta2) rows exercised");
 }
 
 static void wb_dispatch_rows(void)
@@ -378,6 +817,11 @@ static void wb_dispatch_rows(void)
           "all features, save accepted -> richest arm" },
         { 0,                                                    1,
           "all features, save refused  -> operand 1 false at every level" },
+        /* mlkem_rej_uniform_n_ins()/_ins() test VBMI and VBMI2 as two operands
+         * of one decision, so a row that drops both together can never give
+         * the second one its pair. */
+        { CPUID_AVX512_VBMI2,                                   0,
+          "VBMI without VBMI2          -> vpcompressd sampler" },
         { CPUID_AVX512_VBMI | CPUID_AVX512_VBMI2,               0,
           "no VBMI                     -> plain AVX512 arm" },
         /* USE_INTEL_AVX512() is IS_INTEL_AVX512() && IS_INTEL_AVX512_BW()
@@ -401,18 +845,23 @@ static void wb_dispatch_rows(void)
     for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
         /* Start from the host's real flags so the "present" rows claim only
          * what this CPU actually has. */
-        cpuid_flags = WC_CPUID_INITIALIZER;
-        (void)cpuid_get_flags_ex(&cpuid_flags);
-        cpuid_flags &= (cpuid_flags_t)~rows[i].clear;
+        wb_set_flags(rows[i].clear);
         wb_intr_ret = rows[i].intr;
 
-        for (t = 0; t < sizeof(wb_kem_types) / sizeof(wb_kem_types[0]); t++) {
+        for (t = 0; t < WB_KEM_TYPE_CNT; t++) {
             wb_run_cycle(&rng, wb_kem_types[t]);
         }
     }
+    wb_intr_ret = 0;
+
+    wb_rejection_lanes(&rng);
+    wb_sha3_block_rows(&rng);
+    wb_leaf_sha3_rows();
 
     cpuid_flags = saved_flags;
     wb_intr_ret = saved_intr;
+    wb_intr_fail_from = -1;
+    wb_intr_action = NULL;
     wc_FreeRng(&rng);
     WB_NOTE("SIMD dispatch rows (cpuid x save-accepted) exercised");
 }
