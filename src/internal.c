@@ -24870,15 +24870,6 @@ static int CheckResumptionConsistency(WOLFSSL* ssl)
         WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
         return EXT_MASTER_SECRET_NEEDED_E;
     }
-#ifdef HAVE_EXTENDED_MASTER
-    /* Resumption skips MakeMasterSecret, so enforce required EMS here. */
-    if (!skipEmsCheck && ssl->options.requireEMS && !ssl->options.haveEMS) {
-        WOLFSSL_MSG("EMS required but not negotiated with peer");
-        SendAlert(ssl, alert_fatal, handshake_failure);
-        WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
-        return EXT_MASTER_SECRET_NEEDED_E;
-    }
-#endif /* HAVE_EXTENDED_MASTER */
 #ifndef NO_RESUME_SUITE_CHECK
     /* Suite must match (RFC 5246 7.4.1.3), tickets included. Skip when no suite
      * was retained (both zero = TLS_NULL_WITH_NULL_NULL, e.g. EAP-FAST PAC). */
@@ -34949,6 +34940,31 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
         }
 #endif /* HAVE_TLS_EXTENSIONS */
 
+#ifdef HAVE_EXTENDED_MASTER
+        /* The negotiated EMS state is final once the ServerHello extensions
+         * are parsed: abort a requiring client here, before any key material
+         * is computed or sent. */
+        if (ssl->options.requireEMS && !ssl->options.haveEMS) {
+            byte skipEmsCheck = 0;
+#ifdef HAVE_SECRET_CALLBACK
+            /* Skip for EAP-FAST (session-secret callback): the master secret
+             * comes from the callback. */
+            skipEmsCheck = (ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                            && ssl->session != NULL
+                            && ssl->session->ticketLen > 0
+#endif
+                           ) ? 1 : 0;
+#endif
+            if (!skipEmsCheck) {
+                WOLFSSL_MSG("EMS required but not negotiated with peer");
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                WOLFSSL_ERROR_VERBOSE(EXT_MASTER_SECRET_NEEDED_E);
+                return EXT_MASTER_SECRET_NEEDED_E;
+            }
+        }
+#endif /* HAVE_EXTENDED_MASTER */
+
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
     defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
     !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
@@ -41120,7 +41136,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif /* !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
 
         if (!ssl->options.resuming) {
-            /* Expired above: DoClientHello falls back to a full handshake. */
+            /* Resumption abandoned: DoClientHello runs a full handshake. */
             return ret;
         }
 
@@ -41135,13 +41151,25 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             }
             /* if old sess used EMS, but new doesn't, MUST abort */
             else if (session->haveEMS && !ssl->options.haveEMS) {
-                WOLFSSL_MSG("Trying to resume a session with EMS without "
-                            "using EMS");
-            #ifdef WOLFSSL_EXTRA_ALERTS
-                SendAlert(ssl, alert_fatal, handshake_failure);
-            #endif
-                ret = EXT_MASTER_SECRET_NEEDED_E;
-                WOLFSSL_ERROR_VERBOSE(ret);
+#ifdef HAVE_EXTENDED_MASTER
+                if (ssl->options.disableEMS) {
+                    /* Local disable, not a client downgrade: decline the
+                     * resumption and do a full handshake. */
+                    WOLFSSL_MSG("EMS disabled locally, declining resumption "
+                                "of an EMS session. Do full handshake.");
+                    ssl->options.resuming = 0;
+                }
+                else
+#endif
+                {
+                    WOLFSSL_MSG("Trying to resume a session with EMS without "
+                                "using EMS");
+                #ifdef WOLFSSL_EXTRA_ALERTS
+                    SendAlert(ssl, alert_fatal, handshake_failure);
+                #endif
+                    ret = EXT_MASTER_SECRET_NEEDED_E;
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                }
             }
         }
         else {

@@ -41107,6 +41107,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls_ems_resumption_downgrade),
     TEST_DECL(test_tls_ems_resumption_server_downgrade),
     TEST_DECL(test_tls_ems_server_disable),
+    TEST_DECL(test_tls_ems_server_disable_resumption),
     TEST_DECL(test_tls_ems_disable_v23),
     TEST_DECL(test_tls_require_ems),
     TEST_DECL(test_tls_require_ems_resumption),
