@@ -63,10 +63,11 @@ static inline time_t wolfkmod_time(time_t * tloc) {
 
 /* str and char utility functions */
 #define XATOI(s) ({                                                          \
-      char * endptr = NULL;                                                  \
-      long   _xatoi_ret = strtol(s, &endptr, 10);                            \
-      if ((s) == endptr || *endptr != '\0') {                                \
-        _xatoi_ret = 0;                                                      \
+      const char * _str = (s);                                               \
+      char *       _endptr = NULL;                                           \
+      long         _xatoi_ret = strtol(_str, &_endptr, 10);                  \
+      if ((_str) == _endptr || *_endptr != '\0') {                           \
+          _xatoi_ret = 0;                                                    \
       }                                                                      \
       (int)_xatoi_ret;                                                       \
 })
