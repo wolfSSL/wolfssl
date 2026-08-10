@@ -358,12 +358,16 @@ int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der,
     // with info.ivSz random bytes; the first PKCS5_SALT_SZ of them are used
     // as the key derivation salt, and the buffer is also used as the
     // cipher IV.
+    WC_RNG rng;
+    wc_InitRng(&rng);
+    wc_RNG_GenerateBlock(&rng, info.iv, info.ivSz);
 
     int ret = wc_BufferKeyEncrypt(&info, key, sizeof(key), password,
                                   sizeof(password)-1, WC_SHA256);
     if (ret != 0) {
         // encryption error
     }
+    wc_FreeRng(&rng);
     \endcode
 
     \sa wc_BufferKeyDecrypt
