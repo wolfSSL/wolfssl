@@ -121,6 +121,7 @@ DISTCLEANFILES+= tests/.libs/unit.test
 EXTRA_DIST += \
               tests/unit-mcdc/README.md \
               tests/unit-mcdc/mcdc_fault_alloc.h \
+              tests/unit-mcdc/mcdc_fault_mutex.h \
               tests/unit-mcdc/test_aes_whitebox.c \
               tests/unit-mcdc/test_asn_cert_whitebox.c \
               tests/unit-mcdc/test_asn_certgen_whitebox.c \
