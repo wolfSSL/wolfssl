@@ -326,6 +326,11 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     if ((_i & 7) != 0) WOLFSSL_DEBUG_PRINTF("\n");                             \
 } while(0)
 
+#ifdef TI_MCU_PLUS_SDK
+# include "kernel/nortos/dpl/common/printf.h"
+# define printf printf_
+#endif
+
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -484,6 +489,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #ifdef WOLFSSL_RTL8735B_HOST_TEST
         #include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
     #endif
+#endif
+
+#ifdef WOLFSSL_TI_AM64X
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_port.h>
 #endif
 
 #ifdef _MSC_VER

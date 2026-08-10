@@ -167,6 +167,10 @@
     #include "mcapi_error.h"
 #endif
 
+#ifdef WOLFSSL_TI_AM64X
+    #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
+#endif
+
 
 /* wc_Sha256 digest */
 struct wc_Sha256 {
@@ -250,6 +254,9 @@ struct wc_Sha256 {
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
+#endif
+#ifdef WOLFSSL_TI_AM64X
+    XALIGNED(16) SA2UL_ContextObject scObj;
 #endif
 };
 

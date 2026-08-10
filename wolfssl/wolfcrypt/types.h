@@ -2218,7 +2218,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_GCC_DIAG_POP /* null expansion */
 #endif
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__ti__)
     #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
     #define PRAGMA_CLANG(str) _Pragma(str)
     #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
@@ -2231,6 +2231,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_CLANG_DIAG_POP /* null expansion */
 #endif
 
+#ifndef __ti__
 #ifndef PRAGMA_DIAG_PUSH
     #define PRAGMA_DIAG_PUSH /* null expansion */
 #endif
@@ -2240,6 +2241,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #ifndef PRAGMA_DIAG_POP
     #define PRAGMA_DIAG_POP /* null expansion */
 #endif
+#endif /* !__ti__ */
 
 #define WC_CPP_CAT4_(a, b, c, d) a ## b ## c ## d
 #define WC_CPP_CAT4(a, b, c, d) WC_CPP_CAT4_(a, b, c, d)

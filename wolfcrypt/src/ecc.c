@@ -4373,6 +4373,10 @@ int wc_ecc_get_curve_size_from_id(int curve_id)
     return ecc_sets[curve_idx].size;
 }
 
+#ifndef strcasecmp
+int strcasecmp(const char *s1, const char *s2);
+#endif
+
 /* Returns the curve index that corresponds to a given curve name in
  * ecc_sets[] of ecc.c
  *

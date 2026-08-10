@@ -220,6 +220,10 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_TI_AM64X
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_port.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -720,6 +724,10 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
              __android_log_print(ANDROID_LOG_DEBUG, "[WOLFCRYPT]", __VA_ARGS__)
     #define fprintf(fp, ...)  \
              __android_log_print(ANDROID_LOG_DEBUG, "[WOLFCRYPT]", __VA_ARGS__)
+
+#elif defined(TI_MCU_PLUS_SDK)
+    #include "kernel/nortos/dpl/common/printf.h"
+    #define printf printf_
 
 #else
     #if defined(XMALLOC_USER) || defined(FREESCALE_MQX)
@@ -2536,7 +2544,11 @@ static void benchmark_static_init(int force)
         bench_pq_asym_algs = 0;
         bench_other_algs = 0;
         bench_pq_hash_sig_algs = 0;
+    #ifdef WOLFSSL_BENCHMARK_FIXED_CSV
+        csv_format = 1;
+    #else
         csv_format = 0;
+    #endif
     }
 }
 
@@ -8179,13 +8191,15 @@ void bench_sha256(int useDeviceID)
                 printf("InitSha256_ex failed, ret = %d\n", ret);
                 goto exit;
             }
-        #ifdef WOLFSSL_PIC32MZ_HASH
-            wc_Sha256SizeSet(hash[i], numBlocks * bench_size);
-        #endif
         }
 
         bench_stats_start(&count, &start);
         do {
+            #ifdef WOLFSSL_PIC32MZ_HASH
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                wc_Sha256SizeSet(hash[i], numBlocks * bench_size);
+            }
+            #endif
             for (times = 0; times < numBlocks || pending > 0; ) {
                 bench_async_poll(&pending);
 
@@ -18309,7 +18323,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
         argc--;
         argv++;
     }
-#endif /* MAIN_NO_ARGS */
+#endif /* !MAIN_NO_ARGS */
 
 #if defined(WOLFSSL_BENCHMARK_FIXED_CSV)
     /* when defined, we'll always output CSV regardless of params.
