@@ -94,10 +94,21 @@
  *         true row.
  */
 
+/* The detached header/footer pair in Section 6 is signed here rather than
+ * loaded from ./certs, and RSA blinding draws from the RNG. Pin the stream so
+ * the bundle is byte-identical on every run. */
+#include "mcdc_seed_rng.h"
+
 #include <wolfcrypt/src/pkcs7.c>
+
+#define MCDC_SR_IMPL
+#include "mcdc_seed_rng.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <wolfssl/certs_test.h>
+
+#define WB_HEADFOOT_SEED 0x7c7a5f70UL
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -528,6 +539,618 @@ static void wb_pwri_optional_params(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 5: PKCS7_VerifySignedData() multi-part eContent walk
+ * [:7543, :7556, :7559, :7562, :7565, :7582, :7602, :7605].
+ *
+ * These lines live in the NO_PKCS7_STREAM arm of WC_PKCS7_VERIFY_STAGE3 and
+ * only run when `multiPart` is set, i.e. when eContent is a CONSTRUCTED
+ * OCTET STRING holding more than one definite-length OCTET STRING. Every
+ * multi-part corpus in ./certs is BER with an indefinite-length outer
+ * ContentInfo, and the NO_PKCS7_STREAM build converts those with
+ * wc_BerToDer() at :6986 before the eContent is ever looked at -- the
+ * conversion collapses the segments, so `multiPart` is 0 by the time
+ * STAGE3 runs and the whole block is dead for the whole corpus.
+ *
+ * The shells below therefore carry DEFINITE outer lengths with a
+ * CONSTRUCTED OCTET STRING inside, which is the one shape that survives to
+ * STAGE3 with multiPart set. The inner segment lengths deliberately lie in
+ * some variants: GetLength_ex() is called with NO_USER_CHECK at :7308 and
+ * :7329, so a declared content length larger than the buffer is accepted
+ * there and the STAGE3 loop is what has to notice.
+ * ------------------------------------------------------------------------- */
+#ifndef NO_RSA
+
+#define WB_SD_BUF_SZ 256
+static byte wbSdBuf[WB_SD_BUF_SZ];
+/* offset one past the eContent blob in wbSdBuf, so a caller can truncate the
+ * message exactly there */
+static word32 wbSdBlobEnd;
+
+/* id-signedData / id-data, DER encoded */
+static const byte wbSignedDataOid[] =
+    { 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02 };
+static const byte wbDataOid[] =
+    { 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01 };
+/* SET { SEQUENCE { id-sha1, NULL } } */
+static const byte wbDigestAlgs[] =
+    { 0x31, 0x0B, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A,
+      0x05, 0x00 };
+static const byte wbVersion[]  = { 0x02, 0x01, 0x01 };
+/* empty signerInfos SET: makes the bundle degenerate at :8091, which is what
+ * lets these shells run to the end of the state machine without a signer */
+static const byte wbNoSigners[] = { 0x31, 0x00 };
+
+static word32 wb_hdr_len(word32 len)
+{
+    return (len < 0x80) ? 2 : ((len < 0x100) ? 3 : 4);
+}
+
+static word32 wb_put_hdr(byte* out, word32 idx, byte tag, word32 len)
+{
+    out[idx++] = tag;
+    if (len < 0x80) {
+        out[idx++] = (byte)len;
+    }
+    else if (len < 0x100) {
+        out[idx++] = 0x81;
+        out[idx++] = (byte)len;
+    }
+    else {
+        out[idx++] = 0x82;
+        out[idx++] = (byte)(len >> 8);
+        out[idx++] = (byte)len;
+    }
+    return idx;
+}
+
+/* Wraps a ready-made eContent blob (a complete OCTET STRING TLV, whose own
+ * declared length may lie) in a degenerate SignedData ContentInfo. Every
+ * wrapper length is the true byte count, so only the innermost declaration
+ * can be inconsistent. Returns the total message size. */
+static word32 wb_wrap_signed(const byte* eblob, word32 eblobSz)
+{
+    word32 eciBody, sdBody, a0OutSz, ciBody, idx = 0;
+
+    eciBody = (word32)sizeof(wbDataOid) + wb_hdr_len(eblobSz) + eblobSz;
+    sdBody  = (word32)sizeof(wbVersion) + (word32)sizeof(wbDigestAlgs) +
+              wb_hdr_len(eciBody) + eciBody + (word32)sizeof(wbNoSigners);
+    a0OutSz = wb_hdr_len(sdBody) + sdBody;
+    ciBody  = (word32)sizeof(wbSignedDataOid) + wb_hdr_len(a0OutSz) + a0OutSz;
+
+    if (wb_hdr_len(ciBody) + ciBody > WB_SD_BUF_SZ) {
+        return 0;
+    }
+
+    idx = wb_put_hdr(wbSdBuf, idx, ASN_SEQUENCE | ASN_CONSTRUCTED, ciBody);
+    XMEMCPY(wbSdBuf + idx, wbSignedDataOid, sizeof(wbSignedDataOid));
+    idx += (word32)sizeof(wbSignedDataOid);
+    idx = wb_put_hdr(wbSdBuf, idx,
+            ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0, a0OutSz);
+    idx = wb_put_hdr(wbSdBuf, idx, ASN_SEQUENCE | ASN_CONSTRUCTED, sdBody);
+    XMEMCPY(wbSdBuf + idx, wbVersion, sizeof(wbVersion));
+    idx += (word32)sizeof(wbVersion);
+    XMEMCPY(wbSdBuf + idx, wbDigestAlgs, sizeof(wbDigestAlgs));
+    idx += (word32)sizeof(wbDigestAlgs);
+    idx = wb_put_hdr(wbSdBuf, idx, ASN_SEQUENCE | ASN_CONSTRUCTED, eciBody);
+    XMEMCPY(wbSdBuf + idx, wbDataOid, sizeof(wbDataOid));
+    idx += (word32)sizeof(wbDataOid);
+    idx = wb_put_hdr(wbSdBuf, idx,
+            ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0, eblobSz);
+    XMEMCPY(wbSdBuf + idx, eblob, eblobSz);
+    idx += eblobSz;
+    wbSdBlobEnd = idx;
+    XMEMCPY(wbSdBuf + idx, wbNoSigners, sizeof(wbNoSigners));
+    idx += (word32)sizeof(wbNoSigners);
+
+    return idx;
+}
+
+/* two definite OCTET STRINGs inside a CONSTRUCTED OCTET STRING: multiPart */
+static const byte wbEcMulti[] = {
+    0x24, 0x0C,
+      0x04, 0x04, 'A', 'A', 'A', 'A',
+      0x04, 0x04, 'B', 'B', 'B', 'B'
+};
+/* same, but the second segment's tag is not an OCTET STRING */
+static const byte wbEcBadTag[] = {
+    0x24, 0x0C,
+      0x04, 0x04, 'A', 'A', 'A', 'A',
+      0x05, 0x04, 'B', 'B', 'B', 'B'
+};
+/* CONSTRUCTED OCTET STRING declaring far more content than is present: with
+ * the message truncated at the end of the blob, the loop runs off the end and
+ * the segment tag read itself fails */
+static const byte wbEcRunOff[] = {
+    0x24, 0x7F,
+      0x04, 0x04, 'A', 'A', 'A', 'A',
+      0x04, 0x04, 'B', 'B', 'B', 'B'
+};
+/* same, but the last segment is a bare tag plus a long-form length prefix
+ * with no length bytes behind it */
+static const byte wbEcCutLen[] = {
+    0x24, 0x7F,
+      0x04, 0x04, 'A', 'A', 'A', 'A',
+      0x04, 0x82
+};
+/* second segment declares more content than the CONSTRUCTED OCTET STRING it
+ * sits in, while still fitting inside the message buffer */
+static const byte wbEcOverrun[] = {
+    0x24, 0x0C,
+      0x04, 0x04, 'A', 'A', 'A', 'A',
+      0x04, 0x20,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+/* single definite OCTET STRING whose declared length runs past the message:
+ * not multiPart, so STAGE3 takes the single-part arm and its size check
+ * rejects, which is the only way :7605's leading operand is ever false */
+static const byte wbEcSingleLong[] = {
+    0x04, 0x7F, 'A', 'A', 'A', 'A'
+};
+
+static int wb_verify_shell(word32 msgSz, byte* in2, word32 in2Sz,
+        byte* hashBuf, word32 hashSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    ret = wc_PKCS7_VerifySignedData_ex(p, hashBuf, hashSz, wbSdBuf, msgSz,
+            in2, in2Sz);
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_multipart_walk(void)
+{
+    byte   dummyFoot[8];
+    byte   dummyHash[WC_SHA_DIGEST_SIZE];
+    word32 msgSz;
+
+    XMEMSET(dummyFoot, 0, sizeof(dummyFoot));
+    XMEMSET(dummyHash, 0x5a, sizeof(dummyHash));
+
+    WB_NOTE("PKCS7_VerifySignedData(): two-segment eContent, the walk that"
+            " parses cleanly [:7556 both true, :7602 cond 1 false,"
+            " :7605 both true]");
+    msgSz = wb_wrap_signed(wbEcMulti, (word32)sizeof(wbEcMulti));
+    WB_CHECK(msgSz > 0, "multi-part shell built");
+    if (msgSz == 0) {
+        return;
+    }
+    (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+
+    WB_NOTE("PKCS7_VerifySignedData(): the four operands of the multi-part"
+            " keepContent expression, each isolated false against the"
+            " all-true row [:7543]");
+    (void)wb_verify_shell(msgSz, dummyFoot, (word32)sizeof(dummyFoot), NULL, 0);
+    (void)wb_verify_shell(msgSz, dummyFoot, 0, dummyHash,
+            (word32)sizeof(dummyHash));
+    (void)wb_verify_shell(msgSz, dummyFoot, (word32)sizeof(dummyFoot),
+            dummyHash, 0);
+    (void)wb_verify_shell(msgSz, dummyFoot, (word32)sizeof(dummyFoot),
+            dummyHash, (word32)sizeof(dummyHash));
+
+    WB_NOTE("PKCS7_VerifySignedData(): second segment carries a tag that is"
+            " not an OCTET STRING [:7559 cond 1 true, :7556 cond 0 false]");
+    msgSz = wb_wrap_signed(wbEcBadTag, (word32)sizeof(wbEcBadTag));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): declared segment run longer than the"
+            " message, truncated at the last segment, so the segment tag read"
+            " runs out of input [:7559/:7562/:7565 cond 0 false]");
+    msgSz = wb_wrap_signed(wbEcRunOff, (word32)sizeof(wbEcRunOff));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(wbSdBlobEnd, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): last segment is a tag plus a long-form"
+            " length prefix with no length bytes [:7562 cond 1 true]");
+    msgSz = wb_wrap_signed(wbEcCutLen, (word32)sizeof(wbEcCutLen));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(wbSdBlobEnd, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): segment longer than the CONSTRUCTED"
+            " OCTET STRING that holds it [:7565 cond 1 true, :7582 cond 0"
+            " false]");
+    msgSz = wb_wrap_signed(wbEcOverrun, (word32)sizeof(wbEcOverrun));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): single-segment eContent declaring more"
+            " than the message holds [:7605 cond 0 false]");
+    msgSz = wb_wrap_signed(wbEcSingleLong, (word32)sizeof(wbEcSingleLong));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+}
+#else
+static void wb_multipart_walk(void)
+{
+    WB_NOTE("NO_RSA; multi-part eContent walk skipped");
+}
+#endif /* !NO_RSA */
+
+/* ------------------------------------------------------------------------- *
+ * Section 6: PKCS7_VerifySignedData() footer/hash argument matrix
+ * [:7645, :7739, :7764, :8002, :8108, :8137].
+ *
+ * Each of these is `in2 && in2Sz > 0` (twice extended with
+ * `&& hashBuf && hashSz > 0`) at the head of a streaming stage. Callers
+ * either pass in2 == NULL (one-shot) or a real footer with a real hash, so
+ * the trailing operands never get a false row: nobody hands the decoder a
+ * footer POINTER with a zero footer SIZE, or a hash pointer with a zero hash
+ * size. Both are supplied here over a complete bundle held entirely in `in`,
+ * which keeps the state machine running to the last stage regardless of what
+ * in2/hashBuf say.
+ * ------------------------------------------------------------------------- */
+#ifndef NO_RSA
+#define WB_CORPUS_SZ 8192
+static byte wbCorpus[WB_CORPUS_SZ];
+
+static word32 wb_load_file(const char* path, byte* buf, word32 bufSz)
+{
+    FILE* f;
+    size_t n;
+
+    f = fopen(path, "rb");
+    if (f == NULL) {
+        printf("  [wb] corpus not found, skip: %s\n", path);
+        return 0;
+    }
+    n = fread(buf, 1, bufSz, f);
+    fclose(f);
+    return (word32)n;
+}
+
+static int wb_verify_corpus(word32 msgSz, byte* in2, word32 in2Sz,
+        byte* hashBuf, word32 hashSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    ret = wc_PKCS7_VerifySignedData_ex(p, hashBuf, hashSz, wbCorpus, msgSz,
+            in2, in2Sz);
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+/* detached header/footer pair, so the `in2 && in2Sz > 0 && ...` guards can be
+ * reached with a genuine two-buffer verify */
+#ifdef USE_CERT_BUFFERS_2048
+static byte wbHead[512 + 32];
+static byte wbFoot[3072];
+static word32 wbHeadSz, wbFootSz;
+static byte wbDetContent[32];
+static byte wbDetHash[WC_SHA256_DIGEST_SIZE];
+
+static int wb_build_head_foot(void)
+{
+    wc_PKCS7* p;
+    WC_RNG    rng;
+    int       ret = -1;
+
+    XMEMSET(wbDetContent, 0x37, sizeof(wbDetContent));
+    wbHeadSz = (word32)sizeof(wbHead);
+    wbFootSz = (word32)sizeof(wbFoot);
+
+    mcdc_sr_arm(WB_HEADFOOT_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        return -1;
+    }
+    if (wc_Hash(WC_HASH_TYPE_SHA256, wbDetContent, (word32)sizeof(wbDetContent),
+            wbDetHash, (word32)sizeof(wbDetHash)) != 0) {
+        wc_FreeRng(&rng);
+        mcdc_sr_disarm();
+        return -1;
+    }
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+                (word32)sizeof_client_cert_der_2048) == 0) {
+            p->content      = NULL;
+            p->contentSz    = (word32)sizeof(wbDetContent);
+            p->contentOID   = DATA;
+            p->hashOID      = SHA256h;
+            p->privateKey   = (byte*)client_key_der_2048;
+            p->privateKeySz = (word32)sizeof_client_key_der_2048;
+            p->encryptOID   = RSAk;
+            p->rng          = &rng;
+            (void)wc_PKCS7_NoDefaultSignedAttribs(p);
+            (void)wc_PKCS7_SetDetached(p, (word16)1);
+            ret = wc_PKCS7_EncodeSignedData_ex(p, wbDetHash,
+                    (word32)sizeof(wbDetHash), wbHead, &wbHeadSz, wbFoot,
+                    &wbFootSz);
+            if (ret >= 0) {
+                XMEMCPY(wbHead + wbHeadSz, wbDetContent,
+                        sizeof(wbDetContent));
+            }
+        }
+        wc_PKCS7_Free(p);
+    }
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    return ret;
+}
+
+/* `withContent` appends the signed content to the header buffer, which is the
+ * shape a real two-buffer caller feeds in: header, then content, then footer.
+ * Without it the header alone is too short for the stage-3 content read and
+ * the state machine stops before the footer stages are ever entered. */
+/* Non-detached header/footer pair: the header carries an eContent HEADER
+ * whose content the caller supplies out of band, which is the shape that runs
+ * the whole state machine to completion (`pkiMsg2 && pkiMsg2Sz > 0 &&
+ * hashBuf && hashSz > 0` all true) and so is the row every isolated-false row
+ * below pairs against. */
+static byte wbHeadN[512 + 32];
+static byte wbFootN[3072];
+static word32 wbHeadNSz, wbFootNSz;
+
+static int wb_build_head_foot_plain(void)
+{
+    wc_PKCS7* p;
+    WC_RNG    rng;
+    int       ret = -1;
+
+    wbHeadNSz = (word32)sizeof(wbHeadN);
+    wbFootNSz = (word32)sizeof(wbFootN);
+
+    mcdc_sr_arm(WB_HEADFOOT_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        return -1;
+    }
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+                (word32)sizeof_client_cert_der_2048) == 0) {
+            p->content      = wbDetContent;
+            p->contentSz    = (word32)sizeof(wbDetContent);
+            p->contentOID   = DATA;
+            p->hashOID      = SHA256h;
+            p->privateKey   = (byte*)client_key_der_2048;
+            p->privateKeySz = (word32)sizeof_client_key_der_2048;
+            p->encryptOID   = RSAk;
+            p->rng          = &rng;
+            (void)wc_PKCS7_NoDefaultSignedAttribs(p);
+            ret = wc_PKCS7_EncodeSignedData_ex(p, wbDetHash,
+                    (word32)sizeof(wbDetHash), wbHeadN, &wbHeadNSz, wbFootN,
+                    &wbFootNSz);
+            if (ret >= 0) {
+                XMEMCPY(wbHeadN + wbHeadNSz, wbDetContent,
+                        sizeof(wbDetContent));
+            }
+        }
+        wc_PKCS7_Free(p);
+    }
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    return ret;
+}
+
+static int wb_verify_head_foot_plain(word32 footSz, byte* hashBuf,
+        word32 hashSz, int withContent)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->contentSz = (word32)sizeof(wbDetContent);
+    ret = wc_PKCS7_VerifySignedData_ex(p, hashBuf, hashSz, wbHeadN,
+            withContent ? wbHeadNSz + (word32)sizeof(wbDetContent) : wbHeadNSz,
+            wbFootN, footSz);
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static int wb_verify_head_foot(word32 footSz, byte* hashBuf, word32 hashSz,
+        int setContent, int withContent)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    if (setContent) {
+        p->content   = wbDetContent;
+        p->contentSz = (word32)sizeof(wbDetContent);
+    }
+    ret = wc_PKCS7_VerifySignedData_ex(p, hashBuf, hashSz, wbHead,
+            withContent ? wbHeadSz + (word32)sizeof(wbDetContent) : wbHeadSz,
+            wbFoot, footSz);
+    wc_PKCS7_Free(p);
+    return ret;
+}
+#endif /* USE_CERT_BUFFERS_2048 */
+
+static void wb_footer_hash_matrix(void)
+{
+    byte   dummyFoot[8];
+    byte   dummyHash[WC_SHA256_DIGEST_SIZE];
+    word32 msgSz;
+
+    XMEMSET(dummyFoot, 0, sizeof(dummyFoot));
+    XMEMSET(dummyHash, 0x5a, sizeof(dummyHash));
+
+    WB_NOTE("PKCS7_VerifySignedData(): complete bundle in `in` with a footer"
+            " POINTER of zero size, so every stage takes the `in` arm with the"
+            " leading operand true [:7645/:7764/:8002/:8137 cond 1 false]");
+    msgSz = wb_load_file("./certs/test-stream-sign.p7b", wbCorpus,
+            sizeof(wbCorpus));
+    if (msgSz > 0) {
+        (void)wb_verify_corpus(msgSz, dummyFoot, 0, NULL, 0);
+        (void)wb_verify_corpus(msgSz, dummyFoot, 0, dummyHash,
+                (word32)sizeof(dummyHash));
+        (void)wb_verify_corpus(msgSz, dummyFoot, (word32)sizeof(dummyFoot),
+                dummyHash, (word32)sizeof(dummyHash));
+        (void)wb_verify_corpus(msgSz, NULL, 0, NULL, 0);
+    }
+    msgSz = wb_load_file("./certs/test-degenerate.p7b", wbCorpus,
+            sizeof(wbCorpus));
+    if (msgSz > 0) {
+        (void)wb_verify_corpus(msgSz, dummyFoot, 0, NULL, 0);
+        (void)wb_verify_corpus(msgSz, dummyFoot, 0, dummyHash,
+                (word32)sizeof(dummyHash));
+    }
+    msgSz = wb_load_file("./certs/test-ber-exp02-05-2022.p7b", wbCorpus,
+            sizeof(wbCorpus));
+    if (msgSz > 0) {
+        (void)wb_verify_corpus(msgSz, dummyFoot, 0, NULL, 0);
+        (void)wb_verify_corpus(msgSz, dummyFoot, 0, dummyHash,
+                (word32)sizeof(dummyHash));
+    }
+
+#ifdef USE_CERT_BUFFERS_2048
+    if (wb_build_head_foot() < 0) {
+        WB_NOTE("detached head/footer encode failed; two-buffer rows skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): genuine two-buffer verify, the all-true"
+            " row [:7739/:8108]");
+    (void)wb_verify_head_foot(wbFootSz, wbDetHash, (word32)sizeof(wbDetHash),
+            1, 0);
+    (void)wb_verify_head_foot(wbFootSz, wbDetHash, (word32)sizeof(wbDetHash),
+            0, 1);
+
+    WB_NOTE("PKCS7_VerifySignedData(): same footer, hash POINTER with a zero"
+            " hash size [:7739/:8108 cond 3 false]");
+    (void)wb_verify_head_foot(wbFootSz, wbDetHash, 0, 1, 0);
+    (void)wb_verify_head_foot(wbFootSz, wbDetHash, 0, 0, 1);
+
+    WB_NOTE("PKCS7_VerifySignedData(): same footer, no hash at all"
+            " [:7739/:8108 cond 2 false]");
+    (void)wb_verify_head_foot(wbFootSz, NULL, 0, 1, 0);
+    (void)wb_verify_head_foot(wbFootSz, NULL, 0, 0, 1);
+
+    WB_NOTE("PKCS7_VerifySignedData(): footer POINTER with a zero footer size"
+            " [:7739/:8108 cond 1 false]");
+    (void)wb_verify_head_foot(0, wbDetHash, (word32)sizeof(wbDetHash), 1, 0);
+    (void)wb_verify_head_foot(0, wbDetHash, (word32)sizeof(wbDetHash), 0, 1);
+
+    if (wb_build_head_foot_plain() < 0) {
+        WB_NOTE("non-detached head/footer encode failed");
+        wb_fail = 1;
+        return;
+    }
+    WB_NOTE("PKCS7_VerifySignedData(): non-detached two-buffer verify that"
+            " runs the state machine to completion -- the all-true row for the"
+            " late stages [:8108/:8137]");
+    (void)wb_verify_head_foot_plain(wbFootNSz, wbDetHash,
+            (word32)sizeof(wbDetHash), 0);
+    (void)wb_verify_head_foot_plain(0, wbDetHash, (word32)sizeof(wbDetHash), 0);
+    (void)wb_verify_head_foot_plain(wbFootNSz, wbDetHash, 0, 0);
+    (void)wb_verify_head_foot_plain(wbFootNSz, NULL, 0, 0);
+    /* content carried inline in the header buffer, so stage 3 can read it
+     * without a caller-supplied hash: the only shape that reaches the end of
+     * stage 6 with hashSz == 0 and a real footer */
+    (void)wb_verify_head_foot_plain(wbFootNSz, wbDetHash,
+            (word32)sizeof(wbDetHash), 1);
+    (void)wb_verify_head_foot_plain(wbFootNSz, wbDetHash, 0, 1);
+    (void)wb_verify_head_foot_plain(wbFootNSz, NULL, 0, 1);
+#endif
+}
+#else
+static void wb_footer_hash_matrix(void)
+{
+    WB_NOTE("NO_RSA; footer/hash argument matrix skipped");
+}
+#endif /* !NO_RSA */
+
+/* ------------------------------------------------------------------------- *
+ * Section 7: PKCS7_VerifySignedData() BER-to-DER handoff [:6929].
+ *
+ * `pkcs7->derSz > 0 && pkcs7->der` at the top of the function only sees a
+ * non-zero derSz when the SAME wc_PKCS7 has already converted a BER bundle,
+ * i.e. on a second call. Every caller in the tree allocates a fresh handle
+ * per verify, so the guard is evaluated all-false forever. The three calls
+ * below are on one handle: a plain call (cond 0 false), a call after the
+ * fields have been set to a real buffer (both true) and one with the size set
+ * but the pointer cleared (cond 0 true, cond 1 false).
+ * ------------------------------------------------------------------------- */
+#ifndef NO_RSA
+static void wb_der_handoff(void)
+{
+    wc_PKCS7* p;
+    word32    msgSz;
+
+    msgSz = wb_load_file("./certs/test-degenerate.p7b", wbCorpus,
+            sizeof(wbCorpus));
+    if (msgSz == 0) {
+        return;
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): derSz == 0 [:6929 cond 0 false]");
+    (void)wb_verify_corpus(msgSz, NULL, 0, NULL, 0);
+
+    WB_NOTE("PKCS7_VerifySignedData(): derSz > 0 with a real der buffer"
+            " [:6929 both true]");
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+            p->der   = (byte*)XMALLOC(msgSz, p->heap, DYNAMIC_TYPE_PKCS7);
+            if (p->der != NULL) {
+                XMEMCPY(p->der, wbCorpus, msgSz);
+                p->derSz = msgSz;
+                (void)wc_PKCS7_VerifySignedData_ex(p, NULL, 0, wbCorpus,
+                        msgSz, NULL, 0);
+            }
+        }
+        wc_PKCS7_Free(p);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): derSz > 0 with no der buffer"
+            " [:6929 cond 1 false]");
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+            p->der   = NULL;
+            p->derSz = msgSz;
+            (void)wc_PKCS7_VerifySignedData_ex(p, NULL, 0, wbCorpus, msgSz,
+                    NULL, 0);
+            p->derSz = 0;
+        }
+        wc_PKCS7_Free(p);
+    }
+}
+#else
+static void wb_der_handoff(void)
+{
+    WB_NOTE("NO_RSA; BER-to-DER handoff matrix skipped");
+}
+#endif /* !NO_RSA */
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -541,6 +1164,9 @@ int main(void)
     wb_ori_oid_cap();
     wb_kekri_optional_fields();
     wb_pwri_optional_params();
+    wb_multipart_walk();
+    wb_footer_hash_matrix();
+    wb_der_handoff();
 
     wolfCrypt_Cleanup();
     printf(wb_fail ? "done (with failures)\n" : "done\n");
