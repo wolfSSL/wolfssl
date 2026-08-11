@@ -979,7 +979,7 @@ static void test_mp_fault_sweeps(void)
      * residuals it owns (3365/3374) are in the g-derivation chain that runs
      * after it, so this sweep arms the TAIL of the call sequence. The seeded
      * RNG makes the sequence, and therefore the index range, reproducible. */
-    WB_MP_SWEEP_TAIL("DhGenerateParams", 24,
+    WB_MP_SWEEP_TAIL("DhGenerateParams", 150,
         {
             DhKey k2;
             if (wc_InitDhKey(&k2) == 0) {
@@ -989,6 +989,33 @@ static void test_mp_fault_sweeps(void)
                 wc_FreeDhKey(&k2);
             }
         });
+
+    /* The 1024-bit fixture never takes the WOLFSSL_HAVE_SP_DH dispatch, whose
+     * own mp_* chain (2222) only runs for an SP-supported prime size. Repeat
+     * the agree / public-key sweeps against a named FFDHE-2048 group. */
+    {
+        DhKey  k2;
+        byte   pv2[512];
+        byte   pb2[512];
+        byte   ag2[512];
+        word32 s1 = (word32)sizeof(pv2);
+        word32 s2 = (word32)sizeof(pb2);
+        word32 s3;
+
+        if (wc_InitDhKey(&k2) == 0) {
+            if ((wc_DhSetNamedKey(&k2, WC_FFDHE_2048) == 0) &&
+                (wc_DhGenerateKeyPair(&k2, &rng, pv2, &s1, pb2, &s2) == 0)) {
+                WB_MP_SWEEP("DhAgree/ffdhe2048", 200,
+                    {
+                        s3 = (word32)sizeof(ag2);
+                        (void)wc_DhAgree(&k2, ag2, &s3, pv2, s1, pb2, s2);
+                    });
+                WB_MP_SWEEP("DhCheckPubKey/ffdhe2048", 200,
+                    (void)wc_DhCheckPubKey(&k2, pb2, s2));
+            }
+            wc_FreeDhKey(&k2);
+        }
+    }
 
     mcdc_fm_disarm();
     wc_FreeDhKey(&dh);

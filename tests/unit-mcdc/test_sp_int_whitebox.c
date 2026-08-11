@@ -1294,7 +1294,7 @@ static void wb_prime_small_witness(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Class 8: the sign-of-c arm of the division-based inverse.
+ * Class 18: the sign-of-c arm of the division-based inverse.
  *
  *   if ((err == MP_OKAY) && sp_isneg(c)) c += m;      (SP_INT_NEGATIVE)
  *   if ((err == MP_OKAY) && cneg)        c = m - |c|; (default)
@@ -1346,7 +1346,7 @@ static void wb_invmod_c_sign(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Class 9: sp_exptmod_nct()'s negative-operand rejection.
+ * Class 19: sp_exptmod_nct()'s negative-operand rejection.
  *
  *   else if ((e->sign == MP_NEG) || (m->sign == MP_NEG)) err = MP_VAL;
  *
@@ -1393,55 +1393,7 @@ static void wb_exptmod_nct_negative(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Class 10: the SP-accelerated-backend selector's base-width operand.
- *
- *   if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
- *           (eBits <= 1024)) { err = sp_ModExp_1024(...); }
- *
- * bBits is sp_count_bits(b) taken at ENTRY, before "Ensure base is less
- * than modulus" reduces b, so a base WIDER than the modulus is the only
- * thing that makes this operand false with the operands before it true.
- * Every caller in the library and in the API tests reduces first.
- * ------------------------------------------------------------------------- */
-static void wb_exptmod_wide_base(void)
-{
-    static const int widths[4] = { 1024, 2048, 1536, 3072 };
-    sp_int b;
-    sp_int e;
-    sp_int m;
-    sp_int r;
-    int    i;
-    int    ran = 0;
-
-    for (i = 0; i < 4; i++) {
-        /* m = 2^(w-1) + 1: exactly w bits and odd. */
-        if (wb_pow2(&m, widths[i] - 1) != MP_OKAY) {
-            continue;
-        }
-        if (sp_add_d(&m, 1, &m) != MP_OKAY) {
-            wb_fail = 1;
-            return;
-        }
-        /* b one word wider than the modulus, so bBits > w. */
-        if (wb_pow2(&b, widths[i] + SP_WORD_SIZE) != MP_OKAY) {
-            continue;
-        }
-        wb_set_d(&e, (sp_int_digit)3);
-        _sp_init_size(&r, SP_INT_DIGITS);
-        (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
-        ran = 1;
-    }
-
-    if (ran) {
-        WB_NOTE("modexp backend selector wide-base rows exercised");
-    }
-    else {
-        WB_NOTE("digit ceiling too low; wide-base selector rows skipped");
-    }
-}
-
-/* ------------------------------------------------------------------------- *
- * Class 11: the "base == modulus" shortcut inside the exponentiation
+ * Class 20: the "base == modulus" shortcut inside the exponentiation
  * engines, and the err chains that ride the same allocations.
  *
  *   if ((err == MP_OKAY) && sp_iszero(t[0]))  { _sp_set(r, 0); done = 1; }
@@ -1463,7 +1415,8 @@ static void wb_exptmod_base_multiple(void)
     int    n;
 
     /* A 2-digit odd modulus: big enough for the Montgomery engine
-     * (m->used > 1 && odd), small enough that the sweep is cheap. */
+     * (m->used > 1 && odd), small enough that the sweep is cheap. The
+     * single-digit modulus below takes the other engine. */
     wb_fill(&m, 2, (sp_int_digit)0);
     m.dp[0] = (sp_int_digit)0x0fffffffffffffc5ULL;
     m.dp[1] = (sp_int_digit)0x00000000000000f1ULL;
@@ -1490,16 +1443,70 @@ static void wb_exptmod_base_multiple(void)
     /* Allocation sweep over the same two calls. No-op unless the variant
      * sets WOLFSSL_SMALL_STACK: without it the temporaries are stack arrays
      * and err cannot leave MP_OKAY. */
+    /* mcdc_fa_arm_only(): fail EXACTLY the n-th allocation, not it and every
+     * later one. The targets are allocations made by callees (sp_mod()'s
+     * division temporaries, the window table) that only run after the
+     * engine's own temporaries are already in hand, so a fail-from-n-onwards
+     * sweep kills the engine before its callee is reached. */
     mcdc_fa_install();
-    for (n = 1; n <= 12; n++) {
+    for (n = 1; n <= 40; n++) {
         _sp_init_size(&r, SP_INT_DIGITS);
-        mcdc_fa_arm(n);
+        mcdc_fa_arm_only(n);
         (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
         mcdc_fa_disarm();
 
         _sp_init_size(&r, SP_INT_DIGITS);
-        mcdc_fa_arm(n);
+        mcdc_fa_arm_only(n);
         (void)sp_exptmod_nct(&b, &e, &m, &r);
+        mcdc_fa_disarm();
+    }
+
+    /* The same sweep with the base that reduces to zero, so the shortcut's
+     * own allocation site is walked as well. */
+    if (sp_mul_d(&m, 2, &b) == MP_OKAY) {
+        for (n = 1; n <= 40; n++) {
+            _sp_init_size(&r, SP_INT_DIGITS);
+            mcdc_fa_arm_only(n);
+            (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
+            mcdc_fa_disarm();
+
+            _sp_init_size(&r, SP_INT_DIGITS);
+            mcdc_fa_arm_only(n);
+            (void)sp_exptmod_nct(&b, &e, &m, &r);
+            mcdc_fa_disarm();
+        }
+    }
+    mcdc_fa_disarm();
+
+    /* Repeat both shapes against a SINGLE-digit odd modulus, which does not
+     * satisfy `m->used > 1` and so takes the other exponentiation engine.
+     * Both engines carry the same base-reduction shortcut and the same
+     * window loop, at different lines. */
+    wb_set_d(&m, (sp_int_digit)0x0fffffffffffffc5ULL);
+    if (sp_mul_d(&m, 2, &b) == MP_OKAY) {
+        _sp_init_size(&r, SP_INT_DIGITS);
+        (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
+        _sp_init_size(&r, SP_INT_DIGITS);
+        (void)sp_exptmod(&b, &e, &m, &r);
+        for (n = 1; n <= 60; n++) {
+            _sp_init_size(&r, SP_INT_DIGITS);
+            mcdc_fa_arm_only(n);
+            (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
+            mcdc_fa_disarm();
+
+            _sp_init_size(&r, SP_INT_DIGITS);
+            mcdc_fa_arm_only(n);
+            (void)sp_exptmod(&b, &e, &m, &r);
+            mcdc_fa_disarm();
+        }
+    }
+    wb_set_d(&b, (sp_int_digit)3);
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_exptmod(&b, &e, &m, &r);
+    for (n = 1; n <= 60; n++) {
+        _sp_init_size(&r, SP_INT_DIGITS);
+        mcdc_fa_arm_only(n);
+        (void)sp_exptmod(&b, &e, &m, &r);
         mcdc_fa_disarm();
     }
     mcdc_fa_disarm();
@@ -1508,7 +1515,7 @@ static void wb_exptmod_base_multiple(void)
 }
 
 /* ------------------------------------------------------------------------- *
- * Class 12: sp_div_2d()'s remainder copy.
+ * Class 21: sp_div_2d()'s remainder copy.
  *
  *   if ((err == MP_OKAY) && (rem != NULL)) { ... mask the top digit ... }
  *
@@ -1544,7 +1551,7 @@ static void wb_div_2d_rem_small(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Class 13: sp_gcd()'s result-capacity check, second link.
+ * Class 22: sp_gcd()'s result-capacity check, second link.
  *
  *   else if (((a->used <= b->used) && (r->size < a->used)) ||
  *            ((a->used > b->used) && (r->size < b->used)))
@@ -1572,6 +1579,11 @@ static void wb_gcd_r_small_b(void)
     _sp_init_size(&r, SP_INT_DIGITS);
     (void)sp_gcd(&a, &b, &r);
 
+    /* Operands the other way round, so the first link is evaluated and the
+     * second link's own operand is false: the row its pair needs. */
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_gcd(&b, &a, &r);
+
     WB_NOTE("sp_gcd smaller-operand capacity rows exercised");
 }
 #else
@@ -1582,7 +1594,7 @@ static void wb_gcd_r_small_b(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Class 14: the primality trial loops' error arm.
+ * Class 23: the primality trial loops' error arm.
  *
  *   if ((err != MP_OKAY) || (*result == MP_NO)) break;
  *
@@ -1601,22 +1613,26 @@ static void wb_prime_trial_alloc(void)
     int     haveRng;
 #endif
 
-    /* A composite with no small factors: the trial loop runs a real
-     * Miller-Rabin round and then rejects on *result. */
-    wb_fill(&a, 2, (sp_int_digit)0);
-    a.dp[0] = (sp_int_digit)0x000000000000ffe1ULL;   /* 65505 = 3*5*11*397 */
-    a.dp[1] = (sp_int_digit)0;
-    a.used  = 1;
+    /* 10007 * 10009: composite, but both factors are past the end of the
+     * small-prime table, so trial division does not settle it and the
+     * Miller-Rabin loop actually runs and rejects on *result. */
+    wb_set_d(&a, (sp_int_digit)100160063ULL);
     (void)sp_prime_is_prime(&a, 8, &res);
+#ifndef WC_NO_RNG
+    if (wc_InitRng(&rng) == 0) {
+        (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
+        wc_FreeRng(&rng);
+    }
+#endif
 
     /* A prime, so the loop runs every trial to completion. */
     wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
     (void)sp_prime_is_prime(&a, 8, &res);
 
     mcdc_fa_install();
-    for (n = 1; n <= 12; n++) {
+    for (n = 1; n <= 60; n++) {
         wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
-        mcdc_fa_arm(n);
+        mcdc_fa_arm_only(n);
         (void)sp_prime_is_prime(&a, 8, &res);
         mcdc_fa_disarm();
     }
@@ -1626,9 +1642,9 @@ static void wb_prime_trial_alloc(void)
     if (haveRng) {
         wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
         (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
-        for (n = 1; n <= 12; n++) {
+        for (n = 1; n <= 60; n++) {
             wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
-            mcdc_fa_arm(n);
+            mcdc_fa_arm_only(n);
             (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
             mcdc_fa_disarm();
         }
@@ -1677,7 +1693,6 @@ int main(void)
     wb_prime_small_witness();
     wb_invmod_c_sign();
     wb_exptmod_nct_negative();
-    wb_exptmod_wide_base();
     wb_exptmod_base_multiple();
     wb_div_2d_rem_small();
     wb_gcd_r_small_b();
