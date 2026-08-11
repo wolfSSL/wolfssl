@@ -90,26 +90,13 @@
 
 #include "mcdc_fault_hash.h"
 
-/* The HSS key below is generated from a live RNG, so its tree differs on every
- * run and the leaf index q -- which decides wc_lms_impl.c:2414 and :2424 --
- * moves with it. Two runs of an unchanged tree on 2026-08-11 read 124/136 and
- * 127/136 for exactly this reason, with neither sweep bound truncating. Pinning
- * the stream makes the key, and therefore every tree walk below, identical on
- * every run. */
-#include "mcdc_seed_rng.h"
 
 /* wc_lms_impl.c is #included AFTER the interposers are installed. */
 #include <wolfcrypt/src/wc_lms_impl.c>
 
-#define MCDC_SR_IMPL
-#include "mcdc_seed_rng.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
-/* Recorded in the module residual note. */
-#define WB_LMS_SEED 0x1a5eed01UL
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -367,12 +354,25 @@ static int wb_do_make_key(void)
     int ret = wb_state_init(&state, &wb_params);
 
     if (ret == 0) {
-        /* Pinned: recorded in the module residual note, because a seed that
-         * selects which tree paths are exercised is part of the evidence. */
-        mcdc_sr_arm(WB_LMS_SEED);
+        /* NOT seeded, deliberately.
+         *
+         * wc_lms_impl.c:2414 and :2424 depend on the HSS leaf index q, which
+         * moves with the generated key -- so two runs of an unchanged tree read
+         * 124/136 and 127/136. Pinning the stream does fix that, and costs 40
+         * conditions doing it (125 -> 85, measured twice): this helper is
+         * called twice per binary, and the union's key diversity came from the
+         * 30 variants drawing INDEPENDENTLY, not from repetition within one.
+         * A pinned seed collapses all 30 onto the same two keys, and advancing
+         * the seed per call does not help because every variant replays the
+         * same sequence.
+         *
+         * Reproducing that diversity deterministically would mean iterating
+         * ~60 pinned keys inside one driver, multiplying a 10-minute module by
+         * 30. Trading 40 real conditions for determinism on 3 is a bad deal,
+         * so the two conditions above are recorded as known-flaky in the
+         * module residual note instead. See STEP6.md, flake hunt 2026-08-11. */
         ret = wc_hss_make_key(&state, &wb_rng, wb_priv_raw, &wb_pk,
             wb_priv_data, wb_pub);
-        mcdc_sr_disarm();
         wb_state_free(&state);
     }
     return ret;
