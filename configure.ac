@@ -5469,6 +5469,13 @@ AC_ARG_ENABLE([acert],
     [ ENABLED_ACERT=no ]
     )
 
+# DELAY-TOLERANT NETWORKING
+AC_ARG_ENABLE([dtn],
+    [AS_HELP_STRING([--enable-dtn],[Enable Delay-Tolerant Networking (RFC 9174) support, e.g. id-on-bundleEID (default: disabled)])],
+    [ ENABLED_DTN=$enableval ],
+    [ ENABLED_DTN=no ]
+    )
+
 # CERT GENERATION
 AC_ARG_ENABLE([certgen],
     [AS_HELP_STRING([--enable-certgen],[Enable cert generation (default: disabled)])],
@@ -12592,6 +12599,9 @@ AS_IF([test "x$ENABLED_KEYGEN" = "xyes"],
 AS_IF([test "x$ENABLED_ACERT" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ACERT"])
 
+AS_IF([test "x$ENABLED_DTN" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTN"])
+
 AS_IF([test "x$ENABLED_CERTREQ" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"])
 
@@ -13797,6 +13807,7 @@ echo "   * SipHash:                    $ENABLED_SIPHASH"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * acert:                      $ENABLED_ACERT"
+echo "   * dtn:                        $ENABLED_DTN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"

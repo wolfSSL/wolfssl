@@ -19536,12 +19536,19 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
     oidLen = dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.length;
     serialLen = dataASN[OTHERNAMEASN_IDX_HWN_NUM].data.ref.length;
 
-    /* Allocate space for HW type OID. */
-    cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
-                                  DYNAMIC_TYPE_X509_EXT);
-    if (cert->hwType == NULL)
-        ret = MEMORY_E;
+    /* The value parsed must have been the HW module SEQUENCE. */
+    if (dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.data == NULL) {
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
+    }
 
+    if (ret == 0) {
+        /* Allocate space for HW type OID. */
+        cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
+                                      DYNAMIC_TYPE_X509_EXT);
+        if (cert->hwType == NULL)
+            ret = MEMORY_E;
+    }
     if (ret == 0) {
         /* Copy, into cert HW type OID */
         XMEMCPY(cert->hwType,
@@ -19585,6 +19592,14 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
         case UPN_OID:
             bufLen = dataASN[OTHERNAMEASN_IDX_UPN].data.ref.length;
             buf    = (const char*)dataASN[OTHERNAMEASN_IDX_UPN].data.ref.data;
+#ifdef WOLFSSL_DTN
+            if (buf == NULL) {
+                /* A UPN may also be an IA5String. */
+                bufLen = dataASN[OTHERNAMEASN_IDX_BEID].data.ref.length;
+                buf    = (const char*)
+                         dataASN[OTHERNAMEASN_IDX_BEID].data.ref.data;
+            }
+#endif /* WOLFSSL_DTN */
             break;
 #ifdef WOLFSSL_DTN
         case BUNDLE_EID_OID:
@@ -19597,6 +19612,12 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
             WOLFSSL_ERROR_VERBOSE(ASN_UNKNOWN_OID_E);
             ret = ASN_UNKNOWN_OID_E;
             break;
+    }
+
+    /* The CHOICE alternative parsed must be the one the type-id calls for. */
+    if ((ret == 0) && (buf == NULL)) {
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
     }
 
     if (ret == 0) {

@@ -647,6 +647,16 @@ if(WOLFSSL_SRTP)
     set(WOLFSSL_KEYING_MATERIAL "yes")
 endif()
 
+# Delay-Tolerant Networking
+add_option("WOLFSSL_DTN"
+    "Enables Delay-Tolerant Networking (RFC 9174) support, e.g. id-on-bundleEID (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_DTN)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_DTN")
+endif()
+
 
 # DTLS
 add_option("WOLFSSL_DTLS"
