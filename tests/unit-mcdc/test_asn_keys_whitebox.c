@@ -40,6 +40,13 @@
  * and drives both operand-independence pairs are completed *within this
  * file* (masking MC/DC is computed per binary; coverage is unioned by
  * source line:col with tests/api and other unit-mcdc binaries centrally).
+ *
+ * RESIDUAL (structurally dead operand, argued from the source):
+ *   - wc_CreatePKCS8Key() :9474 2nd operand, the LENGTH_ONLY_E compare: under
+ *     WOLFSSL_ASN_TEMPLATE the only writers of ret before that line are the
+ *     argument check (BAD_FUNC_ARG), the PKCS#8-header sanity check
+ *     (ASN_PARSE_E), CALLOC_ASNSETDATA (MEMORY_E) and SizeASN_Items (0 /
+ *     BAD_FUNC_ARG / ASN_PARSE_E). LENGTH_ONLY_E is never produced.
  */
 
 #include <wolfcrypt/src/asn.c>

@@ -92,14 +92,33 @@
  *   23. wc_MIME_parse_headers() in/inLen/terminator/headers OR .... :38530
  *   24. wc_GetFASCNFromCert() otherName/oidSum AND ................ :27036
  *
- * No condition examined while building this file was concluded to be
- * structurally unreachable; every guard above is driven directly through
- * its own function's argument list. GAPS.md rows in the deep certificate
- * chain-verification internals (name-constraint enforcement, X.509
- * extension decoding/verification, CRL/OCSP responder verification, ASN.1
- * dump/print) were left untouched by this file -- they need a fully valid,
- * parsed DecodedCert/Signer/chain context to reach, which is out of scope
- * for this pass; that is a scope decision, not a reachability claim.
+ *   25. encoder buffer-size guards, `ret == 0` operand .......... :13257,
+ *       :13412,:27814,:27872,:28491,:34450,:36337,:36465
+ *   26. DecodeDsaAsn1Sig() r/s allocation guard ................. :17324
+ *
+ * The original pass concluded nothing here was structurally unreachable.
+ * The gap-closing wave added sections 25 and 26 and, while doing so, did
+ * reach that conclusion for four conditions:
+ *   - FillSigner() :24917/:24921/:24925 2nd operand (signer != NULL): the
+ *     function returns BAD_FUNC_ARG at asn.c:24895-:24896 when signer is
+ *     NULL, so every later `signer != NULL` test is constant true.
+ *   - FillSigner() :24917 1st operand (ret == 0): ret is a local
+ *     initialised to 0 at :24893 and the only assignment before that line
+ *     is inside `#ifdef WOLFSSL_DUAL_ALG_CERTS`, which none of the asn
+ *     module's variants define. Configuration-scoped constant true. The
+ *     :24921/:24925 leading operands ARE reachable and are driven by the
+ *     allocation sweep in section 24.
+ *   - DecodeDsaAsn1Sig() :17348 both operands: the block is guarded by
+ *     :17342, which has already rejected rSz + sSz > sigSz, and every
+ *     caller passes a sigCpy of at least sigSz bytes, so both
+ *     mp_to_unsigned_bin() calls write inside the buffer and cannot fail.
+ *
+ * GAPS.md rows in the deep certificate chain-verification internals
+ * (name-constraint enforcement, X.509 extension decoding/verification,
+ * CRL/OCSP responder verification, ASN.1 dump/print) were left untouched by
+ * this file -- they need a fully valid, parsed DecodedCert/Signer/chain
+ * context to reach, which is out of scope for this pass; that is a scope
+ * decision, not a reachability claim.
  */
 
 #include <wolfcrypt/src/asn.c>

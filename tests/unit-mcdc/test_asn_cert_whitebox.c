@@ -40,6 +40,31 @@
  * completed *within this file* (masking MC/DC is computed per binary,
  * coverage unioned by source line:col with tests/api and the sibling
  * unit-mcdc asn binaries centrally).
+ *
+ * RESIDUALS (structurally dead operand, argued from the source, not a gap
+ * in this test):
+ *   - SetSubject() :15074 / SetIssuer() :15127 1st operand (id >
+ *     ASN_COMMON_NAME): both are called from GetRDN() only when typeStr !=
+ *     NULL (asn.c:15288), and every dispatch branch that assigns typeStr
+ *     also assigns an id of at least ASN_COMMON_NAME (3) -- the v1 branch
+ *     is gated on ValidCertNameSubject(id), which requires id - 3 >= 0; the
+ *     x500UniqueIdentifier branch uses 0x2d; the rest use the 0x100/0x200
+ *     constants. id == ASN_COMMON_NAME is consumed by the preceding `if`,
+ *     so the operand is constant true here.
+ *   - SetAlgoIDImpl() :16774 1st operand (ret == 0): ret comes only from
+ *     CALLOC_ASNSETDATA -- whose MEMORY_E is caught and returned at
+ *     :16731-:16734 before that line -- and from SizeASN_Items() over the
+ *     fixed 3-item algoIdASN template with OID/buffer data items, which has
+ *     no reachable error return.
+ *   - StoreECC_DSA_Sig() :32834 / StoreECC_DSA_Sig_Bin() :32880 1st operand
+ *     (ret == 0): same shape. SizeASN_Items over the fixed 3-item dsaSigASN
+ *     template fails only on NULL/zero-count arguments (never here) or on an
+ *     ASN_DATA_TYPE_MP entry whose mp_unsigned_bin_size() is negative or
+ *     whose header+length sum wraps word32 -- impossible for an initialised
+ *     signature-sized mp_int; the _Bin variant uses plain buffers, a path
+ *     with no error return at all.
+ *   - ParseCertRelative() :24412 both operands: see the argument at the
+ *     wb_parse_cert_relative_bad_date() section below.
  */
 
 #include <wolfcrypt/src/asn.c>

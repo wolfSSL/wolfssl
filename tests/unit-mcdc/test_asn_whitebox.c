@@ -72,6 +72,29 @@
  *     operands false) structurally unreachable. Both operands' "other"
  *     value is driven below (headerOnly true and false) but the decision
  *     itself cannot show a false outcome.
+ *   - GetOID() :7960 first operand (`ret == 0`): ret is a local initialised
+ *     to 0 at asn.c:7873 and assigned only inside `#ifdef ASN_DUMP_OID`
+ *     (:7952), which settings.h never defines and no campaign variant sets.
+ *     Constant true. The other three operands are driven below with two
+ *     hand-computed wc_oid_sum() collisions.
+ *   - wc_Asn1_PrintAll() :39680 both operands: every path through
+ *     wc_Asn1_Print() that returns 0 leaves asn1->part == ASN_PART_TAG (the
+ *     constructed branch sets it at :39598; the primitive branch sets
+ *     ASN_PART_DATA at :39587 and then runs the data block at :39605-:39625,
+ *     which resets it in the same call), and the loop at :39675 exits with
+ *     ret == 0 only when all input is consumed. The decision is never true.
+ *   - PrintAsn1Text() :39331 3rd/4th operands: the function is called only
+ *     from wc_Asn1_Print()'s ASN_PART_DATA block (:39608), and part becomes
+ *     ASN_PART_DATA only in the `if (!asn1->item.cons)` branch at :39585.
+ *     asn1->item.cons is therefore 0 here, so the 4th operand is constant
+ *     false and the 3rd can never determine the outcome.
+ *   - PrintObjectIdText() :39187 2nd operand (`idx >= 2`): idx is a local
+ *     initialised to 0 and written only by the GetObjectId() call at :39171,
+ *     which is passed oidIgnoreType -- for that type GetOID() skips its
+ *     verification block, so it returns 0 or ASN_PARSE_E. ASN_PARSE_E takes
+ *     the `known = 0` branch, so the else-if chain is reached only after a
+ *     successful decode, which has already advanced idx past the tag and
+ *     length bytes.
  */
 
 #include <wolfcrypt/src/asn.c>

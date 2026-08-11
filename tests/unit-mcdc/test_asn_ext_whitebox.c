@@ -92,6 +92,25 @@
  *     pubKeySize > 0): once keyOID == RSAk and ParseCertRelative succeeds,
  *     GetCertKey always sets publicKey/pubKeySize together; only the
  *     all-true combination is reachable without editing library source.
+ *   - DecodeCertInternal() :22815/:22821 2nd operand (issuer/subject !=
+ *     NULL): both are initialised to NULL and assigned unconditionally
+ *     inside the single `if (ret == 0)` block at asn.c:22637 (:22683,
+ *     :22688); that block has no early exit, so every path that leaves them
+ *     NULL also leaves ret != 0.
+ *   - DecodeCertInternal() :22844/:22849 2nd operand (!stopAtPubKey): when
+ *     stopAtPubKey is non-zero and ret is still 0, :22839-:22841 has already
+ *     set ret = (int)pubKeyOffset, the offset of the SubjectPublicKeyInfo
+ *     SEQUENCE, which is always > 0 because the TBSCertificate header
+ *     precedes it. So ret == 0 at those lines implies stopAtPubKey == 0.
+ *   - DecodeCertInternal() :22662/:22674 4th operand (! AsnSkipDateCheck):
+ *     NOT excluded, still open. The runtime_date_check variant makes the
+ *     flag settable, but CheckDate() itself returns 0 as soon as the flag is
+ *     set (:22494), so the enclosing `if (CheckDate(...) < 0)` is not
+ *     entered and the operand is never evaluated. Reaching it needs a date
+ *     ITEM that is malformed rather than out of range (tag not
+ *     UTC/GENERALIZED_TIME, or length outside [MIN_DATE_SIZE,
+ *     MAX_DATE_SIZE]), which means re-encoding the enclosing
+ *     Validity/TBSCertificate/Certificate lengths. Not attempted.
  */
 
 #include <wolfcrypt/src/asn.c>
