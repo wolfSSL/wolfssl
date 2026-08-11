@@ -76,12 +76,39 @@
  * operations, no sweep, no clock.
  */
 
-/* frodokem_check_priv_key()'s `(ret == 0)` operand needs a SHAKE failure: its
- * only assignment to ret is frodokem_shake_oneshot(). The interposers are armed
- * only inside wb_pkh_mismatch_rows(); everything else here runs disarmed. */
-#include "mcdc_fault_hash.h"
+/* frodokem_check_priv_key()'s `(ret == 0)` operand needs a SHAKE failure, and
+ * its only assignment to ret is frodokem_shake_oneshot(). That function lives
+ * in wc_frodokem_mat.c -- a DIFFERENT translation unit, supplied by
+ * libwolfssl.a -- so mcdc_fault_hash.h's primitive interposition cannot reach
+ * the SHAKE calls inside it: those macros only rewrite this TU. What can be
+ * rewritten is the CALL, because frodokem_shake_oneshot is a WOLFSSL_LOCAL
+ * function declared in a header. Pulling that header in FIRST keeps the real
+ * prototype under its real name (the same ordering rule mcdc_fault_hash.h and
+ * test_wc_mlkem_poly_whitebox.c rely on), and the object-like rename below then
+ * only rewrites the uses inside wc_frodokem.c -- including the ones the header's
+ * own frodokem_shake_seeda() / frodokem_gen_seedse_k() macros expand to. */
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/wc_frodokem_mat.h>
+
+static int wb_shake_oneshot(const FrodoKemParams* p, wc_Shake* shake,
+    const byte* in, word32 inLen, byte* out, word32 outLen);
+#define frodokem_shake_oneshot wb_shake_oneshot
 
 #include <wolfcrypt/src/wc_frodokem.c>
+
+#undef frodokem_shake_oneshot
+
+/* Non-zero: the next one-shot SHAKE reports failure without writing `out`. */
+static int wb_oneshot_fail = 0;
+
+static int wb_shake_oneshot(const FrodoKemParams* p, wc_Shake* shake,
+    const byte* in, word32 inLen, byte* out, word32 outLen)
+{
+    if (wb_oneshot_fail) {
+        return BAD_FUNC_ARG;
+    }
+    return frodokem_shake_oneshot(p, shake, in, inLen, out, outLen);
+}
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -306,25 +333,20 @@ static void wb_pkh_mismatch_rows(WC_RNG* rng, int type)
     wc_FrodoKemKey_Free(&k2);
     enc[skSize - 1] ^= 0x01;
 
-    /* The first operand's FALSE row: frodokem_shake_oneshot() itself fails, so
-     * the comparison is never reached. It is the only assignment to ret in
-     * frodokem_check_priv_key(), and it does not allocate -- hence the hash
-     * interposer rather than the allocator one. A short dense sweep covers the
-     * handful of SHAKE calls the decode path makes. */
-    {
-        long n;
-
-        for (n = 1; n <= 8L; n++) {
-            XMEMSET(&k2, 0, sizeof(k2));
-            if (wc_FrodoKemKey_Init(&k2, type, NULL, INVALID_DEVID) == 0) {
-                mcdc_fh_arm(n);
-                (void)wc_FrodoKemKey_DecodePrivateKey(&k2, enc, skSize);
-                mcdc_fh_disarm();
-            }
-            wc_FrodoKemKey_Free(&k2);
+    /* The first operand's FALSE row: frodokem_shake_oneshot() itself reports
+     * failure, so the comparison is never reached. `out` is left untouched,
+     * exactly as a failing primitive would leave it, and the decoder is under
+     * test precisely for propagating that. */
+    XMEMSET(&k2, 0, sizeof(k2));
+    if (wc_FrodoKemKey_Init(&k2, type, NULL, INVALID_DEVID) == 0) {
+        wb_oneshot_fail = 1;
+        if (wc_FrodoKemKey_DecodePrivateKey(&k2, enc, skSize) == 0) {
+            WB_NOTE("DecodePrivateKey ignored a failing hash primitive");
+            wb_fail = 1;
         }
-        mcdc_fh_disarm();
+        wb_oneshot_fail = 0;
     }
+    wc_FrodoKemKey_Free(&k2);
 
     WB_NOTE("stored public-key-hash consistency rows exercised");
 }
