@@ -1342,6 +1342,122 @@ static void wb_verify_zero_input(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
+ * Section 9b: PKCS7_VerifySignedData() header/footer guard
+ * `pkiMsg2 == NULL || pkiMsg2Sz == 0` [:7675]. pkiMsg2/pkiMsg2Sz start out
+ * as the caller's pkiMsgFoot/pkiMsgFootSz (wc_PKCS7_VerifySignedData_ex).
+ * The entry guard a few lines earlier (:6923) already rejects
+ * `pkiMsg2Sz > 0 && pkiMsg2 == NULL`, so by the time this line runs,
+ * pkiMsg2 == NULL forces pkiMsg2Sz == 0 too -- the 1st operand's
+ * independence pair (pkiMsg2==NULL true, pkiMsg2Sz==0 FALSE) can never
+ * exist; reported as an exclusion, not driven here.
+ *
+ * NOTE (residual, not closed): the 2nd operand's true row was attempted
+ * below (footer pointer present, footer size 0) but measurement shows
+ * [:7675:1] still uncovered after this driver -- under
+ * !defined(NO_PKCS7_STREAM), WC_PKCS7_VERIFY_STAGE4 reassigns pkiMsg2/
+ * pkiMsg2Sz from `in`/`inSz` whenever `in2 && in2Sz > 0` is false (i.e.
+ * exactly when footSz==0), so pkiMsg2Sz ends up as the HEADER size, not 0,
+ * and the guard stays false in the streaming variants. Left in place
+ * because it still drives a real two-buffer detached verify baseline
+ * elsewhere in the file; a real fix needs either a NO_PKCS7_STREAM-only
+ * variant of this call (where pkiMsg2/pkiMsg2Sz are never reassigned) or a
+ * multi-call streaming sequence that reaches STAGE4 with in2Sz==0 without
+ * falling into the in/inSz substitution.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+static void wb_verify_footer_guard(void)
+{
+    wc_PKCS7* p;
+    byte head[512];
+    byte foot[512];
+    word32 headSz = sizeof(head);
+    word32 footSz = sizeof(foot);
+    byte content[32];
+    byte hash[WC_SHA256_DIGEST_SIZE];
+    WC_RNG rng;
+    int ret;
+
+    XMEMSET(content, 0x37, sizeof(content));
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; wb_verify_footer_guard skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_Hash(WC_HASH_TYPE_SHA256, content, (word32)sizeof(content), hash,
+            (word32)sizeof(hash)) != 0) {
+        WB_NOTE("wc_Hash failed; wb_verify_footer_guard skipped");
+        wc_FreeRng(&rng);
+        wb_fail = 1;
+        return;
+    }
+
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    WB_CHECK(p != NULL, "New for footer-guard corpus build");
+    if (p == NULL) {
+        wc_FreeRng(&rng);
+        return;
+    }
+    ret = -1;
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) == 0) {
+        p->content      = NULL; /* _ex() signs the caller-supplied hash */
+        p->contentSz    = (word32)sizeof(content);
+        p->contentOID   = DATA;
+        p->hashOID      = SHA256h;
+        p->privateKey   = (byte*)client_key_der_2048;
+        p->privateKeySz = (word32)sizeof_client_key_der_2048;
+        p->encryptOID   = RSAk;
+        p->rng          = &rng;
+        (void)wc_PKCS7_SetDetached(p, (word16)1);
+        ret = wc_PKCS7_EncodeSignedData_ex(p, hash, (word32)sizeof(hash),
+                head, &headSz, foot, &footSz);
+    }
+    wc_PKCS7_Free(p);
+    wc_FreeRng(&rng);
+    WB_CHECK(ret >= 0, "detached head/foot corpus built for footer-guard"
+            " drive");
+    if (ret < 0) {
+        return;
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): header/footer guard [:7675]");
+
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL && wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+        p->contentSz = (word32)sizeof(content);
+        ret = wc_PKCS7_VerifySignedData_ex(p, hash, (word32)sizeof(hash),
+                head, headSz, foot, footSz);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                "baseline: real footer (pkiMsg2!=NULL, pkiMsg2Sz>0),"
+                " reaches past the guard");
+    }
+    if (p != NULL) {
+        wc_PKCS7_Free(p);
+    }
+
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL && wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+        p->contentSz = (word32)sizeof(content);
+        ret = wc_PKCS7_VerifySignedData_ex(p, hash, (word32)sizeof(hash),
+                head, headSz, foot, 0);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                "footSz==0 attempt: reaches past the guard, but see the"
+                " section note above -- does NOT close the 2nd operand"
+                " (STAGE4 substitutes the header size before this line)");
+    }
+    if (p != NULL) {
+        wc_PKCS7_Free(p);
+    }
+}
+#else
+static void wb_verify_footer_guard(void)
+{
+    WB_NOTE("NO_RSA or no 2048-bit test cert buffers; VerifySignedData"
+            " footer-guard drive skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
  * Section 10: assorted small matrices
  * [:10428 SetSignerIdentifierType, :10044/:10130 DecryptContentInit,
  *  :17789/:17792/:17797 DecodeOneSymmetricKeyKey, :6639 HandleOctetStrings,
@@ -1468,6 +1584,29 @@ static void wb_small_matrices(void)
     idx = 0;
     (void)wc_PKCS7_HandleOctetStrings(&p, osk, (word32)sizeof(osk), &idx,
             NULL, 0);
+    /* all-false baseline: the 3 operand-true rows above never pair against
+     * a call that gets past the guard, so the guard's independence pairs
+     * were never actually closed (mirrors the arg-guard trap noted in the
+     * campaign brief -- an operand-true-only batch without the baseline). */
+    {
+        wc_PKCS7 hp;
+        int ret;
+
+        XMEMSET(&hp, 0, sizeof(hp));
+        if (wc_PKCS7_Init(&hp, NULL, INVALID_DEVID) == 0 &&
+                wc_PKCS7_CreateStream(&hp) == 0) {
+            idx = 0;
+            ret = wc_PKCS7_HandleOctetStrings(&hp, osk, (word32)sizeof(osk),
+                    &idx, &idx, 0);
+            WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                    ":6639 baseline (all false): valid pkcs7/in/idx, reaches"
+                    " past the guard");
+            wc_PKCS7_FreeStream(&hp);
+        }
+        else {
+            WB_CHECK(0, ":6639 baseline setup (Init/CreateStream) failed");
+        }
+    }
 #else
     (void)idx;
 #endif
@@ -1743,6 +1882,7 @@ int main(void)
     wb_content_crypt_args();
     wb_recipient_optionals();
     wb_verify_zero_input();
+    wb_verify_footer_guard();
     wb_small_matrices();
     wb_auth_encode_shapes();
     wb_size_guards();

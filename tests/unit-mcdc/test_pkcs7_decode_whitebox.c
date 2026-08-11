@@ -197,6 +197,67 @@ static void wb_enveloped_ktri_call(byte* buf, word32 len)
     wc_PKCS7_Free(p);
 }
 
+/* wc_PKCS7_DecryptKtri()'s `pkcs7->privateKey != NULL &&
+ * pkcs7->privateKeySz > 0` AND-guard [:12140]. wb_enveloped_ktri_call()
+ * above is the both-true row (real key). The three calls below supply the
+ * all-false baseline plus each operand's true-while-the-other-false row, by
+ * direct field manipulation -- the guard's own decision is under test, not
+ * what a real key would do afterward, so a NULL pointer paired with a
+ * nonzero size (and vice versa) is fine: privateKey==NULL still short-
+ * circuits the AND before privateKeySz is dereferenced. */
+static void wb_enveloped_ktri_nokey_call(byte* buf, word32 len)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_SCRATCH_SZ];
+
+    if (p == NULL) {
+        return;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) == 0) {
+        /* both operands false: privateKey==NULL, privateKeySz==0 (Init's
+         * default). devId==INVALID_DEVID -> BAD_FUNC_ARG, clean return. */
+        (void)wc_PKCS7_DecodeEnvelopedData(p, buf, len, out, sizeof(out));
+    }
+    wc_PKCS7_Free(p);
+}
+
+static void wb_enveloped_ktri_szonly_call(byte* buf, word32 len)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_SCRATCH_SZ];
+
+    if (p == NULL) {
+        return;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) == 0) {
+        /* 1st operand false, 2nd true: privateKey==NULL, privateKeySz>0 */
+        p->privateKey   = NULL;
+        p->privateKeySz = 8;
+        (void)wc_PKCS7_DecodeEnvelopedData(p, buf, len, out, sizeof(out));
+    }
+    wc_PKCS7_Free(p);
+}
+
+static void wb_enveloped_ktri_keyzerosz_call(byte* buf, word32 len)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_SCRATCH_SZ];
+
+    if (p == NULL) {
+        return;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) == 0) {
+        /* 1st operand true, 2nd false: real key pointer, privateKeySz==0 */
+        p->privateKey   = (byte*)client_key_der_2048;
+        p->privateKeySz = 0;
+        (void)wc_PKCS7_DecodeEnvelopedData(p, buf, len, out, sizeof(out));
+    }
+    wc_PKCS7_Free(p);
+}
+
 static void wb_enveloped_multi_call(byte* buf, word32 len)
 {
     wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
@@ -224,6 +285,13 @@ static void wb_enveloped_decode_chains(void)
             sizeof(wbScratch));
     if (fullLen > 0) {
         wb_sweep(wb_enveloped_ktri_call, wbScratch, fullLen);
+
+        WB_NOTE("wc_PKCS7_DecryptKtri(): privateKey/privateKeySz guard"
+                " [:12140], all-false baseline + each operand isolated"
+                " true");
+        wb_enveloped_ktri_nokey_call(wbScratch, fullLen);
+        wb_enveloped_ktri_szonly_call(wbScratch, fullLen);
+        wb_enveloped_ktri_keyzerosz_call(wbScratch, fullLen);
     }
 
     WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): multi-recipient decode-walk"
