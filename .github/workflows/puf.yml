@@ -41,6 +41,15 @@ jobs:
           - "--enable-puf=small --enable-puf-test CPPFLAGS=-DWC_PUF_NUM_CODEWORDS=3"
           # Opt-in compact helper layout (parity bits only).
           - "--enable-puf=strong --enable-puf-test CPPFLAGS=-DWC_PUF_HELPER_COMPACT"
+          # Non-default readout health-test band. puf_test() derives the
+          # expected verdict from the configured band, and two of its bias
+          # fixtures (~25% and ~72% ones) sit between this band and the
+          # 35/65 default, so they are rejected there and accepted here:
+          # the entry exercises the tunable path rather than just building
+          # it. WOLFSSL_PUF_TEST_BAND_WIDE makes puf_test() pin these exact
+          # percentages, so a misspelled or mistyped band -D is a build
+          # failure here instead of a green run against some other band.
+          - "--enable-puf --enable-puf-test CPPFLAGS=\"-DWC_PUF_HW_MIN_PCT=20 -DWC_PUF_HW_MAX_PCT=80 -DWOLFSSL_PUF_TEST_BAND_WIDE\""
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -78,12 +87,16 @@ jobs:
         run: |
           cmake -S . -B build_puf -DWOLFSSL_PUF=yes \
               -DWOLFSSL_PUF_PROFILE=strong \
-              -DWOLFSSL_PUF_NUM_CODEWORDS=32
+              -DWOLFSSL_PUF_NUM_CODEWORDS=32 \
+              -DWOLFSSL_PUF_HW_MIN_PCT=20 \
+              -DWOLFSSL_PUF_HW_MAX_PCT=80
 
       - name: Assert profile reached options.h
         run: |
           grep -q '^#define WC_PUF_BCH_T 13$' build_puf/wolfssl/options.h
           grep -q '^#define WC_PUF_NUM_CODEWORDS 32$' build_puf/wolfssl/options.h
+          grep -q '^#define WC_PUF_HW_MIN_PCT 20$' build_puf/wolfssl/options.h
+          grep -q '^#define WC_PUF_HW_MAX_PCT 80$' build_puf/wolfssl/options.h
           grep -q '^#define WOLFSSL_PUF$' build_puf/wolfssl/options.h
 
       - name: Build

@@ -2352,6 +2352,14 @@ if(WOLFSSL_PUF)
     set(WOLFSSL_PUF_NUM_CODEWORDS "" CACHE STRING
         "Number of PUF BCH codewords (1-4095, default: 16)")
 
+    # Readout health-test band, same cache-name reasoning as above. An
+    # application that measures a region with wc_PufCheckSram needs the same
+    # band as the library, so route it through options.h rather than CFLAGS.
+    set(WOLFSSL_PUF_HW_MIN_PCT "" CACHE STRING
+        "PUF readout minimum Hamming weight, percent (1-98, default: 35)")
+    set(WOLFSSL_PUF_HW_MAX_PCT "" CACHE STRING
+        "PUF readout maximum Hamming weight, percent (2-99, default: 65)")
+
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_PUF"
         "-DWOLFSSL_PUF_SRAM"
@@ -2365,6 +2373,23 @@ if(WOLFSSL_PUF)
         endif()
         list(APPEND WOLFSSL_DEFINITIONS
             "-DWC_PUF_NUM_CODEWORDS=${WOLFSSL_PUF_NUM_CODEWORDS}")
+    endif()
+    foreach(pufBand MIN MAX)
+        if(WOLFSSL_PUF_HW_${pufBand}_PCT)
+            if(NOT WOLFSSL_PUF_HW_${pufBand}_PCT MATCHES "^[0-9]+$" OR
+               WOLFSSL_PUF_HW_${pufBand}_PCT LESS 1 OR
+               WOLFSSL_PUF_HW_${pufBand}_PCT GREATER 99)
+                message(FATAL_ERROR
+                    "WOLFSSL_PUF_HW_${pufBand}_PCT must be an integer from 1 to 99")
+            endif()
+            list(APPEND WOLFSSL_DEFINITIONS
+                "-DWC_PUF_HW_${pufBand}_PCT=${WOLFSSL_PUF_HW_${pufBand}_PCT}")
+        endif()
+    endforeach()
+    if(WOLFSSL_PUF_HW_MIN_PCT AND WOLFSSL_PUF_HW_MAX_PCT AND
+       NOT WOLFSSL_PUF_HW_MIN_PCT LESS WOLFSSL_PUF_HW_MAX_PCT)
+        message(FATAL_ERROR
+            "WOLFSSL_PUF_HW_MIN_PCT must be less than WOLFSSL_PUF_HW_MAX_PCT")
     endif()
     if(WOLFSSL_PUF_PROFILE STREQUAL "small")
         list(APPEND WOLFSSL_DEFINITIONS "-DWC_PUF_BCH_T=7")

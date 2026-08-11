@@ -17,6 +17,21 @@
     the helper data at enrollment and pass it to wc_PufReconstructEx, or
     compare it against wc_PufGetProfileId(), to catch a build mismatch.
 
+    Every readout handed to wc_PufReadSram() is health tested first (see
+    wc_PufCheckSram). A degenerate readout - all zero, all ones, or a repeating
+    block - would otherwise pass cleanly through encoding, masking, decoding
+    and HKDF and derive a key that is the same on every device.
+    WC_PUF_HW_MIN_PCT and WC_PUF_HW_MAX_PCT (default 35 and 65) set the
+    Hamming-weight band the readout must fall inside.
+
+    The test rejects degenerate readouts, not every already-written region:
+    ordinary firmware content - .data copied from flash, a string table, a
+    previous boot stage - is identical on every device yet neither constant nor
+    strongly biased, so it can pass. Sampling the region from reset, before
+    .bss/.data initialization and before it is used as stack or heap, remains a
+    requirement of correct NOLOAD placement rather than something this test can
+    enforce.
+
     For a complete bare-metal example (tested on NUCLEO-H563ZI), see
     https://github.com/wolfSSL/wolfssl-examples/tree/master/puf
 */
@@ -52,9 +67,18 @@ int wc_PufInit(wc_PufCtx* ctx);
     required size, WC_PUF_RAW_BYTES, scales with WC_PUF_NUM_CODEWORDS
     (256 bytes at the default 16 codewords).
 
+    The readout is health tested with wc_PufCheckSram() before it is accepted.
+    A degenerate readout - typically a region already cleared by .bss init, the
+    common bring-up mistake of sampling after C runtime startup - is rejected
+    with PUF_READ_E, and the context is left unusable by wc_PufEnroll() and
+    wc_PufReconstruct(). The test catches degenerate shapes, not every
+    already-written region, so it does not remove the requirement to sample
+    from reset.
+
     \return 0 on success
     \return BAD_FUNC_ARG if ctx or sramAddr is NULL
-    \return PUF_READ_E if sramSz < WC_PUF_RAW_BYTES
+    \return PUF_READ_E if sramSz < WC_PUF_RAW_BYTES, or if the readout fails
+    the health test
 
     \param ctx pointer to wc_PufCtx structure
     \param sramAddr pointer to raw SRAM memory region
@@ -68,10 +92,53 @@ int wc_PufInit(wc_PufCtx* ctx);
     \endcode
 
     \sa wc_PufInit
+    \sa wc_PufCheckSram
     \sa wc_PufEnroll
     \sa wc_PufReconstruct
 */
 int wc_PufReadSram(wc_PufCtx* ctx, const byte* sramAddr, word32 sramSz);
+
+/*!
+    \ingroup PUF
+
+    \brief Health test a candidate raw SRAM readout without loading it into a
+    context. Rejects a readout that cannot be SRAM power-on noise: any 128-bit
+    block that is all zero or all ones, any block that repeats the block before
+    it, or a total Hamming weight outside the WC_PUF_HW_MIN_PCT to
+    WC_PUF_HW_MAX_PCT band (default 35% to 65% of WC_PUF_RAW_BITS).
+
+    wc_PufReadSram() applies this test to every readout, so calling it directly
+    is only needed to qualify a candidate SRAM region during board bring-up, or
+    to report why a read was refused. onesCount is optional and is written
+    whenever the size check passes - including when the readout is then
+    rejected, so the measured bias of a rejected region is still available. It
+    is left untouched when sramAddr is NULL or sramSz is short.
+
+    \return 0 if the readout is plausible PUF material
+    \return BAD_FUNC_ARG if sramAddr is NULL
+    \return PUF_READ_E if sramSz < WC_PUF_RAW_BYTES, or if the readout fails
+    any of the checks
+
+    \param sramAddr pointer to raw SRAM memory region
+    \param sramSz size of SRAM buffer (must be >= WC_PUF_RAW_BYTES)
+    \param onesCount optional; receives the number of one bits in the first
+    WC_PUF_RAW_BYTES of the readout, out of WC_PUF_RAW_BITS. Written whenever
+    sramAddr is non-NULL and sramSz is large enough, whatever the verdict. It
+    is a property of the raw PUF material, so treat it as a bring-up
+    measurement and do not report it from production firmware
+
+    _Example_
+    \code
+    word32 ones = 0;
+    ret = wc_PufCheckSram((const byte*)puf_sram, sizeof(puf_sram), &ones);
+    printf("PUF SRAM bias %u/%u ones, ret %d\n",
+           (unsigned)ones, (unsigned)WC_PUF_RAW_BITS, ret);
+    \endcode
+
+    \sa wc_PufReadSram
+    \sa wc_PufEnroll
+*/
+int wc_PufCheckSram(const byte* sramAddr, word32 sramSz, word32* onesCount);
 
 /*!
     \ingroup PUF

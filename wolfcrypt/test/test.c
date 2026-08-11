@@ -25043,6 +25043,27 @@ static void puf_fill_sram(byte* sram, word32 sz)
     }
 }
 
+/* Build a raw SRAM image with exactly 'ones' one bits. The bits are split
+ * evenly over the blocks and each block starts its run at a different offset,
+ * so no block is constant and no block repeats the one before it: only the
+ * Hamming-weight band can reject the result. */
+static void puf_fill_weight(byte* sram, word32 ones)
+{
+    word32 blk, want, k, pos;
+
+    XMEMSET(sram, 0x00, WC_PUF_RAW_BYTES);
+    for (blk = 0; blk < (word32)WC_PUF_NUM_CODEWORDS; blk++) {
+        want = ones / (word32)WC_PUF_NUM_CODEWORDS;
+        if (blk < (ones % (word32)WC_PUF_NUM_CODEWORDS))
+            want++;
+        for (k = 0; k < want; k++) {
+            pos = (blk + k) % (WC_PUF_CW_BYTES * 8);
+            sram[(blk * WC_PUF_CW_BYTES) + (pos / 8)] |=
+                (byte)(1 << (7 - (pos % 8)));
+        }
+    }
+}
+
 /* Flip 'count' distinct bits inside one 128-bit codeword block of the raw
  * SRAM image, staying within the used n=127 bits (bit 127 is unused). Bits
  * are spread 7 apart so up to t+1 flips land in distinct positions < 127. */
@@ -25063,13 +25084,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t puf_test(void)
 {
 #if defined(WOLFSSL_PUF_TEST) && defined(HAVE_HKDF) && \
     (!defined(NO_SHA256) || defined(WOLFSSL_SHA3))
+/* Set by the CI entry that widens the health-test band. It asserts the band
+ * really is wider than the default, so a -D that never reached the compiler (a
+ * typo in either macro name) is a build failure here rather than a job that
+ * silently retests the default band. */
+#ifdef WOLFSSL_PUF_TEST_BAND_WIDE
+    /* The .github/workflows/puf.yml entry that sets this also passes
+     * -DWC_PUF_HW_MIN_PCT=20 -DWC_PUF_HW_MAX_PCT=80. Pin those exact values:
+     * a misspelled or mistyped band -D then fails the build instead of
+     * quietly retesting whatever band did reach the compiler. */
+    #if WC_PUF_HW_MIN_PCT != 20 || WC_PUF_HW_MAX_PCT != 80
+        #error "WOLFSSL_PUF_TEST_BAND_WIDE set, 20/80 band did not arrive"
+    #endif
+#endif
     wc_test_ret_t ret = 0;
     wc_PufCtx ctx;
     byte key1[WC_PUF_KEY_SZ];
     byte key2[WC_PUF_KEY_SZ];
     byte id1[WC_PUF_ID_SZ];
     byte id2[WC_PUF_ID_SZ];
+    byte id3[WC_PUF_ID_SZ];
     int  block, nblocks;
+    int  cw, cwByte;
+    int  bias, inBand;
+    word32 ones, onesLow, onesHigh;
+    /* Test 10's four bias fixtures, by fill byte. 0xFE (~82% ones), 0x01 (~13%)
+     * sit outside any legal band; 0xFC (~72%) and 0x03 (~25%) sit between the
+     * 35..65 default band and a widened one, so the verdict on them depends on
+     * how the band was configured. */
+    static const byte biasFill[4] = { 0xFE, 0x01, 0xFC, 0x03 };
 
     /* deterministic test SRAM, sized to the selected profile. These buffers
      * scale with WC_PUF_NUM_CODEWORDS, so keep them off the stack under
@@ -25078,6 +25121,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t puf_test(void)
     /* noisy SRAM: same as testSram but with a few flipped bits */
     WOLFSSL_SMALL_STACK_STATIC byte noisySram[WC_PUF_RAW_BYTES];
     WOLFSSL_SMALL_STACK_STATIC byte helperBuf[WC_PUF_HELPER_BYTES];
+    /* rewritten per case by Test 10 */
+    WOLFSSL_SMALL_STACK_STATIC byte badSram[WC_PUF_RAW_BYTES];
     const byte info[] = "puf-test-context";
 
     WOLFSSL_ENTER("puf_test");
@@ -25377,6 +25422,292 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t puf_test(void)
                 gotCw[j / 8] |= (byte)(1 << (7 - (j % 8)));
         }
         if (XMEMCMP(gotCw, katCw, WC_PUF_CW_BYTES) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    /* ---- Test 10: raw readout health test ---- *
+     * Each buffer trips exactly one check. None of these may call
+     * wc_PufSetTestData first: that sets ctx.testDataSet, which
+     * short-circuits wc_PufReadSram before the health test can run. */
+
+    /* all zero: the "SRAM already cleared by .bss init" mistake */
+    XMEMSET(badSram, 0x00, sizeof(badSram));
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (wc_PufReadSram(&ctx, badSram, sizeof(badSram))
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+    /* refused, so the context must be usable by neither half of the contract:
+     * helperBuf still holds the valid Test 2 helper data, and reconstruct
+     * reaches its WC_PUF_FLAG_SRAM_SET guard after the profile and length
+     * guards, so both arms need pinning */
+    if (wc_PufEnroll(&ctx) != WC_NO_ERR_TRACE(PUF_ENROLL_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES)
+            != WC_NO_ERR_TRACE(PUF_RECONSTRUCT_E))
+        return WC_TEST_RET_ENC_NC;
+    /* the measurement is reported once the size check has passed, even when
+     * the health test then rejects the readout */
+    ones = 0xFFFFFFFFU;
+    if (wc_PufCheckSram(badSram, sizeof(badSram), &ones)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+    if (ones != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* all ones */
+    XMEMSET(badSram, 0xFF, sizeof(badSram));
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (wc_PufReadSram(&ctx, badSram, sizeof(badSram))
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+
+#if WC_PUF_NUM_CODEWORDS > 1
+    /* every block identical, but neither constant nor biased: only the
+     * repeated-block check can reject this */
+    for (cw = 0; cw < WC_PUF_NUM_CODEWORDS; cw++) {
+        XMEMCPY(badSram + (cw * WC_PUF_CW_BYTES), testSram, WC_PUF_CW_BYTES);
+    }
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (wc_PufReadSram(&ctx, badSram, sizeof(badSram))
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+#if WC_PUF_NUM_CODEWORDS > 1
+    /* The block checks must reach every block, not just the first. Repeating
+     * the previous block into the *last* one changes the total weight by at
+     * most a bit, so the repeat check at the end of the loop is what rejects
+     * this, not the band. */
+    puf_fill_weight(badSram, (((word32)WC_PUF_RAW_BITS * WC_PUF_HW_MIN_PCT
+                               + (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MAX_PCT)
+                              / 200U));
+    XMEMCPY(badSram + ((WC_PUF_NUM_CODEWORDS - 1) * WC_PUF_CW_BYTES),
+            badSram + ((WC_PUF_NUM_CODEWORDS - 2) * WC_PUF_CW_BYTES),
+            WC_PUF_CW_BYTES);
+    if (wc_PufCheckSram(badSram, WC_PUF_RAW_BYTES, NULL)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+#if WC_PUF_NUM_CODEWORDS > 2
+    /* and a constant block in the middle of the buffer */
+    puf_fill_weight(badSram, (((word32)WC_PUF_RAW_BITS * WC_PUF_HW_MIN_PCT
+                               + (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MAX_PCT)
+                              / 200U));
+    XMEMSET(badSram + WC_PUF_CW_BYTES, 0x00, WC_PUF_CW_BYTES);
+    if (wc_PufCheckSram(badSram, WC_PUF_RAW_BYTES, NULL)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+#endif
+
+    /* Hamming-weight band, over the biasFill fixtures. The last byte of each
+     * block keeps the blocks distinct, so neither block check can fire first
+     * and only the band decides. The expected verdict is derived from the
+     * configured band rather than fixed, so a build that widens the band
+     * reaches a different outcome here instead of retesting the default one:
+     * 0xFC and 0x03 land between the 35..65 default and a 20..80 band. */
+    for (bias = 0; bias < (int)(sizeof(biasFill) / sizeof(biasFill[0]));
+            bias++) {
+        for (cw = 0; cw < WC_PUF_NUM_CODEWORDS; cw++) {
+            for (cwByte = 0; cwByte < WC_PUF_CW_BYTES; cwByte++) {
+                badSram[(cw * WC_PUF_CW_BYTES) + cwByte] = biasFill[bias];
+            }
+            badSram[(cw * WC_PUF_CW_BYTES) + WC_PUF_CW_BYTES - 1] = (byte)cw;
+        }
+
+        ones = 0;
+        ret = wc_PufCheckSram(badSram, sizeof(badSram), &ones);
+        inBand = (ones * 100U >= (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MIN_PCT &&
+                  ones * 100U <= (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MAX_PCT);
+        if (ret != (inBand ? 0 : WC_NO_ERR_TRACE(PUF_READ_E)))
+            return WC_TEST_RET_ENC_NC;
+
+        /* the read path must reach the same verdict, and only a readout the
+         * band accepted may go on to enroll */
+        ret = wc_PufInit(&ctx);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PufReadSram(&ctx, badSram, sizeof(badSram));
+        if (ret != (inBand ? 0 : WC_NO_ERR_TRACE(PUF_READ_E)))
+            return WC_TEST_RET_ENC_NC;
+
+        if (inBand) {
+            ret = wc_PufEnroll(&ctx);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+        }
+        else if (wc_PufEnroll(&ctx) != WC_NO_ERR_TRACE(PUF_ENROLL_E)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* Band edges, with the verdicts hard-coded rather than derived from the
+     * band expression: the largest weight inside the band must be accepted and
+     * one bit more rejected, and likewise at the low edge, so the inclusive
+     * direction of both comparisons is pinned independently of how
+     * wc_PufCheckSram spells them. */
+    onesLow  = (((word32)WC_PUF_RAW_BITS * WC_PUF_HW_MIN_PCT) + 99U) / 100U;
+    onesHigh = ((word32)WC_PUF_RAW_BITS * WC_PUF_HW_MAX_PCT) / 100U;
+
+    puf_fill_weight(badSram, onesLow);
+    ones = 0;
+    ret = wc_PufCheckSram(badSram, WC_PUF_RAW_BYTES, &ones);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (ones != onesLow)
+        return WC_TEST_RET_ENC_NC;
+
+    puf_fill_weight(badSram, onesLow - 1);
+    if (wc_PufCheckSram(badSram, WC_PUF_RAW_BYTES, NULL)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+
+    puf_fill_weight(badSram, onesHigh);
+    ones = 0;
+    ret = wc_PufCheckSram(badSram, WC_PUF_RAW_BYTES, &ones);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (ones != onesHigh)
+        return WC_TEST_RET_ENC_NC;
+
+    puf_fill_weight(badSram, onesHigh + 1);
+    if (wc_PufCheckSram(badSram, WC_PUF_RAW_BYTES, NULL)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* accessor bad args. onesCount is written only once the size check has
+     * passed, so both of these must leave the caller's value untouched. */
+    ones = 0xFFFFFFFFU;
+    if (wc_PufCheckSram(NULL, WC_PUF_RAW_BYTES, &ones)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (ones != 0xFFFFFFFFU)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufCheckSram(testSram, WC_PUF_RAW_BYTES - 1, &ones)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+    if (ones != 0xFFFFFFFFU)
+        return WC_TEST_RET_ENC_NC;
+    /* and the same two with onesCount omitted */
+    if (wc_PufCheckSram(NULL, WC_PUF_RAW_BYTES, NULL)
+            != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufCheckSram(testSram, WC_PUF_RAW_BYTES - 1, NULL)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* the same guard on the read path: it is all that stands between a short
+     * caller buffer and the full-size XMEMCPY into ctx->rawSram */
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (wc_PufReadSram(&ctx, testSram, WC_PUF_RAW_BYTES - 1)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* A plausible readout passes, and its bias is inside the band. testSram
+     * has a fixed ~50% bias, so a build that deliberately shifts the band off
+     * 50% rejects it and is behaving correctly; skip the accept path there
+     * rather than fail. The band-edge cases above cover the accept path for
+     * any legal band. */
+    ones = 0;
+    ret = wc_PufCheckSram(testSram, sizeof(testSram), &ones);
+    inBand = (ones * 100U >= (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MIN_PCT &&
+              ones * 100U <= (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MAX_PCT);
+    /* judged on the measured weight, so a regression in one of the block
+     * checks fails here instead of silently skipping the accept path */
+    if (ret != (inBand ? 0 : WC_NO_ERR_TRACE(PUF_READ_E)))
+        return WC_TEST_RET_ENC_NC;
+
+    /* A rejected read must invalidate a context that a previous read had
+     * already validated: the flag is otherwise sticky, and enroll would then
+     * run on the scrubbed rawSram and derive the same key on every device -
+     * exactly what the health test exists to prevent. */
+    /* seed from a mid-band weight rather than testSram, so the case works
+     * whatever band the build configured */
+    puf_fill_weight(badSram, (onesLow + onesHigh) / 2U);
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReadSram(&ctx, badSram, sizeof(badSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufEnroll(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufGetIdentity(&ctx, id3, sizeof(id3));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    XMEMSET(badSram, 0x00, sizeof(badSram));
+    if (wc_PufReadSram(&ctx, badSram, sizeof(badSram))
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufEnroll(&ctx) != WC_NO_ERR_TRACE(PUF_ENROLL_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufReconstruct(&ctx, helperBuf, WC_PUF_HELPER_BYTES)
+            != WC_NO_ERR_TRACE(PUF_RECONSTRUCT_E))
+        return WC_TEST_RET_ENC_NC;
+    /* only the readout is invalidated: output already derived from the
+     * readout that did pass stays available */
+    ret = wc_PufGetIdentity(&ctx, id2, sizeof(id2));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(id2, id3, WC_PUF_ID_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* the short-size path fails before any copy, so it has to invalidate too
+     * rather than leave the earlier readout enrollable */
+    puf_fill_weight(badSram, (onesLow + onesHigh) / 2U);
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReadSram(&ctx, badSram, sizeof(badSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (wc_PufReadSram(&ctx, badSram, WC_PUF_RAW_BYTES - 1)
+            != WC_NO_ERR_TRACE(PUF_READ_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_PufEnroll(&ctx) != WC_NO_ERR_TRACE(PUF_ENROLL_E))
+        return WC_TEST_RET_ENC_NC;
+
+    /* wc_PufSetTestData must keep bypassing the health test: the KAT vectors
+     * it injects have to reach the pipeline unfiltered, and a readout this
+     * degenerate proves the short-circuit in wc_PufReadSram is what lets them
+     * through. Nothing here derives a key from it. */
+    XMEMSET(badSram, 0x00, sizeof(badSram));
+    ret = wc_PufInit(&ctx);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufSetTestData(&ctx, badSram, sizeof(badSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_PufReadSram(&ctx, badSram, sizeof(badSram));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* and still travels the full read -> enroll path on a context that never
+     * saw wc_PufSetTestData, reproducing the Test 2 identity */
+    if (inBand) {
+        ret = wc_PufInit(&ctx);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PufReadSram(&ctx, testSram, sizeof(testSram));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PufEnroll(&ctx);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        ret = wc_PufGetIdentity(&ctx, id2, sizeof(id2));
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(id1, id2, WC_PUF_ID_SZ) != 0)
             return WC_TEST_RET_ENC_NC;
     }
 

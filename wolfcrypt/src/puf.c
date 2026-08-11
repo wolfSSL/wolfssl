@@ -510,6 +510,107 @@ static void storeCodeword(byte* helper, int bitOffset, const byte* cw)
 }
 
 
+/* Population count. Nibble table, not a builtin: bare-metal C89 toolchains. */
+static word32 pufBitCount(const byte* buf, word32 sz)
+{
+    static const byte nibbleBits[16] =
+        { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
+    word32 i;
+    word32 count = 0;
+
+    for (i = 0; i < sz; i++) {
+        count += nibbleBits[buf[i] & 0x0F];
+        count += nibbleBits[(buf[i] >> 4) & 0x0F];
+    }
+
+    return count;
+}
+
+/* Startup health test on a candidate raw SRAM readout. Constant input is
+ * self-consistent through encoding, masking, decoding and HKDF, so a
+ * degenerate readout would yield a key identical on every device. Reject it
+ * here, at the only production boundary raw PUF material enters through
+ * (wc_PufSetTestData deliberately bypasses it under WOLFSSL_PUF_TEST, so the
+ * test vectors it injects are not filtered).
+ *
+ * Three O(WC_PUF_RAW_BYTES) checks: no block all zero or all ones, no block
+ * repeating the one before it, and total Hamming weight inside the
+ * WC_PUF_HW_MIN_PCT..WC_PUF_HW_MAX_PCT band. The first two false-reject real
+ * SRAM with probability ~2^-127 per block; the band passes biased silicon.
+ *
+ * onesCount is optional. It is written whenever the size check passes -
+ * including when the readout is then rejected, so bring-up code can report the
+ * measured bias of a region it just had refused - and left untouched when
+ * sramAddr is NULL or sramSz is short, because there is nothing to measure. */
+int wc_PufCheckSram(const byte* sramAddr, word32 sramSz, word32* onesCount)
+{
+    const byte* slice;
+    word32 ones;
+    word32 i;
+    int    j;
+    int    allZero;
+    int    allOnes;
+
+    WOLFSSL_ENTER("wc_PufCheckSram");
+
+    if (sramAddr == NULL)
+        return BAD_FUNC_ARG;
+    if (sramSz < WC_PUF_RAW_BYTES) {
+        /* every other PUF_READ_E from here names its cause, and a region
+         * sized for the wrong WC_PUF_NUM_CODEWORDS is the likeliest one */
+        WOLFSSL_MSG("PUF: SRAM readout smaller than WC_PUF_RAW_BYTES");
+        return PUF_READ_E;
+    }
+
+    ones = pufBitCount(sramAddr, WC_PUF_RAW_BYTES);
+    if (onesCount != NULL)
+        *onesCount = ones;
+
+    /* one codeword per stride, pinned by the guard in puf.h, so a stride is
+     * one block here */
+    for (i = 0; i < (word32)WC_PUF_NUM_CODEWORDS; i++) {
+        slice = sramAddr + (i * WC_PUF_RAW_STRIDE_BYTES);
+
+        allZero = 1;
+        allOnes = 1;
+        for (j = 0; j < WC_PUF_RAW_STRIDE_BYTES; j++) {
+            if (slice[j] != 0x00)
+                allZero = 0;
+            if (slice[j] != 0xFF)
+                allOnes = 0;
+        }
+        if (allZero) {
+            WOLFSSL_MSG("PUF: all-zero block in SRAM readout");
+            return PUF_READ_E;
+        }
+        if (allOnes) {
+            WOLFSSL_MSG("PUF: all-ones block in SRAM readout");
+            return PUF_READ_E;
+        }
+
+        /* Previous block only: that covers what this test exists for - a
+         * uniform fill, a memset, a re-read of one address. Longer-period
+         * structure is not chased; a cheap startup test cannot tell it from
+         * noise. */
+        if (i > 0 && XMEMCMP(slice, slice - WC_PUF_RAW_STRIDE_BYTES,
+                             WC_PUF_RAW_STRIDE_BYTES) == 0) {
+            WOLFSSL_MSG("PUF: repeated block in SRAM readout");
+            return PUF_READ_E;
+        }
+    }
+
+    if (ones * 100U < (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MIN_PCT) {
+        WOLFSSL_MSG("PUF: SRAM readout has too few one bits");
+        return PUF_READ_E;
+    }
+    if (ones * 100U > (word32)WC_PUF_RAW_BITS * WC_PUF_HW_MAX_PCT) {
+        WOLFSSL_MSG("PUF: SRAM readout has too many one bits");
+        return PUF_READ_E;
+    }
+
+    return 0;
+}
+
 int wc_PufInit(wc_PufCtx* ctx)
 {
     WOLFSSL_ENTER("wc_PufInit");
@@ -524,12 +625,28 @@ int wc_PufInit(wc_PufCtx* ctx)
 
 int wc_PufReadSram(wc_PufCtx* ctx, const byte* sramAddr, word32 sramSz)
 {
+    int ret;
+
     WOLFSSL_ENTER("wc_PufReadSram");
 
-    if (ctx == NULL || sramAddr == NULL)
+    if (ctx == NULL)
         return BAD_FUNC_ARG;
-    if (sramSz < WC_PUF_RAW_BYTES)
+
+    /* Any failed read invalidates the readout the context was holding, so the
+     * flag goes down before every path that can fail, bad arguments included.
+     * Otherwise a read that returns an error still leaves wc_PufEnroll and
+     * wc_PufReconstruct running on whatever an earlier call had accepted. */
+    ctx->flags &= (word32)~WC_PUF_FLAG_SRAM_SET;
+
+    if (sramAddr == NULL)
+        return BAD_FUNC_ARG;
+
+    /* must be checked here too: it guards the full-size XMEMCPY below, and
+     * this is the path an integrator hits, so it names its cause as well */
+    if (sramSz < WC_PUF_RAW_BYTES) {
+        WOLFSSL_MSG("PUF: SRAM readout smaller than WC_PUF_RAW_BYTES");
         return PUF_READ_E;
+    }
 
 #ifdef WOLFSSL_PUF_TEST
     if (ctx->testDataSet) {
@@ -539,7 +656,27 @@ int wc_PufReadSram(wc_PufCtx* ctx, const byte* sramAddr, word32 sramSz)
     }
 #endif
 
+    /* Health test the copy that will actually be used, not the caller's
+     * buffer: the region is volatile by construction, so the bytes read for
+     * the copy are not guaranteed to be the bytes the test saw.
+     *
+     * WC_PUF_FLAG_SRAM_SET is already down (above), so the context does not
+     * look like it holds a validated readout for the window in which rawSram
+     * holds unvalidated bytes; it goes back up only once the test passes. A
+     * rejected readout is scrubbed rather than left resident, and wc_PufEnroll
+     * and wc_PufReconstruct then refuse to run on the context. Output already
+     * derived from a readout that did pass - identity, helper data, a derived
+     * key - is unaffected and stays available. */
     XMEMCPY(ctx->rawSram, sramAddr, WC_PUF_RAW_BYTES);
+    ret = wc_PufCheckSram(ctx->rawSram, WC_PUF_RAW_BYTES, NULL);
+    if (ret != 0) {
+        /* only this path scrubs: it is the one that copied unvalidated bytes
+         * in. The paths that fail before the copy leave the previously
+         * accepted readout in place, unreachable behind the cleared flag. */
+        ForceZero(ctx->rawSram, WC_PUF_RAW_BYTES);
+        return ret;
+    }
+
     ctx->flags |= WC_PUF_FLAG_SRAM_SET;
     return 0;
 }
@@ -578,7 +715,8 @@ int wc_PufEnroll(wc_PufCtx* ctx)
 
     for (i = 0; i < WC_PUF_NUM_CODEWORDS; i++) {
         /* extract k message bits from raw SRAM */
-        int bitOff = i * 128;  /* 128-bit stride per codeword (n=127 fits) */
+        /* one codeword per raw stride; see WC_PUF_RAW_STRIDE_BITS in puf.h */
+        int bitOff = i * WC_PUF_RAW_STRIDE_BITS;
         int j;
         XMEMSET(msg, 0, sizeof(msg));
         for (j = 0; j < WC_PUF_BCH_K; j++) {
@@ -665,7 +803,7 @@ int wc_PufReconstructEx(wc_PufCtx* ctx, const byte* helperData,
     XMEMSET(ctx->stableBits, 0, WC_PUF_STABLE_BYTES);
 
     for (i = 0; i < WC_PUF_NUM_CODEWORDS; i++) {
-        int bitOff = i * 128;
+        int bitOff = i * WC_PUF_RAW_STRIDE_BITS;
         int j;
 
         /* get raw SRAM bits for this codeword */
