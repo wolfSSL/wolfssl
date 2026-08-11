@@ -195,6 +195,24 @@ jobs:
           rel="$(git tag --merged HEAD --sort=-v:refname --list 'v*-stable')"
           base="$(printf '%s\n' "$rel" | sed -n '2p')"
           echo "Deepened to $(git rev-list --count HEAD) commits; scan base='${base}'"
+
+          # The fetch above deepens whatever "$GITHUB_REF" resolves to NOW, but
+          # actions/checkout pinned a SHA when the job started. GitHub can
+          # regenerate refs/pull/N/merge in between -- a new commit object with
+          # the same parents -- and then FETCH_HEAD is not HEAD, HEAD keeps its
+          # depth-1 graft, and no tag is reachable from it. Deepen the ref we are
+          # actually on before giving up. Re-running the job cannot clear this:
+          # a re-run replays the same pinned SHA.
+          if [ -z "$base" ]; then
+            echo "Scan base empty (merge ref moved under the checkout?);" \
+                 "retrying with a full deepen."
+            git fetch --unshallow --filter=tree:0 --tags origin
+            rel="$(git tag --merged HEAD --sort=-v:refname --list 'v*-stable')"
+            base="$(printf '%s\n' "$rel" | sed -n '2p')"
+            echo "Re-deepened to $(git rev-list --count HEAD) commits;" \
+                 "scan base='${base}'"
+          fi
+
           if [ -z "$base" ]; then
             echo "::error::Deepen produced no usable scan base; check-break.sh would scan the wrong window."
             printf 'Release tags merged into HEAD: %s\n' "${rel:-<none>}"
