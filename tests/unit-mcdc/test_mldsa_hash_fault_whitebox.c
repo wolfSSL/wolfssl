@@ -418,6 +418,205 @@ static void wb_verify_ctx_hash_null(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Crafted DER rows.
+ *
+ * Three decode operands need a (privKeyLen, pubKeyLen) combination that no
+ * encoder in the tree emits and no valid key produces:
+ *
+ *     else if (pubKeyLen != 0 && privKeyLen != 0)   -- cond 1 false
+ *     else if (pubKeyLen == 0 && privKeyLen != 0)   -- cond 0 and cond 1 false
+ *
+ * Both are reached from wc_MlDsaKey_PrivateKeyDecode() after
+ * DecodeAsymKey_Assign() has filled the two lengths, so the vectors are
+ * "private key present but empty" (with and without an accompanying public
+ * key). Those are structurally valid OneAsymmetricKey encodings -- an empty
+ * privateKey OCTET STRING -- that the decoder must reject, which is exactly the
+ * branch under test. Neither buffer is ever imported: with privKeyLen == 0 both
+ * else-ifs are false and control falls to the "contents are invalid" arm.
+ *
+ * The AlgorithmIdentifier carries id-ml-dsa-44 (2.16.840.1.101.3.4.3.17)
+ * spelled out locally: wc_mldsa.c's own ml_dsa_oid_44[] table is compiled only
+ * in the WOLFSSL_MLDSA_NO_ASN1 build, so referencing it would not compile in
+ * the variants these rows target.
+ * ------------------------------------------------------------------------- */
+
+/* id-ml-dsa-44, the OID content octets only (no tag, no length). */
+#define WB_OID44_LEN 9
+static const byte wb_oid44[WB_OID44_LEN] = {
+    0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11
+};
+#if !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44)
+
+/* SEQUENCE { INTEGER 0, SEQUENCE { OID }, OCTET STRING {} [, [1] BIT STRING] }
+ * Every length here is short-form: the whole buffer is under 128 bytes. */
+static word32 wb_build_empty_priv(byte* out, word32 outSz, int withPub)
+{
+    byte   body[64];
+    word32 n = 0;
+    word32 i;
+
+    body[n++] = 0x02; body[n++] = 0x01; body[n++] = 0x00;   /* version 0 */
+    body[n++] = 0x30;
+    body[n++] = (byte)(2 + WB_OID44_LEN);
+    body[n++] = 0x06;
+    body[n++] = (byte)WB_OID44_LEN;
+    for (i = 0; i < (word32)WB_OID44_LEN; i++) {
+        body[n++] = wb_oid44[i];
+    }
+    body[n++] = 0x04; body[n++] = 0x00;                     /* privateKey {} */
+    if (withPub) {
+        /* [1] IMPLICIT { BIT STRING 00 aa bb cc } -- length only; the bytes
+         * are never imported because privKeyLen == 0 short-circuits both
+         * import branches. */
+        body[n++] = 0xA1; body[n++] = 0x06;
+        body[n++] = 0x03; body[n++] = 0x04;
+        body[n++] = 0x00;
+        body[n++] = 0xAA; body[n++] = 0xBB; body[n++] = 0xCC;
+    }
+
+    if ((word32)(n + 2) > outSz) {
+        return 0;
+    }
+    out[0] = 0x30;
+    out[1] = (byte)n;
+    XMEMCPY(out + 2, body, n);
+    return n + 2;
+}
+
+static void wb_priv_decode_len_rows(void)
+{
+    byte   der[80];
+    word32 len;
+    word32 idx;
+
+    /* pubKeyLen == 0, privKeyLen == 0. */
+    len = wb_build_empty_priv(der, (word32)sizeof(der), 0);
+    if (len != 0) {
+        wc_MlDsaKey k;
+        XMEMSET(&k, 0, sizeof(k));
+        if (wc_MlDsaKey_Init(&k, NULL, INVALID_DEVID) == 0) {
+            idx = 0;
+            if (wc_MlDsaKey_PrivateKeyDecode(&k, der, len, &idx) == 0) {
+                WB_NOTE("PrivateKeyDecode accepted an empty private key");
+                wb_fail = 1;
+            }
+        }
+        wc_MlDsaKey_Free(&k);
+    }
+
+    /* pubKeyLen != 0, privKeyLen == 0. */
+    len = wb_build_empty_priv(der, (word32)sizeof(der), 1);
+    if (len != 0) {
+        wc_MlDsaKey k;
+        XMEMSET(&k, 0, sizeof(k));
+        if (wc_MlDsaKey_Init(&k, NULL, INVALID_DEVID) == 0) {
+            idx = 0;
+            if (wc_MlDsaKey_PrivateKeyDecode(&k, der, len, &idx) == 0) {
+                WB_NOTE("PrivateKeyDecode accepted a public-key-only body");
+                wb_fail = 1;
+            }
+        }
+        wc_MlDsaKey_Free(&k);
+    }
+
+    WB_NOTE("private-key decode length-combination rows exercised");
+}
+
+#else
+
+static void wb_priv_decode_len_rows(void)
+{
+    WB_NOTE("ASN.1 private-key decode not built here; rows skipped");
+}
+
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * wc_MlDsaKey_PublicKeyDecode()'s hand-rolled parser (WOLFSSL_MLDSA_NO_ASN1
+ * builds only) ends with
+ *
+ *     ret = mldsa_get_der_length(input, &idx, &length, outerEnd);
+ *     if ((ret == 0) && (length == 0)) { ... }
+ *
+ * The first operand's FALSE side needs that length parse to fail AFTER the
+ * 0x03 tag check has passed, which only a BIT STRING whose long-form length
+ * octets run past the outer SEQUENCE produces. `03 82` as the final two bytes
+ * is exactly that: the tag is right, and the two promised length octets are
+ * outside outerEnd. The buffer stops there, so nothing is ever read past it.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44)
+
+static word32 wb_build_pub_hdr(byte* out, word32 outSz, const byte* tail,
+    word32 tailLen)
+{
+    byte   body[48];
+    word32 n = 0;
+    word32 i;
+
+    body[n++] = 0x30;
+    body[n++] = (byte)(2 + WB_OID44_LEN);
+    body[n++] = 0x06;
+    body[n++] = (byte)WB_OID44_LEN;
+    for (i = 0; i < (word32)WB_OID44_LEN; i++) {
+        body[n++] = wb_oid44[i];
+    }
+    for (i = 0; i < tailLen; i++) {
+        body[n++] = tail[i];
+    }
+
+    if ((word32)(n + 2) > outSz) {
+        return 0;
+    }
+    out[0] = 0x30;
+    out[1] = (byte)n;
+    XMEMCPY(out + 2, body, n);
+    return n + 2;
+}
+
+static void wb_pub_decode_length_rows(void)
+{
+    static const byte badLen[]  = { 0x03, 0x82 };  /* length octets past end */
+    static const byte zeroLen[] = { 0x03, 0x00 };  /* empty BIT STRING       */
+    byte   der[64];
+    word32 len;
+    word32 idx;
+    unsigned r;
+
+    for (r = 0; r < 2; r++) {
+        wc_MlDsaKey k;
+
+        len = (r == 0)
+            ? wb_build_pub_hdr(der, (word32)sizeof(der), badLen,
+                  (word32)sizeof(badLen))
+            : wb_build_pub_hdr(der, (word32)sizeof(der), zeroLen,
+                  (word32)sizeof(zeroLen));
+        if (len == 0) {
+            continue;
+        }
+        XMEMSET(&k, 0, sizeof(k));
+        if (wc_MlDsaKey_Init(&k, NULL, INVALID_DEVID) == 0) {
+            idx = 0;
+            if (wc_MlDsaKey_PublicKeyDecode(&k, der, len, &idx) == 0) {
+                WB_NOTE("PublicKeyDecode accepted a malformed BIT STRING");
+                wb_fail = 1;
+            }
+        }
+        wc_MlDsaKey_Free(&k);
+    }
+
+    WB_NOTE("public-key decode BIT STRING length rows exercised");
+}
+
+#else
+
+static void wb_pub_decode_length_rows(void)
+{
+    WB_NOTE("hand-rolled public-key parser not built here; rows skipped");
+}
+
+#endif
+
 int main(void)
 {
     wc_MlDsaKey key;
@@ -453,6 +652,8 @@ int main(void)
     wb_sign_no_private();
     wb_init_id_rows();
     wb_verify_ctx_hash_null();
+    wb_priv_decode_len_rows();
+    wb_pub_decode_length_rows();
 
     mcdc_fh_disarm();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
