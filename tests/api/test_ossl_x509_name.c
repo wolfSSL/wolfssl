@@ -551,6 +551,21 @@ int test_wolfSSL_X509_NAME_ENTRY(void)
     ExpectIntEQ(PEM_write_bio_X509_AUX(NULL, x509), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_write_bio_X509_AUX(bio, empty), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_write_bio_X509_AUX(bio, x509), SSL_SUCCESS);
+    {
+        /* X509_AUX PEM uses the TRUSTED CERTIFICATE armor and round-trips */
+        static const char trustedHdr[] =
+            "-----BEGIN TRUSTED CERTIFICATE-----";
+        char* pemData = NULL;
+        long  pemSz = 0;
+        X509* rt = NULL;
+
+        ExpectIntGT(pemSz = BIO_get_mem_data(bio, &pemData), 0);
+        ExpectNotNull(pemData);
+        ExpectIntGT(pemSz, (long)XSTR_SIZEOF(trustedHdr));
+        ExpectIntEQ(XMEMCMP(pemData, trustedHdr, XSTR_SIZEOF(trustedHdr)), 0);
+        ExpectNotNull(rt = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
+        X509_free(rt);
+    }
     wolfSSL_X509_free(empty);
 #endif
 
