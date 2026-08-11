@@ -7,9 +7,6 @@ The IDE/WIN10/wolfssl-fips.sln solution is for the FIPS 140-3 certificate or lat
 
 # Building the wolfssl-fips project
 
-The wolfCrypt FIPS library for Windows is a part of the wolfSSL library. It
-must be built as a static library, for the moment.
-
 The library project is built with Whole Program Optimization disabled. This is
 required so that necessary components of the library are not optimized away.
 There are two functions added to the library that are used as markers in
