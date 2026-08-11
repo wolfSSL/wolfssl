@@ -150,6 +150,33 @@
 
 ## Fixes
 
+* **Fix (Extended Key Usage not enforced on chain-supplied intermediate CAs)**:
+  the TLS peer certificate was checked for the `serverAuth` or `clientAuth`
+  Extended Key Usage, but the intermediate CAs sent alongside it were not.  A
+  certificate authority restricted to another purpose by a critical EKU, a code
+  signing, S/MIME or timestamping subordinate CA for example, could therefore
+  issue a `serverAuth` leaf for any name and have wolfSSL complete the
+  handshake, defeating the isolation such a constrained CA exists to provide.
+  `ProcessPeerCerts()` now applies the same purpose check to every
+  chain-supplied CA it validates, whether or not the certificate manager
+  already holds it, and fails the handshake with `EXTKEYUSE_AUTH_E` when the CA
+  does not carry the purpose being validated.  Per RFC 5280 4.2.1.12 an absent
+  extension leaves all purposes valid and `anyExtendedKeyUsage` removes the
+  restriction, so neither is rejected, and a self-signed certificate is exempt
+  because it can only take part in a path as a trust anchor the operator chose
+  to load.  The check applies to the certificates the peer transmits; an issuer
+  resolved from the certificate manager because the peer did not send it is
+  not covered.  This is stricter than before, in three cases that previously
+  succeeded: a chain whose intermediate asserts an Extended Key Usage without
+  the purpose in use, `serverAuth` only on a CA that also issues client
+  certificates for instance; a chain whose intermediate asserts only
+  KeyPurposeIds wolfSSL does not recognise, since those set no bit; and a
+  chain whose intermediate the operator loaded as a trusted CA, which is held
+  to the same rule as any other chain CA.  `IGNORE_KEY_EXTENSIONS` opts out, as
+  it already did for the peer certificate.  Adds
+  `WOLFSSL_X509_V_ERR_INVALID_PURPOSE`, reported through
+  `wolfSSL_get_verify_result()` and to verify callbacks.
+
 * **Fix (certificate manager left pointing at a released store)**:
   `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
   context's certificate manager, which keeps a pointer back to that store.

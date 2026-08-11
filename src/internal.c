@@ -17014,6 +17014,40 @@ static int DoCertReqCtx(WOLFSSL* ssl, ProcPeerCertArgs* args,
 }
 #endif /* WOLFSSL_TLS13 */
 
+/* Enforced by default (RFC 5280 4.2.1.12: when an Extended Key Usage extension
+ * is present the certificate may only be used for one of the indicated
+ * purposes). IGNORE_KEY_EXTENSIONS is a deliberate, RFC-non-conformant opt-out;
+ * see the macro list at the top of wolfcrypt/src/asn.c. */
+#ifndef IGNORE_KEY_EXTENSIONS
+/* Check that a chain-supplied CA is authorized for the TLS purpose currently
+ * being validated: serverAuth when this side is authenticating a server,
+ * clientAuth when authenticating a client. An absent extension leaves every
+ * purpose valid, and anyExtendedKeyUsage removes the restriction. A
+ * self-signed certificate is exempt: it can only take part in a path as a
+ * trust anchor the operator chose to load, matching the exemption AddCA()
+ * makes for the Key Usage of a root. Returns 0 when the CA may be used,
+ * EXTKEYUSE_AUTH_E when it may not. */
+static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
+{
+    byte purpose;
+
+    if (!cert->extExtKeyUsageSet || cert->selfSigned)
+        return 0;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        purpose = EXTKEYUSE_SERVER_AUTH;
+    else
+        purpose = EXTKEYUSE_CLIENT_AUTH;
+
+    if ((cert->extExtKeyUsage & (EXTKEYUSE_ANY | purpose)) == 0) {
+        WOLFSSL_MSG("Chain CA ExtKeyUse doesn't allow TLS peer authentication");
+        return EXTKEYUSE_AUTH_E;
+    }
+
+    return 0;
+}
+#endif /* IGNORE_KEY_EXTENSIONS */
+
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 /* Parse a chain certificate as a CA and add it to the pending signers list
  * for Certificate Status Request v2. */
@@ -17065,6 +17099,11 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
         goto exit_req_v2;
     }
 #endif
+    /* The Extended Key Usage purpose check is deliberately not repeated here.
+     * ProcessPeerCerts() applies it to this same certificate before offering it
+     * to the pool, and AddCA() does not apply it either, so repeating it would
+     * only take effect after a verify callback had already overridden the
+     * rejection, silently undoing that decision in CSR v2 builds alone. */
     ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
     if (ret != 0 || derBuffer == NULL) {
         goto exit_req_v2;
@@ -18142,6 +18181,24 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             "not adding as CA");
                     }
                     else if (ret == 0) {
+                    #ifndef IGNORE_KEY_EXTENSIONS
+                        /* A CA restricted to some other purpose by its
+                         * Extended Key Usage must not authenticate this peer,
+                         * whether or not the certificate manager already
+                         * holds it. */
+                        ret = CheckChainCAExtKeyUsage(ssl, args->dCert);
+                        if (ret != 0) {
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                        #if defined(OPENSSL_EXTRA) || \
+                            defined(OPENSSL_EXTRA_X509_SMALL)
+                            /* Return first cert error here */
+                            if (ssl->peerVerifyRet == 0) {
+                                ssl->peerVerifyRet =
+                                    WOLFSSL_X509_V_ERR_INVALID_PURPOSE;
+                            }
+                        #endif
+                        }
+                    #endif /* IGNORE_KEY_EXTENSIONS */
                     #ifdef OPENSSL_EXTRA
                         if (args->certIdx > args->untrustedDepth) {
                             args->untrustedDepth = (char)args->certIdx + 1;
@@ -29511,6 +29568,9 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
 
     case WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED:
         return "path length constraint exceeded";
+
+    case WOLFSSL_X509_V_ERR_INVALID_PURPOSE:
+        return "unsupported certificate purpose";
 
     case WOLFSSL_X509_V_ERR_CERT_REJECTED:
         return "certificate rejected";
