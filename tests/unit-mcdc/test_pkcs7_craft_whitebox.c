@@ -539,6 +539,24 @@ static void wb_pwri_optional_params(void)
 }
 #endif
 
+#define WB_CORPUS_SZ 8192
+static byte wbCorpus[WB_CORPUS_SZ];
+
+static word32 wb_load_file(const char* path, byte* buf, word32 bufSz)
+{
+    FILE* f;
+    size_t n;
+
+    f = fopen(path, "rb");
+    if (f == NULL) {
+        printf("  [wb] corpus not found, skip: %s\n", path);
+        return 0;
+    }
+    n = fread(buf, 1, bufSz, f);
+    fclose(f);
+    return (word32)n;
+}
+
 /* ------------------------------------------------------------------------- *
  * Section 5: PKCS7_VerifySignedData() multi-part eContent walk
  * [:7543, :7556, :7559, :7562, :7565, :7582, :7602, :7605].
@@ -796,23 +814,6 @@ static void wb_multipart_walk(void)
  * in2/hashBuf say.
  * ------------------------------------------------------------------------- */
 #ifndef NO_RSA
-#define WB_CORPUS_SZ 8192
-static byte wbCorpus[WB_CORPUS_SZ];
-
-static word32 wb_load_file(const char* path, byte* buf, word32 bufSz)
-{
-    FILE* f;
-    size_t n;
-
-    f = fopen(path, "rb");
-    if (f == NULL) {
-        printf("  [wb] corpus not found, skip: %s\n", path);
-        return 0;
-    }
-    n = fread(buf, 1, bufSz, f);
-    fclose(f);
-    return (word32)n;
-}
 
 static int wb_verify_corpus(word32 msgSz, byte* in2, word32 in2Sz,
         byte* hashBuf, word32 hashSz)
@@ -1151,6 +1152,148 @@ static void wb_der_handoff(void)
 }
 #endif /* !NO_RSA */
 
+/* ------------------------------------------------------------------------- *
+ * Section 8: signer/recipient key-OID matrices [:1352, :9531] and the two
+ * small state probes [:1096, :6644].
+ *
+ * :1352 and :9531 branch on the key algorithm of the certificate handed to
+ * wc_PKCS7_InitWithCert()/wc_PKCS7_AddRecipient_KTRI(). Every pkcs7 test in
+ * the tree uses an rsaEncryption or an ECDSA certificate, so the RSASSA-PSS
+ * arm of each is never taken. certs/rsapss/ carries a real RSA-PSS
+ * certificate; certs/ed25519/ carries one whose key is neither RSA-family nor
+ * ECDSA, which is the all-false row :1352 needs.
+ * ------------------------------------------------------------------------- */
+static void wb_key_oid_matrix(void)
+{
+    wc_PKCS7* p;
+    word32    certSz;
+    static byte otherCert[2048];
+    word32    otherSz;
+
+    certSz = wb_load_file("./certs/rsapss/client-rsapss.der", wbCorpus,
+            sizeof(wbCorpus));
+    otherSz = wb_load_file("./certs/ed25519/client-ed25519.der", otherCert,
+            sizeof(otherCert));
+
+    if (certSz > 0) {
+        WB_NOTE("wc_PKCS7_InitWithCert(): RSASSA-PSS signer certificate"
+                " [:1352 cond 1 true]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            (void)wc_PKCS7_InitWithCert(p, wbCorpus, certSz);
+            wc_PKCS7_Free(p);
+        }
+    }
+    if (otherSz > 0) {
+        WB_NOTE("wc_PKCS7_InitWithCert(): certificate whose key is neither"
+                " RSA-family nor ECDSA [:1352 all operands false]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            (void)wc_PKCS7_InitWithCert(p, otherCert, otherSz);
+            wc_PKCS7_Free(p);
+        }
+    }
+
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    if (certSz > 0) {
+        WB_NOTE("wc_PKCS7_AddRecipient_KTRI(): RSASSA-PSS recipient"
+                " certificate, so the RSA-family check passes on its second"
+                " operand [:9531 cond 1 false]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+                    (word32)sizeof_client_cert_der_2048) == 0) {
+                p->contentOID = DATA;
+                p->encryptOID = AES256CBCb;
+                (void)wc_PKCS7_AddRecipient_KTRI(p, wbCorpus, certSz, 0);
+            }
+            wc_PKCS7_Free(p);
+        }
+    }
+    if (otherSz > 0) {
+        WB_NOTE("wc_PKCS7_AddRecipient_KTRI(): non-RSA recipient certificate,"
+                " the row cond 1 pairs against [:9531 both operands true]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+                    (word32)sizeof_client_cert_der_2048) == 0) {
+                p->contentOID = DATA;
+                p->encryptOID = AES256CBCb;
+                (void)wc_PKCS7_AddRecipient_KTRI(p, otherCert, otherSz, 0);
+            }
+            wc_PKCS7_Free(p);
+        }
+    }
+#endif
+}
+
+/* wc_PKCS7_DigestParamsAbsent() [:1096]: the SHAKE arm is decided purely by
+ * pkcs7->hashOID, and no pkcs7 API path ever sets it to SHAKE128h -- the OID
+ * is only reachable through a caller that asks for SHAKE-128 digests, which
+ * the encode side does not offer. Set it directly. */
+static void wb_digest_params_absent(void)
+{
+    wc_PKCS7 p;
+
+    XMEMSET(&p, 0, sizeof(p));
+
+    WB_NOTE("wc_PKCS7_DigestParamsAbsent(): hashOID matrix [:1096]");
+#if defined(WOLFSSL_SHA3) && \
+    (defined(WOLFSSL_SHAKE256) || defined(WOLFSSL_SHAKE128))
+    p.hashOID = SHA256h;
+    WB_CHECK(wc_PKCS7_DigestParamsAbsent(&p) == 0, ":1096 both false");
+    p.hashOID = SHAKE256h;
+    WB_CHECK(wc_PKCS7_DigestParamsAbsent(&p) == 1, ":1096 cond 0 true");
+    p.hashOID = SHAKE128h;
+    WB_CHECK(wc_PKCS7_DigestParamsAbsent(&p) == 1, ":1096 cond 1 true");
+#else
+    (void)p;
+    WB_NOTE("no SHA3/SHAKE; :1096 not compiled");
+#endif
+}
+
+/* wc_PKCS7_HandleOctetStrings() no-content arm [:6644]: `pkcs7->content &&
+ * pkcs7->contentSz > 0`. A caller that sets pkcs7->content always sets
+ * contentSz with it, so the trailing operand's false row has to be seeded. */
+#ifndef NO_PKCS7_STREAM
+static void wb_octet_nocontent(word32 contentSz)
+{
+    wc_PKCS7 pkcs7;
+    byte     content[8];
+    byte     in[16];
+    word32   idx = 0, tmpIdx = 0;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    XMEMSET(content, 0x11, sizeof(content));
+    XMEMSET(in, 0, sizeof(in));
+
+    if (wc_PKCS7_CreateStream(&pkcs7) != 0) {
+        return;
+    }
+    pkcs7.content   = content;
+    pkcs7.contentSz = contentSz;
+    pkcs7.stream->noContent = 1;
+    (void)wc_PKCS7_HandleOctetStrings(&pkcs7, in, (word32)sizeof(in), &tmpIdx,
+            &idx, 1);
+    wc_PKCS7_FreeStream(&pkcs7);
+}
+
+static void wb_octet_nocontent_matrix(void)
+{
+    WB_NOTE("wc_PKCS7_HandleOctetStrings(): content pointer with a zero"
+            " content size [:6644 cond 1 false]");
+    wb_octet_nocontent(0);
+    WB_NOTE("wc_PKCS7_HandleOctetStrings(): content pointer with a non-zero"
+            " content size [:6644 both true]");
+    wb_octet_nocontent(8);
+}
+#else
+static void wb_octet_nocontent_matrix(void)
+{
+    WB_NOTE("NO_PKCS7_STREAM; HandleOctetStrings no-content matrix skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -1167,6 +1310,9 @@ int main(void)
     wb_multipart_walk();
     wb_footer_hash_matrix();
     wb_der_handoff();
+    wb_key_oid_matrix();
+    wb_digest_params_absent();
+    wb_octet_nocontent_matrix();
 
     wolfCrypt_Cleanup();
     printf(wb_fail ? "done (with failures)\n" : "done\n");
