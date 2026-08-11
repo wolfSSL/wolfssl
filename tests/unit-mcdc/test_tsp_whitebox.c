@@ -73,6 +73,18 @@
  *     technique as test_pkcs12_parse_whitebox.c's Class 3), but the ASN
  *     template's exact byte offsets were not worked out in this pass.
  *
+ * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json):
+ *   - asn_tsp.c:1021 idx1 `length >= 2`, idx2 `length <= 5`. Defence in depth
+ *     behind the ASN.1 template. GetASN_Items() stores the item's FULL length
+ *     (asn.c:1948) before stepping over a BIT STRING's unused-bits byte, then
+ *     rejects a zero-length BIT STRING in GetASN_BitString() and rejects
+ *     len == 0 || len > 4 in GetASN_StoreData()'s ASN_DATA_TYPE_WORD32 case,
+ *     which is the target GetASN_Int32Bit() installs for TSPRESPASN_IDX_STAT_
+ *     FAIL. A decoded failInfo therefore always has length in [2,5] and
+ *     neither explicit bound can be false. When the optional item is absent
+ *     the leading `tag != 0` operand short-circuits first.
+ *   - asn_tsp.c:1433 idx0: see the note above the signerInfos fixtures.
+ *
  * Idiom: same as the other tests/unit-mcdc files. #include tsp.c directly to
  * reach its three file-static helpers; everything else is called through
  * the normal external link (tsp.h prototypes + the built library).

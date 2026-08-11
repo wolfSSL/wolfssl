@@ -72,6 +72,55 @@
  * the RSA verify-decrypt padding comparisons (3584/3595/3631/4071/4074) and the
  * *_KeyDecodeRaw / CheckProbablePrime_ex argument guards (5293/5914/5996/6004).
  *
+ * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json; line
+ * numbers are rsa.c's). None of these is "hard to reach" -- each is an
+ * argument that the missing row does not exist:
+ *
+ *   3356:1 3377:0 3640:1 (both records) 3846:1 3865:0 4074:1 4179:0
+ *          the WC_PENDING_E sentinel. It can enter these `ret`s only from
+ *          wc_RsaFunctionAsync() (3234, inside #if defined(WOLFSSL_ASYNC_
+ *          CRYPT) && defined(WC_ASYNC_ENABLE_RSA)) or from wc_CryptoCb_Rsa()
+ *          / wc_CryptoCb_RsaPad() (3571, inside #ifdef WOLF_CRYPTO_CB);
+ *          5568 assigns it to wc_MakeRsaKey's own err, a different function,
+ *          and no other callee on the path (RsaFunctionSync,
+ *          wc_RsaFunctionNonBlock, which yields FP_WOULDBLOCK, and the
+ *          mp_*/sp_* backends) produces the code. Neither macro is set by
+ *          configs/rsa/user_settings.base.h or any variant's cppflags, and
+ *          settings.h derives WOLF_CRYPTO_CB only from WOLF_CRYPTO_DEV.
+ *          Confirmed against the measurement: no llvm-cov region exists for
+ *          rsa.c:3557-3585 or rsa.c:3216-3300 in any variant or white-box.
+ *
+ *   5632:2 5642:0/1 5695:0/2 5698:0/1
+ *          the FIPS 186-4 prime search. `i` is incremented only under
+ *          HAVE_FIPS, so in this build it stays 0 while failCount is
+ *          5 * (size / 2) > 0: `i >= failCount` / `i < failCount` never
+ *          change value, and neither the p for(;;) nor the q do/while can
+ *          exit with err == MP_OKAY && !isPrime, so both `if (err == MP_OKAY
+ *          && !isPrime)` decisions are never true. 5695:0 is additionally
+ *          preceded by `err = WC_CHECK_FOR_INTR_SIGNALS(); if (err != 0)
+ *          break;`, so err is known zero where it is evaluated.
+ *
+ *   5677:0/1
+ *          both operands need the (TRUE,TRUE) row. The Fermat block only
+ *          runs with isPrime set, which _CheckProbablePrime() grants only
+ *          after wc_CompareDiffPQ() showed |p-q| > 2^((size/2)-100), while
+ *          the test needs |p-q| < 2^((size/4)+32). (size/2)-100 exceeds
+ *          (size/4)+32 for every size > 528 and RsaSizeCheck() admits
+ *          nothing below RSA_MIN_SIZE -- 2048 by default, 1024 in the
+ *          min_size_1024 variant.
+ *
+ *   1036:1 `(word32)hLen > sizeof(tmpA)`: hLen is wc_HashGetDigestSize()'s
+ *          result with the negative case already returned, so at most
+ *          WC_MAX_DIGEST_SIZE (64), against tmpA[WC_MAX_DIGEST_SIZE + 4].
+ *   4577:0 `WC_SAFE_SUM_WORD32(inSz, saltLen, totalSz) == 0`: inSz is pinned
+ *          to digSz <= 64 by the argument check and every path leaves
+ *          saltLen a non-negative int, so the word32 sum is at most
+ *          64 + 2^31-1 and cannot wrap.
+ *   5333:2 `qRaw == NULL` is the exact negation of the leading `qRaw !=
+ *          NULL`, so no vector pair varies it alone.
+ *   4097:1 `pad != NULL` cannot be false while ret >= 0: all four arms of
+ *          wc_RsaUnPad_ex() set *out before returning a non-negative value.
+ *
  * Invocation:
  *   ./test_rsa_fault_whitebox            default: full fault-index sweep
  *   ./test_rsa_fault_whitebox baseline   only the unarmed valid ops (delta base)

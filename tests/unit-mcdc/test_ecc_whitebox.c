@@ -3668,8 +3668,36 @@ static void wb_ecies_bad_kdf(void)
  *          body then adds that negative prime and never terminates, so it is
  *          not a legitimate input.)
  *
- * The remaining rows -- 14180, 14289 and 16564 -- are the campaign's
- * pre-existing exclusions and are unchanged by this pass.
+ * 14289:1  `} else if (zB && first == 1)`
+ *          first is declared int, initialized to 1, and only ever assigned 0
+ *          here or 1 through the `infinity` out-parameter of
+ *          ecc_projective_add_point_safe(). The immediately preceding arm
+ *          tested `(zB && first == 0)`, so reaching this one with zB true
+ *          means first != 0, i.e. first == 1. Always TRUE where evaluated.
+ *
+ * 16564:0  `if ((mp_init_multi(t1, C, Q, S, Z, M) != MP_OKAY) ||`
+ * 16564:1  `    (mp_init_multi(T, R, N, two, NULL, NULL) != MP_OKAY))`
+ *          Both backends this module builds return MP_OKAY unconditionally
+ *          and skip NULL arguments: sp_init_multi() (sp_int.c) and
+ *          mp_init_multi() (tfm.c) are `if (x) init(x);` six times followed
+ *          by `return MP_OKAY;`. The storage is caller-owned and fixed-size,
+ *          so neither call can report anything else and the decision is
+ *          never TRUE.
+ *
+ * 14180:0  `if ((mp_unsigned_bin_size(tka) > (int)(KB_SIZE - 2)) ||`
+ * 14180:1  `    (mp_unsigned_bin_size(tkb) > (int)(KB_SIZE - 2)))`
+ *          NOT excluded -- carried as open. The withdrawn argument was that
+ *          MAX_ECC_BITS caps the scalars at 521 bits (66 bytes), well under
+ *          KB_SIZE - 2 = 126. That is false for this campaign's configs:
+ *          they #define WOLFCRYPT_HAVE_SAKKE, which raises MAX_ECC_BITS to
+ *          1024 and adds the 128-byte ECC_SAKKE_1 entry to ecc_sets[].
+ *          accel_fp_mul2add() uses a flat `#define KB_SIZE 128`, unlike
+ *          accel_fp_mul() which is 256 under WOLFCRYPT_HAVE_SAKKE, so a
+ *          scalar reduced modulo a 1024-bit order occupies 128 bytes and the
+ *          operand can be TRUE. Reaching it needs ecc_mul2add() driven twice
+ *          with the same A and B (so both fp_cache entries reach
+ *          lru_count >= 2 and have their LUT built) on a 128-byte-modulus
+ *          curve; not attempted in this pass.
  * ========================================================================= */
 
 int main(void)
