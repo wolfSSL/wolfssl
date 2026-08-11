@@ -2332,6 +2332,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 #define WC_CPP_CAT4_(a, b, c, d) a ## b ## c ## d
 #define WC_CPP_CAT4(a, b, c, d) WC_CPP_CAT4_(a, b, c, d)
+/* Outside library and test builds, default wc_static_assert() to a no-op so
+ * that wolfSSL headers don't pull <assert.h> into applications.  Define
+ * WC_USE_STATIC_ASSERT to get live static asserts in application builds. */
 #if !defined(BUILDING_WOLFSSL) && !defined(WOLFSSL_VIS_FOR_TESTS) && \
     !defined(WC_USE_STATIC_ASSERT) && !defined(WC_NO_STATIC_ASSERT)
     #define WC_NO_STATIC_ASSERT

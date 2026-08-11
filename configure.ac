@@ -9939,7 +9939,8 @@ then
         ENABLED_OCSP="yes"
     fi
 
-    # Requires CSR for wolfSSL_set_tlsext_status_ocsp_resp
+    # Requires certificate status request (OCSP stapling) for
+    # wolfSSL_set_tlsext_status_ocsp_resp
     if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xno"
     then
         ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
