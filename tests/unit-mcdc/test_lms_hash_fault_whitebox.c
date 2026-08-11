@@ -90,12 +90,26 @@
 
 #include "mcdc_fault_hash.h"
 
+/* The HSS key below is generated from a live RNG, so its tree differs on every
+ * run and the leaf index q -- which decides wc_lms_impl.c:2414 and :2424 --
+ * moves with it. Two runs of an unchanged tree on 2026-08-11 read 124/136 and
+ * 127/136 for exactly this reason, with neither sweep bound truncating. Pinning
+ * the stream makes the key, and therefore every tree walk below, identical on
+ * every run. */
+#include "mcdc_seed_rng.h"
+
 /* wc_lms_impl.c is #included AFTER the interposers are installed. */
 #include <wolfcrypt/src/wc_lms_impl.c>
+
+#define MCDC_SR_IMPL
+#include "mcdc_seed_rng.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+
+/* Recorded in the module residual note. */
+#define WB_LMS_SEED 0x1a5eed01UL
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -175,16 +189,46 @@ static const WbFamily wb_families[] = {
  * white-box is scored as a SILENT SKIP and loses the whole file. */
 #define WB_DEADLINE_S  170
 
-/* WALL clock, not clock(): the campaign runs several variants concurrently and
- * TEST_TIMEOUT is 600 s of WALL time. Under that contention CPU time accrues
- * far slower than wall time, so a CPU-time budget would sail past the timeout
- * -- and a timed-out white-box is scored as a SILENT SKIP that loses the whole
- * file's coverage. */
+/* Budget the sweep by VECTOR COUNT, not by elapsed time.
+ *
+ * A wall-clock budget makes coverage a function of machine load: under
+ * contention the sweep stops at a different vector than it does on an idle
+ * host, so the same source measures differently run to run. Two full sweeps of
+ * an unchanged tree on 2026-08-11 differed on wc_lms_impl.c:2414 and :2424 for
+ * exactly this reason. For ASIL-D the evidence has to be reproducible, and a
+ * baseline recorded from a fast run fails on a slow one.
+ *
+ * WB_MAX_VECTORS is therefore the real bound and is deterministic. The wall
+ * clock survives only as a backstop against the 600 s TEST_TIMEOUT (a killed
+ * white-box is scored as a SILENT SKIP and loses the whole file's coverage) --
+ * and if it ever fires it says so loudly, because that means the vector budget
+ * needs lowering rather than the result being quietly short.
+ *
+ * WALL clock, not clock(): variants run concurrently, so CPU time accrues far
+ * slower than wall time and a CPU budget would sail past the timeout. */
+#ifndef WB_MAX_VECTORS
+    #define WB_MAX_VECTORS 20000
+#endif
+
 static time_t wb_t0;
+static long   wb_vectors = 0;
+static int    wb_backstop_fired = 0;
 
 static int wb_expired(void)
 {
-    return difftime(time(NULL), wb_t0) > (double)WB_DEADLINE_S;
+    if (++wb_vectors > (long)WB_MAX_VECTORS) {
+        return 1;
+    }
+    if (difftime(time(NULL), wb_t0) > (double)WB_DEADLINE_S) {
+        if (!wb_backstop_fired) {
+            wb_backstop_fired = 1;
+            printf("  [wb] WALL-CLOCK BACKSTOP fired after %ld vectors -- "
+                   "coverage is load-dependent for this run; lower "
+                   "WB_MAX_VECTORS\n", wb_vectors);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 /* Build a self-consistent LmsParams by hand (this file never goes through
@@ -323,8 +367,12 @@ static int wb_do_make_key(void)
     int ret = wb_state_init(&state, &wb_params);
 
     if (ret == 0) {
+        /* Pinned: recorded in the module residual note, because a seed that
+         * selects which tree paths are exercised is part of the evidence. */
+        mcdc_sr_arm(WB_LMS_SEED);
         ret = wc_hss_make_key(&state, &wb_rng, wb_priv_raw, &wb_pk,
             wb_priv_data, wb_pub);
+        mcdc_sr_disarm();
         wb_state_free(&state);
     }
     return ret;

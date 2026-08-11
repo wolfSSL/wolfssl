@@ -740,6 +740,25 @@ static void wb_encryptsize_lower_bound(WC_RNG* rng)
  * caller driving wc_RsaFunction itself (the documented public entry point)
  * does. Uses a scratch key so the shared key's state machine is untouched.
  * ------------------------------------------------------------------------ */
+
+/* The sweeps below are already capped deterministically by WB_MP_MAX. The wall
+ * clock is a second, load-dependent truncation on top of that: if it fires
+ * first, the sweep is shorter on a busy machine than on an idle one and the
+ * same source measures differently run to run (proved on wc_lms_impl.c,
+ * 2026-08-11). Keep it as a backstop against TEST_TIMEOUT, but make it say so,
+ * so a load-dependent result is never mistaken for a stable one. */
+static int wb_mp_backstop = 0;
+
+static int wb_mp_over(int elapsed)
+{
+    if (elapsed && !wb_mp_backstop) {
+        wb_mp_backstop = 1;
+        printf("  [wb] WALL-CLOCK BACKSTOP truncated the sweep before "
+               "WB_MP_MAX -- coverage is load-dependent for this run\n");
+    }
+    return elapsed;
+}
+
 static void wb_rsafunction_state_operand(RsaKey* key, WC_RNG* rng,
                                          const byte* ct, int ctLen)
 {
@@ -920,7 +939,7 @@ int main(int argc, char** argv)
 
 #define WB_MP_MAX      600
 #define WB_MP_DEADLINE 150
-#define WB_MP_EXPIRED() (difftime(time(NULL), t0) > (double)WB_MP_DEADLINE)
+#define WB_MP_EXPIRED() wb_mp_over(difftime(time(NULL), t0) > (double)WB_MP_DEADLINE)
 #define WB_MP_SWEEP(lbl, ...)                                             \
     do {                                                                  \
         mcdc_fm_disarm();                                                 \

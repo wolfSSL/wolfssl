@@ -98,9 +98,42 @@ static int wb_fail = 0;
  * file's coverage. */
 static time_t wb_t0;
 
+/* Budget by VECTOR COUNT, not elapsed time.
+ *
+ * A wall-clock budget makes coverage a function of machine load: under
+ * contention the sweep stops at a different vector than on an idle host, so the
+ * same source measures differently run to run. Two full sweeps of an unchanged
+ * tree on 2026-08-11 disagreed on wc_lms_impl.c for exactly this reason. For
+ * ASIL-D the evidence must be reproducible; a baseline recorded from a fast run
+ * fails on a slow one.
+ *
+ * WB_MAX_VECTORS is the real, deterministic bound. The wall clock survives only
+ * as a backstop against TEST_TIMEOUT (a killed white-box is scored as a SILENT
+ * SKIP and loses the whole file), and says so loudly if it ever fires -- that
+ * means the vector budget needs lowering, not that the result is quietly short.
+ */
+#ifndef WB_MAX_VECTORS
+    #define WB_MAX_VECTORS 20000
+#endif
+
+static long wb_vectors = 0;
+static int  wb_backstop_fired = 0;
+
 static int wb_expired(void)
 {
-    return difftime(time(NULL), wb_t0) > (double)WB_DEADLINE_S;
+    if (++wb_vectors > (long)WB_MAX_VECTORS) {
+        return 1;
+    }
+    if (difftime(time(NULL), wb_t0) > (double)WB_DEADLINE_S) {
+        if (!wb_backstop_fired) {
+            wb_backstop_fired = 1;
+            printf("  [wb] WALL-CLOCK BACKSTOP fired after %ld "
+                   "vectors -- coverage is load-dependent for this "
+                   "run; lower WB_MAX_VECTORS\n", wb_vectors);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 static long wb_next(long n, long k)

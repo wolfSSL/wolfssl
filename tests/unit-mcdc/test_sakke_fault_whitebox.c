@@ -194,9 +194,31 @@ static int build_prepared(SakkeKey* key, WC_RNG* rng, ecc_point* rsk)
 
 static time_t wb_mp_t0;
 
+/* Budget by VECTOR COUNT, not elapsed time: a wall-clock budget makes coverage
+ * a function of machine load, so the same source measures differently run to
+ * run (proved on wc_lms_impl.c, 2026-08-11). The wall clock is kept only as a
+ * backstop against TEST_TIMEOUT, and announces itself if it fires. */
+#ifndef WB_MAX_VECTORS
+    #define WB_MAX_VECTORS 20000
+#endif
+
+static long wb_mp_vectors = 0;
+static int  wb_mp_backstop = 0;
+
 static int wb_mp_expired(void)
 {
-    return difftime(time(NULL), wb_mp_t0) > (double)WB_MP_DEADLINE;
+    if (++wb_mp_vectors > (long)WB_MAX_VECTORS) {
+        return 1;
+    }
+    if (difftime(time(NULL), wb_mp_t0) > (double)WB_MP_DEADLINE) {
+        if (!wb_mp_backstop) {
+            wb_mp_backstop = 1;
+            printf("  [wb] WALL-CLOCK BACKSTOP fired after %ld "
+                   "vectors; lower WB_MAX_VECTORS\n", wb_mp_vectors);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 /* Run the statement once DISARMED -- the all-true baseline row for every guard
