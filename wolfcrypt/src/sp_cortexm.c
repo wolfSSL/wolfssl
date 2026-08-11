@@ -193,15 +193,15 @@ static void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -10596,15 +10596,15 @@ static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -23965,15 +23965,15 @@ static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -37661,7 +37661,7 @@ static int sp_256_proj_point_dbl_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         /* Y = Y - T2 */
         sp_256_mont_sub_8(ctx->y, ctx->y, ctx->t2, p256_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -40915,15 +40915,15 @@ static void sp_256_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -47991,7 +47991,7 @@ static int sp_384_proj_point_dbl_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         /* Y = Y - T2 */
         sp_384_mont_sub_12(ctx->y, ctx->y, ctx->t2, p384_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -51309,15 +51309,15 @@ static void sp_384_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -60181,7 +60181,7 @@ static int sp_521_proj_point_dbl_17_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         /* Y = Y - T2 */
         sp_521_mont_sub_17(ctx->y, ctx->y, ctx->t2, p521_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -64139,15 +64139,15 @@ static void sp_521_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
@@ -75209,7 +75209,7 @@ static int sp_1024_proj_point_dbl_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         /* Y = Y - T2 */
         sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->t2, p1024_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -83852,15 +83852,15 @@ static void sp_1024_from_bin(sp_digit* r, int size, const byte* a, int n)
         d = (byte*)(r + j);
 #ifdef BIG_ENDIAN_ORDER
         switch (i) {
-            case 2: d[1] = *(a++); //fallthrough
-            case 1: d[2] = *(a++); //fallthrough
-            case 0: d[3] = *a    ; //fallthrough
+            case 2: d[1] = *(a++); FALL_THROUGH;
+            case 1: d[2] = *(a++); FALL_THROUGH;
+            case 0: d[3] = *a    ;
         }
 #else
         switch (i) {
-            case 2: d[i-2] = a[2]; //fallthrough
-            case 1: d[i-1] = a[1]; //fallthrough
-            case 0: d[i-0] = a[0]; //fallthrough
+            case 2: d[i-2] = a[2]; FALL_THROUGH;
+            case 1: d[i-1] = a[1]; FALL_THROUGH;
+            case 0: d[i-0] = a[0];
         }
 #endif
         j++;
