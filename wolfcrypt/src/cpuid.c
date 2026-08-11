@@ -54,9 +54,14 @@
             new_cpuid_flags |= CPUID_ADX;
             new_cpuid_flags |= CPUID_MOVBE;
             new_cpuid_flags |= CPUID_BMI1;
+            new_cpuid_flags |= CPUID_SSSE3;
         #ifdef WOLFSSL_SGX_CPUID_AVX512_VAES
             new_cpuid_flags |= CPUID_VAES;
             new_cpuid_flags |= CPUID_AVX512 | CPUID_AVX512_BW;
+            new_cpuid_flags |= CPUID_AVX512_VL;
+            new_cpuid_flags |= CPUID_AVX512_IFMA;
+            /* SGX is an Intel-only technology. */
+            new_cpuid_flags |= CPUID_INTEL;
         #endif
 
             (void)wolfSSL_Atomic_Uint_CompareExchange
@@ -166,6 +171,7 @@
             }
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
+            if (cpuid_flag(1, 0, ECX,  9)) { new_cpuid_flags |= CPUID_SSSE3 ; }
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }

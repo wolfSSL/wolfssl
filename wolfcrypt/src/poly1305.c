@@ -88,10 +88,80 @@ and Daniel J. Bernstein
     #ifndef NO_AVX2_SUPPORT
         #define HAVE_INTEL_AVX2
     #endif
+    /* 8-way path; the struct carries r^5..r^8 only when this is on. */
+    #if defined(WOLFSSL_POLY1305_AVX512) && !defined(NO_AVX512_SUPPORT)
+        #define HAVE_INTEL_AVX512
+    #endif
 #endif
 
 #ifdef USE_INTEL_POLY1305_SPEEDUP
 static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
+
+/* The fused ChaCha20-Poly1305 kernel drives the 4-way path; when it is active
+ * this flag pins Update/Final to the 4-way path so the state layout matches. */
+#ifdef WOLFSSL_CHACHA20_POLY1305_FUSED
+    #define POLY1305_FORCE_AVX2(ctx) ((ctx)->forceAvx2 != 0)
+#else
+    #define POLY1305_FORCE_AVX2(ctx) 0
+#endif
+
+/* The fused IFMA stitch drives the scalar path; when it is active this flag
+ * pins Update/Final to the scalar (poly1305_blocks_avx / _final_avx) path so
+ * the state layout matches. */
+#ifdef WOLFSSL_CHACHA20_POLY1305_FUSED_IFMA
+    #define POLY1305_FORCE_SCALAR(ctx) ((ctx)->forceScalar != 0)
+#else
+    #define POLY1305_FORCE_SCALAR(ctx) 0
+#endif
+
+#ifdef HAVE_INTEL_AVX512
+/* Whether to use the 8-way (512-bit) Poly1305 over the 4-way AVX2 path.
+ *
+ * The zmm path does eight 16-byte blocks per iteration and is the fastest
+ * option where 512-bit code runs at full clock: AMD Zen 4/5 (no AVX-512
+ * license) and Intel Ice Lake and later.  On Intel Skylake-SP / Cascade
+ * Lake-class parts, sustained 512-bit instructions trip the AVX-512 frequency
+ * license and downclock the core; the penalty is milder here than for the
+ * FP-heavy ChaCha, but the 256-bit AVX2 path can still be the safer default on
+ * those parts.  As with the ChaCha gate, VAES presence is used as a
+ * generational proxy: the throttling parts predate VAES, whereas every
+ * microarchitecture that runs 512-bit without penalty implements it.  A missing
+ * VAES only costs a little throughput (fall back to AVX2), never correctness.
+ *
+ * Override the heuristic with:
+ *   WOLFSSL_POLY1305_AVX512_ALWAYS - use zmm whenever AVX-512 is present
+ *   WOLFSSL_POLY1305_AVX512_NEVER  - never use zmm (always AVX2 or below)
+ */
+static WC_INLINE int poly1305_use_avx512(cpuid_flags_t flags)
+{
+#if defined(WOLFSSL_POLY1305_AVX512_NEVER)
+    (void)flags;
+    return 0;
+#elif defined(WOLFSSL_POLY1305_AVX512_ALWAYS)
+    return IS_INTEL_AVX512(flags) != 0;
+#else
+    return (IS_INTEL_AVX512(flags) != 0) && (IS_INTEL_VAES(flags) != 0);
+#endif
+}
+
+/* The radix-2^44 IFMA path is preferred on Intel cores with AVX-512 IFMA
+ * (Ice Lake and later), where it beats the 26-bit vpmuludq 8-way.  On AMD
+ * Zen 4/5 - which also implement IFMA - the vpmuludq 8-way is measurably faster
+ * (stronger vector-integer throughput), so IFMA is gated to an Intel vendor.
+ * Define WOLFSSL_POLY1305_IFMA_ALWAYS to use it on any IFMA CPU, or
+ * WOLFSSL_POLY1305_NO_IFMA to disable it. */
+static WC_INLINE int poly1305_use_ifma(cpuid_flags_t flags)
+{
+#if defined(WOLFSSL_POLY1305_NO_IFMA)
+    (void)flags;
+    return 0;
+#elif defined(WOLFSSL_POLY1305_IFMA_ALWAYS)
+    return IS_INTEL_AVX512_IFMA(flags) != 0;
+#else
+    return (IS_INTEL_AVX512_IFMA(flags) != 0) && (IS_CPU_INTEL(flags) != 0);
+#endif
+}
+#endif /* HAVE_INTEL_AVX512 */
 #endif
 
 #if defined(USE_INTEL_POLY1305_SPEEDUP) || defined(POLY130564)
@@ -202,6 +272,24 @@ WOLFSSL_LOCAL void poly1305_setkey_avx2(Poly1305* ctx, const byte* key);
  * mac  Buffer to hold 16 bytes - authentication data.
  */
 WOLFSSL_LOCAL void poly1305_final_avx2(Poly1305* ctx, byte* mac);
+#endif
+
+#ifdef HAVE_INTEL_AVX512
+/* Process multiple 128-byte (8 block) groups of data eight lanes wide. */
+WOLFSSL_LOCAL void poly1305_blocks_avx512(Poly1305* ctx,
+                                 const unsigned char* m, size_t bytes);
+/* Calculate R^1 .. R^8 and store them in the context. */
+WOLFSSL_LOCAL void poly1305_calc_powers_avx512(Poly1305* ctx);
+/* Calculate the final result - authentication data.  Collapses the eight
+ * lanes and finishes any leftover with the AVX final function. */
+WOLFSSL_LOCAL void poly1305_final_avx512(Poly1305* ctx, byte* mac);
+
+/* AVX-512 IFMA (radix 2^44) 8-way variants - used when the CPU has IFMA. */
+WOLFSSL_LOCAL void poly1305_blocks_avx512ifma(Poly1305* ctx,
+                                 const unsigned char* m, size_t bytes);
+WOLFSSL_LOCAL void poly1305_calc_powers_avx512ifma(Poly1305* ctx);
+WOLFSSL_LOCAL void poly1305_setkey_avx512ifma(Poly1305* ctx, const byte* key);
+WOLFSSL_LOCAL void poly1305_final_avx512ifma(Poly1305* ctx, byte* mac);
 #endif
 
 #ifdef __cplusplus
@@ -854,6 +942,11 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 #ifdef USE_INTEL_POLY1305_SPEEDUP
     cpuid_get_flags_ex(&intel_flags);
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    #ifdef HAVE_INTEL_AVX512
+    if (poly1305_use_ifma(intel_flags))
+        poly1305_setkey_avx512ifma(ctx, key);
+    else
+    #endif
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
         poly1305_setkey_avx2(ctx, key);
@@ -862,6 +955,12 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         poly1305_setkey_avx(ctx, key);
     RESTORE_VECTOR_REGISTERS();
     ctx->started = 0;
+#ifdef WOLFSSL_CHACHA20_POLY1305_FUSED
+    ctx->forceAvx2 = 0;
+#endif
+#ifdef WOLFSSL_CHACHA20_POLY1305_FUSED_IFMA
+    ctx->forceScalar = 0;
+#endif
 #elif defined(WOLFSSL_ARMASM)
 #ifdef __aarch64__
     poly1305_setkey_aarch64(ctx, key);
@@ -885,8 +984,18 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
 #ifdef USE_INTEL_POLY1305_SPEEDUP
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    #ifdef HAVE_INTEL_AVX512
+    if (!POLY1305_FORCE_AVX2(ctx) && !POLY1305_FORCE_SCALAR(ctx) &&
+            poly1305_use_ifma(intel_flags))
+        poly1305_final_avx512ifma(ctx, mac);
+    else
+    if (!POLY1305_FORCE_AVX2(ctx) && !POLY1305_FORCE_SCALAR(ctx) &&
+            poly1305_use_avx512(intel_flags))
+        poly1305_final_avx512(ctx, mac);
+    else
+    #endif
     #ifdef HAVE_INTEL_AVX2
-    if (IS_INTEL_AVX2(intel_flags))
+    if (!POLY1305_FORCE_SCALAR(ctx) && IS_INTEL_AVX2(intel_flags))
         poly1305_final_avx2(ctx, mac);
     else
     #endif
@@ -1008,8 +1117,110 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
     }
 #else
 #ifdef USE_INTEL_POLY1305_SPEEDUP
+    #ifdef HAVE_INTEL_AVX512
+    if (!POLY1305_FORCE_AVX2(ctx) && !POLY1305_FORCE_SCALAR(ctx) &&
+            poly1305_use_ifma(intel_flags)) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
+        /* handle leftover */
+        if (ctx->leftover) {
+            size_t want = sizeof(ctx->buffer) - ctx->leftover;
+            if (want > bytes)
+                want = bytes;
+
+            for (i = 0; i < want; i++)
+                ctx->buffer[ctx->leftover + i] = m[i];
+            bytes -= (word32)want;
+            m += want;
+            ctx->leftover += want;
+            if (ctx->leftover < sizeof(ctx->buffer)) {
+                RESTORE_VECTOR_REGISTERS();
+                return 0;
+            }
+
+            if (!ctx->started) {
+                poly1305_calc_powers_avx512ifma(ctx);
+                ctx->started = 1;
+            }
+            poly1305_blocks_avx512ifma(ctx, ctx->buffer, sizeof(ctx->buffer));
+            ctx->leftover = 0;
+        }
+
+        /* process full blocks */
+        if (bytes >= sizeof(ctx->buffer)) {
+            size_t want = bytes & ~(sizeof(ctx->buffer) - 1);
+
+            if (!ctx->started) {
+                poly1305_calc_powers_avx512ifma(ctx);
+                ctx->started = 1;
+            }
+            poly1305_blocks_avx512ifma(ctx, m, want);
+            m += want;
+            bytes -= (word32)want;
+        }
+
+        /* store leftover */
+        if (bytes) {
+            for (i = 0; i < bytes; i++)
+                ctx->buffer[ctx->leftover + i] = m[i];
+            ctx->leftover += bytes;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+    if (!POLY1305_FORCE_AVX2(ctx) && !POLY1305_FORCE_SCALAR(ctx) &&
+            poly1305_use_avx512(intel_flags)) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
+        /* handle leftover */
+        if (ctx->leftover) {
+            size_t want = sizeof(ctx->buffer) - ctx->leftover;
+            if (want > bytes)
+                want = bytes;
+
+            for (i = 0; i < want; i++)
+                ctx->buffer[ctx->leftover + i] = m[i];
+            bytes -= (word32)want;
+            m += want;
+            ctx->leftover += want;
+            if (ctx->leftover < sizeof(ctx->buffer)) {
+                RESTORE_VECTOR_REGISTERS();
+                return 0;
+            }
+
+            if (!ctx->started) {
+                poly1305_calc_powers_avx512(ctx);
+                ctx->started = 1;
+            }
+            poly1305_blocks_avx512(ctx, ctx->buffer, sizeof(ctx->buffer));
+            ctx->leftover = 0;
+        }
+
+        /* process full blocks */
+        if (bytes >= sizeof(ctx->buffer)) {
+            size_t want = bytes & ~(sizeof(ctx->buffer) - 1);
+
+            if (!ctx->started) {
+                poly1305_calc_powers_avx512(ctx);
+                ctx->started = 1;
+            }
+            poly1305_blocks_avx512(ctx, m, want);
+            m += want;
+            bytes -= (word32)want;
+        }
+
+        /* store leftover */
+        if (bytes) {
+            for (i = 0; i < bytes; i++)
+                ctx->buffer[ctx->leftover + i] = m[i];
+            ctx->leftover += bytes;
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+    #endif
     #ifdef HAVE_INTEL_AVX2
-    if (IS_INTEL_AVX2(intel_flags)) {
+    if (!POLY1305_FORCE_SCALAR(ctx) && IS_INTEL_AVX2(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
         /* handle leftover */
