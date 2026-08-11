@@ -56,14 +56,15 @@
  *      wc_HashAlg scratch) makes iteration 1 return MEMORY_E, the loop breaks
  *      with outIdx still 0, and the tail guard is evaluated with (F,T).
  *
- * Deliberately NOT chased here (documented residuals, not oversights): the
- * "ret == 0 && kPad" pairs in wc_SSH_KDF (~804/~855), the
- * "(ret == 0) && ..." loop/tail guards in wc_srtp_kdf_derive_key (~947/~959)
- * and the "ret == 0 && fixedInfoSz > 0" guard in wc_KDA_KDF_iteration (~1354)
- * all require a *hash or AES transform* to fail mid-operation on valid
- * buffers. Those primitives allocate nothing on this path, so no
- * allocation-failure injection reaches them; they are the same
- * transform-failure residual class as the sha module's.
+ * Not chased in THIS file, and no longer residual: the "ret == 0 && kPad"
+ * pairs in wc_SSH_KDF (~804/~855), the "(ret == 0) && ..." loop/tail guards in
+ * wc_srtp_kdf_derive_key (~947/~959) and the "ret == 0 && fixedInfoSz > 0"
+ * guard in wc_KDA_KDF_iteration (~1354) all require a *hash or AES transform*
+ * to fail mid-operation on valid buffers, which no allocation-failure
+ * injection reaches. tests/unit-mcdc/mcdc_fault_hash.h provides that lever by
+ * macro interposition, but it must be included BEFORE the involved .c, which
+ * this file cannot do. They are closed in the sibling translation unit
+ * tests/unit-mcdc/test_kdf_hash_fault_whitebox.c instead.
  *
  * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
