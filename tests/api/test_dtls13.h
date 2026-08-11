@@ -44,6 +44,7 @@ int test_dtls13_basic_connection_id(void);
 int test_dtls13_hrr_want_write(void);
 int test_dtls13_every_write_want_write(void);
 int test_dtls13_epochs(void);
+int test_dtls13_alert_with_pending_output(void);
 int test_dtls13_ack_order(void);
 int test_dtls13_ack_overflow(void);
 int test_dtls13_ack_dup_write_counter(void);
@@ -74,6 +75,7 @@ int test_dtls13_plaintext_ack_after_handshake(void);
     TEST_DECL_GROUP("dtls13", test_dtls13_hrr_want_write),                     \
     TEST_DECL_GROUP("dtls13", test_dtls13_every_write_want_write),             \
     TEST_DECL_GROUP("dtls13", test_dtls13_epochs),                             \
+    TEST_DECL_GROUP("dtls13", test_dtls13_alert_with_pending_output),          \
     TEST_DECL_GROUP("dtls13", test_dtls13_ack_order),                          \
     TEST_DECL_GROUP("dtls13", test_dtls13_ack_overflow),                       \
     TEST_DECL_GROUP("dtls13", test_dtls13_ack_dup_write_counter),              \
