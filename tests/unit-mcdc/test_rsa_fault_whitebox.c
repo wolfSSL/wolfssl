@@ -124,6 +124,56 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_rsa_mont_red_ct(mp_int* a, mp_int* m,
 #define mp_montgomery_reduce_ct(a, m, rho) mcdc_rsa_mont_red_ct((a), (m), (rho))
 #endif
 
+/* THIRD LEVER -- SCRATCH-mp_int LIFECYCLE (mcdc_fault_mpint.h)
+ * -----------------------------------------------------------
+ * Neither of the two levers above can make NEW_MP_INT_SIZE() or
+ * INIT_MP_INT_SIZE() fail, and rsa.c hangs a success chain off each of them:
+ *
+ *   2890/2898  RsaFunctionPrivate  rnd / rndi   (blinding)
+ *   2963/2968  RsaFunctionPrivate  tmpb         (CRT, no-blinding build)
+ *   2981       RsaFunctionPrivate  first CRT exptmod behind that ret
+ *   3071/3078  RsaFunctionSync     tmp
+ *   3084       RsaFunctionSync     mp_read_unsigned_bin behind that ret
+ *   3503/3508  RsaFunctionCheckIn  c
+ *
+ * INIT_MP_INT_SIZE resolves to mp_init_size()/mp_init() on storage the caller
+ * already owns and cannot fail; NEW_MP_INT_SIZE is a real allocation only
+ * under WOLFSSL_SMALL_STACK, and in every other build the NULL guard behind it
+ * is not even compiled. So the failure operand of each of those guards is
+ * never TRUE and the `ret == 0` operand of the guard that follows is never
+ * FALSE. mcdc_fault_mpint.h interposes both macros for this translation unit
+ * (installed BEFORE rsa.c is #included) and, where the build declares the
+ * scratch on the stack, also compiles the NULL guard the SMALL_STACK builds
+ * have. See its header comment for the availability table. */
+#include "mcdc_fault_mpint.h"
+
+/* mp_2expt is called from exactly one place in rsa.c: wc_CompareDiffPQ(), which
+ * _CheckProbablePrime() only calls when its `q` argument is non-NULL -- that is,
+ * from the SECOND (q) prime-search loop of wc_MakeRsaKey and never from the
+ * first (p) one. A ONE-SHOT failure of it is therefore a phase-exact way to put
+ * a rejected candidate into the q loop, which is what 5669 idx0
+ * (`err == MP_OKAY` FALSE at the Fermat check) needs and nothing else can
+ * supply: the loop is entered only after the p search has succeeded, so any
+ * monotone injector fails the p search instead and the q loop is never reached.
+ *
+ * It must be one-shot for a second reason. The q loop overwrites `err` with
+ * WC_CHECK_FOR_INTR_SIGNALS() before re-testing it, so a persistent failure
+ * inside the loop body never terminates it -- the candidate is rejected, err is
+ * reset to 0, and the loop runs again forever. Disarming on the first hit lets
+ * the next candidate succeed and the key generation complete normally. */
+static int mcdc_rsa_2expt_armed = 0;
+
+MCDC_FM_MAYBE_UNUSED static int mcdc_rsa_2expt(mp_int* a, int b)
+{
+    if (mcdc_rsa_2expt_armed) {
+        mcdc_rsa_2expt_armed = 0;
+        return MCDC_FM_ERR;
+    }
+    return mp_2expt(a, b);
+}
+#undef  mp_2expt
+#define mp_2expt(a, b) mcdc_rsa_2expt((a), (b))
+
 #include <wolfcrypt/src/rsa.c>
 
 #include "mcdc_fault_alloc.h"
@@ -729,6 +779,151 @@ static void wb_encryptsize_lower_bound(WC_RNG* rng)
 }
 
 /* ---------------------------------------------------------------------------
+ * SCRATCH-mp_int LIFECYCLE SWEEPS (mcdc_fault_mpint.h)
+ *
+ *   2890 idx0/idx1  (rnd == NULL) || (rndi == NULL)
+ *   2898 idx0/idx1  (INIT(rnd) not MP_OKAY) || (INIT(rndi) not MP_OKAY)
+ *   2968 idx0/idx1  (ret == 0) && INIT(tmpb) not MP_OKAY      (no-blinding)
+ *   2981 idx0       ret == 0 && mp_exptmod(..,tmpb) not MP_OKAY
+ *   3084 idx0       ret == 0 && mp_read_unsigned_bin(tmp,..) not MP_OKAY
+ *   3508 idx0/idx1  ret == 0 && INIT(c) not MP_OKAY
+ *
+ * Each entry point is run DISARMED first: that supplies the accepting half of
+ * every one of those guards IN THIS BINARY and, at the same time, MEASURES how
+ * many lifecycle calls the entry point makes, which is the exact sweep length
+ * (no over-sweep, no wall clock -- the bound is a counted property of the code
+ * under test, so the same source always measures the same).
+ *
+ * Then the fail index is swept over [1..K] in both flavours:
+ *   - monotone (fail from n on): index n drives the failure operand at the n-th
+ *     site and the `ret == 0` operand FALSE at every guard downstream of it;
+ *   - one-shot (fail ONLY n): needed where the monotone arm would null an
+ *     EARLIER pointer of the same guard and short-circuit it -- 2890's
+ *     (rnd == NULL) || (rndi == NULL) is exactly that shape, since the arm that
+ *     nulls rndi also nulls rnd.
+ *
+ * Every armed call is crash-safe: a faulted INIT leaves the object zeroed
+ * (which is what teardown expects) and the caller skips every operation on it,
+ * and a faulted NEW leaves a NULL the caller must test before use.
+ * ------------------------------------------------------------------------ */
+#define WB_FMI_SWEEP(lbl, ...)                                            \
+    do {                                                                  \
+        long k_, i_;                                                      \
+        mcdc_fmi_disarm();                                                \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fmi_init_seen();                                        \
+        for (i_ = 1; i_ <= k_; i_++) {                                    \
+            mcdc_fmi_arm_init(i_);                                        \
+            { __VA_ARGS__; }                                              \
+            mcdc_fmi_disarm();                                            \
+            mcdc_fmi_arm_init_only(i_);                                   \
+            { __VA_ARGS__; }                                              \
+            mcdc_fmi_disarm();                                            \
+        }                                                                 \
+        printf("  [wb] mpint INIT sweep %s: K=%ld\n", (lbl), k_);         \
+        mcdc_fmi_disarm();                                                \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fmi_new_seen();                                         \
+        for (i_ = 1; i_ <= k_; i_++) {                                    \
+            mcdc_fmi_arm_new(i_);                                         \
+            { __VA_ARGS__; }                                              \
+            mcdc_fmi_disarm();                                            \
+            mcdc_fmi_arm_new_only(i_);                                    \
+            { __VA_ARGS__; }                                              \
+            mcdc_fmi_disarm();                                            \
+        }                                                                 \
+        printf("  [wb] mpint NEW  sweep %s: K=%ld\n", (lbl), k_);         \
+        mcdc_fmi_disarm();                                                \
+    } while (0)
+
+static void wb_mpint_lifecycle(RsaKey* key, WC_RNG* rng, const byte* msg,
+                               word32 msgLen, const byte* ct, int ctLen,
+                               const byte* sig, int sigLen)
+{
+    byte o[WB_RSA_BYTES];
+
+    printf("  [wb] mpint lever: INIT %s, NEW %s\n",
+           mcdc_fmi_init_available() ? "armable" : "inert",
+           mcdc_fmi_new_available()  ? "armable" : "inert (heap lever covers "
+                                                   "the small-stack builds)");
+
+    /* RsaFunctionSync public path: tmp NEW + INIT, then 3084's read-in. */
+    XMEMSET(o, 0, sizeof(o));
+    WB_FMI_SWEEP("RsaPublicEncrypt",
+        (void)wc_RsaPublicEncrypt(msg, msgLen, o, sizeof(o), key, rng));
+
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    /* RsaFunctionPrivate: rnd/rndi (blinding builds) or tmpb (2963/2968/2981
+     * in the no-blinding build), reached through RsaFunctionSync's own tmp. */
+    WB_FMI_SWEEP("RsaSSL_Sign",
+        { byte s2[WB_RSA_BYTES];
+          XMEMSET(s2, 0, sizeof(s2));
+          (void)wc_RsaSSL_Sign(msg, msgLen, s2, sizeof(s2), key, rng); });
+
+    /* RsaFunctionCheckIn's c (3503/3508) sits in FRONT of all of the above on
+     * the private-decrypt path, so this sweep covers it and everything the
+     * sign sweep does. */
+    if (ctLen > 0) {
+        WB_FMI_SWEEP("RsaPrivateDecrypt",
+            { byte d2[WB_RSA_BYTES];
+              XMEMSET(d2, 0, sizeof(d2));
+              (void)wc_RsaPrivateDecrypt(ct, (word32)ctLen, d2, sizeof(d2),
+                                         key); });
+    }
+#else
+    (void)ct; (void)ctLen;
+#endif
+
+    /* Public-decrypt path: a second route into RsaFunctionCheckIn, for the
+     * reduced-surface builds that compile out the private one. */
+    if (sigLen > 0) {
+        WB_FMI_SWEEP("RsaSSL_Verify",
+            { byte v2[WB_RSA_BYTES];
+              XMEMSET(v2, 0, sizeof(v2));
+              (void)wc_RsaSSL_Verify(sig, (word32)sigLen, v2, sizeof(v2),
+                                     key); });
+    }
+
+    mcdc_fmi_disarm();
+    WB_NOTE("scratch-mp_int NEW/INIT lifecycle sweeps done");
+}
+
+/* ---------------------------------------------------------------------------
+ * wc_MakeRsaKey 5669 idx0: `err == MP_OKAY` FALSE at the Fermat guard of the
+ * q prime-search loop.
+ *
+ * The q loop is only entered once the p search has already succeeded, so no
+ * monotone injector reaches it -- it fails the p search first and wc_MakeRsaKey
+ * gives up before the loop exists. The one place the two loops differ is that
+ * the q loop passes a non-NULL q to _CheckProbablePrime(), which makes it call
+ * wc_CompareDiffPQ(), the sole caller of mp_2expt() in the file. A one-shot
+ * mp_2expt failure is therefore phase-exact: it rejects the FIRST q candidate
+ * with a non-MP_OKAY err and nothing else in the run is touched. The next
+ * candidate is evaluated normally and the key completes, which is also what
+ * keeps the loop terminating (see the note at the wrapper).
+ *
+ * The reachability of the vector does not depend on the random stream: the
+ * fault fires at a fixed STRUCTURAL point (the first candidate of the q loop),
+ * whichever candidates the entropy happens to produce.
+ * ------------------------------------------------------------------------ */
+static void wb_makekey_qloop_err(WC_RNG* rng)
+{
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    RsaKey mk;
+
+    if (wc_InitRsaKey(&mk, NULL) != 0) { wb_fail = 1; return; }
+    mcdc_rsa_2expt_armed = 1;
+    (void)wc_MakeRsaKey(&mk, WB_RSA_BITS, 65537, rng);
+    mcdc_rsa_2expt_armed = 0;
+    wc_FreeRsaKey(&mk);
+    WB_NOTE("wc_MakeRsaKey q-loop rejected-candidate vector done");
+#else
+    (void)rng;
+    WB_NOTE("KEY_GEN off / PUBLIC_ONLY; q-loop vector skipped");
+#endif
+}
+
+/* ---------------------------------------------------------------------------
  * wc_RsaFunction 3593 idx1 / 3604 idx1: the bounds-check dispatch
  *
  *   if (type == RSA_PRIVATE_DECRYPT && key->state == RSA_STATE_DECRYPT_EXPTMOD)
@@ -878,6 +1073,15 @@ int main(int argc, char** argv)
     wb_priv_zero_crt_components(&key, &rng);
     if (ctLen > 0)
         wb_rsafunction_state_operand(&key, &rng, ct, ctLen);
+
+    /* Scratch-mp_int lifecycle sweeps and the q-loop vector. Counted sweeps,
+     * no wall clock, and every armed call aborts its entry point within a
+     * handful of big-int operations, so they are cheap -- but they still go
+     * BEFORE the deadline-bounded sweeps below, which under RSA_LOW_MEM run
+     * close to the harness limit. */
+    wb_mpint_lifecycle(&key, &rng, msg, (word32)sizeof(msg), ct, ctLen,
+                       sig, (int)sizeof(sig));
+    wb_makekey_qloop_err(&rng);
 
 #ifndef MCDC_FA_UNAVAILABLE
     if (do_probe) {
@@ -1168,6 +1372,7 @@ int main(int argc, char** argv)
     mcdc_fa_disarm();
     mcdc_fa_restore();
     mcdc_fm_disarm();
+    mcdc_fmi_disarm();
     wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
 

@@ -123,6 +123,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/mcdc_fault_alloc.h \
               tests/unit-mcdc/mcdc_fault_hash.h \
               tests/unit-mcdc/mcdc_fault_mp.h \
+              tests/unit-mcdc/mcdc_fault_mpint.h \
               tests/unit-mcdc/mcdc_fault_mutex.h \
               tests/unit-mcdc/mcdc_seed_rng.h \
               tests/unit-mcdc/test_aes_whitebox.c \
