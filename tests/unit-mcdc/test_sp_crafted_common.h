@@ -88,6 +88,105 @@
  *
  * The including TU must have already included the wolfCrypt .c under test
  * (so the file-static curve constants are visible) and ecc.h/dh.h/rsa.h.
+ *
+ * ADDED IN STEP 6
+ * ---------------
+ *  7. sp_ecc_check_key_<n> "quick check the lengs": an operand one bit wider
+ *     than the field, passed as pY and then as privm, gives that chain's
+ *     second, third and fourth operands their true side with the operands
+ *     before them false. (0, 0) gives the point-at-infinity test the only
+ *     vector that makes BOTH of its operands true -- the earlier drivers
+ *     zeroed one ordinate at a time, which leaves the outcome false either
+ *     way. An allocation sweep hugs a check_key with a real private key so
+ *     that the MEMORY_E side of "Check result is public key" is in the SAME
+ *     binary as the wrong-private-key mismatch vector; llvm-cov derives
+ *     independence pairs per binary.
+ *  8. sp_ecc_sign_<n> with a zero private scalar and an all-zero hash.
+ *     s = (e + r*d)/k mod order, so e == 0 and d == 0 make s == 0 on EVERY
+ *     attempt: the "Check that signature is usable" test gets its false
+ *     side and, because no attempt succeeds, the retry loop runs all
+ *     SP_ECC_MAX_SIG_GEN times and leaves `i > 0` false. r is non-zero and
+ *     the iteration count is fixed, so nothing here depends on the RNG.
+ *  9. sp_ecc_verify_<n> with s == the curve order, which hands
+ *     sp_<n>_mod_inv_<w> a == m: u and v start equal, the first outer pass
+ *     takes u -= v to zero, num_bits(0) is 0 and the halving do-while
+ *     leaves on its `ut > 0` operand -- that operand's only vector.
+ *     SKIPPED for P-256 on sp_x86_64.c, see WB_SPC_MODINV_AM_256 below.
+ * 10. sp_ecc_verify_<n> with pZ == 0: the public point is then the Jacobian
+ *     point at infinity and every step of the ladder keeps z == 0, so
+ *     `(err == MP_OKAY) && sp_<n>_iszero_<w>(p2->z)` gets its second
+ *     operand's true side; an allocation sweep over the same entry point
+ *     supplies the first operand's false side in the same binary.
+ * 11. sp_DhExp_<n> over a modulus whose top word is all ones (the shape
+ *     every RFC 7919 FFDHE prime has) with base 2: the all-true vector of
+ *     the base-2 fast-path test, and with it the only entry into
+ *     sp_<n>_mod_exp_2_<w>() and the cpuid dispatch inside it. Only FFDHE
+ *     2048 is a named group in this configuration, so 3072 was never
+ *     reached. A 256-bit exponent (instead of 64-bit) additionally leaves
+ *     words in hand when the windowed loop's bit counter runs out, which is
+ *     the only vector of that loop's `i >= 0` operand.
+ *
+ * NOT REACHABLE -- arguments, mirrored in EXCLUSIONS.md families A-G
+ * -----------------------------------------------------------------
+ *  A. `for (j=0; j<N && x<BITS; j++)` in sp_<n>_ecc_mulmod_stripe_<w>.
+ *     Both bounds are compile-time arithmetic on the comb geometry, not
+ *     data. In the FIRST window loop x starts at the stride and advances by
+ *     stride+1, so it passes the field bit count on the pass BEFORE j
+ *     reaches N: the loop always exits on the x operand and `j < N` is
+ *     never false. In the per-bit loop i runs strictly below the stride, so
+ *     x = i + (N-1)*stride stays under the field bit count for every i the
+ *     loop is entered with: it always exits on `j < N` and the x operand is
+ *     never false.
+ *  B. `for (i=0; i<N && j>=0; i++)` in sp_<n>_to_bin_<w>. j's trajectory is
+ *     data-independent (it depends only on i, the running bit offset s and
+ *     the digit width) and the digit array's total bit width never exceeds
+ *     the byte buffer's, so j is still non-negative at every loop test and
+ *     the loop always exits on `i < N`. Simulated over every compiled
+ *     width: the loop ends with i == N and j == 0 in all of them.
+ *  C. `(err == MP_OKAY) && (!sp_<n>_iszero_<w>(s))` on sp_x86_64.c. That
+ *     backend's sp_<n>_div_<w>() uses fixed stack arrays -- no
+ *     SP_ALLOC_VAR, no XMALLOC -- and ends in `return MP_OKAY;`
+ *     unconditionally, so sp_<n>_calc_s_<w>() cannot fail and err is
+ *     provably MP_OKAY here. The C backends' divider DOES allocate and
+ *     there the same operand is covered.
+ *  D. The inner point-at-infinity test of sp_<n>_add_points_<w>() and the
+ *     cpuid dispatch inside its true branch. Its sole caller is
+ *     sp_<n>_calc_vfy_point_<w>(), which sets `infinity` on either operand
+ *     whose Z is zero before this call. The test is reached only when the
+ *     addition left Z3 = H*Z1*Z2 == 0; with an operand flagged the add's
+ *     mask path copies the other operand's non-zero Z through, or, with
+ *     both flagged, forces r->z[0] |= 1. So Z3 == 0 with neither flagged
+ *     needs H == 0 and Z1, Z2 != 0; H == 0 together with R == 0 would have
+ *     been taken by the "Check double" branch, so R != 0 and
+ *     X3 = R^2 - H^3 - 2*U1*H^2 = R^2, non-zero in a prime field. The first
+ *     operand is false on every reachable vector and the second is never
+ *     evaluated.
+ *  E. `(err == MP_OKAY) && sp_<n>_iszero_<w>(p1->z)`. p1 is the output of
+ *     sp_<n>_ecc_mulmod_base_<w>(), the fixed-base comb. Its accumulator's
+ *     z starts at p<n>_norm_mod and only an addition of a point with its
+ *     own negation can drive it to zero, i.e. a partial comb scalar
+ *     congruent to 0 mod the order. In the stripe comb that partial scalar
+ *     is non-negative and bounded by the scalar itself (< order); in the
+ *     signed-digit add-only comb it is a multiple of 2^(w*i) bounded by
+ *     2^(field+2), while any non-zero multiple of the odd order divisible
+ *     by 2^(w*i) is at least 2^w times the order. Either way it is
+ *     congruent to 0 only when it IS 0, and that is the all-zero-digit
+ *     prefix, which carries infinity = 1 (proj_point_dbl propagates the
+ *     flag; proj_point_add_qz1 ORs 1 into r->z[0] when both operands carry
+ *     it). Measured as well as argued: driving u1 = e/s == 0 with an
+ *     all-zero hash leaves this condition uncovered.
+ *  F. `(err == MP_OKAY) && ((sp_<n>_iszero_<w>(p->x) == 0) || ...)` in
+ *     sp_ecc_check_key_<n>. Reached only after the point was accepted as
+ *     on-curve and [order]P computed with map = 1. P-256, P-384 and P-521
+ *     have cofactor 1 and prime group order n, so every point on the curve
+ *     has order n and [n]P is the point at infinity, which maps to
+ *     x == 0, y == 0. The decision is never true, so neither the iszero
+ *     operands nor the leading err operand has an independence pair.
+ *  G. `while (vt > 0 && (v[0] & 1) == 0);` in sp_<n>_mod_inv_<w>. The loop
+ *     is entered right after v = v - u with u < v and both odd, so v is
+ *     even and non-zero and num_bits(v) >= 2; each pass shifts v right once
+ *     and decrements vt, which is exactly num_bits of the current v and
+ *     stays >= 1 until v is odd and the loop leaves on its second operand.
  */
 
 #ifndef TEST_SP_CRAFTED_COMMON_H

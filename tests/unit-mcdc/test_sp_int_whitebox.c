@@ -454,6 +454,29 @@ static void wb_exptmod_engines(void)
     (void)_sp_exptmod_nct(&b, &e, &m, &r);
 #endif
 
+    /* Base at the FULL digit ceiling. The engines reduce with
+     * sp_mod(b, m, t[0]), and sp_div() rejects a dividend already at
+     * SP_INT_DIGITS words when shifting the divisor to the top of a word
+     * would push the dividend past the ceiling -- which it does whenever
+     * the modulus' bit count is not a multiple of SP_WORD_SIZE. That is the
+     * only false side the reduction's `err == MP_OKAY` checkpoint has: the
+     * engines' own temporaries are sized from the modulus, so no operand
+     * makes the copy or the division overflow instead. The modulus above
+     * has 456 bits, not a multiple of 64, so it qualifies. */
+    wb_fill(&b, (unsigned int)SP_INT_DIGITS, (sp_int_digit)~(sp_int_digit)0);
+#ifdef WB_HAVE_EXPTMOD_EX
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)_sp_exptmod_ex(&b, &e, bits, &m, &r);
+#endif
+#ifdef WB_HAVE_EXPTMOD_MONT_EX
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)_sp_exptmod_mont_ex(&b, &e, bits, &m, &r);
+#endif
+#ifdef WB_HAVE_EXPTMOD_NCT
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)_sp_exptmod_nct(&b, &e, &m, &r);
+#endif
+
     WB_NOTE("internal exptmod engines driven with base >= modulus");
 #else
     WB_NOTE("internal exptmod engines not compiled; skipped");
@@ -758,10 +781,14 @@ static void wb_sp_backend_dispatch_one(int bits)
     /* All operands true: the accelerated routine is selected. */
     (void)sp_exptmod(&b, &e, &m, &r);
 
-    /* Base wider than the modulus: the base-width operand false. */
-    /* Verified to reach the selector with mBits == bits, the modulus odd and
-     * bBits == bits + 1 (i.e. exactly this operand false, all earlier ones
-     * true) - see the residuals note on why llvm-cov still does not pair it. */
+    /* Base wider than the modulus: the base-width operand false. It IS
+     * paired -- the condition left uncovered in this decision is not this
+     * one. llvm-cov numbers a decision's conditions with the operands that
+     * come from MACRO expansions LAST, not in source order, so in
+     * `(mBits == W) && sp_isodd(m) && (bBits <= W) && (eBits <= W)` the
+     * indices are mBits, bBits, eBits, then sp_isodd's two halves. Index 3
+     * is therefore `m->used != 0`, which sp_exptmod_ex() has already
+     * rejected via sp_iszero(m); see EXCLUSIONS.md. */
     if ((wb_pow2(&b, bits) == MP_OKAY) && (sp_add_d(&b, 5, &b) == MP_OKAY)) {
         _sp_init_size(&r, SP_INT_DIGITS);
         (void)sp_exptmod_ex(&b, &e, 1, &m, &r);
@@ -1625,13 +1652,17 @@ static void wb_prime_trial_alloc(void)
     }
 #endif
 
-    /* A prime, so the loop runs every trial to completion. */
-    wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+    /* 2^31 - 1, a genuine prime (checked): the trial loop then runs every
+     * round without breaking, which is the `err == MP_OKAY && *result !=
+     * MP_NO` row both operands' pairs need. The two-word constant the rest
+     * of this file uses as a modulus is NOT prime, so it only ever produced
+     * the break row. */
+    wb_set_d(&a, (sp_int_digit)2147483647UL);
     (void)sp_prime_is_prime(&a, 8, &res);
 
     mcdc_fa_install();
     for (n = 1; n <= 60; n++) {
-        wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+        wb_set_d(&a, (sp_int_digit)2147483647UL);
         mcdc_fa_arm_only(n);
         (void)sp_prime_is_prime(&a, 8, &res);
         mcdc_fa_disarm();
@@ -1640,12 +1671,57 @@ static void wb_prime_trial_alloc(void)
 #ifndef WC_NO_RNG
     haveRng = (wc_InitRng(&rng) == 0);
     if (haveRng) {
-        wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+        wb_set_d(&a, (sp_int_digit)2147483647UL);
         (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
         for (n = 1; n <= 60; n++) {
-            wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+            wb_set_d(&a, (sp_int_digit)2147483647UL);
             mcdc_fa_arm_only(n);
             (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
+            mcdc_fa_disarm();
+        }
+        wc_FreeRng(&rng);
+    }
+#endif
+    mcdc_fa_disarm();
+
+    /* The trial loops called DIRECTLY. Going through sp_prime_is_prime()
+     * puts the argument checks, the small-prime comparison and the trial
+     * division ahead of the loop, so an allocation index that lands inside
+     * sp_prime_miller_rabin() from here would have to be guessed past all
+     * of them. Called directly, the arming starts at the function's own
+     * three ALLOC_SP_INTs and the next allocations are the exponentiation's
+     * -- exactly what the loop's `err != MP_OKAY` operand needs. Both
+     * functions are file-static and in scope because this TU #includes
+     * sp_int.c. */
+    wb_set_d(&a, (sp_int_digit)2147483647UL);
+    (void)_sp_prime_trials(&a, 8, &res);
+    wb_set_d(&a, (sp_int_digit)100160063ULL);
+    (void)_sp_prime_trials(&a, 8, &res);
+    for (n = 1; n <= 30; n++) {
+        wb_set_d(&a, (sp_int_digit)2147483647UL);
+        mcdc_fa_arm_only(n);
+        (void)_sp_prime_trials(&a, 8, &res);
+        mcdc_fa_disarm();
+    }
+#ifndef WC_NO_RNG
+    if (wc_InitRng(&rng) == 0) {
+        wb_set_d(&a, (sp_int_digit)2147483647UL);
+        (void)_sp_prime_random_trials(&a, 8, &res, &rng);
+        wb_set_d(&a, (sp_int_digit)100160063ULL);
+        (void)_sp_prime_random_trials(&a, 8, &res, &rng);
+        /* NOT CLOSED. The deterministic sibling's `err != MP_OKAY` operand
+         * closes on this sweep; this one does not, at any depth tried
+         * (n <= 30, 60, 120). The randomised loop draws a fresh candidate
+         * before every Miller-Rabin round and re-draws rejected ones, so
+         * the index of the round's own allocation is not a fixed offset
+         * from the arming point the way it is in _sp_prime_trials(). A
+         * pinned-seed RNG (mcdc_seed_rng.h) would make it one; it was not
+         * added for a single condition, and the condition is reported open
+         * rather than excluded -- it is not proven unreachable. */
+        for (n = 1; n <= 30; n++) {
+            wb_set_d(&a, (sp_int_digit)2147483647UL);
+            mcdc_fa_arm_only(n);
+            (void)_sp_prime_random_trials(&a, 8, &res, &rng);
             mcdc_fa_disarm();
         }
         wc_FreeRng(&rng);
