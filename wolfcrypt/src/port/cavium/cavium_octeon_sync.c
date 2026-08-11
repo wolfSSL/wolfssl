@@ -52,6 +52,13 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #define NOOPT __attribute__((optimize("O0")))
 
 static int devId = 1234;
@@ -684,6 +691,9 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 }
 
 
+/* Computes the GCM tag into tag, which must be a private buffer of at least
+ * WC_AES_BLOCK_SIZE bytes. Never pass a caller supplied tag pointer here, the
+ * decrypt path must compare rather than overwrite. */
 static NOOPT int Octeon_AesGcm_Finalize(Aes* aes, word32 inSz, word32 aadSz,
         byte* tag)
 {
@@ -728,15 +738,24 @@ static NOOPT int Octeon_AesGcm_Finalize(Aes* aes, word32 inSz, word32 aadSz,
 
 
 static int Octeon_AesGcm_Encrypt(Aes* aes, byte* in, byte* out, word32 inSz,
-        byte* iv, word32 ivSz, byte* aad, word32 aadSz, byte* tag)
+        byte* iv, word32 ivSz, byte* aad, word32 aadSz, byte* tag,
+        word32 tagSz)
 {
-    int ret = 0;
+    int ret;
+    ALIGN16 byte calcTag[WC_AES_BLOCK_SIZE];
 
-    if (aes == NULL)
-        ret = BAD_FUNC_ARG;
+    /* Return before touching any caller owned buffer. Use the same tag size
+     * policy as the software path rather than a local range check, so an
+     * unsupported size is rejected here too. */
+    if (aes == NULL || tag == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ret = wc_local_AesGcmCheckTagSz(tagSz);
+    if (ret != 0) {
+        return ret;
+    }
 
-    if (ret == 0)
-        ret = Octeon_AesGcm_SetKey(aes);
+    ret = Octeon_AesGcm_SetKey(aes);
 
     if (ret == 0)
         ret = Octeon_AesGcm_SetIV(aes, iv, ivSz);
@@ -748,22 +767,40 @@ static int Octeon_AesGcm_Encrypt(Aes* aes, byte* in, byte* out, word32 inSz,
         ret = Octeon_AesGcm_SetEncrypt(aes, in, out, inSz, 1);
 
     if (ret == 0)
-        ret = Octeon_AesGcm_Finalize(aes, inSz, aadSz, tag);
+        ret = Octeon_AesGcm_Finalize(aes, inSz, aadSz, calcTag);
+
+    /* Only tagSz bytes belong to the caller, the tag buffer may be shorter
+     * than a full block. */
+    if (ret == 0)
+        XMEMCPY(tag, calcTag, tagSz);
+
+    ForceZero(calcTag, sizeof(calcTag));
 
     return ret;
 }
 
 
 static int Octeon_AesGcm_Decrypt(Aes* aes, byte* in, byte* out, word32 inSz,
-        byte* iv, word32 ivSz, byte* aad, word32 aadSz, byte* tag)
+        byte* iv, word32 ivSz, byte* aad, word32 aadSz, const byte* tag,
+        word32 tagSz)
 {
-    int ret = 0;
+    int ret;
+    ALIGN16 byte calcTag[WC_AES_BLOCK_SIZE];
 
-    if (aes == NULL)
-        ret = BAD_FUNC_ARG;
+    /* Return before touching any caller owned buffer. The output wipe below
+     * is deliberately conservative: it fires on any failure past this point,
+     * including a setup failure that never wrote to out. Use the same tag
+     * size policy as the software path rather than a local range check, so an
+     * unsupported size is rejected here too. */
+    if (aes == NULL || tag == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ret = wc_local_AesGcmCheckTagSz(tagSz);
+    if (ret != 0) {
+        return ret;
+    }
 
-    if (ret == 0)
-        ret = Octeon_AesGcm_SetKey(aes);
+    ret = Octeon_AesGcm_SetKey(aes);
 
     if (ret == 0)
         ret = Octeon_AesGcm_SetIV(aes, iv, ivSz);
@@ -774,8 +811,18 @@ static int Octeon_AesGcm_Decrypt(Aes* aes, byte* in, byte* out, word32 inSz,
     if (ret == 0)
         ret = Octeon_AesGcm_SetEncrypt(aes, in, out, inSz, 0);
 
+    /* Finalize into a private buffer, the caller's tag is the one the peer
+     * sent and must be compared against, never written to. */
     if (ret == 0)
-        ret = Octeon_AesGcm_Finalize(aes, inSz, aadSz, tag);
+        ret = Octeon_AesGcm_Finalize(aes, inSz, aadSz, calcTag);
+
+    if (ret == 0 && ConstantCompare(tag, calcTag, (int)tagSz) != 0)
+        ret = AES_GCM_AUTH_E;
+
+    if (ret != 0 && out != NULL && inSz > 0)
+        ForceZero(out, inSz);
+
+    ForceZero(calcTag, sizeof(calcTag));
 
     return ret;
 }
@@ -814,7 +861,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->cipher.aesgcm_enc.ivSz,
                     (byte*)info->cipher.aesgcm_enc.authIn,
                     info->cipher.aesgcm_enc.authInSz,
-                    (byte*)info->cipher.aesgcm_enc.authTag);
+                    (byte*)info->cipher.aesgcm_enc.authTag,
+                    info->cipher.aesgcm_enc.authTagSz);
             }
             else {
                 ret = Octeon_AesGcm_Decrypt(
@@ -826,7 +874,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->cipher.aesgcm_dec.ivSz,
                     (byte*)info->cipher.aesgcm_dec.authIn,
                     info->cipher.aesgcm_dec.authInSz,
-                    (byte*)info->cipher.aesgcm_dec.authTag);
+                    info->cipher.aesgcm_dec.authTag,
+                    info->cipher.aesgcm_dec.authTagSz);
             }
         }
     #endif /* HAVE_AESGCM */
