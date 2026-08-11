@@ -151,14 +151,14 @@ static void sp_ecc_point_free(sp_point* p, int clear, void* heap)
 /* If valid pointer then clear point data if requested and free data. */
     if (p != NULL) {
         if (clear != 0) {
-            XMEMSET(p, 0, sizeof(*p));
+            ForceZero(p, sizeof(*p));
         }
         XFREE(p, heap, DYNAMIC_TYPE_ECC);
     }
 #else
 /* Clear point data if requested. */
     if (clear != 0) {
-        XMEMSET(p, 0, sizeof(*p));
+        ForceZero(p, sizeof(*p));
     }
 #endif
     (void)heap;
@@ -1989,11 +1989,11 @@ static int sp_256_ecc_mulmod_10(sp_point* r, const sp_point* g, const sp_digit* 
     }
 
     if (tmp != NULL) {
-        XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 10 * 5);
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 10 * 5);
         XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
     }
     if (td != NULL) {
-        XMEMSET(td, 0, sizeof(sp_point) * 3);
+        ForceZero(td, sizeof(sp_point) * 3);
         XFREE(td, NULL, DYNAMIC_TYPE_ECC);
     }
 
@@ -2092,11 +2092,11 @@ static int sp_256_ecc_mulmod_10(sp_point* r, const sp_point* g, const sp_digit* 
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (tmp != NULL) {
-        XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 10 * 5);
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 10 * 5);
         XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
     }
     if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_point) * 3);
+        ForceZero(t, sizeof(sp_point) * 3);
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
     }
 #else
@@ -2227,11 +2227,11 @@ static int sp_256_ecc_mulmod_fast_10(sp_point* r, const sp_point* g, const sp_di
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (tmp != NULL) {
-        XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 10 * 5);
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 10 * 5);
         XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
     }
     if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_point) * 16);
+        ForceZero(t, sizeof(sp_point) * 16);
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
     }
 #else

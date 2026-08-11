@@ -6031,7 +6031,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         err = mp_set(key->pubkey.z, 1);
     if (err) {
         key->privKey = NULL;
-        XMEMSET(key->keyRaw, 0, sizeof(key->keyRaw));
+        ForceZero(key->keyRaw, sizeof(key->keyRaw));
         return err;
     }
 
