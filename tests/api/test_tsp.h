@@ -76,6 +76,10 @@ int test_wc_TspTstInfo_VerifyWithPKCS7_tsa_name_unsupported(void);
 int test_wc_TspTstInfo_VerifyWithPKCS7_tsa_name_bad_enc(void);
 int test_wc_TspTstInfo_VerifyWithPKCS7_tsa_name_dirname(void);
 int test_wc_TspTstInfo_VerifyWithPKCS7_ecc(void);
+int test_wc_TspTstInfo_VerifyWithPKCS7_other_content(void);
+int test_wc_TspEncodeSigningCertV2(void);
+int test_wc_TspCheckSigningCertAttr(void);
+int test_wc_TspCheckOneSignerInfo(void);
 int test_wc_TspResponse_Verify(void);
 int test_wc_TspResponse_Verify_wrong_cert(void);
 int test_wc_TspResponse_Verify_status(void);
@@ -138,6 +142,10 @@ int test_wc_TspTstInfo_SetFromRequest(void);
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_VerifyWithPKCS7_tsa_name_bad_enc), \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_VerifyWithPKCS7_tsa_name_dirname), \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_VerifyWithPKCS7_ecc),       \
+    TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_VerifyWithPKCS7_other_content), \
+    TEST_DECL_GROUP("tsp", test_wc_TspEncodeSigningCertV2), \
+    TEST_DECL_GROUP("tsp", test_wc_TspCheckSigningCertAttr), \
+    TEST_DECL_GROUP("tsp", test_wc_TspCheckOneSignerInfo), \
     TEST_DECL_GROUP("tsp", test_wc_TspResponse_Verify), \
     TEST_DECL_GROUP("tsp", test_wc_TspResponse_Verify_wrong_cert), \
     TEST_DECL_GROUP("tsp", test_wc_TspResponse_Verify_status), \
