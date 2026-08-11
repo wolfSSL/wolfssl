@@ -434,12 +434,17 @@ static void wb_find_multi_attrib(void)
     ret = FindMultiAttrib(&name, ASN_COMMON_NAME, &idx);
     WB_CHECK(ret == 0, ":28178 2nd operand false (sz>0 but id mismatch)");
 
-    /* idx starting such that *idx+1 < 0 is not reachable through public
-     * callers (always -1 or a valid previous index), but exercise the
-     * "i>=0" operand's false side isn't otherwise reachable: CTC_MAX_ATTRIB
-     * is small and *idx+1 is always >= 0 for any idx >= -1, so the 1st
-     * operand of :28177 is structurally always true here; only its 2nd
-     * operand (i<CTC_MAX_ATTRIB) varies, as driven above. */
+    /* 1st operand ("i >= 0") false side. No production caller can reach it
+     * -- they seed *idx with -1 or with a previous match index, so i = *idx+1
+     * is always >= 0 -- but FindMultiAttrib() is a file-static helper with no
+     * precondition of its own beyond a valid CertName, and the loop bound is
+     * exactly what guards against a negative start. Seeding *idx at -3 makes
+     * i = -2 on entry, the loop body never runs, and i != CTC_MAX_ATTRIB so
+     * *idx is written back unchanged and 0 is returned. */
+    idx = -3;
+    ret = FindMultiAttrib(&name, ASN_ORGUNIT_NAME, &idx);
+    WB_CHECK(ret == 0 && idx == -2,
+            ":28280 1st operand false (negative start index)");
 }
 #else
 static void wb_find_multi_attrib(void)
@@ -547,6 +552,18 @@ static void wb_set_name_ex(void)
         if (out != NULL) {
             ret2 = SetNameEx(out, (word32)ret, &name, NULL);
             WB_CHECK(ret2 == ret, ":28388 full encode matches size query");
+
+            /* output != NULL but outputSz smaller than the encoding ->
+             * "ret==0 && output!=NULL && sz>outputSz" all three true.
+             * Paired with the size-only query above (2nd operand false) and
+             * the exact-size encode (3rd operand false), this completes the
+             * 2nd and 3rd operands of :28491. The 1st operand's false side
+             * would need SetNameRdnItems() to fail on the second pass after
+             * succeeding on the first, which cannot happen for a fixed
+             * CertName, so it is not driven. */
+            ret2 = SetNameEx(out, (word32)ret - 1, &name, NULL);
+            WB_CHECK(ret2 == WC_NO_ERR_TRACE(BUFFER_E),
+                    ":28491 3rd operand true (output buffer one byte short)");
             XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
@@ -719,10 +736,171 @@ static void wb_internal_sign_cb(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E), ":29281 2nd operand false (key==NULL)");
 #endif
 }
+
+/* The rows above pin each `signCtx->key` operand to one value: the RSA and
+ * ECC arms are only ever seen with key==NULL (no real key object was
+ * available) and the Ed25519/Ed448 arms only with key!=NULL. MC/DC is
+ * computed per binary, so each of those four operands still needs its
+ * opposite row *here*. This function supplies them:
+ *   RSA_TYPE / ECC_TYPE with a real key    -> 2nd operand TRUE (block taken)
+ *   ED25519_TYPE / ED448_TYPE with NULL key -> 2nd operand FALSE (fall through)
+ * Reaching the ECC arm at all with keyType != ECC_TYPE also supplies the
+ * ECC arm's 1st-operand-false row.
+ *
+ * The RSA/ECC keys are the fixed DER test keys from certs_test.h, so the
+ * control flow through asn.c is identical on every run. The ECDSA nonce is
+ * drawn from the real RNG, but it only affects the signature bytes, never
+ * which asn.c decision is evaluated.
+ *
+ * MakeSignature()'s own `if (rsaKey || eccKey)` dispatch is driven from the
+ * same fixtures: rsaKey set (1st operand true), eccKey only (1st false / 2nd
+ * true), and no key at all (both false -> ALGO_ID_E). */
+static void wb_internal_sign_cb_real_keys(void)
+{
+    InternalSignCtx signCtx;
+    WC_RNG rng;
+    int rngOk = 0;
+    byte in[32];
+    byte out[512];
+    word32 outLen;
+    int ret;
+
+    WB_NOTE("InternalSignCb()/MakeSignature(): real-key rows for the "
+            "keyType&&key chain [:29384,:29396,:29404,:29411,:29754]");
+
+    XMEMSET(in, 0xAB, sizeof(in));
+    XMEMSET(&signCtx, 0, sizeof(signCtx));
+
+    if (wc_InitRng(&rng) == 0) {
+        rngOk = 1;
+    }
+    else {
+        WB_NOTE("wc_InitRng failed; real-key signing rows skipped");
+    }
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
+    /* ED25519_TYPE with key==NULL -> 2nd operand false, falls through. */
+    signCtx.key = NULL;
+    signCtx.keyType = ED25519_TYPE;
+    outLen = sizeof(out);
+    ret = InternalSignCb(in, sizeof(in), out, &outLen, 0, ED25519_TYPE,
+            &signCtx);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E),
+            ":29404 2nd operand false (key==NULL)");
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
+    signCtx.key = NULL;
+    signCtx.keyType = ED448_TYPE;
+    outLen = sizeof(out);
+    ret = InternalSignCb(in, sizeof(in), out, &outLen, 0, ED448_TYPE,
+            &signCtx);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E),
+            ":29411 2nd operand false (key==NULL)");
+#endif
+
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && defined(USE_CERT_BUFFERS_2048)
+    if (rngOk) {
+        RsaKey rsaKey;
+        word32 idx = 0;
+
+        XMEMSET(&rsaKey, 0, sizeof(rsaKey));
+        if (wc_InitRsaKey(&rsaKey, NULL) == 0) {
+            ret = wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &rsaKey,
+                    (word32)sizeof_client_key_der_2048);
+            WB_CHECK(ret == 0, "decode RSA test key for InternalSignCb");
+            if (ret == 0) {
+                signCtx.key = &rsaKey;
+                signCtx.keyType = RSA_TYPE;
+                signCtx.rng = &rng;
+                outLen = sizeof(out);
+                ret = InternalSignCb(in, sizeof(in), out, &outLen, 0,
+                        RSA_TYPE, &signCtx);
+                WB_CHECK(ret == 0 && outLen > 0,
+                        ":29384 2nd operand true (real RSA sign)");
+
+                /* MakeSignature(): rsaKey non-NULL -> 1st operand true. */
+                {
+                    CertSignCtx certSignCtx;
+                    XMEMSET(&certSignCtx, 0, sizeof(certSignCtx));
+                    ret = MakeSignature(&certSignCtx, in, sizeof(in), out,
+                            sizeof(out), &rsaKey, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, NULL, &rng,
+#ifndef NO_SHA256
+                            CTC_SHA256wRSA,
+#else
+                            CTC_SHAwRSA,
+#endif
+                            NULL);
+                    WB_CHECK(ret > 0, ":29754 1st operand true (rsaKey)");
+                }
+            }
+            wc_FreeRsaKey(&rsaKey);
+        }
+    }
+#endif
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(USE_CERT_BUFFERS_256)
+    if (rngOk) {
+        ecc_key eccKey;
+        word32 idx = 0;
+
+        XMEMSET(&eccKey, 0, sizeof(eccKey));
+        if (wc_ecc_init(&eccKey) == 0) {
+            ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &eccKey,
+                    (word32)sizeof_ecc_key_der_256);
+            WB_CHECK(ret == 0, "decode ECC test key for InternalSignCb");
+            if (ret == 0) {
+                signCtx.key = &eccKey;
+                signCtx.keyType = ECC_TYPE;
+                signCtx.rng = &rng;
+                outLen = sizeof(out);
+                ret = InternalSignCb(in, sizeof(in), out, &outLen, 0,
+                        ECC_TYPE, &signCtx);
+                WB_CHECK(ret == 0 && outLen > 0,
+                        ":29396 both operands true (real ECC sign)");
+
+                /* MakeSignature(): rsaKey NULL, eccKey non-NULL -> 1st
+                 * operand false, 2nd operand true. */
+                {
+                    CertSignCtx certSignCtx;
+                    XMEMSET(&certSignCtx, 0, sizeof(certSignCtx));
+                    ret = MakeSignature(&certSignCtx, in, sizeof(in), out,
+                            sizeof(out), NULL, &eccKey, NULL, NULL, NULL,
+                            NULL, NULL, NULL, NULL, &rng, CTC_SHA256wECDSA,
+                            NULL);
+                    WB_CHECK(ret > 0, ":29754 2nd operand true (eccKey only)");
+                }
+            }
+            wc_ecc_free(&eccKey);
+        }
+    }
+#endif
+
+    /* MakeSignature() with no key at all -> both operands false, falls into
+     * the message-signing chain and ends at ALGO_ID_E. */
+    {
+        CertSignCtx certSignCtx;
+        XMEMSET(&certSignCtx, 0, sizeof(certSignCtx));
+        ret = MakeSignature(&certSignCtx, in, sizeof(in), out, sizeof(out),
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                rngOk ? &rng : NULL, 0, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ALGO_ID_E),
+                ":29754 both operands false (no key)");
+    }
+
+    if (rngOk) {
+        wc_FreeRng(&rng);
+    }
+}
 #else
 static void wb_internal_sign_cb(void)
 {
     WB_NOTE("InternalSignCb (no CERT_GEN/CERT_REQ); skipped");
+}
+static void wb_internal_sign_cb_real_keys(void)
+{
+    WB_NOTE("InternalSignCb real-key rows (no CERT_GEN/CERT_REQ); skipped");
 }
 #endif
 
@@ -1522,6 +1700,64 @@ static void wb_asn1_print(void)
     wb_asn1_print_all(devnull, doc, sizeof(doc), 2, 0, 0, 0, 0, 0,
             wb_oid_name_cb, "PrintObjectIdText(): known OID, show_oid off", 0);
 
+    /* --- DumpHeader()'s "(!show_data) && show_no_text" 1st operand -------- *
+     * The two rows above pair show_no_text on/off but both keep show_data
+     * OFF, so the 1st operand is pinned true. DumpHeader() only runs when
+     * show_header_data is set, so the show_data-ON row has to set BOTH. */
+    wb_asn1_print_all(devnull, doc, sizeof(doc), 2, 0, 1, 1, 0, 1, NULL,
+            ":39484 1st operand false (show_data on, header dump on)", 0);
+
+    /* --- DumpData()'s two 16-byte row loops ------------------------------ *
+     * The document above has no item longer than 4 bytes, so the row loops
+     * always stop on "i + j < len" and "j < 16" is pinned true. A 20-byte
+     * OCTET STRING makes the first row end on j == 16 (1st operand false)
+     * and the second row end on i + j == len (2nd operand false), which is
+     * both operands of both loops in one call. */
+    {
+        static const byte longDoc[] = {
+            0x30, 0x16,
+                  0x04, 0x14,                       /* OCTET STRING, 20 bytes */
+                  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                  0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+                  0x10, 0x11, 0x12, 0x13
+        };
+        wb_asn1_print_all(devnull, longDoc, sizeof(longDoc), 2, 0, 1, 0, 0, 0,
+                NULL, ":39360/:39366 full 16-byte row then short row", 0);
+    }
+
+    /* --- DrawBranch()'s depth chain -------------------------------------- *
+     * The single-level document only ever reaches DrawBranch() at depth 1
+     * with primitive items, so "item.cons" is pinned false and the
+     * "(i > 1) && (end >= end_idx[i-1])" arm is never evaluated (i never
+     * exceeds 0). These two documents add nesting:
+     *   nestDoc  - constructed items *inside* another constructed item, so
+     *              DrawBranch() sees item.cons true at depth >= 1.
+     *   deepDoc  - four levels, with one leaf that ends flush with several
+     *              enclosing ends and one that ends flush with only the
+     *              innermost, so the "(i > 1) && ..." arm is evaluated with
+     *              its 2nd operand both ways. */
+    {
+        static const byte nestDoc[] = {
+            0x30, 0x0A,
+                  0x30, 0x03, 0x02, 0x01, 0x01,     /* SEQ { INTEGER 1 } */
+                  0x30, 0x03, 0x02, 0x01, 0x02      /* SEQ { INTEGER 2 } */
+        };
+        static const byte deepDoc[] = {
+            0x30, 0x13,                              /* A, 19 content bytes */
+                  0x30, 0x08,                        /*  B, 8 content bytes */
+                        0x30, 0x03, 0x02, 0x01, 0x01,/*   C { INT 1 } */
+                        0x02, 0x01, 0x02,            /*   INT 2 (ends B) */
+                  0x30, 0x07,                        /*  D, 7 content bytes */
+                        0x30, 0x05,                  /*   E, 5 content bytes */
+                              0x30, 0x03,            /*    F, 3 content bytes */
+                                    0x02, 0x01, 0x03 /*     INT 3 (ends F,E,D,A) */
+        };
+        wb_asn1_print_all(devnull, nestDoc, sizeof(nestDoc), 0, 1, 0, 0, 0, 0,
+                NULL, ":39425 1st operand true (constructed item at depth)", 0);
+        wb_asn1_print_all(devnull, deepDoc, sizeof(deepDoc), 0, 1, 0, 0, 0, 0,
+                NULL, ":39435 (i>1) arm over a four-level document", 0);
+    }
+
     fclose(devnull);
 
     WB_NOTE("EncodedDottedForm(): NULL-arg OR [~38862] (via PrintObjectIdNum path, "
@@ -1780,6 +2016,130 @@ static void wb_parse_x509_acert(void)
     wb_parse_acert_one("./certs/acert/acert_ietf.pem", VERIFY_SKIP_DATE,
             ":40524 true side (v2Form issuer, issuer_len>0)");
 }
+
+/* wc_ParseX509Acert()'s two date gates
+ *   if (CheckDate(...) < 0) {
+ *       if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE) &&
+ *           (! AsnSkipDateCheck)) { badDate = ...; }
+ *   }
+ * are only *entered* when the attribute certificate's validity period does
+ * not contain "now". Both corpus certs are valid until 2028, so the inner
+ * decision is never evaluated at all and none of its operands can be shown.
+ *
+ * Rather than commit a second, deliberately-expired corpus certificate (which
+ * would itself expire on a schedule), this rewrites the two GeneralizedTime
+ * values in the DER in place: notBefore -> 2999, notAfter -> 1999. Both
+ * CheckDate() calls then fail for every clock, forever. wc_ParseX509Acert()
+ * does not verify the signature, so invalidating it is harmless here.
+ *
+ * The third operand (`! AsnSkipDateCheck`) is a build-level residual: without
+ * WC_ASN_RUNTIME_DATE_CHECK_CONTROL there is no way to set the control, so it
+ * is a constant and has no independence pair in these four variants.
+ *
+ * :40707 (`if (badDate) { if ((verify != NO_VERIFY) && (verify !=
+ * VERIFY_SKIP_DATE)) ... }`) is unreachable in both operands: badDate is only
+ * ever assigned inside the gate above, which already required both of those
+ * comparisons to be true, so neither can be false where badDate is set. */
+static void wb_parse_acert_bad_dates(void)
+{
+    static const char* path = "./certs/acert/acert.pem";
+    byte* pem;
+    long pemSz = 0;
+    DerBuffer* der = NULL;
+    int ret;
+    int patched = 0;
+
+    WB_NOTE("wc_ParseX509Acert(): expired/not-yet-valid date gates "
+            "[:40562,:40576]");
+
+    pem = wb_read_file(path, &pemSz);
+    if (pem == NULL) {
+        WB_NOTE("corpus ACERT PEM not found at runtime cwd; skipping");
+        return;
+    }
+    ret = wc_PemToDer(pem, pemSz, ACERT_TYPE, &der, NULL, NULL, NULL);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != 0 || der == NULL) {
+        WB_CHECK(0, "wc_PemToDer ACERT (bad-date fixture)");
+        if (der != NULL) {
+            FreeDer(&der);
+        }
+        return;
+    }
+
+    /* Find the first two well-formed 15-byte GeneralizedTime values (the
+     * ACINFO validity pair) and rewrite their year fields. */
+    {
+        word32 i;
+        const char* years[2] = { "2999", "1999" };
+
+        for (i = 0; i + 17 <= der->length && patched < 2; i++) {
+            int allDigits = 1;
+            int k;
+
+            if (der->buffer[i] != 0x18 || der->buffer[i + 1] != 0x0F) {
+                continue;
+            }
+            for (k = 0; k < 14; k++) {
+                byte c = der->buffer[i + 2 + k];
+                if (c < '0' || c > '9') {
+                    allDigits = 0;
+                    break;
+                }
+            }
+            if (!allDigits || der->buffer[i + 16] != 'Z') {
+                continue;
+            }
+            XMEMCPY(der->buffer + i + 2, years[patched], 4);
+            patched++;
+            i += 16;
+        }
+    }
+    WB_CHECK(patched == 2, "patched both ACINFO GeneralizedTime years");
+
+    if (patched == 2) {
+        static const int verifyModes[3] = { NO_VERIFY, VERIFY_SKIP_DATE,
+                                            VERIFY };
+        int m;
+
+        for (m = 0; m < 3; m++) {
+            WC_DECLARE_VAR(acert, DecodedAcert, 1, 0);
+#ifdef WOLFSSL_SMALL_STACK
+            acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), NULL,
+                    DYNAMIC_TYPE_DCERT);
+            if (acert == NULL) {
+                WB_CHECK(0, "alloc DecodedAcert (bad-date fixture)");
+                break;
+            }
+#else
+            XMEMSET(acert, 0, sizeof(DecodedAcert));
+#endif
+            wc_InitDecodedAcert(acert, der->buffer, der->length, NULL);
+            ret = wc_ParseX509Acert(acert, verifyModes[m]);
+            /* NO_VERIFY / VERIFY_SKIP_DATE accept the bad dates; the strict
+             * mode reports the notBefore failure. */
+#ifndef NO_ASN_TIME
+            if (verifyModes[m] == VERIFY) {
+                WB_CHECK(ret != 0, ":40562/:40576 all operands true (strict)");
+            }
+            else
+#endif
+            {
+                /* With NO_ASN_TIME there is no clock, CheckDate() is a
+                 * no-op and every mode accepts the patched dates -- the
+                 * decision is simply never entered in that variant. */
+                WB_CHECK(ret == 0,
+                        ":40562/:40576 1st or 2nd operand false (lenient)");
+            }
+            wc_FreeDecodedAcert(acert);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+        }
+    }
+
+    FreeDer(&der);
+}
 #else
 static void wb_decode_holder_issuer_guards(void)
 {
@@ -1792,6 +2152,10 @@ static void wb_verify_x509_acert_bad_args(void)
 static void wb_parse_x509_acert(void)
 {
     WB_NOTE("wc_ParseX509Acert (no WOLFSSL_ACERT); skipped");
+}
+static void wb_parse_acert_bad_dates(void)
+{
+    WB_NOTE("wc_ParseX509Acert bad-date gates (no WOLFSSL_ACERT); skipped");
 }
 #endif
 
@@ -1921,8 +2285,193 @@ static void wb_encrypted_info_parse_guards(void)
 }
 #endif
 
+/* ========================================================================
+ * SECTION V: MakeAnyCert()/MakeCertReq() error-propagation guards.
+ *
+ * Both encoders are written as a chain of "if (ret == 0/ret >= 0) && ..."
+ * steps. tests/api only ever calls them with a correct key and an ample
+ * output buffer, so the FIRST operand of every step in the chain is pinned
+ * true and the buffer-size operands are pinned false. Two calls per encoder
+ * unpin them:
+ *
+ *   (i)  no key at all      -> the key-type dispatch sets BAD_FUNC_ARG at the
+ *                              very top, so every later step sees ret != 0:
+ *                              :30119, :30301, :30320, :30353 / :30747 first
+ *                              operands false.
+ *   (ii) one-byte output    -> the size check itself fires
+ *                              (:30301 / :30747 second operand true) and the
+ *                              remaining steps then see ret != 0:
+ *                              :30750, :30768, :30779 first operands false.
+ *
+ * A third certificate-request call with an extension present flips
+ * :30779's extension-noOut operand.
+ *
+ * NOT driven: :30320's `sbjRawLen == 0` false side needs wc_SetSubjectRaw()
+ * to have cached a decoded subject, which is a separate feature path, and
+ * :30119's `cert->serialSz == 0` false side is already covered by the
+ * explicit-serial API tests.
+ * ===================================================================== */
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(NO_RSA) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(USE_CERT_BUFFERS_2048)
+static void wb_make_cert_buffer_guards(void)
+{
+    Cert*   cert;
+    RsaKey  key;
+    WC_RNG  rng;
+    byte*   der;
+    const word32 DERSZ = 4096;
+    int     rngOk = 0, keyOk = 0;
+    word32  idx;
+    int     ret;
+
+    WB_NOTE("MakeAnyCert()/MakeCertReq(): ret-propagation + output-size "
+            "guards [:30119,:30301,:30320,:30353,:30747,:30750,:30768,:30779]");
+
+    cert = (Cert*)XMALLOC(sizeof(Cert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der  = (byte*)XMALLOC(DERSZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL || der == NULL) {
+        WB_NOTE("allocation failed; section skipped");
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return;
+    }
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) == 0) {
+        rngOk = 1;
+    }
+    if (wc_InitRsaKey(&key, NULL) == 0) {
+        keyOk = 1;
+        idx = 0;
+        if (wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+                (word32)sizeof_client_key_der_2048) != 0) {
+            wc_FreeRsaKey(&key);
+            keyOk = 0;
+        }
+    }
+
+    if (rngOk && keyOk) {
+        /* (i) no key of any kind -> BAD_FUNC_ARG from the key-type dispatch,
+         * carried through the rest of the chain. */
+        wc_InitCert(cert);
+        XSTRNCPY(cert->subject.commonName, "mcdc-nokey", CTC_NAME_SIZE - 1);
+        cert->subject.commonNameEnc = CTC_UTF8;
+        cert->sigType = CTC_SHA256wRSA;
+        ret = MakeAnyCert(cert, der, DERSZ, NULL, NULL, &rng, NULL, NULL,
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                ":30119/:30301/:30320/:30353 1st operands false (no key)");
+
+        /* Accepting baseline: a real certificate with an ample buffer. The
+         * key-usage extension is requested so that the TBS extension
+         * SEQUENCE is emitted (noOut clear) -- that is :30353's true row,
+         * whose partner is the no-key row above. */
+        wc_InitCert(cert);
+        XSTRNCPY(cert->subject.commonName, "mcdc-cert", CTC_NAME_SIZE - 1);
+        cert->subject.commonNameEnc = CTC_UTF8;
+        cert->sigType = CTC_SHA256wRSA;
+        cert->selfSigned = 1;
+#ifdef WOLFSSL_CERT_EXT
+        cert->keyUsage = KEYUSE_DIGITAL_SIG | KEYUSE_KEY_ENCIPHER;
+#endif
+        ret = wc_MakeCert(cert, der, DERSZ, &key, NULL, &rng);
+        WB_CHECK(ret > 0,
+                ":30301 2nd operand false / :30353 both operands true");
+
+#ifdef WOLFSSL_CERT_EXT
+        /* A cached raw subject makes sbjRawLen non-zero, which is :30320's
+         * 2nd-operand-false row (its true row is every other call here). */
+        wc_InitCert(cert);
+        cert->sigType = CTC_SHA256wRSA;
+        cert->selfSigned = 1;
+        ret = wc_SetSubjectRaw(cert, client_cert_der_2048,
+                (int)sizeof_client_cert_der_2048);
+        if (ret >= 0) {
+            ret = wc_MakeCert(cert, der, DERSZ, &key, NULL, &rng);
+            WB_CHECK(ret > 0, ":30320 2nd operand false (raw subject cached)");
+        }
+        else {
+            WB_NOTE("wc_SetSubjectRaw failed; :30320 raw-subject row skipped");
+        }
+#endif
+
+        /* (ii) same certificate into a one-byte buffer -> the size check
+         * fires and every later step sees ret != 0. */
+        wc_InitCert(cert);
+        XSTRNCPY(cert->subject.commonName, "mcdc-cert", CTC_NAME_SIZE - 1);
+        cert->subject.commonNameEnc = CTC_UTF8;
+        cert->sigType = CTC_SHA256wRSA;
+        cert->selfSigned = 1;
+        ret = wc_MakeCert(cert, der, 1, &key, NULL, &rng);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                ":30301 2nd operand true (buffer one byte)");
+
+#ifdef WOLFSSL_CERT_REQ
+        /* --- the certificate-request encoder, same three shapes ---------- */
+        wc_InitCert(cert);
+        XSTRNCPY(cert->subject.commonName, "mcdc-req", CTC_NAME_SIZE - 1);
+        cert->subject.commonNameEnc = CTC_UTF8;
+        cert->sigType = CTC_SHA256wRSA;
+        ret = MakeCertReq(cert, der, DERSZ, NULL, NULL, NULL, NULL, NULL,
+                NULL, NULL, NULL, NULL, NULL, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                ":30747 1st operand false (no key)");
+
+        wc_InitCert(cert);
+        XSTRNCPY(cert->subject.commonName, "mcdc-req", CTC_NAME_SIZE - 1);
+        cert->subject.commonNameEnc = CTC_UTF8;
+        cert->sigType = CTC_SHA256wRSA;
+        ret = wc_MakeCertReq(cert, der, DERSZ, &key, NULL);
+        WB_CHECK(ret > 0, ":30747 2nd operand false (no extensions, ample buffer)");
+
+        wc_InitCert(cert);
+        XSTRNCPY(cert->subject.commonName, "mcdc-req", CTC_NAME_SIZE - 1);
+        cert->subject.commonNameEnc = CTC_UTF8;
+        cert->sigType = CTC_SHA256wRSA;
+        ret = wc_MakeCertReq(cert, der, 1, &key, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                ":30747 2nd operand true / :30750,:30768,:30779 1st operands false");
+
+#ifdef WOLFSSL_CERT_EXT
+        /* An extension present -> the request body carries the attribute
+         * SEQUENCE, so :30779's extension-noOut operand flips. */
+        wc_InitCert(cert);
+        XSTRNCPY(cert->subject.commonName, "mcdc-req-ext", CTC_NAME_SIZE - 1);
+        cert->subject.commonNameEnc = CTC_UTF8;
+        cert->sigType = CTC_SHA256wRSA;
+        cert->keyUsage = KEYUSE_DIGITAL_SIG | KEYUSE_KEY_ENCIPHER;
+        ret = wc_MakeCertReq(cert, der, DERSZ, &key, NULL);
+        WB_CHECK(ret > 0, ":30779 3rd operand true (request carries extensions)");
+#endif
+#endif /* WOLFSSL_CERT_REQ */
+    }
+    else {
+        WB_NOTE("RNG/RSA key setup failed; MakeAnyCert section skipped");
+    }
+
+    if (keyOk) {
+        wc_FreeRsaKey(&key);
+    }
+    if (rngOk) {
+        wc_FreeRng(&rng);
+    }
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+}
+#else
+static void wb_make_cert_buffer_guards(void)
+{
+    WB_NOTE("CERT_GEN/RSA/SHA256/ASN-time/cert-buffers gating; "
+            "MakeAnyCert buffer guards skipped");
+}
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("asn.c certgen white-box MC/DC supplement\n");
 
     wb_rsa_key_to_der();
@@ -1935,6 +2484,7 @@ int main(void)
     wb_set_name_ex();
     wb_encode_extensions();
     wb_internal_sign_cb();
+    wb_internal_sign_cb_real_keys();
     wb_add_signature();
     wb_make_signature_cb();
     wb_get_subject_raw();
@@ -1952,9 +2502,11 @@ int main(void)
     wb_decode_holder_issuer_guards();
     wb_verify_x509_acert_bad_args();
     wb_parse_x509_acert();
+    wb_parse_acert_bad_dates();
 
     wb_pem_to_der_guards();
     wb_encrypted_info_parse_guards();
+    wb_make_cert_buffer_guards();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage

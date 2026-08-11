@@ -1114,6 +1114,195 @@ static void wb_pem_to_der_entry_points(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
+ * Section 18b: the *remaining* PEM<->DER entry guards, each rejection vector
+ * paired with its accepting vector in this same binary.
+ *
+ *   :26008  wc_DerToPemEx()  if (!output && outSz == 0)
+ *   :26020  wc_DerToPemEx()  if (!der || !output)
+ *   :26559  wc_PemToDer()    if (ret == 0 && type == PRIVATEKEY_TYPE)
+ *   :26652  wc_CertPemToDer() 5-operand "not an accepted cert type" AND-chain
+ *   :26394  PemToDer()       (header==BEGIN_PRIV_KEY || header==BEGIN_EC_PRIV)
+ *                            && !encrypted_key       -- 3rd operand
+ *
+ * Section 18 above already drives wc_PemToDer()/wc_KeyPemToDer()/
+ * wc_PubKeyPemToDer(); these are the decisions it does not reach because it
+ * never calls wc_DerToPemEx() with a null output and a non-zero size, never
+ * asks wc_PemToDer() for a non-PRIVATEKEY_TYPE, never calls wc_CertPemToDer()
+ * at all, and never hands PemToDer() an *encrypted* EC private key.
+ *
+ * Reasoning recorded for the operands deliberately NOT attempted here:
+ *   :26020 has no third state -- both operands are driven below.
+ *   :26362 (`neededSz > (long)sz`) is unreachable: neededSz is
+ *     footerEnd-headerEnd with both pointers inside buff[0..sz), so it can
+ *     never exceed sz; only the `neededSz <= 0` operand is satisfiable.
+ *   :26183 (`(type == CRL_TYPE) && (header != BEGIN_X509_CRL)`) is a dead
+ *     arm: wc_PemGetHeaderFooter(CRL_TYPE) always yields BEGIN_X509_CRL and
+ *     nothing in the retry loop reassigns `header` while `type` is still
+ *     CRL_TYPE, so the 2nd operand is false on every evaluation and the
+ *     decision can never be true.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_PEM_TO_DER) && defined(WOLFSSL_DER_TO_PEM) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+static void wb_pem_der_remaining_guards(void)
+{
+    byte* pem = NULL;
+    byte* out = NULL;
+    DerBuffer* der = NULL;
+    int pemSz, ret;
+    const int PEMBUF = 8192;
+
+    WB_NOTE("wc_DerToPemEx()/wc_PemToDer()/wc_CertPemToDer(): remaining "
+            "entry guards [:26008,:26020,:26559,:26652,:26394]");
+
+    pem = (byte*)XMALLOC((word32)PEMBUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    out = (byte*)XMALLOC((word32)PEMBUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL || out == NULL) {
+        WB_NOTE("allocation failed; section skipped");
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return;
+    }
+
+    /* --- wc_DerToPemEx() :26008 / :26020 ---------------------------------
+     * a) output != NULL, outSz > 0  -> :26008 1st operand false (accepting
+     *    vector), :26020 both operands false.
+     * b) output == NULL, outSz == 0 -> :26008 both true (size query).
+     * c) output == NULL, outSz != 0 -> :26008 1st true / 2nd FALSE, so the
+     *    size query is skipped and control reaches :26020 with der != NULL
+     *    and output == NULL: :26020 1st operand false, 2nd operand TRUE.
+     * d) der == NULL, output != NULL -> :26020 1st operand TRUE. outSz is
+     *    non-zero so the :26008 size query is skipped. */
+    pemSz = wc_DerToPem(client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048, pem, (word32)PEMBUF,
+            CERT_TYPE);                                              /* (a) */
+    WB_CHECK(pemSz > 0, ":26008/:26020 accepting vector (real conversion)");
+
+    ret = wc_DerToPem(client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048, NULL, 0, CERT_TYPE);/* (b) */
+    WB_CHECK(ret > 0, ":26008 both operands true (size query)");
+
+    ret = wc_DerToPem(client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048, NULL, (word32)PEMBUF,
+            CERT_TYPE);                                              /* (c) */
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+            ":26008 2nd operand false / :26020 2nd operand true (output==NULL)");
+
+    ret = wc_DerToPem(NULL, (word32)sizeof_client_cert_der_2048, out,
+            (word32)PEMBUF, CERT_TYPE);                              /* (d) */
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+            ":26020 1st operand true (der==NULL)");
+
+    /* --- wc_PemToDer() :26559 --------------------------------------------
+     * The PKCS#8-header-strip block only runs for PRIVATEKEY_TYPE and only
+     * when PemToDer() itself succeeded.
+     *   ret==0, type==PRIVATEKEY_TYPE   -> both operands true
+     *   ret==0, type==CERT_TYPE         -> 2nd operand FALSE
+     *   ret!=0 (junk PEM)               -> 1st operand FALSE                */
+    if (pemSz > 0) {
+        ret = wc_PemToDer(pem, (long)pemSz, CERT_TYPE, &der, NULL, NULL, NULL);
+        WB_CHECK(ret == 0 && der != NULL, ":26559 2nd operand false (CERT_TYPE)");
+        FreeDer(&der);
+        der = NULL;
+    }
+    pemSz = wc_DerToPem(client_key_der_2048,
+            (word32)sizeof_client_key_der_2048, pem, (word32)PEMBUF,
+            PRIVATEKEY_TYPE);
+    if (pemSz > 0) {
+        ret = wc_PemToDer(pem, (long)pemSz, PRIVATEKEY_TYPE, &der, NULL, NULL,
+                NULL);
+        WB_CHECK(ret == 0 && der != NULL, ":26559 both operands true");
+        FreeDer(&der);
+        der = NULL;
+    }
+    {
+        static const char junkPem2[] =
+            "-----BEGIN RSA PRIVATE KEY-----\n"
+            "!!!! not base64 !!!!\n"
+            "-----END RSA PRIVATE KEY-----\n";
+        ret = wc_PemToDer((const unsigned char*)junkPem2,
+                (long)sizeof(junkPem2) - 1, PRIVATEKEY_TYPE, &der, NULL, NULL,
+                NULL);
+        WB_CHECK(ret != 0, ":26559 1st operand false (PemToDer failed)");
+        if (der != NULL) {
+            FreeDer(&der);
+            der = NULL;
+        }
+    }
+
+    /* --- wc_CertPemToDer() :26652 ---------------------------------------- *
+     * if (type != CERT_TYPE && type != CHAIN_CERT_TYPE && type != CA_TYPE &&
+     *     type != CERTREQ_TYPE && type != PKCS7_TYPE)
+     * For a 5-operand AND chain each operand's independence pair is
+     * "all five true" (the rejecting vector) against "this operand false"
+     * (which short-circuits to the accepting side). One accepted type per
+     * operand plus one rejected type completes all five rows. Whether the
+     * subsequent PemToDer() succeeds is irrelevant to this guard, so the
+     * return value is only checked for the bad-type row. */
+    pemSz = wc_DerToPem(client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048, pem, (word32)PEMBUF,
+            CERT_TYPE);
+    if (pemSz > 0) {
+        /* All five operands TRUE -> rejected. PRIVATEKEY_TYPE is none of
+         * the five accepted cert types. */
+        ret = wc_CertPemToDer(pem, pemSz, out, PEMBUF, PRIVATEKEY_TYPE);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                ":26652 all five operands true (bad type rejected)");
+
+        /* One accepting row per operand. */
+        ret = wc_CertPemToDer(pem, pemSz, out, PEMBUF, CERT_TYPE);
+        WB_CHECK(ret > 0, ":26652 1st operand false (CERT_TYPE)");
+        (void)wc_CertPemToDer(pem, pemSz, out, PEMBUF, CHAIN_CERT_TYPE);
+        (void)wc_CertPemToDer(pem, pemSz, out, PEMBUF, CA_TYPE);
+#ifdef WOLFSSL_CERT_REQ
+        (void)wc_CertPemToDer(pem, pemSz, out, PEMBUF, CERTREQ_TYPE);
+#endif
+        (void)wc_CertPemToDer(pem, pemSz, out, PEMBUF, PKCS7_TYPE);
+    }
+
+    /* --- PemToDer() :26394 3rd operand ------------------------------------
+     * (header == BEGIN_PRIV_KEY || header == BEGIN_EC_PRIV) && !encrypted_key
+     * Section 18 supplies the "unencrypted EC/PKCS#8 private key" rows, which
+     * leave the 3rd operand always TRUE. An EC PRIVATE KEY PEM carrying
+     * Proc-Type/DEK-Info sets info->set (encrypted_key = 1) while `header`
+     * is still BEGIN_EC_PRIV, giving the 3rd operand's FALSE row with the
+     * OR group still true. The body is deliberately short: the decision is
+     * evaluated straight after Base64 decoding and before any decryption, so
+     * the later decrypt failing does not matter. */
+#if defined(HAVE_ECC) && defined(WOLFSSL_ENCRYPTED_KEYS)
+    {
+        static const char pemEncEcPriv[] =
+            "-----BEGIN EC PRIVATE KEY-----\n"
+            "Proc-Type: 4,ENCRYPTED\n"
+            "DEK-Info: AES-128-CBC,0123456789ABCDEF0123456789ABCDEF\n"
+            "\n"
+            "AAECAwQFBgcICQoLDA0ODwABAgMEBQYHCAkKCwwNDg8=\n"
+            "-----END EC PRIVATE KEY-----\n";
+        EncryptedInfo info;
+        DerBuffer* d = NULL;
+
+        XMEMSET(&info, 0, sizeof(info));
+        info.passwd_cb = KeyPemToDerPassCb;
+        info.passwd_userdata = (void*)"password";
+        (void)PemToDer((const unsigned char*)pemEncEcPriv,
+                (long)XSTRLEN(pemEncEcPriv), PRIVATEKEY_TYPE, &d, NULL, &info,
+                NULL);
+        if (d != NULL) {
+            FreeDer(&d);
+        }
+    }
+#endif
+
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+}
+#else
+static void wb_pem_der_remaining_guards(void)
+{
+    WB_NOTE("PEM<->DER/cert buffers not available; remaining guards skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
  * Section 19: ParseKeyUsageStr() (:28135) / ParseExtKeyUsageStr() (:28198).
  *   if (value == NULL || keyUsage == NULL)    return BAD_FUNC_ARG;
  *   if (value == NULL || extKeyUsage == NULL) return BAD_FUNC_ARG;
@@ -2149,6 +2338,7 @@ int main(void)
     wb_get_pubkey_der_from_cert_null_args();
     wb_encrypted_info_get_null_args();
     wb_pem_to_der_entry_points();
+    wb_pem_der_remaining_guards();
     wb_parse_key_usage_str_null_args();
     wb_cert_file_setters_null_args();
     wb_set_keyid_from_pubkey_operands();

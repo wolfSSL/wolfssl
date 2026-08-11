@@ -1003,6 +1003,30 @@ static void wb_dh_public_key_decode(void)
             sizeof_dh_pub_key_der_2048);
     WB_CHECK(ret == 0, "valid DH public key (oid==DHk, both operands false)");
     wc_FreeDhKey(&key);
+
+    /* 1st operand TRUE: a well-formed SEQUENCE { SEQUENCE { OID } } whose
+     * algorithm OID parses cleanly but is rsaEncryption, not dhKeyAgreement.
+     * GetObjectId() succeeds (ret >= 0) so the OR is decided entirely by
+     * oid != DHk.
+     *
+     * The 2nd operand (`ret < 0`) has no satisfiable independence pair:
+     * GetObjectId() leaves `oid` at its initialiser 0 on every failure and
+     * DHk is non-zero, so a failing GetObjectId() always makes the 1st
+     * operand true first and short-circuits before `ret < 0` is evaluated. */
+    {
+        static const byte seqRsaOid[] = {
+            0x30, 0x0F,             /* SEQUENCE (outer) */
+              0x30, 0x0D,           /* SEQUENCE (AlgorithmIdentifier) */
+                0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01,
+                0x01,               /* OID rsaEncryption */
+                0x05, 0x00          /* NULL */
+        };
+        (void)wc_InitDhKey(&key);
+        idx = 0;
+        ret = wc_DhPublicKeyDecode(seqRsaOid, &idx, &key, sizeof(seqRsaOid));
+        WB_CHECK(ret != 0, ":11907 1st operand true (oid != DHk)");
+        wc_FreeDhKey(&key);
+    }
 }
 
 static void wb_dh_key_decode(void)
@@ -1432,8 +1456,136 @@ static void wb_store_ecc_dsa_sig(void)
 
     mp_clear(&r); mp_clear(&s);
 }
+
+/* StoreECC_DSA_Sig_Bin() has the same "ret==0 && *outLen < sz" shape but a
+ * different call site, so its own operand rows have to be issued here.
+ * DecodeECC_DSA_Sig_Ex() adds the strict trailing-length check.
+ *
+ * NOTE on the 1st operands of the two "ret == 0 && ..." size checks: ret is
+ * the result of SizeASN_Items() over a two-INTEGER template whose operands
+ * are caller-supplied buffers, which cannot fail here, so only their 2nd
+ * operands are driven. */
+static void wb_store_decode_ecc_dsa_sig_bin(void)
+{
+    static const byte rBin[] = { 0x01, 0x02, 0x03, 0x04 };
+    static const byte sBin[] = { 0x05, 0x06, 0x07, 0x08 };
+    byte out[64];
+    word32 outLen;
+    int ret;
+
+    WB_NOTE("StoreECC_DSA_Sig_Bin(): ret==0 && *outLen<sz -- 2nd operand "
+            "both ways [:32880]");
+    outLen = sizeof(out);
+    ret = StoreECC_DSA_Sig_Bin(out, &outLen, rBin, (word32)sizeof(rBin), sBin,
+            (word32)sizeof(sBin));
+    WB_CHECK(ret == 0 && outLen > 0, "buffer big enough (2nd operand false)");
+
+    {
+        word32 encSz = outLen;
+        word32 smallLen = 1;
+        byte small[64];
+
+        ret = StoreECC_DSA_Sig_Bin(small, &smallLen, rBin,
+                (word32)sizeof(rBin), sBin, (word32)sizeof(sBin));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "buffer too small (2nd operand true)");
+
+        WB_NOTE("DecodeECC_DSA_Sig_Ex(): ret==0 && idx!=sigLen [:32947]");
+        {
+            mp_int dr, ds;
+            byte padded[80];
+
+            /* DecodeECC_DSA_Sig() initialises r/s itself (init==1) and
+             * clears them on every failure, so the test only clears after a
+             * successful decode. */
+
+            /* (T,F): a well-formed signature consumed exactly. */
+            XMEMSET(&dr, 0, sizeof(dr)); XMEMSET(&ds, 0, sizeof(ds));
+            ret = DecodeECC_DSA_Sig(out, encSz, &dr, &ds);
+            WB_CHECK(ret == 0, ":32947 both operands false (exact length)");
+            if (ret == 0) {
+                mp_clear(&dr); mp_clear(&ds);
+            }
+
+            /* (T,T): same signature, but one trailing byte is included in
+             * sigLen, so the parse succeeds and idx stops short of sigLen. */
+            XMEMSET(&dr, 0, sizeof(dr)); XMEMSET(&ds, 0, sizeof(ds));
+            XMEMCPY(padded, out, (size_t)encSz);
+            padded[encSz] = 0x00;
+            ret = DecodeECC_DSA_Sig(padded, encSz + 1, &dr, &ds);
+            WB_CHECK(ret != 0, ":32947 2nd operand true (trailing byte)");
+            if (ret == 0) {
+                mp_clear(&dr); mp_clear(&ds);
+            }
+
+            /* (F,-): template match fails outright, so the strict-length
+             * check's 1st operand is false. */
+            {
+                static const byte bogusSig[] = { 0x30, 0x02, 0xFF, 0xFF };
+                XMEMSET(&dr, 0, sizeof(dr)); XMEMSET(&ds, 0, sizeof(ds));
+                ret = DecodeECC_DSA_Sig(bogusSig, (word32)sizeof(bogusSig),
+                        &dr, &ds);
+                WB_CHECK(ret != 0, ":32947 1st operand false (parse failed)");
+                if (ret == 0) {
+                    mp_clear(&dr); mp_clear(&ds);
+                }
+            }
+        }
+    }
+}
 #else
 static void wb_store_ecc_dsa_sig(void) { WB_NOTE("ECC/DSA+template off; StoreECC_DSA_Sig skipped"); }
+static void wb_store_decode_ecc_dsa_sig_bin(void)
+{
+    WB_NOTE("ECC/DSA+template off; StoreECC_DSA_Sig_Bin/DecodeECC_DSA_Sig skipped");
+}
+#endif
+
+/* ========================================================================
+ * Section B2c: CheckCurve() -- (ret < 0) || (oidSz == 0)  [:7368].
+ *
+ * 1st operand true: an OID sum that maps to no ECC curve, so
+ * wc_ecc_get_oid() returns a negative error.
+ * Both false: a real named curve.
+ * The 2nd operand (`oidSz == 0`) has no satisfiable pair in this build --
+ * every entry of ecc_sets[] that wc_ecc_get_oid() can return successfully
+ * carries a non-zero oidSz, so oidSz == 0 is only ever reachable together
+ * with ret < 0, which short-circuits first.
+ * ===================================================================== */
+#ifdef HAVE_ECC
+static void wb_check_curve(void)
+{
+    int ret;
+
+    WB_NOTE("CheckCurve(): (ret<0)||(oidSz==0) [:7368]");
+
+    ret = CheckCurve(0);
+    WB_CHECK(ret < 0, ":7368 1st operand true (unknown curve OID sum)");
+
+    /* ECC_SECP256R1's OID sum: look it up through the same table the
+     * production code uses so this stays correct across curve-table edits. */
+    {
+        word32 sum = 0;
+        int idx;
+        for (idx = 0; ecc_sets[idx].size != 0 && ecc_sets[idx].name != NULL;
+                idx++) {
+            if (ecc_sets[idx].oidSum != 0) {
+                sum = ecc_sets[idx].oidSum;
+                break;
+            }
+        }
+        if (sum != 0) {
+            ret = CheckCurve(sum);
+            WB_CHECK(ret >= 0, ":7368 both operands false (known curve)");
+        }
+        else {
+            WB_NOTE("no named curve with an OID sum compiled in; "
+                    ":7368 accepting row skipped");
+        }
+    }
+}
+#else
+static void wb_check_curve(void) { WB_NOTE("HAVE_ECC off; CheckCurve skipped"); }
 #endif
 
 /* ========================================================================
@@ -1854,6 +2006,30 @@ static void wb_decode_asym_key_roundtrip(void)
     ret = DecodeAsymKey(der, &idx, (word32)derLen, outPriv, &outPrivLen,
             outPub, &outPubLen, keyType);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "pubKeyLen buffer too small (true)");
+
+    /* --- the "ret == 0" and "pubKeyLen != NULL" operands of the same three
+     * checks. The rows above only ever reach them with a successful
+     * DecodeAsymKey_Assign() and a non-NULL pubKeyLen, so both operands are
+     * pinned true there.
+     *   :34034 1st operand FALSE and :34037 1st operand FALSE: a malformed
+     *     encoding makes DecodeAsymKey_Assign() fail before either size
+     *     check.
+     *   :34037 2nd operand FALSE: the pubKey/pubKeyLen pair is optional --
+     *     wc_Ed25519PrivateKeyDecode()-style callers pass NULL for both. */
+    {
+        static const byte bogusKey[] = { 0x30, 0x02, 0xFF, 0xFF };
+        outPrivLen = sizeof(outPriv); outPubLen = sizeof(outPub);
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKey(bogusKey, &idx, (word32)sizeof(bogusKey), outPriv,
+                &outPrivLen, outPub, &outPubLen, keyType);
+        WB_CHECK(ret != 0, ":34034/:34037 1st operand false (decode failed)");
+
+        outPrivLen = sizeof(outPriv);
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKey(der, &idx, (word32)derLen, outPriv, &outPrivLen,
+                NULL, NULL, keyType);
+        WB_CHECK(ret == 0, ":34037 2nd operand false (pubKeyLen==NULL)");
+    }
 }
 
 /* DecodeAsymKeyPublic_Assign()/DecodeAsymKeyPublic() via SetAsymKeyDerPublic()
@@ -1937,6 +2113,24 @@ static void wb_decode_asym_key_public_roundtrip(void)
     ret = DecodeAsymKeyPublic(der, &idx, (word32)derLen, outPub, &outPubLen,
             keyType);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "buffer too small (true)");
+
+    /* 1st operand of the same size check: a malformed encoding makes
+     * DecodeAsymKeyPublic_Assign() fail, so `ret == 0` is false [:34168].
+     *
+     * The neighbouring "all the buffer was used" check
+     * (`(ret == 0) && (GetASNItem_Length(SEQ, input) != len)`) is NOT driven:
+     * the preceding `*inOutIdx != inSz` test already sets ret on any encoding
+     * that does not end exactly at inSz, so whenever the 1st operand is true
+     * the SEQUENCE necessarily spans the whole remaining input and the 2nd
+     * operand is false. Neither operand has a satisfiable pair. */
+    {
+        static const byte bogusPub[] = { 0x30, 0x02, 0xFF, 0xFF };
+        outPubLen = sizeof(outPub);
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKeyPublic(bogusPub, &idx, (word32)sizeof(bogusPub),
+                outPub, &outPubLen, keyType);
+        WB_CHECK(ret != 0, ":34168 1st operand false (decode failed)");
+    }
 }
 #else
 static void wb_decode_asym_key_public_roundtrip(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_EXPORT off; skipped"); }
@@ -2146,6 +2340,8 @@ static void wb_curve448_decode_guards(void) { WB_NOTE("HAVE_CURVE448(_KEY_IMPORT
 
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("asn.c keys white-box MC/DC supplement\n");
 
     wb_get_algo_id_ex();
@@ -2174,7 +2370,9 @@ int main(void)
     wb_dsa_key_ints_to_der();
 
     wb_encode_policy_oid();
+    wb_check_curve();
     wb_store_ecc_dsa_sig();
+    wb_store_decode_ecc_dsa_sig_bin();
     wb_ecc_specified_ec_domain_decode();
     wb_ecc_private_key_decode();
     wb_ecc_public_key_decode();

@@ -1102,6 +1102,41 @@ static void wb_get_formatted_time_ex(void)
                     ":15870 both true (year in [50,100))");
         }
     }
+
+    /* The rows above never make either range test's FIRST operand
+     * (`ts->tm_year >= 50`) false -- every date they use is 1980 or later.
+     * A pre-1950 date does: tm_year comes out below 50, the format==0
+     * selector short-circuits to GeneralizedTime, and with ASN_UTC_TIME
+     * forced the century adjustment is skipped as well. */
+    {
+        struct tm oldT;
+        time_t preEpoch;
+
+        XMEMSET(&oldT, 0, sizeof(oldT));
+        oldT.tm_year = 40;  /* 1940 -> tm_year 40, below the [50,150) window */
+        oldT.tm_mon = 0; oldT.tm_mday = 1;
+        oldT.tm_hour = 12; oldT.tm_min = 0; oldT.tm_sec = 0;
+        preEpoch = mktime(&oldT);
+        if (preEpoch != (time_t)-1) {
+            ret = GetFormattedTime_ex(&preEpoch, buf, sizeof(buf), 0);
+            WB_CHECK(ret == ASN_GENERALIZED_TIME_SIZE - 1,
+                    ":15914 1st operand false (pre-1950 -> GeneralizedTime)");
+            /* With UTCTime forced on a pre-1950 date the century adjustment
+             * subtracts 100 from an already-small tm_year, so the formatted
+             * year field is negative and one character wider than the
+             * canonical 13-byte UTCTime. That is the point of the row -- it
+             * shows the range test taking its else branch -- so only "an
+             * encoding was produced" is asserted. */
+            ret = GetFormattedTime_ex(&preEpoch, buf, sizeof(buf),
+                    ASN_UTC_TIME);
+            WB_CHECK(ret > 0,
+                    ":15924 1st operand false (pre-1950, UTCTime forced)");
+        }
+        else {
+            WB_NOTE("mktime() rejected a 1940 struct tm on this host; "
+                    ":15914/:15924 1st-operand-false vectors skipped");
+        }
+    }
 }
 #else
 static void wb_get_formatted_time_ex(void) { WB_NOTE("GetFormattedTime_ex() gating off; skipped"); }

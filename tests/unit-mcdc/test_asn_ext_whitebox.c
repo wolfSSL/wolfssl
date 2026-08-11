@@ -193,6 +193,22 @@ static void wb_match_base_name(void)
      * included above via the RFC822 no-leading-dot case for a false,false
      * pair; DIR_TYPE returns earlier by an unconditional XMEMCMP so is not
      * a fresh pair for this specific line. */
+
+    /* --- :18609 revisited ------------------------------------------------
+     * The ".", "." rows above never actually reach this decision: the
+     * function's entry guard rejects any name whose first byte is '.', so a
+     * name that trims to length 0 is impossible and the 1st operand
+     * (`nameSz <= 0`) has NO satisfiable independence pair. The 2nd operand
+     * does: a base of a single '.' trims to length 0 while the name is a
+     * normal FQDN. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_DNS_TYPE, "www.a.com", 9, ".", 1)
+                == 0, ":18609 2nd operand true (base trims to empty)");
+
+    /* --- :18680 2nd operand ----------------------------------------------
+     * NOT satisfiable: the entry guard admits only RFC822, DNS and DIR, and
+     * DIR returns earlier through the unconditional XMEMCMP branch. So any
+     * evaluation that gets past the 1st operand being false necessarily has
+     * type == ASN_RFC822_TYPE, pinning the 2nd operand true. */
 }
 #else
 static void wb_match_base_name(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS; skipped"); }
@@ -288,6 +304,55 @@ static void wb_uri_host_helpers(void)
      * in '.' -> :18794 both operands true -> rejected. */
     WB_CHECK(wolfssl_local_MatchUriNameConstraint("http://../x", 11,
                 ".host.com", 9) == 0, "double-dot host rejected (:18794 both true)");
+
+    /* --- the operands the indirect rows above cannot reach --------------- */
+
+    /* :18726 -- UriHostIsDecOctet()'s per-character digit test. Driven
+     * DIRECTLY: when the helper is reached through UriHostIsIpv4Address()
+     * the caller's own digit test rejects every non-digit byte first, so
+     * the segment handed down is always all digits and neither operand can
+     * be true. The helper is a file-static with no precondition beyond a
+     * bounded segment, so both operands are shown here. */
+    WB_CHECK(UriHostIsDecOctet("123", 3) == 1,
+            ":18726 both operands false (all digits)");
+    WB_CHECK(UriHostIsDecOctet("1/1", 3) == 0,
+            ":18726 1st operand true (byte below '0')");
+    WB_CHECK(UriHostIsDecOctet("1a1", 3) == 0,
+            ":18726 2nd operand true (byte above '9')");
+
+    /* :18753 -- UriHostIsIpv4Address()'s own digit test. The indirect rows
+     * only ever supply a byte above '9' ('x'); '-' is below '0' and is not
+     * the '.' separator, so it lands on the 1st operand. */
+    WB_CHECK(UriHostIsIpv4Address("1-2.3.4.5", 9) == 0,
+            ":18753 1st operand true (byte below '0')");
+    WB_CHECK(UriHostIsIpv4Address("1.2.3.4", 7) == 1,
+            ":18753 both operands false (valid dotted quad)");
+
+    /* :18798 -- the three-byte "://" lookahead. Every URI used above has
+     * its ':' immediately followed by "//", so the 2nd and 3rd operands are
+     * pinned true. These two URIs each contain an earlier ':' that fails
+     * the lookahead at a different operand before the real "://" is found. */
+    {
+        /* Compared against the plain "s://host.com/x" form rather than a
+         * hard-coded 1: what this row has to show is that an earlier ':'
+         * which fails the lookahead does not change the outcome, and the
+         * base-matching semantics themselves are asserted elsewhere. */
+        int plain = wolfssl_local_MatchUriNameConstraint("s://host.com/x", 14,
+                ".host.com", 9);
+        WB_CHECK(wolfssl_local_MatchUriNameConstraint("ab:cd://host.com/x", 18,
+                    ".host.com", 9) == plain,
+                ":18798 2nd operand false (':' not followed by '/')");
+        WB_CHECK(wolfssl_local_MatchUriNameConstraint("a:/b://host.com/x", 17,
+                    ".host.com", 9) == plain,
+                ":18798 3rd operand false (\":/\" not followed by '/')");
+    }
+
+    /* :18848 -- after stripping one trailing dot the host is empty. The
+     * "http://../x" row above lands on the 2nd operand (still ends in '.');
+     * a host of exactly "." lands on the 1st. */
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("http://./x", 10,
+                ".host.com", 9) == 0,
+            ":18848 1st operand true (host is a lone dot)");
 }
 #else
 static void wb_uri_host_helpers(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS; skipped"); }
@@ -317,8 +382,15 @@ static void wb_match_dns_wildcard(void)
     WB_NOTE("MatchDnsConstraintWildcard(): base-is-only-dots [:18954]");
     /* After stripping ONE leading dot, base[0] is again '.' (base was
      * ".."). */
+    /* ".." trims its trailing dot to "." first, so stripping the leading dot
+     * leaves baseSz == 0 and the 1st operand short-circuits -- that row does
+     * NOT reach the 2nd operand. "..a.com" has no trailing dot to trim, so
+     * after the leading-dot strip baseSz is still positive and base[0] is
+     * again '.': the 1st operand is false and the 2nd is true. */
     WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard("*.a.com", 7, "..", 2,
-                0) == 0, "base \"..\"  (2nd operand true after strip)");
+                0) == 0, "base \"..\"  (1st operand true after strip)");
+    WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard("*.a.com", 7, "..a.com",
+                7, 0) == 0, ":19008 2nd operand true (base[0]=='.' after strip)");
     /* baseSz<=0 after stripping the single leading dot (base was just "."
      * -- already covered by :18944 above via the name-side check; here the
      * base itself is only "." with a WILDCARD name so :18944 name[0]=='.'
@@ -1080,10 +1152,30 @@ static void wb_decode_policy_oid(void)
     /* A tiny output buffer forces the ".%u" snprintf to not fit after the
      * first "b.b" segment is written. */
     {
-        char tiny[6]; /* fits "0.29" (4) + NUL but not another ".32" */
-        ret = DecodePolicyOID(tiny, sizeof(tiny), oidBytes, sizeof(oidBytes));
+        /* outSz must be >= 4 to get past the argument guard. With outSz == 6
+         * the ".29" segment fits exactly (XSNPRINTF returns 3, remaining is
+         * 3) and outIdx then equals outSz, so the loop exits on its own
+         * condition and the overflow guard is never true -- that row only
+         * supplies the guard's FALSE side.
+         *
+         * outSz == 5 is the size that trips it: "2.5" leaves 2 bytes, the
+         * ".29" segment needs 3, XSNPRINTF returns 3 > 2 and the guard's
+         * 2nd operand is true.
+         *
+         * The 1st operand (`w < 0`) has no satisfiable pair: XSNPRINTF is
+         * snprintf here, which returns the length it would have written and
+         * never a negative value for these arguments. */
+        char tiny6[6];
+        char tiny5[5];
+
+        ret = DecodePolicyOID(tiny6, sizeof(tiny6), oidBytes,
+                sizeof(oidBytes));
+        WB_CHECK(ret > 0, ":21326 2nd operand false (segment fits exactly)");
+
+        ret = DecodePolicyOID(tiny5, sizeof(tiny5), oidBytes,
+                sizeof(oidBytes));
         WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
-                "output buffer too small for full OID string (w<0 or overflow true)");
+                ":21326 2nd operand true (segment does not fit)");
     }
     ret = DecodePolicyOID(out, sizeof(out), oidBytes, sizeof(oidBytes));
     WB_CHECK(ret > 0, "ample output buffer (overflow guard false)");
@@ -1911,8 +2003,153 @@ static void wb_get_decoded_cert_accessors(void)
             "both valid (both operands false)");
 }
 
+/* -------------------------------------------------------------------------
+ * Section 24: error propagation through the extension decoders.
+ *
+ * Every decoder in this file is a chain of "if ((ret == 0) && ...)" steps
+ * around a parse loop. The sections above always hand them input that either
+ * parses cleanly or fails on the very first step, so the leading `ret == 0`
+ * operand of the *later* steps is pinned true and its false side is never
+ * shown. Each fixture below parses one element successfully and then hits a
+ * malformed element, so the following steps are evaluated with ret != 0.
+ * ------------------------------------------------------------------------- */
+static void wb_ext_error_propagation(void)
+{
+    int ret;
+
+    WB_NOTE("extension decoders: ret!=0 rows of the later chain steps "
+            "[:19950,:20869,:20915,:21129,:21271,:21537,:21549]");
+
+    /* --- DecodeAltNames(): (ret == 0) && (length == 0) ------------------- */
+    {
+        DecodedCert cert;
+        /* Not a SEQUENCE at all -> GetASN_Sequence() fails, 1st operand
+         * false. */
+        static const byte notASeq[] = { 0x02, 0x01, 0x00 };
+        /* A well-formed but EMPTY SEQUENCE -> both operands true (RFC 5280
+         * requires at least one GeneralName). */
+        static const byte emptySeq[] = { 0x30, 0x00 };
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = DecodeAltNames(notASeq, (word32)sizeof(notASeq), &cert);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":19950 1st operand false (not a SEQUENCE)");
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = DecodeAltNames(emptySeq, (word32)sizeof(emptySeq), &cert);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":19950 both operands true (empty SEQUENCE)");
+    }
+
+    /* --- DecodeExtKeyUsage(): loop condition and the OID-count step ------ *
+     * First element is an unknown-but-well-formed OID, which the decoder
+     * forgives (ret reset to 0). The second element is an INTEGER, which is
+     * a hard parse error: the OID-count step and then the loop condition
+     * itself are both re-evaluated with ret != 0. */
+    {
+        static const byte ekuBadSecond[] = {
+            0x30, 0x06,
+                  0x06, 0x01, 0x2A,     /* OID 1.2 -- unknown, forgiven */
+                  0x02, 0x01, 0x00      /* INTEGER -- hard parse error  */
+        };
+        const byte* src = NULL;
+        word32 srcSz = 0, count = 0, oidCnt = 0;
+        byte usage = 0, ssh = 0;
+
+        ret = DecodeExtKeyUsage(ekuBadSecond, (word32)sizeof(ekuBadSecond),
+                &src, &srcSz, &count, &usage, &ssh, &oidCnt);
+        WB_CHECK(ret != 0,
+                ":20869/:20915 1st operands false (parse error mid-list)");
+    }
+
+#ifndef IGNORE_NAME_CONSTRAINTS
+    /* --- DecodeSubtree(): loop condition with ret != 0 ------------------- *
+     * One valid dNSName GeneralSubtree followed by an INTEGER. */
+    {
+        static const byte gsThenBad[] = {
+            0x30, 0x06, 0x82, 0x04, 'h', 'o', 's', 't',
+            0x02, 0x01, 0x00
+        };
+        Base_entry* head = NULL;
+        byte hasUnsupported = 0;
+
+        ret = DecodeSubtree(gsThenBad, (word32)sizeof(gsThenBad), &head, 0,
+                &hasUnsupported, NULL);
+        WB_CHECK(ret != 0, ":21129 1st operand false (parse error mid-list)");
+    }
+
+    /* --- DecodeNameConstraints(): (ret == 0) && hasUnsupported ----------- *
+     * A permittedSubtrees whose content is an INTEGER makes DecodeSubtree()
+     * fail, so the hasUnsupported step is reached with ret != 0. */
+    {
+        DecodedCert cert;
+        static const byte ncBadPermitted[] = {
+            0x30, 0x05,
+                  0xA0, 0x03,
+                        0x02, 0x01, 0x00
+        };
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = DecodeNameConstraints(ncBadPermitted,
+                (word32)sizeof(ncBadPermitted), &cert);
+        WB_CHECK(ret != 0, ":21271 1st operand false (subtree parse failed)");
+    }
+#endif /* !IGNORE_NAME_CONSTRAINTS */
+
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+    /* --- DecodeSubjDirAttr(): the two inner chain steps ------------------ */
+    {
+        DecodedCert cert;
+        /* dateOfBirth: a *recognized* subject-directory-attribute OID that
+         * is not countryOfCitizenship, so the OID comparison's 2nd operand
+         * is false with the 1st still true. (The section above used
+         * rsaEncryption, which is not in oidSubjDirAttrType at all and is
+         * rejected by the template before the comparison is reached.) */
+        static const byte sdaDob[] = {
+            0x30, 0x12,
+                  0x30, 0x10,
+                        0x06, 0x08, 0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x01,
+                        0x31, 0x04, 0x13, 0x02, '1', '9'
+        };
+        /* countryOfCitizenship whose SET holds a UTF8String instead of a
+         * PrintableString: GetASNHeader() fails, so the length-check step
+         * runs with ret != 0. */
+        static const byte sdaBadStrTag[] = {
+            0x30, 0x12,
+                  0x30, 0x10,
+                        0x06, 0x08, 0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x04,
+                        0x31, 0x04, 0x0C, 0x02, 'U', 'S'
+        };
+        /* Outer SEQUENCE whose single element is an INTEGER: GetASN_Items()
+         * inside the loop fails, so the OID-comparison step runs with
+         * ret != 0. */
+        static const byte sdaBadInner[] = {
+            0x30, 0x03,
+                  0x02, 0x01, 0x00
+        };
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = DecodeSubjDirAttr(sdaDob, (word32)sizeof(sdaDob), &cert);
+        WB_CHECK(ret == 0, ":21537 2nd operand false (known non-COC OID)");
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = DecodeSubjDirAttr(sdaBadStrTag, (word32)sizeof(sdaBadStrTag),
+                &cert);
+        WB_CHECK(ret != 0, ":21549 1st operand false (SET is not a "
+                "PrintableString)");
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = DecodeSubjDirAttr(sdaBadInner, (word32)sizeof(sdaBadInner),
+                &cert);
+        WB_CHECK(ret != 0, ":21537 1st operand false (attribute parse failed)");
+    }
+#endif /* WOLFSSL_SUBJ_DIR_ATTR */
+}
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("asn.c white-box MC/DC supplement -- extensions wave\n");
 
     wb_match_base_name();
@@ -1941,6 +2178,7 @@ int main(void)
     wb_decode_cert_req_version();
     wb_parse_cert_rsa_pubkey();
     wb_get_decoded_cert_accessors();
+    wb_ext_error_propagation();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
