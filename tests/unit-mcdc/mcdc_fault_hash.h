@@ -94,6 +94,11 @@
  * A TU that must NOT interpose a particular family can define
  * MCDC_FH_NO_SHA256 / MCDC_FH_NO_SHA512 / MCDC_FH_NO_SHAKE / MCDC_FH_NO_AES /
  * MCDC_FH_NO_HMAC before including this header.
+ *
+ * The context-INIT calls are opt-in instead of opt-out, because a white-box
+ * that builds its own hash objects during setup must not have that setup
+ * faulted: MCDC_FH_WITH_SHAKE_INIT adds wc_InitShake128/256 and
+ * MCDC_FH_WITH_SHA_INIT adds wc_InitSha256/512.
  */
 
 #ifndef MCDC_FAULT_HASH_H
@@ -177,6 +182,19 @@ MCDC_FH_MAYBE_UNUSED static long mcdc_fh_seen(void)
 
 /* ---------------- SHA-256 ---------------- */
 #ifdef MCDC_FH_HAVE_SHA256
+/* wc_InitSha256/512 are OPT-IN (MCDC_FH_WITH_SHA_INIT) for the same reason the
+ * SHAKE ones are: a white-box that builds its own hash objects for test setup
+ * must not have those setup calls faulted. wc_slhdsa.c needs them, because its
+ * `if ((ret == 0) && (key->params->n > 16))` guard in wc_SlhDsaKey_Init() takes
+ * its ret from wc_InitSha256() and nothing else. */
+#ifdef MCDC_FH_WITH_SHA_INIT
+MCDC_FH_MAYBE_UNUSED static int mcdc_fh_InitSha256(wc_Sha256* sha)
+{
+    if (mcdc_fh_hit())
+        return MCDC_FH_ERR;
+    return wc_InitSha256(sha);
+}
+#endif
 MCDC_FH_MAYBE_UNUSED static int mcdc_fh_Sha256Update(wc_Sha256* sha, const byte* data, word32 len)
 {
     if (mcdc_fh_hit())
@@ -202,6 +220,14 @@ MCDC_FH_MAYBE_UNUSED static int mcdc_fh_Sha256HashBlock(wc_Sha256* sha, const un
 
 /* ---------------- SHA-512 ---------------- */
 #ifdef MCDC_FH_HAVE_SHA512
+#ifdef MCDC_FH_WITH_SHA_INIT
+MCDC_FH_MAYBE_UNUSED static int mcdc_fh_InitSha512(wc_Sha512* sha)
+{
+    if (mcdc_fh_hit())
+        return MCDC_FH_ERR;
+    return wc_InitSha512(sha);
+}
+#endif
 MCDC_FH_MAYBE_UNUSED static int mcdc_fh_Sha512Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     if (mcdc_fh_hit())
@@ -351,6 +377,10 @@ MCDC_FH_MAYBE_UNUSED static int mcdc_fh_AesSetKeyDirect(Aes* aes, const byte* ke
  * must be #included AFTER this point.
  * ---------------------------------------------------------------------- */
 #ifdef MCDC_FH_HAVE_SHA256
+    #ifdef MCDC_FH_WITH_SHA_INIT
+        #undef  wc_InitSha256
+        #define wc_InitSha256(a)          mcdc_fh_InitSha256((a))
+    #endif
     #undef  wc_Sha256Update
     #define wc_Sha256Update(a, b, c)      mcdc_fh_Sha256Update((a), (b), (c))
     #undef  wc_Sha256Final
@@ -363,6 +393,10 @@ MCDC_FH_MAYBE_UNUSED static int mcdc_fh_AesSetKeyDirect(Aes* aes, const byte* ke
 #endif
 
 #ifdef MCDC_FH_HAVE_SHA512
+    #ifdef MCDC_FH_WITH_SHA_INIT
+        #undef  wc_InitSha512
+        #define wc_InitSha512(a)          mcdc_fh_InitSha512((a))
+    #endif
     #undef  wc_Sha512Update
     #define wc_Sha512Update(a, b, c)      mcdc_fh_Sha512Update((a), (b), (c))
     #undef  wc_Sha512Final

@@ -164,6 +164,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_logging_whitebox.c \
               tests/unit-mcdc/test_memory_whitebox.c \
               tests/unit-mcdc/test_mldsa_fault_whitebox.c \
+              tests/unit-mcdc/test_mldsa_hash_fault_whitebox.c \
               tests/unit-mcdc/test_mlkem_fault_whitebox.c \
               tests/unit-mcdc/test_mlkem_poly_hash_fault_whitebox.c \
               tests/unit-mcdc/test_pkcs12_fault_whitebox.c \

@@ -118,6 +118,8 @@
 
 #include <time.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 /* ---- XGMTIME mock: installed before tsp.c is compiled - see file header
  * technique (1). Mode is a plain int, not an enum, so tsp.c's own headers
@@ -157,7 +159,62 @@ static struct tm* wbXGMTIME(const time_t* clock, struct tm* tmpBuf)
 }
 #define XGMTIME(c, t) wbXGMTIME((c), (t))
 
+/* ---- XSNPRINTF mock: same installation rule as XGMTIME (types.h defines
+ * XSNPRINTF only `#ifndef XSNPRINTF`). tsp.c has exactly one call site,
+ * wc_TspTstInfo_SetGenTimeAsTime()'s GeneralizedTime formatting, whose
+ * `n < 0` operand no real libc snprintf produces for that format. ---- */
+static int wbSnprintfFail = 0; /* one-shot: next call returns -1 */
+
+static int wbXSNPRINTF(char* buf, size_t len, const char* fmt, ...)
+{
+    int n;
+    va_list ap;
+
+    if (wbSnprintfFail) {
+        wbSnprintfFail = 0;
+        return -1;
+    }
+    va_start(ap, fmt);
+    n = vsnprintf(buf, len, fmt, ap);
+    va_end(ap);
+    return n;
+}
+#define XSNPRINTF wbXSNPRINTF
+
+/* ---- GetFormattedTime_ex mock: the function lives in asn.c, so the XGMTIME
+ * mock above cannot reach it - it is replaced by name for tsp.c's two call
+ * sites in wc_TspTstInfo_CheckGenTime(). Declared by asn.h through the macro;
+ * defined after the include, where the wolfSSL types exist. ---- */
+static int wbGftCall = 0;     /* call counter, reset per case */
+static int wbGftFailCall = 0; /* which call fails: 0 none, 1 first, 2 second */
+#define GetFormattedTime_ex wbGetFormattedTime
+
 #include <wolfcrypt/src/tsp.c>
+
+WOLFSSL_LOCAL int wbGetFormattedTime(void* currTime, byte* buf, word32 len,
+    byte format)
+{
+    struct tm* ts;
+    int n;
+
+    wbGftCall++;
+    if (wbGftCall == wbGftFailCall) {
+        /* Caller treats <= 0 as a failure. */
+        return 0;
+    }
+    (void)format;
+    ts = gmtime((const time_t*)currTime);
+    if (ts == NULL) {
+        return 0;
+    }
+    n = snprintf((char*)buf, len, "%04d%02d%02d%02d%02d%02dZ",
+        ts->tm_year + 1900, ts->tm_mon + 1, ts->tm_mday, ts->tm_hour,
+        ts->tm_min, ts->tm_sec);
+    if ((n < 0) || (n >= (int)len)) {
+        return 0;
+    }
+    return n;
+}
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/certs_test.h>

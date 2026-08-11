@@ -58,16 +58,47 @@
  * timeout is scored as a SILENT SKIP and would lose the whole file (HARD
  * RULE 2).
  *
- * NOT REACHABLE HERE (documented residual): `(ret == 0) && (n > 16)` at
- * slhdsakey_sha2_midstate() and wc_SlhDsaKey_Init() needs a category 3/5
- * parameter set, and this module's base config compiles ONLY the 128-bit sets
- * (WOLFSSL_SLHDSA_PARAM_NO_192/256 and *_NO_SHA2_192/256), so n is always 16
- * and the second operand can never be true.
+ * ENTRY POINTS THAT MUST BE SWEPT SEPARATELY
+ * ------------------------------------------
+ * The PRF_msg / H_msg streaming preamble is written out once per entry point,
+ * so the `(ret == 0) && (ctxSz > 0)` guards inside the PRE-HASH signer and
+ * verifier are different source lines from the ones inside the plain signer.
+ * wc_SlhDsaKey_SignHash() / wc_SlhDsaKey_VerifyHash() are therefore swept in
+ * their own right, as are wc_SlhDsaKey_CheckKey() (whose recomputed-root
+ * compare needs its keygen to fail) and wc_SlhDsaKey_ImportPrivate() /
+ * ImportPublic() (whose SHA-2 midstate precompute is the only caller of
+ * slhdsakey_precompute_sha2_midstates()).
+ *
+ * NOT REACHABLE HERE (documented residuals, mirrored in
+ * campaign/db/exclusions.json):
+ *   - `(ret == 0) && (n > 16)` / `(ret == 0) && (key->params->n > 16)`: the
+ *     second operand needs a category 3/5 parameter set, and this module's base
+ *     config compiles ONLY the 128-bit sets (WOLFSSL_SLHDSA_PARAM_NO_192/256
+ *     and *_NO_SHA2_192/256), so n is always 16. NEITHER operand pairs: with
+ *     `n > 16` pinned false the decision is false in every vector, so flipping
+ *     `ret == 0` cannot change the outcome either.
+ *   - slhdsakey_h_msg_sha2()'s `(ret == 0) && (hdr != NULL)` and
+ *     `(ret == 0) && (ctxSz > 0) && (ctx != NULL)`: those two live in the
+ *     `else` arm of `if (n == WC_SLHDSA_N_128)`, i.e. the SHA-512 category 3/5
+ *     arm, which the 128-bit-only parameter table can never select.
+ *   - `(ret != 0) && WC_VAR_OK(sk)`: without WOLFSSL_SMALL_STACK, types.h
+ *     defines WC_VAR_OK(x) as the literal 1, so the operand is not merely
+ *     undriven -- it has no false side to drive. No slhdsa variant sets
+ *     WOLFSSL_SMALL_STACK.
+ *   - `while (ret == 0 && *inOutIdx < seqEnd)`: every statement in that loop
+ *     body that assigns a non-zero ret is immediately followed by `break`, so
+ *     control never reaches the condition again with ret != 0.
  *
  * VARIANT COVERAGE (HARD RULE 3): under WOLFSSL_SLHDSA_VERIFY_ONLY there is no
  * keygen or signing, so no signature can be produced and the file becomes a
  * skip stub. main() always returns 0.
  */
+
+/* wc_SlhDsaKey_Init()'s `(ret == 0) && (key->params->n > 16)` takes its ret
+ * from wc_InitSha256() and from nothing else, so the SHA context-init family
+ * has to be interposed too. It is opt-in, and armed only inside
+ * wb_init_rows(); every other sweep here builds its keys while disarmed. */
+#define MCDC_FH_WITH_SHA_INIT
 
 #include "mcdc_fault_hash.h"
 
@@ -275,6 +306,176 @@ static void wb_sweep_makekey(int param)
     printf("  [wb] makekey sweep: %ld points\n", points);
 }
 
+/* Pre-hash signer/verifier. FIPS 205 Section 10.2 HashSLH-DSA carries its OWN
+ * copy of the PRF_msg / H_msg streaming preamble, so its `(ret == 0) &&
+ * (ctxSz > 0)` guards are separate source lines from the plain signer's and
+ * need their own armed rows. A pre-hashed SHA-256 digest is used because it is
+ * the cheapest accepted (hashType, hashSz) pair; a build without it just
+ * reports NOT_COMPILED_IN from the baseline call and the sweep is skipped. */
+static void wb_sweep_prehash(int param)
+{
+    byte   hash[WC_SHA256_DIGEST_SIZE];
+    byte   sig[WC_SLHDSA_MAX_SIG_LEN];
+    word32 sigLen = (word32)sizeof(sig);
+    long   k, n, points = 0;
+    int    ret;
+
+    XMEMSET(hash, 0x5a, sizeof(hash));
+
+#ifndef WC_SLHDSA_ALL_NO_128S
+    /* The `s` sets sign orders of magnitude slower than the `f` ones and the
+     * pre-hash preamble is identical code, so one full SignHash on an `s` set
+     * would buy nothing and cost most of the module's wall-clock budget. */
+    if (param == SLHDSA_SHAKE128S) {
+        WB_NOTE("pre-hash sweep skipped for the slow parameter set");
+        return;
+    }
+#endif
+
+    mcdc_fh_disarm();
+    ret = wc_SlhDsaKey_SignHash(&wb_key, wb_ctx, (byte)sizeof(wb_ctx), hash,
+        (word32)sizeof(hash), WC_HASH_TYPE_SHA256, sig, &sigLen, &wb_rng);
+    k = mcdc_fh_seen();
+    if (ret != 0) {
+        WB_NOTE("baseline SignHash unavailable; pre-hash sweep skipped");
+        return;
+    }
+    printf("  [wb] param %d: signhash K=%ld\n", param, k);
+
+    /* Only the dense head is useful here: everything this sweep adds over the
+     * plain signer is in the streaming preamble, which is the first handful of
+     * primitive calls. */
+    for (n = 1; (n <= k) && (n <= (long)WB_DENSE) && !wb_expired(); n++) {
+        byte   s2[WC_SLHDSA_MAX_SIG_LEN];
+        word32 l2 = (word32)sizeof(s2);
+        mcdc_fh_arm(n);
+        (void)wc_SlhDsaKey_SignHash(&wb_key, wb_ctx, (byte)sizeof(wb_ctx),
+            hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA256, s2, &l2, &wb_rng);
+        mcdc_fh_disarm();
+        points++;
+    }
+
+    mcdc_fh_disarm();
+    if (wc_SlhDsaKey_VerifyHash(&wb_key, wb_ctx, (byte)sizeof(wb_ctx), hash,
+            (word32)sizeof(hash), WC_HASH_TYPE_SHA256, sig, sigLen) != 0) {
+        WB_NOTE("VerifyHash rejected its own signature");
+        wb_fail = 1;
+    }
+    for (n = 1; (n <= (long)WB_DENSE) && !wb_expired(); n++) {
+        mcdc_fh_arm(n);
+        (void)wc_SlhDsaKey_VerifyHash(&wb_key, wb_ctx, (byte)sizeof(wb_ctx),
+            hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA256, sig, sigLen);
+        mcdc_fh_disarm();
+        points++;
+    }
+    printf("  [wb] pre-hash sweep: %ld points\n", points);
+}
+
+/* wc_SlhDsaKey_CheckKey() recomputes the public root and compares it against
+ * the stored one:
+ *
+ *     if ((ret == 0) && (XMEMCMP(root, key->sk + 3 * n, n) != 0))
+ *
+ * The first operand's independence pair needs the decision to be TRUE in one
+ * of the two vectors, so the armed (ret != 0, outcome FALSE) row is NOT enough
+ * on its own -- it has the same outcome as the ordinary (T, compare-equal) row.
+ * The (T,T) row is produced by corrupting the STORED root before the call:
+ * CheckKey re-derives the real root from the seeds, so the comparison differs
+ * while ret is still 0. The re-derivation also rewrites key->sk with the
+ * correct root, so the key is left exactly as it was found. */
+static void wb_sweep_checkkey(int param)
+{
+    long n, points = 0;
+    byte n8;
+
+    mcdc_fh_disarm();
+    if (wc_SlhDsaKey_CheckKey(&wb_key) != 0) {
+        WB_NOTE("CheckKey rejected a freshly made key");
+        wb_fail = 1;
+        return;
+    }
+
+    /* (T,T): stored root != recomputed root. */
+    n8 = wb_key.params->n;
+    wb_key.sk[3 * n8] ^= 0x01;
+    if (wc_SlhDsaKey_CheckKey(&wb_key) == 0) {
+        WB_NOTE("CheckKey accepted a key whose stored root was corrupted");
+        wb_fail = 1;
+    }
+    if (wc_SlhDsaKey_CheckKey(&wb_key) != 0) {
+        WB_NOTE("CheckKey did not restore the recomputed root");
+        wb_fail = 1;
+    }
+
+    /* (F,-): the re-derivation itself fails. */
+    for (n = 1; (n <= (long)WB_POINTS_SIGN) && !wb_expired(); n++) {
+        mcdc_fh_arm(n);
+        (void)wc_SlhDsaKey_CheckKey(&wb_key);
+        mcdc_fh_disarm();
+        points++;
+    }
+    /* An armed run can leave sk half-written; restore it. */
+    mcdc_fh_disarm();
+    (void)wc_SlhDsaKey_CheckKey(&wb_key);
+    printf("  [wb] param %d: checkkey sweep: %ld points\n", param, points);
+}
+
+/* Raw import: slhdsakey_precompute_sha2_midstates() is reached only from
+ * ImportPrivate / ImportPublic / MakeKeyWithRandom, and an armed import is the
+ * cheapest way to make its `(ret == 0) && (n > 16)` guard see ret != 0 -- the
+ * import does almost nothing before the precompute, so a low fault index lands
+ * squarely inside it. */
+static void wb_sweep_import(int param)
+{
+    byte   raw[4 * SLHDSA_MAX_N];
+    word32 rawLen = (word32)sizeof(raw);
+    long   n, points = 0;
+
+    mcdc_fh_disarm();
+    if (wc_SlhDsaKey_ExportPrivate(&wb_key, raw, &rawLen) != 0) {
+        WB_NOTE("ExportPrivate failed; import sweep skipped");
+        return;
+    }
+
+    for (n = 1; (n <= 24L) && !wb_expired(); n++) {
+        SlhDsaKey k2;
+        XMEMSET(&k2, 0, sizeof(k2));
+        if (wc_SlhDsaKey_Init(&k2, (enum SlhDsaParam)param, NULL,
+                INVALID_DEVID) == 0) {
+            mcdc_fh_arm(n);
+            (void)wc_SlhDsaKey_ImportPrivate(&k2, raw, rawLen);
+            mcdc_fh_disarm();
+            /* The public half is a different caller of the same precompute. */
+            mcdc_fh_arm(n);
+            (void)wc_SlhDsaKey_ImportPublic(&k2, raw + 2 * (rawLen / 4),
+                rawLen / 2);
+            mcdc_fh_disarm();
+            points++;
+        }
+        wc_SlhDsaKey_Free(&k2);
+    }
+    printf("  [wb] param %d: import sweep: %ld points\n", param, points);
+}
+
+/* wc_SlhDsaKey_Init()'s `(ret == 0) && (key->params->n > 16)` -- the only
+ * assignment to ret before it is wc_InitSha256()'s, so the SHA context-init
+ * interposer is what drives the first operand false. */
+static void wb_init_rows(int param)
+{
+    SlhDsaKey k2;
+    long      n;
+
+    for (n = 1; n <= 4L; n++) {
+        XMEMSET(&k2, 0, sizeof(k2));
+        mcdc_fh_arm(n);
+        (void)wc_SlhDsaKey_Init(&k2, (enum SlhDsaParam)param, NULL,
+            INVALID_DEVID);
+        mcdc_fh_disarm();
+        wc_SlhDsaKey_Free(&k2);
+    }
+    printf("  [wb] param %d: init hash-object rows exercised\n", param);
+}
+
 /* Import/export + DER encode/decode: the ASN-side residuals
  * (`(key->params != NULL) && ...`, `while (ret == 0 && *inOutIdx < seqEnd)`)
  * live here and cost nothing to drive. */
@@ -299,8 +500,54 @@ static void wb_der_rows(int param)
             idx = 0;
             (void)wc_SlhDsaKey_PrivateKeyDecode(der, &idx, &k2,
                 (word32)len / 2);
+
+            /* `if ((key->params != NULL) && (SLHDSA_IS_SHA2(...) != ...))`:
+             * wc_SlhDsaKey_PrivateKeyDecode does not require key->params, and
+             * every public initialiser sets it, so the first operand's false
+             * side is only reachable by clearing it here. The decoder assigns
+             * key->params from the detected parameter set before using it, and
+             * restores this NULL on failure, so the call stays memory-safe. */
+            k2.params = NULL;
+            idx = 0;
+            (void)wc_SlhDsaKey_PrivateKeyDecode(der, &idx, &k2, (word32)len);
         }
         wc_SlhDsaKey_Free(&k2);
+
+#ifdef WOLFSSL_SLHDSA_SHA2
+        /* The same decision's TRUE row -- which the operand above needs as its
+         * partner, since a decision that is FALSE in both vectors cannot show
+         * independence. It requires a key whose placeholder parameter set is
+         * from the OTHER hash family than the DER's, which no ordinary caller
+         * produces: every test decodes into a key initialised for the same
+         * family. Both candidate placeholders are tried; the one that is not
+         * compiled in is rejected by Init and skipped. */
+        {
+            static const int wb_other[] = {
+#ifndef WC_SLHDSA_ALL_NO_128F
+                SLHDSA_SHAKE128F,
+                SLHDSA_SHA2_128F,
+#endif
+                -1
+            };
+            size_t o;
+
+            for (o = 0; wb_other[o] >= 0; o++) {
+                SlhDsaKey k3;
+
+                if (wb_other[o] == param) {
+                    continue;
+                }
+                XMEMSET(&k3, 0, sizeof(k3));
+                if (wc_SlhDsaKey_Init(&k3, (enum SlhDsaParam)wb_other[o], NULL,
+                        INVALID_DEVID) == 0) {
+                    idx = 0;
+                    (void)wc_SlhDsaKey_PrivateKeyDecode(der, &idx, &k3,
+                        (word32)len);
+                }
+                wc_SlhDsaKey_Free(&k3);
+            }
+        }
+#endif
     }
 
     len = wc_SlhDsaKey_PublicKeyToDer(&wb_key, der, (word32)sizeof(der), 1);
@@ -345,7 +592,15 @@ static void wb_run_param(int param)
     if (!wb_expired())
         wb_sweep_verify(param);
     if (!wb_expired())
+        wb_sweep_prehash(param);
+    if (!wb_expired())
         wb_der_rows(param);
+    if (!wb_expired())
+        wb_sweep_import(param);
+    if (!wb_expired())
+        wb_init_rows(param);
+    if (!wb_expired())
+        wb_sweep_checkkey(param);
     if (!wb_expired())
         wb_sweep_makekey(param);
 

@@ -93,11 +93,34 @@
 #ifndef TEST_SP_CRAFTED_COMMON_H
 #define TEST_SP_CRAFTED_COMMON_H
 
+#include "mcdc_fault_alloc.h"
+
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/random.h>
 
 #include <stdio.h>
+
+/* sp_<n>_mod_inv_<w>() is handed a == m by a verify whose s is the curve
+ * order. The C implementations (sp_c32.c, sp_c64.c, and the 384/521
+ * routines in sp_x86_64.c) subtract u -= v to zero, take num_bits(0) == 0
+ * and leave the "shift while even" do-while on its FIRST operand, which is
+ * the only vector that operand has.
+ *
+ * sp_256_mod_inv_4() in sp_x86_64.c is hand-written assembly instead, and
+ * on the same input its L_256_mod_inv_4_usubv_even_start loop shifts a
+ * register quadruple that is identically zero and re-tests bit 0, so it
+ * cannot terminate -- while appending a byte per iteration to a fixed
+ * 0x208-byte stack buffer. It is not MC/DC-instrumented (it is assembly),
+ * so there is nothing to gain by driving it. See DEATHNOTE.md; the same
+ * defect is already recorded for sp_arm64.c. */
+#if defined(WOLFSSL_SP_X86_64_ASM)
+    #define WB_SPC_MODINV_AM_256   0
+#else
+    #define WB_SPC_MODINV_AM_256   1
+#endif
+#define WB_SPC_MODINV_AM_384       1
+#define WB_SPC_MODINV_AM_521       1
 
 #define WB_SPC_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
@@ -126,7 +149,7 @@ static const byte wb_spc_zdigest[32] = {
     #define WB_SPC_HAVE_CHECK_KEY
 #endif
 
-#define WB_SPC_DEFINE_CURVE(BITS, SZ, CURVE_ID)                             \
+#define WB_SPC_DEFINE_CURVE(BITS, SZ, CURVE_ID, AMOK)                       \
 static void wb_spc_ecc_##BITS(void)                                         \
 {                                                                           \
     ecc_key     key;                                                        \
@@ -140,10 +163,16 @@ static void wb_spc_ecc_##BITS(void)                                         \
     mp_int      smv;                                                        \
     mp_int      kmv;                                                        \
     mp_int      yv;                                                         \
+    mp_int      bigv;                                                       \
+    mp_int      ordv;                                                       \
+    mp_int      pxv;                                                        \
+    mp_int      pyv;                                                        \
+    byte        bigbuf[80]; /* SZ + 1 <= 67 (P-521) */                      \
     int         res = 0;                                                    \
     int         inMont;                                                     \
     int         map;                                                        \
     int         okKey = 0;                                                  \
+    int         fa;                                                         \
                                                                             \
     XMEMSET(&key, 0, sizeof(key));                                          \
     XMEMSET(&rng, 0, sizeof(rng));                                          \
@@ -163,7 +192,7 @@ static void wb_spc_ecc_##BITS(void)                                         \
         wc_FreeRng(&rng);                                                   \
         return;                                                             \
     }                                                                       \
-    if (mp_init_multi(&kmv, &yv, NULL, NULL, NULL, NULL) != MP_OKAY) {      \
+    if (mp_init_multi(&kmv, &yv, &bigv, &ordv, &pxv, &pyv) != MP_OKAY) {    \
         WB_SPC_NOTE("mp_init_multi failed (crafted " #BITS ")");            \
         mp_clear(&k); mp_clear(&one); mp_clear(&zero);                      \
         mp_clear(&modv); mp_clear(&rmv); mp_clear(&smv);                    \
@@ -213,7 +242,14 @@ static void wb_spc_ecc_##BITS(void)                                         \
     WB_SPC_CHECK_KEY_BODY(BITS)                                             \
     WB_SPC_UNCOMPRESS_BODY(BITS)                                            \
     WB_SPC_SIGNVERIFY_BODY(BITS)                                            \
+    WB_SPC_EDGE_CHECK_KEY(BITS, SZ)                                         \
+    WB_SPC_EDGE_SIGNVERIFY(BITS, AMOK)                                      \
                                                                             \
+    (void)fa;                                                               \
+    mp_clear(&pyv);                                                         \
+    mp_clear(&pxv);                                                         \
+    mp_clear(&ordv);                                                        \
+    mp_clear(&bigv);                                                        \
     mp_clear(&yv);                                                          \
     mp_clear(&kmv);                                                         \
     mp_clear(&smv);                                                         \
@@ -254,8 +290,47 @@ static void wb_spc_ecc_##BITS(void)                                         \
                 &yv, NULL);                                                \
         }                                                                  \
     }
+/* The three operands of the "quick check the lengs" chain that the drivers
+ * above leave without a pair, plus the point-at-infinity test's all-true
+ * vector, plus the allocation-failure side of the private-key comparison.
+ *
+ * - 2^BITS is one bit wider than the field, so it drives the pY operand
+ *   true with the pX operand false, and (as privm) drives BOTH the
+ *   `privm != NULL` operand and the `mp_count_bits(privm) > BITS` operand
+ *   true with the two coordinate operands false. Passing a real private
+ *   key gives the width operand its false side with `privm != NULL` still
+ *   true, which is what the fourth operand's pair needs.
+ * - (0, 0) is the only vector that makes both operands of the
+ *   "Check point at infinitiy" test true; the drivers above only ever
+ *   zeroed one ordinate at a time, which leaves that test's outcome false
+ *   either way.
+ * - "Check result is public key" is a three-operand chain whose leading
+ *   `err == MP_OKAY` only moves when an SP temporary allocation fails, and
+ *   llvm-cov derives independence pairs per BINARY -- so the mismatch
+ *   vector (a wrong private scalar, above) and the MEMORY_E vector have to
+ *   be in the same one. The sweep is therefore here rather than in the
+ *   fault white-box. It is a no-op unless the variant sets
+ *   WOLFSSL_SP_SMALL_STACK (SP_ALLOC_VAR is WC_DO_NOTHING otherwise). */
+#define WB_SPC_EDGE_CHECK_KEY(BITS, SZ)                                     \
+    if (okKey) {                                                            \
+        XMEMSET(bigbuf, 0xFF, (size_t)((SZ) + 1));                          \
+        if (mp_read_unsigned_bin(&bigv, bigbuf, (word32)((SZ) + 1))         \
+                == MP_OKAY) {                                               \
+            (void)sp_ecc_check_key_##BITS(key.pubkey.x, &bigv, NULL, NULL); \
+            (void)sp_ecc_check_key_##BITS(key.pubkey.x, key.pubkey.y,       \
+                &bigv, NULL);                                               \
+        }                                                                   \
+        (void)sp_ecc_check_key_##BITS(&zero, &zero, NULL, NULL);            \
+        for (fa = 1; fa <= 4; fa++) {                                       \
+            mcdc_fa_arm(fa);                                                \
+            (void)sp_ecc_check_key_##BITS(key.pubkey.x, key.pubkey.y,       \
+                ecc_get_k(&key), NULL);                                     \
+            mcdc_fa_disarm();                                               \
+        }                                                                   \
+    }
 #else
-#define WB_SPC_CHECK_KEY_BODY(BITS) /* not compiled in this config */
+#define WB_SPC_CHECK_KEY_BODY(BITS)     /* not compiled in this config */
+#define WB_SPC_EDGE_CHECK_KEY(BITS, SZ) /* not compiled in this config */
 #endif
 
 #ifdef HAVE_COMP_KEY
@@ -302,18 +377,61 @@ static void wb_spc_ecc_##BITS(void)                                         \
                 key.pubkey.y, &one, &one, &smv, &res, NULL);                \
         }                                                                   \
     }
+/* Three degenerate-operand vectors nothing else in the campaign produces.
+ *
+ * 1. sign with a zero private scalar and an all-zero hash. s is
+ *    (e + r*d) / k mod order, so e == 0 and d == 0 make s == 0 on EVERY
+ *    attempt: `(err == MP_OKAY) && (!sp_<n>_iszero_<n>(s))` gets its
+ *    second operand's false side, and because the attempt never succeeds
+ *    the retry loop runs all SP_ECC_MAX_SIG_GEN times and leaves its
+ *    `i > 0` operand false. r is non-zero and the loop count is fixed, so
+ *    the number of iterations does not depend on the RNG.
+ *
+ * 2. verify with s == the curve order. sp_<n>_mod_inv_<w>() is then called
+ *    with a == m: u and v start equal, the first outer iteration takes
+ *    u -= v to zero, num_bits(0) is 0 and the do-while that follows leaves
+ *    its `ut > 0` operand false. Skipped where AMOK is 0 (see the
+ *    WB_SPC_MODINV_AM_* note at the top of this file).
+ *
+ * 3. verify with pZ == 0. The public point is then the Jacobian point at
+ *    infinity, and every step of the ladder keeps z == 0, so
+ *    `(err == MP_OKAY) && sp_<n>_iszero_<n>(p2->z)` gets its second
+ *    operand's true side. (1, 1, 0) additionally satisfies y^2 == x^3 --
+ *    the canonical infinity representative, a relation the doubling and
+ *    addition formulas preserve -- so the final point addition lands on
+ *    x == 0 && y == 0; (1, 2, 0) does not, and lands on the other side of
+ *    that test. */
+#define WB_SPC_EDGE_SIGNVERIFY(BITS, AMOK)                                  \
+    if (okKey) {                                                            \
+        mp_zero(&zero);                                                     \
+        (void)sp_ecc_sign_##BITS(wb_spc_zdigest, 32, &rng, &zero, &rmv,     \
+            &smv, NULL, NULL);                                              \
+        if ((AMOK) &&                                                       \
+                (sp_##BITS##_to_mp(p##BITS##_order, &ordv) == MP_OKAY)) {   \
+            (void)sp_ecc_verify_##BITS(wb_spc_digest, 32, key.pubkey.x,     \
+                key.pubkey.y, &one, &one, &ordv, &res, NULL);               \
+        }                                                                   \
+        (void)mp_set(&pxv, 1);                                              \
+        (void)mp_set(&pyv, 1);                                              \
+        (void)sp_ecc_verify_##BITS(wb_spc_digest, 32, &pxv, &pyv, &zero,    \
+            &one, &one, &res, NULL);                                        \
+        (void)mp_set(&pyv, 2);                                              \
+        (void)sp_ecc_verify_##BITS(wb_spc_digest, 32, &pxv, &pyv, &zero,    \
+            &one, &one, &res, NULL);                                        \
+    }
 #else
-#define WB_SPC_SIGNVERIFY_BODY(BITS) /* needs HAVE_ECC_SIGN/VERIFY */
+#define WB_SPC_SIGNVERIFY_BODY(BITS)       /* needs HAVE_ECC_SIGN/VERIFY */
+#define WB_SPC_EDGE_SIGNVERIFY(BITS, AMOK) /* needs HAVE_ECC_SIGN/VERIFY */
 #endif
 
 #ifndef WOLFSSL_SP_NO_256
-WB_SPC_DEFINE_CURVE(256, 32, ECC_SECP256R1)
+WB_SPC_DEFINE_CURVE(256, 32, ECC_SECP256R1, WB_SPC_MODINV_AM_256)
 #endif
 #ifdef WOLFSSL_SP_384
-WB_SPC_DEFINE_CURVE(384, 48, ECC_SECP384R1)
+WB_SPC_DEFINE_CURVE(384, 48, ECC_SECP384R1, WB_SPC_MODINV_AM_384)
 #endif
 #ifdef WOLFSSL_SP_521
-WB_SPC_DEFINE_CURVE(521, 66, ECC_SECP521R1)
+WB_SPC_DEFINE_CURVE(521, 66, ECC_SECP521R1, WB_SPC_MODINV_AM_521)
 #endif
 
 static void wb_spc_ecc_all(void)
@@ -366,6 +484,26 @@ static int wb_spc_make_modulus(mp_int* m, int bits)
     return mp_read_unsigned_bin(m, buf, (word32)bytes);
 }
 
+/* The same width but with the top word left all ones, which is the shape
+ * every RFC 7919 FFDHE prime has and the last operand of the base-2
+ * fast-path test in sp_DhExp_<n>. 2^bits - 3: odd, exactly `bits` bits,
+ * and its top word (64-bit, 57-bit or 29-bit digits alike) is all ones. */
+static int wb_spc_make_ffdhe_modulus(mp_int* m, int bits)
+{
+    byte buf[WB_SPC_MAXBYTES];
+    int  bytes = bits / 8;
+    int  i;
+
+    if ((bytes <= 0) || (bytes > (int)sizeof(buf))) {
+        return -1;
+    }
+    for (i = 0; i < bytes; i++) {
+        buf[i] = 0xFF;
+    }
+    buf[bytes - 1] = 0xFD;    /* odd */
+    return mp_read_unsigned_bin(m, buf, (word32)bytes);
+}
+
 #if defined(WOLFSSL_HAVE_SP_DH) && !defined(NO_DH)
 /* sp_DhExp_<n> over a modulus built by wb_spc_make_modulus(): right bit
  * width, odd, but its top word is NOT all ones. Base 2 then drives the
@@ -380,13 +518,16 @@ do {                                                                       \
     mp_int b3;                                                             \
     mp_int b0;                                                             \
     mp_int mv;                                                             \
+    mp_int fv;                                                             \
     byte   out[WB_SPC_MAXBYTES];                                           \
     byte   ex[8];                                                          \
+    byte   exl[32];                                                        \
     word32 outLen;                                                         \
                                                                            \
     XMEMSET(ex, 0, sizeof(ex));                                            \
     ex[sizeof(ex) - 1] = 0x0b;                                             \
-    if (mp_init_multi(&b2, &b3, &b0, &mv, NULL, NULL) == MP_OKAY) {        \
+    XMEMSET(exl, 0xA5, sizeof(exl));                                       \
+    if (mp_init_multi(&b2, &b3, &b0, &mv, &fv, NULL) == MP_OKAY) {         \
         (void)mp_set(&b2, 2);                                              \
         (void)mp_set(&b3, 3);                                              \
         mp_zero(&b0);                                                      \
@@ -400,7 +541,26 @@ do {                                                                       \
             outLen = (word32)((BITS) / 8);                                 \
             (void)sp_DhExp_##BITS(&b0, ex, (word32)sizeof(ex), &mv,        \
                 out, &outLen);                                             \
+            /* A 256-bit exponent instead of a 64-bit one: the windowed    \
+             * loop in sp_<n>_mod_exp_<w>() then still has words left      \
+             * when the bit counter runs out, which is the only vector     \
+             * of its `i >= 0` operand. With a 64-bit exponent the index   \
+             * is already -1 before the loop starts. */                    \
+            outLen = (word32)((BITS) / 8);                                 \
+            (void)sp_DhExp_##BITS(&b3, exl, (word32)sizeof(exl), &mv,      \
+                out, &outLen);                                             \
         }                                                                  \
+        /* Base 2 over an all-ones-top-word modulus: the all-true vector   \
+         * of the `base == 2 && top word is all ones` fast-path test, and  \
+         * with it the only entry into sp_<n>_mod_exp_2_<w>() and the      \
+         * cpuid dispatch inside it. The named FFDHE groups the other      \
+         * drivers use only cover 2048 in this configuration. */           \
+        if (wb_spc_make_ffdhe_modulus(&fv, (BITS)) == MP_OKAY) {           \
+            outLen = (word32)((BITS) / 8);                                 \
+            (void)sp_DhExp_##BITS(&b2, exl, (word32)sizeof(exl), &fv,      \
+                out, &outLen);                                             \
+        }                                                                  \
+        mp_clear(&fv);                                                     \
         mp_clear(&mv);                                                     \
         mp_clear(&b0);                                                     \
         mp_clear(&b3);                                                     \
@@ -419,11 +579,22 @@ do {                                                                       \
     mp_int m;                                                              \
     mp_int r;                                                              \
                                                                            \
+    byte   elong[32];                                                      \
+                                                                           \
+    XMEMSET(elong, 0xA5, sizeof(elong));                                   \
     if (mp_init_multi(&b, &e, &m, &r, NULL, NULL) == MP_OKAY) {            \
         (void)mp_set(&b, 3);                                               \
         (void)mp_set(&e, 65537);                                           \
         if (wb_spc_make_modulus(&m, (BITS)) == MP_OKAY) {                  \
             (void)sp_ModExp_##BITS(&b, &e, &m, &r);                        \
+            /* 65537 is 17 bits, so the windowed loop's word index is      \
+             * already spent before the first test. A 256-bit exponent     \
+             * leaves words in hand when the bit counter reaches zero,     \
+             * which is that operand's other vector. */                    \
+            if (mp_read_unsigned_bin(&e, elong, (word32)sizeof(elong))     \
+                    == MP_OKAY) {                                          \
+                (void)sp_ModExp_##BITS(&b, &e, &m, &r);                    \
+            }                                                              \
         }                                                                  \
         mp_clear(&r);                                                      \
         mp_clear(&m);                                                      \
@@ -537,8 +708,13 @@ static void wb_spc_all(void)
     (void)wb_spc_digest;
     (void)wb_spc_zdigest;
     (void)wb_spc_make_modulus;
+    (void)wb_spc_make_ffdhe_modulus;
 
+    /* The check_key allocation sweep below needs the injector in place.
+     * Idempotent: the x86-64 driver installs it before its first pass. */
+    mcdc_fa_install();
     wb_spc_ecc_all();
+    mcdc_fa_disarm();
     wb_spc_bigint_all();
 }
 
