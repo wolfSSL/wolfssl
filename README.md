@@ -20,7 +20,9 @@ or contact fips@wolfssl.com.
 
 wolfCrypt also includes support for deriving device-unique keys from hardware entropy
 (`--enable-puf[=small|balanced|strong|strongest]`, selecting the BCH error-correction
-strength). An example exists at
+strength). Each raw SRAM readout is health tested before use, so a degenerate readout -
+all zero, all ones, a repeating block, or an implausible bit bias - cannot silently
+produce a device-independent key. An example exists at
 [SRAM PUF](https://github.com/wolfSSL/wolfssl-examples/tree/master/puf).
 
 ## Why Choose wolfSSL?

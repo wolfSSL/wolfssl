@@ -32,9 +32,11 @@ int wc_PufInit(wc_PufCtx* ctx);
 
     \brief 生のSRAMデータをPUFコンテキストに読み込みます。電源投入時の状態を保持するため、sramAddrはNOLOADリンカセクションを指している必要があります。
 
+    読み込まれたデータは、受け入れられる前にwc_PufCheckSram()によるヘルスチェックを受けます。退化したデータ(典型例は.bss初期化でクリアされた領域。Cランタイム起動後にサンプリングしてしまう、よくある立ち上げ時の誤り)はPUF_READ_Eで拒否され、コンテキストはwc_PufEnroll()およびwc_PufReconstruct()から使用できない状態のままになります。なお、このチェックが検出するのは退化したパターンであり、書き込み済みの領域すべてではありません。リセット直後にサンプリングするという要件は引き続き必要です。
+
     \return 0 成功した場合に返されます
     \return BAD_FUNC_ARG ctxまたはsramAddrがNULLの場合に返されます
-    \return PUF_READ_E sramSzがWC_PUF_RAW_BYTES未満の場合に返されます
+    \return PUF_READ_E sramSzがWC_PUF_RAW_BYTES未満の場合、または読み込まれたデータがヘルスチェックに失敗した場合に返されます
 
     \param ctx wc_PufCtx構造体へのポインタ
     \param sramAddr 生のSRAMメモリ領域へのポインタ
@@ -48,10 +50,39 @@ int wc_PufInit(wc_PufCtx* ctx);
     \endcode
 
     \sa wc_PufInit
+    \sa wc_PufCheckSram
     \sa wc_PufEnroll
     \sa wc_PufReconstruct
 */
 int wc_PufReadSram(wc_PufCtx* ctx, const byte* sramAddr, word32 sramSz);
+
+/*!
+    \ingroup PUF
+
+    \brief 候補となる生のSRAMデータを、コンテキストに読み込むことなくヘルスチェックします。SRAMの電源投入時ノイズとしてありえないデータ、すなわち、すべて0またはすべて1の128ビットブロック、直前のブロックと同一のブロック、あるいは全体のハミング重みがWC_PUF_HW_MIN_PCTからWC_PUF_HW_MAX_PCTの範囲(既定ではWC_PUF_RAW_BITSの35%から65%)を外れるデータを拒否します。
+
+    wc_PufReadSram()はすべての読み込みに対してこのチェックを適用するため、本関数を直接呼び出す必要があるのは、基板の立ち上げ時に候補となるSRAM領域を評価する場合、または読み込みが拒否された理由を報告する場合のみです。onesCountは省略可能で、サイズチェックを通過した場合は、その後データが拒否された場合でも書き込まれるため、拒否された領域の偏りを測定値として取得できます。sramAddrがNULLの場合、またはsramSzが不足している場合は書き込まれません。
+
+    \return 0 PUF材料として妥当なデータである場合に返されます
+    \return BAD_FUNC_ARG sramAddrがNULLの場合に返されます
+    \return PUF_READ_E sramSzがWC_PUF_RAW_BYTES未満の場合、またはいずれかのチェックに失敗した場合に返されます
+
+    \param sramAddr 生のSRAMメモリ領域へのポインタ
+    \param sramSz SRAMバッファのサイズ(WC_PUF_RAW_BYTES以上でなければなりません)
+    \param onesCount 省略可能。読み込まれたデータの先頭WC_PUF_RAW_BYTES中の1ビットの個数(WC_PUF_RAW_BITS中)を受け取ります。sramAddrがNULLでなくsramSzが十分な大きさであれば、判定結果にかかわらず書き込まれます。これは生のPUF材料の性質を表す値のため、立ち上げ時の測定用途にとどめ、製品ファームウェアから出力しないでください
+
+    _Example_
+    \code
+    word32 ones = 0;
+    ret = wc_PufCheckSram((const byte*)puf_sram, sizeof(puf_sram), &ones);
+    printf("PUF SRAM bias %u/%u ones, ret %d\n",
+           (unsigned)ones, (unsigned)WC_PUF_RAW_BITS, ret);
+    \endcode
+
+    \sa wc_PufReadSram
+    \sa wc_PufEnroll
+*/
+int wc_PufCheckSram(const byte* sramAddr, word32 sramSz, word32* onesCount);
 
 /*!
     \ingroup PUF

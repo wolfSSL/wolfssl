@@ -42,6 +42,14 @@
     data, shrinking it to 39-72% of the default size. It changes the stored
     format, so the default keeps the layout used by wolfSSL 5.9.2.
 
+    Every readout passed to wc_PufReadSram() is health tested first (see
+    wc_PufCheckSram, and WC_PUF_HW_MIN_PCT / WC_PUF_HW_MAX_PCT for the
+    Hamming-weight band it must fall inside). A degenerate readout - all zero,
+    all ones, or a repeating block - is self-consistent through the whole
+    pipeline and would yield a key identical on every device, so it is
+    rejected with PUF_READ_E. The SRAM region must therefore be sampled from
+    reset, before .bss/.data init and before it is used as stack or heap.
+
     Build: ./configure --enable-puf[=small|balanced|strong|strongest]
     (auto-enables HKDF). CMake: -DWOLFSSL_PUF=yes with
     -DWOLFSSL_PUF_PROFILE=small|balanced|strong|strongest and
@@ -95,6 +103,36 @@
     #define WC_PUF_BCH_T          10
 #endif
 
+/* Startup health-test band for the raw readout, as a percentage of
+ * WC_PUF_RAW_BITS. A readout whose Hamming weight falls outside this band is
+ * not plausible SRAM power-on noise (a cleared or written region, a stuck
+ * peripheral window), so wc_PufReadSram rejects it rather than deriving a
+ * device-independent key from it. Widen only if the target's SRAM is known to
+ * be strongly biased and that bias has been measured with wc_PufCheckSram.
+ * Note the band is a percentage while the spread of a healthy readout narrows
+ * as sqrt(WC_PUF_RAW_BITS): the default is ~13 sigma wide at 16 codewords but
+ * only ~3.4 sigma at 1, so a build with one or two codewords should widen it
+ * rather than accept the occasional false reject at boot.
+ * The band does not affect the helper-data format or the derived key, so it
+ * is deliberately not part of WC_PUF_PROFILE_ID. Set it through the build so
+ * an application sees the same band as the library: autotools records a
+ * CPPFLAGS -D in wolfssl/options.h, and CMake has
+ * -DWOLFSSL_PUF_HW_MIN_PCT / -DWOLFSSL_PUF_HW_MAX_PCT. A library-only
+ * user_settings.h does not carry across, so in that case take the verdict
+ * from wc_PufCheckSram() rather than recomputing the band. */
+#ifndef WC_PUF_HW_MIN_PCT
+    #define WC_PUF_HW_MIN_PCT     35
+#endif
+#ifndef WC_PUF_HW_MAX_PCT
+    #define WC_PUF_HW_MAX_PCT     65
+#endif
+#if WC_PUF_HW_MIN_PCT >= WC_PUF_HW_MAX_PCT
+    #error "WC_PUF_HW_MIN_PCT must be less than WC_PUF_HW_MAX_PCT"
+#endif
+#if WC_PUF_HW_MIN_PCT < 1 || WC_PUF_HW_MAX_PCT > 99
+    #error "WC_PUF_HW_MIN_PCT/WC_PUF_HW_MAX_PCT must be within 1..99"
+#endif
+
 /* Fixed field: GF(2^7), codeword length n = 127 */
 #define WC_PUF_BCH_M          7    /* GF(2^7) */
 #define WC_PUF_BCH_N        127    /* codeword length */
@@ -135,8 +173,27 @@
 #define WC_PUF_PARITY_BYTES ((WC_PUF_BCH_DEG + 7) / 8)
 
 /* Raw SRAM readout: 128-bit stride per codeword (n=127 fits in 128 bits) */
-#define WC_PUF_RAW_BITS    (WC_PUF_NUM_CODEWORDS * 128)
+#define WC_PUF_RAW_STRIDE_BITS   128
+#define WC_PUF_RAW_STRIDE_BYTES  (WC_PUF_RAW_STRIDE_BITS / 8)
+#define WC_PUF_RAW_BITS    (WC_PUF_NUM_CODEWORDS * WC_PUF_RAW_STRIDE_BITS)
 #define WC_PUF_RAW_BYTES   (WC_PUF_RAW_BITS / 8)
+
+/* One codeword per stride, so the readout health test can walk the buffer in
+ * WC_PUF_CW_BYTES blocks. Every shipped profile pins n = 127, which is what
+ * makes the two equal. Divergence in either direction is a build failure: a
+ * larger codeword would read past the caller's region, a smaller one would
+ * leave the tail of every block untested. */
+#if WC_PUF_CW_BYTES != WC_PUF_RAW_STRIDE_BYTES
+    #error "WC_PUF_CW_BYTES must equal the raw readout stride"
+#endif
+
+/* The band test compares ones * 100 against WC_PUF_RAW_BITS * pct in word32
+ * arithmetic. The codeword cap above keeps both sides far inside that range
+ * (4095 codewords -> 524160 bits -> 52416000), but pin the bound so raising
+ * the cap fails the build here rather than silently wrapping the check. */
+#if WC_PUF_RAW_BITS > (0xFFFFFFFFU / 100U)
+    #error "WC_PUF_RAW_BITS too large for the health-test band arithmetic"
+#endif
 
 /* Reconstructed stable bits: k message bits per codeword, bit-packed */
 #define WC_PUF_STABLE_BITS  (WC_PUF_NUM_CODEWORDS * WC_PUF_BCH_K)
@@ -217,6 +274,8 @@ typedef struct wc_PufCtx {
 WOLFSSL_API int wc_PufInit(wc_PufCtx* ctx);
 WOLFSSL_API int wc_PufReadSram(wc_PufCtx* ctx, const byte* sramAddr,
                                word32 sramSz);
+WOLFSSL_API int wc_PufCheckSram(const byte* sramAddr, word32 sramSz,
+                                word32* onesCount);
 WOLFSSL_API int wc_PufEnroll(wc_PufCtx* ctx);
 WOLFSSL_API int wc_PufReconstruct(wc_PufCtx* ctx, const byte* helperData,
                                   word32 helperSz);

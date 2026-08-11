@@ -137,6 +137,10 @@ extern "C" {
 #cmakedefine WC_PUF_BCH_T @WC_PUF_BCH_T@
 #undef WC_PUF_NUM_CODEWORDS
 #cmakedefine WC_PUF_NUM_CODEWORDS @WC_PUF_NUM_CODEWORDS@
+#undef WC_PUF_HW_MIN_PCT
+#cmakedefine WC_PUF_HW_MIN_PCT @WC_PUF_HW_MIN_PCT@
+#undef WC_PUF_HW_MAX_PCT
+#cmakedefine WC_PUF_HW_MAX_PCT @WC_PUF_HW_MAX_PCT@
 #undef HAVE_HPKE
 #cmakedefine HAVE_HPKE
 #undef HAVE_KEYING_MATERIAL

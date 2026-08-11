@@ -2,6 +2,28 @@
 
 ## Behavioral Changes
 
+* **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
+  the raw readout is now health tested before the context accepts it, and a
+  readout that cannot be SRAM power-on noise is rejected with `PUF_READ_E`
+  instead of deriving a key from it.  Rejected are a 128-bit block that is all
+  zero or all ones, a block that repeats the one before it, and a total
+  Hamming weight outside `WC_PUF_HW_MIN_PCT`..`WC_PUF_HW_MAX_PCT` (35% to 65%
+  by default).  A rejected readout leaves the context unusable, so
+  `wc_PufEnroll()` and `wc_PufReconstruct()` refuse to run on it, while output
+  already derived from a readout that did pass stays available.  This turns a
+  previously silent failure - a degenerate region derives a key that is
+  identical on every device and computable offline - into a visible one.  It
+  catches degenerate shapes only: ordinary firmware content left in the region
+  is device-identical yet neither constant nor strongly biased, so sampling
+  from reset, before .bss/.data init, remains a requirement rather than
+  something the test can enforce.  An integration whose silicon is strongly
+  biased, or which was sampling its region too late, will now see `PUF_READ_E`
+  where it previously saw success.  Measure a candidate region with the new
+  `wc_PufCheckSram()` and widen the band with `WC_PUF_HW_MIN_PCT` /
+  `WC_PUF_HW_MAX_PCT` if the silicon warrants it.  The helper-data format and
+  the derived key are unchanged, so helper data enrolled by wolfSSL 5.9.2
+  stays valid.
+
 * **Behavioral change (`wolfSSL_shutdown` when no close_notify can be sent)**:
   when the connection is already closed or reset and no close_notify was ever
   sent, the shutdown exchange can never complete.  That case now returns
