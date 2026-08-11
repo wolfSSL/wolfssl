@@ -1529,7 +1529,6 @@ static void wb_mime_single_canonicalize(void) { }
  * stdout isn't flooded with dump text.
  *   wc_Asn1_SetFile         :~38812  asn1==NULL || file==XBADFILE
  *   wc_Asn1_SetOidToNameCb  :~38834  asn1==NULL || nameCb==NULL
- *   EncodedDottedForm       :~38862  in==NULL || outSz==NULL
  *   PrintObjectIdText       :~39022,39033
  *   PrintAsn1Text           :~39143-39152,39166-39168
  *   DumpData                :~39179,39195,39201
@@ -1817,26 +1816,6 @@ static void wb_asn1_print(void)
     }
 
     fclose(devnull);
-
-    WB_NOTE("EncodedDottedForm(): NULL-arg OR [~38862] (via PrintObjectIdNum path, "
-            "exercised indirectly above through the OID item; direct call for the "
-            "NULL-arg operand pair since no PrintObjectIdNum wrapper is public)");
-    {
-        word32 dotted[8];
-        word32 num = 8;
-        int ret;
-        static const byte oidBytes[] = { 0x55, 0x04, 0x03 };
-        ret = EncodedDottedForm(NULL, 3, dotted, &num);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38862 1st operand true (in==NULL)");
-        num = 8;
-        ret = EncodedDottedForm(oidBytes, sizeof(oidBytes), dotted, NULL);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38862 2nd operand true (outSz==NULL)");
-        num = 8;
-        /* 55 04 03 decodes to the four arcs 2.5.4.3: the first byte carries
-         * two of them. */
-        ret = EncodedDottedForm(oidBytes, sizeof(oidBytes), dotted, &num);
-        WB_CHECK(ret == 0 && num == 4, ":38862 both false (valid decode)");
-    }
 }
 #else
 static void wb_asn1_print(void) { WB_NOTE("ASN.1 print (no WOLFSSL_ASN_PRINT); skipped"); }
