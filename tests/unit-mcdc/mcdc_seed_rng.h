@@ -74,7 +74,9 @@
  * generic-C path do not draw the same number of bytes), so expect a seed to be
  * per (module, variant) rather than universal.
  *
- * Compiles to an inert no-op where SHAKE is unavailable (MCDC_SR_UNAVAILABLE).
+ * Where SHAKE is unavailable (MCDC_SR_UNAVAILABLE) the API is still defined,
+ * as inert stubs, so a caller always compiles -- see the note in the
+ * implementation half for why that matters.
  */
 
 #if defined(WOLFSSL_NO_SHAKE256) || defined(NO_SHA3) || defined(WC_NO_RNG)
@@ -89,13 +91,21 @@
 static int mcdc_sr_active = 0;
 
 #ifndef MCDC_SR_UNAVAILABLE
-    /* Replaces this TU's calls, and wc_RNG_GenerateBlock's own prototype in
-     * random.h, with the hook. The real function stays reachable through the
-     * #undef in the implementation half. */
-    /* No parentheses around the arguments: this macro also rewrites
-     * random.h's own prototype, and "int mcdc_sr_block((WC_RNG* rng), ...)"
-     * is not a valid declaration. Expanding bare keeps the prototype legal
-     * and makes it declare the hook, exactly as mcdc_fault_mutex.h does. */
+    /* Pull random.h in FIRST and declare the hook explicitly, rather than
+     * relying on the macro to rewrite random.h's own prototype into that
+     * declaration. The rewrite trick only works when this header is included
+     * before anything else drags random.h in; when it is not, the include
+     * guard skips the prototype, the hook is never declared, and every call
+     * site inside the .c under test fails with "use of undeclared
+     * identifier". That is a compile failure, which the campaign scores as a
+     * SILENT SKIP -- the dh module read 107/173 with 6 of 12 variants
+     * aggregating instead of 158/173, and still reported success.
+     *
+     * Declaring it here makes the header independent of include order. */
+    #include <wolfssl/wolfcrypt/random.h>
+
+    int mcdc_sr_block(WC_RNG* rng, byte* out, word32 sz);
+
     #define wc_RNG_GenerateBlock(rng, out, sz) mcdc_sr_block(rng, out, sz)
 #endif
 
@@ -106,8 +116,6 @@ static int mcdc_sr_active = 0;
 #ifndef MCDC_SR_UNAVAILABLE
 
 #undef wc_RNG_GenerateBlock
-
-extern int wc_RNG_GenerateBlock(WC_RNG* rng, byte* out, word32 sz);
 
 static wc_Shake mcdc_sr_shake;
 static int      mcdc_sr_ready = 0;
@@ -194,6 +202,20 @@ int mcdc_sr_block(WC_RNG* rng, byte* out, word32 sz)
     }
     return 0;
 }
+
+#else /* MCDC_SR_UNAVAILABLE */
+
+/* Inert stubs. Without these a TU that calls mcdc_sr_arm() fails to COMPILE in
+ * any variant lacking SHAKE -- and the campaign scores a white-box that fails
+ * to compile as a SILENT SKIP, losing the whole file's coverage rather than
+ * reporting an error. (Observed on the dh module: 12 variants aggregated
+ * became 6, and dh.c read 107/173 instead of 158/173.) A header that is
+ * conditionally available must still define its API unconditionally, exactly
+ * as mcdc_fault_alloc.h does. */
+static void mcdc_sr_arm(unsigned long seed)     { (void)seed; }
+static void mcdc_sr_rewind(unsigned long seed)  { (void)seed; }
+static void mcdc_sr_disarm(void)                { }
+static void mcdc_sr_restore(void)               { }
 
 #endif /* !MCDC_SR_UNAVAILABLE */
 

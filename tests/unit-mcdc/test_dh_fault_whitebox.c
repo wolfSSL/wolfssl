@@ -92,7 +92,18 @@
  * NOT interposed, so cleanup keeps working and armed calls stay crash-safe. */
 #include "mcdc_fault_mp.h"
 
+/* EXPERIMENT (2026-08-11 flake hunt): dh.c:3359 `(ret == 0) && (primeCheckCount)`
+ * was the last non-deterministic condition campaign-wide -- covered in 2 of 3
+ * sweeps of an unchanged tree. primeCheckCount counts rejected prime
+ * candidates, so it is a direct function of the random draws. */
+#include "mcdc_seed_rng.h"
+
+#define WB_DH_SEED 0xd4f00d01UL
+
 #include <wolfcrypt/src/dh.c>
+
+#define MCDC_SR_IMPL
+#include "mcdc_seed_rng.h"
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <stdio.h>
@@ -758,7 +769,9 @@ static void test_generate_params(void)
     wc_FreeDhKey(&dh);
 
     wc_InitDhKey(&dh);
+    mcdc_sr_arm(WB_DH_SEED);
     ret = wc_DhGenerateParams(&rng, 1024, &dh);
+    mcdc_sr_disarm();
     WB_CHECK(ret == 0, "modSz=1024 real generation should succeed");
     wc_FreeDhKey(&dh);
 
