@@ -1351,25 +1351,24 @@ static void wb_verify_zero_input(void)
  * independence pair (pkiMsg2==NULL true, pkiMsg2Sz==0 FALSE) can never
  * exist; reported as an exclusion, not driven here.
  *
- * NOTE (residual, not closed): the 2nd operand's true row was attempted
- * below (footer pointer present, footer size 0) but measurement shows
- * [:7675:1] still uncovered after this driver -- under
- * !defined(NO_PKCS7_STREAM), WC_PKCS7_VERIFY_STAGE4 reassigns pkiMsg2/
- * pkiMsg2Sz from `in`/`inSz` whenever `in2 && in2Sz > 0` is false (i.e.
- * exactly when footSz==0), so pkiMsg2Sz ends up as the HEADER size, not 0,
- * and the guard stays false in the streaming variants. Left in place
- * because it still drives a real two-buffer detached verify baseline
- * elsewhere in the file; a real fix needs either a NO_PKCS7_STREAM-only
- * variant of this call (where pkiMsg2/pkiMsg2Sz are never reassigned) or a
- * multi-call streaming sequence that reaches STAGE4 with in2Sz==0 without
- * falling into the in/inSz substitution.
+ * The 2nd operand is excluded for the same reason, established by
+ * measurement after this file was written and recorded in
+ * tests/unit-mcdc/test_pkcs7_craft_whitebox.c family (e): every path into
+ * :7675 reassigns pkiMsg2/pkiMsg2Sz to a non-NULL buffer and a non-zero size
+ * (:7646-:7665 streaming, :7418/:7610/:7615 otherwise), and the one branch
+ * that skips the reassignment is entered only when pkiMsg2Sz > 0 already
+ * holds. The two calls below stay because they are a real two-buffer
+ * detached verify baseline that other guards in this binary pair against.
  * ------------------------------------------------------------------------- */
 #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
 static void wb_verify_footer_guard(void)
 {
     wc_PKCS7* p;
-    byte head[512];
-    byte foot[512];
+    /* A detached SignedData footer carries the whole certificate plus the
+     * SignerInfo and a 2048-bit RSA signature: ~1.9KB. Sized from that, and
+     * static so the small-stack variant does not carry it on the stack. */
+    static byte head[1024];
+    static byte foot[4096];
     word32 headSz = sizeof(head);
     word32 footSz = sizeof(foot);
     byte content[32];
