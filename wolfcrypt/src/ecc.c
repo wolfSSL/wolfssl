@@ -16937,7 +16937,10 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
     #ifndef WOLFSSL_MUTEX_INITIALIZER
         /* extra sanity check if wolfCrypt_Init not called */
         if (eccOidLockInit == 0) {
-            wc_InitMutex(&ecc_oid_cache_lock);
+            ret = wc_InitMutex(&ecc_oid_cache_lock);
+            if (ret != 0) {
+                return BAD_MUTEX_E;
+            }
             eccOidLockInit = 1;
         }
     #endif
