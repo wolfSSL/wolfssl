@@ -2032,6 +2032,132 @@ static void wb_decode_asym_key_assign_guard(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inOutKeyType==NULL");
 }
 
+/* ------------------------------------------------------------------------ *
+ * DecodeAsymKey_Assign() privateKey CHOICE arms.
+ *   :33978  else if (allowSeed && SEED_ONLY.length != 0)
+ *   :33986  else if (allowSeed && BOTH_SEQ.length != 0)
+ * RFC 8410 keys carry a bare CurvePrivateKey, so the two seed-bearing arms
+ * (added for ML-DSA) are never taken by any in-tree caller that passes a
+ * seed pointer. The four shapes below are hand-built OneAsymmetricKey
+ * encodings that differ only in the privateKey OCTET STRING's content, and
+ * each is offered both with and without a seed out-parameter.
+ * ------------------------------------------------------------------------ */
+#define WB_ASYM_PRIV_ONLY 0
+#define WB_ASYM_SEED_ONLY 1
+#define WB_ASYM_SEED_PRIV 2
+#define WB_ASYM_NEITHER   3
+#define WB_ASYM_EMPTY     4
+
+static word32 wb_asym_tlv(byte* out, byte tag, const byte* c, word32 cs)
+{
+    word32 i = 0;
+    out[i++] = tag;
+    i += SetLength(cs, out + i);
+    if (cs > 0) {
+        XMEMCPY(out + i, c, cs);
+    }
+    return i + cs;
+}
+
+/* OneAsymmetricKey ::= SEQUENCE { version, privateKeyAlgorithm, privateKey }
+ * with the privateKey OCTET STRING holding one of the CHOICE arms. */
+static word32 wb_asym_pkcs8(byte* out, int shape)
+{
+    static const byte ed25519Oid[] = { 0x2B, 0x65, 0x70 };
+    static const byte blob[32] = { 0x11 };
+    byte inner[128], algo[32], body[192];
+    word32 n = 0, a, b = 0;
+
+    switch (shape) {
+        case WB_ASYM_SEED_ONLY:
+            n = wb_asym_tlv(inner, ASN_CONTEXT_SPECIFIC | ASN_PKEY_SEED, blob,
+                    (word32)sizeof(blob));
+            break;
+        case WB_ASYM_SEED_PRIV: {
+            byte both[96];
+            word32 t = wb_asym_tlv(both, ASN_OCTET_STRING, blob,
+                    (word32)sizeof(blob));
+            t += wb_asym_tlv(both + t, ASN_OCTET_STRING, blob,
+                    (word32)sizeof(blob));
+            n = wb_asym_tlv(inner, ASN_SEQUENCE | ASN_CONSTRUCTED, both, t);
+            break;
+        }
+        case WB_ASYM_NEITHER:
+            n = 0;
+            break;
+        case WB_ASYM_EMPTY:
+            /* A present but zero-length CurvePrivateKey: the encoding parses,
+             * yet every CHOICE arm's length is 0, which is the only way to
+             * reach the trailing `else` and the only row where :33986's
+             * second operand is false with the first true. */
+            n = wb_asym_tlv(inner, ASN_OCTET_STRING, NULL, 0);
+            break;
+        default:
+            n = wb_asym_tlv(inner, ASN_OCTET_STRING, blob,
+                    (word32)sizeof(blob));
+            break;
+    }
+
+    b += wb_asym_tlv(body + b, ASN_INTEGER, (const byte*)"\0", 1);
+    a = wb_asym_tlv(algo, ASN_OBJECT_ID, ed25519Oid, (word32)sizeof(ed25519Oid));
+    b += wb_asym_tlv(body + b, ASN_SEQUENCE | ASN_CONSTRUCTED, algo, a);
+    b += wb_asym_tlv(body + b, ASN_OCTET_STRING, inner, n);
+
+    return wb_asym_tlv(out, ASN_SEQUENCE | ASN_CONSTRUCTED, body, b);
+}
+
+static void wb_decode_asym_key_seed_arms(void)
+{
+    static const int shapes[5] = {
+        WB_ASYM_PRIV_ONLY, WB_ASYM_SEED_ONLY, WB_ASYM_SEED_PRIV,
+        WB_ASYM_NEITHER, WB_ASYM_EMPTY
+    };
+    static const char* names[5] = {
+        "priv-only", "seed-only", "seed+priv", "neither", "empty CHOICE"
+    };
+    byte der[256];
+    int s;
+
+    WB_NOTE("DecodeAsymKey_Assign(): privateKey CHOICE arms [:33978,:33986]");
+
+    for (s = 0; s < 5; s++) {
+        word32 sz = wb_asym_pkcs8(der, shapes[s]);
+        const byte *seed = NULL, *priv = NULL, *pub = NULL;
+        word32 seedLen = 0, privLen = 0, pubLen = 0;
+        word32 idx;
+        int keyType;
+        int ret;
+
+        /* With a seed out-parameter: allowSeed is true. */
+        idx = 0;
+        keyType = ED25519k;
+        ret = DecodeAsymKey_Assign(der, &idx, sz, &seed, &seedLen, &priv,
+                &privLen, &pub, &pubLen, &keyType);
+        if ((shapes[s] == WB_ASYM_NEITHER) ||
+                (shapes[s] == WB_ASYM_EMPTY)) {
+            WB_CHECK(ret != 0, "no CHOICE arm with content, allowSeed "
+                    "(:33978/:33986 2nd operand false)");
+        }
+        else {
+            WB_CHECK(ret == 0, names[s]);
+        }
+
+        /* Without one: allowSeed is false, so both seed arms are skipped. */
+        idx = 0;
+        keyType = ED25519k;
+        priv = NULL; privLen = 0; pub = NULL; pubLen = 0;
+        ret = DecodeAsymKey_Assign(der, &idx, sz, NULL, NULL, &priv, &privLen,
+                &pub, &pubLen, &keyType);
+        if (shapes[s] == WB_ASYM_PRIV_ONLY) {
+            WB_CHECK(ret == 0, "priv-only without a seed out-parameter");
+        }
+        else {
+            WB_CHECK(ret != 0, "seed arms rejected without a seed "
+                    "out-parameter (:33978/:33986 1st operand false)");
+        }
+    }
+}
+
 /* Round-trips SetAsymKeyDer()/DecodeAsymKey() to exercise the "priv-only"
  * happy path plus the ANONk auto-detect and buffer-too-small checks
  * [:33695,:33797,:33881,:33884,:33887]. */
@@ -2244,6 +2370,7 @@ static void wb_decode_asym_key_public_roundtrip(void) { WB_NOTE("WC_ENABLE_ASYM_
 #endif
 #else
 static void wb_decode_asym_key_assign_guard(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
+static void wb_decode_asym_key_seed_arms(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
 static void wb_decode_asym_key_roundtrip(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
 static void wb_decode_asym_key_public_roundtrip(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
 #endif
@@ -2486,6 +2613,7 @@ int main(void)
     wb_build_ecc_key_der();
     wb_ecc_to_pkcs8();
     wb_decode_asym_key_assign_guard();
+    wb_decode_asym_key_seed_arms();
     wb_decode_asym_key_roundtrip();
     wb_decode_asym_key_public_roundtrip();
     wb_set_asym_key_der_output();

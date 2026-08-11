@@ -2145,10 +2145,14 @@ static void wb_decode_cert_internal(void)
         FreeDecodedCert(&cert);
     }
 
-    /* --- WC_RSA_PSS tbs/sig parameter match [:22704,:22705] --
-     * best-effort with a real PSS-signed certificate; the mismatched-
-     * parameters (false) arm is not attempted (would need PSS parameter
-     * byte-level surgery). ---------------------------------------------- */
+    /* --- WC_RSA_PSS tbs/sig parameter match [:22758,:22759] -------------
+     * A conforming PSS certificate repeats the same RSASSA-PSS-params in the
+     * TBSCertificate's signature field and in the outer signatureAlgorithm,
+     * so the equality test is all-false on the corpus certificate. Two edited
+     * copies supply the other rows: one flips a byte inside the outer
+     * parameters (same size, different content) and one removes the optional
+     * [2] saltLength from them (different size). Removing an item needs every
+     * enclosing SEQUENCE length rewritten, which mcdc_der_shrink() does. */
 #ifdef WC_RSA_PSS
     {
         static byte pssBuf[4096];
@@ -2156,16 +2160,98 @@ static void wb_decode_cert_internal(void)
         if (wb_load_file("./certs/rsapss/server-rsapss.der", pssBuf,
                     sizeof(pssBuf), &pssSz) == 0) {
             DecodedCert cert;
+            byte edit[4096];
+            word32 editSz;
+            word32 outerParams = 0;
+            word32 i;
             int ret, crit;
-            WB_NOTE("DecodeCertInternal(): RSA-PSS cert, tbs/sig params (best-effort) [:22704,:22705]");
+
+            WB_NOTE("DecodeCertInternal(): RSA-PSS tbs/sig parameter match "
+                    "[:22758]");
             wc_InitDecodedCert(&cert, pssBuf, (word32)pssSz, NULL);
             ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 0);
-            WB_CHECK(ret == 0 || ret != 0,
-                    "PSS cert parsed without crashing (see RESIDUAL note)");
+            WB_CHECK(ret == 0, "unedited PSS certificate (both operands false)");
             FreeDecodedCert(&cert);
+
+            /* The parse above recorded where the outer signatureAlgorithm's
+             * parameters start. This certificate also carries id-RSASSA-PSS
+             * in its SubjectPublicKeyInfo, so scanning for the OID would find
+             * the wrong copy. */
+            {
+                DecodedCert probe;
+                wc_InitDecodedCert(&probe, pssBuf, (word32)pssSz, NULL);
+                if (DecodeCertInternal(&probe, NO_VERIFY, &crit, NULL, 0, 0)
+                        == 0) {
+                    outerParams = probe.sigParamsIndex;
+                }
+                FreeDecodedCert(&probe);
+            }
+            WB_CHECK(outerParams != 0 &&
+                     pssBuf[outerParams] == (ASN_SEQUENCE | ASN_CONSTRUCTED),
+                     "outer signatureAlgorithm parameters located");
+
+            if (outerParams != 0) {
+                word32 co, cl, lo, lw;
+                word32 salt = 0;
+
+                /* Same size, different content: flip the last content byte
+                 * of the outer parameters (the saltLength value). */
+                XMEMCPY(edit, pssBuf, pssSz);
+                editSz = (word32)pssSz;
+                if (mcdc_der_hdr(edit, editSz, outerParams, &co, &cl, &lo,
+                        &lw) != 0) {
+                    edit[co + cl - 1] ^= 0x01;
+                    wc_InitDecodedCert(&cert, edit, editSz, NULL);
+                    ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0,
+                            0);
+                    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                            ":22758 1st operand false, 2nd true (same size, "
+                            "different parameters)");
+                    FreeDecodedCert(&cert);
+
+                    /* Different size: drop the optional [2] saltLength, the
+                     * last item of the parameters SEQUENCE. */
+                    for (i = co; i < co + cl; ) {
+                        word32 ico, icl, ilo, ilw;
+                        if (mcdc_der_hdr(edit, editSz, i, &ico, &icl, &ilo,
+                                &ilw) == 0) {
+                            break;
+                        }
+                        if (edit[i] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED
+                                        | 2)) {
+                            salt = i;
+                            break;
+                        }
+                        i = ico + icl;
+                    }
+                    WB_CHECK(salt != 0, "[2] saltLength located");
+                }
+                if (salt != 0) {
+                    word32 sco, scl, slo, slw;
+                    word32 saltTlv;
+                    XMEMCPY(edit, pssBuf, pssSz);
+                    editSz = (word32)pssSz;
+                    (void)mcdc_der_hdr(edit, editSz, salt, &sco, &scl, &slo,
+                            &slw);
+                    saltTlv = (sco - salt) + scl;
+                    if (mcdc_der_shrink(edit, &editSz, salt, saltTlv) == 0) {
+                        wc_InitDecodedCert(&cert, edit, editSz, NULL);
+                        ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL,
+                                0, 0);
+                        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                                ":22758 1st operand true (parameter sizes "
+                                "differ)");
+                        FreeDecodedCert(&cert);
+                    }
+                    else {
+                        WB_NOTE("saltLength removal refused; size-mismatch "
+                                "row skipped");
+                    }
+                }
+            }
         }
         else {
-            WB_NOTE("certs/rsapss/server-rsapss.der not found; PSS best-effort skipped");
+            WB_NOTE("certs/rsapss/server-rsapss.der not found; PSS rows skipped");
         }
     }
 #endif
