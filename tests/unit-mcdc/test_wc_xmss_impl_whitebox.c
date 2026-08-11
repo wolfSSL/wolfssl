@@ -331,6 +331,13 @@ static void wb_run(void)
 #ifdef WC_XMSS_SHA256
     wb_exhausted_index(&rng, "XMSS-SHA2_10_256", 1);
 #endif
+    /* An XMSS^MT set with idx_len <= 4, so the 32-bit arm of the macro is
+     * driven inside wc_xmssmt_sign() as well -- the single-tree set above
+     * reaches wc_xmss_sign()'s own copy of the check, not this one. */
+#if defined(WC_XMSS_SHA256) && (WOLFSSL_XMSS_MAX_HEIGHT >= 20) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 20))
+    wb_exhausted_index(&rng, "XMSSMT-SHA2_20/2_256", 1);
+#endif
 #if defined(WC_XMSS_SHA256) && (WOLFSSL_XMSS_MAX_HEIGHT >= 40) && \
     (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40))
 #ifdef WOLFSSL_WC_XMSS_SMALL

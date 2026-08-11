@@ -76,6 +76,11 @@
  * operations, no sweep, no clock.
  */
 
+/* frodokem_check_priv_key()'s `(ret == 0)` operand needs a SHAKE failure: its
+ * only assignment to ret is frodokem_shake_oneshot(). The interposers are armed
+ * only inside wb_pkh_mismatch_rows(); everything else here runs disarmed. */
+#include "mcdc_fault_hash.h"
+
 #include <wolfcrypt/src/wc_frodokem.c>
 
 #include <wolfssl/wolfcrypt/random.h>
@@ -299,6 +304,27 @@ static void wb_pkh_mismatch_rows(WC_RNG* rng, int type)
         }
     }
     wc_FrodoKemKey_Free(&k2);
+    enc[skSize - 1] ^= 0x01;
+
+    /* The first operand's FALSE row: frodokem_shake_oneshot() itself fails, so
+     * the comparison is never reached. It is the only assignment to ret in
+     * frodokem_check_priv_key(), and it does not allocate -- hence the hash
+     * interposer rather than the allocator one. A short dense sweep covers the
+     * handful of SHAKE calls the decode path makes. */
+    {
+        long n;
+
+        for (n = 1; n <= 8L; n++) {
+            XMEMSET(&k2, 0, sizeof(k2));
+            if (wc_FrodoKemKey_Init(&k2, type, NULL, INVALID_DEVID) == 0) {
+                mcdc_fh_arm(n);
+                (void)wc_FrodoKemKey_DecodePrivateKey(&k2, enc, skSize);
+                mcdc_fh_disarm();
+            }
+            wc_FrodoKemKey_Free(&k2);
+        }
+        mcdc_fh_disarm();
+    }
 
     WB_NOTE("stored public-key-hash consistency rows exercised");
 }
