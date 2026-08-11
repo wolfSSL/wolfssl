@@ -169,6 +169,21 @@
  *       :17100 cond 0 (`encryptedContentSz <= 0`) -- :17053 already rejected
  *         a GetLength_ex() result of `<= 0`, and the value is only carried
  *         through `stream->varThree` untouched, so it is at least 1 here.
+ *       :15861 both -- GetAlgoId(oidBlkType) at :15835 can only yield an
+ *         AES-CBC/GCM/CCM 128/192/256, DESb or DES3b OID (asn.c's oidBlkType
+ *         table holds nothing else; the AES key-wrap OIDs live in
+ *         oidKeyWrapType), and wc_PKCS7_GetOIDKeySize() and
+ *         wc_PKCS7_GetOIDBlockSize() both answer for every one of them, so
+ *         :15843/:15851 never set ret and cond 0 has no false row. Cond 1
+ *         cannot fail either: SetAlgoID() writes the SEQUENCE length to cover
+ *         the algorithm parameters, and GetAlgoId() parses that SEQUENCE with
+ *         the bounds-checking GetSequence(), so the byte :15861 reads is known
+ *         to be inside pkiMsgSz.
+ *       :15946 cond 2 (`nonceSz > nonceMax`) -- :15909 has already rejected
+ *         `nonceSz > (int)sizeof(nonce)` and `nonce` is
+ *         `byte nonce[GCM_NONCE_MID_SZ]`, i.e. 12 bytes, while nonceMax is 12
+ *         for GCM and CCM_NONCE_MAX_SZ (13) for CCM. A nonce large enough to
+ *         exceed nonceMax has already been rejected by the buffer check.
  */
 
 /* The detached header/footer pair in Section 6 is signed here rather than
@@ -1046,6 +1061,44 @@ static int wb_verify_head_foot_plain(word32 footSz, byte* hashBuf,
     return ret;
 }
 
+/* Streaming flow: WC_PKCS7_WANT_READ_E means "hand me the next chunk". Feeding
+ * the header and then the content as successive `in` chunks, with the footer
+ * held in `in2` throughout, is the only shape that reaches the END of stage 6
+ * while `hashSz` is 0 -- a single-buffer call cannot, because stage 3 has to
+ * read the content out of the stream itself and answers WANT_READ instead.
+ * Bounded by a chunk count, never by elapsed time. */
+static int wb_verify_head_foot_chunked(word32 hashSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    int ret = -1;
+    int i;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->contentSz = (word32)sizeof(wbDetContent);
+    for (i = 0; i < 8; i++) {
+        if (i == 0) {
+            ret = wc_PKCS7_VerifySignedData_ex(p, wbDetHash, hashSz, wbHeadN,
+                    wbHeadNSz, wbFootN, wbFootNSz);
+        }
+        else {
+            ret = wc_PKCS7_VerifySignedData_ex(p, wbDetHash, hashSz,
+                    wbDetContent, (word32)sizeof(wbDetContent), wbFootN,
+                    wbFootNSz);
+        }
+        if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+            break;
+        }
+    }
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
 static int wb_verify_head_foot(word32 footSz, byte* hashBuf, word32 hashSz,
         int setContent, int withContent)
 {
@@ -1157,6 +1210,13 @@ static void wb_footer_hash_matrix(void)
             (word32)sizeof(wbDetHash), 1);
     (void)wb_verify_head_foot_plain(wbFootNSz, wbDetHash, 0, 1);
     (void)wb_verify_head_foot_plain(wbFootNSz, NULL, 0, 1);
+
+    WB_NOTE("PKCS7_VerifySignedData(): chunked two-buffer verify, header then"
+            " content, with a hash POINTER of zero size [:8108 cond 3 false]");
+    WB_CHECK(wb_verify_head_foot_chunked(0) == 0,
+            ":8108 cond 3 false, chunked verify completes");
+    WB_CHECK(wb_verify_head_foot_chunked((word32)sizeof(wbDetHash)) == 0,
+            ":8108 all operands true, chunked verify completes");
 #endif
 }
 #else
@@ -1660,6 +1720,54 @@ static void wb_auth_env_set_tag_sz(byte sz)
     wbAeBuf[wbAeSz - 17] = sz;   /* ICV OCTET STRING length */
 }
 
+/* Only macInt's value is rewritten: :15963 runs long before the ICV length is
+ * read, so the two do not have to agree for that check. */
+static void wb_auth_env_set_mac_sz(byte sz)
+{
+    wbAeBuf[wbAeHdr - 1] = sz;
+}
+
+/* The nonce OCTET STRING sits between the algorithm-parameters SEQUENCE and
+ * macInt, so its length byte is `3 + nonceSz + 1` back from the encryptedContent
+ * header. Returns 0 unless the tag and the current length are what the encoder
+ * wrote. */
+static word32 wb_auth_env_nonce_len_idx(byte nonceSz)
+{
+    word32 i;
+
+    if (wbAeHdr < (word32)nonceSz + 5u) {
+        return 0;
+    }
+    i = wbAeHdr - 3u - (word32)nonceSz - 1u;
+    if (wbAeBuf[i - 1] != ASN_OCTET_STRING || wbAeBuf[i] != nonceSz) {
+        return 0;
+    }
+    return i;
+}
+
+/* Index of the last byte of the content-encryption OID, found by searching for
+ * the NIST AES arc `2.16.840.1.101.3.4.1` and confirming the algorithm byte
+ * behind it. Returns 0 if the arc is absent or the byte is not the expected
+ * one, so a caller never patches a byte it has not identified. */
+static const byte wbAesArc[] =
+    { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x01 };
+
+static word32 wb_auth_env_alg_byte(byte expect)
+{
+    word32 i;
+
+    if (wbAeSz <= (word32)sizeof(wbAesArc)) {
+        return 0;
+    }
+    for (i = 0; i + (word32)sizeof(wbAesArc) < wbAeSz; i++) {
+        if (XMEMCMP(wbAeBuf + i, wbAesArc, sizeof(wbAesArc)) == 0 &&
+                wbAeBuf[i + sizeof(wbAesArc)] == expect) {
+            return i + (word32)sizeof(wbAesArc);
+        }
+    }
+    return 0;
+}
+
 static void wb_auth_env_shapes(void)
 {
     int ret;
@@ -1715,6 +1823,43 @@ static void wb_auth_env_shapes(void)
         wbAeBuf[wbAeHdr + 3] = c1;
     }
     wbAeBuf[wbAeHdr] = (byte)(ASN_CONTEXT_SPECIFIC | 0);
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): ICV length of zero and ICV"
+            " length above WC_AES_BLOCK_SIZE [:15963 cond 1 and cond 2 true]");
+    wb_auth_env_set_mac_sz(0);
+    (void)wb_decode_auth_env(wbAeSz);
+    wb_auth_env_set_mac_sz(0x20);
+    (void)wb_decode_auth_env(wbAeSz);
+    wb_auth_env_set_mac_sz(16);
+
+    {
+        word32 nonceIdx = wb_auth_env_nonce_len_idx(GCM_NONCE_MID_SZ);
+
+        WB_CHECK(nonceIdx > 0, "content-encryption nonce located");
+        if (nonceIdx > 0) {
+            WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): AES-GCM nonce one"
+                    " byte short of the mandated 12 [:15946 cond 1 true, so"
+                    " cond 0 has a decision-true row to pair against]");
+            wbAeBuf[nonceIdx] = GCM_NONCE_MID_SZ - 1;
+            (void)wb_decode_auth_env(wbAeSz);
+            wbAeBuf[nonceIdx] = GCM_NONCE_MID_SZ;
+        }
+    }
+
+    {
+        word32 algIdx = wb_auth_env_alg_byte(0x06);  /* aes128-GCM */
+
+        WB_CHECK(algIdx > 0, "content-encryption OID located");
+        if (algIdx > 0) {
+            WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): content-encryption"
+                    " algorithm rewritten to AES-128-CBC, which has a key size"
+                    " and a block size but is not an AEAD, so the nonce-bounds"
+                    " switch falls to its default [:15946 cond 0 false]");
+            wbAeBuf[algIdx] = 0x02;                  /* aes128-CBC */
+            (void)wb_decode_auth_env(wbAeSz);
+            wbAeBuf[algIdx] = 0x06;
+        }
+    }
 
     WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): AES-GCM bundle claiming a"
             " 3-byte ICV, which the GCM tag-size check rejects [:16274 cond 0"
