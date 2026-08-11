@@ -45,8 +45,19 @@ jobs:
         # List of releases to test
         include:
           - ref: 1.8.0
+            # test13: the config sets a TLS 1.2-only cipher list and
+            #   wolfSSL_CTX_set_cipher_list() currently drops the default
+            #   TLS 1.3 suites (OpenSSL keeps them), so TLS 1.3 clients
+            #   fail to connect.
+            # test15: wolfSSL does not implement NPN, only stub callbacks
+            #   (ALPN is supported and covered by test16).
+            # test39: wolfSSL's PEM_write_bio_X509_AUX() does not use the
+            #   TRUSTED CERTIFICATE PEM armor (16-byte proxy TLV length
+            #   difference) and the verify callback runs even when the
+            #   client presents no certificate, which sets the proxy-v2
+            #   client cert flag.
             ignore-tests: >-
-              test12-cfg.sh test13-r82.sh test15-proxy-v2-npn.sh test39-client-cert-proxy.sh test41-client-cert-pb.sh
+              test13-r82.sh test15-proxy-v2-npn.sh test39-client-cert-proxy.sh
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
