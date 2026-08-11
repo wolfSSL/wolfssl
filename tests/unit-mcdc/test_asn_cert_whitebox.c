@@ -664,6 +664,15 @@ static void wb_get_rdn_get_cert_name(void)
     ret = wb_get_name_with_oid(ASN_SUBJECT, v1_hi, sizeof(v1_hi));
     WB_CHECK(ret == 0, "v1 OID id-3 out of range high (:14261 2nd operand false)");
 
+    /* id 12 ("Title") is in range but its certNameSubject[] entry carries
+     * EMPTY_STR/0, so the strLen operand is the one that decides. */
+    {
+        static const byte v1_empty[] = { 0x55, 0x04, 0x0C };
+        ret = wb_get_name_with_oid(ASN_SUBJECT, v1_empty, sizeof(v1_empty));
+        WB_CHECK(ret == 0, "v1 OID with an empty table entry "
+                "(:14261 3rd operand false)");
+    }
+
     /* id in [ASN_COMMON_NAME+1, ASN_USER_ID] -> SetSubject()'s table-offset
      * branch [:15073]; same OID as ASN_ISSUER exercises SetIssuer() [:15126]
      * (needs WOLFSSL_HAVE_ISSUER_NAMES, on in this build). */
@@ -703,9 +712,12 @@ static void wb_get_rdn_get_cert_name(void)
 #endif
 
     /* dcOid with same size but differing last byte -> "unknown pilot
-     * attribute type" arm [:15239] -> ASN_PARSE_E. */
+     * attribute type" arm [:15239] -> ASN_PARSE_E. The replacement byte
+     * must stay below 0x80: a byte with the BER continuation bit set makes
+     * DecodeObjectId() reject the OBJECT_ID before GetRDN() is ever
+     * entered, which yields the same ASN_PARSE_E without reaching the arm. */
     XMEMCPY(dcOid_bad, dcOid, sizeof(dcOid));
-    dcOid_bad[sizeof(dcOid_bad) - 1] ^= 0xFF;
+    dcOid_bad[sizeof(dcOid_bad) - 1] = 0x63;
     ret = wb_get_name_with_oid(ASN_SUBJECT, dcOid_bad, sizeof(dcOid_bad));
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             ":15239 both true (unknown pilot attribute -> ASN_PARSE_E)");
@@ -855,6 +867,12 @@ static void wb_get_rdn_get_cert_name(void)
         ret = wb_get_name_with_oid_val(ASN_SUBJECT, v1_uid, sizeof(v1_uid),
                 ASN_BIT_STRING, bsEmpty, sizeof(bsEmpty));
         WB_CHECK(ret != 0 || ret == 0, ":15300/:15305 empty BIT STRING value");
+
+        /* Zero-length BIT STRING: no unused-bit octet at all, so strLen is
+         * 0 and the first operand of :15300 decides. */
+        ret = wb_get_name_with_oid_val(ASN_SUBJECT, v1_uid, sizeof(v1_uid),
+                ASN_BIT_STRING, bsOk, 0);
+        WB_CHECK(ret != 0, ":15300 1st operand true (zero-length BIT STRING)");
 
         /* Same aligned BIT STRING as the issuer name -> :15319 2nd operand
          * false (isSubject == 0). */
@@ -1333,6 +1351,19 @@ static void wb_get_cert_dates(void)
         XMEMSET(&after, 0, sizeof(after));
         ret = wc_GetCertDates(&cert2, &before, &after);
         WB_CHECK(ret == 0, ":16200 2nd false (beforeDateSz==0)");
+    }
+
+    /* after!=NULL but afterDateSz==0 -> :16206 2nd operand false. */
+    {
+        Cert cert3;
+        XMEMSET(&cert3, 0, sizeof(cert3));
+        cert3.beforeDateSz = (int)wb_tlv(cert3.beforeDate, ASN_UTC_TIME,
+                (const byte*)"200101000000Z", 13);
+        cert3.afterDateSz = 0;
+        XMEMSET(&before, 0, sizeof(before));
+        XMEMSET(&after, 0, sizeof(after));
+        ret = wc_GetCertDates(&cert3, &before, &after);
+        WB_CHECK(ret == 0, ":16206 2nd false (afterDateSz==0)");
     }
 }
 #else
