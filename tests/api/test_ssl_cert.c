@@ -32,6 +32,7 @@
 #include <wolfssl/internal.h>
 
 #include <tests/utils.h>
+#include <tests/api/api.h>
 #include <tests/api/test_ssl_cert.h>
 
 /* Tests for the certificate APIs in src/ssl_api_cert.c (moved from ssl.c). */
@@ -1495,6 +1496,484 @@ int test_wolfSSL_cert_unload(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
+
+#define TEST_EKU_CERT_BUF_SZ (2 * FOURK_BUF)
+
+/* Keys and scratch buffers shared by every case. */
+typedef struct test_eku_fixture {
+    RsaKey* caKey;      /* the 2048-bit test root */
+    RsaKey* midKey;     /* CA between the CA under test and the leaf */
+    RsaKey* intKey;     /* the CA whose Extended Key Usage is under test */
+    RsaKey* leafKey;
+    WC_RNG* rng;
+    byte*   midDer;
+    byte*   interDer;
+    byte*   chainDer;
+} test_eku_fixture;
+
+/* One chain Extended Key Usage scenario. */
+typedef struct test_eku_case {
+    const char* extKeyUsage;   /* Extended Key Usage on the CA under test,
+                                * NULL omits the extension */
+    int selfSignedCa;          /* CA under test is self-signed and is itself
+                                * the trust anchor */
+    int selfIssuedCa;          /* CA under test takes its issuer's subject
+                                * name, as a key rollover certificate does,
+                                * but keeps its own key */
+    int clientPresents;        /* client sends the chain, server verifies it */
+    int pinCa;                 /* CA under test is also loaded as a trusted
+                                * CA before the handshake */
+    int extraLevel;            /* insert a CA between the CA under test and
+                                * the leaf, putting the CA under test at
+                                * depth 2 */
+    int overrideCb;            /* verify callback installed on the verifying
+                                * side: 0 none, 1 accepts every error,
+                                * 2 waives only the purpose error */
+    int verifyDepth;           /* verify depth pinned on the verifying side,
+                                * 0 leaves the default in place */
+    int expectRet;             /* expected handshake result */
+} test_eku_case;
+
+/* Stand in for an application that knowingly accepts a rejected certificate. */
+static int test_eku_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    return 1;
+}
+
+/* Stand in for an application that knowingly accepts a repurposed CA and
+ * nothing else. Every other rejection is left to stand, so a chain the library
+ * turns away for another reason must still fail. */
+static int test_eku_purpose_only_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    if ((store->error == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E))
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        || (store->error == WOLFSSL_X509_V_ERR_INVALID_PURPOSE)
+#endif
+        ) {
+        return 1;
+    }
+    return preverify;
+}
+
+/* Build a CA:TRUE certificate for subjKey. A NULL issuerDer makes it
+ * self-signed, otherwise it is signed by issuerKey in the name of issuerDer. A
+ * NULL extKeyUsage omits the Extended Key Usage extension entirely. When
+ * selfIssued is set the certificate takes the issuer's own subject name
+ * instead of cn, which is the shape of a CA key rollover link certificate
+ * (RFC 4210 OldWithNew): issuer and subject match, but the key is subjKey and
+ * the signature is issuerKey's. Returns the DER length, or < 0 on failure. */
+static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
+    const char* extKeyUsage, const char* cn, int selfIssued)
+{
+    Cert cert;
+    int  ret = 0;
+
+    if (selfIssued && issuerDer == NULL)
+        return -1;
+    if (wc_InitCert(&cert) != 0)
+        return -1;
+    cert.isCA    = 1;
+    cert.sigType = CTC_SHA256wRSA;
+    if (selfIssued) {
+        /* Copy the issuer's subject name verbatim. The name fields
+         * wc_InitCert() cleared are left alone, since wc_SetSubjectBuffer()
+         * only fills in what the issuer actually carries and the issuer name
+         * set below is built from the same source. */
+        if (wc_SetSubjectBuffer(&cert, issuerDer, issuerDerSz) != 0)
+            ret = -1;
+    }
+    else {
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+        XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
+    }
+    if (ret == 0 && wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL) != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetKeyUsage(&cert, "keyCertSign,cRLSign") != 0)
+        ret = -1;
+    if (ret == 0 && extKeyUsage != NULL &&
+            wc_SetExtKeyUsage(&cert, extKeyUsage) != 0)
+        ret = -1;
+    /* wc_InitCert() leaves selfSigned set, so naming no issuer is what makes
+     * the generated certificate self-signed. */
+    if (ret == 0 && issuerDer != NULL) {
+        if (wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz) != 0)
+            ret = -1;
+        if (ret == 0 && wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz) != 0)
+            ret = -1;
+    }
+    if (ret == 0)
+        ret = wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng);
+    if (ret >= 0)
+        ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+            (issuerDer == NULL) ? subjKey : issuerKey, NULL, rng);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+    return ret;
+}
+
+/* Build a TLS leaf signed by the given CA. The leaf carries both serverAuth
+ * and clientAuth so only the issuing CA's purpose is tested. */
+static int test_eku_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng)
+{
+    Cert cert;
+    int  ret = 0;
+
+    if (wc_InitCert(&cert) != 0)
+        return -1;
+    cert.isCA    = 0;
+    cert.sigType = CTC_SHA256wRSA;
+    XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, "EKU Leaf", CTC_NAME_SIZE - 1);
+    if (wc_SetSubjectKeyIdFromPublicKey(&cert, leafKey, NULL) != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz) != 0)
+        ret = -1;
+    if (ret == 0 &&
+            wc_SetKeyUsage(&cert, "digitalSignature,keyEncipherment") != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetExtKeyUsage(&cert, "serverAuth,clientAuth") != 0)
+        ret = -1;
+    if (ret == 0 && wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz) != 0)
+        ret = -1;
+    if (ret == 0)
+        ret = wc_MakeCert(&cert, out, (word32)outMax, leafKey, NULL, rng);
+    if (ret >= 0)
+        ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
+            issuerKey, NULL, rng);
+#ifdef WOLFSSL_CERT_GEN_CACHE
+    wc_SetCert_Free(&cert);
+#endif
+    return ret;
+}
+
+/* Run a memio handshake in which one side presents the given chain and the
+ * peer verifies it against rootDer. When clientPresents is set the client sends
+ * the chain and the server verifies it, which is the client authentication
+ * direction. A non-NULL pinnedDer is loaded as an additional trusted CA on the
+ * verifying side, so the chain CA is already a known signer when it arrives.
+ * The handshake result and the compatibility-layer verify result are returned
+ * through hsRet and verifyRet. */
+static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
+    const byte* rootDer, int rootSz, const byte* pinnedDer, int pinnedSz,
+    const test_eku_case* tc, int* hsRet, long* verifyRet)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL_CTX* verifyCtx = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* verifySsl = NULL;
+    VerifyCallback verifyCb = NULL;
+    struct test_memio_ctx test_ctx;
+
+    if (tc->overrideCb == 1)
+        verifyCb = test_eku_override_cb;
+    else if (tc->overrideCb == 2)
+        verifyCb = test_eku_purpose_only_cb;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* The server always presents the generated chain so a single set of
+     * credentials covers both directions. */
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method,
+        (byte*)rootDer, rootSz, (byte*)chainDer, chainSz,
+        (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
+
+    if (tc->clientPresents) {
+        /* Leave the server chain unverified so only the server's view of the
+         * client chain decides the handshake. */
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(wolfSSL_use_certificate_chain_buffer_format(ssl_c, chainDer,
+            (long)chainSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl_c, client_key_der_2048,
+            (long)sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_s, rootDer,
+            (long)rootSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, verifyCb);
+        verifyCtx = ctx_s;
+        verifySsl = ssl_s;
+    }
+    else {
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, verifyCb);
+        verifyCtx = ctx_c;
+        verifySsl = ssl_c;
+    }
+
+#ifdef OPENSSL_EXTRA
+    if (tc->verifyDepth > 0)
+        wolfSSL_set_verify_depth(verifySsl, tc->verifyDepth);
+#endif
+
+    if (pinnedDer != NULL) {
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(verifyCtx, pinnedDer,
+            (long)pinnedSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
+
+    /* The harness only reports pass or fail, so read the reason from the side
+     * that did the verifying. */
+    if (EXPECT_SUCCESS()) {
+        if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) == 0)
+            *hsRet = 0;
+        else
+            *hsRet = wolfSSL_get_error(verifySsl, WOLFSSL_FATAL_ERROR);
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        *verifyRet = wolfSSL_get_verify_result(verifySsl);
+    #endif
+    }
+    (void)verifyRet;
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    return EXPECT_RESULT();
+}
+
+/* Build the chain for one scenario, run the handshake and check both the
+ * handshake result and the verify result it is reported as. */
+static int test_eku_chain_case(const test_eku_fixture* f,
+    const test_eku_case* tc)
+{
+    EXPECT_DECLS;
+    const byte* rootDer = ca_cert_der_2048;
+    const byte* leafIssuerDer;
+    int rootSz = (int)sizeof_ca_cert_der_2048;
+    int leafIssuerSz;
+    RsaKey* leafIssuerKey;
+    int midSz = 0;
+    int caSz = 0;
+    int leafSz = 0;
+    int chainSz = 0;
+    int hsRet = -1;
+    long verifyRet = -1;
+
+    /* The CA under test is always signed by the root. */
+    ExpectIntGT((caSz = test_eku_gen_ca(f->interDer, TEST_EKU_CERT_BUF_SZ,
+        f->intKey, tc->selfSignedCa ? NULL : ca_cert_der_2048,
+        (int)sizeof_ca_cert_der_2048, f->caKey, f->rng, tc->extKeyUsage,
+        tc->selfSignedCa ? "EKU Self Signed CA" : "EKU Intermediate",
+        tc->selfIssuedCa)), 0);
+
+    leafIssuerDer = f->interDer;
+    leafIssuerSz  = caSz;
+    leafIssuerKey = f->intKey;
+
+    /* An extra level inserts a CA that does carry the TLS purposes between the
+     * CA under test and the leaf, so the CA under test is no longer the issuer
+     * of the leaf and sits at depth 2. */
+    if (tc->extraLevel) {
+        ExpectIntGT((midSz = test_eku_gen_ca(f->midDer, TEST_EKU_CERT_BUF_SZ,
+            f->midKey, f->interDer, caSz, f->intKey, f->rng,
+            "serverAuth,clientAuth", "EKU Middle CA", 0)), 0);
+        leafIssuerDer = f->midDer;
+        leafIssuerSz  = midSz;
+        leafIssuerKey = f->midKey;
+    }
+
+    ExpectIntGT((leafSz = test_eku_gen_leaf(f->chainDer, TEST_EKU_CERT_BUF_SZ,
+        f->leafKey, leafIssuerDer, leafIssuerSz, leafIssuerKey, f->rng)), 0);
+    /* The chain buffer holds the leaf first, then its issuers in order. */
+    ExpectIntLE(leafSz + caSz + midSz, TEST_EKU_CERT_BUF_SZ);
+
+    if (EXPECT_SUCCESS()) {
+        chainSz = leafSz;
+        if (tc->extraLevel) {
+            XMEMCPY(f->chainDer + chainSz, f->midDer, (size_t)midSz);
+            chainSz += midSz;
+        }
+        XMEMCPY(f->chainDer + chainSz, f->interDer, (size_t)caSz);
+        chainSz += caSz;
+        if (tc->selfSignedCa) {
+            rootDer = f->interDer;
+            rootSz = caSz;
+        }
+        ExpectIntEQ(test_eku_chain_handshake(f->chainDer, chainSz,
+            rootDer, rootSz, tc->pinCa ? f->interDer : NULL, caSz, tc,
+            &hsRet, &verifyRet), TEST_SUCCESS);
+    }
+
+    ExpectIntEQ(hsRet, tc->expectRet);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* An override leaves the rejection already recorded in place, so only the
+     * cases the library decided on its own have a predictable verify result. */
+    if (tc->overrideCb == 0) {
+        ExpectIntEQ(verifyRet, (tc->expectRet == 0) ?
+            WOLFSSL_X509_V_OK : WOLFSSL_X509_V_ERR_INVALID_PURPOSE);
+    }
+#endif
+
+    return EXPECT_RESULT();
+}
+#endif /* chain EKU test dependencies */
+
+/* Test that the Extended Key Usage of a chain-supplied intermediate CA is
+ * enforced against the TLS purpose being validated, per RFC 5280 4.2.1.12.
+ *
+ * A CA restricted to some other purpose, code signing here, must not be able to
+ * authenticate a TLS peer even though the leaf below it asks for serverAuth.
+ * An absent extension and anyExtendedKeyUsage both leave every purpose valid
+ * and must still complete the handshake, and a self-signed trust anchor is
+ * exempt whatever its Extended Key Usage says. The anchor exemption is keyed on
+ * the anchor's public key, so a self-issued CA key rollover certificate, which
+ * shares the anchor's names but not its key, stays subject to the check.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_chain_ca_ext_key_usage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
+    static const test_eku_case cases[] = {
+        /* eku, selfSigned, selfIssued, clientPresents, pinCa, extraLevel,
+         * overrideCb, verifyDepth, expected handshake result. */
+
+        /* Server authentication: a CA restricted to code signing, or to
+         * client authentication, must be refused. */
+        { "codeSigning",  0, 0, 0, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 0, 0, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        /* A CA that carries the purpose, or leaves it unrestricted, must not
+         * be over-rejected. */
+        { "serverAuth",   0, 0, 0, 0, 0, 0, 0, 0 },
+        { NULL,           0, 0, 0, 0, 0, 0, 0, 0 },
+        { "any",          0, 0, 0, 0, 0, 0, 0, 0 },
+        /* The rule applies to a CA the certificate manager already holds, not
+         * only to one seen for the first time. */
+        { "codeSigning",  0, 0, 0, 1, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 0, 1, 0, 0, 0, 0 },
+        /* A self-signed trust anchor is exempt: here it is the anchor test,
+         * not the Extended Key Usage, that decides. */
+        { "codeSigning",  1, 0, 0, 0, 0, 0, 0, 0 },
+        /* A self-issued CA key rollover certificate is not an anchor. It
+         * carries the anchor's issuer and subject names, so DecodedCert's
+         * selfSigned flag is set, but it holds a different key and is signed
+         * by the anchor. The Extended Key Usage must still be enforced. */
+        { "codeSigning",  0, 1, 0, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 1, 0, 0, 0, 0, 0, 0 },
+        /* Enforcement is not limited to the CA directly above the leaf: here
+         * the CA under test issues "EKU Middle CA", which issues the leaf. */
+        { "codeSigning",  0, 0, 0, 0, 1, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 0, 0, 1, 0, 0, 0 },
+        /* An application that installs a verify callback keeps the last word,
+         * as it does for every other chain error. */
+        { "codeSigning",  0, 0, 0, 0, 0, 1, 0, 0 },
+#ifdef OPENSSL_EXTRA
+        /* The purpose check must not stand in for the checks that run before
+         * it. With the depth limit pinned below the chain, a callback that
+         * waives only the purpose error still has to see the chain length
+         * rejection, whether or not the CA under test carries the purpose. */
+        { "serverAuth",   0, 0, 0, 0, 1, 2, 1,
+                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR) },
+        { "codeSigning",  0, 0, 0, 0, 1, 2, 1,
+                                          WC_NO_ERR_TRACE(MAX_CHAIN_ERROR) },
+#endif
+#ifndef WOLFSSL_NO_CLIENT_AUTH
+        /* Client authentication: the server applies the same rule with the
+         * clientAuth purpose. */
+        { "codeSigning",  0, 0, 1, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 1, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 0, 1, 0, 0, 0, 0, 0 },
+        { NULL,           0, 0, 1, 0, 0, 0, 0, 0 },
+        { "any",          0, 0, 1, 0, 0, 0, 0, 0 },
+        /* The rollover shape is rejected in the client authentication
+         * direction too. */
+        { "serverAuth",   0, 1, 1, 0, 0, 0, 0,
+                                          WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 1, 1, 0, 0, 0, 0, 0 },
+#endif
+    };
+    test_eku_fixture fixture;
+    WC_RNG rng;
+    RsaKey caKey;
+    RsaKey midKey;
+    RsaKey intKey;
+    RsaKey leafKey;
+    int rngInit = 0;
+    int caInit = 0;
+    int midInit = 0;
+    int intInit = 0;
+    int leafInit = 0;
+    word32 idx;
+    size_t i;
+
+    XMEMSET(&fixture, 0, sizeof(fixture));
+    ExpectNotNull(fixture.midDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(fixture.interDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(fixture.chainDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+    if (EXPECT_SUCCESS()) caInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+        (word32)sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&midKey, NULL), 0);
+    if (EXPECT_SUCCESS()) midInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(rsa_key_der_2048, &idx, &midKey,
+        (word32)sizeof_rsa_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
+    if (EXPECT_SUCCESS()) intInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &intKey,
+        (word32)sizeof_server_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+    if (EXPECT_SUCCESS()) leafInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &leafKey,
+        (word32)sizeof_client_key_der_2048), 0);
+
+    fixture.caKey = &caKey;
+    fixture.midKey = &midKey;
+    fixture.intKey = &intKey;
+    fixture.leafKey = &leafKey;
+    fixture.rng = &rng;
+
+    for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+        ExpectIntEQ(test_eku_chain_case(&fixture, &cases[i]), TEST_SUCCESS);
+    }
+
+    if (rngInit)  wc_FreeRng(&rng);
+    if (caInit)   wc_FreeRsaKey(&caKey);
+    if (midInit)  wc_FreeRsaKey(&midKey);
+    if (intInit)  wc_FreeRsaKey(&intKey);
+    if (leafInit) wc_FreeRsaKey(&leafKey);
+    XFREE(fixture.midDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(fixture.interDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(fixture.chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
