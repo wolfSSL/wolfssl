@@ -1932,6 +1932,10 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     /* 150 suites for now! */
 #endif
 
+/* InitSuites() haveNull value used when NULL suites are requested explicitly
+ * (cipher list "eNULL" keyword) rather than merely allowed by default (1). */
+#define SUITES_NULL_EXPLICIT 2
+
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
 #if (defined(WOLFSSL_LEANPSK) || defined(WOLFSSL_LEANTLS)) && \

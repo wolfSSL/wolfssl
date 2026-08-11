@@ -97,6 +97,8 @@
  * WOLFSSL_TICKET_ENC_CBC_HMAC:
  *                  CBC+HMAC for ticket encryption (non-AEAD)          default: off
  * WOLFSSL_NO_TICKET_EXPIRE:   Disable ticket expiration checking      default: off
+ *                  (server-side resumption and the client-side check
+ *                  on a stored ticket before offering it)
  *
  * TLS 1.3 Internals:
  * WOLFSSL_TLS13_IGNORE_PT_ALERT_ON_ENC:
@@ -105,6 +107,9 @@
  *                  Disable peek returning WANT_READ for tickets       default: off
  * WOLFSSL_TLS13_IGNORE_AEAD_LIMITS:
  *                  Ignore AEAD message limits from RFC 8446           default: off
+ * WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT:
+ *                  Include RFC 9150 integrity-only suites in the
+ *                  default cipher suite list (HAVE_NULL_CIPHER)       default: off
  * WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT:
  *                  Send more ACKs by default in DTLS 1.3              default: off
  *
@@ -3936,25 +3941,31 @@ static word16 InitSuites_Tls13(Suites* suites, word16 idx, int tls1_3,
      * These provide authentication and integrity but no confidentiality, so
      * they are NOT advertised in the default cipher preference list. A caller
      * that genuinely needs them (e.g. constrained/IoT deployments) must opt in
-     * explicitly with a cipher list, for example:
+     * explicitly with a cipher list, either by suite name:
      *     wolfSSL_set_cipher_list(ssl, "TLS13-SHA256-SHA256");
-     * Define WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT to restore the legacy
-     * behaviour of including them in the default list. */
-    #ifdef WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
+     * or with the "eNULL" keyword. Define
+     * WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT to restore the legacy behaviour of
+     * including them in the default list. */
+    #ifndef WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
+    if (haveNull == SUITES_NULL_EXPLICIT)
+    #else
+    if (haveNull)
+    #endif
+    {
     #ifdef BUILD_TLS_SHA256_SHA256
-        if (tls1_3 && haveNull) {
+        if (tls1_3) {
             suites->suites[idx++] = ECC_BYTE;
             suites->suites[idx++] = TLS_SHA256_SHA256;
         }
     #endif
 
     #ifdef BUILD_TLS_SHA384_SHA384
-        if (tls1_3 && haveNull) {
+        if (tls1_3) {
             suites->suites[idx++] = ECC_BYTE;
             suites->suites[idx++] = TLS_SHA384_SHA384;
         }
     #endif
-    #endif /* WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT */
+    }
 #endif
 
     return idx;
@@ -31429,7 +31440,7 @@ static int ParseCipherList(Suites* suites,
         }
 
         if (XSTRCMP(name, "eNULL") == 0 || XSTRCMP(name, "NULL") == 0) {
-            haveNull = allowing;
+            haveNull = allowing ? SUITES_NULL_EXPLICIT : 0;
             /* Track exclusion (sticky) so an explicit NULL-cipher suite is
              * dropped at the end regardless of "!eNULL"/"!NULL" position; a
              * later allowing "eNULL" does not undo it. */
@@ -33882,11 +33893,11 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
             /* RFC 5077 Section 3.3 / RFC 8446 Section 4.6.1: a client SHOULD
-             * NOT use a ticket whose lifetime has expired. Drop the expired
+             * NOT use a ticket whose lifetime has expired. Delete the expired
              * ticket and fall back to a full handshake. Skip the check when
-             * bornOn is 0 or a secret callback is set (session is managed
-             * externally, e.g. hostap). */
-            if (ssl->session->bornOn != 0 &&
+             * bornOn or timeout is 0 (unknown lifetime) or a secret callback
+             * is set (session is managed externally, e.g. hostap). */
+            if (ssl->session->bornOn != 0 && ssl->session->timeout != 0 &&
             #ifdef HAVE_SECRET_CALLBACK
                 ssl->sessionSecretCb == NULL &&
             #endif
@@ -33894,6 +33905,16 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                     (ssl->session->bornOn + ssl->session->timeout)) {
                 WOLFSSL_MSG("Stored session ticket expired; full handshake");
                 ssl->options.resuming = 0;
+                /* RFC 5077 Section 3.3: delete the ticket and associated
+                 * state. */
+                ForceZero(ssl->session->ticket, ssl->session->ticketLen);
+                if (ssl->session->ticketLenAlloc > 0) {
+                    XFREE(ssl->session->ticket, NULL,
+                          DYNAMIC_TYPE_SESSION_TICK);
+                    ssl->session->ticket = ssl->session->staticTicket;
+                    ssl->session->ticketLenAlloc = 0;
+                }
+                ssl->session->ticketLen = 0;
                 /* Send an empty SessionTicket extension (NULL ticket) so the
                  * client still requests a new ticket from the server without
                  * sending the stale one. */
@@ -33905,7 +33926,8 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 #endif
             {
                 ticket = TLSX_SessionTicket_Create(0, ssl->session->ticket,
-                                             ssl->session->ticketLen, ssl->heap);
+                                                   ssl->session->ticketLen,
+                                                   ssl->heap);
                 if (ticket == NULL) return MEMORY_E;
 
                 ret = TLSX_UseSessionTicket(&ssl->extensions, ticket,
@@ -40592,9 +40614,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
      *  Handles session resumption.
      *  Session tickets are checked for validity based on the time each ticket
      *  was created, timeout value and the current time. If the tickets are
-     *  judged expired, falls back to full-handshake. If you want disable this
-     *  session ticket validation check in TLS1.2 and below, define
-     *  WOLFSSL_NO_TICKET_EXPIRE.
+     *  judged expired, falls back to full-handshake. If you want disable
+     *  this session ticket validation check in TLS1.2 and below (both here
+     *  and the client-side check on a stored ticket in SendClientHello),
+     *  define WOLFSSL_NO_TICKET_EXPIRE.
      */
     int HandleTlsResumption(WOLFSSL* ssl, Suites* clSuites)
     {
