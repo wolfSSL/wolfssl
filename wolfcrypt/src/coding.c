@@ -21,9 +21,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#include <wolfssl/wolfcrypt/coding.h>
+
 #ifndef NO_CODING
 
-#include <wolfssl/wolfcrypt/coding.h>
 #ifndef NO_ASN
     #include <wolfssl/wolfcrypt/asn.h> /* For PEM_LINE_SZ */
 #endif
@@ -749,3 +750,111 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 #endif /* WOLFSSL_BASE16 */
 
 #endif /* !NO_CODING */
+
+#ifdef WOLFSSL_UTF8_DECODE
+
+/**
+ * Decode the UTF-8 encoding of one code point.
+ *
+ * The encodings that RFC 3629 Sec. 3 requires a decoder to reject are
+ * rejected: overlong forms, the code points reserved for UTF-16 surrogates,
+ * code points past the end of the Unicode range, the five and six octet forms
+ * that RFC 3629 removed, and sequences whose continuation octets are missing
+ * or malformed. Any of these decoding to a character would let one octet
+ * sequence impersonate another.
+ *
+ * *inOutIdx only moves when a code point is decoded, so a caller that wants to
+ * keep going after a bad sequence is free to choose how far to skip.
+ *
+ * @param [in]      in        Buffer holding UTF-8 encoded text.
+ * @param [in]      inLen     Length of buffer in octets.
+ * @param [in, out] inOutIdx  On in, index of the first octet to decode.
+ *                            On out, index of the first octet after the code
+ *                            point decoded.
+ * @param [out]     cp        Code point decoded.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when in, inOutIdx or cp is NULL.
+ * @return  BUFFER_E when no octets remain, or when the sequence needs more
+ *          continuation octets than the buffer holds.
+ * @return  ASN_INPUT_E when the octets are not a valid encoding of a code
+ *          point.
+ */
+int wc_Utf8_DecodeChar(const byte* in, word32 inLen, word32* inOutIdx,
+                       word32* cp)
+{
+    word32 idx;
+    word32 c;
+    word32 minCp;
+    word32 need;
+    word32 i;
+
+    if ((in == NULL) || (inOutIdx == NULL) || (cp == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    idx = *inOutIdx;
+    if (idx >= inLen) {
+        return BUFFER_E;
+    }
+
+    c = in[idx];
+    if (c < 0x80U) {
+        /* 0xxxxxxx: the octet is the code point. */
+        *inOutIdx = idx + 1U;
+        *cp = c;
+        return 0;
+    }
+
+    /* Take the code point bits out of the lead octet and note how many
+     * continuation octets follow and the smallest code point that the form is
+     * allowed to carry. */
+    if ((c & 0xE0U) == 0xC0U) {
+        need = 1U;
+        minCp = 0x80U;
+        c &= 0x1FU;
+    }
+    else if ((c & 0xF0U) == 0xE0U) {
+        need = 2U;
+        minCp = 0x800U;
+        c &= 0x0FU;
+    }
+    else if ((c & 0xF8U) == 0xF0U) {
+        need = 3U;
+        minCp = 0x10000U;
+        c &= 0x07U;
+    }
+    else {
+        /* A continuation octet with no lead, or a lead octet of one of the
+         * longer forms that are no longer part of UTF-8. */
+        return ASN_INPUT_E;
+    }
+
+    /* Every continuation octet must be in the buffer. */
+    if ((inLen - idx) <= need) {
+        return BUFFER_E;
+    }
+    for (i = 1; i <= need; i++) {
+        /* 10xxxxxx. */
+        if ((in[idx + i] & 0xC0U) != 0x80U) {
+            return ASN_INPUT_E;
+        }
+        c = (c << 6U) | (word32)(in[idx + i] & 0x3FU);
+    }
+
+    if ((c < minCp) || (c > WC_UNICODE_MAX_CODEPOINT) ||
+            ((c >= WC_UTF16_HI_SURROGATE_MIN) &&
+             (c <= WC_UTF16_LO_SURROGATE_MAX))) {
+        return ASN_INPUT_E;
+    }
+
+    *inOutIdx = idx + need + 1U;
+    *cp = c;
+    return 0;
+}
+
+#endif /* WOLFSSL_UTF8_DECODE */
+
+/* An empty translation unit is a constraint violation in C89, so emit a
+ * harmless typedef to keep it well-formed in case everything above is
+ * compiled out. */
+typedef int wolfssl_coding_dummy_decl;

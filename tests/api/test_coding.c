@@ -468,3 +468,114 @@ int test_wc_Base16DecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* wc_Utf8_DecodeChar: arg checks, the one to four octet forms, and every
+ * encoding RFC 3629 Sec. 3 requires a decoder to reject. */
+int test_wc_Utf8_DecodeChar(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_UTF8_DECODE
+    /* "A", U+00C4, U+20AC, U+10348 */
+    static const byte good[] = { 0x41, 0xc3, 0x84, 0xe2, 0x82, 0xac,
+                                 0xf0, 0x90, 0x8d, 0x88 };
+    /* Each entry is one octet sequence that must not decode. */
+    static const byte overlongNul[]  = { 0xc0, 0x80 };             /* U+0000 */
+    static const byte overlongA[]    = { 0xc1, 0x81 };             /* "A" */
+    static const byte overlongEuro[] = { 0xf0, 0x82, 0x82, 0xac }; /* U+20AC */
+    static const byte surrogate[]    = { 0xed, 0xa0, 0x80 };       /* U+D800 */
+    static const byte tooBig[] = { 0xf4, 0x90, 0x80, 0x80 }; /* U+110000 */
+    static const byte lead5[]        = { 0xf8, 0x88, 0x80, 0x80, 0x80 };
+    static const byte lone[]         = { 0x80, 0x80 };
+    static const byte badCont[]      = { 0xc3, 0x41 };
+    word32 idx;
+    word32 cp;
+
+    /* --- arg checks --- */
+    idx = 0;
+    cp = 0;
+    ExpectIntEQ(wc_Utf8_DecodeChar(NULL, sizeof(good), &idx, &cp),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, sizeof(good), NULL, &cp),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, sizeof(good), &idx, NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Nothing left to decode. */
+    idx = (word32)sizeof(good);
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, (word32)sizeof(good), &idx, &cp),
+                WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* --- the one, two, three and four octet forms in one pass --- */
+    idx = 0;
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, (word32)sizeof(good), &idx, &cp), 0);
+    ExpectIntEQ(cp, 0x41);
+    ExpectIntEQ(idx, 1);
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, (word32)sizeof(good), &idx, &cp), 0);
+    ExpectIntEQ(cp, 0xc4);
+    ExpectIntEQ(idx, 3);
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, (word32)sizeof(good), &idx, &cp), 0);
+    ExpectIntEQ(cp, 0x20ac);
+    ExpectIntEQ(idx, 6);
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, (word32)sizeof(good), &idx, &cp), 0);
+    ExpectIntEQ(cp, 0x10348);
+    ExpectIntEQ(idx, 10);
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, (word32)sizeof(good), &idx, &cp),
+                WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* --- a truncated sequence is short of input, not invalid --- */
+    idx = 1;
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, 2, &idx, &cp),
+                WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(idx, 1);
+    idx = 6;
+    ExpectIntEQ(wc_Utf8_DecodeChar(good, 9, &idx, &cp),
+                WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* --- encodings that must not decode to a character --- */
+    idx = 0;
+    ExpectIntEQ(wc_Utf8_DecodeChar(overlongNul, (word32)sizeof(overlongNul),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    /* The index does not move, so a caller can recover as it sees fit. */
+    ExpectIntEQ(idx, 0);
+    ExpectIntEQ(wc_Utf8_DecodeChar(overlongA, (word32)sizeof(overlongA),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    ExpectIntEQ(wc_Utf8_DecodeChar(overlongEuro, (word32)sizeof(overlongEuro),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    ExpectIntEQ(wc_Utf8_DecodeChar(surrogate, (word32)sizeof(surrogate),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    ExpectIntEQ(wc_Utf8_DecodeChar(tooBig, (word32)sizeof(tooBig),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    ExpectIntEQ(wc_Utf8_DecodeChar(lead5, (word32)sizeof(lead5),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    ExpectIntEQ(wc_Utf8_DecodeChar(lone, (word32)sizeof(lone),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    ExpectIntEQ(wc_Utf8_DecodeChar(badCont, (word32)sizeof(badCont),
+                &idx, &cp), WC_NO_ERR_TRACE(ASN_INPUT_E));
+    ExpectIntEQ(idx, 0);
+
+    /* --- the largest and smallest code point of each form --- */
+    {
+        static const byte edge[] = {
+            0x00,                    /* U+0000 */
+            0x7f,                    /* U+007F */
+            0xc2, 0x80,              /* U+0080 */
+            0xdf, 0xbf,              /* U+07FF */
+            0xe0, 0xa0, 0x80,        /* U+0800 */
+            0xef, 0xbf, 0xbf,        /* U+FFFF */
+            0xf0, 0x90, 0x80, 0x80,  /* U+10000 */
+            0xf4, 0x8f, 0xbf, 0xbf   /* U+10FFFF */
+        };
+        static const word32 want[] = { 0x0000, 0x007f, 0x0080, 0x07ff,
+                                       0x0800, 0xffff, 0x10000, 0x10ffff };
+        int i;
+
+        idx = 0;
+        for (i = 0; i < (int)(sizeof(want) / sizeof(want[0])); i++) {
+            ExpectIntEQ(wc_Utf8_DecodeChar(edge, (word32)sizeof(edge), &idx,
+                        &cp), 0);
+            ExpectIntEQ(cp, want[i]);
+        }
+        ExpectIntEQ(idx, (word32)sizeof(edge));
+    }
+#endif
+    return EXPECT_RESULT();
+}

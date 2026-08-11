@@ -18671,13 +18671,440 @@ exit_cs:
 
 #ifndef IGNORE_NAME_CONSTRAINTS
 
+/* Reader over the content octets of an X.501 AttributeValue.
+ *
+ * Yields code points rather than octets so that values holding the same
+ * characters in different ASN.1 string types compare equal, and folds the
+ * result as RFC 5280 Sec. 7.1 (via RFC 4518) requires: ASCII case is
+ * ignored, leading and trailing spaces are dropped and an inner run of
+ * spaces collapses to one.
+ */
+typedef struct DirStringRdr {
+    const byte* data;      /* Value content octets. */
+    word32      len;       /* Number of content octets. */
+    word32      idx;       /* Next octet to consume. */
+    word32      pushed;    /* Code point held back by the normalizer. */
+    byte        tag;       /* ASN.1 string tag of the value. */
+    byte        hasPushed; /* pushed holds a code point. */
+    byte        pending;   /* A space run is buffered but not yet emitted. */
+    byte        started;   /* A non-space code point has been emitted. */
+} DirStringRdr;
+
+/* Return 1 when the tag names a character string type. Values of these
+ * types are compared by folded code point; anything else is compared as
+ * raw octets. */
+static int DirStringIsTag(byte tag)
+{
+    switch (tag) {
+        case ASN_UTF8STRING:
+        case ASN_NUMERICSTRING:
+        case ASN_PRINTABLE_STRING:
+        case ASN_T61STRING:
+        case ASN_IA5_STRING:
+        case ASN_ISO646STRING:
+        case ASN_GENERALSTRING:
+        case ASN_UNIVERSALSTRING:
+        case ASN_BMPSTRING:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+/* Read the next raw code point.
+ *
+ * A value that is not a well formed encoding of its string type cannot be
+ * compared, and calling it "no match" would be fail open for an excluded
+ * subtree, so it is reported as an error.
+ *
+ * Returns 1 when cp was set, 0 at the end of the value and ASN_PARSE_E when
+ * the encoding is malformed. */
+static int DirStringRaw(DirStringRdr* s, word32* cp)
+{
+    word32 c;
+    word32 avail;
+
+    if (s->idx >= s->len) {
+        return 0;
+    }
+    avail = s->len - s->idx;
+
+    switch (s->tag) {
+        case ASN_BMPSTRING:
+            /* UCS-2 code units, big endian. */
+            if (avail < 2U) {
+                return ASN_PARSE_E;
+            }
+            c = ((word32)s->data[s->idx] << 8U) | s->data[s->idx + 1U];
+            s->idx += 2;
+            /* Combine a UTF-16 surrogate pair into a single code point so
+             * that it compares equal to the same character in UTF-8. */
+            if ((c >= WC_UTF16_HI_SURROGATE_MIN) &&
+                    (c <= WC_UTF16_HI_SURROGATE_MAX)) {
+                word32 lo;
+
+                if (avail < 4U) {
+                    return ASN_PARSE_E;
+                }
+                lo = ((word32)s->data[s->idx] << 8U) | s->data[s->idx + 1];
+                if ((lo < WC_UTF16_LO_SURROGATE_MIN) ||
+                        (lo > WC_UTF16_LO_SURROGATE_MAX)) {
+                    return ASN_PARSE_E;
+                }
+                c = 0x10000U + ((c - WC_UTF16_HI_SURROGATE_MIN) << 10U) +
+                    (lo - WC_UTF16_LO_SURROGATE_MIN);
+                s->idx += 2U;
+            }
+            /* A low surrogate with no high surrogate ahead of it. */
+            else if ((c >= WC_UTF16_LO_SURROGATE_MIN) &&
+                     (c <= WC_UTF16_LO_SURROGATE_MAX)) {
+                return ASN_PARSE_E;
+            }
+            break;
+
+        case ASN_UNIVERSALSTRING:
+            /* UCS-4 code points, big endian. */
+            if (avail < 4U) {
+                return ASN_PARSE_E;
+            }
+            c = ((word32)s->data[s->idx] << 24U) |
+                ((word32)s->data[s->idx + 1U] << 16U) |
+                ((word32)s->data[s->idx + 2U] << 8U) |
+                (word32)s->data[s->idx + 3U];
+            s->idx += 4U;
+            /* Surrogates are not characters and nothing is assigned past the
+             * end of the Unicode range. */
+            if ((c > WC_UNICODE_MAX_CODEPOINT) ||
+                    ((c >= WC_UTF16_HI_SURROGATE_MIN) &&
+                     (c <= WC_UTF16_LO_SURROGATE_MAX))) {
+                return ASN_PARSE_E;
+            }
+            break;
+
+        case ASN_UTF8STRING:
+            if (wc_Utf8_DecodeChar(s->data, s->len, &s->idx, &c) != 0) {
+                return ASN_PARSE_E;
+            }
+            break;
+
+        default:
+            /* Single octet character sets: the octet is the code point. */
+            c = s->data[s->idx++];
+            break;
+    }
+
+    *cp = c;
+    return 1;
+}
+
+/* Read the next folded code point. Returns 1 when cp was set, 0 at the end
+ * of the value and ASN_PARSE_E when the encoding is malformed. */
+static int DirStringNext(DirStringRdr* s, word32* cp)
+{
+    word32 c;
+
+    if (s->hasPushed) {
+        s->hasPushed = 0;
+        *cp = s->pushed;
+        return 1;
+    }
+
+    for (;;) {
+        int ret = DirStringRaw(s, &c);
+
+        if (ret != 1) {
+            /* End of value, where a buffered space run was trailing and is
+             * dropped, or a malformed encoding. */
+            return ret;
+        }
+        if (c == (word32)' ') {
+            /* Leading spaces are dropped, inner ones buffered until it is
+             * known that a further code point follows. */
+            if (s->started) {
+                s->pending = 1;
+            }
+            continue;
+        }
+        /* Case fold ASCII only, matching what other implementations
+         * canonicalize, and independent of the C locale. */
+        if ((c >= (word32)'A') && (c <= (word32)'Z')) {
+            c += (word32)('a' - 'A');
+        }
+        s->started = 1;
+        if (s->pending) {
+            s->pending = 0;
+            s->pushed = c;
+            s->hasPushed = 1;
+            *cp = (word32)' ';
+            return 1;
+        }
+        *cp = c;
+        return 1;
+    }
+}
+
+/* Compare two AttributeValue strings under the RFC 5280 Sec. 7.1 name
+ * matching rules.
+ *
+ * Returns 1 when equal, 0 when not and ASN_PARSE_E when either encoding is
+ * malformed. */
+static int DirStringEqual(byte aTag, const byte* a, word32 aSz,
+                          byte bTag, const byte* b, word32 bSz)
+{
+    DirStringRdr ra;
+    DirStringRdr rb;
+    word32 ca = 0;
+    word32 cb = 0;
+    int gotA;
+    int gotB;
+
+    XMEMSET(&ra, 0, sizeof(ra));
+    XMEMSET(&rb, 0, sizeof(rb));
+    ra.data = a;
+    ra.len  = aSz;
+    ra.tag  = aTag;
+    rb.data = b;
+    rb.len  = bSz;
+    rb.tag  = bTag;
+
+    for (;;) {
+        gotA = DirStringNext(&ra, &ca);
+        gotB = DirStringNext(&rb, &cb);
+        if (gotA < 0) {
+            return gotA;
+        }
+        if (gotB < 0) {
+            return gotB;
+        }
+        if (gotA != gotB) {
+            return 0;
+        }
+        if (gotA == 0) {
+            return 1;
+        }
+        if (ca != cb) {
+            return 0;
+        }
+    }
+}
+
+/* Compare one AttributeTypeAndValue.
+ *
+ * a and b are the content octets of the AttributeTypeAndValue SEQUENCEs.
+ * The attribute type OID must match exactly. Values are compared with the
+ * string rules when both are character strings, and octet for octet
+ * otherwise.
+ *
+ * Returns 1 when equal, 0 when not and ASN_PARSE_E when either encoding
+ * could not be parsed. */
+static int MatchDirAttr(const byte* a, word32 aSz, const byte* b, word32 bSz)
+{
+    word32 ai = 0;
+    word32 bi = 0;
+    int    aLen = 0;
+    int    bLen = 0;
+    byte   aTag = 0;
+    byte   bTag = 0;
+
+    /* AttributeType */
+    if ((GetASNObjectId(a, &ai, &aLen, aSz) != 0) ||
+            (GetASNObjectId(b, &bi, &bLen, bSz) != 0)) {
+        return ASN_PARSE_E;
+    }
+    if ((aLen != bLen) || (XMEMCMP(a + ai, b + bi, (size_t)aLen) != 0)) {
+        return 0;
+    }
+    ai += (word32)aLen;
+    bi += (word32)bLen;
+
+    /* AttributeValue holds any tag, so read the header rather than asking
+     * for a specific one. */
+    if ((GetASNTag(a, &ai, &aTag, aSz) != 0) ||
+            (GetLength_ex(a, &ai, &aLen, aSz, 1) < 0) ||
+            (GetASNTag(b, &bi, &bTag, bSz) != 0) ||
+            (GetLength_ex(b, &bi, &bLen, bSz, 1) < 0)) {
+        return ASN_PARSE_E;
+    }
+    /* The value is the last field: anything after it is malformed and must
+     * not be silently ignored. */
+    if (((ai + (word32)aLen) != aSz) || ((bi + (word32)bLen) != bSz)) {
+        return ASN_PARSE_E;
+    }
+
+    if ((aTag == bTag) && (aLen == bLen) &&
+            (XMEMCMP(a + ai, b + bi, (size_t)aLen) == 0)) {
+        return 1;
+    }
+
+    if (DirStringIsTag(aTag) && DirStringIsTag(bTag)) {
+        return DirStringEqual(aTag, a + ai, (word32)aLen,
+                              bTag, b + bi, (word32)bLen);
+    }
+
+    /* Not a character string and not identical encoding. */
+    return 0;
+}
+
+/* Attributes in one RelativeDistinguishedName that can be paired up. The
+ * order independent comparison below tracks which attributes have been
+ * paired with one bit each in a word32. Multi-valued RDNs are rare and hold
+ * two or three attributes in practice; an RDN past this limit is reported as
+ * one that cannot be compared rather than compared incorrectly. */
+#define DIR_RDN_MAX_ATTRS 32
+
+/* Compare two RelativeDistinguishedNames.
+ *
+ * a and b are the content octets of the RDN SETs. RFC 5280 Sec. 7.1 makes
+ * this a set match: two RDNs are equal when their attributes pair up one for
+ * one, in whatever order they were encoded. DER does sort the components of
+ * a SET OF, but it sorts them by encoding while the comparison here is
+ * deliberately insensitive to the encoding, so two equal names can still
+ * present their attributes in different orders.
+ *
+ * A malformed attribute is reported even when another attribute would have
+ * paired with it, so that a name holding one is never quietly accepted.
+ *
+ * Returns 1 when equal, 0 when not and ASN_PARSE_E on a parse error or when
+ * an RDN holds more attributes than can be paired up. */
+static int MatchDirRdn(const byte* a, word32 aSz, const byte* b, word32 bSz)
+{
+    word32 ai = 0;
+    word32 bi = 0;
+    word32 paired = 0;  /* Bit set for each attribute of b already paired. */
+    int    aCnt = 0;
+    int    bCnt = 0;
+
+    /* Count the attributes of b, so that the bits tracking the pairing are
+     * known to fit and the search below can walk b by index. */
+    while (bi < bSz) {
+        int bLen = 0;
+
+        if (GetSequence(b, &bi, &bLen, bSz) < 0) {
+            return ASN_PARSE_E;
+        }
+        bi += (word32)bLen;
+        if (++bCnt > DIR_RDN_MAX_ATTRS) {
+            return ASN_PARSE_E;
+        }
+    }
+
+    while (ai < aSz) {
+        int    aLen = 0;
+        word32 bIdx = 0;
+        int    found = 0;
+        int    n;
+
+        if (GetSequence(a, &ai, &aLen, aSz) < 0) {
+            return ASN_PARSE_E;
+        }
+        aCnt++;
+
+        /* Take the first attribute of b that equals this one and has not
+         * been paired yet. Attribute equality is transitive, so which of
+         * several equal candidates is taken cannot change the outcome. */
+        for (n = 0; n < bCnt; n++) {
+            int bLen = 0;
+
+            if (GetSequence(b, &bIdx, &bLen, bSz) < 0) {
+                return ASN_PARSE_E;
+            }
+            if ((paired & ((word32)1 << n)) == 0) {
+                int ret = MatchDirAttr(a + ai, (word32)aLen, b + bIdx,
+                                       (word32)bLen);
+
+                if (ret < 0) {
+                    return ret;
+                }
+                if (ret == 1) {
+                    paired |= (word32)1 << n;
+                    found = 1;
+                    break;
+                }
+            }
+            bIdx += (word32)bLen;
+        }
+        if (!found) {
+            return 0;
+        }
+
+        ai += (word32)aLen;
+    }
+
+    /* Every attribute of a was paired with a distinct attribute of b, so an
+     * equal count means every attribute of b was paired as well. */
+    return (aCnt == bCnt) ? 1 : 0;
+}
+
+/* Match a certificate DN against a directoryName name-constraint subtree.
+ *
+ * RFC 5280 Sec. 4.2.1.10: a DN is within the subtree when the subtree's RDN
+ * sequence is an initial subsequence of the DN's, with RDNs compared using
+ * the Sec. 7.1 name matching rules rather than by encoding. Comparing the
+ * DER directly would let a semantically equal name written with different
+ * letter case, string type or spacing slip past an excluded subtree.
+ *
+ * name and base are the content octets of an RDNSequence: GetCertName()
+ * stores cert->subjectRaw and DecodeSubtreeGeneralName() stores the subtree
+ * with the outer SEQUENCE header already stripped.
+ *
+ * Returns 1 on match, 0 on no match and ASN_PARSE_E when either encoding
+ * could not be parsed. */
+static int MatchDirectoryName(const byte* name, word32 nameSz,
+                              const byte* base, word32 baseSz)
+{
+    word32 ni = 0;
+    word32 bi = 0;
+
+    while (bi < baseSz) {
+        int nLen = 0;
+        int bLen = 0;
+        int ret;
+
+        /* The DN has fewer RDNs than the subtree. */
+        if (ni >= nameSz) {
+            return 0;
+        }
+
+        if ((GetSet(name, &ni, &nLen, nameSz) < 0) ||
+                (GetSet(base, &bi, &bLen, baseSz) < 0)) {
+            return ASN_PARSE_E;
+        }
+
+        ret = MatchDirRdn(name + ni, (word32)nLen, base + bi, (word32)bLen);
+        if (ret != 1) {
+            return ret;
+        }
+
+        ni += (word32)nLen;
+        bi += (word32)bLen;
+    }
+
+    /* Every subtree RDN matched a leading DN RDN. */
+    return 1;
+}
+
+/* Match a name against a name-constraint subtree of the same GeneralName
+ * type.
+ *
+ * Returns 1 on match and 0 on no match. For ASN_DIR_TYPE a negative error
+ * is returned when either operand is not a name that can be compared; the
+ * caller must treat that as a failed constraint check rather than as either
+ * answer. */
 int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     const char* base, int baseSz)
 {
     if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
-            name[0] == '.' ||
             (type != ASN_RFC822_TYPE && type != ASN_DNS_TYPE &&
              type != ASN_DIR_TYPE)) {
+        return 0;
+    }
+
+    if (type == ASN_DIR_TYPE) {
+        return MatchDirectoryName((const byte*)name, (word32)nameSz,
+                                  (const byte*)base, (word32)baseSz);
+    }
+
+    if (name[0] == '.') {
         return 0;
     }
 
@@ -18699,9 +19126,6 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
     if (nameSz < baseSz) {
         return 0;
     }
-
-    if (type == ASN_DIR_TYPE)
-        return XMEMCMP(name, base, (size_t)baseSz) == 0;
 
     /* If an email type, handle special cases where the base is only
      * a domain, or is an email address itself. */
@@ -19241,12 +19665,14 @@ int wolfssl_local_MatchDnsNameConstraint(const char* name, int nameSz,
  * nameType Type of DNS name to currently searching
  * return 1 if found in list or if not needed
  * return 0 if not found in the list but is needed
+ * return < 0 if no subtree matched and one could not be compared against
  */
 static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
 {
     Base_entry* current = dnsList;
     int match = 0;
     int need  = 0;
+    int err   = 0; /* first subtree that could not be compared against */
     int ret   = 1; /* is ok unless needed and no match found */
 
     while (current != NULL) {
@@ -19294,19 +19720,44 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
-            else if (name->len >= current->nameSz &&
-                wolfssl_local_MatchBaseName(nameType, name->name, name->len,
-                                            current->name, current->nameSz)) {
-                match = 1; /* found the current name in the permitted list*/
-                break;
+            else {
+                int mRet = wolfssl_local_MatchBaseName(nameType, name->name,
+                        name->len, current->name, current->nameSz);
+                if (mRet < 0) {
+                    /* Neither answer is safe for this subtree, but the name
+                     * is permitted when it falls within any one of them
+                     * (RFC 5280 Sec. 6.1.3 (b)), so keep looking. Under the
+                     * three valued logic those rules are built on (X.511
+                     * Clause 7.8.1, restated in RFC 4511 Sec. 4.5.1) a match
+                     * decides the disjunction whatever the other subtrees
+                     * evaluated to. Reporting the error here instead would
+                     * make the result depend on where in the list the
+                     * unusable subtree happened to be. */
+                    if (err == 0) {
+                        err = mRet;
+                    }
+                }
+                else if (mRet == 1) {
+                    match = 1; /* found the current name in permitted list */
+                    break;
+                }
             }
         }
         current = current->next;
     }
 
-    /* check if permitted name restriction was set and no matching name found */
-    if (need && !match)
-        ret = 0;
+    if (!match) {
+        if (err != 0) {
+            /* No subtree of this type matched and at least one of them could
+             * not be compared against, so the name has not been shown to be
+             * permitted. */
+            ret = err;
+        }
+        /* permitted name restriction was set and no matching name found */
+        else if (need) {
+            ret = 0;
+        }
+    }
 
     return ret;
 }
@@ -19317,10 +19768,12 @@ static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
  * dnsList  The list to search through
  * nameType Type of DNS name to currently searching
  * return 1 if found in list and 0 if not found in the list
+ * return < 0 if no subtree matched and one could not be compared against
  */
 static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
 {
     int ret = 0; /* default of not found in the list */
+    int err = 0; /* first subtree that could not be compared against */
     Base_entry* current = dnsList;
 
     while (current != NULL) {
@@ -19366,14 +19819,31 @@ static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
                     break;
                 }
             }
-            else if (name->len >= current->nameSz &&
-                wolfssl_local_MatchBaseName(nameType, name->name, name->len,
-                                            current->name, current->nameSz)) {
-                ret = 1;
-                break;
+            else {
+                int mRet = wolfssl_local_MatchBaseName(nameType, name->name,
+                        name->len, current->name, current->nameSz);
+                if (mRet < 0) {
+                    /* Cannot show the name is outside this excluded subtree.
+                     * Keep looking so that a name that plainly falls inside a
+                     * later one is reported as excluded rather than as
+                     * uncomparable, as in PermittedListOk. Either way the
+                     * caller rejects the certificate. */
+                    if (err == 0) {
+                        err = mRet;
+                    }
+                }
+                else if (mRet == 1) {
+                    ret = 1;
+                    break;
+                }
             }
         }
         current = current->next;
+    }
+
+    if ((ret == 0) && (err != 0)) {
+        /* The name was not shown to be outside every excluded subtree. */
+        ret = err;
     }
 
     return ret;
@@ -19502,6 +19972,8 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         while (name != NULL) {
             /* Only check entries that match the current nameType. */
             if (name->type == nameType) {
+                int ncRet;
+
                 if (nameType == ASN_URI_TYPE && uriConstraintsApply &&
                         !wolfssl_local_UriNameHasDnsHost(name->name,
                             name->len)) {
@@ -19510,16 +19982,31 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     return 0;
                 }
 
-                if (IsInExcludedList(name, signer->excludedNames,
-                        nameType) == 1) {
+                ncRet = IsInExcludedList(name, signer->excludedNames,
+                        nameType);
+                if (ncRet == 1) {
                     WOLFSSL_MSG("Excluded name was found!");
+                    return 0;
+                }
+                /* A negative return means the name could not be compared
+                 * against a subtree of this type, so it has not been shown
+                 * to be outside the excluded ones. */
+                if (ncRet != 0) {
+                    WOLFSSL_MSG("Name could not be compared to excluded "
+                                "subtree!");
                     return 0;
                 }
 
                 /* Check against the permitted list */
-                if (PermittedListOk(name, signer->permittedNames,
-                        nameType) != 1) {
+                ncRet = PermittedListOk(name, signer->permittedNames,
+                        nameType);
+                if (ncRet == 0) {
                     WOLFSSL_MSG("Permitted name was not found!");
+                    return 0;
+                }
+                if (ncRet != 1) {
+                    WOLFSSL_MSG("Name could not be compared to permitted "
+                                "subtree!");
                     return 0;
                 }
             }
@@ -19529,16 +20016,31 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
         /* handle comparing against subject name too */
         if (subjectDnsName.len > 0 && subjectDnsName.name != NULL) {
-            if (IsInExcludedList(&subjectDnsName, signer->excludedNames,
-                        nameType) == 1) {
+            int ncRet;
+
+            /* See above for the meaning of each return value. */
+            ncRet = IsInExcludedList(&subjectDnsName, signer->excludedNames,
+                        nameType);
+            if (ncRet == 1) {
                 WOLFSSL_MSG("Excluded name was found!");
+                return 0;
+            }
+            if (ncRet != 0) {
+                WOLFSSL_MSG("Name could not be compared to excluded "
+                            "subtree!");
                 return 0;
             }
 
             /* Check against the permitted list */
-            if (PermittedListOk(&subjectDnsName, signer->permittedNames,
-                        nameType) != 1) {
+            ncRet = PermittedListOk(&subjectDnsName, signer->permittedNames,
+                        nameType);
+            if (ncRet == 0) {
                 WOLFSSL_MSG("Permitted name was not found!");
+                return 0;
+            }
+            if (ncRet != 1) {
+                WOLFSSL_MSG("Name could not be compared to permitted "
+                            "subtree!");
                 return 0;
             }
         }

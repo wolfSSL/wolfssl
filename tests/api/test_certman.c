@@ -946,6 +946,14 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
         0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x49, 0x44
     };
 
+    /* C=<invalid UTF-8>: the value is a UTF8String whose content octets are
+     * not a well formed encoding, so it cannot be compared against the
+     * C=US subtree of either CA. */
+    char altNameBadUtf8[] = {
+        0x30, 0x0D, 0x31, 0x0B, 0x30, 0x09,
+        0x06, 0x03, 0x55, 0x04, 0x06, 0x0C, 0x02, (char)0xC3, 0x28
+    };
+
     /* C=US ST=California*/
     char altNameExc[] = {
         0x30, 0x22,
@@ -1067,6 +1075,27 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
     ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* check that a directoryName that cannot be compared against the
+     * permitted subtree fails the check rather than being taken as either
+     * inside or outside it */
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    wolfSSL_X509_add_altname_ex(x509, altNameBadUtf8, sizeof(altNameBadUtf8),
+            ASN_DIR_TYPE);
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
+    ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
     wolfSSL_CertManagerFree(cm);
 
     wolfSSL_X509_free(x509);
@@ -1097,6 +1126,27 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
     ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
     ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    /* a directoryName that cannot be compared against the excluded subtree
+     * has not been shown to be outside it, so it fails the check too */
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    wolfSSL_X509_add_altname_ex(x509, altNameBadUtf8, sizeof(altNameBadUtf8),
+            ASN_DIR_TYPE);
+    ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
+    ExpectNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
     wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(x509);
     wolfSSL_X509_free(ca);

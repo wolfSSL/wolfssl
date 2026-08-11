@@ -1941,9 +1941,7 @@ endif
 
 endif !BUILD_FIPS_RAND
 
-if BUILD_CODING
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/coding.c
-endif
 
 if !BUILD_FIPS_RAND
 

@@ -405,6 +405,7 @@ static void wb_permitted_excluded_lists(void)
     DNS_entry ridName, dirName;
     Base_entry* ridList;
     Base_entry* dirList;
+    Base_entry* dirTail;
 
     WB_NOTE("PermittedListOk()/IsInExcludedList(): RID exact-match [:19142,:19214]");
     XMEMSET(&ridName, 0, sizeof(ridName));
@@ -432,31 +433,80 @@ static void wb_permitted_excluded_lists(void)
             "RID length mismatch excluded (1st operand false)");
 
     WB_NOTE("PermittedListOk()/IsInExcludedList(): default MatchBaseName branch [:19158,:19230]");
-    /* ASN_DIR_TYPE takes the trailing "else if" default branch (not IP,
-     * URI, OTHER, RID, or DNS). Equal-length exact match -> both true. */
+    /* ASN_DIR_TYPE takes the trailing "else" default branch (not IP, URI,
+     * OTHER, RID, or DNS). The operands are RDNSequence content octets:
+     * "O=a" as a single RDN carrying one UTF8String attribute. */
     XMEMSET(&dirName, 0, sizeof(dirName));
     dirName.type = ASN_DIR_TYPE;
-    dirName.name = "CN=a";
-    dirName.len = 4;
-    dirList = wb_mk_base(NULL, "CN=a", 4, ASN_DIR_TYPE);
+    dirName.name = "\x31\x0a\x30\x08\x06\x03\x55\x04\x0a\x0c\x01""a";
+    dirName.len = 12;
+    dirList = wb_mk_base(NULL, dirName.name, 12, ASN_DIR_TYPE);
     WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) == 1,
-            "DIR exact match permitted (both true)");
+            "DIR exact match permitted (match)");
     WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) == 1,
-            "DIR exact match excluded (both true)");
-    /* name->len < current->nameSz -> 1st operand false, short-circuits
-     * (MatchBaseName not even called). */
-    dirList = wb_mk_base(NULL, "CN=abcdef", 9, ASN_DIR_TYPE);
+            "DIR exact match excluded (match)");
+    /* The DN has fewer RDNs than the subtree -> no match. */
+    dirList = wb_mk_base(NULL,
+            "\x31\x0a\x30\x08\x06\x03\x55\x04\x0a\x0c\x01""a"
+            "\x31\x0a\x30\x08\x06\x03\x55\x04\x03\x0c\x01""b", 24,
+            ASN_DIR_TYPE);
     WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) == 0,
-            "DIR name shorter than base (1st operand false)");
+            "DIR fewer RDNs than subtree (no match)");
     WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) == 0,
-            "DIR name shorter than base excluded (1st operand false)");
-    /* name->len >= current->nameSz but MatchBaseName() itself rejects
-     * (different bytes) -> 1st true, 2nd false. */
-    dirList = wb_mk_base(NULL, "CN=z", 4, ASN_DIR_TYPE);
+            "DIR fewer RDNs than subtree excluded (no match)");
+    /* Same shape, different value -> MatchBaseName() reports no match. */
+    dirList = wb_mk_base(NULL,
+            "\x31\x0a\x30\x08\x06\x03\x55\x04\x0a\x0c\x01""z", 12,
+            ASN_DIR_TYPE);
     WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) == 0,
-            "DIR len ok, MatchBaseName rejects (2nd operand false)");
+            "DIR value differs, MatchBaseName rejects");
     WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) == 0,
-            "DIR len ok, MatchBaseName rejects, excluded (2nd operand false)");
+            "DIR value differs, MatchBaseName rejects, excluded");
+    /* A subtree that is not an RDNSequence cannot be compared: the error
+     * propagates out so the caller fails the constraint check. */
+    dirList = wb_mk_base(NULL, "CN=a", 4, ASN_DIR_TYPE);
+    WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) < 0,
+            "DIR unparsable subtree propagates error (permitted)");
+    WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) < 0,
+            "DIR unparsable subtree propagates error (excluded)");
+
+    WB_NOTE("PermittedListOk()/IsInExcludedList(): unusable subtree does not decide the list");
+    /* The answer must not depend on where in the list an unusable subtree
+     * sits. A name is permitted when it falls within any one of the subtrees
+     * (RFC 5280 Sec. 6.1.3 (b)), and under the three valued logic those
+     * rules build on (X.511 Clause 7.8.1) a match decides the disjunction
+     * whatever the other subtrees evaluated to. */
+    dirTail = wb_mk_base(NULL, dirName.name, 12, ASN_DIR_TYPE);
+    dirList = wb_mk_base(dirTail, "CN=a", 4, ASN_DIR_TYPE);
+    WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) == 1,
+            "DIR unusable subtree before a matching one (permitted)");
+    WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) == 1,
+            "DIR unusable subtree before a matching one (excluded)");
+    /* The same two subtrees the other way around. */
+    dirTail = wb_mk_base(NULL, "CN=a", 4, ASN_DIR_TYPE);
+    dirList = wb_mk_base(dirTail, dirName.name, 12, ASN_DIR_TYPE);
+    WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) == 1,
+            "DIR matching subtree before an unusable one (permitted)");
+    WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) == 1,
+            "DIR matching subtree before an unusable one (excluded)");
+    /* With nothing to match, the deferred error is what gets reported, and
+     * again in either order. */
+    dirTail = wb_mk_base(NULL,
+            "\x31\x0a\x30\x08\x06\x03\x55\x04\x0a\x0c\x01""z", 12,
+            ASN_DIR_TYPE);
+    dirList = wb_mk_base(dirTail, "CN=a", 4, ASN_DIR_TYPE);
+    WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) < 0,
+            "DIR no match, unusable subtree first (permitted)");
+    WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) < 0,
+            "DIR no match, unusable subtree first (excluded)");
+    dirTail = wb_mk_base(NULL, "CN=a", 4, ASN_DIR_TYPE);
+    dirList = wb_mk_base(dirTail,
+            "\x31\x0a\x30\x08\x06\x03\x55\x04\x0a\x0c\x01""z", 12,
+            ASN_DIR_TYPE);
+    WB_CHECK(PermittedListOk(&dirName, dirList, ASN_DIR_TYPE) < 0,
+            "DIR no match, unusable subtree last (permitted)");
+    WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) < 0,
+            "DIR no match, unusable subtree last (excluded)");
 
     WB_NOTE("PermittedListOk()/IsInExcludedList(): empty list -> not needed [need=0]");
     WB_CHECK(PermittedListOk(&dirName, NULL, ASN_DIR_TYPE) == 1,
