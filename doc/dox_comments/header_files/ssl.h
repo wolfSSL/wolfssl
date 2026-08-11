@@ -10147,8 +10147,9 @@ void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx);
     and hashSz denotes the length in bytes of the hash.  result is an output
     variable where the result of the verification should be stored, 1 for
     success and 0 for failure.  keyDer is the ECC Private key in ASN1
-    format and keySz is the length of the key in bytes.  An example
-    callback can be found wolfssl/test.h myEccVerify().
+    format and keySz is the length of the key in bytes.  keyDer is NULL with
+    keySz 0 when only the callback holds the key, so the callback must then
+    supply it.  An example callback can be found wolfssl/test.h myEccVerify().
 
     \return none No returns.
 
