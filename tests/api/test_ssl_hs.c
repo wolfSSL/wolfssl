@@ -810,10 +810,15 @@ int test_wolfSSL_set_accept_state_reinit(void)
 
     wolfSSL_set_accept_state(ssl);
 
+    /* Picked up as the object's own copy, not the context's buffers. */
     if ((ssl != NULL) && (ctx != NULL)) {
         ExpectIntEQ(ssl->options.haveDH, 1);
-        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
-        ExpectPtrEq(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectNotNull(ssl->buffers.serverDH_G.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectIntEQ(ssl->buffers.serverDH_P.length, ctx->serverDH_P.length);
+        ExpectIntEQ(ssl->buffers.serverDH_G.length, ctx->serverDH_G.length);
     }
 
     wolfSSL_free(ssl);
@@ -968,8 +973,8 @@ int test_wolfSSL_SSL_do_handshake_quic(void)
 /* Test that wolfSSL_set_connect_state() discards server DH parameters.
  *
  * A client generates its own DH parameters, so any server ones are dropped.
- * Parameters the object owns are freed; parameters merely borrowed from the
- * context are only unlinked, since the context still owns them.
+ * The object holds its own copy either way, whether set on it directly or
+ * taken from the context, so the context is left untouched.
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -1008,6 +1013,8 @@ int test_wolfSSL_set_connect_state_dh(void)
     if (ssl != NULL) {
         ExpectNull(ssl->buffers.serverDH_P.buffer);
         ExpectNull(ssl->buffers.serverDH_G.buffer);
+        /* Nothing left to own. */
+        ExpectIntEQ(ssl->buffers.weOwnDH, 0);
     }
     ExpectIntEQ(wolfSSL_is_server(ssl), 0);
 
@@ -1016,7 +1023,7 @@ int test_wolfSSL_set_connect_state_dh(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
-    /* Parameters borrowed from the context are left for the context to free. */
+    /* Parameters taken from the context are a copy the object owns. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
@@ -1026,10 +1033,11 @@ int test_wolfSSL_set_connect_state_dh(void)
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    /* Inherited from the context, so not owned here. */
-    if (ssl != NULL) {
-        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
-        ExpectIntEQ(ssl->buffers.weOwnDH, 0);
+    /* Copied from the context, so owned here. */
+    if ((ssl != NULL) && (ctx != NULL)) {
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectIntEQ(ssl->buffers.weOwnDH, 1);
     }
 
     wolfSSL_set_connect_state(ssl);
@@ -1037,6 +1045,7 @@ int test_wolfSSL_set_connect_state_dh(void)
     if (ssl != NULL) {
         ExpectNull(ssl->buffers.serverDH_P.buffer);
         ExpectNull(ssl->buffers.serverDH_G.buffer);
+        ExpectIntEQ(ssl->buffers.weOwnDH, 0);
     }
     /* The context kept its own copy, so it can still be used. */
     if (ctx != NULL) {
@@ -1044,8 +1053,9 @@ int test_wolfSSL_set_connect_state_dh(void)
         ExpectNotNull(ctx->serverDH_G.buffer);
     }
     ExpectNotNull(ssl2 = wolfSSL_new(ctx));
-    if (ssl2 != NULL) {
-        ExpectPtrEq(ssl2->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+    if ((ssl2 != NULL) && (ctx != NULL)) {
+        ExpectNotNull(ssl2->buffers.serverDH_P.buffer);
+        ExpectPtrNE(ssl2->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
     }
 
     wolfSSL_free(ssl2);

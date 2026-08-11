@@ -28,6 +28,8 @@ int test_tls_ems_resumption_server_downgrade(void);
 int test_tls12_chacha20_poly1305_bad_tag(void);
 int test_tls13_null_cipher_bad_hmac(void);
 int test_scr_verify_data_mismatch(void);
+int test_scr_dhe_ctx_params_survive(void);
+int test_dhe_ctx_params_survive_reuse(void);
 int test_scr_no_renegotiation_option(void);
 int test_helloRequest_no_renegotiation_option(void);
 int test_helloRequest_advertise_only_refused(void);

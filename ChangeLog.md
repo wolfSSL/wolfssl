@@ -2,6 +2,30 @@
 
 ## Behavioral Changes
 
+* **Behavioral change (`DerBuffer` reference counting)**: a `DerBuffer` now
+  carries a reference count so a context and the sessions made from it can
+  share one buffer safely, and the certificate or key can be replaced on the
+  context while sessions still hold the one they started with.  It is on
+  wherever the count is cheap, which is any build with atomics or
+  `SINGLE_THREADED`, so most builds get it without asking.  `wc_FreeDer()`
+  now lets go of one hold rather than freeing outright; the memory goes when
+  the last holder lets go, and the caller's pointer is cleared either way.
+  An application that builds a `DerBuffer` by hand rather than through
+  `wc_AllocDer()` and frees it with `wc_FreeDer()` must zero the structure
+  first: the count is what tells a shared buffer from a hand-built one, and
+  a count left uninitialized reads as another holder, so the buffer is not
+  freed.  The count is appended to the structure, so the offsets of the
+  existing fields do not move and code that only reads a `DerBuffer` is
+  unaffected; the structure does not grow on a 64-bit target, where the
+  count lands in padding it already had, and grows by four bytes on a 32-bit
+  one.  Define `WOLFSSL_NO_DER_REFCOUNT` to force it off, or
+  `WOLFSSL_DER_REFCOUNT` to force it on.  A threaded build whose compiler
+  offers no atomics has it off, where a session shares the context's buffer
+  by pointer as before and the context must outlive its sessions.  The hold
+  covers a session that already has the buffer; replacing a certificate on a
+  context at the same moment as `wolfSSL_new()` is still not safe, so
+  reloading has to be kept clear of session creation.
+
 * **Behavioral change (`wolfSSL_shutdown` when no close_notify can be sent)**:
   when the connection is already closed or reset and no close_notify was ever
   sent, the shutdown exchange can never complete.  That case now returns

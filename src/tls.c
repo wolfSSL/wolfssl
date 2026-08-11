@@ -5613,6 +5613,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     ssl->buffers.serverDH_P.buffer = NULL;
     ssl->buffers.serverDH_G.buffer = NULL;
     ssl->buffers.weOwnDH = 0;
+    ssl->buffers.dhFromCtx = 0;
     ssl->options.haveDH = 0;
 
     ret = TLSX_PopulateSupportedGroups(ssl, &priority);

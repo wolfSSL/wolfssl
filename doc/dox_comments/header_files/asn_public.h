@@ -1723,6 +1723,13 @@ int wc_AllocDer(DerBuffer** pDer, word32 length, int type,
     \ingroup ASN
     \brief Frees DER buffer allocated by wc_AllocDer or wc_PemToDer.
 
+    With WOLFSSL_DER_REFCOUNT the buffer may be shared, in which case this
+    lets go of one hold on it and the memory is freed once the last holder
+    lets go. The caller's pointer is cleared either way. A DerBuffer the
+    application built itself rather than through wc_AllocDer has no hold on
+    it and is freed here; such a buffer must have been zeroed before use, as
+    the reference count is what tells the two apart.
+
     \param pDer Pointer to DerBuffer pointer to free
 
     _Example_

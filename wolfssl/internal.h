@@ -5257,6 +5257,7 @@ typedef struct Buffers {
     byte            weOwnAltKey;           /* SSL own alt key flag */
 #endif
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
+    byte            dhFromCtx;             /* dh (p,g) copied from the ctx */
 #ifndef NO_DH
     buffer          serverDH_P;            /* WOLFSSL_CTX owns, unless we own */
     buffer          serverDH_G;            /* WOLFSSL_CTX owns, unless we own */
@@ -5324,6 +5325,27 @@ typedef struct Buffers {
     buffer          certVerifyMsg;
 #endif
 } Buffers;
+
+/* Every DER buffer an SSL object points at is held by it: either it allocated
+ * the buffer itself, or it took a reference on the context's. Let go of one
+ * with FreeSslDer() and take on the context's with AliasSslDer(). Code that
+ * installs a buffer it allocated itself lets go of the old one the same way
+ * and then sets weOwn, so the hold is always taken and always let go.
+ *
+ * weOwn records which of the two it is. It still matters without reference
+ * counting, where the context's buffer must be left alone.
+ *
+ * pDer and weOwn must not be NULL. The buffer pDer holds may be. */
+#ifndef NO_CERTS
+WOLFSSL_LOCAL void FreeSslDer(DerBuffer** pDer, byte* weOwn);
+WOLFSSL_LOCAL int AliasSslDer(DerBuffer** pDer, byte* weOwn, DerBuffer* src);
+#endif
+
+#ifndef NO_DH
+/* Give the SSL object its own copy of the context's DH parameters. They are
+ * not reference counted, so a session must not point at the context's. */
+WOLFSSL_LOCAL int CopySSL_CTX_DhParams(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
+#endif
 
 /* sub-states for send/do key share (key exchange) */
 enum asyncState {

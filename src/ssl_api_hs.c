@@ -1592,9 +1592,18 @@ void wolfSSL_set_accept_state(WOLFSSL* ssl)
 
         #ifndef NO_DH
         if ((!ssl->options.haveDH) && (ssl->ctx->haveDH)) {
-            ssl->buffers.serverDH_P = ssl->ctx->serverDH_P;
-            ssl->buffers.serverDH_G = ssl->ctx->serverDH_G;
-            ssl->options.haveDH = 1;
+            int dhRet = CopySSL_CTX_DhParams(ssl, ssl->ctx);
+
+            if (dhRet == 0) {
+                ssl->options.haveDH = 1;
+            }
+            else {
+                /* Nothing is returned from here, so leave the reason where
+                 * wolfSSL_get_error() can find it rather than letting this
+                 * turn up later as a cipher suite that would not negotiate. */
+                WOLFSSL_MSG("Unable to copy DH parameters from context");
+                ssl->error = dhRet;
+            }
         }
         #endif
     }
@@ -1668,6 +1677,9 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
             DYNAMIC_TYPE_PUBLIC_KEY);
     }
     ssl->buffers.serverDH_G.buffer = NULL;
+    /* Nothing left to own. */
+    ssl->buffers.weOwnDH = 0;
+    ssl->buffers.dhFromCtx = 0;
     #endif
 
     if (InitSSL_Side(ssl, WOLFSSL_CLIENT_END) != WOLFSSL_SUCCESS) {

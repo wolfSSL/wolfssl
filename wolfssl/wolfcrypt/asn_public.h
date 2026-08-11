@@ -237,13 +237,21 @@ enum Ctc_Misc {
     WOLF_ENUM_DUMMY_LAST_ELEMENT(Ctc_Misc)
 };
 
-/* DER buffer */
+/* DER buffer.
+ *
+ * Build one by hand rather than with wc_AllocDer() and it must be zeroed
+ * first: wc_FreeDer() reads the reference count to tell the two apart, and a
+ * count left as whatever was on the stack is read as a buffer someone else
+ * still holds. */
 typedef struct DerBuffer {
     byte*  buffer;
     void*  heap;
     word32 length;
     int    type;    /* enum CertType */
     int    dynType; /* DYNAMIC_TYPE_* */
+#ifdef WOLFSSL_DER_REFCOUNT
+    wolfSSL_Ref ref;
+#endif
 } DerBuffer;
 
 typedef struct WOLFSSL_ASN1_TIME {

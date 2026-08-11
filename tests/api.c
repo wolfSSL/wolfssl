@@ -12307,6 +12307,66 @@ static int test_wc_AllocDer(void)
     return EXPECT_RESULT();
 }
 
+/* A buffer from AllocDer starts with one holder on it. RefDer takes another,
+ * and the memory goes only when the last holder lets go. */
+static int test_wc_DerRefCount(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(WOLFSSL_DER_REFCOUNT)
+    const word32 testSize = 8;
+    DerBuffer* der = NULL;
+    DerBuffer* alias = NULL;
+    DerBuffer* byHand = NULL;
+
+    ExpectIntEQ(wc_AllocDer(&der, testSize, CERT_TYPE, HEAP_HINT), 0);
+    ExpectNotNull(der);
+    if (der != NULL) {
+        XMEMSET(der->buffer, 0xA5, der->length);
+        ExpectIntEQ(wolfSSL_RefCur(der->ref), 1);
+    }
+
+    /* A second hold, taken the way RefDer() takes one. RefDer() itself is not
+     * exported, so its effect is watched through wolfSSL_new() instead. */
+    if (der != NULL) {
+        int err = 0;
+
+        wolfSSL_RefInc(&der->ref, &err);
+        ExpectIntEQ(err, 0);
+        ExpectIntEQ(wolfSSL_RefCur(der->ref), 2);
+    }
+
+    /* The first holder lets go. The second still has a usable buffer. */
+    alias = der;
+    wc_FreeDer(&der);
+    ExpectNull(der);
+    if (alias != NULL) {
+        ExpectIntEQ(wolfSSL_RefCur(alias->ref), 1);
+        ExpectNotNull(alias->buffer);
+        ExpectIntEQ(alias->buffer[0], 0xA5);
+    }
+
+    wc_FreeDer(&alias);
+    ExpectNull(alias);
+
+    /* A buffer built by hand carries no count and is freed outright. Zeroing
+     * it first is what makes that so. */
+    ExpectNotNull(byHand = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + testSize,
+        HEAP_HINT, DYNAMIC_TYPE_CERT));
+    if (byHand != NULL) {
+        XMEMSET(byHand, 0, sizeof(DerBuffer) + testSize);
+        byHand->buffer = (byte*)byHand + sizeof(DerBuffer);
+        byHand->length = testSize;
+        byHand->type = CERT_TYPE;
+        byHand->dynType = DYNAMIC_TYPE_CERT;
+        byHand->heap = HEAP_HINT;
+        ExpectIntEQ(wolfSSL_RefCur(byHand->ref), 0);
+    }
+    wc_FreeDer(&byHand);
+    ExpectNull(byHand);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wc_CertPemToDer(void)
 {
     EXPECT_DECLS;
@@ -38926,6 +38986,7 @@ TEST_CASE testCases[] = {
     /* PEM and DER APIs. */
     TEST_DECL(test_wc_PemToDer),
     TEST_DECL(test_wc_AllocDer),
+    TEST_DECL(test_wc_DerRefCount),
     TEST_DECL(test_wc_CertPemToDer),
     TEST_DECL(test_wc_KeyPemToDer),
     TEST_DECL(test_wc_PubKeyPemToDer),
@@ -39476,6 +39537,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls12_chacha20_poly1305_bad_tag),
     TEST_DECL(test_tls13_null_cipher_bad_hmac),
     TEST_DECL(test_scr_verify_data_mismatch),
+    TEST_DECL(test_scr_dhe_ctx_params_survive),
+    TEST_DECL(test_dhe_ctx_params_survive_reuse),
     TEST_DECL(test_scr_no_renegotiation_option),
     TEST_DECL(test_helloRequest_no_renegotiation_option),
     TEST_DECL(test_helloRequest_advertise_only_refused),
