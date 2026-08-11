@@ -418,6 +418,17 @@ static void wb_spc_ecc_##BITS(void)                                         \
         (void)mp_set(&pyv, 2);                                              \
         (void)sp_ecc_verify_##BITS(wb_spc_digest, 32, &pxv, &pyv, &zero,    \
             &one, &one, &res, NULL);                                        \
+        /* The leading `err == MP_OKAY` of the two infinity tests inside    \
+         * sp_<n>_calc_vfy_point_<w>() only moves when one of that          \
+         * function's own allocations fails, and the pair has to be in the  \
+         * same binary as the true vector just above. No-op unless the      \
+         * variant sets WOLFSSL_SP_SMALL_STACK. */                          \
+        for (fa = 1; fa <= 8; fa++) {                                       \
+            mcdc_fa_arm(fa);                                                \
+            (void)sp_ecc_verify_##BITS(wb_spc_digest, 32, key.pubkey.x,     \
+                key.pubkey.y, &one, &one, &one, &res, NULL);                \
+            mcdc_fa_disarm();                                               \
+        }                                                                   \
     }
 #else
 #define WB_SPC_SIGNVERIFY_BODY(BITS)       /* needs HAVE_ECC_SIGN/VERIFY */
