@@ -46,7 +46,7 @@
  *      constructed-basic-type / IndefItems bookkeeping ............ :4125,:4243,
  *                                                                     :4297,:4322,:4399
  *   7. SizeASN_Items()/SetASN_Items() template engine (custom
- *      encode template) ............................................ :866,:899,
+ *      encode template) ............................................ :811,:866,:899,
  *                                                                     :987,:999,:1085,
  *                                                                     :1260,:1266,:1278
  *   8. GetASN_Items()/GetASN_StoreData()/GetASN_Integer()/
@@ -441,10 +441,15 @@ static const ASNItem wbEncASN[] = {
 /* W8P  */   { 1, ASN_INTEGER,      0, 0, 0 }, /* Int8Bit, MSB clear (SetASN_Num) */
 /* INTNODATA */ { 1, ASN_INTEGER,   0, 0, 0 }, /* no buffer: ASNIntMSBSet data!=NULL false */
 /* INTZEROLEN */ { 1, ASN_INTEGER,  0, 0, 0 }, /* buffer, length==0: ASNIntMSBSet length>0 false */
+/* W8OCT */  { 1, ASN_OCTET_STRING, 0, 0, 0 }, /* Int8Bit, MSB set, tag!=INTEGER (isolates
+                                                 * SizeASN_Num/SetASN_Num's "tag==ASN_INTEGER"
+                                                 * operand against WBENC_W8N: same 0xFF value,
+                                                 * only the tag differs) */
 };
 enum {
     WBENC_SEQ = 0, WBENC_OCT, WBENC_INTN, WBENC_INTP, WBENC_BIT,
-    WBENC_W8N, WBENC_W8P, WBENC_INTNODATA, WBENC_INTZEROLEN, WBENC_COUNT
+    WBENC_W8N, WBENC_W8P, WBENC_INTNODATA, WBENC_INTZEROLEN, WBENC_W8OCT,
+    WBENC_COUNT
 };
 
 static void wb_size_set_asn_items(void)
@@ -484,6 +489,11 @@ static void wb_size_set_asn_items(void)
      * ASNIntMSBSet's "data!=NULL" operand (false) against WBENC_INTZEROLEN
      * below (same length==0, data!=NULL true). */
     SetASN_Buffer(&dataASN[WBENC_INTZEROLEN], octBuf, 0); /* data!=NULL, length==0 */
+    /* Same 0xFF value as WBENC_W8N but tag==ASN_OCTET_STRING (not
+     * ASN_INTEGER, not ASN_BIT_STRING): isolates SizeASN_Num()/SetASN_Num()'s
+     * "tag == ASN_INTEGER" operand -- MSB-set stays true in both, only the
+     * tag differs, so the extra zero-pad byte is skipped here. */
+    SetASN_Int8Bit(&dataASN[WBENC_W8OCT], 0xFFU);
     /* dataASN[WBENC_SEQ] left all-zero: headerOnly=1, data==NULL -> :866
      * false side (SizeASN_CalcDataLength sums children); :999 false side
      * (!headerOnly||data!=NULL -> F||F). */
@@ -504,6 +514,7 @@ static void wb_size_set_asn_items(void)
     SetASN_Int8Bit(&dataASN[WBENC_W8N], 0xFFU);
     SetASN_Int8Bit(&dataASN[WBENC_W8P], 0x05U);
     SetASN_Buffer(&dataASN[WBENC_INTZEROLEN], octBuf, 0);
+    SetASN_Int8Bit(&dataASN[WBENC_W8OCT], 0xFFU);
     SetASN_Buffer(&dataASN[WBENC_SEQ], octBuf, sizeof(octBuf));
     {
         word32 encSz2 = 0;
@@ -523,6 +534,8 @@ static void wb_size_set_asn_items(void)
             " same data!=NULL) isolates the length>0 operand");
 
     WB_NOTE("SetASN_Num(): INTEGER MSB check [:1085] via WBENC_W8N/W8P above (0xFF vs 0x05)");
+    WB_NOTE("SizeASN_Num()/SetASN_Num(): tag==ASN_INTEGER operand [:811,:1085] via"
+            " WBENC_W8N (tag INTEGER, 0xFF) vs WBENC_W8OCT (tag OCTET_STRING, 0xFF)");
 
     /* :866/:867 SizeASN_CalcDataLength()'s per-child check
      *   asn[j].headerOnly && data[j].data.buffer.data==NULL && dataType!=REPLACE
@@ -673,10 +686,22 @@ static void wb_get_asn_items_utf8(void)
 {
     static const ASNItem utf8Item[] = { { 0, ASN_UTF8STRING, 0, 0, 0 } };
     /* 'A' (valid ASCII), then an invalid lead byte (0xFF matches none of the
-     * continuation-count masks), then a trailing byte never reached --
-     * demonstrates the while(ret==0 && i<length) [:1416] exiting via the
-     * ret==0 operand (error mid-string) rather than only via i<length. */
+     * continuation-count masks): the "invalid character" arm hits its own
+     * `break` directly inside the while body, so the while's own condition
+     * is never re-evaluated with ret!=0 -- this exercises GetASN_UTF8String
+     * itself returning an error, but does NOT pair :1416's ret==0 operand
+     * (see the loopExit case below for that). */
     byte der[] = { 0x0c, 0x03, 0x41, 0xFF, 0x42 };
+    /* Lead byte 0xC2 announces one continuation byte (cnt==1); the next byte
+     * 0x41 has its top bit clear, which is invalid for a continuation byte.
+     * That failure is detected inside the nested `for (; cnt > 0; cnt--)`
+     * loop, whose `break` only exits the *for*, falling through to the
+     * bottom of the while body. Because one more byte (0x42) remains
+     * in-range, i (1) is still < length (3) when the while condition is
+     * re-checked -- so THIS re-check is the one where ret==0 is false while
+     * i<length is true, independently determining the (now-false) outcome:
+     * the MC/DC pair for the while's ret==0 operand. */
+    byte derLoopExit[] = { 0x0c, 0x03, 0xC2, 0x41, 0x42 };
     ASNGetData d[1];
     word32 idx;
     int ret;
@@ -685,7 +710,13 @@ static void wb_get_asn_items_utf8(void)
     XMEMSET(d, 0, sizeof(d));
     idx = 0;
     ret = GetASN_Items(utf8Item, d, 1, 0, der, &idx, sizeof(der));
-    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":1416 loop exits via ret!=0 mid-string");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "invalid lead byte (while's own break)");
+
+    XMEMSET(d, 0, sizeof(d));
+    idx = 0;
+    ret = GetASN_Items(utf8Item, d, 1, 0, derLoopExit, &idx, sizeof(derLoopExit));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            ":1416 ret==0 operand false (i<length still true, for-loop break path)");
 }
 
 static void wb_get_asn_items_word8(void)
@@ -817,16 +848,34 @@ static void wb_get_asn_items_word32(void)
         ret = GetASN_Items(ctxItem, d, 1, 0, der, &idx, sizeof(der));
         WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":1563 len>4");
     }
+    { /* Non-BIT_STRING (ctx) tag, MSB-set data byte, not zero-padded ->
+       * :1569 all 3 operands true (tag!=BIT_STRING, !zeroPadded,
+       * input[idx]>=0x80): outcome true (ASN_EXPECT_0_E). This is the
+       * cond0==true counterpart of the BIT_STRING case below -- both use
+       * the SAME 0x90 data byte, so cond1/cond2 are pinned to the same
+       * (true,true) values in both calls and only cond0 differs. */
+        byte der[] = { 0x85, 0x01, 0x90 };
+        XMEMSET(d, 0, sizeof(d)); GetASN_Int32Bit(&d[0], &n32);
+        idx = 0;
+        ret = GetASN_Items(ctxItem, d, 1, 0, der, &idx, sizeof(der));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_EXPECT_0_E),
+                ":1569 all true (tag!=BIT_STRING, MSB set, not zero-padded)");
+    }
     { /* BIT_STRING tag with WORD32 dataType -> :1569 1st operand false
        * (tag==BIT_STRING), short-circuits regardless of zero-pad/MSB. Data
-       * byte (0x2B) kept MSB-clear, matching the ctx-tag baseline above, so
-       * only the 1st operand differs between the two calls (clean
-       * independence pair: 2nd/3rd operands held at the same values). */
-        byte der[] = { 0x03, 0x02, 0x00, 0x2B };
+       * byte kept MSB-SET (0x90, same value as the ctx-tag case just above)
+       * so cond1/cond2 would also have been true had cond0 not
+       * short-circuited them -- a prior version of this vector used an
+       * MSB-CLEAR byte (0x2B), which left cond2 false in both calls and
+       * masked cond0's effect on the outcome entirely (outcome was false
+       * either way): that vector proved nothing about :1569's 1st operand.
+       * With MSB set here, the outcome flips true->false (EXPECT_0_E -> 0),
+       * giving a real independence pair. */
+        byte der[] = { 0x03, 0x02, 0x00, 0x90 };
         XMEMSET(d, 0, sizeof(d)); GetASN_Int32Bit(&d[0], &n32);
         idx = 0;
         ret = GetASN_Items(bitItem, d, 1, 0, der, &idx, sizeof(der));
-        WB_CHECK(ret == 0, ":1569 1st operand false (tag==BIT_STRING)");
+        WB_CHECK(ret == 0 && n32 == 0x90u, ":1569 1st operand false (tag==BIT_STRING)");
     }
 }
 #else

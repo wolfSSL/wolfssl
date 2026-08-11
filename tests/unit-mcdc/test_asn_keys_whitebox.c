@@ -1140,13 +1140,20 @@ static void wb_dh_key_to_der(void)
     (void)mp_set(&key.priv, 3);
     (void)mp_set(&key.pub, 4);
 
-    WB_NOTE("wc_DhKeyToDer(): *outSz<sz [:12148]");
+    WB_NOTE("wc_DhKeyToDer(): ret==0 operand [:12148]; *outSz<sz [:12148]");
+    /* output==NULL sets ret=LENGTH_ONLY_E before the "ret==0 && *outSz<sz"
+     * check runs, so this is the 1st operand's false side (holding *outSz
+     * unconstrained -- the 2nd operand is never reached, short-circuit). */
+    outSz = 0;
+    ret = wc_DhKeyToDer(&key, NULL, &outSz, 1);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E) && outSz > 0,
+            ":12148 1st operand false (output==NULL)");
     outSz = (word32)sizeof(out);
     ret = wc_DhKeyToDer(&key, out, &outSz, 1);
-    WB_CHECK(ret > 0, "buffer big enough (false)");
+    WB_CHECK(ret > 0, "buffer big enough (1st true, 2nd false)");
     outSz = 1;
     ret = wc_DhKeyToDer(&key, out, &outSz, 1);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "buffer too small (true)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "buffer too small (both true)");
 
     WB_NOTE("wc_DhParamsToDer(): key/outSz NULL OR [:12190]; "
             "output==NULL [:12205]; *outSz<sz [:12210]");
@@ -1774,6 +1781,18 @@ static void wb_ecc_public_key_decode(void)
     wc_ecc_free(&key);
 }
 
+/* RESIDUAL: wc_BuildEccKeyDer() :33569 `if ((ret == 0) && (output != NULL))`
+ * 2nd operand's false side (output==NULL while ret==0) is structurally
+ * unreachable. The immediately preceding statement is
+ * `if ((ret == 0) && (output == NULL)) { *outLen = sz; ret = LENGTH_ONLY_E; }`
+ * -- so any path that reaches :33569 with output==NULL must have already
+ * forced ret to LENGTH_ONLY_E there (ret is only ever set away from 0 in
+ * this run of ifs, never back to 0), making ret==0 false at :33569 too.
+ * Conversely, ret==0 at :33569 proves that branch did not fire, which (given
+ * ret was already 0 going in) requires output!=NULL. So ret==0 at :33569
+ * always implies output!=NULL -- the (ret==0, output==NULL) combination
+ * cannot occur, and no fixture can produce it.
+ */
 #ifdef HAVE_ECC_KEY_EXPORT
 static void wb_build_ecc_key_der(void)
 {
@@ -1822,6 +1841,13 @@ static void wb_build_ecc_key_der(void)
     ret = wc_BuildEccKeyDer(&key, NULL, &outLen, 1, 1);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E) && outLen > 0,
             "output==NULL (size-only path)");
+    /* output!=NULL, outLen==NULL: allowed by the :33349 guard (only
+     * output==NULL&&outLen==NULL together is rejected) and skips the
+     * "sz > *outLen" check entirely (can't dereference outLen) -- isolates
+     * :33566's "outLen != NULL" operand (false side; ret==0 held from the
+     * prior "output==NULL" branch not firing since output!=NULL here). */
+    ret = wc_BuildEccKeyDer(&key, out, NULL, 1, 1);
+    WB_CHECK(ret > 0, ":33566 2nd operand false (outLen==NULL, size check skipped)");
 
     wc_ecc_free(&key);
 }

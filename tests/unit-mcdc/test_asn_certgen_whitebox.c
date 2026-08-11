@@ -1311,8 +1311,42 @@ static void wb_set_subject_issuer_raw(void)
  * SECTION Q (aux): S/MIME wc_MIME_parse_headers()/wc_MIME_header_strip()/
  * wc_MIME_single_canonicalize().
  *   wc_MIME_parse_headers      :~38365,38391,38407-409,38420,38466,38469
- *   wc_MIME_header_strip       :~38536,38541,38552
+ *   wc_MIME_header_strip       :~38536,38541,:38717
  *   wc_MIME_single_canonicalize:~38619,38624
+ *
+ * RESIDUALS (structurally dead operand, not a gap in this test):
+ *   - wc_MIME_parse_headers() :38585 3rd operand (`pos >= 1`) of
+ *     `else if (mimeStatus == MIME_BODYVAL && cur == ';' && pos >= 1)`:
+ *     mimeStatus is forced back to MIME_NAMEATTR at the bottom of the outer
+ *     while loop before every new curLine is processed (and its declared
+ *     initial value is MIME_NAMEATTR too), so mimeStatus can only ever be
+ *     MIME_BODYVAL at some pos>0 within the CURRENT line's `for (pos = 0;
+ *     ...)` scan. The only place that sets mimeStatus = MIME_BODYVAL is the
+ *     sibling `if` immediately above, which itself requires `pos >= 1` to
+ *     fire; that transition happens at some pos'>=1, so mimeStatus can only
+ *     read back as MIME_BODYVAL on a later iteration whose pos > pos' >= 1.
+ *     I.e. whenever the 1st operand (mimeStatus==MIME_BODYVAL) is true,
+ *     pos>=1 is already guaranteed true by construction -- the false side
+ *     of the 3rd operand (pos==0 with mimeStatus==MIME_BODYVAL) can never
+ *     occur, so no independence pair exists for it.
+ *   - wc_MIME_parse_headers() :38631 all 3 operands of
+ *     `while ((curLine[end] == '\r' || curLine[end] == '\n') && end > 0)`:
+ *     curLine is produced exclusively by `XSTRTOK(str, "\r\n", &ptr)`
+ *     (mapped to wc_strtok()/strtok_r()/strtok_s() depending on platform).
+ *     By definition, a strtok-family function splits on any character in
+ *     the delimiter set and never leaves a delimiter character inside the
+ *     returned token (leading delimiter runs are skipped before the token
+ *     starts, and the token is terminated -- NUL-inserted -- at the first
+ *     delimiter character found). Since '\r' and '\n' are exactly this
+ *     call's delimiter set, curLine[i] can never equal '\r' or '\n' for any
+ *     i, including curLine[end]. Both OR operands (0 and 1) are therefore
+ *     always false at loop entry, the loop body never executes, and operand
+ *     2 (`end > 0`) is never even reached (short-circuited by the OR being
+ *     false first) -- this trim loop is unreachable dead code given how
+ *     curLine is always constructed in this function. No fixture can make
+ *     curLine[end] be '\r' or '\n' without bypassing XSTRTOK, which is not
+ *     possible from the public wc_MIME_parse_headers() entry point (the
+ *     only caller of this inline loop -- it is not a separate helper).
  * ======================================================================== */
 #ifdef HAVE_SMIME
 static void wb_mime_parse_headers(void)
@@ -1370,11 +1404,21 @@ static void wb_mime_parse_headers(void)
 
 static void wb_mime_header_strip(void)
 {
-    char in[] = "A: b;\"c\x01d";
+    /* 0x01 is below MIME_HEADER_ASCII_MIN (33): exercises the range check's
+     * lower bound. 0x7F is above MIME_HEADER_ASCII_MAX (126) yet still fits
+     * in a positive `char` (signed char range is -128..127, and 0x7F==127
+     * is the largest value that keeps the ">= MIME_HEADER_ASCII_MIN" operand
+     * true so the "<= MIME_HEADER_ASCII_MAX" operand is the one that
+     * independently decides the outcome): exercises the range check's upper
+     * bound at asn.c :38717-718. */
+    char in[] = "A: b;\"c\x01\x7F" "d"; /* adjacent-literal split needed: a hex
+                                        * escape consumes all following hex
+                                        * digit chars, and 'd' is one -
+                                        * "\x7Fd" would parse as \x7FD. */
     char* out = NULL;
     int ret;
 
-    WB_NOTE("wc_MIME_header_strip(): bad-args OR / ASCII-range filter [~38536,38541,38552]");
+    WB_NOTE("wc_MIME_header_strip(): bad-args OR / ASCII-range filter [~38536,38541,:38717]");
 
     /* end<start -> 1st operand true. */
     ret = wc_MIME_header_strip(in, &out, 3, 1);
@@ -1396,17 +1440,22 @@ static void wb_mime_header_strip(void)
     ret = wc_MIME_header_strip(in, &out, 0, 1000);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38541 2nd operand true (end>inLen)");
 
-    /* Valid range spanning printable, ';', '"', and a sub-33 control byte:
-     * exercises :38552's range check both ways plus the ';'/'"' exclusions
-     * within the same call. */
+    /* Valid range spanning printable, ';', '"', a sub-33 control byte
+     * (0x01), and 0x7F: exercises :38552/:38717-718's range check both
+     * ways (:38717 lower bound already true elsewhere in this string;
+     * 0x7F pairs its upper-bound operand false against the printable
+     * survivors' upper-bound-true) plus the ';'/'"' exclusions, all within
+     * the same call. */
     out = NULL;
     ret = wc_MIME_header_strip(in, &out, 0, (size_t)XSTRLEN(in) - 1);
     WB_CHECK(ret == 0 && out != NULL, ":38552 mixed in-range/out-of-range/excluded chars");
     if (out != NULL) {
-        /* ';', '"', and the 0x01 control byte must all be dropped; 'A',
-         * ':', ' ', 'b', 'c', 'd' survive. */
+        /* ';', '"', the 0x01 control byte, and 0x7F must all be dropped;
+         * 'A', ':', 'b', 'c', 'd' survive (' ' is 0x20, also below
+         * MIME_HEADER_ASCII_MIN, so it is dropped too). */
         WB_CHECK(XSTRSTR(out, ";") == NULL, "strip removes ';'");
         WB_CHECK(XSTRSTR(out, "\"") == NULL, "strip removes '\"'");
+        WB_CHECK(XSTRLEN(out) == 5, ":38717 upper-bound operand false drops 0x7F (and 0x01/' ')");
         XFREE(out, NULL, DYNAMIC_TYPE_PKCS7);
     }
 }
