@@ -9083,3 +9083,92 @@ int test_tls13_pha_status_request(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* A send callback that refuses only the client's Finished flush. */
+static int test_tls13_block_finished_send_cb(WOLFSSL* ssl, char* data, int sz,
+    void* ctx)
+{
+    if (ssl->options.connectState == FIRST_REPLY_FOURTH)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return test_memio_write_cb(ssl, data, sz, ctx);
+}
+#endif
+
+/* Test that the handshake is not reported complete while the client's
+ * Finished is still unsent.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_tls13_is_init_finished_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int sMsgCount = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (ssl_c != NULL) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_tls13_block_finished_send_cb);
+    }
+
+    /* The ClientHello goes out and the server replies with its flight. The
+     * client has sent nothing of its own final flight yet. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 0);
+
+    /* The client reads the server flight and builds its Finished, but the
+     * transport refuses the flush. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+    if (ssl_c != NULL) {
+        /* The Finished is still ours, it sits in the output buffer and the
+         * connect state is still the one before the send. */
+        ExpectIntGT(ssl_c->buffers.outputBuffer.length, 0);
+        ExpectIntEQ(ssl_c->options.connectState, FIRST_REPLY_FOURTH);
+    }
+    /* The server has not received it either, so it is still waiting to read.
+     * Neither side of the transport has the client's Finished. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_WANT_READ);
+    /* The handshake is therefore not complete and must not be reported as
+     * complete. */
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 0);
+    if (EXPECT_SUCCESS()) {
+        sMsgCount = test_ctx.s_msg_count;
+    }
+
+    /* With the transport working again the flush gets the Finished out and
+     * the handshake really does complete. */
+    if (ssl_c != NULL) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_memio_write_cb);
+    }
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
+        ExpectIntEQ(ssl_c->options.connectState, FINISHED_DONE);
+    }
+    /* Exactly one more record reached the server, which is
+     * the Finished that had been buffered, not a rebuilt duplicate of it. */
+    ExpectIntEQ(test_ctx.s_msg_count, sMsgCount + 1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
