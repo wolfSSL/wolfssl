@@ -344,6 +344,30 @@ static void wb_decode_single_response_dates(void)
     ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E),
             ":35012/:35013 both true (nextUpdate in the past)");
+
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+    /* Same two rejecting fixtures with the runtime skip flag set: the
+     * AsnSkipDateCheck operand goes false and neither date is validated. */
+    (void)wc_AsnSetSkipDateCheck(1);
+
+    XMEMSET(&status, 0, sizeof(status));
+    XMEMSET(&single, 0, sizeof(single));
+    single.status = &status;
+    sz = wb_build_single_response(buf, futureDate, futureDate);
+    idx = 0;
+    ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+    WB_CHECK(ret == 0, ":34986 1st operand false (AsnSkipDateCheck set)");
+
+    XMEMSET(&status, 0, sizeof(status));
+    XMEMSET(&single, 0, sizeof(single));
+    single.status = &status;
+    sz = wb_build_single_response(buf, pastDate, pastDate);
+    idx = 0;
+    ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+    WB_CHECK(ret == 0, ":35012 1st operand false (AsnSkipDateCheck set)");
+
+    (void)wc_AsnSetSkipDateCheck(0);
+#endif
 }
 #else
 static void wb_decode_single_response_dates(void) { WB_NOTE("non-template DecodeSingleResponse; skipped"); }
@@ -1999,6 +2023,19 @@ static void wb_parse_crl(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
             ":37630-:37632 all true (verify!=NO_VERIFY, expired nextUpdate)");
     FreeDecodedCRL(&dcrl);
+
+#if defined(WC_ASN_RUNTIME_DATE_CHECK_CONTROL) && !defined(NO_ASN_TIME)
+    /* Same CRL and verify mode with the runtime skip flag set: the 2nd
+     * operand goes false while the 1st stays true. */
+    (void)wc_AsnSetSkipDateCheck(1);
+    InitDecodedCRL(&dcrl, NULL);
+    XMEMSET(rcertArr, 0, sizeof(rcertArr));
+    ret = ParseCRL(rcertArr, &dcrl, der, sz, VERIFY, NULL);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
+            ":37630 2nd operand false (AsnSkipDateCheck set)");
+    FreeDecodedCRL(&dcrl);
+    (void)wc_AsnSetSkipDateCheck(0);
+#endif
 }
 #else
 static void wb_parse_crl(void) { WB_NOTE("HAVE_CRL/ASN_TEMPLATE off; ParseCRL skipped"); }

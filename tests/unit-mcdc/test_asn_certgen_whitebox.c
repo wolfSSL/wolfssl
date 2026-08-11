@@ -2185,6 +2185,33 @@ static void wb_parse_acert_bad_dates(void)
             XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
 #endif
         }
+
+#if defined(WC_ASN_RUNTIME_DATE_CHECK_CONTROL) && !defined(NO_ASN_TIME)
+        /* Same strict mode with the runtime skip flag set: the third
+         * operand of both date gates goes false while the first two stay
+         * true. */
+        {
+            WC_DECLARE_VAR(acert, DecodedAcert, 1, 0);
+#ifdef WOLFSSL_SMALL_STACK
+            acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), NULL,
+                    DYNAMIC_TYPE_DCERT);
+#else
+            XMEMSET(acert, 0, sizeof(DecodedAcert));
+#endif
+            if (acert != NULL) {
+                (void)wc_AsnSetSkipDateCheck(1);
+                wc_InitDecodedAcert(acert, der->buffer, der->length, NULL);
+                ret = wc_ParseX509Acert(acert, VERIFY);
+                WB_CHECK(ret == 0,
+                        ":40562/:40576 3rd operand false (AsnSkipDateCheck)");
+                wc_FreeDecodedAcert(acert);
+                (void)wc_AsnSetSkipDateCheck(0);
+            }
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+        }
+#endif /* WC_ASN_RUNTIME_DATE_CHECK_CONTROL && !NO_ASN_TIME */
     }
 
     FreeDer(&der);

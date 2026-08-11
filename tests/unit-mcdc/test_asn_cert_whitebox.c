@@ -1554,7 +1554,86 @@ static void wb_parse_cert_relative_matrix(void)
 
     wolfSSL_CertManagerFree(cm);
 }
+
+/* ------------------------------------------------------------------------- *
+ * ParseCertRelative()'s bad-date forgiveness gate.
+ *   :24412  if ((verify == VERIFY_SKIP_DATE) || AsnSkipDateCheck)
+ * Only entered when DecodeCert() reports a date error, which none of the
+ * corpus certificates produce. A private copy of the client certificate has
+ * its notBefore UTCTime rewritten to 2049 (UTCTime two-digit years below 50
+ * mean 20xx), so the cert is permanently "not yet valid" for any clock.
+ *
+ * RESIDUAL -- both operands of :24412 are structurally unreachable, and this
+ * fixture is what shows it. DecodeCertInternal() only assigns
+ * badDate = ASN_BEFORE_DATE_E / ASN_AFTER_DATE_E under
+ *     (verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE) &&
+ *     (! AsnSkipDateCheck)
+ * (asn.c:22662 and :22674), and DecodeCert() can return one of those two
+ * codes only by returning that badDate. So on every path that reaches
+ * :24412, `verify == VERIFY_SKIP_DATE` is already known false and
+ * AsnSkipDateCheck is already known 0: the decision can never be true and
+ * neither operand can be paired. Driving it under VERIFY_SKIP_DATE or with
+ * the runtime skip flag set (both issued below) simply does not enter the
+ * enclosing `if`.
+ * ------------------------------------------------------------------------- */
+static void wb_parse_cert_relative_bad_date(void)
+{
+    static byte patched[4096];
+    word32 sz = (word32)sizeof_client_cert_der_2048;
+    word32 i;
+    int found = 0;
+    DecodedCert dc;
+    int ret;
+
+    WB_NOTE("ParseCertRelative(): bad-date forgiveness gate [:24412]");
+
+    if (sz > sizeof(patched)) {
+        WB_NOTE("client cert larger than the patch buffer; skipped");
+        return;
+    }
+    XMEMCPY(patched, client_cert_der_2048, sz);
+
+    /* First UTCTime of length 13 is the notBefore of the validity pair. */
+    for (i = 0; i + 15 < sz; i++) {
+        if ((patched[i] == ASN_UTC_TIME) && (patched[i + 1] == 13) &&
+                (patched[i + 14] == 'Z')) {
+            XMEMCPY(patched + i + 2, "490101000000Z", 13);
+            found = 1;
+            break;
+        }
+    }
+    WB_CHECK(found, "notBefore UTCTime located in the client certificate");
+    if (!found) {
+        return;
+    }
+
+    wc_InitDecodedCert(&dc, patched, sz, NULL);
+    ret = ParseCertRelative(&dc, CERT_TYPE, VERIFY, NULL, NULL);
+    WB_CHECK(ret != 0, "verify=VERIFY (both operands false)");
+    wc_FreeDecodedCert(&dc);
+
+    wc_InitDecodedCert(&dc, patched, sz, NULL);
+    ret = ParseCertRelative(&dc, CERT_TYPE, VERIFY_SKIP_DATE, NULL, NULL);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
+            "verify=VERIFY_SKIP_DATE (1st operand true)");
+    wc_FreeDecodedCert(&dc);
+
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+    (void)wc_AsnSetSkipDateCheck(1);
+    wc_InitDecodedCert(&dc, patched, sz, NULL);
+    ret = ParseCertRelative(&dc, CERT_TYPE, VERIFY, NULL, NULL);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
+            "AsnSkipDateCheck set (2nd operand true)");
+    wc_FreeDecodedCert(&dc);
+    (void)wc_AsnSetSkipDateCheck(0);
+#endif
+}
 #else
+static void wb_parse_cert_relative_bad_date(void)
+{
+    WB_NOTE("NO_CERTS/WOLFCRYPT_ONLY/no cert buffers; "
+            "ParseCertRelative bad-date gate skipped");
+}
 static void wb_parse_cert_relative_matrix(void)
 {
     WB_NOTE("NO_CERTS/WOLFCRYPT_ONLY/no cert buffers; "
@@ -2618,6 +2697,7 @@ int main(void)
     wb_set_algo_id();
     wb_decode_dsa_asn1_sig();
     wb_parse_cert_relative_matrix();
+    wb_parse_cert_relative_bad_date();
     wb_fixture_parse_matrix();
     wb_serial_and_der_helpers();
 
