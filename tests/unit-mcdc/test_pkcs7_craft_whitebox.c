@@ -143,6 +143,32 @@
  *         `haveAttribs == 0` and haveAttribs only ever holds 0 or 1, so cond 3
  *         cannot change without cond 1 changing with it; the two rows always
  *         differ in a second evaluated condition. Same family as (c).
+ *
+ * (g) FOUND WHILE DRIVING SECTIONS 9 AND 10 (attempted, then proved).
+ *       :16086 both -- the NO_PKCS7_STREAM build rejects
+ *         `encryptedContentSz > (int)(pkiMsgSz - idx)` at :16005, and the
+ *         streaming build cannot arrive here at all unless
+ *         wc_PKCS7_AddDataToStream() at :16044 returned 0 for
+ *         `expected == encryptedContentSz + MAX_LENGTH_SZ + 2*ASN_TAG_SZ`,
+ *         whose every success path leaves `pkiMsgSz - idx >= expected`. `idx`
+ *         is not advanced between there and :16086, so `idx +
+ *         encryptedContentSz` neither wraps nor exceeds pkiMsgSz. Driven with
+ *         a length byte inflated to 0x7F: the streaming build answered
+ *         WC_PKCS7_WANT_READ_E and the non-streaming one BUFFER_E at :16005,
+ *         neither reaching the guard.
+ *       :17005 cond 1 and :17007 cond 0 -- stage 4 reads the IV, which is the
+ *         OPTIONAL parameter INSIDE the content-encryption
+ *         AlgorithmIdentifier. GetAlgoId() at :16969 has already parsed that
+ *         SEQUENCE with the bounds-checking GetSequence(), so its declared
+ *         length -- which covers the IV -- is known to fit in pkiMsgSz, and
+ *         the streaming build additionally re-buffers ASN_TAG_SZ +
+ *         MAX_LENGTH_SZ bytes at :16996. The GetASNTag() at :17005 therefore
+ *         cannot fail, so :17005 cond 1 has no true row and :17007 cond 0 no
+ *         false row. Attempted by cutting the message exactly at the IV tag;
+ *         that makes GetAlgoId() fail one stage earlier instead.
+ *       :17100 cond 0 (`encryptedContentSz <= 0`) -- :17053 already rejected
+ *         a GetLength_ex() result of `<= 0`, and the value is only carried
+ *         through `stream->varThree` untouched, so it is at least 1 here.
  */
 
 /* The detached header/footer pair in Section 6 is signed here rather than
@@ -1345,6 +1371,383 @@ static void wb_octet_nocontent_matrix(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 9: wc_PKCS7_DecodeEncryptedData() version reconciliation
+ * [:17194, :17199] and the stage-4 IV header [:17005, :17007].
+ *
+ * The two version checks at the very end of the decode only run after a
+ * successful decrypt, so they need real bundles, and the FirmwareEncryptedData
+ * arm needs a bundle encoded with `pkcs7->version == 3` (which drops the outer
+ * ContentInfo, so the same bytes cannot serve both arms). The version INTEGER
+ * itself is written as 0 by wc_PKCS7_EncodeEncryptedData() whenever there are
+ * no unprotected attributes, so the mismatching row has to be patched in.
+ *
+ * The patch site is located by walking the same elements the decoder walks,
+ * not by scanning for a byte pattern, so it stays correct if the encoder
+ * changes its lengths.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_PKCS7_ENCRYPTED_DATA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+#define WB_ED_SEED 0x1d5a7c31UL
+#define WB_ED_BUF_SZ 512
+static byte wbEdBuf[WB_ED_BUF_SZ];
+static const byte wbEdKey[] = {
+    0x01,0x23,0x45,0x67,0x89,0xAB,0xCD,0xEF,
+    0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77
+};
+
+/* Encodes an EncryptedData bundle into wbEdBuf. `v3` selects the
+ * FirmwareEncryptedData shape (no outer ContentInfo). */
+static word32 wb_build_encrypted(int v3)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    WC_RNG    rng;
+    byte      data[32];
+    int       sz = 0;
+
+    XMEMSET(data, 0x61, sizeof(data));
+    if (p == NULL) {
+        return 0;
+    }
+    mcdc_sr_arm(WB_ED_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        wc_PKCS7_Free(p);
+        return 0;
+    }
+    if (wc_PKCS7_Init(p, NULL, INVALID_DEVID) == 0) {
+        p->content         = data;
+        p->contentSz       = (word32)sizeof(data);
+        p->contentOID      = v3 ? FIRMWARE_PKG_DATA : DATA;
+        p->encryptOID      = AES128CBCb;
+        p->encryptionKey   = (byte*)wbEdKey;
+        p->encryptionKeySz = (word32)sizeof(wbEdKey);
+        p->rng             = &rng;
+        p->version         = v3 ? 3 : 0;
+        sz = wc_PKCS7_EncodeEncryptedData(p, wbEdBuf, (word32)sizeof(wbEdBuf));
+    }
+    wc_PKCS7_Free(p);
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    return (sz > 0) ? (word32)sz : 0;
+}
+
+/* Walks wbEdBuf the way wc_PKCS7_DecodeEncryptedData() walks it in stages 1-3.
+ * On success *verIdx is the index of the CMSVersion value byte and the return
+ * value is the index of the IV OCTET STRING tag that stage 4 reads. Returns 0
+ * on any mismatch, so a caller never patches or cuts at a guessed offset. */
+static word32 wb_encrypted_walk(word32 msgSz, int v3, word32* verIdx)
+{
+    word32 idx = 0, contentType, encOID;
+    int    length;
+    byte   tag;
+
+    *verIdx = 0;
+    if (!v3) {
+        if (GetSequence(wbEdBuf, &idx, &length, msgSz) < 0)
+            return 0;
+        if (wc_GetContentType(wbEdBuf, &idx, &contentType, msgSz) < 0)
+            return 0;
+        if (GetASNTag(wbEdBuf, &idx, &tag, msgSz) < 0 ||
+                tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+            return 0;
+        if (GetLength(wbEdBuf, &idx, &length, msgSz) < 0)
+            return 0;
+    }
+    if (GetSequence(wbEdBuf, &idx, &length, msgSz) < 0)
+        return 0;
+    if (idx + 3 > msgSz || wbEdBuf[idx] != ASN_INTEGER || wbEdBuf[idx+1] != 1)
+        return 0;
+    *verIdx = idx + 2;
+    if (GetMyVersion(wbEdBuf, &idx, &length, msgSz) < 0)
+        return 0;
+    if (GetSequence(wbEdBuf, &idx, &length, msgSz) < 0)
+        return 0;
+    if (wc_GetContentType(wbEdBuf, &idx, &contentType, msgSz) < 0)
+        return 0;
+    if (GetAlgoId(wbEdBuf, &idx, &encOID, oidBlkType, msgSz) < 0)
+        return 0;
+    if (idx >= msgSz || wbEdBuf[idx] != ASN_OCTET_STRING)
+        return 0;
+    return idx;
+}
+
+static int wb_decode_encrypted(word32 msgSz, int v3)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_ED_BUF_SZ];
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_Init(p, NULL, INVALID_DEVID) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->encryptionKey   = (byte*)wbEdKey;
+    p->encryptionKeySz = (word32)sizeof(wbEdKey);
+    p->version         = v3 ? 3 : 0;
+    ret = wc_PKCS7_DecodeEncryptedData(p, wbEdBuf, msgSz, out, sizeof(out));
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_encrypted_version_matrix(void)
+{
+    word32 msgSz, verIdx;
+    int    ret;
+
+    WB_NOTE("wc_PKCS7_DecodeEncryptedData(): plain EncryptedData, version 0,"
+            " no unprotected attributes [:17194 cond 0 false, :17199 cond 2"
+            " false]");
+    msgSz = wb_build_encrypted(0);
+    WB_CHECK(msgSz > 0, "plain EncryptedData encoded");
+    if (msgSz == 0) {
+        return;
+    }
+    ret = wb_decode_encrypted(msgSz, 0);
+    WB_CHECK(ret > 0, ":17199 cond 2 false (version 0, no attribs)");
+
+    WB_CHECK(wb_encrypted_walk(msgSz, 0, &verIdx) > 0 && verIdx > 0,
+            "plain EncryptedData walked to the IV parameter");
+    if (verIdx > 0) {
+        WB_NOTE("wc_PKCS7_DecodeEncryptedData(): version 1 with no"
+                " unprotected attributes [:17199 cond 2 true]");
+        wbEdBuf[verIdx] = 1;
+        ret = wb_decode_encrypted(msgSz, 0);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_VERSION_E), ":17199 cond 2 true");
+        wbEdBuf[verIdx] = 0;
+    }
+
+    WB_NOTE("wc_PKCS7_DecodeEncryptedData(): FirmwareEncryptedData shape,"
+            " version 0 [:17194 cond 1 false, :17199 cond 0 false]");
+    msgSz = wb_build_encrypted(1);
+    WB_CHECK(msgSz > 0, "FirmwareEncryptedData encoded");
+    if (msgSz == 0) {
+        return;
+    }
+    ret = wb_decode_encrypted(msgSz, 1);
+    WB_CHECK(ret > 0, ":17194 cond 1 false (firmware bundle, version 0)");
+
+    WB_CHECK(wb_encrypted_walk(msgSz, 1, &verIdx) > 0 && verIdx > 0,
+            "FirmwareEncryptedData walked to the IV parameter");
+    if (verIdx > 0) {
+        WB_NOTE("wc_PKCS7_DecodeEncryptedData(): FirmwareEncryptedData with a"
+                " non-zero version [:17194 both operands true]");
+        wbEdBuf[verIdx] = 1;
+        ret = wb_decode_encrypted(msgSz, 1);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_VERSION_E), ":17194 both true");
+        wbEdBuf[verIdx] = 0;
+    }
+
+}
+#else
+static void wb_encrypted_version_matrix(void)
+{
+    WB_NOTE("no EncryptedData/AES-128-CBC; EncryptedData version matrix"
+            " skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Section 10: wc_PKCS7_DecodeAuthEnvelopedData() encryptedContent shapes
+ * [:15991, :15994, :15998, :16086, :16274].
+ *
+ * wc_PKCS7_EncodeAuthEnvelopedData() writes encryptedContent with
+ * SetImplicit(ASN_OCTET_STRING, 0, ...), i.e. a PRIMITIVE [0] header, so
+ * `explicitOctet` is 0 for every bundle the tree can produce and the whole
+ * :15990-:16002 block is dead. It also always writes a full-length ICV, so
+ * the CCM minimum-tag check at :16274 never fires and its three OID operands
+ * never see a decision that is true.
+ *
+ * The patches below are applied to a self-built bundle at a site located by
+ * arithmetic that is checked before use: wc_PKCS7_EncodeAuthEnvelopedData()
+ * emits `macInt`, then the [0] encryptedContent header, then the ciphertext,
+ * then `04 10` and the 16-byte ICV, so with a content size below 128 the
+ * header is exactly 18 + contentSz + 2 bytes from the end and `macInt` is the
+ * three bytes in front of it. Both are asserted.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_AESGCM) && defined(HAVE_AESCCM) && !defined(NO_RSA) && \
+    defined(WOLFSSL_AES_128) && defined(WOLFSSL_AES_192) && \
+    defined(WOLFSSL_AES_256) && defined(USE_CERT_BUFFERS_2048)
+#define WB_AE_SEED 0x4ae09c17UL
+#define WB_AE_BUF_SZ 2048
+#define WB_AE_CONTENT_SZ 32
+static byte wbAeBuf[WB_AE_BUF_SZ];
+static word32 wbAeSz;
+static word32 wbAeHdr;      /* index of the [0] encryptedContent tag */
+
+static int wb_build_auth_env(int encryptOID)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    WC_RNG    rng;
+    byte      data[WB_AE_CONTENT_SZ];
+    int       sz = 0;
+
+    XMEMSET(data, 0x62, sizeof(data));
+    wbAeSz = 0;
+    wbAeHdr = 0;
+    if (p == NULL) {
+        return -1;
+    }
+    mcdc_sr_arm(WB_AE_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) == 0) {
+        p->content    = data;
+        p->contentSz  = (word32)sizeof(data);
+        p->contentOID = DATA;
+        p->encryptOID = encryptOID;
+        p->rng        = &rng;
+        sz = wc_PKCS7_EncodeAuthEnvelopedData(p, wbAeBuf,
+                (word32)sizeof(wbAeBuf));
+    }
+    wc_PKCS7_Free(p);
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    if (sz <= 0) {
+        return -1;
+    }
+    wbAeSz = (word32)sz;
+    /* 18 = the trailing `04 10` plus the 16-byte ICV; 2 = the [0] header */
+    if (wbAeSz < 18 + WB_AE_CONTENT_SZ + 2) {
+        return -1;
+    }
+    wbAeHdr = wbAeSz - 18 - WB_AE_CONTENT_SZ - 2;
+    if (wbAeBuf[wbAeHdr] != (ASN_CONTEXT_SPECIFIC | 0) ||
+            wbAeBuf[wbAeHdr + 1] != WB_AE_CONTENT_SZ ||
+            wbAeBuf[wbAeSz - 18] != ASN_OCTET_STRING ||
+            wbAeBuf[wbAeSz - 17] != 16 ||
+            wbAeHdr < 3 || wbAeBuf[wbAeHdr - 3] != ASN_INTEGER ||
+            wbAeBuf[wbAeHdr - 2] != 1) {
+        wbAeHdr = 0;
+        return -1;
+    }
+    return 0;
+}
+
+static int wb_decode_auth_env(word32 msgSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_AE_BUF_SZ];
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->privateKey   = (byte*)client_key_der_2048;
+    p->privateKeySz = (word32)sizeof_client_key_der_2048;
+    ret = wc_PKCS7_DecodeAuthEnvelopedData(p, wbAeBuf, msgSz, out, sizeof(out));
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+/* Rewrites the ICV length in both places the decoder cross-checks them
+ * (:16253 requires authTagSz == macSz), so a bundle can claim a short tag. */
+static void wb_auth_env_set_tag_sz(byte sz)
+{
+    wbAeBuf[wbAeHdr - 1] = sz;   /* macInt value */
+    wbAeBuf[wbAeSz - 17] = sz;   /* ICV OCTET STRING length */
+}
+
+static void wb_auth_env_shapes(void)
+{
+    int ret;
+
+    if (wb_build_auth_env(AES128GCMb) != 0) {
+        WB_NOTE("AES-128-GCM AuthEnvelopedData encode/layout check failed;"
+                " encryptedContent shapes skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): pristine AES-128-GCM bundle,"
+            " the accepting row every patch below pairs against");
+    ret = wb_decode_auth_env(wbAeSz);
+    WB_CHECK(ret > 0, "pristine AuthEnvelopedData decodes");
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): CONSTRUCTED [0]"
+            " encryptedContent, so the explicit OCTET STRING block runs; its"
+            " first byte is not an OCTET STRING tag [:15994 cond 1 true]");
+    wbAeBuf[wbAeHdr] = (byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0);
+    (void)wb_decode_auth_env(wbAeSz);
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): CONSTRUCTED [0] header of"
+            " length zero, which the explicit-octet length parse rejects"
+            " [:15991 cond 0 false]");
+    wbAeBuf[wbAeHdr + 1] = 0;
+    (void)wb_decode_auth_env(wbAeSz);
+    wbAeBuf[wbAeHdr + 1] = WB_AE_CONTENT_SZ;
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): same, with a well-formed"
+            " inner OCTET STRING [:15994 cond 1 false, :15998 both operands"
+            " evaluated]");
+    {
+        byte c0 = wbAeBuf[wbAeHdr + 2];
+        byte c1 = wbAeBuf[wbAeHdr + 3];
+
+        wbAeBuf[wbAeHdr + 2] = ASN_OCTET_STRING;
+        wbAeBuf[wbAeHdr + 3] = 0x08;
+        (void)wb_decode_auth_env(wbAeSz);
+
+        WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): inner OCTET STRING with a"
+                " long-form length prefix and no length bytes behind it"
+                " [:15998 cond 1 true]");
+        wbAeBuf[wbAeHdr + 3] = 0x84;
+        (void)wb_decode_auth_env(wbAeHdr + 4);
+
+        WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): message cut immediately"
+                " after the CONSTRUCTED [0] header [:15991 cond 1 true,"
+                " :15994 cond 0 false]");
+        (void)wb_decode_auth_env(wbAeHdr + 2);
+
+        wbAeBuf[wbAeHdr + 2] = c0;
+        wbAeBuf[wbAeHdr + 3] = c1;
+    }
+    wbAeBuf[wbAeHdr] = (byte)(ASN_CONTEXT_SPECIFIC | 0);
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): AES-GCM bundle claiming a"
+            " 3-byte ICV, which the GCM tag-size check rejects [:16274 cond 0"
+            " false]");
+    wb_auth_env_set_tag_sz(3);
+    (void)wb_decode_auth_env(wbAeSz);
+    wb_auth_env_set_tag_sz(16);
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): AES-CCM bundles claiming an"
+            " 8-byte ICV, below WOLFSSL_MIN_AUTH_TAG_SZ [:16274 cond 1/2/3 and"
+            " cond 4 true]");
+    if (wb_build_auth_env(AES128CCMb) == 0) {
+        (void)wb_decode_auth_env(wbAeSz);   /* full ICV: cond 4 false */
+        wb_auth_env_set_tag_sz(8);
+        (void)wb_decode_auth_env(wbAeSz);
+    }
+    if (wb_build_auth_env(AES192CCMb) == 0) {
+        wb_auth_env_set_tag_sz(8);
+        (void)wb_decode_auth_env(wbAeSz);
+    }
+    if (wb_build_auth_env(AES256CCMb) == 0) {
+        wb_auth_env_set_tag_sz(8);
+        (void)wb_decode_auth_env(wbAeSz);
+    }
+}
+#else
+static void wb_auth_env_shapes(void)
+{
+    WB_NOTE("no AES-GCM/CCM 128/192/256 or RSA; AuthEnvelopedData"
+            " encryptedContent shapes skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -1364,6 +1767,8 @@ int main(void)
     wb_key_oid_matrix();
     wb_digest_params_absent();
     wb_octet_nocontent_matrix();
+    wb_encrypted_version_matrix();
+    wb_auth_env_shapes();
 
     wolfCrypt_Cleanup();
     printf(wb_fail ? "done (with failures)\n" : "done\n");
