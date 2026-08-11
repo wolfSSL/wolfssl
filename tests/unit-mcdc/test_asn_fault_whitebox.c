@@ -195,7 +195,7 @@ static void wb_encode_object_id_null_args(void)
 
     outSz = sizeof(out);
     ret = EncodeObjectId(dotted, 0, out, &outSz);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<=0");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<2");
 }
 #else
 static void wb_encode_object_id_null_args(void) { WB_NOTE("HAVE_OID_ENCODING off; skipped"); }
