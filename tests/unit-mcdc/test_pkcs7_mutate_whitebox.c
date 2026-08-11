@@ -46,11 +46,27 @@
  * never poison the next vector.
  */
 
+/* The bundles this file mutates are BUILT here, with a live RNG supplying the
+ * content-encryption key, the IV and any ephemeral key. Those bytes differ on
+ * every run, so a dense single-byte mutation sweep lands on a different
+ * structure each time and the decode paths it reaches vary: two full sweeps of
+ * an unchanged tree on 2026-08-11 disagreed on pkcs7.c:15994 for exactly this
+ * reason. Pinning the stream makes every generated bundle byte-identical, so
+ * the mutation offsets mean the same thing on every run. */
+#include "mcdc_seed_rng.h"
+
 #include <wolfcrypt/src/pkcs7.c>
+
+#define MCDC_SR_IMPL
+#include "mcdc_seed_rng.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <wolfssl/certs_test.h>
+
+/* Recorded in the module residual note: the bundles this file
+ * mutates are generated from this stream. */
+#define WB_BUNDLE_SEED 0x9ca7f00dUL
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -644,7 +660,11 @@ static word32 wb_build_auth_enveloped(byte* out, word32 outSz, int oid,
             p->unauthAttribs   = attrib;
             p->unauthAttribsSz = 1;
         }
+        /* Pinned: makes the CEK/IV/ephemeral bytes reproducible so the
+         * mutation offsets below address the same fields every run. */
+        mcdc_sr_arm(WB_BUNDLE_SEED);
         sz = wc_PKCS7_EncodeAuthEnvelopedData(p, out, outSz);
+        mcdc_sr_disarm();
         p->authAttribs     = NULL;
         p->authAttribsSz   = 0;
         p->unauthAttribs   = NULL;
