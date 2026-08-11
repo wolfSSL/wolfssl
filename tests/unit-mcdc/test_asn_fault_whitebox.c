@@ -1986,6 +1986,25 @@ static void wb_fill_signer_null_args(void)
     ret = FillSigner(signer, &dc, CERT_TYPE, der);
     WB_CHECK(ret == 0, "both non-NULL (guard false, real fill)");
 
+    /* The `ret == 0` operand of the two inner steps (:24921, :24925) can
+     * only go false when an earlier step fails, and the only failable steps
+     * are CalcHashId() (whose wc_ShaHash() context is heap-allocated under
+     * WOLFSSL_SMALL_STACK) and AllocDer() under WOLFSSL_SIGNER_DER_CERT.
+     * Sweep the allocation index so each of them fails in turn. */
+    mcdc_fa_install();
+    for (ret = 1; ret <= 8; ret++) {
+        Signer sweepSigner;
+        XMEMSET(&sweepSigner, 0, sizeof(sweepSigner));
+        mcdc_fa_arm(ret);
+        (void)FillSigner(&sweepSigner, &dc, CERT_TYPE, der);
+        mcdc_fa_disarm();
+        if (sweepSigner.derCert != NULL) {
+            FreeDer(&sweepSigner.derCert);
+        }
+    }
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
+
     /* signer's internal allocations are deliberately leaked (see above). */
     wc_FreeDecodedCert(&dc);
     FreeDer(&der);
@@ -2472,6 +2491,47 @@ static void wb_encoder_size_guards(void)
 #endif /* WOLFSSL_CERT_GEN */
 }
 
+/* ------------------------------------------------------------------------- *
+ * Section 26: DecodeDsaAsn1Sig() mp_int allocation guard (:17324).
+ *   if (r == NULL || s == NULL) { ret = MEMORY_E; }
+ * r and s are stack objects unless WOLFSSL_SMALL_STACK is set; there they
+ * are two consecutive XMALLOCs, so failing from the first allocation drives
+ * the 1st operand true and failing only the second drives the 2nd.
+ *
+ * RESIDUAL -- :17348 (`mp_to_unsigned_bin(r, sigCpy) != MP_OKAY ||
+ * mp_to_unsigned_bin(s, sigCpy + rSz) != MP_OKAY`) has no reachable true
+ * side: it is guarded by :17342, which has already rejected rSz + sSz >
+ * sigSz, and every caller passes a sigCpy of at least sigSz bytes, so both
+ * conversions write inside the buffer. mp_to_unsigned_bin() on an
+ * initialised mp_int with a large enough output cannot fail.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
+static void wb_decode_dsa_asn1_sig_alloc(void)
+{
+    /* SEQUENCE { INTEGER 1, INTEGER 2 } -- a well-formed DSA-Sig-Value. */
+    static const byte sig[] = { 0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02 };
+    byte sigCpy[16];
+    int ret;
+
+    WB_NOTE("DecodeDsaAsn1Sig(): r/s allocation guard [:17324]");
+
+    XMEMSET(sigCpy, 0, sizeof(sigCpy));
+    ret = DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    WB_CHECK(ret == 0, "well-formed DSA-Sig-Value (both operands false)");
+
+    mcdc_fa_install();
+    mcdc_fa_arm(1);
+    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    mcdc_fa_disarm();
+    mcdc_fa_arm_only(2);
+    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
+}
+#else
+static void wb_decode_dsa_asn1_sig_alloc(void) { WB_NOTE("NO_DSA/HAVE_SELFTEST; skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -2518,6 +2578,7 @@ int main(void)
     wb_decode_cert_extensions_unknown_cb();
     wb_parse_alloc_sweep();
     wb_encoder_size_guards();
+    wb_decode_dsa_asn1_sig_alloc();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage

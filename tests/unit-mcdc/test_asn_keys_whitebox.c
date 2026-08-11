@@ -386,6 +386,29 @@ static void wb_to_traditional_inline_ex2(void)
     ret = ToTraditionalInline_ex2(der, &idx, sz, &algId, &eccOid);
     WB_CHECK(ret >= 0, "version==0, no [1] trailer (2nd operand false)");
 
+    /* version==1 (PKCS8v1): 1st operand false, so the trailer legality test
+     * is short-circuited and a [1] publicKey is accepted. */
+    sz = wb_build_pkcs8_algo_der(der, 1, rsaOid, sizeof(rsaOid), NULL, 0, 1);
+    idx = 0;
+    ret = ToTraditionalInline_ex2(der, &idx, sz, &algId, &eccOid);
+    WB_CHECK(ret >= 0, "version==1 (1st operand false)");
+
+    /* version==0 WITH a [1] publicKey trailer: both operands true -> the
+     * RFC 5958 rule that v1 is required for the trailer is enforced.
+     * The trailer is appended by hand (primitive context tag 0x81) and the
+     * two enclosing lengths are bumped by its size. */
+    sz = wb_build_pkcs8_algo_der(der, 0, rsaOid, sizeof(rsaOid), NULL, 0, 1);
+    der[sz + 0] = ASN_CONTEXT_SPECIFIC | 1;
+    der[sz + 1] = 0x02;
+    der[sz + 2] = 0xAA;
+    der[sz + 3] = 0xBB;
+    der[1] = (byte)(der[1] + 4);
+    sz += 4;
+    idx = 0;
+    ret = ToTraditionalInline_ex2(der, &idx, sz, &algId, &eccOid);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "version==0 with a [1] publicKey trailer (both operands true)");
+
     WB_NOTE("ToTraditionalInline_ex2(): RSAk NULL/curve-OID legality [:9148]");
     /* RSAk, NULL present, no curve OID -> both false (legal). */
     sz = wb_build_pkcs8_algo_der(der, 0, rsaOid, sizeof(rsaOid), NULL, 0, 1);
@@ -605,6 +628,35 @@ static void wb_check_private_key(void)
                 smallPub, sizeof(smallPub), RSAk, NULL);
         WB_CHECK(ret == WC_NO_ERR_TRACE(MP_CMP_E), "mismatching pair (n differs)");
     }
+    /* Same modulus, different public exponent: the n comparison's operand
+     * is false and the e comparison's is true. The public key's exponent is
+     * the trailing INTEGER 65537 (02 03 01 00 01); flipping its last byte
+     * changes e without touching n or any length. */
+    {
+        static byte pubEBad[512];
+        word32 pubSz = (word32)sizeof_client_keypub_der_2048;
+        word32 i;
+        int patched = 0;
+
+        if (pubSz <= sizeof(pubEBad)) {
+            XMEMCPY(pubEBad, client_keypub_der_2048, pubSz);
+            for (i = 0; i + 5 <= pubSz; i++) {
+                if (pubEBad[i] == ASN_INTEGER && pubEBad[i + 1] == 0x03 &&
+                        pubEBad[i + 2] == 0x01 && pubEBad[i + 3] == 0x00 &&
+                        pubEBad[i + 4] == 0x01) {
+                    pubEBad[i + 4] = 0x03;
+                    patched = 1;
+                }
+            }
+        }
+        WB_CHECK(patched, "public exponent located in the RSA public key");
+        if (patched) {
+            ret = wc_CheckPrivateKey(client_key_der_2048,
+                    sizeof_client_key_der_2048, pubEBad, pubSz, RSAk, NULL);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(MP_CMP_E),
+                    ":9567 1st operand false, 2nd true (same n, different e)");
+        }
+    }
     /* ks not RSAk/RSAPSSk: falls through to default ret=0 path, no crash
      * since neither buffer is dereferenced on that path. */
     ret = wc_CheckPrivateKey(client_key_der_2048, sizeof_client_key_der_2048,
@@ -716,8 +768,30 @@ static void wb_encrypt_pkcs8_key_ex(void)
     outSz = 0;
     ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
             PKCS5, PBES2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
+    WB_CHECK(ret != 0, "PBES2 (10735 version==PKCS5v2 true; the PBES2 path "
+            "reaches the CBC-IV RNG call even for a size-only request, so a "
+            "NULL rng is rejected rather than returning LENGTH_ONLY_E)");
+#endif
+
+    /* EncryptContent() directly: outSz==NULL sets ret before the PKCS#5
+     * version dispatch, driving :11531's leading operand false. The two
+     * calls above already supply its true rows through
+     * wc_EncryptPKCS8Key_ex(). */
+    WB_NOTE("EncryptContent(): ret==0 && version==PKCS5v2 [:11531]");
+    ret = EncryptContent(key, sizeof(key), NULL, NULL, "pw", 2, PKCS5,
+            PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+            ":11531 1st operand false (outSz==NULL)");
+    outSz = 0;
+    ret = EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
+            PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E),
-            "PBES2 (10735 version==PKCS5v2 true)");
+            ":11531 2nd operand false (PBES1)");
+#ifdef WOLFSSL_AES_128
+    outSz = 0;
+    ret = EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
+            PBES2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
+    WB_CHECK(ret != 0, ":11531 both operands true (PBES2 dispatch)");
 #endif
 }
 #else
