@@ -39,6 +39,19 @@
 
 #include <wolfcrypt/src/wc_xmss_impl.c>
 
+/* wc_xmssmt_sign()'s
+ *
+ *     if ((ret == 0) && xmss_idx_invalid(idx, h))
+ *
+ * needs a vector with ret != 0 to pair against the retired-index TRUE row
+ * below. The only assignment to ret before that guard is
+ * wc_xmss_bds_state_alloc() / wc_xmss_bds_state_load(), and the alloc is this
+ * file's ONE heap call -- so the generic allocator injector is the lever, and
+ * it has to live in the SAME binary as the retired-index row because llvm-cov
+ * derives independence pairs per binary. Armed only around that one Sign call.
+ */
+#include "mcdc_fault_alloc.h"
+
 #include <stdio.h>
 
 static int wb_fail = 0;
@@ -263,6 +276,24 @@ static void wb_exhausted_index(WC_RNG* rng, const char* paramStr, int doSign)
     if (wc_XmssKey_SigsLeft(&key) == 0) {
         WB_NOTE("SigsLeft reported an exhausted key after one signature");
         wb_fail = 1;
+    }
+
+    /* The `ret != 0` row for the same guard, taken BEFORE the index is
+     * retired so the key is still live: a failing BDS-state allocation makes
+     * wc_xmssmt_sign() reach the guard with ret != 0. A short dense sweep --
+     * a vector count, not a clock -- covers the handful of allocations the
+     * sign path makes. */
+    if (doSign) {
+        int n;
+
+        mcdc_fa_install();
+        for (n = 1; n <= 4; n++) {
+            sigSz = sigLen;
+            mcdc_fa_arm(n);
+            (void)wc_XmssKey_Sign(&key, sig, &sigSz, msg, (int)sizeof(msg));
+            mcdc_fa_disarm();
+        }
+        mcdc_fa_restore();
     }
 
     /* The TRUE row: retire the persisted index. Both entry points reload the
