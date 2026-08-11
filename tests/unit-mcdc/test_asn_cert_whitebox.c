@@ -69,6 +69,11 @@
 
 #include <wolfcrypt/src/asn.c>
 
+/* Structural DER edits: the RFC 5280 zero-serial guard needs certificates
+ * whose serialNumber is a single zero byte, which means shortening the INTEGER
+ * and rewriting the enclosing TBSCertificate/Certificate lengths. */
+#include "mcdc_der_edit.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -1872,11 +1877,137 @@ static void wb_parse_cert_relative_bad_date(void)
     (void)wc_AsnSetSkipDateCheck(0);
 #endif
 }
+/* ------------------------------------------------------------------------- *
+ * ParseCertRelative()'s RFC 5280 zero-serial guard.
+ *   :24444  (type == CA_TYPE || type == TRUSTED_PEER_TYPE) && cert->isCA &&
+ *           cert->selfSigned
+ *   :24450  if (!isTrustAnchorLoad && !isCsr)
+ * No corpus certificate has serial 0, so the guard's body is never entered.
+ * Each fixture below is a private copy whose serialNumber INTEGER has been
+ * shortened to a single zero byte; the three certificates chosen differ in
+ * exactly the two properties the AND-chain tests (a self-signed root, a leaf,
+ * and an intermediate CA whose issuer differs from its subject).
+ *
+ * STILL OPEN, not excluded:
+ *   - :24444 3rd and 4th operands (cert->isCA, cert->selfSigned). Driving
+ *     them needs a certificate that reaches :24442 with a zero serial and
+ *     with cA FALSE, or with a subject that differs from its issuer. Every
+ *     attempt made here failed at the DecodeCert() call that precedes the
+ *     guard, so the vectors never reached the decision: explicitly encoding
+ *     `cA FALSE` makes DecodeBasicCaConstraint() reject the extension (DER
+ *     requires the DEFAULT to be absent), and the CA-signed certificates in
+ *     the corpus (certs/intermediate/ca-int-cert.der, certs/server-cert.der)
+ *     do not survive DecodeCert() once their serial has been shortened.
+ *     Confirmed against llvm-cov's own test-vector dump, which records only
+ *     {F,F,-,-}, {F,T,T,T} and {T,-,T,T} for this decision. A purpose-built
+ *     certificate (not an edited corpus one) is what this needs.
+ *   - :24450 2nd operand (!isCsr). It needs a certificate request that
+ *     reaches :24442 with serialSz == 1 and serial[0] == 0, which is
+ *     possible in principle -- DecodeCertReqAttributes() copies a PKCS#9
+ *     serialNumber attribute into cert->serial at asn.c:23034 -- but needs a
+ *     from-scratch CSR carrying that attribute; not built.
+ * ------------------------------------------------------------------------- */
+/* Read a DER file into `buf`; returns 0 on success. */
+static int wb_load_der(const char* path, byte* buf, size_t cap, size_t* outSz)
+{
+    FILE* f = fopen(path, "rb");
+    size_t n;
+
+    if (f == NULL) {
+        return -1;
+    }
+    n = fread(buf, 1, cap, f);
+    fclose(f);
+    *outSz = n;
+    return (n > 0) ? 0 : -1;
+}
+
+static int wb_zero_serial(byte* buf, word32* sz)
+{
+    word32 co, cl, lo, lw;
+    word32 tbs, ser;
+
+    /* Certificate ::= SEQUENCE { TBSCertificate, ... } */
+    if (mcdc_der_hdr(buf, *sz, 0, &co, &cl, &lo, &lw) == 0) {
+        return -1;
+    }
+    tbs = co;
+    /* TBSCertificate ::= SEQUENCE { [0] version OPTIONAL, serialNumber, ... } */
+    if (mcdc_der_hdr(buf, *sz, tbs, &co, &cl, &lo, &lw) == 0) {
+        return -1;
+    }
+    ser = co;
+    if (buf[ser] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
+        if (mcdc_der_hdr(buf, *sz, ser, &co, &cl, &lo, &lw) == 0) {
+            return -1;
+        }
+        ser = co + cl;
+    }
+    if (buf[ser] != ASN_INTEGER) {
+        return -1;
+    }
+    if (mcdc_der_hdr(buf, *sz, ser, &co, &cl, &lo, &lw) == 0) {
+        return -1;
+    }
+    if (cl < 1) {
+        return -1;
+    }
+    if ((cl > 1) && (mcdc_der_shrink(buf, sz, co + 1, cl - 1) != 0)) {
+        return -1;
+    }
+    buf[co] = 0x00;
+    return 0;
+}
+
+static void wb_parse_cert_relative_zero_serial(void)
+{
+    static byte root[4096];
+    word32 rootSz;
+    DecodedCert dc;
+    int ret;
+
+    WB_NOTE("ParseCertRelative(): RFC 5280 zero-serial guard [:24444,:24450]");
+
+    rootSz = (word32)sizeof_ca_cert_der_2048;
+    if (rootSz > sizeof(root)) {
+        WB_NOTE("cert buffer too large for the edit buffer; skipped");
+        return;
+    }
+    XMEMCPY(root, ca_cert_der_2048, rootSz);
+    WB_CHECK(wb_zero_serial(root, &rootSz) == 0, "root serial zeroed");
+
+    /* Self-signed CA loaded as a trust anchor: all operands true, so the
+     * guard accepts the zero serial. */
+    wc_InitDecodedCert(&dc, root, rootSz, NULL);
+    ret = ParseCertRelative(&dc, CA_TYPE, NO_VERIFY, NULL, NULL);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "self-signed CA as CA_TYPE (all operands true)");
+    wc_FreeDecodedCert(&dc);
+
+    wc_InitDecodedCert(&dc, root, rootSz, NULL);
+    ret = ParseCertRelative(&dc, TRUSTED_PEER_TYPE, NO_VERIFY, NULL, NULL);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "self-signed CA as TRUSTED_PEER_TYPE (1st false, 2nd true)");
+    wc_FreeDecodedCert(&dc);
+
+    /* Same certificate as a leaf type: neither type comparison holds, so the
+     * zero serial is rejected. */
+    wc_InitDecodedCert(&dc, root, rootSz, NULL);
+    ret = ParseCertRelative(&dc, CERT_TYPE, NO_VERIFY, NULL, NULL);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "self-signed CA as CERT_TYPE (both type operands false)");
+    wc_FreeDecodedCert(&dc);
+}
 #else
 static void wb_parse_cert_relative_bad_date(void)
 {
     WB_NOTE("NO_CERTS/WOLFCRYPT_ONLY/no cert buffers; "
             "ParseCertRelative bad-date gate skipped");
+}
+static void wb_parse_cert_relative_zero_serial(void)
+{
+    WB_NOTE("NO_CERTS/WOLFCRYPT_ONLY/no cert buffers; "
+            "ParseCertRelative zero-serial guard skipped");
 }
 static void wb_parse_cert_relative_matrix(void)
 {
@@ -2943,6 +3074,7 @@ int main(void)
     wb_decode_dsa_asn1_sig();
     wb_parse_cert_relative_matrix();
     wb_parse_cert_relative_bad_date();
+    wb_parse_cert_relative_zero_serial();
     wb_fixture_parse_matrix();
     wb_serial_and_der_helpers();
 

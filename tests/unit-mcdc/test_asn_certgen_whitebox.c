@@ -574,13 +574,14 @@ static void wb_set_name_ex(void)
         }
     }
 
-    /* Empty CertName: SetNameRdnItems() returns 0 items -> SetNameEx's own
-     * "items==0" short-circuit. */
+    /* Empty CertName: SetNameRdnItems() still reports the outer SEQUENCE, so
+     * items is 2 rather than 0 and the "items==0" short-circuit is NOT taken
+     * -- the encoder returns the size of an empty Name (the 2-byte header). */
     {
         CertName empty;
         XMEMSET(&empty, 0, sizeof(empty));
         ret = SetNameEx(NULL, WC_ASN_NAME_MAX, &empty, NULL);
-        WB_CHECK(ret == 0, "SetNameEx empty CertName (items==0 short-circuit)");
+        WB_CHECK(ret == 2, "SetNameEx empty CertName (empty Name encoding)");
     }
 }
 #else
@@ -643,9 +644,11 @@ static void wb_encode_extensions(void)
     sz = EncodeExtensions(&cert, NULL, 0, 0); /* forRequest==0 */
     WB_CHECK(sz > 0, ":29148 !forRequest && certPoliciesNb>0, both true");
 
-    /* forRequest==1 with same cert -> :29148 1st operand false. */
+    /* forRequest==1 with the same cert -> :29148 1st operand false. Certificate
+     * policies are not emitted into a request, so nothing is left to encode
+     * and the size comes back as 0. */
     ret = EncodeExtensions(&cert, NULL, 0, 1);
-    WB_CHECK(ret > 0, ":29148 1st operand false (forRequest)");
+    WB_CHECK(ret == 0, ":29148 1st operand false (forRequest)");
 
     /* output!=NULL, maxSz too small -> :29126 true, BUFFER_E. */
     ret = EncodeExtensions(&cert, outBuf, 1, 0);
@@ -1829,8 +1832,10 @@ static void wb_asn1_print(void)
         ret = EncodedDottedForm(oidBytes, sizeof(oidBytes), dotted, NULL);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38862 2nd operand true (outSz==NULL)");
         num = 8;
+        /* 55 04 03 decodes to the four arcs 2.5.4.3: the first byte carries
+         * two of them. */
         ret = EncodedDottedForm(oidBytes, sizeof(oidBytes), dotted, &num);
-        WB_CHECK(ret == 0 && num == 3, ":38862 both false (valid decode)");
+        WB_CHECK(ret == 0 && num == 4, ":38862 both false (valid decode)");
     }
 }
 #else

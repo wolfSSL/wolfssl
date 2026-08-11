@@ -296,7 +296,9 @@ static void wb_uri_host_helpers(void)
      * (adjacent siblings, not this file's target lines) catches it; host
      * ending in exactly one dot is handled at GetUriHost() itself (:18792-
      * :18794) below, not here. */
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("http://good.com/x", 18,
+    /* A leading-dot base constrains SUBDOMAINS: "good.com" itself does not
+     * match ".good.com", so the accepting row needs a labelled host. */
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("http://sub.good.com/x", 21,
                 ".good.com", 9) == 1, "well-formed host (baseline true)");
 
     WB_NOTE("GetUriHost(): bad-args OR [:18736,:18737]");
@@ -315,7 +317,7 @@ static void wb_uri_host_helpers(void)
                 ".host.com", 9) == 0, "no \"://\" present");
     /* "://" present and matched mid-scan (true branch of the 3-byte
      * lookahead comparison). */
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("s://host.com/x", 14,
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("s://a.host.com/x", 16,
                 ".host.com", 9) == 1, "\"://\" found (baseline true)");
 
     WB_NOTE("GetUriHost(): IP-literal '[' bracket scan [:18772]");
@@ -331,7 +333,7 @@ static void wb_uri_host_helpers(void)
     WB_NOTE("GetUriHost(): trailing single-dot re-check [:18794]");
     /* Host with exactly one trailing dot: stripped, remainder non-empty
      * and does not itself end in '.' -> accepted (absolute-FQDN form). */
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("http://host.com./x", 19,
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("http://a.host.com./x", 20,
                 ".host.com", 9) == 1, "one trailing dot stripped, valid remainder");
     /* Host of two dots ("..") after stripping one trailing dot still ends
      * in '.' -> :18794 both operands true -> rejected. */
@@ -663,7 +665,7 @@ static void wb_confirm_name_constraints(void)
     /* Same URI constraints present, but the SAN's URI host IS a DNS
      * reg-name -> 3rd operand false. */
     XMEMSET(&cert, 0, sizeof(cert));
-    altName = wb_mk_dns("http://good.com/x", 18, ASN_URI_TYPE);
+    altName = wb_mk_dns("http://sub.good.com/x", 21, ASN_URI_TYPE);
     cert.altNames = altName;
     WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
             "URI SAN with DNS host (3rd operand false, passes)");
@@ -798,7 +800,7 @@ static void wb_decode_basic_ca_constraint(void)
     /* CA=TRUE + pathLen=127 (fits in 7 bits, valid, also the maximum
      * WOLFSSL_MAX_PATH_LEN, so :20020 stays false here too). */
     static const byte bcPathLen127[] =
-        { 0x30,0x07, 0x01,0x01,0xFF, 0x02,0x01,0x7F };
+        { 0x30,0x06, 0x01,0x01,0xFF, 0x02,0x01,0x7F };
 
     WB_NOTE("DecodeBasicCaConstraint(): empty SEQ bypass [:20005]");
     ret = DecodeBasicCaConstraint(bcEmpty, (int)sizeof(bcEmpty), &isCa,
@@ -1439,10 +1441,15 @@ static void wb_decode_subj_dir_attr(void)
     WB_CHECK(ret == 0 && XMEMCMP(cert.countryOfCitizenship, "US", 2) == 0,
             "countryOfCitizenship OID + valid length (all true, false)");
 
-    WB_NOTE("DecodeSubjDirAttr(): non-countryOfCitizenship OID [:21483,:21484 false]");
+    WB_NOTE("DecodeSubjDirAttr(): OID outside oidSubjDirAttrType [:21483]");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeSubjDirAttr(sdaOther, sizeof(sdaOther), &cert);
-    WB_CHECK(ret == 0, "different OID (2nd operand false, inner block skipped)");
+    /* rsaEncryption is not in oidSubjDirAttrType, so GetASN_Items() rejects
+     * the attribute before the OID comparison is reached -- this row drives
+     * the loop's ret==0 operand false, not the comparison's 2nd operand.
+     * The dateOfBirth fixture at the end of this file is the one that
+     * reaches the comparison with a recognized non-COC OID. */
+    WB_CHECK(ret != 0, "OID not in oidSubjDirAttrType (attribute rejected)");
 
     WB_NOTE("DecodeSubjDirAttr(): countryOfCitizenship wrong length [:21495]");
     XMEMSET(&cert, 0, sizeof(cert));
@@ -1705,10 +1712,15 @@ static void wb_decode_cert_extensions_badargs(void)
 {
     DecodedCert cert;
     int ret;
+    /* DecodeCertExtensions() parses certExtHdrASN first, so the buffer must
+     * start at the TBSCertificate's [3] explicit tag, not at the bare
+     * Extension SEQUENCE. */
     static const byte oneExt[] = {
-        0x30,0x0E,
-          0x06,0x03,0x55,0x1D,0x0F,      /* keyUsage OID (2.5.29.15) */
-          0x04,0x04, 0x03,0x02,0x05,0xA0 /* OCTET STRING wrapping BIT STRING */
+        0xA3,0x0F,
+          0x30,0x0D,
+            0x30,0x0B,
+              0x06,0x03,0x55,0x1D,0x0F,      /* keyUsage OID (2.5.29.15) */
+              0x04,0x04, 0x03,0x02,0x05,0xA0 /* OCTET STRING wrapping BIT STRING */
     };
 
     WB_NOTE("DecodeCertExtensions(): input==NULL || sz==0 [:22164]");
@@ -1738,9 +1750,11 @@ static void wb_decode_cert_extensions_badargs(void)
     WB_NOTE("DecodeCertExtensions(): unknown-extension callback dispatch");
     {
         static const byte unknownExt[] = {
-            0x30,0x08,
-              0x06,0x03,0x2A,0x03,0x04,   /* arbitrary unrecognized OID */
-              0x04,0x01, 0x00
+            0xA3,0x0C,
+              0x30,0x0A,
+                0x30,0x08,
+                  0x06,0x03,0x2A,0x03,0x04, /* arbitrary unrecognized OID */
+                  0x04,0x01, 0x00
         };
         XMEMSET(&cert, 0, sizeof(cert));
         cert.extensions = unknownExt;
@@ -1924,9 +1938,15 @@ static void wb_decode_cert_internal(void)
         wc_InitDecodedCert(&cert, beforeBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+        /* With NO_ASN_TIME there is no clock, so CheckDate()'s range test is
+         * compiled out and an out-of-range date is accepted by every mode. */
+#ifndef NO_ASN_TIME
         WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
                 "verify=VERIFY (all 4 operands true, badDate set); "
                 ":22812 true side (ret==0 && !done && badDate!=0)");
+#else
+        WB_CHECK(ret == 0, "verify=VERIFY, no clock (1st operand false)");
+#endif
         FreeDecodedCert(&cert);
 
 #ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
@@ -1967,8 +1987,12 @@ static void wb_decode_cert_internal(void)
         wc_InitDecodedCert(&cert, afterBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+#ifndef NO_ASN_TIME
         WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E),
                 "verify=VERIFY (operand true side)");
+#else
+        WB_CHECK(ret == 0, "verify=VERIFY, no clock (1st operand false)");
+#endif
         FreeDecodedCert(&cert);
 
 #ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
