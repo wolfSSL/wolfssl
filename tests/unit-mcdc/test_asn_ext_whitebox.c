@@ -96,6 +96,15 @@
 
 #include <wolfcrypt/src/asn.c>
 
+/* Some leading `ret == 0` operands in this file's decoders have no crafted
+ * input that reaches them: the only preceding statement that can set ret is a
+ * DECL_ASNGETDATA allocation or a hash call, neither of which fails on valid
+ * input. Those are driven with the campaign's heap-fault injector, which is
+ * only effective in the WOLFSSL_SMALL_STACK variant (where the ASN.1 data
+ * arrays and wc_ShaHash()'s context are heap-allocated); the matching TRUE
+ * rows are issued unarmed in the same binary. */
+#include "mcdc_fault_alloc.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -841,6 +850,35 @@ static void wb_decode_auth_info(void)
         WB_CHECK(ret == 0 && cert.extAuthInfo == NULL,
                 "empty AIA sequence (:20309 false immediately)");
     }
+
+#ifdef WOLFSSL_ASN_CA_ISSUER
+    /* Two id-ad-caIssuers AccessDescriptions. The first drives the
+     * caIssuers `else if` with both operands true (method matches and no
+     * entry recorded yet); the second drives it with the 1st operand true
+     * and the 2nd false (extAuthInfoCaIssuer already set). The three-entry
+     * fixture above supplies the 1st-operand-false row (a non-caIssuers
+     * method reaching the same `else if`). */
+    {
+        static const byte aiaCaIssuer[] = {
+            0x30, 0x2C,
+              0x30,0x14,
+                0x06,0x08, 0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x02,
+                0x86,0x08, 'h','t','t','p',':','/','/','d',
+              0x30,0x14,
+                0x06,0x08, 0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x02,
+                0x86,0x08, 'h','t','t','p',':','/','/','e',
+        };
+        WB_NOTE("DecodeAuthInfo(): first-caIssuers-wins [:20342 else-if]");
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = DecodeAuthInfo(aiaCaIssuer, sizeof(aiaCaIssuer), &cert);
+        WB_CHECK(ret == 0, "two caIssuers AccessDescriptions parsed");
+        WB_CHECK(cert.extAuthInfoCaIssuer != NULL &&
+                cert.extAuthInfoCaIssuerSz == 8 &&
+                cert.extAuthInfoCaIssuer[7] == 'd',
+                "first caIssuers entry wins (both operands true then "
+                "2nd operand false)");
+    }
+#endif /* WOLFSSL_ASN_CA_ISSUER */
 }
 
 /* ------------------------------------------------------------------------- *
@@ -886,6 +924,9 @@ static void wb_decode_auth_key_id(void)
     ret = DecodeAuthKeyId(akidKeyIdOnly, sizeof(akidKeyIdOnly), NULL,
             &keyIdSz, NULL, NULL, NULL, NULL);
     WB_CHECK(ret == 0, "extAuthKeyId==NULL out-ptr (2nd operand false)");
+    ret = DecodeAuthKeyId(akidKeyIdOnly, sizeof(akidKeyIdOnly), &keyId,
+            NULL, NULL, NULL, NULL, NULL);
+    WB_CHECK(ret == 0, "extAuthKeyIdSz==NULL out-ptr (3rd operand false)");
     ret = DecodeAuthKeyId(akidEmpty, sizeof(akidEmpty), &keyId, &keyIdSz,
             NULL, NULL, NULL, NULL);
     WB_CHECK(ret == 0 && keyId == NULL,
@@ -935,6 +976,20 @@ static void wb_decode_auth_key_id(void)
     ret = DecodeAuthKeyId(akidIssuerOnly, sizeof(akidIssuerOnly), NULL, NULL,
             &issuer, &issuerSz, &issuerSN, NULL);
     WB_CHECK(ret == 0, "extAuthKeyIdIssuerSNSz==NULL (2nd operand false)");
+
+    /* [1] authorityCertIssuer holding a truncated GeneralName ([6] URI
+     * declaring 5 content bytes with none present): the inner
+     * GetASN_Items() fails, so :20468 runs with ret != 0 (1st operand
+     * false). */
+    {
+        static const byte akidBadIssuer[] = {
+            0x30,0x04, 0xA1,0x02, 0x86,0x05
+        };
+        ret = DecodeAuthKeyId(akidBadIssuer, sizeof(akidBadIssuer), NULL,
+                NULL, &issuer, &issuerSz, NULL, NULL);
+        WB_CHECK(ret != 0, "unsupported GeneralName choice in the AKID "
+                "issuer (:20468 1st operand false)");
+    }
 #else
     WB_NOTE("WOLFSSL_AKID_NAME not defined; ISSUER/SERIAL blocks skipped");
     (void)issuer; (void)issuerSz; (void)issuerSN; (void)issuerSNSz;
@@ -1194,27 +1249,42 @@ static void wb_decode_cert_policy(void)
 {
     DecodedCert cert;
     int ret;
-    /* One arbitrary policy OID (1.2.3.4), no qualifiers. */
+    /* One policy OID, 2.5.29.32.0 (anyPolicy). A one-byte OID body is
+     * rejected by the template before the loop body runs, so every fixture
+     * here carries a full four-byte OID. */
     static const byte onePolicy[] = {
-        0x30,0x05, 0x30,0x03, 0x06,0x01,0x2A
+        0x30,0x08, 0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00
     };
-    /* Three distinct policy OIDs: 1.2.3.4, 1.2.3.5, 1.2.3.6 -- exercises
-     * the MAX_CERTPOL_NB==2 cap (3rd operand of :21346 goes false while
-     * idx<total_length is still true) and the not-yet-seen-so-not-a-dup
-     * path of :21401 for the 2nd. */
+    /* Two distinct policies: the second iteration finds deviceType already
+     * set (:21369 2nd operand false) and runs the duplicate scan with a
+     * non-empty list (:21401 2nd operand true). */
+    static const byte twoPolicies[] = {
+        0x30,0x10,
+          0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
+          0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x01,
+    };
+    /* Three distinct policies -- exercises the MAX_CERTPOL_NB==2 cap (3rd
+     * operand of :21346 goes false while idx<total_length is still true). */
     static const byte threePolicies[] = {
-        0x30,0x0F,
-          0x30,0x03, 0x06,0x01,0x2A,     /* 1.2.3.4  (OID content: 2A alone is 1.2.3) */
-          0x30,0x03, 0x06,0x01,0x2B,     /* 1.3 */
-          0x30,0x03, 0x06,0x01,0x2C,     /* 1.4 */
+        0x30,0x18,
+          0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
+          0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x01,
+          0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x02,
     };
     /* Two IDENTICAL policy OIDs -- 2nd occurrence is a duplicate, hits
-     * :21401's XMEMCMP==0 true arm (only compiled without
-     * WOLFSSL_DUP_CERTPOL). */
+     * :21401's XMEMCMP==0 true arm and then re-tests the loop condition
+     * with ret != 0 (1st operand false). Only compiled without
+     * WOLFSSL_DUP_CERTPOL. */
     static const byte dupPolicies[] = {
-        0x30,0x0A,
-          0x30,0x03, 0x06,0x01,0x2A,
-          0x30,0x03, 0x06,0x01,0x2A,
+        0x30,0x10,
+          0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
+          0x30,0x06, 0x06,0x04,0x55,0x1D,0x20,0x00,
+    };
+    /* PolicyInformation holding an INTEGER instead of an OBJECT_ID: the
+     * template parse fails inside the loop, so the deviceType step at
+     * :21369 runs with ret != 0 (1st operand false). */
+    static const byte badPolicy[] = {
+        0x30,0x05, 0x30,0x03, 0x02,0x01,0x00
     };
     /* Zero policies. */
     static const byte noPolicies[] = { 0x30, 0x00 };
@@ -1240,6 +1310,23 @@ static void wb_decode_cert_policy(void)
         XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
     }
 #endif
+
+    WB_NOTE("DecodeCertPolicy(): second policy, deviceType already set [:21369]");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert);
+    WB_CHECK(ret == 0, "two policies accepted (:21369 2nd operand false on "
+            "the second, :21401 2nd operand true)");
+#ifdef WOLFSSL_SEP
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
+
+    WB_NOTE("DecodeCertPolicy(): malformed PolicyInformation [:21369 1st operand]");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(badPolicy, sizeof(badPolicy), &cert);
+    WB_CHECK(ret != 0 && cert.deviceType == NULL,
+            "INTEGER in place of the policy OID (:21369 1st operand false)");
 
 #if defined(WOLFSSL_CERT_EXT)
     WB_NOTE("DecodeCertPolicy(): MAX_CERTPOL_NB cap with 3 policies [:21346 3rd operand]");
@@ -1424,6 +1511,31 @@ static void wb_decode_extension_type_dispatch(void)
             "critical AKID rejected before reaching :21871 (1st operand false)");
 #endif
 
+    /* A well-formed AIA makes DecodeAuthInfo() succeed, so the 2nd operand
+     * of the AUTH_INFO_OID step goes false with the 1st still true. */
+    {
+        static const byte okAia[] = {
+            0x30, 0x16,
+              0x30,0x14,
+                0x06,0x08, 0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,
+                0x86,0x08, 'h','t','t','p',':','/','/','a',
+        };
+        XMEMSET(&cert, 0, sizeof(cert));
+        isUnknown = 0;
+        ret = DecodeExtensionType(okAia, sizeof(okAia), AUTH_INFO_OID, 0,
+                &cert, &isUnknown);
+        WB_CHECK(ret == 0, "well-formed AuthorityInfoAccess (2nd operand false)");
+    }
+#ifndef WOLFSSL_ALLOW_CRIT_AIA
+    /* critical==1 sets ret before the DecodeAuthInfo() step is reached. */
+    XMEMSET(&cert, 0, sizeof(cert));
+    isUnknown = 0;
+    ret = DecodeExtensionType(badAia, sizeof(badAia), AUTH_INFO_OID, 1,
+            &cert, &isUnknown);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E),
+            "critical AIA rejected before the decode step (1st operand false)");
+#endif
+
     WB_NOTE("DecodeExtensionType(): SUBJ_KEY_OID failure propagation [:21903,:21904]");
     XMEMSET(&cert, 0, sizeof(cert));
     isUnknown = 0;
@@ -1436,6 +1548,130 @@ static void wb_decode_extension_type_dispatch(void)
     ret = DecodeExtensionType(okSkid, sizeof(okSkid), SUBJ_KEY_OID, 0, &cert,
             &isUnknown);
     WB_CHECK(ret == 0, "well-formed SubjectKeyIdentifier (2nd operand false)");
+#ifndef WOLFSSL_ALLOW_CRIT_SKID
+    XMEMSET(&cert, 0, sizeof(cert));
+    isUnknown = 0;
+    ret = DecodeExtensionType(okSkid, sizeof(okSkid), SUBJ_KEY_OID, 1, &cert,
+            &isUnknown);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E),
+            "critical SKID rejected before the decode step (1st operand false)");
+#endif
+}
+
+/* ------------------------------------------------------------------------- *
+ * Section 20b: DecodeCrlDist() (static, called directly).
+ *   :20299  if (ret == 0 && idx < (word32)sz)
+ * The decoder deliberately parses only the FIRST DistributionPoint, so a
+ * two-point extension leaves idx short of sz.
+ * ------------------------------------------------------------------------- */
+#if !defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_CRL_DP)
+static void wb_decode_crl_dist(void)
+{
+    DecodedCert cert;
+    int ret;
+    /* One DistributionPoint: [0] distributionPoint { [0] fullName {
+     *   [6] URI "http://a" } }. */
+    static const byte crlOne[] = {
+        0x30,0x10,
+          0x30,0x0E,
+            0xA0,0x0C,
+              0xA0,0x0A,
+                0x86,0x08, 'h','t','t','p',':','/','/','a',
+    };
+    /* Two DistributionPoints: only the first is parsed. */
+    static const byte crlTwo[] = {
+        0x30,0x20,
+          0x30,0x0E,
+            0xA0,0x0C,
+              0xA0,0x0A,
+                0x86,0x08, 'h','t','t','p',':','/','/','a',
+          0x30,0x0E,
+            0xA0,0x0C,
+              0xA0,0x0A,
+                0x86,0x08, 'h','t','t','p',':','/','/','b',
+    };
+    /* INTEGER where the DistributionPoint SEQUENCE belongs. */
+    static const byte crlBad[] = { 0x30,0x03, 0x02,0x01,0x00 };
+
+    WB_NOTE("DecodeCrlDist(): trailing DistributionPoints [:20299]");
+
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCrlDist(crlOne, sizeof(crlOne), &cert);
+    WB_CHECK(ret == 0 && cert.extCrlInfoSz == 8,
+            "single DistributionPoint (2nd operand false)");
+
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCrlDist(crlTwo, sizeof(crlTwo), &cert);
+    WB_CHECK(ret == 0, "two DistributionPoints, only the first used "
+            "(both operands true)");
+
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCrlDist(crlBad, sizeof(crlBad), &cert);
+    WB_CHECK(ret != 0, "malformed DistributionPoint (1st operand false)");
+}
+#else
+static void wb_decode_crl_dist(void) { WB_NOTE("WOLFSSL_X509_TINY without CRL DP; skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Section 20c: heap-fault rows for leading `ret == 0` operands whose only
+ * possible predecessor failure is an allocation.
+ *   :20596/:20600  DecodeAuthKeyIdInternal(): the only statement that can
+ *                  set ret before them is GetHashId() -> CalcHashId_ex() ->
+ *                  wc_ShaHash(), which allocates its context only under
+ *                  WOLFSSL_SMALL_STACK.
+ *   :21527         DecodeSubjDirAttr(): preceded only by CALLOC_ASNGETDATA.
+ * Unarmed calls in the same binary supply the TRUE rows.
+ * ------------------------------------------------------------------------- */
+static void wb_ext_alloc_faults(void)
+{
+    DecodedCert cert;
+    int n;
+    int ret;
+    /* AKID carrying keyIdentifier, authorityCertIssuer and
+     * authorityCertSerialNumber, so all three post-hash steps are reached. */
+    static const byte akidFull[] = {
+        0x30,0x13,
+          0x80,0x04, 0xAA,0xBB,0xCC,0xDD,
+          0xA1,0x06, 0x82,0x04, 'h','o','s','t',
+          0x82,0x03, 0x01,0x02,0x03
+    };
+    static const byte sdaCoc2[] = {
+        0x30,0x12,
+              0x30,0x10,
+                    0x06,0x08, 0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x04,
+                    0x31,0x04, 0x13,0x02, 'U','S'
+    };
+
+    WB_NOTE("DecodeAuthKeyIdInternal()/DecodeSubjDirAttr(): heap-fault sweep "
+            "[:20596,:20600,:21527]");
+
+    /* TRUE rows, unarmed. */
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeAuthKeyIdInternal(akidFull, sizeof(akidFull), &cert);
+    WB_CHECK(ret == 0 && cert.extAuthKeyIdIssuerSz > 0 &&
+            cert.extAuthKeyIdIssuerSNSz > 0,
+            "full AKID decoded (:20596/:20600 both operands true)");
+
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeSubjDirAttr(sdaCoc2, sizeof(sdaCoc2), &cert);
+    WB_CHECK(ret == 0, "subject directory attributes decoded (:21527 1st "
+            "operand true)");
+
+    mcdc_fa_install();
+    for (n = 1; n <= 10; n++) {
+        mcdc_fa_arm(n);
+        XMEMSET(&cert, 0, sizeof(cert));
+        (void)DecodeAuthKeyIdInternal(akidFull, sizeof(akidFull), &cert);
+        mcdc_fa_disarm();
+
+        mcdc_fa_arm(n);
+        XMEMSET(&cert, 0, sizeof(cert));
+        (void)DecodeSubjDirAttr(sdaCoc2, sizeof(sdaCoc2), &cert);
+        mcdc_fa_disarm();
+    }
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
 }
 
 /* ------------------------------------------------------------------------- *
@@ -2171,6 +2407,8 @@ int main(void)
     wb_decode_subj_dir_attr();
     wb_decode_subj_info_acc();
     wb_decode_extension_type_dispatch();
+    wb_decode_crl_dist();
+    wb_ext_alloc_faults();
     wb_decode_cert_extensions_badargs();
     wb_check_date();
     wb_decode_cert_internal();
