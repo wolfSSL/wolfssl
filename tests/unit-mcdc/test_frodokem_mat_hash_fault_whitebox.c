@@ -313,6 +313,103 @@ static void wb_sweep_type(int type)
     wc_FrodoKemKey_Free(&good);
 }
 
+/* ------------------------------------------------------------------------- *
+ * frodokem_gen_noise() driven DIRECTLY.
+ *
+ * Two residuals live in this one function and the end-to-end sweep above has
+ * never landed on them:
+ *
+ *     if (p->useShake256 && ((ret = wc_InitShake256(...)) == 0))   -- cond 1
+ *     if ((ret == 0) && (cnt1 > 0))                                -- cond 0
+ *
+ * The lever is right: MCDC_FH_WITH_SHAKE_INIT already interposes
+ * wc_InitShake128/256, so the second operand of the first guard HAS a false
+ * side available. What is wrong is the INDEX. frodokem_gen_noise() is called
+ * from MakeKey/Encapsulate/Decapsulate only after matrix-A generation has
+ * already made hundreds of SHAKE calls, so its own calls sit far out in the
+ * strided tail of the sweep, where the stride steps over them. Widening the
+ * sweep would cost a full FrodoKEM operation per extra point.
+ *
+ * frodokem_gen_noise() is WOLFSSL_LOCAL and this TU #includes the .c, so it is
+ * called here directly instead, with the fault index counted from ZERO at the
+ * call. Index 1 is then exactly the wc_InitShake* call and indices 2..6 are the
+ * Absorb/SqueezeBlocks that follow -- no searching, and six cheap vectors
+ * instead of a longer sweep of whole key operations.
+ *
+ * SIZING. The function's documented precondition is that a non-zero cnt1 spans
+ * more than one SHAKE block. WB_GN_CNT = 256 coefficients = 512 bytes per
+ * region, which is 3 whole blocks plus a remainder at the SHAKE-256 rate (136)
+ * and 3 plus a remainder at the SHAKE-128 rate (168); every squeeze and every
+ * XMEMCPY the function performs stays inside the 512-byte regions in both
+ * cases, and tmp is a whole block at either rate. Worked through for both rates
+ * before writing, because a faulted primitive leaves its output buffer
+ * untouched and the harness must never over-read it.
+ *
+ * PAIRING (HARD RULE 1): the unarmed cnt1 > 0 call is the (T,T) row for both
+ * decisions and runs first, in this same binary.
+ * ------------------------------------------------------------------------- */
+#define WB_GN_CNT   256                  /* coefficients per region */
+#define WB_GN_BYTES (2 * WB_GN_CNT)      /* 512 -- more than one block, both
+                                          * rates */
+#define WB_GN_TMP   256                  /* >= FRODOKEM_SHAKE128_RATE (168) */
+
+static void wb_gen_noise_rows(int type)
+{
+    FrodoKemKey key;
+    wc_Shake    shake;
+    byte        seInput[1 + FRODOKEM_MAX_LENSE];
+    byte        tmp[WB_GN_TMP];
+    word16      mat0[WB_GN_CNT];
+    word16      mat1[WB_GN_CNT];
+    long        n;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&shake, 0, sizeof(shake));
+
+    mcdc_fh_disarm();
+    if (wc_FrodoKemKey_Init(&key, type, NULL, INVALID_DEVID) != 0) {
+        return;                          /* type not compiled in */
+    }
+    if ((key.params == NULL) ||
+            ((word32)key.params->lenSE + 1U > (word32)sizeof(seInput))) {
+        wc_FrodoKemKey_Free(&key);
+        return;
+    }
+
+    XMEMSET(seInput, 0x5e, sizeof(seInput));
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(mat0, 0, sizeof(mat0));
+    XMEMSET(mat1, 0, sizeof(mat1));
+
+    /* (T,T) for both decisions: everything succeeds and region 1 is present. */
+    if (frodokem_gen_noise(key.params, &shake, seInput, tmp, mat0, WB_GN_CNT,
+            mat1, WB_GN_CNT) != 0) {
+        WB_NOTE("baseline frodokem_gen_noise failed; gen-noise rows skipped");
+        wb_fail = 1;
+        wc_FrodoKemKey_Free(&key);
+        return;
+    }
+
+    /* (T,F) for the cnt1 guard: no region 1. */
+    (void)frodokem_gen_noise(key.params, &shake, seInput, tmp, mat0, WB_GN_CNT,
+        NULL, 0);
+
+    /* Index 1 = the wc_InitShake* call itself, giving the init guard its
+     * (T,F) row; 2..6 = the Absorb/Squeeze chain, giving `ret == 0` its false
+     * row at the cnt1 guard with region 1 still requested. A fixed six
+     * vectors -- a count, never a clock. */
+    for (n = 1; n <= 6L; n++) {
+        mcdc_fh_arm(n);
+        (void)frodokem_gen_noise(key.params, &shake, seInput, tmp, mat0,
+            WB_GN_CNT, mat1, WB_GN_CNT);
+        mcdc_fh_disarm();
+    }
+
+    mcdc_fh_disarm();
+    wc_FrodoKemKey_Free(&key);
+    WB_NOTE("frodokem_gen_noise init/cnt1 rows exercised");
+}
+
 int main(void)
 {
     size_t i;
@@ -333,6 +430,27 @@ int main(void)
         for (i = 0; i < sizeof(fk_base_types) / sizeof(fk_base_types[0]); i++) {
             if (fk_base_types[i] != 0)
                 wb_baseline(fk_base_types[i]);
+        }
+        /* Both noise arms. p->useShake256 is false only for the 640 sets, and
+         * fk_base_types above carries no 640 type, so the SHAKE-128 copy of
+         * the guard pair needs its own entry here. Types absent from the build
+         * are rejected by Init and skipped. */
+        {
+            static const int gn_types[] = {
+#ifdef WOLFSSL_FRODOKEM_SHAKE
+                WC_FRODOKEM_640_SHAKE, WC_FRODOKEM_976_SHAKE,
+#endif
+#ifdef WOLFSSL_FRODOKEM_AES
+                WC_FRODOKEM_640_AES, WC_FRODOKEM_976_AES,
+#endif
+                0
+            };
+            size_t g;
+
+            for (g = 0; g < sizeof(gn_types) / sizeof(gn_types[0]); g++) {
+                if (gn_types[g] != 0)
+                    wb_gen_noise_rows(gn_types[g]);
+            }
         }
         for (i = 0; i < sizeof(fk_sweep_types) / sizeof(fk_sweep_types[0]);
                 i++) {
