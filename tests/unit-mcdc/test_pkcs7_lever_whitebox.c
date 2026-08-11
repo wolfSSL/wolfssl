@@ -46,14 +46,24 @@
  */
 
 #include "mcdc_fault_mp.h"
+#include "mcdc_seed_rng.h"
 
 #include <wolfcrypt/src/pkcs7.c>
+
+#define MCDC_SR_IMPL
+#include "mcdc_seed_rng.h"
 
 #include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <wolfssl/certs_test.h>
+
+/* Bounded by vector count, never by elapsed time: 96 fail positions is
+ * comfortably past the number of allocation sites these decodes reach, and
+ * over-sweeping is harmless -- once the index passes the site count the target
+ * simply runs to completion. */
+#define WB_ALLOC_SWEEP 96
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -222,11 +232,6 @@ static int wb_verify_once(word32 msgSz)
     return ret;
 }
 
-/* Bounded by vector count: 96 fail positions is comfortably past the number of
- * allocation sites a 1.4KB degenerate bundle reaches, and over-sweeping is
- * harmless (once the index passes the site count the verify simply runs). */
-#define WB_ALLOC_SWEEP 96
-
 static void wb_tmpcert_alloc(void)
 {
     word32 msgSz;
@@ -267,6 +272,144 @@ static void wb_tmpcert_alloc(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 3: wc_PKCS7_DecodeAuthEnvelopedData() content buffer [:16080, :16103].
+ *
+ * `encryptedContent == NULL` at :16080 is the XMALLOC two lines above it, and
+ * :16103's leading operand is only false once :16080 has set MEMORY_E, so one
+ * heap sweep over a decode supplies both. The bundle is built here rather than
+ * loaded so the AES-GCM/RSA shape is guaranteed; the RNG is pinned so the
+ * bundle is byte-identical on every run and the allocation ORDER the sweep
+ * indexes into does not move.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_AESGCM) && !defined(NO_RSA) && defined(WOLFSSL_AES_128) && \
+    defined(USE_CERT_BUFFERS_2048)
+#define WB_AE_SEED 0x4ae09c17UL
+#define WB_AE_BUF_SZ 2048
+static byte wbAeBuf[WB_AE_BUF_SZ];
+static word32 wbAeSz;
+
+/* content-type attribute (1.2.840.113549.1.9.3) carrying id-data. Both fields
+ * are complete DER elements: FlattenAttributes() copies them verbatim into
+ * SEQUENCE { oid, SET { value } }. */
+static const byte wbAuthAttribOid[] =
+    { 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03 };
+static const byte wbAuthAttribVal[] =
+    { 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01 };
+static PKCS7Attrib wbAuthAttribs[1] = {
+    { wbAuthAttribOid, (word32)sizeof(wbAuthAttribOid),
+      wbAuthAttribVal, (word32)sizeof(wbAuthAttribVal) }
+};
+
+static int wb_build_auth_env(void)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    WC_RNG    rng;
+    byte      data[32];
+    int       sz = 0;
+
+    XMEMSET(data, 0x62, sizeof(data));
+    wbAeSz = 0;
+    if (p == NULL) {
+        return -1;
+    }
+    mcdc_sr_arm(WB_AE_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) == 0) {
+        p->content    = data;
+        p->contentSz  = (word32)sizeof(data);
+        p->contentOID = DATA;
+        p->encryptOID = AES128GCMb;
+        p->rng        = &rng;
+        /* Authenticated attributes make the decoder's IMPLICIT [1] probe at
+         * :16103 evaluate all three operands true, which is the decision-true
+         * row its leading operand needs. wc_PKCS7_EncodeAuthEnvelopedData()
+         * omits the whole element when authAttribsSz is 0, and no API-level
+         * test sets one. */
+        p->authAttribs   = wbAuthAttribs;
+        p->authAttribsSz = 1;
+        sz = wc_PKCS7_EncodeAuthEnvelopedData(p, wbAeBuf,
+                (word32)sizeof(wbAeBuf));
+    }
+    wc_PKCS7_Free(p);
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    if (sz <= 0) {
+        return -1;
+    }
+    wbAeSz = (word32)sz;
+    return 0;
+}
+
+static int wb_decode_auth_env(void)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_AE_BUF_SZ];
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->privateKey   = (byte*)client_key_der_2048;
+    p->privateKeySz = (word32)sizeof_client_key_der_2048;
+    ret = wc_PKCS7_DecodeAuthEnvelopedData(p, wbAeBuf, wbAeSz, out,
+            sizeof(out));
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_authenv_content_alloc(void)
+{
+    int n, ret, hit = 0;
+
+    if (wb_build_auth_env() != 0) {
+        WB_NOTE("AuthEnvelopedData encode failed; content-buffer sweep"
+                " skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    mcdc_fa_install();
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): unarmed decode [:16080 cond 1"
+            " false, :16103 cond 0 true]");
+    mcdc_fa_disarm();
+    ret = wb_decode_auth_env();
+    WB_CHECK(ret > 0, ":16080 cond 1 false (decode succeeds)");
+
+    WB_NOTE("wc_PKCS7_DecodeAuthEnvelopedData(): one allocation failed at a"
+            " time, so the content buffer comes back NULL [:16080 cond 1 true,"
+            " :16103 cond 0 false]");
+    for (n = 1; n <= WB_ALLOC_SWEEP; n++) {
+        mcdc_fa_arm_only(n);
+        ret = wb_decode_auth_env();
+        mcdc_fa_disarm();
+        if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
+            hit++;
+        }
+    }
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
+    WB_CHECK(hit > 0, ":16080 sweep produced at least one MEMORY_E");
+}
+#else
+static void wb_authenv_content_alloc(void)
+{
+    WB_NOTE("no AES-GCM/RSA/2048-cert-buffers; AuthEnvelopedData"
+            " content-buffer sweep skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 fault-lever white-box (Part 5) ===\n");
@@ -278,6 +421,7 @@ int main(void)
 
     wb_cert_matches_signer();
     wb_tmpcert_alloc();
+    wb_authenv_content_alloc();
 
     wolfCrypt_Cleanup();
     printf(wb_fail ? "done (with failures)\n" : "done\n");
