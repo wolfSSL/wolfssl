@@ -704,6 +704,221 @@ static void wb_rsa_set_nonblock_time(void)
 { WB_NOTE("WC_RSA_NONBLOCK_TIME/USE_FAST_MATH off; wc_RsaSetNonBlockTime skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Class 14: RsaUnPad_OAEP() digest/length guard (line 1794, 2 conditions).
+ *
+ *   ret = wc_HashGetDigestSize(hType);
+ *   if ((ret < 0) || (pkcsBlockLen < (2 * (word32)ret + 2)))
+ *
+ * wc_RsaUnPad_ex only reaches this helper with a hash type it has already
+ * accepted and a block the size of the RSA modulus, so neither operand is ever
+ * TRUE from the API: the first needs a hash type with no digest size, the
+ * second a block shorter than 2*hLen+2. Both calls return BAD_FUNC_ARG before
+ * the block is read, so a short buffer is safe.
+ * ------------------------------------------------------------------------- */
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WC_NO_RSA_OAEP) && \
+    !defined(NO_SHA256)
+static void wb_unpad_oaep_guard(void)
+{
+    byte  blk[256];
+    byte* outp = NULL;
+
+    XMEMSET(blk, 0, sizeof(blk));
+
+    /* (F,F): valid hash, block far larger than 2*32+2 */
+    (void)RsaUnPad_OAEP(blk, (unsigned int)sizeof(blk), &outp,
+        WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, NULL);
+    /* (T,-): no digest size for this type */
+    (void)RsaUnPad_OAEP(blk, (unsigned int)sizeof(blk), &outp,
+        WC_HASH_TYPE_NONE, WC_MGF1SHA256, NULL, 0, NULL);
+    /* (F,T): valid hash but the block cannot hold seed+db */
+    (void)RsaUnPad_OAEP(blk, 8, &outp,
+        WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0, NULL);
+    WB_NOTE("RsaUnPad_OAEP digest/length guard pairs exercised");
+}
+#else
+static void wb_unpad_oaep_guard(void)
+{
+    WB_NOTE("OAEP unavailable; RsaUnPad_OAEP guard skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 15: RsaUnPad_PSS() FIPS 186-4 5.5(e) salt reduction (line 1937).
+ *
+ *   if (orig_bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+ *
+ * Only evaluated when the caller asks for RSA_PSS_SALT_LEN_DEFAULT. The
+ * second operand's FALSE row needs a 1024-bit modulus with a hash that is NOT
+ * SHA-512 -- but rsa.h resolves RSA_MIN_SIZE to 2048 unless overridden, so no
+ * public PSS call can present bits==1024 outside the min_size_1024 variant,
+ * and even there the API tests drive SHA-512 only. Calling the static helper
+ * with the bits parameter chosen directly gives both rows in every variant.
+ * The block itself does not have to be valid padding: the decision is reached
+ * before any of it is parsed, and RsaUnPad_PSS returns an error afterwards.
+ * ------------------------------------------------------------------------- */
+#if defined(WC_RSA_PSS) && defined(WOLFSSL_SHA512) && !defined(NO_SHA256)
+static void wb_unpad_pss_saltlen(void)
+{
+    byte  blk[512];
+    byte* outp = NULL;
+
+    XMEMSET(blk, 0, sizeof(blk));
+
+    /* (T,T): 1024-bit modulus with SHA-512 -> salt reduced to the max */
+    (void)RsaUnPad_PSS(blk, 128, &outp, WC_HASH_TYPE_SHA512, WC_MGF1SHA512,
+        RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+    /* (T,F): same 1024-bit modulus, SHA-256 -> no reduction */
+    (void)RsaUnPad_PSS(blk, 128, &outp, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+        RSA_PSS_SALT_LEN_DEFAULT, 1024, NULL);
+    /* (F,-): 2048-bit modulus */
+    (void)RsaUnPad_PSS(blk, 256, &outp, WC_HASH_TYPE_SHA512, WC_MGF1SHA512,
+        RSA_PSS_SALT_LEN_DEFAULT, 2048, NULL);
+    WB_NOTE("RsaUnPad_PSS 5.5(e) salt-reduction pairs exercised");
+}
+#else
+static void wb_unpad_pss_saltlen(void)
+{
+    WB_NOTE("PSS/SHA-512 unavailable; RsaUnPad_PSS salt reduction skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 16: RsaPublicEncryptEx() key-size guard (line 3707, operand 1).
+ *
+ *   if (sz < RSA_MIN_PAD_SZ || sz > (int)RSA_MAX_SIZE/8)
+ *
+ * sz is wc_RsaEncryptSize(key), i.e. the byte length of the modulus. Operand 0
+ * fires for a stub key with a tiny modulus, but operand 1 needs a modulus
+ * LARGER than the build's RSA_MAX_SIZE -- which no key generator or decoder
+ * will produce, since both reject oversized moduli first. Writing the modulus
+ * straight into the key is the only way there. Nothing dereferences the key
+ * beyond wc_RsaEncryptSize before the guard returns WC_KEY_SIZE_E.
+ * ------------------------------------------------------------------------- */
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+static void wb_public_encrypt_size_guard(void)
+{
+    RsaKey key;
+    byte   in[16];
+    /* Must be >= sz, or the earlier `sz > outLen` guard returns first. */
+    byte   out[(RSA_MAX_SIZE / 8) * 2];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(in, 0x11, sizeof(in));
+    XMEMSET(out, 0, sizeof(out));
+
+    if (wc_InitRsaKey(&key, NULL) != 0) {
+        WB_NOTE("wc_InitRsaKey failed; oversized-modulus guard skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    /* n = 2^(RSA_MAX_SIZE + 64) - 1: strictly wider than the build maximum. */
+    if (mp_2expt(&key.n, RSA_MAX_SIZE + 64) == MP_OKAY) {
+        (void)RsaPublicEncryptEx(in, (word32)sizeof(in), out,
+            (word32)sizeof(out), &key, RSA_PUBLIC_ENCRYPT, RSA_BLOCK_TYPE_2,
+            WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0,
+            NULL);
+    }
+    else {
+        WB_NOTE("mp_2expt failed; oversized-modulus guard skipped");
+    }
+    wc_FreeRsaKey(&key);
+    WB_NOTE("RsaPublicEncryptEx oversized-modulus guard exercised");
+}
+#else
+static void wb_public_encrypt_size_guard(void)
+{
+    WB_NOTE("public encrypt unavailable; oversized-modulus guard skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 17: RsaPrivateDecryptEx() output-length guard (line 4094).
+ *
+ *   if (rsa_type == RSA_PUBLIC_DECRYPT && ret > (int)outLen)
+ *
+ * The recovered message length is only re-checked against outLen on the
+ * PUBLIC-decrypt (signature verify) path, and only trips when the caller's
+ * buffer is smaller than the recovered message -- a combination no ordinary
+ * verify produces, since callers size the buffer from the key. Signing a
+ * 64-byte payload and verifying it into a 16-byte buffer gives the (T,T) row;
+ * the same verify into a full-size buffer gives (T,F) and a private decrypt
+ * gives (F,-). All three live in this binary, which is what MC/DC needs.
+ * ------------------------------------------------------------------------- */
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+static void wb_private_decrypt_outlen(void)
+{
+    RsaKey key;
+    WC_RNG rng;
+    byte   msg[64];
+    byte   sig[512];
+    byte   big[512];
+    byte   small[16];
+    int    sigSz;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(msg, 0x33, sizeof(msg));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; outLen guard skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_InitRsaKey(&key, NULL) != 0) {
+        wc_FreeRng(&rng);
+        WB_NOTE("wc_InitRsaKey failed; outLen guard skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng) != 0) {
+        WB_NOTE("wc_MakeRsaKey(2048) failed; outLen guard skipped");
+        wc_FreeRsaKey(&key);
+        wc_FreeRng(&rng);
+        return;
+    }
+#ifdef WC_RSA_BLINDING
+    (void)wc_RsaSetRNG(&key, &rng);
+#endif
+
+    sigSz = wc_RsaSSL_Sign(msg, (word32)sizeof(msg), sig, (word32)sizeof(sig),
+        &key, &rng);
+    if (sigSz > 0) {
+        /* (T,T): recovered 64 bytes will not fit in 16 */
+        (void)wc_RsaSSL_Verify(sig, (word32)sigSz, small,
+            (word32)sizeof(small), &key);
+        /* (T,F): same verify with room to spare */
+        (void)wc_RsaSSL_Verify(sig, (word32)sigSz, big, (word32)sizeof(big),
+            &key);
+        /* (F,-): the private-decrypt path never consults outLen here */
+        {
+            byte ct[512];
+            int  ctSz = wc_RsaPublicEncrypt(msg, (word32)sizeof(msg), ct,
+                (word32)sizeof(ct), &key, &rng);
+            if (ctSz > 0) {
+                (void)wc_RsaPrivateDecrypt(ct, (word32)ctSz, big,
+                    (word32)sizeof(big), &key);
+            }
+        }
+    }
+    else {
+        WB_NOTE("wc_RsaSSL_Sign failed; outLen guard vectors skipped");
+    }
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    WB_NOTE("RsaPrivateDecryptEx outLen guard pairs exercised");
+}
+#else
+static void wb_private_decrypt_outlen(void)
+{
+    WB_NOTE("sign/verify unavailable; outLen guard skipped");
+}
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -725,6 +940,10 @@ int main(void)
     wb_rsa_function_nonblock();
     wb_pub_privkey_decode_raw();
     wb_rsa_set_nonblock_time();
+    wb_unpad_oaep_guard();
+    wb_unpad_pss_saltlen();
+    wb_public_encrypt_size_guard();
+    wb_private_decrypt_outlen();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */

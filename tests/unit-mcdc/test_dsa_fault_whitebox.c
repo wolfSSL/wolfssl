@@ -90,6 +90,45 @@
  * FALSE. See the file header. */
 #include "mcdc_fault_mp.h"
 
+/* ---- narrow, opt-in mp_init_multi fault -------------------------------
+ * mcdc_fault_mp.h leaves mp_init/mp_init_multi alone by default (its
+ * MCDC_FM_WITH_INIT block), because dsa.c has three call sites that assign
+ * the init result straight into `err` and then run a cleanup that clears
+ * objects a failed init never constructed (:147 is safe -- it returns
+ * immediately -- but wc_MakeDsaKey :281 and wc_MakeDsaParameters :423 would
+ * mp_clear() an uninitialised stack/heap mp_int and segfault).
+ *
+ * The two entry points below are the exception: wc_DsaSign_ex (:843/:845) and
+ * wc_DsaVerify_ex (:1195) MAP a failed init to MP_INIT_E and every one of
+ * their cleanup guards test ret against the init and memory error codes
+ * precisely so the clear is skipped. Those guards' MP_INIT_E halves are
+ * therefore only reachable by failing THEIR init, and doing so is crash-safe.
+ *
+ * So instead of turning MCDC_FM_WITH_INIT on globally (which would arm the
+ * three unsafe sites too), this TU installs its own counter-based interposer
+ * and arms it only around Sign / Verify. Same monotone semantics as the
+ * shared levers: wb_fmi_arm(n) fails the n-th mp_init_multi and every later
+ * one, so exactly one init position is exercised per armed call. */
+static long wb_fmi_count   = 0;
+static long wb_fmi_fail_at = 0;
+
+static int wb_fm_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d,
+                            mp_int* e, mp_int* f)
+{
+    wb_fmi_count++;
+    if ((wb_fmi_fail_at != 0) && (wb_fmi_count >= wb_fmi_fail_at))
+        return MP_VAL;
+    return mp_init_multi(a, b, c, d, e, f);
+}
+
+static void wb_fmi_arm(long n)   { wb_fmi_count = 0; wb_fmi_fail_at = n; }
+static void wb_fmi_disarm(void)  { wb_fmi_count = 0; wb_fmi_fail_at = 0; }
+static long wb_fmi_seen(void)    { return wb_fmi_count; }
+
+#undef  mp_init_multi
+#define mp_init_multi(a, b, c, d, e, f) \
+    wb_fm_init_multi((a), (b), (c), (d), (e), (f))
+
 #include <wolfcrypt/src/dsa.c>
 
 #include "mcdc_fault_alloc.h"
@@ -148,6 +187,13 @@ static int wb_mp_over(int elapsed)
     return elapsed;
 }
 
+/* kQ with its last hex digit changed (1 -> 3). Still > 1 and still 160 bits,
+ * so wc_DsaCheckPubKey's p/q/g/y range guards all pass, but it no longer
+ * divides p-1 -- the ONE input shape that makes (p-1) mod q non-zero at
+ * dsa.c:161. */
+static const char* kQnotDivisor =
+    "96c5390a8b612c0e422bb2b0ea194a3ec935a283";
+
 static int build_key(DsaKey* key, WC_RNG* rng)
 {
     int ret = wc_InitDsaKey(key);
@@ -156,6 +202,352 @@ static int build_key(DsaKey* key, WC_RNG* rng)
     if (ret == 0)
         ret = wc_MakeDsaKey(rng, key);
     return ret;
+}
+
+/* --------------------------------------------------------------------------
+ * CRAFTED-INPUT VECTORS
+ * --------------------------------------------------------------------------
+ * The fault levers below can only break a success chain; they cannot produce
+ * an input that is well-formed enough to reach a validation guard yet wrong in
+ * exactly the way that guard tests. dsa.c's remaining residuals are mostly of
+ * that second kind -- "q does not divide p-1", "q is negative", "r came out
+ * zero", "the caller passed x=NULL but y!=NULL" -- so each one below is a
+ * hand-built argument/key/signature that makes exactly one operand flip while
+ * its neighbours stay at the value the all-false baseline already recorded.
+ *
+ * Everything here runs DISARMED (both injectors) and every destructive edit is
+ * confined to a scratch DsaKey built for that vector alone; the shared `key`
+ * used by the sweeps is never mutated.
+ * ------------------------------------------------------------------------ */
+static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
+                       word32 digestSz)
+{
+    byte  bufA[256], bufB[256];
+    word32 szA, szB, szC;
+    int   ret;
+
+    mcdc_fa_disarm();
+    mcdc_fm_disarm();
+    wb_fmi_disarm();
+
+    /* ---- CheckDsaLN (file-static; every public caller pre-computes the
+     * (L,N) pair from a real key, so only these direct calls can drive the
+     * modLen==2048 arm's two divLen operands independently). 204 idx0/idx1. */
+    (void)CheckDsaLN(2048, 224);   /* (T,-)  -> ret 0            */
+    (void)CheckDsaLN(2048, 256);   /* (F,T)  -> ret 0            */
+    (void)CheckDsaLN(2048, 160);   /* (F,F)  -> ret -1           */
+
+#ifndef NO_DSA_PUBKEY_CHECK
+    /* ---- wc_DsaCheckPubKey with a q that does NOT divide p-1: the only way
+     * to reach 161 with err==MP_OKAY AND a non-zero remainder, i.e. the (T,T)
+     * vector both of that decision's operands need (the mp sweep supplies the
+     * (F,-) half, the good key supplies (T,F)). */
+    {
+        DsaKey bad;
+        XMEMSET(&bad, 0, sizeof(bad));
+        if (wc_InitDsaKey(&bad) == 0) {
+            if ((mp_read_radix(&bad.p, kP, MP_RADIX_HEX) == MP_OKAY) &&
+                (mp_read_radix(&bad.q, kQnotDivisor, MP_RADIX_HEX)
+                     == MP_OKAY) &&
+                (mp_read_radix(&bad.g, kG, MP_RADIX_HEX) == MP_OKAY) &&
+                /* y only has to satisfy 1 < y < p to get past the range
+                 * guards; g qualifies and saves a second constant. */
+                (mp_read_radix(&bad.y, kG, MP_RADIX_HEX) == MP_OKAY)) {
+                ret = wc_DsaCheckPubKey(&bad);
+                if (ret == 0)
+                    WB_NOTE("UNEXPECTED: q-not-divisor key accepted");
+            }
+            wc_FreeDsaKey(&bad);
+        }
+    }
+#endif
+
+    /* ---- wc_MakeDsaParameters reached with err != MP_OKAY. 518's `err !=
+     * MP_OKAY` operand is only FALSE-able from a successful run (the baseline
+     * call) and TRUE-able from a failed one; nothing in the normal campaign
+     * ever fails it, and the heap sweep cannot (see the MakeDsaParameters note
+     * further down). One armed mp step is enough and stops before the
+     * expensive prime search: index 1 is mp_read_unsigned_bin at :426, index 2
+     * is mp_rand_prime at :430. mp_init_multi at :423 has already run in both
+     * cases, so every mp_int the cleanup clears is constructed. */
+    {
+        long n;
+        for (n = 1; n <= 2; n++) {
+            DsaKey pk;
+            XMEMSET(&pk, 0, sizeof(pk));
+            if (wc_InitDsaKey(&pk) == 0) {
+                mcdc_fm_arm(n);
+                (void)wc_MakeDsaParameters(rng, 1024, &pk);
+                mcdc_fm_disarm();
+                wc_FreeDsaKey(&pk);
+            }
+        }
+    }
+
+    /* ---- _DsaImportParamsRaw with trusted == 0: the (T,T) vector of
+     * `err == MP_OKAY && !trusted` at :540. wc_DsaImportParamsRaw (used
+     * everywhere else, including by the sweeps) hard-codes trusted = 1, so
+     * only the ...RawCheck entry point can drive it. Runs one 1024-bit
+     * Miller-Rabin pass; deterministic given a fixed p. */
+    {
+        DsaKey ck;
+        XMEMSET(&ck, 0, sizeof(ck));
+        if (wc_InitDsaKey(&ck) == 0) {
+            (void)wc_DsaImportParamsRawCheck(&ck, kP, kQ, kG, 0, rng);
+            wc_FreeDsaKey(&ck);
+        }
+    }
+
+    /* ---- wc_DsaExportParamsRaw / wc_DsaExportKeyRaw argument shapes.
+     * MC/DC is judged per BINARY, so each decision's whole vector set has to
+     * be present here even when the tests/api lane already covers some rows:
+     *   658 idx2 : (T,T,T) all-NULL length query  vs (T,T,F) g non-NULL
+     *   733 idx1 : (T,T) all-NULL length query    vs (T,F) y non-NULL
+     *   739 idx0 : (T,-) from that x-NULL call    vs (F,F) a real export
+     * The (T,T,F)/(T,F) rows are the ones no ordinary caller produces. */
+    szA = szB = szC = (word32)sizeof(bufA);
+    (void)wc_DsaExportParamsRaw(key, NULL, &szA, NULL, &szB, NULL, &szC);
+    szA = szB = szC = (word32)sizeof(bufA);
+    (void)wc_DsaExportParamsRaw(key, NULL, &szA, NULL, &szB, bufA, &szC);
+
+    szA = szB = (word32)sizeof(bufA);
+    (void)wc_DsaExportKeyRaw(key, NULL, &szA, NULL, &szB);
+    szA = szB = (word32)sizeof(bufA);
+    (void)wc_DsaExportKeyRaw(key, NULL, &szA, bufB, &szB);
+    szA = szB = (word32)sizeof(bufA);
+    (void)wc_DsaExportKeyRaw(key, bufA, &szA, bufB, &szB);
+
+    /* ---- wc_DsaSign_ex with a NEGATIVE q: 887's `mp_isneg(qMinus1)` operand
+     * is unreachable from any non-negative q (q-1 is then zero or positive,
+     * and q==0 exits earlier at the halfSz==0 guard because
+     * mp_unsigned_bin_size(0) is 0). Negating q keeps |q| 20 bytes so halfSz
+     * stays 20 and execution reaches 887 with q-1 = -(q+1): non-zero AND
+     * negative, i.e. the (F,T) vector.
+     *
+     * Whether a math backend represents negatives at all is a build property
+     * (sp_int only carries a sign field under WOLFSSL_SP_INT_NEGATIVE), so the
+     * negation is checked at run time and the vector skipped when the backend
+     * saturates at zero -- a build-determined, not load-determined, choice. */
+    {
+        DsaKey nk;
+        mp_int  zero[1];
+        mp_int  neg[1];
+        XMEMSET(&nk, 0, sizeof(nk));
+        XMEMSET(zero, 0, sizeof(zero));
+        XMEMSET(neg, 0, sizeof(neg));
+        if (wc_InitDsaKey(&nk) == 0) {
+            if ((wc_DsaImportParamsRaw(&nk, kP, kQ, kG) == 0) &&
+                (mp_init_multi(zero, neg, NULL, NULL, NULL, NULL) == MP_OKAY)) {
+                /* distinct destination: aliasing the result over an input of
+                 * mp_sub is not guaranteed across the three math backends. */
+                int e1 = mp_set(zero, 0);
+                int e2 = (e1 == MP_OKAY) ? mp_sub(zero, &nk.q, neg) : e1;
+                if ((e2 == MP_OKAY) && mp_isneg(neg) && !mp_iszero(neg) &&
+                    (mp_copy(neg, &nk.q) == MP_OKAY) && mp_isneg(&nk.q)) {
+                    byte sigN[DSA_MAX_HALF_SIZE * 2];
+                    XMEMSET(sigN, 0, sizeof(sigN));
+                    (void)wc_DsaSign_ex(digest, digestSz, sigN, &nk, rng);
+                }
+                else {
+                    /* Expected for every WOLFSSL_SP_INT_NEGATIVE-less build:
+                     * sp_int.h then #defines mp_isneg(a) to the constant (0),
+                     * so 887's second operand cannot be TRUE there at all. */
+                    printf("  [wb] no negative mp_int (set=%d sub=%d neg=%d "
+                           "zero=%d): 887 idx1 skipped\n",
+                           e1, e2, (int)mp_isneg(neg), (int)mp_iszero(neg));
+                }
+                mp_clear(neg);
+                mp_clear(zero);
+            }
+            wc_FreeDsaKey(&nk);
+        }
+    }
+
+    /* ---- wc_DsaSign_ex zero-r / zero-s: 1050's two operands. wc_DsaSign_ex
+     * does NOT validate the key (only wc_DsaVerify_ex does), so a params-only
+     * key -- x and y still zero from wc_InitDsaKey -- is accepted:
+     *   x == 0 and an all-zero digest  => H == 0, s = (H + x.r)/k == 0 with r
+     *                                     non-zero              -> (F,T)
+     *   g == 0                          => r = 0^k mod p mod q == 0 -> (T,-)
+     * Both are the same scratch key, edited in place between the two calls. */
+    {
+        DsaKey zk;
+        XMEMSET(&zk, 0, sizeof(zk));
+        if (wc_InitDsaKey(&zk) == 0) {
+            if (wc_DsaImportParamsRaw(&zk, kP, kQ, kG) == 0) {
+                byte zdig[WC_SHA_DIGEST_SIZE];
+                byte sigZ[DSA_MAX_HALF_SIZE * 2];
+                XMEMSET(zdig, 0, sizeof(zdig));
+                XMEMSET(sigZ, 0, sizeof(sigZ));
+                (void)wc_DsaSign_ex(zdig, sizeof(zdig), sigZ, &zk, rng);
+                if (mp_set(&zk.g, 0) == MP_OKAY) {
+                    XMEMSET(sigZ, 0, sizeof(sigZ));
+                    (void)wc_DsaSign_ex(digest, digestSz, sigZ, &zk, rng);
+                }
+            }
+            wc_FreeDsaKey(&zk);
+        }
+    }
+
+    /* ---- wc_DsaVerify_ex signature sanity check at 1214: four operands, each
+     * needing one crafted 2*qSz signature that trips exactly it while the
+     * earlier ones stay FALSE. The good key's q is 160 bits, so 0xff.. is
+     * >= q and 0x00..01 is a valid non-zero value below it. The valid-
+     * signature call in the baseline supplies the all-FALSE row. */
+    {
+        int    qSz = mp_unsigned_bin_size(&key->q);
+        if ((qSz > 0) && ((size_t)(2 * qSz) <= sizeof(bufA))) {
+            int    a = 0;
+            int    v;
+            /* [0]=r zero, [1]=s zero, [2]=r >= q, [3]=s >= q */
+            for (v = 0; v < 4; v++) {
+                XMEMSET(bufA, 0, (size_t)(2 * qSz));
+                /* default both halves to a valid non-zero value < q */
+                bufA[qSz - 1]     = 0x01;
+                bufA[2 * qSz - 1] = 0x01;
+                switch (v) {
+                    case 0: bufA[qSz - 1] = 0x00; break;
+                    case 1: bufA[2 * qSz - 1] = 0x00; break;
+                    case 2: XMEMSET(bufA, 0xff, (size_t)qSz); break;
+                    default: XMEMSET(bufA + qSz, 0xff, (size_t)qSz); break;
+                }
+                (void)wc_DsaVerify_ex(digest, digestSz, bufA, key, &a);
+            }
+        }
+    }
+
+    /* ---- MP_INIT_E cleanup halves (Sign 1068/1074/1080/1086/1092/1099,
+     * Verify 1274/1279/1284/1289/1294/1299). See the wb_fm_init_multi note:
+     * these two entry points map a failed mp_init_multi to MP_INIT_E and their
+     * cleanups deliberately skip the clear in that case, so failing THEIR init
+     * is both the only way in and crash-safe.
+     *
+     * Sign's init is the first one it performs, so index 1. Verify's is the
+     * LAST one it performs (wc_DsaCheckPubKey runs first and does its own), so
+     * the index is measured with a disarmed call instead of hard-coded -- that
+     * keeps the vector correct under NO_DSA_PUBKEY_CHECK too. */
+    {
+        byte sigI[DSA_MAX_HALF_SIZE * 2];
+        int  a = 0;
+        long inits;
+
+        XMEMSET(sigI, 0, sizeof(sigI));
+        wb_fmi_arm(1);
+        (void)wc_DsaSign_ex(digest, digestSz, sigI, key, rng);
+        wb_fmi_disarm();
+
+        /* count, disarmed, then re-run failing the last init seen */
+        wb_fmi_arm(0);
+        (void)wc_DsaVerify_ex(digest, digestSz, sigI, key, &a);
+        inits = wb_fmi_seen();
+        wb_fmi_disarm();
+        if (inits > 0) {
+            wb_fmi_arm(inits);
+            (void)wc_DsaVerify_ex(digest, digestSz, sigI, key, &a);
+            wb_fmi_disarm();
+        }
+    }
+
+    /* ---- wc_MakeDsaParameters tmp/tmp2 heap guard at 415 (WOLFSSL_SMALL_STACK
+     * only). A plain fail-index sweep cannot reach it: buf is allocation #1 but
+     * the wc_RNG_GenerateBlock at :400 sits between buf and tmp and performs a
+     * build-dependent number of allocations of its own, so every index in that
+     * band returns the RNG's error and masks the MEMORY_E under test.
+     *
+     * Self-calibrate instead of guessing the offset: walk the index upward and
+     * watch the RETURN CODE. Below tmp the call dies inside the RNG with some
+     * other error; the first index that yields MEMORY_E past index 1 is tmp
+     * (415 idx0 TRUE), and the next one is tmp2 (415 idx0 FALSE, idx1 TRUE,
+     * and -- since tmp is then non-NULL -- the only vector that reaches 501
+     * with err set to the memory error, closing 501 idx1). Every armed call
+     * aborts before
+     * mp_rand_prime, so the walk is cheap.
+     *
+     * Bounded by a vector COUNT, never by a clock: a fixed six-vector window
+     * around the measured offset, so two sweeps of an unchanged tree fire the
+     * same calls in the same order. */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(MCDC_FA_UNAVAILABLE)
+    {
+        /* The RETURN CODE says which allocation was hit, so the offset does
+         * not have to be predicted: anything faulted inside
+         * wc_RNG_GenerateBlock surfaces as the RNG's own failure code, while
+         * only buf (#1), tmp and tmp2 yield MEMORY_E. Starting at #2 (past
+         * buf), the first MEMORY_E is tmp -- 415 idx0 TRUE -- and the second is
+         * tmp2 -- 415 idx0 FALSE + idx1 TRUE, and the only vector that reaches
+         * 501 with err set to the memory error, since tmp is non-NULL only there.
+         *
+         * Every armed call in the walk aborts before mp_rand_prime, so the
+         * whole thing is cheap. Bound is a fixed vector COUNT (never a clock):
+         * at most WB_MDP_CAP calls, stopping as soon as the pair is seen. */
+        /* Each armed call gets its OWN WC_RNG, built while disarmed. Faulting
+         * an allocation inside wc_RNG_GenerateBlock leaves the Hash_DRBG in
+         * its permanent DRBG_FAILED state, so a shared generator would answer
+         * RNG_FAILURE_E to every later index and the walk would never get past
+         * the RNG band (observed: every index 2..96 returning -199). */
+#define WB_MDP_CAP 96
+        int n, hits = 0;
+
+        for (n = 2; (n <= WB_MDP_CAP) && (hits < 2); n++) {
+            DsaKey pk;
+            WC_RNG lrng;
+            int    r2;
+            XMEMSET(&pk, 0, sizeof(pk));
+            XMEMSET(&lrng, 0, sizeof(lrng));
+            if (wc_InitRng(&lrng) != 0)
+                break;
+            if (wc_InitDsaKey(&pk) != 0) {
+                wc_FreeRng(&lrng);
+                break;
+            }
+            mcdc_fa_arm(n);
+            r2 = wc_MakeDsaParameters(&lrng, 1024, &pk);
+            mcdc_fa_disarm();
+            wc_FreeDsaKey(&pk);
+            wc_FreeRng(&lrng);
+            if (r2 == WC_NO_ERR_TRACE(MEMORY_E))
+                hits++;
+            else if (hits > 0)
+                break;      /* walked past the adjacent tmp/tmp2 pair */
+        }
+        printf("  [wb] MakeDsaParameters heap walk: %d/2 MEMORY_E positions"
+               " in %d vectors\n", hits, n - 2);
+    }
+#endif
+
+    /* ---- wc_DsaVerify_ex 1274 idx1 (the memory-error operand FALSE). See
+     * mcdc_fa_arm_only() note in mcdc_fault_alloc.h: s is the LAST of the six
+     * temporaries, so a monotone fail-from-n can never leave s non-NULL while
+     * ret is MEMORY_E, and `if (s)` gates the decision. A one-shot fault on
+     * verify's FIRST temporary (w) gives exactly that vector.
+     *
+     * Verify's own allocations start after wc_DsaCheckPubKey's, so the offset
+     * is measured rather than assumed: arm past any plausible count, run the
+     * pubkey check alone, and read the counter. That count is RNG-free and
+     * therefore identical on every run of the same build. */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(MCDC_FA_UNAVAILABLE)
+    {
+        unsigned long checkAllocs = 0;
+        int a = 0;
+        int i;
+#ifndef NO_DSA_PUBKEY_CHECK
+        mcdc_fa_arm(1000000);
+        (void)wc_DsaCheckPubKey(key);
+        checkAllocs = mcdc_fa_count;
+        mcdc_fa_disarm();
+#endif
+        /* w u1 u2 v r are all "not s"; failing any one of them reaches 1274
+         * with s allocated. Six vectors bracket the boundary by one. */
+        for (i = 0; i < 6; i++) {
+            mcdc_fa_arm_only((int)checkAllocs + 1 + i);
+            (void)wc_DsaVerify_ex(digest, digestSz, bufB, key, &a);
+            mcdc_fa_disarm();
+        }
+    }
+#endif
+
+    WB_NOTE("crafted-input vectors done");
+    (void)ret;
 }
 
 int main(int argc, char** argv)
@@ -241,6 +633,12 @@ int main(int argc, char** argv)
             wc_FreeDsaKey(&pk);
         }
     }
+
+    /* Crafted-input vectors: independent of the injectors (they run disarmed),
+     * so they belong to BOTH modes -- the "baseline" mode still has to compile
+     * and execute them or the delta measurement would attribute their wins to
+     * the fault levers. */
+    wb_crafted(&rng, &key, digest, (word32)sizeof(digest));
 
     if (do_sweep) {
         /* --- wc_DsaSign_ex: 6-7 XMALLOCs up front (k,kInv,r,s,H,[b],buffer),

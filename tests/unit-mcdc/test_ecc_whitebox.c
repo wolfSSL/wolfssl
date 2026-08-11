@@ -39,6 +39,20 @@
  * context). See RESIDUALS.md for everything else.
  */
 
+/* ecc.c refuses the AES-GCM ECIES DEM in the default IV mode unless one of
+ * WOLFSSL_ECIES_OLD / _GEN_IV / _STATIC_GCM_NONCE is set, so without an opt-in
+ * every GCM call returns NOT_COMPILED_IN before reaching ecc_is_gcm's callers
+ * (15809 / 16157) and their operands stay unreachable in every variant. This
+ * TU compiles its OWN instrumented copy of ecc.c and links against the library
+ * with ecc.o removed, so the opt-in is local to the white-box binary: it does
+ * not change the library under test, and it touches nothing outside ecc.c
+ * (the macro appears in no header, so no shared type or layout moves). The
+ * campaign unions MC/DC per source line, which is exactly how a white-box is
+ * meant to add rows the native variants cannot produce. */
+#ifndef WOLFSSL_ECIES_STATIC_GCM_NONCE
+    #define WOLFSSL_ECIES_STATIC_GCM_NONCE
+#endif
+
 /* Pull ecc.c in verbatim so the file-static helpers below are in scope and
  * instrumented in THIS binary. ecc.c includes settings.h (which picks up
  * user_settings.h via -DWOLFSSL_USER_SETTINGS) and ecc.h itself. */
@@ -1792,6 +1806,667 @@ static void wb_arg_guards(void)
     }
 }
 
+/* ------------------------------------------------------------------------- *
+ * Pass 2: argument/state shapes that no ordinary caller produces.
+ *
+ * Same rule as everywhere else in this file -- MC/DC is judged per BINARY, so
+ * each decision's accepting vector is issued here next to its rejecting one
+ * even when the tests/api lane already covers the accepting side.
+ * ------------------------------------------------------------------------- */
+static void wb_gap_pass2(void)
+{
+    WC_RNG rng;
+    ecc_key key;
+    ecc_key peer;
+    byte    buf[256];
+    word32  bufLen;
+    int     haveKey = 0, havePeer = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&peer, 0, sizeof(peer));
+    /* NOT all-zero: ecc.c rejects an all-zero digest (WC_ALLOW_ECC_ZERO_HASH
+     * is off) several lines BEFORE the key-type guard at 7672, so a zeroed
+     * buffer never reaches it. */
+    XMEMSET(buf, 0xa7, sizeof(buf));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; wb_gap_pass2 skipped");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_ecc_init(&key) == 0)
+        haveKey = (wc_ecc_make_key_ex(&rng, 0, &key, ECC_SECP256R1) == 0);
+    if (wc_ecc_init(&peer) == 0)
+        havePeer = (wc_ecc_make_key_ex(&rng, 0, &peer, ECC_SECP256R1) == 0);
+    if (!haveKey || !havePeer) {
+        WB_NOTE("key setup failed; wb_gap_pass2 skipped");
+        wb_fail = 1;
+        wc_ecc_free(&peer);
+        wc_ecc_free(&key);
+        wc_FreeRng(&rng);
+        return;
+    }
+
+    /* ---- wc_ecc_sign_hash_ex key-type guard (7672)
+     *   if (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY)
+     * A signing key is by construction one of the two accepted types, so the
+     * rejecting rows only exist if the type is set by hand. */
+    {
+        int    savedType = key.type;
+        mp_int r, s;
+
+        XMEMSET(&r, 0, sizeof(r));
+        XMEMSET(&s, 0, sizeof(s));
+#if defined(HAVE_ECC_SIGN)
+        if ((mp_init(&r) == MP_OKAY) && (mp_init(&s) == MP_OKAY)) {
+            key.type = ECC_PUBLICKEY;         /* (T,T) -> rejected     */
+            (void)wc_ecc_sign_hash_ex(buf, 32, &rng, &key, &r, &s);
+            key.type = ECC_PRIVATEKEY_ONLY;   /* (T,F) -> accepted     */
+            (void)wc_ecc_sign_hash_ex(buf, 32, &rng, &key, &r, &s);
+            key.type = ECC_PRIVATEKEY;        /* (F,-) -> accepted     */
+            (void)wc_ecc_sign_hash_ex(buf, 32, &rng, &key, &r, &s);
+            mp_free(&s);
+            mp_free(&r);
+        }
+#endif /* HAVE_ECC_SIGN */
+        key.type = savedType;
+    }
+
+    /* ---- wc_ecc_shared_secret private-key-type guard (4792) and the
+     * PUBLIC half of the idx/dp chain (4806 idx2/idx3). wb_arg_guards above
+     * already drives idx0/idx1 by corrupting the key it passes as BOTH
+     * arguments; a separate peer key is needed to leave the private side
+     * valid and break only the public one. */
+#ifdef HAVE_ECC_DHE
+    {
+        int savedType = key.type;
+        int savedIdx  = peer.idx;
+        const ecc_set_type* savedDp = peer.dp;
+
+        PRIVATE_KEY_UNLOCK();
+
+        key.type = ECC_PRIVATEKEY;            /* 4792 (T,-)            */
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &peer, buf, &bufLen);
+        key.type = ECC_PRIVATEKEY_ONLY;       /* 4792 (F,T)            */
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &peer, buf, &bufLen);
+        key.type = ECC_PUBLICKEY;             /* 4792 (F,F) -> reject  */
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &peer, buf, &bufLen);
+        key.type = savedType;
+
+        peer.idx = ECC_CUSTOM_IDX - 1;        /* 4806 (F,F,T,-)        */
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &peer, buf, &bufLen);
+        peer.idx = savedIdx;
+
+        peer.dp = NULL;                       /* 4806 (F,F,F,T)        */
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&key, &peer, buf, &bufLen);
+        peer.dp = savedDp;
+
+        bufLen = (word32)sizeof(buf);         /* 4806 (F,F,F,F)        */
+        (void)wc_ecc_shared_secret(&key, &peer, buf, &bufLen);
+
+        PRIVATE_KEY_LOCK();
+    }
+#endif /* HAVE_ECC_DHE */
+
+    /* ---- wc_ecc_make_pub state promotion (5768)
+     *   if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL)
+     * wb_make_pub_privatekey_only supplies (T,T); the (F,-) row needs a key
+     * that already holds its public point, i.e. a plain ECC_PRIVATEKEY. */
+#if defined(HAVE_ECC_MAKE_PUB) || !defined(WOLFSSL_ATECC508A)
+    {
+        int        savedType = key.type;
+        ecc_point* pubPt = wc_ecc_new_point();
+
+        /* (T,T): pubOut == NULL. Note ecc_make_pub_ex FORCES
+         * key->type = ECC_PRIVATEKEY_ONLY on its way in whenever pubOut is
+         * NULL, so this row cannot be varied -- with a NULL pubOut the first
+         * operand is always TRUE. */
+        (void)wc_ecc_make_pub(&key, NULL);
+
+        /* (F,-): the only way to reach the guard with the first operand
+         * FALSE is a NON-NULL pubOut (which leaves key->type alone) on a key
+         * that is a full ECC_PRIVATEKEY. Every API caller passes NULL, which
+         * is why this row is missing from the campaign. */
+        if (pubPt != NULL) {
+            key.type = ECC_PRIVATEKEY;
+            (void)wc_ecc_make_pub(&key, pubPt);
+            wc_ecc_del_point(pubPt);
+        }
+        key.type = savedType;
+    }
+#endif
+
+    /* ---- _ecc_import_x963_ex2 point-type guard (11485)
+     *   if (pointType != 4 && pointType != 2 && pointType != 3)
+     * Every real X9.63 blob starts 0x04 (or 0x02/0x03 when compressed), so
+     * the all-TRUE row needs a hand-made prefix. One call per operand:
+     *   0x05 -> (T,T,T) reject, 0x04 -> (F,-), 0x02 -> (T,F,-),
+     *   0x03 -> (T,T,F). */
+#ifdef HAVE_ECC_KEY_EXPORT
+    {
+        word32 xLen = (word32)sizeof(buf);
+
+        if (wc_ecc_export_x963(&key, buf, &xLen) == 0) {
+            static const byte prefixes[4] = { 0x05, 0x04, 0x02, 0x03 };
+            int i;
+
+            for (i = 0; i < 4; i++) {
+                ecc_key imp;
+                XMEMSET(&imp, 0, sizeof(imp));
+                if (wc_ecc_init(&imp) != 0)
+                    break;
+                buf[0] = prefixes[i];
+                (void)_ecc_import_x963_ex2(buf, xLen, &imp, ECC_SECP256R1, 0);
+                wc_ecc_free(&imp);
+            }
+        }
+        else {
+            WB_NOTE("wc_ecc_export_x963 failed; 11485 vectors skipped");
+        }
+    }
+#endif /* HAVE_ECC_KEY_EXPORT */
+
+    /* ---- wc_X963_KDF X9.63 hash whitelist (17023). Five operands, so five
+     * accepted algorithms plus one rejected one; only the SHA224 and SHA384
+     * rows are missing from ordinary use (the KDF is always driven with
+     * SHA-256 in ECIES). */
+#ifdef HAVE_X963_KDF
+    {
+        static const byte secret[32] = { 0 };
+        byte out[32];
+
+        (void)wc_X963_KDF(WC_HASH_TYPE_SHA, secret, sizeof(secret), NULL, 0,
+            out, sizeof(out));
+#ifdef WOLFSSL_SHA224
+        (void)wc_X963_KDF(WC_HASH_TYPE_SHA224, secret, sizeof(secret), NULL, 0,
+            out, sizeof(out));
+#endif
+        (void)wc_X963_KDF(WC_HASH_TYPE_SHA256, secret, sizeof(secret), NULL, 0,
+            out, sizeof(out));
+#ifdef WOLFSSL_SHA384
+        (void)wc_X963_KDF(WC_HASH_TYPE_SHA384, secret, sizeof(secret), NULL, 0,
+            out, sizeof(out));
+#endif
+#ifdef WOLFSSL_SHA512
+        (void)wc_X963_KDF(WC_HASH_TYPE_SHA512, secret, sizeof(secret), NULL, 0,
+            out, sizeof(out));
+#endif
+        /* all five operands TRUE */
+        (void)wc_X963_KDF(WC_HASH_TYPE_MD5, secret, sizeof(secret), NULL, 0,
+            out, sizeof(out));
+    }
+#endif /* HAVE_X963_KDF */
+
+    /* ---- wc_ecc_is_point coordinate range guards (10836 / 10843)
+     *   if ((mp_cmp(ecp->x, prime) != MP_LT) || mp_isneg(ecp->x))
+     * The public import paths reduce/reject out-of-range coordinates before
+     * building a point, so only a hand-built point reaches these with a
+     * coordinate >= p. (The mp_isneg operand of each is a separate matter --
+     * see the residual note in the campaign report.) */
+    {
+        mp_int prime, af, bf;
+        ecc_point* pt = wc_ecc_new_point();
+
+        XMEMSET(&prime, 0, sizeof(prime));
+        XMEMSET(&af, 0, sizeof(af));
+        XMEMSET(&bf, 0, sizeof(bf));
+
+        if ((pt != NULL) && (key.dp != NULL) &&
+            (mp_init(&prime) == MP_OKAY) && (mp_init(&af) == MP_OKAY) &&
+            (mp_init(&bf) == MP_OKAY) &&
+            (mp_read_radix(&prime, key.dp->prime, 16) == MP_OKAY) &&
+            (mp_read_radix(&af, key.dp->Af, 16) == MP_OKAY) &&
+            (mp_read_radix(&bf, key.dp->Bf, 16) == MP_OKAY) &&
+            (wc_ecc_copy_point(&key.pubkey, pt) == MP_OKAY)) {
+
+            /* all-false row: the key's own (valid, in-range, affine) point */
+            (void)wc_ecc_is_point(pt, &af, &bf, &prime);
+
+            /* x = p  -> 10836 (T,-) */
+            if (mp_copy(&prime, pt->x) == MP_OKAY)
+                (void)wc_ecc_is_point(pt, &af, &bf, &prime);
+
+            /* restore x, then y = p -> 10843 (T,-) */
+            if ((wc_ecc_copy_point(&key.pubkey, pt) == MP_OKAY) &&
+                (mp_copy(&prime, pt->y) == MP_OKAY))
+                (void)wc_ecc_is_point(pt, &af, &bf, &prime);
+        }
+        else {
+            WB_NOTE("wc_ecc_is_point range vectors skipped (setup)");
+        }
+
+        mp_free(&bf);
+        mp_free(&af);
+        mp_free(&prime);
+        if (pt != NULL)
+            wc_ecc_del_point(pt);
+    }
+
+    /* ---- wc_ecc_free custom-curve teardown (8611)
+     *   if (key->deallocSet && key->dp != NULL)
+     * deallocSet is only ever set by wc_ecc_set_custom_curve, which sets dp in
+     * the same breath, so the (T,F) row cannot arise from the API. Setting the
+     * flag by hand on a dp-less key is safe precisely because the guard is
+     * what stops the free. */
+    {
+        ecc_key k3;
+
+        /* (T,F): flag set, dp already NULL. Safe precisely because the guard
+         * is what stops wc_ecc_free_curve from running. */
+        XMEMSET(&k3, 0, sizeof(k3));
+        if (wc_ecc_init(&k3) == 0) {
+            k3.deallocSet = 1;
+            k3.dp = NULL;
+            wc_ecc_free(&k3);
+        }
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+        /* (T,T): the shape asn.c builds when it decodes a certificate with an
+         * EXPLICIT (specified) curve -- a heap ecc_set_type owned by the key.
+         * wc_ecc_free_curve XFREEs each string field only when non-NULL and
+         * then the struct itself, so an all-zero record allocated from the
+         * same pool is exactly what it expects. No public API produces this
+         * state, which is why the row is missing everywhere else. */
+        XMEMSET(&k3, 0, sizeof(k3));
+        if (wc_ecc_init(&k3) == 0) {
+            ecc_set_type* dyn = (ecc_set_type*)XMALLOC(sizeof(*dyn), NULL,
+                DYNAMIC_TYPE_ECC_BUFFER);
+            if (dyn != NULL) {
+                XMEMSET(dyn, 0, sizeof(*dyn));
+                k3.dp = dyn;
+                k3.deallocSet = 1;
+            }
+            wc_ecc_free(&k3);
+        }
+#endif
+    }
+
+    wc_ecc_free(&peer);
+    wc_ecc_free(&key);
+    wc_FreeRng(&rng);
+    WB_NOTE("pass-2 argument/state gap vectors done");
+}
+
+/* ------------------------------------------------------------------------- *
+ * Custom-curve dispatch guards.
+ *
+ * ecc.c dispatches to the accelerated single-precision routines with
+ *     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == <curve>)
+ * repeated for each SP-supported curve (make_pub 5599, uncompress 10221 /
+ * 10242, order check 11144 / 11165, on-curve check 11728, plus the pubkey
+ * copy at 7314). Nothing in the API test set builds a CUSTOM-curve key, so
+ * the first operand is never FALSE; and where only one SP curve is compiled
+ * in, the second operand is never FALSE either unless a key on a DIFFERENT
+ * standard curve is put through the same call.
+ *
+ * This runs each of those entry points three times: on a custom curve (idx ==
+ * ECC_CUSTOM_IDX), on SECP256R1, and on the largest other standard curve
+ * available. The custom curve is a verbatim copy of a standard curve's
+ * parameters with oidSz zeroed so wc_ecc_get_curve_idx_from_params cannot
+ * fold it back onto the table entry.
+ * ------------------------------------------------------------------------- */
+#ifdef WOLFSSL_CUSTOM_CURVES
+static void wb_custom_curve_dispatch(void)
+{
+    WC_RNG rng;
+    ecc_key ck;
+    ecc_key sk;
+    ecc_set_type custom;
+    const ecc_set_type* base = NULL;
+    int    idx;
+    byte   buf[256];
+    word32 bufLen;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ck, 0, sizeof(ck));
+    XMEMSET(&sk, 0, sizeof(sk));
+    XMEMSET(&custom, 0, sizeof(custom));
+    XMEMSET(buf, 0, sizeof(buf));
+
+    idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    if (idx < 0) {
+        WB_NOTE("SECP256R1 not in ecc_sets[]; custom-curve pass skipped");
+        return;
+    }
+    base = &ecc_sets[idx];
+    /* A verbatim copy of a real curve's parameters is enough: what makes this
+     * a "custom" key is wc_ecc_set_custom_curve setting key->idx to
+     * ECC_CUSTOM_IDX, and wc_ecc_set_curve deliberately leaves that alone on
+     * every later call. Every dispatch guard below then short-circuits on its
+     * FIRST operand, which is exactly the row that is missing -- and it is
+     * also what keeps `ecc_sets[key->idx]` from being indexed with
+     * ECC_CUSTOM_IDX. Copying real parameters (rather than inventing them)
+     * keeps the key usable, so the calls run to completion instead of
+     * bailing out early. */
+    custom = *base;
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; custom-curve pass skipped");
+        return;
+    }
+
+    if ((wc_ecc_init(&ck) == 0) && (wc_ecc_init(&sk) == 0) &&
+        (wc_ecc_set_custom_curve(&ck, &custom) == 0) &&
+        (wc_ecc_make_key_ex(&rng, 0, &sk, ECC_SECP256R1) == 0)) {
+
+        /* wc_ecc_make_key_ex on the custom curve keeps idx == ECC_CUSTOM_IDX
+         * and walks 5599 / 7314 with the first operand FALSE. */
+        int madeCustom = (wc_ecc_make_key_ex(&rng, base->size, &ck,
+                                             ECC_CURVE_DEF) == 0);
+
+        if (madeCustom) {
+            /* 11144 / 11165 / 11728: full public-key validation. */
+            (void)wc_ecc_check_key(&ck);
+
+            /* 7314: the ECDH/keygen path that copies custom params onto a
+             * freshly made pubkey. */
+#ifdef HAVE_ECC_DHE
+            PRIVATE_KEY_UNLOCK();
+            bufLen = (word32)sizeof(buf);
+            (void)wc_ecc_shared_secret(&ck, &ck, buf, &bufLen);
+            PRIVATE_KEY_LOCK();
+#endif
+
+#ifdef HAVE_ECC_SIGN
+            /* 7314: ecc_sign_hash_sw copies the custom parameters onto the
+             * ephemeral pubkey it builds for the nonce point. Only a SIGN with
+             * a custom-curve key reaches it. */
+            {
+                byte   dig[32];
+                byte   sig[ECC_MAX_SIG_SIZE];
+                word32 sigSz = (word32)sizeof(sig);
+                XMEMSET(dig, 0x9c, sizeof(dig));
+                XMEMSET(sig, 0, sizeof(sig));
+                (void)wc_ecc_sign_hash(dig, (word32)sizeof(dig), sig, &sigSz,
+                    &rng, &ck);
+            }
+#endif
+
+#if defined(HAVE_COMP_KEY) && defined(HAVE_ECC_KEY_EXPORT)
+            /* 10221 / 10242: the compressed-point uncompress dispatch. */
+            bufLen = (word32)sizeof(buf);
+            if (wc_ecc_export_x963_compressed(&ck, buf, &bufLen) == 0) {
+                ecc_point* pt = wc_ecc_new_point();
+                if (pt != NULL) {
+                    (void)wc_ecc_import_point_der(buf, bufLen, ck.idx, pt);
+                    wc_ecc_del_point(pt);
+                }
+            }
+#endif
+        }
+        else {
+            WB_NOTE("custom-curve key generation failed");
+        }
+
+        /* Same entry points on a STANDARD curve so each decision's (T,T)/(T,F)
+         * rows live in this binary next to the (F,-) rows. */
+        (void)wc_ecc_check_key(&sk);
+#ifdef HAVE_ECC_SIGN
+        {
+            byte   dig[32];
+            byte   sig[ECC_MAX_SIG_SIZE];
+            word32 sigSz = (word32)sizeof(sig);
+            XMEMSET(dig, 0x9c, sizeof(dig));
+            XMEMSET(sig, 0, sizeof(sig));
+            (void)wc_ecc_sign_hash(dig, (word32)sizeof(dig), sig, &sigSz, &rng,
+                &sk);
+        }
+#endif
+#ifdef HAVE_ECC_DHE
+        PRIVATE_KEY_UNLOCK();
+        bufLen = (word32)sizeof(buf);
+        (void)wc_ecc_shared_secret(&sk, &sk, buf, &bufLen);
+        PRIVATE_KEY_LOCK();
+#endif
+#if defined(HAVE_COMP_KEY) && defined(HAVE_ECC_KEY_EXPORT)
+        bufLen = (word32)sizeof(buf);
+        if (wc_ecc_export_x963_compressed(&sk, buf, &bufLen) == 0) {
+            ecc_point* pt = wc_ecc_new_point();
+            if (pt != NULL) {
+                (void)wc_ecc_import_point_der(buf, bufLen, sk.idx, pt);
+                wc_ecc_del_point(pt);
+            }
+        }
+#endif
+
+        /* And on a non-SECP256R1 standard curve, which is what makes each
+         * dispatch's `ecc_sets[idx].id == <curve>` operand FALSE with the
+         * first operand still TRUE. Prefer the largest curve compiled in so
+         * the SP_384/SP_521 arms of the same chain are reached too. */
+        {
+            static const int others[] = {
+#ifdef HAVE_ECC521
+                ECC_SECP521R1,
+#endif
+#ifdef HAVE_ECC384
+                ECC_SECP384R1,
+#endif
+#ifdef HAVE_ECC224
+                ECC_SECP224R1,
+#endif
+                ECC_SECP256R1  /* fallback: never absent, adds nothing new */
+            };
+            size_t i;
+            for (i = 0; i < sizeof(others) / sizeof(others[0]); i++) {
+                ecc_key ok;
+                XMEMSET(&ok, 0, sizeof(ok));
+                if (wc_ecc_init(&ok) != 0)
+                    break;
+                if (wc_ecc_make_key_ex(&rng, 0, &ok, (int)others[i]) == 0) {
+                    (void)wc_ecc_check_key(&ok);
+#ifdef HAVE_ECC_DHE
+                    PRIVATE_KEY_UNLOCK();
+                    bufLen = (word32)sizeof(buf);
+                    (void)wc_ecc_shared_secret(&ok, &ok, buf, &bufLen);
+                    PRIVATE_KEY_LOCK();
+#endif
+#if defined(HAVE_COMP_KEY) && defined(HAVE_ECC_KEY_EXPORT)
+                    bufLen = (word32)sizeof(buf);
+                    if (wc_ecc_export_x963_compressed(&ok, buf, &bufLen) == 0) {
+                        ecc_point* pt = wc_ecc_new_point();
+                        if (pt != NULL) {
+                            (void)wc_ecc_import_point_der(buf, bufLen, ok.idx,
+                                pt);
+                            wc_ecc_del_point(pt);
+                        }
+                    }
+#endif
+                }
+                wc_ecc_free(&ok);
+            }
+        }
+    }
+    else {
+        WB_NOTE("custom-curve setup failed; pass skipped");
+    }
+
+    wc_ecc_free(&sk);
+    wc_ecc_free(&ck);
+    wc_FreeRng(&rng);
+    WB_NOTE("custom-curve dispatch vectors done");
+}
+#else
+static void wb_custom_curve_dispatch(void)
+{
+    WB_NOTE("WOLFSSL_CUSTOM_CURVES off; custom-curve dispatch skipped");
+}
+#endif /* WOLFSSL_CUSTOM_CURVES */
+
+/* ------------------------------------------------------------------------- *
+ * ECIES AES-GCM cluster (15269 / 15809 / 16157 / 16221).
+ *
+ * ecc_is_gcm() and the two `ret == 0 && [!]ecc_is_gcm(ctx->encAlgo)` guards
+ * only separate once the SAME binary runs both a GCM and a non-GCM ECIES
+ * exchange; the API suite runs the default AES-128-CBC + HMAC-SHA256 suite
+ * only. 16221's ConstantCompare operand additionally needs a decrypt whose
+ * MAC does not match, i.e. a deliberately corrupted ciphertext.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF) && !defined(NO_AES) && \
+    !defined(NO_HMAC)
+static void wb_ecies_algos(void)
+{
+    static const byte encAlgos[3] = { ecAES_128_CBC, ecAES_128_GCM,
+                                      ecAES_256_GCM };
+    WC_RNG  rng;
+    ecc_key a;
+    ecc_key b;
+    byte    plain[32];
+    byte    enc[256];
+    byte    dec[256];
+    size_t  i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&a, 0, sizeof(a));
+    XMEMSET(&b, 0, sizeof(b));
+    XMEMSET(plain, 0x5a, sizeof(plain));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; ECIES pass skipped");
+        return;
+    }
+
+    /* One full exchange per (algorithm, corrupt?) pair. Fresh contexts every
+     * time: wc_ecc_ctx_set_peer_salt MIXES the two salts in place and advances
+     * a state machine that rejects a second call, so a context cannot be
+     * reused and the two own-salts must be COPIED OUT before either side is
+     * mixed. */
+    for (i = 0; i < (sizeof(encAlgos) / sizeof(encAlgos[0])) * 2; i++) {
+        byte      algo    = encAlgos[i / 2];
+        int       corrupt = (int)(i % 2);
+        ecEncCtx* ec = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+        ecEncCtx* dc = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+        word32    encSz = (word32)sizeof(enc);
+        word32    decSz = (word32)sizeof(dec);
+        byte      saltCli[EXCHANGE_SALT_SZ];
+        byte      saltSrv[EXCHANGE_SALT_SZ];
+        const byte* sp;
+        int       ok = 0;
+
+        /* A FRESH key pair every time: in the non-WOLFSSL_ECIES_OLD message
+         * format wc_ecc_decrypt imports the sender's ephemeral point into the
+         * ecc_key passed as its pubKey argument, which leaves that key a
+         * public-only key and makes the next wc_ecc_encrypt reject it. */
+        XMEMSET(&a, 0, sizeof(a));
+        XMEMSET(&b, 0, sizeof(b));
+        if ((wc_ecc_init(&a) != 0) || (wc_ecc_init(&b) != 0) ||
+            (wc_ecc_make_key_ex(&rng, 0, &a, ECC_SECP256R1) != 0) ||
+            (wc_ecc_make_key_ex(&rng, 0, &b, ECC_SECP256R1) != 0)) {
+            WB_NOTE("ECIES key setup failed");
+            wc_ecc_free(&b);
+            wc_ecc_free(&a);
+            wc_ecc_ctx_free(dc);
+            wc_ecc_ctx_free(ec);
+            break;
+        }
+
+        if ((ec != NULL) && (dc != NULL)) {
+            sp = wc_ecc_ctx_get_own_salt(ec);
+            if (sp != NULL) {
+                XMEMCPY(saltCli, sp, EXCHANGE_SALT_SZ);
+                sp = wc_ecc_ctx_get_own_salt(dc);
+                if (sp != NULL) {
+                    XMEMCPY(saltSrv, sp, EXCHANGE_SALT_SZ);
+                    ok = (wc_ecc_ctx_set_peer_salt(ec, saltSrv) == 0) &&
+                         (wc_ecc_ctx_set_peer_salt(dc, saltCli) == 0) &&
+                         (wc_ecc_ctx_set_algo(ec, algo, ecHKDF_SHA256,
+                                              ecHMAC_SHA256) == 0) &&
+                         (wc_ecc_ctx_set_algo(dc, algo, ecHKDF_SHA256,
+                                              ecHMAC_SHA256) == 0);
+                }
+            }
+        }
+
+        if (ok) {
+            ok = (wc_ecc_encrypt(&a, &b, plain, (word32)sizeof(plain), enc,
+                                 &encSz, ec) == 0) && (encSz > 0);
+        }
+        if (ok) {
+            if (corrupt) {
+                /* 16221: break the authenticator so ConstantCompare (HMAC
+                 * suites) / the GCM tag check reports a mismatch. */
+                enc[encSz - 1] ^= 0xff;
+            }
+            (void)wc_ecc_decrypt(&b, &a, enc, encSz, dec, &decSz, dc);
+        }
+
+        wc_ecc_ctx_free(dc);
+        wc_ecc_ctx_free(ec);
+        wc_ecc_free(&b);
+        wc_ecc_free(&a);
+    }
+
+    /* The trailing one-byte-message vector needs a live pair of its own. */
+    XMEMSET(&a, 0, sizeof(a));
+    XMEMSET(&b, 0, sizeof(b));
+    if ((wc_ecc_init(&a) != 0) || (wc_ecc_init(&b) != 0) ||
+        (wc_ecc_make_key_ex(&rng, 0, &a, ECC_SECP256R1) != 0) ||
+        (wc_ecc_make_key_ex(&rng, 0, &b, ECC_SECP256R1) != 0)) {
+        WB_NOTE("ECIES tail key setup failed");
+        wc_ecc_free(&b);
+        wc_ecc_free(&a);
+        wc_FreeRng(&rng);
+        return;
+    }
+
+    /* 15978 idx0: `(msgSz > 1) && ((msg[0] == 0x02) || (msg[0] == 0x03))`
+     * -- a one-byte message is shorter than any real ECIES blob, so only a
+     * direct call supplies the FALSE row of the length operand. */
+    {
+        ecEncCtx* dc = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+        word32    decSz = (word32)sizeof(dec);
+        byte      one = 0x02;
+
+        if (dc != NULL) {
+            (void)wc_ecc_decrypt(&b, &a, &one, 1, dec, &decSz, dc);
+            wc_ecc_ctx_free(dc);
+        }
+
+        /* (T,T,-) and (T,F,T): longer than one byte AND a compressed-point
+         * prefix, once for each parity tag. Only an ECIES sender that chose
+         * point compression emits these, and nothing in the campaign does --
+         * which also made the 0x03 operand a COIN FLIP before this vector
+         * existed: it was only covered when a random ephemeral key happened to
+         * have an odd y, so the module's number moved between runs of an
+         * unchanged tree. Issuing both tags explicitly pins it. The buffer does
+         * not need to decrypt: the decision is reached before any of it is
+         * parsed. */
+        {
+            static const byte tags[2] = { 0x02, 0x03 };
+            size_t t;
+
+            for (t = 0; t < sizeof(tags) / sizeof(tags[0]); t++) {
+                dc = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+                if (dc != NULL) {
+                    byte comp[80];
+                    XMEMSET(comp, 0, sizeof(comp));
+                    comp[0] = tags[t];
+                    decSz = (word32)sizeof(dec);
+                    (void)wc_ecc_decrypt(&b, &a, comp, (word32)sizeof(comp),
+                        dec, &decSz, dc);
+                    wc_ecc_ctx_free(dc);
+                }
+            }
+        }
+    }
+
+    wc_ecc_free(&b);
+    wc_ecc_free(&a);
+    wc_FreeRng(&rng);
+    WB_NOTE("ECIES CBC/GCM + corrupted-MAC vectors done");
+}
+#else
+static void wb_ecies_algos(void)
+{
+    WB_NOTE("HAVE_ECC_ENCRYPT/HKDF/AES/HMAC off; ECIES pass skipped");
+}
+#endif
+
 int main(void)
 {
     /* Unbuffered: on a timeout or a fault the process is killed and anything
@@ -1822,6 +2497,9 @@ int main(void)
     wb_idx_dp_guard_export_paths();
     wb_make_pub_privatekey_only();
     wb_arg_guards();
+    wb_gap_pass2();
+    wb_custom_curve_dispatch();
+    wb_ecies_algos();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */
