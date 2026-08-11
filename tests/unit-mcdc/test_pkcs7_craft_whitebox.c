@@ -92,6 +92,57 @@
  *         wc_PKCS7_GrowStream() stored a non-NULL buffer, and every site that
  *         clears the buffer clears the size with it, so the operand has no
  *         true row.
+ *
+ * (e) PKCS7_VerifySignedData() FOOTER POINTER AND CERTIFICATE-SET WALK.
+ *       :7675 both (`pkiMsg2 == NULL || pkiMsg2Sz == 0`) -- in the streaming
+ *         build :7646-:7653 assigns pkiMsg2 to in2 or in and pkiMsg2Sz to
+ *         stream->length/srcSz/derSz, none of which is NULL or zero when the
+ *         caller passed a non-empty `in`. In the NO_PKCS7_STREAM build every
+ *         path out of stage 2 and stage 3 that reaches :7675 has already run
+ *         `pkiMsg2 = pkiMsg; pkiMsg2Sz = pkiMsgSz;` (:7418, :7610, :7615), and
+ *         the one branch that does not (:7588) is entered only when
+ *         pkiMsg2Sz > 0 is already true. Neither operand is ever true.
+ *       :7903 cond 0 -- the statement immediately before it is
+ *         `if (ret != 0) break;` at :7899.
+ *       :7917 cond 0 (`certSetEnd < idx`) -- certSetEnd is `idx + length`;
+ *         `length` is a non-negative int bounded by INT_MAX (GetLength_ex()
+ *         reports negatives as errors that already set ret) and idx is bounded
+ *         by the message size, so the word32 sum cannot wrap.
+ *       :7929 both -- ret is 0 on entry (:7899) and the loop body breaks the
+ *         moment it sets ret, so no iteration arrives with ret non-zero; and
+ *         the loop condition `certIdx + 1 < pkiMsg2Sz` is exactly the
+ *         precondition GetASNTag() needs, so it cannot fail.
+ *       :7935 cond 0 -- same, the :7929 failure path breaks.
+ *       :7967 all three -- `pkcs7->stream->flagOne` is written in exactly one
+ *         place, :17074 inside wc_PKCS7_DecodeEncryptedData(), and cleared by
+ *         wc_PKCS7_ResetStream(). It is 0 for the whole of a SignedData
+ *         verify, so the decision is never true and no operand pairs.
+ *       :8071 cond 1 -- :8067 sets BUFFER_E when `idx >= maxIdx`, and maxIdx
+ *         is capped at pkiMsg2Sz (:8026 streaming, :8034 otherwise), so with
+ *         ret == 0 the GetASNTag() at :8071 always succeeds.
+ *       :8166 cond 2 (`degenerate == 0`) -- degenerate is assigned
+ *         `(length == 0)` at :8091 from the same `length` this decision tests,
+ *         and nothing rewrites either between there and :8166, so cond 2 is
+ *         true whenever cond 1 is.
+ *       :8173 cond 1 -- :8168 sets BUFFER_E when `idx >= pkiMsg2Sz`, which is
+ *         exactly GetASNTag()'s failure precondition.
+ *
+ * (f) AuthEnvelopedData / EncryptedData tail.
+ *       :15634 cond 1 (`authAttribsSz > 0`) -- flatAuthAttribs is NULL at
+ *         :15143 and assigned only at :15382, inside
+ *         `if (authAttribsSz > 0 && authAttribsCount > 0)`, so a non-NULL
+ *         pointer implies a non-zero size.
+ *       :17106 cond 0 -- ret is 0 throughout WC_PKCS7_STAGE6 up to this point:
+ *         wc_PKCS7_AddDataToStream() returns on a non-zero result and :17100
+ *         breaks on one.
+ *       :17115 both -- :17100 has already rejected
+ *         `encryptedContentSz > (int)(pkiMsgSz - idx)` and
+ *         `encryptedContentSz <= 0`, so `idx + encryptedContentSz` neither
+ *         wraps nor exceeds pkiMsgSz.
+ *       :17199 cond 3 (`haveAttribs == 1`) -- cond 1 of the same decision is
+ *         `haveAttribs == 0` and haveAttribs only ever holds 0 or 1, so cond 3
+ *         cannot change without cond 1 changing with it; the two rows always
+ *         differ in a second evaluated condition. Same family as (c).
  */
 
 /* The detached header/footer pair in Section 6 is signed here rather than
