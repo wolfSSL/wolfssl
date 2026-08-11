@@ -1742,7 +1742,7 @@ static void wb_check_date(void)
     int ret;
     /* A UTCTime string far in the future: fails XVALIDATE_DATE for
      * ASN_BEFORE (not yet valid) while remaining syntactically fine. */
-    static const byte futureDate[] = "990101000000Z";
+    static const byte futureDate[] = "490101000000Z"; /* 2049 */
 
     WB_NOTE("CheckDate(): tag validity OR [:22428,:22429]");
     XMEMSET(&d, 0, sizeof(d));
@@ -1878,11 +1878,12 @@ static void wb_decode_cert_internal(void)
         /* notBefore UTCTime content at DER offset 187 (asn1parse: "185:
          * ... l=13 ... UTCTIME :260611214429Z", hl=2 -> content at
          * 185+2=187), 13 bytes. Patch to a far-future date so
-         * CheckDate(ASN_BEFORE) fails (not yet valid). */
+         * CheckDate(ASN_BEFORE) fails (not yet valid). UTCTime two-digit
+         * years below 50 mean 20xx, so "49" is 2049. */
         XMEMCPY(beforeBad, orig, origSz);
         WB_CHECK(XMEMCMP(beforeBad + 187, "260611214429Z", 13) == 0,
                 "sanity: notBefore bytes at expected offset");
-        XMEMCPY(beforeBad + 187, "990101000000Z", 13);
+        XMEMCPY(beforeBad + 187, "490101000000Z", 13);
 
         /* notAfter UTCTime content at DER offset 202 (asn1parse: "200:
          * ... l=13 ... UTCTIME :290307214429Z" -> 200+2=202). Patch to a
@@ -1892,54 +1893,81 @@ static void wb_decode_cert_internal(void)
                 "sanity: notAfter bytes at expected offset");
         XMEMCPY(afterBad + 202, "180101000000Z", 13);
 
+        /* badDateRet is only written on the stopAfterPubKey path
+         * (:22786); on a full parse the date error surfaces as the return
+         * value instead, so that is what the rows below assert. */
         WB_NOTE("DecodeCertInternal(): BEFORE-date bad, verify variants [:22608,:22609]");
         wc_InitDecodedCert(&cert, beforeBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
-        WB_CHECK(badDate == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
-                "verify=VERIFY (all 4 operands true, badDate set)");
         WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
+                "verify=VERIFY (all 4 operands true, badDate set); "
                 ":22812 true side (ret==0 && !done && badDate!=0)");
         FreeDecodedCert(&cert);
+
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+        /* 4th operand false: the runtime skip flag suppresses the same
+         * rejection that the row above produced. */
+        (void)wc_AsnSetSkipDateCheck(1);
+        wc_InitDecodedCert(&cert, beforeBad, (word32)origSz, NULL);
+        badDate = 0;
+        ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+        WB_CHECK(ret == 0, "AsnSkipDateCheck set (:22609 4th operand false)");
+        FreeDecodedCert(&cert);
+        (void)wc_AsnSetSkipDateCheck(0);
+#endif
 
         wc_InitDecodedCert(&cert, beforeBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, &badDate, 0, 0);
-        WB_CHECK(badDate == 0,
-                "verify=NO_VERIFY (2nd operand false, badDate not set)");
-        WB_CHECK(ret == 0, ":22812 false via badDate==0");
+        WB_CHECK(ret == 0,
+                "verify=NO_VERIFY (2nd operand false); :22812 false via "
+                "badDate==0");
         FreeDecodedCert(&cert);
 
         wc_InitDecodedCert(&cert, beforeBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY_SKIP_DATE, &crit, &badDate, 0, 0);
-        WB_CHECK(badDate == 0,
-                "verify=VERIFY_SKIP_DATE (3rd operand false, badDate not set)");
+        WB_CHECK(ret == 0, "verify=VERIFY_SKIP_DATE (3rd operand false)");
         FreeDecodedCert(&cert);
-        (void)ret;
 
         wc_InitDecodedCert(&cert, orig, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
-        WB_CHECK(badDate == 0,
-                "unmodified dates, verify=VERIFY (1st operand false: CheckDate>=0)");
-        WB_CHECK(ret == 0, "clean parse, no date error");
+        WB_CHECK(ret == 0,
+                "unmodified dates, verify=VERIFY (1st operand false: "
+                "CheckDate>=0)");
         FreeDecodedCert(&cert);
 
         WB_NOTE("DecodeCertInternal(): AFTER-date bad, verify variants [:22620,:22621]");
         wc_InitDecodedCert(&cert, afterBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
-        WB_CHECK(badDate == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E),
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E),
                 "verify=VERIFY (operand true side)");
         FreeDecodedCert(&cert);
+
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+        (void)wc_AsnSetSkipDateCheck(1);
+        wc_InitDecodedCert(&cert, afterBad, (word32)origSz, NULL);
+        badDate = 0;
+        ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+        WB_CHECK(ret == 0, "AsnSkipDateCheck set (:22621 4th operand false)");
+        FreeDecodedCert(&cert);
+        (void)wc_AsnSetSkipDateCheck(0);
+#endif
 
         wc_InitDecodedCert(&cert, afterBad, (word32)origSz, NULL);
         badDate = 0;
         ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, &badDate, 0, 0);
-        WB_CHECK(badDate == 0, "verify=NO_VERIFY (operand false side)");
+        WB_CHECK(ret == 0, "verify=NO_VERIFY (operand false side)");
         FreeDecodedCert(&cert);
-        (void)ret;
+
+        wc_InitDecodedCert(&cert, afterBad, (word32)origSz, NULL);
+        badDate = 0;
+        ret = DecodeCertInternal(&cert, VERIFY_SKIP_DATE, &crit, &badDate, 0, 0);
+        WB_CHECK(ret == 0, "verify=VERIFY_SKIP_DATE (:22621 3rd operand false)");
+        FreeDecodedCert(&cert);
     }
 
     /* --- stopAtPubKey / stopAfterPubKey / done combinations [:22639,

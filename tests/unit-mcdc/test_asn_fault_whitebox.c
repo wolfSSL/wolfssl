@@ -2306,6 +2306,172 @@ static void wb_parse_alloc_sweep(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 25: leading `ret == 0` operand of the encoders' "is the caller's
+ * buffer big enough" guards.
+ *
+ *   if ((ret == 0) && (output != NULL) && (sz > outLen)) ...
+ *
+ * Every one of these is preceded only by a SizeASN_Items() over a fixed
+ * template, which cannot fail on well-formed arguments, plus (depending on
+ * the function) an allocation. The buffer-too-small row is issued unarmed
+ * to give the all-true vector, and the allocation is then failed to give
+ * the leading operand's false row in the same binary. Where the ASN.1 data
+ * arrays are stack-resident (i.e. outside WOLFSSL_SMALL_STACK) there is no
+ * allocation to fail and only the true row exists -- the false row is
+ * contributed by the small_stack variant.
+ *
+ *   :13257  SetEccPublicKey()
+ *   :13412  SetAsymKeyDerPublic()
+ *   :34450  SetAsymKeyDer()
+ *   :36337  EncodeOcspRequestExtensions()
+ *   :36465  EncodeOcspRequest()
+ *   :27814  SetExtKeyUsage()          (unconditional XMALLOC, every variant)
+ *   :28491  SetNameEx()               (unconditional XMALLOC, every variant)
+ *   :27872  SetCertificatePolicies()  (EncodePolicyOID() rejects the OID)
+ * ------------------------------------------------------------------------- */
+static void wb_encoder_size_guards(void)
+{
+    byte out[1024];
+    int n;
+    int ret;
+
+    WB_NOTE("encoder buffer-size guards: unarmed true rows [:13257,:13412,"
+            ":34450,:36337,:36465,:27814,:28491]");
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(USE_CERT_BUFFERS_256)
+    {
+        ecc_key key;
+        word32 idx = 0;
+        if (wc_ecc_init(&key) == 0) {
+            if (wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &key,
+                    (word32)sizeof_ecc_key_der_256) == 0) {
+                ret = SetEccPublicKey(out, &key, 4, 1, 0);
+                WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                        "SetEccPublicKey output too small (:13257 all true)");
+                mcdc_fa_install();
+                for (n = 1; n <= 4; n++) {
+                    mcdc_fa_arm(n);
+                    (void)SetEccPublicKey(out, &key, 4, 1, 0);
+                    mcdc_fa_disarm();
+                }
+                mcdc_fa_restore();
+            }
+            wc_ecc_free(&key);
+        }
+    }
+#endif
+
+    {
+        static const byte rawKey[32] = { 0x01 };
+        ret = SetAsymKeyDerPublic(rawKey, (word32)sizeof(rawKey), out, 4,
+                ED25519k, 1);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "SetAsymKeyDerPublic output too small (:13412 all true)");
+        ret = SetAsymKeyDer(rawKey, (word32)sizeof(rawKey), NULL, 0, out, 4,
+                ED25519k);
+        WB_CHECK(ret < 0, "SetAsymKeyDer output too small (:34450 all true)");
+
+        mcdc_fa_install();
+        for (n = 1; n <= 4; n++) {
+            mcdc_fa_arm(n);
+            (void)SetAsymKeyDerPublic(rawKey, (word32)sizeof(rawKey), out, 4,
+                    ED25519k, 1);
+            mcdc_fa_disarm();
+            mcdc_fa_arm(n);
+            (void)SetAsymKeyDer(rawKey, (word32)sizeof(rawKey), NULL, 0, out,
+                    4, ED25519k);
+            mcdc_fa_disarm();
+        }
+        mcdc_fa_restore();
+    }
+
+#ifdef HAVE_OCSP
+    {
+        OcspRequest req;
+        static byte serial[2] = { 0x01, 0x02 };
+
+        XMEMSET(&req, 0, sizeof(req));
+        XMEMSET(req.nonce, 0xA5, 8);
+        req.nonceSz = 8;
+        req.serial = serial;
+        req.serialSz = (int)sizeof(serial);
+        req.hashAlg = SHAh;
+
+        ret = (int)EncodeOcspRequestExtensions(&req, out, 4);
+        WB_CHECK(ret <= 0, "EncodeOcspRequestExtensions output too small "
+                "(:36337 all true)");
+        ret = EncodeOcspRequest(&req, out, 4);
+        WB_CHECK(ret < 0, "EncodeOcspRequest output too small (:36465 all true)");
+
+        mcdc_fa_install();
+        for (n = 1; n <= 4; n++) {
+            mcdc_fa_arm(n);
+            (void)EncodeOcspRequestExtensions(&req, out, 4);
+            mcdc_fa_disarm();
+            mcdc_fa_arm(n);
+            (void)EncodeOcspRequest(&req, out, 4);
+            mcdc_fa_disarm();
+        }
+        mcdc_fa_restore();
+    }
+#endif /* HAVE_OCSP */
+
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    {
+        Cert cert;
+        XMEMSET(&cert, 0, sizeof(cert));
+        ret = SetExtKeyUsage(&cert, out, 4, EXTKEYUSE_SERVER_AUTH);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "SetExtKeyUsage output too small (:27814 all true)");
+        mcdc_fa_install();
+        for (n = 1; n <= 3; n++) {
+            mcdc_fa_arm(n);
+            (void)SetExtKeyUsage(&cert, out, 4, EXTKEYUSE_SERVER_AUTH);
+            mcdc_fa_disarm();
+        }
+        mcdc_fa_restore();
+    }
+
+    {
+        /* MAX_CERTPOL_NB policies: a well-formed one for the true rows and
+         * one whose first arc is 9 (> 2), which EncodePolicyOID() rejects
+         * with ASN_OBJECT_ID_E, giving the leading operand's false row. */
+        char pol[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
+        XMEMSET(pol, 0, sizeof(pol));
+        XSTRNCPY(pol[0], "2.5.29.32.0", MAX_CERTPOL_SZ - 1);
+        ret = SetCertificatePolicies(out, 4, pol, 1, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "SetCertificatePolicies output too small (:27872 all true)");
+        XSTRNCPY(pol[0], "9.1.2", MAX_CERTPOL_SZ - 1);
+        ret = SetCertificatePolicies(out, sizeof(out), pol, 1, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E),
+                "SetCertificatePolicies bad policy OID (:27872 1st operand "
+                "false)");
+    }
+#endif /* WOLFSSL_CERT_EXT && WOLFSSL_CERT_GEN */
+
+#ifdef WOLFSSL_CERT_GEN
+    {
+        CertName name;
+        XMEMSET(&name, 0, sizeof(name));
+        XSTRNCPY(name.commonName, "wb", CTC_NAME_SIZE - 1);
+        name.commonNameEnc = CTC_UTF8;
+        ret = SetNameEx(out, 4, &name, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "SetNameEx output too small (:28491 all true)");
+        mcdc_fa_install();
+        for (n = 1; n <= 3; n++) {
+            mcdc_fa_arm(n);
+            (void)SetNameEx(out, 4, &name, NULL);
+            mcdc_fa_disarm();
+        }
+        mcdc_fa_restore();
+    }
+#endif /* WOLFSSL_CERT_GEN */
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -2351,6 +2517,7 @@ int main(void)
     wb_encrypt_content_salt();
     wb_decode_cert_extensions_unknown_cb();
     wb_parse_alloc_sweep();
+    wb_encoder_size_guards();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
