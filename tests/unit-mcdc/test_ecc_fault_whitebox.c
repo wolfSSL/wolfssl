@@ -1018,6 +1018,332 @@ static void wb_sqrtmod_prime_cases(void)
 }
 #endif /* MCDC_ECC_SQRTMOD_INTERPOSE */
 
+/* ------------------------------------------------------------------------- *
+ * COMPUTATION-failure residuals in the point-multiply / sign / verify /
+ * on-curve chains.
+ *
+ * Each of these decisions is `err == MP_OKAY && <something>` sitting AFTER a
+ * run of big-integer steps that never fail on a healthy machine, so the
+ * `err == MP_OKAY` operand is never FALSE:
+ *
+ *   3296  ecc_mulmod          first z-randomization, after the R[] copies
+ *   3859  wc_ecc_mulmod_ex    the `&& map` guard after the multiply
+ *   7810  wc_ecc_sign_hash_ex the digest-truncation guard after reading e
+ *   9576  ecc_verify_hash     the same guard on the verify side
+ *  10744  _ecc_is_point       the "is a == -3" guard after the y^2-x^3 steps
+ *
+ * Each sweep also has to be run on inputs for which the guard's OTHER operand
+ * is TRUE, or every row -- faulted and unfaulted alike -- comes out FALSE and
+ * no two of them form an independence pair:
+ *   7810 / 9576  need an order whose bit length is not a byte multiple and a
+ *                digest longer than it, so that after the truncation to the
+ *                order's BYTE length 8*inlen is still above the order's BIT
+ *                length. prime239v1's order is 239 bits, so a 32-byte digest
+ *                truncates to 30 bytes and 240 > 239 holds; the NIST prime
+ *                curves in this table all have byte-multiple orders, and
+ *                secp521r1 cannot be used because ecc.c caps a digest at
+ *                WC_MAX_DIGEST_SIZE = 64 bytes, already shorter than its
+ *                521-bit order;
+ *   10744        needs a curve whose a is not -3 (a Koblitz curve), so the
+ *                "use a in the calculation" arm is the one taken.
+ *
+ * The mp lever is the only one that reaches them: no allocation fault can make
+ * a COMPUTATION fail, and every input that would (a malformed curve) is
+ * rejected further up. Sweeping the fail index across each entry point walks
+ * the failure position through the whole chain, so for some index the failure
+ * lands just before the guard.
+ *
+ * The sweeps are deliberately generous: past the real call count the target
+ * simply runs to completion. Every armed call is crash-safe -- the target
+ * propagates the MP_VAL to its own cleanup, and nothing the call produced is
+ * read back here.
+ * ------------------------------------------------------------------------- */
+#define WB_MP_SWEEP_K 90
+
+static void wb_fault_mulmod_chain(void)
+{
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+    ecc_key    key;
+    ecc_point* G = NULL;
+    ecc_point* R = NULL;
+    WC_RNG     rng;
+    mp_int     k[1];
+    int        err = MP_OKAY;
+    int        haveRng = 0;
+    int        n;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(k, 0, sizeof(k));
+    if (wc_ecc_init(&key) != 0)
+        return;
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return;
+    }
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+    if (err == MP_OKAY)
+        err = mp_init(k);
+    G = wc_ecc_new_point();
+    R = wc_ecc_new_point();
+
+    if ((err == MP_OKAY) && (G != NULL) && (R != NULL) &&
+        (mp_copy(curve->Gx, G->x) == MP_OKAY) &&
+        (mp_copy(curve->Gy, G->y) == MP_OKAY) &&
+        (mp_set(G->z, 1) == MP_OKAY) && (mp_set(k, 5) == MP_OKAY)) {
+        haveRng = (wc_InitRng(&rng) == 0);
+
+        /* With a live RNG the z-randomization runs, which is the branch whose
+         * `err == MP_OKAY` operand (3296) is otherwise unreachable. */
+        for (n = 1; n <= WB_MP_SWEEP_K; n++) {
+            mcdc_fm_arm(n);
+            (void)wc_ecc_mulmod_ex2(k, G, R, curve->Af, curve->prime,
+                                    curve->order, haveRng ? &rng : NULL, 1,
+                                    NULL);
+            mcdc_fm_disarm();
+        }
+        for (n = 1; n <= WB_MP_SWEEP_K; n++) {
+            mcdc_fm_arm(n);
+            (void)wc_ecc_mulmod_ex(k, G, R, curve->Af, curve->prime, 1, NULL);
+            mcdc_fm_disarm();
+        }
+    }
+
+    mcdc_fm_disarm();
+    if (haveRng)
+        wc_FreeRng(&rng);
+    if (R != NULL)
+        wc_ecc_del_point(R);
+    if (G != NULL)
+        wc_ecc_del_point(G);
+    mp_free(k);
+    if (err == MP_OKAY)
+        wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    wc_ecc_free(&key);
+    WB_NOTE("mulmod / is-point mp-fault sweep done");
+}
+
+/* 10744 needs a curve whose "a" is NOT p-3: on every NIST prime curve the
+ * `mp_cmp_d(t2, 3) != MP_EQ` operand is permanently FALSE, so the decision is
+ * FALSE both with and without a fault and the two rows never differ in
+ * outcome. A Koblitz curve (a == 0) makes the unfaulted row TRUE. */
+static void wb_fault_is_point_koblitz(void)
+{
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+    ecc_key    key;
+    ecc_point* G = NULL;
+    int        err = MP_OKAY;
+    int        n;
+
+    XMEMSET(&key, 0, sizeof(key));
+    if (wc_ecc_get_curve_idx(ECC_SECP256K1) < 0) {
+        WB_NOTE("SECP256K1 absent; is-point mp sweep skipped");
+        return;
+    }
+    if (wc_ecc_init(&key) != 0)
+        return;
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256K1) != 0) {
+        wc_ecc_free(&key);
+        return;
+    }
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+    G = wc_ecc_new_point();
+    if ((err == MP_OKAY) && (G != NULL) &&
+        (mp_copy(curve->Gx, G->x) == MP_OKAY) &&
+        (mp_copy(curve->Gy, G->y) == MP_OKAY) &&
+        (mp_set(G->z, 1) == MP_OKAY)) {
+        for (n = 1; n <= 24; n++) {
+            mcdc_fm_arm(n);
+            (void)wc_ecc_is_point(G, curve->Af, curve->Bf, curve->prime);
+            mcdc_fm_disarm();
+        }
+    }
+    mcdc_fm_disarm();
+    if (G != NULL)
+        wc_ecc_del_point(G);
+    if (err == MP_OKAY)
+        wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    wc_ecc_free(&key);
+    WB_NOTE("is-point (Koblitz) mp-fault sweep done");
+}
+
+static void wb_fault_sign_verify_chain(void)
+{
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+    WC_RNG  rng;
+    ecc_key key;
+    byte    digest[32];
+    byte    sig[ECC_MAX_SIG_SIZE];
+    word32  sigSz = (word32)sizeof(sig);
+    int     haveKey = 0;
+    int     n;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(digest, 0x3b, sizeof(digest));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; sign/verify mp sweep skipped");
+        return;
+    }
+    if (wc_ecc_init(&key) == 0)
+        haveKey = (wc_ecc_make_key_ex(&rng, 0, &key, ECC_PRIME239V1) == 0);
+
+    if (haveKey) {
+#ifdef HAVE_ECC_SIGN
+        int haveSig = (wc_ecc_sign_hash(digest, (word32)sizeof(digest), sig,
+                                        &sigSz, &rng, &key) == 0);
+        for (n = 1; n <= WB_MP_SWEEP_K; n++) {
+            word32 tmpSz = (word32)sizeof(sig);
+            byte   tmp[ECC_MAX_SIG_SIZE];
+            XMEMSET(tmp, 0, sizeof(tmp));
+            mcdc_fm_arm(n);
+            (void)wc_ecc_sign_hash(digest, (word32)sizeof(digest), tmp, &tmpSz,
+                                   &rng, &key);
+            mcdc_fm_disarm();
+        }
+#else
+        int haveSig = 0;
+#endif
+#ifdef HAVE_ECC_VERIFY
+        if (haveSig) {
+            for (n = 1; n <= WB_MP_SWEEP_K; n++) {
+                int res = 0;
+                mcdc_fm_arm(n);
+                (void)wc_ecc_verify_hash(sig, sigSz, digest,
+                                         (word32)sizeof(digest), &res, &key);
+                mcdc_fm_disarm();
+            }
+        }
+#else
+        (void)haveSig;
+#endif
+    }
+    else {
+        WB_NOTE("sign/verify mp sweep: key setup failed");
+    }
+
+    mcdc_fm_disarm();
+    wc_ecc_free(&key);
+    wc_FreeRng(&rng);
+    WB_NOTE("sign/verify mp-fault sweep done");
+#else
+    WB_NOTE("sign/verify not compiled in; mp sweep skipped");
+#endif
+}
+
+/* ------------------------------------------------------------------------- *
+ * Heap-fault sites reached only by calling the file-static owner directly.
+ *
+ *   2839  ecc_map_ex        the t1/t2 NEW_MP_INT_SIZE NULL guard. Every public
+ *                           caller allocates a great many other things first,
+ *                           so a fail index that lands exactly on t1 or t2 is
+ *                           not reachable by sweeping an outer entry point.
+ *   7314  ecc_sign_hash_sw  the custom-curve fixup guard, reached with err
+ *                           already set only when the function's OWN first
+ *                           allocation (the blinding value b) returns NULL.
+ *
+ * Both are productive under WOLFSSL_SMALL_STACK only; elsewhere the storage is
+ * a stack array, the arm finds nothing to fail, and the calls simply succeed.
+ * ------------------------------------------------------------------------- */
+static void wb_fault_map_and_sign_sw(void)
+{
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+    ecc_key    key;
+    ecc_point* P = NULL;
+    mp_digit   mp = 0;
+    int        err = MP_OKAY;
+    int        n;
+
+    XMEMSET(&key, 0, sizeof(key));
+    if (wc_ecc_init(&key) != 0)
+        return;
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return;
+    }
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+    P = wc_ecc_new_point();
+
+    if ((err == MP_OKAY) && (P != NULL) &&
+        (mp_copy(curve->Gx, P->x) == MP_OKAY) &&
+        (mp_copy(curve->Gy, P->y) == MP_OKAY) &&
+        (mp_set(P->z, 1) == MP_OKAY) &&
+        (mp_montgomery_setup(curve->prime, &mp) == MP_OKAY)) {
+        /* Prepared while DISARMED; only the map itself runs armed. */
+        for (n = 1; n <= 4; n++) {
+            mcdc_fa_arm(n);
+            (void)ecc_map_ex(P, curve->prime, mp, 1);
+            mcdc_fa_disarm();
+            (void)mp_copy(curve->Gx, P->x);
+            (void)mp_copy(curve->Gy, P->y);
+            (void)mp_set(P->z, 1);
+        }
+    }
+
+#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_KCAPI_ECC)
+    if (err == MP_OKAY) {
+        WC_RNG rng;
+        mp_int ers[3];
+        int    haveRng;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        XMEMSET(ers, 0, sizeof(ers));
+        haveRng = (wc_InitRng(&rng) == 0);
+        if (haveRng &&
+            (mp_init_multi(&ers[0], &ers[1], &ers[2], NULL, NULL, NULL)
+                                                                == MP_OKAY)) {
+            if ((mp_set(ecc_get_k(&key), 3) == MP_OKAY) &&
+                (mp_set(&ers[0], 0x2a) == MP_OKAY)) {
+                key.type = ECC_PRIVATEKEY;
+                /* CUSTOM index so the unfaulted run takes the guard's TRUE
+                 * branch: with a table index the decision is FALSE whether or
+                 * not the allocation failed, and no pair of rows differs in
+                 * outcome. dp still points at a real curve. */
+                key.idx = ECC_CUSTOM_IDX;
+                for (n = 1; n <= 4; n++) {
+                    ecc_key eph;
+                    XMEMSET(&eph, 0, sizeof(eph));
+                    if (wc_ecc_init(&eph) != 0)
+                        break;
+                    mcdc_fa_arm(n);
+                    (void)ecc_sign_hash_sw(&key, &eph, &rng, curve, &ers[0],
+                                           &ers[1], &ers[2]);
+                    mcdc_fa_disarm();
+                    wc_ecc_free(&eph);
+                }
+            }
+            mp_free(&ers[2]);
+            mp_free(&ers[1]);
+            mp_free(&ers[0]);
+        }
+        if (haveRng)
+            wc_FreeRng(&rng);
+    }
+#endif
+
+    mcdc_fa_disarm();
+    if (P != NULL)
+        wc_ecc_del_point(P);
+    if (err == MP_OKAY)
+        wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    wc_ecc_free(&key);
+    WB_NOTE("ecc_map_ex / ecc_sign_hash_sw heap-fault sweep done");
+}
+
 #endif /* HAVE_ECC && !WOLF_CRYPTO_CB_ONLY_ECC && !WOLFSSL_SP_MATH */
 
 int main(void)
@@ -1035,12 +1361,16 @@ int main(void)
     wb_fp_cache_suite();
     wb_degenerate_points();
     wb_sqrtmod_prime_cases();
+    wb_fault_mulmod_chain();
+    wb_fault_is_point_koblitz();
+    wb_fault_sign_verify_chain();
     mcdc_fm_disarm();
 
     mcdc_fa_install();
     wb_fault_projective_add_dbl();
     wb_fault_sqrtmod_prime();
     wb_fault_sqrtmod_prime_direct();
+    wb_fault_map_and_sign_sw();
     mcdc_fa_disarm();
     mcdc_fa_restore();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");

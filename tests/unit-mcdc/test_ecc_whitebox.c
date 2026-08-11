@@ -2467,6 +2467,1211 @@ static void wb_ecies_algos(void)
 }
 #endif
 
+/* ========================================================================= *
+ * Pass 3 -- forged keys and points.
+ *
+ * What is left after pass 2 is dominated by validation guards that only fire
+ * on keys and points that are deliberately WRONG: an ordinate wider than the
+ * field prime (or negative modulo it), a point that is not on the curve, a
+ * private scalar of 0 / of n / negative, a curve index that disagrees with the
+ * key's own parameters. No correct operation can produce those, so rather than
+ * hunting for one, the vectors below BUILD the exact shape each guard rejects
+ * and hand it straight to the file-static helper that owns the guard -- which
+ * this TU can do because it #includes ecc.c.
+ *
+ * Calling the helpers directly is also what makes the SP-dispatch rows
+ * reachable at all: every public entry point (wc_ecc_check_key,
+ * wc_ecc_sign_hash, wc_ecc_import_point_der) either returns from an SP fast
+ * path before the generic helper runs, or rejects the odd shape earlier, so
+ * from the API only ONE side of each dispatch decision is ever taken.
+ *
+ * Determinism: every value comes from ecc_sets[] -- the curve's own generator
+ * and its published prime/order -- or from a small fixed integer. Nothing here
+ * depends on live entropy, so the pass contributes identical MC/DC rows on
+ * every run.
+ *
+ * Crash-safety: each forged shape is rejected by the very guard it targets, or
+ * (the off-curve / wrong-modulus vectors) is processed as plain modular
+ * arithmetic whose result is never dereferenced. Buffers are sized from
+ * ecc_sets[].size exactly as the real callers size them.
+ * ========================================================================= */
+
+/* Curves the pass-3 vectors run over: P-256 (the curve every SP build
+ * accelerates) plus the larger and the smaller standard curves, so each
+ * `ecc_sets[idx].id == <curve>` dispatch operand gets both a matching and a
+ * non-matching key inside one binary. */
+static const int wbCurveIds[] = {
+    ECC_SECP256R1,
+    ECC_SECP384R1,
+    ECC_SECP521R1,
+    ECC_SECP224R1
+};
+#define WB_CURVE_COUNT ((int)(sizeof(wbCurveIds) / sizeof(wbCurveIds[0])))
+
+/* Curve availability is a RUNTIME question here, not a compile-time one: the
+ * per-curve HAVE_ECCnnn macros are only set when a build hand-picks curves,
+ * and this campaign's configs take the HAVE_ALL_CURVES default instead -- so
+ * guarding on them would silently reduce every sweep below to P-256 and leave
+ * each `ecc_sets[idx].id == <curve>` operand permanently TRUE. Asking the
+ * table is correct for both kinds of build. */
+static int wb_curve_present(int curveId)
+{
+    return wc_ecc_get_curve_idx(curveId) >= 0;
+}
+
+/* Make *a hold -1, but only when the math backend can represent a negative
+ * mp_int; returns 1 when it did.
+ *
+ * Under SP math without WOLFSSL_SP_INT_NEGATIVE, mp_isneg() expands to the
+ * literal (0) and no mp_int is ever negative, so the mp_isneg operand of every
+ * range guard is dead there and each caller simply skips its negative vector.
+ * The fastmath variant links tfm, where sign is a real field, and that is the
+ * build in which these rows are produced. The value is built in a scratch
+ * mp_int and only copied over on success, so a backend that refuses the
+ * subtraction leaves the caller's operand untouched. */
+static int wb_set_neg_one(mp_int* a)
+{
+    int ok = 0;
+    mp_int t[2];
+
+    XMEMSET(t, 0, sizeof(t));
+    if (mp_init_multi(&t[0], &t[1], NULL, NULL, NULL, NULL) != MP_OKAY)
+        return 0;
+    if ((mp_set(&t[0], 0) == MP_OKAY) && (mp_set(&t[1], 1) == MP_OKAY) &&
+        (mp_sub(&t[0], &t[1], &t[0]) == MP_OKAY) &&
+        (mp_isneg(&t[0]) != 0) && (mp_copy(&t[0], a) == MP_OKAY)) {
+        ok = 1;
+    }
+    mp_free(&t[1]);
+    mp_free(&t[0]);
+    return ok;
+}
+
+/* Reset pt to the curve's own generator: a valid, in-range, affine point of
+ * full order -- the "all guards pass" half of every vector below. */
+static int wb_point_from_generator(ecc_point* pt, ecc_curve_spec* curve)
+{
+    int err = mp_copy(curve->Gx, pt->x);
+    if (err == MP_OKAY)
+        err = mp_copy(curve->Gy, pt->y);
+    if (err == MP_OKAY)
+        err = mp_set(pt->z, 1);
+    return err;
+}
+
+/* ------------------------------------------------------------------------- *
+ * ecc_check_pubkey_order() -- 11131 (ordinate wider than the modulus),
+ * 11144 / 11165 (the SP order-multiply dispatch) and 11174 (order*Q really is
+ * the identity).
+ *
+ * Reached from wc_ecc_check_key, which for an SP-supported curve returns from
+ * sp_ecc_check_key_<n>() long before this helper, and which no test drives
+ * with a CUSTOM-curve key -- so from the API the `key->idx != ECC_CUSTOM_IDX`
+ * operand is never FALSE and the `id == <curve>` operand never separates.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SP_MATH)
+static void wb_forged_pubkey_order(void)
+{
+    int c;
+
+    for (c = 0; c < WB_CURVE_COUNT; c++) {
+        DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+        ecc_key    key;
+        ecc_point* pt = NULL;
+        mp_int     tmp[1];
+        int        err = MP_OKAY;
+        int        savedIdx;
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(tmp, 0, sizeof(tmp));
+        if (!wb_curve_present(wbCurveIds[c]))
+            continue;
+        if (wc_ecc_init(&key) != 0)
+            continue;
+        if (wc_ecc_set_curve(&key, 0, wbCurveIds[c]) != 0) {
+            wc_ecc_free(&key);
+            continue;
+        }
+        ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+        if (err == MP_OKAY)
+            err = mp_init(tmp);
+        pt = wc_ecc_new_point();
+        if ((err != MP_OKAY) || (pt == NULL)) {
+            WB_NOTE("pubkey-order setup failed; curve skipped");
+            wb_fail = 1;
+            if (pt != NULL)
+                wc_ecc_del_point(pt);
+            mp_free(tmp);
+            if (err == MP_OKAY)
+                wc_ecc_curve_free(curve);
+            FREE_CURVE_SPECS();
+            wc_ecc_free(&key);
+            continue;
+        }
+
+        /* 11131 (F,F,F) + 11144/11165 (T,T) or (T,F) + 11174 (T,F): the
+         * curve's own generator, whose order-multiple IS the identity. */
+        if (wb_point_from_generator(pt, curve) == MP_OKAY)
+            (void)ecc_check_pubkey_order(&key, pt, curve->Af, curve->prime,
+                                         curve->order);
+
+        /* 11131 (T,-,-) / (F,T,-) / (F,F,T): one ordinate two times the
+         * modulus, i.e. one bit wider than it. Rejected before any point math
+         * runs, so an ordinate that is not a field element is never used. */
+        if ((mp_copy(curve->prime, tmp) == MP_OKAY) &&
+            (mp_add(tmp, tmp, tmp) == MP_OKAY)) {
+            if ((wb_point_from_generator(pt, curve) == MP_OKAY) &&
+                (mp_copy(tmp, pt->x) == MP_OKAY))
+                (void)ecc_check_pubkey_order(&key, pt, curve->Af, curve->prime,
+                                             curve->order);
+            if ((wb_point_from_generator(pt, curve) == MP_OKAY) &&
+                (mp_copy(tmp, pt->y) == MP_OKAY))
+                (void)ecc_check_pubkey_order(&key, pt, curve->Af, curve->prime,
+                                             curve->order);
+            if ((wb_point_from_generator(pt, curve) == MP_OKAY) &&
+                (mp_copy(tmp, pt->z) == MP_OKAY))
+                (void)ecc_check_pubkey_order(&key, pt, curve->Af, curve->prime,
+                                             curve->order);
+        }
+
+        /* 11144 / 11165 (F,-): a key whose index says "custom" while its dp
+         * still points at a real curve. That is exactly the shape
+         * wc_ecc_set_custom_curve() leaves behind, and it is the only way the
+         * first operand of each SP dispatch is FALSE. */
+        savedIdx = key.idx;
+        key.idx = ECC_CUSTOM_IDX;
+
+        if (wb_point_from_generator(pt, curve) == MP_OKAY)
+            (void)ecc_check_pubkey_order(&key, pt, curve->Af, curve->prime,
+                                         curve->order);
+
+        /* 11174 (T,T): a point that is NOT on the curve, so order*Q is not the
+         * identity and the guard rejects it. Kept on the custom index so the
+         * generic multiply -- the one this guard follows -- is what runs. */
+        if ((wb_point_from_generator(pt, curve) == MP_OKAY) &&
+            (mp_add_d(pt->y, 1, pt->y) == MP_OKAY))
+            (void)ecc_check_pubkey_order(&key, pt, curve->Af, curve->prime,
+                                         curve->order);
+
+        /* 11174 (F,-): prime+1 is even, so the Montgomery setup inside the
+         * multiply refuses it and the guard is reached with err already set.
+         * Still one bit-count wider than every ordinate, so the 11131 guard
+         * above lets it through to here. */
+        if ((wb_point_from_generator(pt, curve) == MP_OKAY) &&
+            (mp_copy(curve->prime, tmp) == MP_OKAY) &&
+            (mp_add_d(tmp, 1, tmp) == MP_OKAY))
+            (void)ecc_check_pubkey_order(&key, pt, curve->Af, tmp,
+                                         curve->order);
+
+        key.idx = savedIdx;
+
+        wc_ecc_del_point(pt);
+        mp_free(tmp);
+        wc_ecc_curve_free(curve);
+        FREE_CURVE_SPECS();
+        wc_ecc_free(&key);
+    }
+    WB_NOTE("forged pubkey-order vectors done");
+}
+#else
+static void wb_forged_pubkey_order(void)
+{
+    WB_NOTE("pubkey-order check not compiled in; forged vectors skipped");
+}
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER && !WOLFSSL_SP_MATH */
+
+/* ------------------------------------------------------------------------- *
+ * ecc_make_pub_sw() -- 5553 (private scalar out of range) and 5599 (the
+ * base-point-multiply SP dispatch).
+ *
+ * Every public path into this helper generates or imports a scalar that has
+ * already been range-checked, so the three operands of the range guard are
+ * never TRUE; and the dispatch chain is only entered for keys whose curve the
+ * public caller already resolved.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_ECC_MAKE_PUB) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+static void wb_forged_make_pub_sw(void)
+{
+    int c;
+    WC_RNG deadRng;
+
+    /* A never-initialized WC_RNG: its status is WC_DRBG_NOT_INIT, so every
+     * wc_RNG_GenerateBlock() through it fails. That is the lever for the
+     * "err is not MP_OKAY" halves inside ecc_mulmod()'s z-randomization and
+     * for the `err == MP_OKAY && map` guard that follows the multiply --
+     * a computation failure no allocation fault can produce. */
+    XMEMSET(&deadRng, 0, sizeof(deadRng));
+
+    for (c = 0; c < WB_CURVE_COUNT; c++) {
+        DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+        ecc_key    key;
+        ecc_point* pub = NULL;
+        int        err = MP_OKAY;
+        int        savedIdx;
+
+        XMEMSET(&key, 0, sizeof(key));
+        if (!wb_curve_present(wbCurveIds[c]))
+            continue;
+        if (wc_ecc_init(&key) != 0)
+            continue;
+        if (wc_ecc_set_curve(&key, 0, wbCurveIds[c]) != 0) {
+            wc_ecc_free(&key);
+            continue;
+        }
+        ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+        pub = wc_ecc_new_point();
+        if ((err != MP_OKAY) || (pub == NULL)) {
+            WB_NOTE("make-pub-sw setup failed; curve skipped");
+            wb_fail = 1;
+            if (pub != NULL)
+                wc_ecc_del_point(pub);
+            if (err == MP_OKAY)
+                wc_ecc_curve_free(curve);
+            FREE_CURVE_SPECS();
+            wc_ecc_free(&key);
+            continue;
+        }
+        savedIdx = key.idx;
+
+        /* 5553 (F,F,F) + 5599 (T,T) or (T,F): a scalar of 1, so the result is
+         * the generator itself. */
+        if (mp_set(ecc_get_k(&key), 1) == MP_OKAY)
+            (void)ecc_make_pub_sw(&key, curve, pub, NULL);
+
+        /* 5599 (F,-): same scalar, "custom" index -- the generic multiply. */
+        key.idx = ECC_CUSTOM_IDX;
+        if (mp_set(ecc_get_k(&key), 1) == MP_OKAY)
+            (void)ecc_make_pub_sw(&key, curve, pub, NULL);
+
+        /* 3296/3298/3314 and the `err == MP_OKAY && map` guards after the
+         * multiply: a dead RNG makes the z-randomization fail part-way, which
+         * is the only way those success-chain operands go FALSE. */
+        if (mp_set(ecc_get_k(&key), 1) == MP_OKAY)
+            (void)ecc_make_pub_sw(&key, curve, pub, &deadRng);
+        key.idx = savedIdx;
+
+        /* 5553 (T,-,-): the scalar zero. */
+        if (mp_set(ecc_get_k(&key), 0) == MP_OKAY)
+            (void)ecc_make_pub_sw(&key, curve, pub, NULL);
+
+        /* 5553 (F,F,T): the scalar n -- in range for the field, out of range
+         * for the group. */
+        if (mp_copy(curve->order, ecc_get_k(&key)) == MP_OKAY)
+            (void)ecc_make_pub_sw(&key, curve, pub, NULL);
+
+        /* 5553 (F,T,-): a negative scalar (fastmath/tfm only). */
+        if (wb_set_neg_one(ecc_get_k(&key)))
+            (void)ecc_make_pub_sw(&key, curve, pub, NULL);
+
+        (void)mp_set(ecc_get_k(&key), 1);
+        wc_ecc_del_point(pub);
+        wc_ecc_curve_free(curve);
+        FREE_CURVE_SPECS();
+        wc_ecc_free(&key);
+    }
+    WB_NOTE("forged make-pub-sw vectors done");
+}
+#else
+static void wb_forged_make_pub_sw(void)
+{
+    WB_NOTE("HAVE_ECC_MAKE_PUB off; forged make-pub-sw vectors skipped");
+}
+#endif /* HAVE_ECC_MAKE_PUB && !WOLF_CRYPTO_CB_ONLY_ECC */
+
+/* ------------------------------------------------------------------------- *
+ * _ecc_validate_public_key() -- 11343 / 11351 (negative ordinate) and 11374
+ * (the five-operand private-scalar bound check).
+ *
+ * wc_ecc_check_key() hands an SP-supported curve to sp_ecc_check_key_<n>()
+ * and returns, so on the accelerated variants this body is only entered for a
+ * key whose index says "custom". Forcing that index is therefore what makes
+ * the whole decision reachable, and hand-set scalars/ordinates are what
+ * separate its operands.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SP_MATH)
+static void wb_forged_validate_public_key(void)
+{
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+    ecc_key key;
+    int     err = MP_OKAY;
+
+    XMEMSET(&key, 0, sizeof(key));
+    if (wc_ecc_init(&key) != 0) {
+        WB_NOTE("validate-public-key init failed");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        WB_NOTE("validate-public-key set_curve failed");
+        wb_fail = 1;
+        return;
+    }
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+    if (err != MP_OKAY) {
+        FREE_CURVE_SPECS();
+        wc_ecc_free(&key);
+        WB_NOTE("validate-public-key curve load failed");
+        wb_fail = 1;
+        return;
+    }
+
+    /* A consistent private key built entirely from the curve table: Q = G and
+     * d = 1. dp keeps pointing at the real curve; only the index is forced to
+     * "custom" so the generic validation body runs on every variant. */
+    if ((wb_point_from_generator(&key.pubkey, curve) == MP_OKAY) &&
+        (mp_set(ecc_get_k(&key), 1) == MP_OKAY)) {
+        key.idx  = ECC_CUSTOM_IDX;
+        key.type = ECC_PRIVATEKEY;
+
+        /* 11374 (T,T,F,F,F): everything in range. partial = 1 keeps the
+         * (separately covered) order multiply out of the way. */
+        (void)_ecc_validate_public_key(&key, 1, 1);
+
+        /* 11374 (T,F,-,-,-): a key that carries no cached public point is
+         * still asked for the private-side check. */
+        key.type = ECC_PRIVATEKEY_ONLY;
+        (void)_ecc_validate_public_key(&key, 1, 1);
+        key.type = ECC_PRIVATEKEY;
+
+        /* 11374 (T,T,T,-,-): the scalar zero. */
+        if (mp_set(ecc_get_k(&key), 0) == MP_OKAY)
+            (void)_ecc_validate_public_key(&key, 1, 1);
+
+        /* 11374 (T,T,F,F,T): the scalar n. */
+        if (mp_copy(curve->order, ecc_get_k(&key)) == MP_OKAY)
+            (void)_ecc_validate_public_key(&key, 1, 1);
+
+        /* 11374 (T,T,F,T,-): a negative scalar (fastmath/tfm only). */
+        if (wb_set_neg_one(ecc_get_k(&key)))
+            (void)_ecc_validate_public_key(&key, 1, 1);
+
+        /* 11374 (F,-,-,-,-): a public point one unit off the curve, so the
+         * on-curve check leaves err set before the private-side guard. */
+        if ((mp_set(ecc_get_k(&key), 1) == MP_OKAY) &&
+            (mp_add_d(key.pubkey.y, 1, key.pubkey.y) == MP_OKAY))
+            (void)_ecc_validate_public_key(&key, 1, 1);
+
+        /* 11343 (F,T) / 11351 (F,T): a NEGATIVE ordinate compares less-than
+         * the prime, so only the mp_isneg operand can reject it (fastmath). */
+        if (wb_point_from_generator(&key.pubkey, curve) == MP_OKAY) {
+            if (wb_set_neg_one(key.pubkey.x))
+                (void)_ecc_validate_public_key(&key, 1, 0);
+        }
+        if (wb_point_from_generator(&key.pubkey, curve) == MP_OKAY) {
+            if (wb_set_neg_one(key.pubkey.y))
+                (void)_ecc_validate_public_key(&key, 1, 0);
+        }
+        (void)wb_point_from_generator(&key.pubkey, curve);
+    }
+    else {
+        WB_NOTE("validate-public-key vector setup failed");
+        wb_fail = 1;
+    }
+
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    key.idx = 0;
+    wc_ecc_free(&key);
+    WB_NOTE("forged validate-public-key vectors done");
+}
+#else
+static void wb_forged_validate_public_key(void)
+{
+    WB_NOTE("public-key validation not compiled in; forged vectors skipped");
+}
+#endif /* HAVE_ECC_CHECK_PUBKEY_ORDER && !WOLFSSL_SP_MATH */
+
+/* ------------------------------------------------------------------------- *
+ * wc_ecc_is_point() -- 10836 / 10843 mp_isneg halves.
+ *
+ * pass 2 supplied the x == p and y == p rows (the mp_cmp operand). The second
+ * operand of each needs an ordinate that is LESS than the prime and still
+ * invalid, which only a negative value is -- unrepresentable under SP math,
+ * real under tfm.
+ * ------------------------------------------------------------------------- */
+static void wb_forged_is_point_neg(void)
+{
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+    ecc_point* pt = NULL;
+    ecc_key    key;
+    int        err = MP_OKAY;
+
+    XMEMSET(&key, 0, sizeof(key));
+    if (wc_ecc_init(&key) != 0)
+        return;
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return;
+    }
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+    pt = wc_ecc_new_point();
+    if ((err == MP_OKAY) && (pt != NULL)) {
+        /* (F,F) reference row, then a negative x, then a negative y. */
+        if (wb_point_from_generator(pt, curve) == MP_OKAY)
+            (void)wc_ecc_is_point(pt, curve->Af, curve->Bf, curve->prime);
+        if ((wb_point_from_generator(pt, curve) == MP_OKAY) &&
+            wb_set_neg_one(pt->x))
+            (void)wc_ecc_is_point(pt, curve->Af, curve->Bf, curve->prime);
+        if ((wb_point_from_generator(pt, curve) == MP_OKAY) &&
+            wb_set_neg_one(pt->y))
+            (void)wc_ecc_is_point(pt, curve->Af, curve->Bf, curve->prime);
+    }
+    if (pt != NULL)
+        wc_ecc_del_point(pt);
+    if (err == MP_OKAY)
+        wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    wc_ecc_free(&key);
+    WB_NOTE("forged is-point range vectors done");
+}
+
+/* ------------------------------------------------------------------------- *
+ * Point decompression -- 10221 / 10242 (the SP uncompress dispatch), 10325
+ * and 11611 (the sqrt-parity adjust).
+ *
+ * wc_ecc_import_point_der() passes shortKeySize = 1, which makes the
+ * compressed branch compute keysize = inLen/2 and bail with a size mismatch
+ * BEFORE the decompression runs -- which is why every compressed vector in the
+ * API suite (and in pass 2) stops short of these decisions. Calling
+ * wc_ecc_import_point_der_ex() with shortKeySize = 0 is the documented way to
+ * import a compressed point, and is what gets past it.
+ *
+ * The parity adjust needs BOTH a square root that is odd and one that is even,
+ * against BOTH the 0x02 and 0x03 prefixes. Rather than depend on a generated
+ * key's y (whose parity is a coin flip -- a genuine source of run-to-run
+ * variation in this file's numbers), the vectors sweep a fixed list of small
+ * x values: those that are on the curve yield a deterministic root, and the
+ * list is long enough to contain both parities on every curve.
+ *
+ * Note the third operand, `mp_isodd(t2) == MP_NO`, is the exact complement of
+ * the first, `mp_isodd(t2) == MP_YES`: no pair of test vectors can vary one
+ * while holding the other fixed, so it has no independence pair by
+ * construction (see RESIDUALS).
+ * ------------------------------------------------------------------------- */
+#ifdef HAVE_COMP_KEY
+static void wb_uncompress_parity(void)
+{
+    byte blob[1 + ECC_MAXSIZE];
+    int  c;
+
+    for (c = 0; c < WB_CURVE_COUNT; c++) {
+        int idx = wc_ecc_get_curve_idx(wbCurveIds[c]);
+        int size;
+        int xv;
+
+        if (idx < 0)
+            continue;
+        size = ecc_sets[idx].size;
+        if ((size <= 0) || (size > ECC_MAXSIZE))
+            continue;
+
+        for (xv = 1; xv <= 12; xv++) {
+            int p;
+
+            for (p = 0; p < 2; p++) {
+                ecc_point* pt;
+                ecc_key    ik;
+
+                XMEMSET(blob, 0, sizeof(blob));
+                blob[0] = (p == 0) ? ECC_POINT_COMP_EVEN : ECC_POINT_COMP_ODD;
+                blob[size] = (byte)xv;   /* x = xv, big-endian, size bytes */
+
+                pt = wc_ecc_new_point();
+                if (pt != NULL) {
+                    (void)wc_ecc_import_point_der_ex(blob, (word32)size + 1,
+                                                     idx, pt, 0);
+                    wc_ecc_del_point(pt);
+                }
+
+                /* Same blob through the key importer, whose own copy of the
+                 * parity adjust is 11611. */
+                XMEMSET(&ik, 0, sizeof(ik));
+                if (wc_ecc_init(&ik) == 0) {
+                    (void)_ecc_import_x963_ex2(blob, (word32)size + 1, &ik,
+                                               wbCurveIds[c], 0);
+                    wc_ecc_free(&ik);
+                }
+            }
+        }
+    }
+    WB_NOTE("compressed-point parity vectors done");
+}
+#else
+static void wb_uncompress_parity(void)
+{
+    WB_NOTE("HAVE_COMP_KEY off; compressed-point parity vectors skipped");
+}
+#endif /* HAVE_COMP_KEY */
+
+/* ------------------------------------------------------------------------- *
+ * _ecc_import_x963_ex2() untrusted branch -- 11728.
+ *
+ * The first operand only goes FALSE when the imported point is the identity,
+ * because the line above sets err in exactly that case; an all-zero X9.63 blob
+ * is that point. The second needs a key whose index says "custom", which no
+ * X9.63 import produces on its own.
+ * ------------------------------------------------------------------------- */
+#ifdef HAVE_ECC_KEY_IMPORT
+static void wb_untrusted_import(void)
+{
+    byte blob[1 + 2 * ECC_MAXSIZE];
+    int  idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    int  size;
+
+    if (idx < 0) {
+        WB_NOTE("SECP256R1 absent; untrusted-import vectors skipped");
+        return;
+    }
+    size = ecc_sets[idx].size;
+    if ((size <= 0) || (size > ECC_MAXSIZE))
+        return;
+
+    /* (F,-): x = y = 0 is the point at infinity, rejected one line earlier. */
+    {
+        ecc_key ik;
+        XMEMSET(blob, 0, sizeof(blob));
+        blob[0] = ECC_POINT_UNCOMP;
+        XMEMSET(&ik, 0, sizeof(ik));
+        if (wc_ecc_init(&ik) == 0) {
+            (void)_ecc_import_x963_ex2(blob, (word32)(2 * size + 1), &ik,
+                                       ECC_SECP256R1, 1);
+            wc_ecc_free(&ik);
+        }
+    }
+
+    /* (T,T) and (T,F): the generator, imported into a plain key and into a key
+     * that already carries a custom curve. */
+    {
+        DECLARE_CURVE_SPECS(2);
+        ecc_key ik;
+        int     err = MP_OKAY;
+
+        ALLOC_CURVE_SPECS(2, err);
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(&ecc_sets[idx], &curve,
+                      ECC_CURVE_FIELD_GX | ECC_CURVE_FIELD_GY);
+        if (err == MP_OKAY) {
+            XMEMSET(blob, 0, sizeof(blob));
+            blob[0] = ECC_POINT_UNCOMP;
+            if ((mp_to_unsigned_bin_len(curve->Gx, blob + 1, size)
+                                                                == MP_OKAY) &&
+                (mp_to_unsigned_bin_len(curve->Gy, blob + 1 + size, size)
+                                                                == MP_OKAY)) {
+                XMEMSET(&ik, 0, sizeof(ik));
+                if (wc_ecc_init(&ik) == 0) {
+                    (void)_ecc_import_x963_ex2(blob, (word32)(2 * size + 1),
+                                               &ik, ECC_SECP256R1, 1);
+                    wc_ecc_free(&ik);
+                }
+#ifdef WOLFSSL_CUSTOM_CURVES
+                XMEMSET(&ik, 0, sizeof(ik));
+                if (wc_ecc_init(&ik) == 0) {
+                    if (wc_ecc_set_custom_curve(&ik, &ecc_sets[idx]) == 0)
+                        (void)_ecc_import_x963_ex2(blob,
+                                  (word32)(2 * size + 1), &ik,
+                                  ECC_CURVE_DEF, 1);
+                    ik.dp = NULL;   /* borrowed from ecc_sets[]; not ours */
+                    wc_ecc_free(&ik);
+                }
+#endif
+            }
+            wc_ecc_curve_free(curve);
+        }
+        FREE_CURVE_SPECS();
+    }
+    WB_NOTE("untrusted-import vectors done");
+}
+#else
+static void wb_untrusted_import(void)
+{
+    WB_NOTE("HAVE_ECC_KEY_IMPORT off; untrusted-import vectors skipped");
+}
+#endif /* HAVE_ECC_KEY_IMPORT */
+
+/* ------------------------------------------------------------------------- *
+ * Negative-value guards on the public import/convert helpers -- 12426
+ * (wc_ecc_rs_to_sig) and 12745 (_ecc_import_raw_private).
+ *
+ * Both read their operand from a hex STRING, and tfm's mp_read_radix accepts a
+ * leading '-'. That is the only way a negative scalar / signature component
+ * enters ecc.c at all; under SP math the read simply fails and the guard is
+ * skipped, which is why these rows only exist in the fastmath variant.
+ * ------------------------------------------------------------------------- */
+static void wb_forged_negative_strings(void)
+{
+#ifdef HAVE_ECC_SIGN
+    {
+        byte   out[128];
+        word32 outLen;
+
+        outLen = (word32)sizeof(out);
+        (void)wc_ecc_rs_to_sig("1", "2", out, &outLen);      /* (F,F) */
+        outLen = (word32)sizeof(out);
+        (void)wc_ecc_rs_to_sig("-1", "2", out, &outLen);     /* (T,-) */
+        outLen = (word32)sizeof(out);
+        (void)wc_ecc_rs_to_sig("1", "-2", out, &outLen);     /* (F,T) */
+    }
+#endif
+
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_ECC_CURVE_STATIC)
+    {
+        int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+
+        if (idx >= 0) {
+            static const char* const privs[3] = { "1", "0", "-1" };
+            int i;
+
+            /* (F,F), then (T,-) via a zero scalar, then (F,T) via a negative
+             * one. Public point is the curve's own generator, so nothing but
+             * the scalar is out of the ordinary. */
+            for (i = 0; i < 3; i++) {
+                ecc_key ik;
+                XMEMSET(&ik, 0, sizeof(ik));
+                if (wc_ecc_init(&ik) != 0)
+                    continue;
+                (void)wc_ecc_import_raw(&ik, ecc_sets[idx].Gx,
+                          ecc_sets[idx].Gy, privs[i], ecc_sets[idx].name);
+                wc_ecc_free(&ik);
+            }
+        }
+    }
+#endif
+    WB_NOTE("negative-string import vectors done");
+}
+
+/* ------------------------------------------------------------------------- *
+ * ecc_check_order_minus_1() -- 3941.
+ *
+ * Compiled only where the fixed-point cache is off (the no_fp_shamir variant).
+ * Both operands reject a curve whose order or modulus is wider than the build
+ * supports; no entry in ecc_sets[] is, so only a hand-built mp_int gets there.
+ * The guard returns before the points are touched.
+ * ------------------------------------------------------------------------- */
+#if !defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && defined(ECC_TIMING_RESISTANT)
+static void wb_forged_order_minus_1(void)
+{
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+    ecc_key    key;
+    ecc_point* tG = NULL;
+    ecc_point* R  = NULL;
+    mp_int     huge[1];
+    int        err = MP_OKAY;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(huge, 0, sizeof(huge));
+    if (wc_ecc_init(&key) != 0)
+        return;
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return;
+    }
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+    if (err == MP_OKAY)
+        err = mp_init(huge);
+    tG = wc_ecc_new_point();
+    R  = wc_ecc_new_point();
+
+    if ((err == MP_OKAY) && (tG != NULL) && (R != NULL) &&
+        (wb_point_from_generator(tG, curve) == MP_OKAY) &&
+        (mp_set(huge, 0) == MP_OKAY) &&
+        (mp_set_bit(huge, MAX_ECC_BITS_USE + 64) == MP_OKAY)) {
+        /* (T,-): an order wider than the build's maximum. */
+        (void)ecc_check_order_minus_1(curve->order, tG, R, curve->prime, huge);
+        /* (F,T): the order is fine, the modulus is not. */
+        (void)ecc_check_order_minus_1(curve->order, tG, R, huge, curve->order);
+    }
+    else if (err == MP_OKAY) {
+        WB_NOTE("order-minus-1 vector setup failed");
+    }
+
+    if (R != NULL)
+        wc_ecc_del_point(R);
+    if (tG != NULL)
+        wc_ecc_del_point(tG);
+    mp_free(huge);
+    if (err == MP_OKAY)
+        wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    wc_ecc_free(&key);
+    WB_NOTE("forged order-minus-1 vectors done");
+}
+#else
+static void wb_forged_order_minus_1(void)
+{
+    WB_NOTE("ecc_check_order_minus_1 not compiled in; vectors skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * ecc_sign_hash_sw() custom-curve pubkey fixup -- 7314.
+ *
+ * wc_ecc_sign_hash() returns from sp_ecc_sign_<n>() for every SP-supported
+ * curve, so on the accelerated variants the ONLY key that reaches this helper
+ * through the API is a custom-curve one -- the second operand never separates.
+ * Calling the helper directly with the same key on both indices supplies both
+ * rows. dp keeps pointing at a real curve either way, so the ephemeral key the
+ * signer builds from dp->id is a normal one.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_ECC_SIGN) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_DHUK) && \
+    defined(WOLFSSL_CUSTOM_CURVES)
+static void wb_sign_hash_sw_indices(void)
+{
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+    WC_RNG  rng;
+    ecc_key key;
+    ecc_key eph;
+    mp_int  ers[3];
+    int     err = MP_OKAY;
+    int     haveRng = 0;
+    int     i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(ers, 0, sizeof(ers));
+
+    if (wc_ecc_init(&key) != 0)
+        return;
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return;
+    }
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ALL);
+    if (err == MP_OKAY)
+        err = mp_init_multi(&ers[0], &ers[1], &ers[2], NULL, NULL, NULL);
+    if (err == MP_OKAY)
+        haveRng = (wc_InitRng(&rng) == 0);
+
+    if ((err == MP_OKAY) && haveRng &&
+        (mp_set(ecc_get_k(&key), 3) == MP_OKAY) &&
+        (mp_set(&ers[0], 0x2a) == MP_OKAY)) {
+        key.type = ECC_PRIVATEKEY;
+        /* i == 0: the table index -> (T,F). i == 1: "custom" -> (T,T), which
+         * copies key->dp onto the ephemeral key before it is generated. */
+        for (i = 0; i < 2; i++) {
+            key.idx = (i == 0) ? wc_ecc_get_curve_idx(ECC_SECP256R1)
+                               : ECC_CUSTOM_IDX;
+            XMEMSET(&eph, 0, sizeof(eph));
+            if (wc_ecc_init(&eph) == 0) {
+                (void)ecc_sign_hash_sw(&key, &eph, &rng, curve, &ers[0],
+                                       &ers[1], &ers[2]);
+                /* The custom-curve fixup points eph.dp at key.dp, an entry of
+                 * the static ecc_sets[] table. wc_ecc_set_custom_curve does
+                 * not set deallocSet, so wc_ecc_free leaves it alone. */
+                wc_ecc_free(&eph);
+            }
+        }
+        key.idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    }
+
+    if (haveRng)
+        wc_FreeRng(&rng);
+    mp_free(&ers[2]);
+    mp_free(&ers[1]);
+    mp_free(&ers[0]);
+    if (err == MP_OKAY)
+        wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    wc_ecc_free(&key);
+    WB_NOTE("sign-hash-sw index vectors done");
+}
+#else
+static void wb_sign_hash_sw_indices(void)
+{
+    WB_NOTE("ecc_sign_hash_sw not compiled in; index vectors skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * wc_ecc_check_r_s_range() -- 9345.
+ *
+ * A signature produced by ecc.c always has r and s reduced mod n, and the
+ * verify paths that reach this helper only ever see such a pair. Handing it a
+ * hand-built (r, s) is the only way its second range check separates, and the
+ * only way it is reached with err already set by the first one.
+ * ------------------------------------------------------------------------- */
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_PSOC6_CRYPTO) && \
+    (!defined(WOLFSSL_STM32_PKA) || defined(WC_STM32_PKA_SIGN_ONLY))
+static void wb_forged_rs_range(void)
+{
+    DECLARE_CURVE_SPECS(1);
+    ecc_key key;
+    mp_int  rs[2];
+    int     err = MP_OKAY;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(rs, 0, sizeof(rs));
+    if (wc_ecc_init(&key) != 0)
+        return;
+    if (wc_ecc_set_curve(&key, 0, ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return;
+    }
+    ALLOC_CURVE_SPECS(1, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key.dp, &curve, ECC_CURVE_FIELD_ORDER);
+    if (err == MP_OKAY)
+        err = mp_init_multi(&rs[0], &rs[1], NULL, NULL, NULL, NULL);
+
+    if (err == MP_OKAY) {
+        /* (T,F): both in range. */
+        if ((mp_set(&rs[0], 1) == MP_OKAY) && (mp_set(&rs[1], 1) == MP_OKAY))
+            (void)wc_ecc_check_r_s_range(&key, &rs[0], &rs[1]);
+        /* (T,T): s == n, which is one past the top of the range. */
+        if (mp_copy(curve->order, &rs[1]) == MP_OKAY)
+            (void)wc_ecc_check_r_s_range(&key, &rs[0], &rs[1]);
+        /* (F,-): r == n, so the r check has already set err. */
+        if ((mp_copy(curve->order, &rs[0]) == MP_OKAY) &&
+            (mp_set(&rs[1], 1) == MP_OKAY))
+            (void)wc_ecc_check_r_s_range(&key, &rs[0], &rs[1]);
+        mp_free(&rs[1]);
+        mp_free(&rs[0]);
+        wc_ecc_curve_free(curve);
+    }
+    FREE_CURVE_SPECS();
+    wc_ecc_free(&key);
+    WB_NOTE("forged r/s range vectors done");
+}
+#else
+static void wb_forged_rs_range(void)
+{
+    WB_NOTE("r/s range helper not compiled in; vectors skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * RFC 6979 deterministic-k helpers -- 7939 (_HMAC_K) and 8205 / 8213
+ * (wc_ecc_gen_deterministic_k's retry loop).
+ *
+ * The retry loop only turns over when the candidate k falls outside [1, n-1].
+ * Against a real curve order that is a ~2^-128 event, so the API can never
+ * show it. Against a deliberately TINY order it happens on most iterations,
+ * and the whole chain stays deterministic because every input is fixed.
+ *
+ * _HMAC_K's `ret == 0` operand needs the HMAC itself to fail, which a hash
+ * type the build does not implement does -- inside wc_HmacSetKey, before any
+ * buffer is touched.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+static void wb_deterministic_k_retry(void)
+{
+    byte   K[WC_MAX_DIGEST_SIZE];
+    byte   V[WC_MAX_DIGEST_SIZE];
+    byte   x[8];
+    byte   h1[8];
+    byte   out[WC_MAX_DIGEST_SIZE];
+    byte   intOct = 0x00;
+    mp_int nums[3];
+
+    XMEMSET(K, 0x00, sizeof(K));
+    XMEMSET(V, 0x01, sizeof(V));
+    XMEMSET(x, 0x11, sizeof(x));
+    XMEMSET(h1, 0x22, sizeof(h1));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(nums, 0, sizeof(nums));
+
+    /* 7939 (T,T) / (T,F): a working HMAC with and without the octet. */
+    (void)_HMAC_K(K, WC_SHA256_DIGEST_SIZE, V, WC_SHA256_DIGEST_SIZE,
+                  h1, (word32)sizeof(h1), x, (word32)sizeof(x), &intOct, out,
+                  WC_HASH_TYPE_SHA256, NULL);
+    (void)_HMAC_K(K, WC_SHA256_DIGEST_SIZE, V, WC_SHA256_DIGEST_SIZE,
+                  NULL, 0, NULL, 0, NULL, out, WC_HASH_TYPE_SHA256, NULL);
+    /* 7939 (F,-): wc_HmacSetKey rejects the type, so ret is already set when
+     * the octet operand would otherwise be looked at. */
+    (void)_HMAC_K(K, WC_SHA256_DIGEST_SIZE, V, WC_SHA256_DIGEST_SIZE,
+                  h1, (word32)sizeof(h1), x, (word32)sizeof(x), &intOct, out,
+                  WC_HASH_TYPE_NONE, NULL);
+
+    /* 8205 / 8213: a one-byte order of 2 leaves exactly one acceptable
+     * candidate out of the four values a two-bit k can take, so the loop
+     * rejects and re-derives several times before it settles -- both halves
+     * of both `ret == 0 && err != 0` guards, from fixed inputs. */
+    if (mp_init_multi(&nums[0], &nums[1], &nums[2], NULL, NULL, NULL)
+                                                                 == MP_OKAY) {
+        byte hash[WC_SHA256_DIGEST_SIZE];
+
+        XMEMSET(hash, 0x5c, sizeof(hash));
+        if ((mp_set(&nums[0], 1) == MP_OKAY) &&      /* priv */
+            (mp_set(&nums[2], 2) == MP_OKAY)) {      /* order */
+            (void)wc_ecc_gen_deterministic_k(hash, (word32)sizeof(hash),
+                      WC_HASH_TYPE_SHA256, &nums[0], &nums[1], &nums[2], NULL);
+        }
+        mp_free(&nums[2]);
+        mp_free(&nums[1]);
+        mp_free(&nums[0]);
+    }
+
+#ifndef USE_FAST_MATH
+    /* 8186 / 8205 / 8213 (F,-): the same loop, but with a destination k that
+     * has room for a single digit. The candidate is read back as qLen bytes,
+     * so the read fails and every guard downstream of it is reached with ret
+     * already set -- something no caller can arrange, because every caller
+     * passes a full-width mp_int. tfm has no mp_init_size, so this row comes
+     * from the SP-math variants. */
+    {
+        mp_int small[3];
+        byte   hash[WC_SHA256_DIGEST_SIZE];
+
+        XMEMSET(small, 0, sizeof(small));
+        XMEMSET(hash, 0x5c, sizeof(hash));
+        if ((mp_init(&small[0]) == MP_OKAY) &&
+            (mp_init(&small[2]) == MP_OKAY) &&
+            (mp_init_size(&small[1], 1) == MP_OKAY) &&
+            (mp_set(&small[0], 1) == MP_OKAY) &&      /* priv */
+            (mp_set(&small[2], 0) == MP_OKAY) &&
+            (mp_set_bit(&small[2], 127) == MP_OKAY)) { /* 16-byte order */
+            (void)wc_ecc_gen_deterministic_k(hash, (word32)sizeof(hash),
+                      WC_HASH_TYPE_SHA256, &small[0], &small[1], &small[2],
+                      NULL);
+        }
+        mp_free(&small[2]);
+        mp_free(&small[1]);
+        mp_free(&small[0]);
+    }
+#endif
+    WB_NOTE("deterministic-k retry vectors done");
+}
+#else
+static void wb_deterministic_k_retry(void)
+{
+    WB_NOTE("deterministic k not compiled in; retry vectors skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * ECIES with a KDF the build does not implement -- 15809 / 16157.
+ *
+ * Both guards are `ret == 0 && [!]ecc_is_gcm(...)`, and their first operand
+ * only goes FALSE when something upstream already failed. ecc_get_key_sizes()
+ * validates the CIPHER and the MAC, but not the KDF, so a context carrying an
+ * unimplemented kdfAlgo passes every size check and then falls into the KDF
+ * switch's default -- reaching both guards with ret set, which no correctly
+ * configured exchange does.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF) && !defined(NO_AES) && \
+    !defined(NO_HMAC)
+static void wb_ecies_bad_kdf(void)
+{
+    WC_RNG  rng;
+    ecc_key a;
+    ecc_key b;
+    byte    plain[32];
+    byte    enc[256];
+    byte    dec[256];
+    byte    good[256];
+    word32  goodSz = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(plain, 0x5a, sizeof(plain));
+    XMEMSET(good, 0, sizeof(good));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; ECIES bad-KDF pass skipped");
+        return;
+    }
+
+    /* Pass 0 encrypts with a broken KDF (15809). Pass 1 builds a good message
+     * first and then decrypts it with a broken KDF (16157). Pass 2 decrypts a
+     * good message with a MAC salt whose pointer is NULL while its length is
+     * not, so the HMAC that authenticates the message fails and 16221 is
+     * reached with ret already set -- the only way that guard's first operand
+     * goes FALSE, since the salt is otherwise always a real buffer. */
+    {
+        int pass;
+
+        for (pass = 0; pass < 3; pass++) {
+            ecEncCtx* ec = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+            ecEncCtx* dc = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+            word32    encSz = (word32)sizeof(enc);
+            word32    decSz = (word32)sizeof(dec);
+            byte      saltCli[EXCHANGE_SALT_SZ];
+            byte      saltSrv[EXCHANGE_SALT_SZ];
+            const byte* sp;
+            int       ok = 0;
+
+            /* A fresh pair each pass: wc_ecc_decrypt overwrites its pubKey
+             * argument with the sender's ephemeral point. */
+            XMEMSET(&a, 0, sizeof(a));
+            XMEMSET(&b, 0, sizeof(b));
+            if ((wc_ecc_init(&a) != 0) || (wc_ecc_init(&b) != 0) ||
+                (wc_ecc_make_key_ex(&rng, 0, &a, ECC_SECP256R1) != 0) ||
+                (wc_ecc_make_key_ex(&rng, 0, &b, ECC_SECP256R1) != 0)) {
+                WB_NOTE("ECIES bad-KDF key setup failed");
+                wc_ecc_free(&b);
+                wc_ecc_free(&a);
+                wc_ecc_ctx_free(dc);
+                wc_ecc_ctx_free(ec);
+                break;
+            }
+
+            if ((ec != NULL) && (dc != NULL)) {
+                sp = wc_ecc_ctx_get_own_salt(ec);
+                if (sp != NULL) {
+                    XMEMCPY(saltCli, sp, EXCHANGE_SALT_SZ);
+                    sp = wc_ecc_ctx_get_own_salt(dc);
+                    if (sp != NULL) {
+                        XMEMCPY(saltSrv, sp, EXCHANGE_SALT_SZ);
+                        ok = (wc_ecc_ctx_set_peer_salt(ec, saltSrv) == 0) &&
+                             (wc_ecc_ctx_set_peer_salt(dc, saltCli) == 0) &&
+                             (wc_ecc_ctx_set_algo(ec, ecAES_128_CBC,
+                                  ecHKDF_SHA256, ecHMAC_SHA256) == 0) &&
+                             (wc_ecc_ctx_set_algo(dc, ecAES_128_CBC,
+                                  ecHKDF_SHA256, ecHMAC_SHA256) == 0);
+                    }
+                }
+            }
+
+            if (ok && (pass == 0)) {
+                /* Set the field directly: wc_ecc_ctx_set_algo screens the
+                 * value, and screening it is exactly what we need to skip. */
+                ec->kdfAlgo = 0x7f;
+                (void)wc_ecc_encrypt(&a, &b, plain, (word32)sizeof(plain), enc,
+                                     &encSz, ec);
+            }
+            else if (ok) {
+                if ((wc_ecc_encrypt(&a, &b, plain, (word32)sizeof(plain), good,
+                                    &goodSz, ec) == 0) && (goodSz > 0)) {
+                    if (pass == 1) {
+                        dc->kdfAlgo = 0x7f;
+                    }
+                    else {
+                        dc->macSalt   = NULL;
+                        dc->macSaltSz = 8;
+                    }
+                    (void)wc_ecc_decrypt(&b, &a, good, goodSz, dec, &decSz,
+                                         dc);
+                }
+            }
+
+            wc_ecc_ctx_free(dc);
+            wc_ecc_ctx_free(ec);
+            wc_ecc_free(&b);
+            wc_ecc_free(&a);
+            goodSz = (word32)sizeof(good);
+        }
+    }
+
+    wc_FreeRng(&rng);
+    WB_NOTE("ECIES bad-KDF vectors done");
+}
+#else
+static void wb_ecies_bad_kdf(void)
+{
+    WB_NOTE("ECIES not compiled in; bad-KDF vectors skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * RESIDUAL, recorded here so it is not re-attempted: 8684's second operand,
+ * `mp_iszero(R->y)` in
+ *
+ *     if ((err == MP_OKAY) && mp_iszero(R->z)) {
+ *         if (mp_iszero(R->x) && mp_iszero(R->y)) {
+ *
+ * has no independence pair. The adder computes
+ *     Z3 = -Z*Z'*H,  X3 = r^2 - (U1+U2)*H^2,
+ *     Y3 = (-r^3 + 3*r*X3 + (S1+S2)*H^3) / 2
+ * over a prime modulus, so Z3 == 0 forces H == 0, which collapses those to
+ * X3 = r^2 and Y3 = -r*X3/2: X3 == 0 therefore forces Y3 == 0 and the
+ * (X3 == 0, Y3 != 0) row does not exist.
+ *
+ * Feeding the helper a COMPOSITE modulus directly (the only other way Z*Z' can
+ * vanish with H != 0) does not help either, and was tried: for every way of
+ * splitting the modulus so that Z*Z' == 0, one side's own U and S collapse to
+ * zero in that prime component, which restores a Y3 = c*X3 relation there.
+ * Exhaustive sweeps over the moduli 9, 15, 21 and 35 with the Z ordinates set
+ * to the factors produced no such row.
+ * ------------------------------------------------------------------------- */
+
+/* ========================================================================= *
+ * RESIDUALS after pass 3 -- conditions with no independence pair, and why.
+ * Recorded here so they are not re-attempted. Line numbers are ecc.c's.
+ *
+ *  4394:0  `ecc_sets[curve_idx].name &&`
+ *  4666:0  `ecc_sets[curve_idx].oid  &&`
+ *          ecc_sets[] is a static const table; every entry before the
+ *          size == 0 sentinel (which stops both loops first) initializes name
+ *          and oid from a string literal, so neither operand is ever FALSE.
+ *          For the oid loop there is a second, independent reason: this build
+ *          has HAVE_OID_ENCODING without HAVE_OID_DECODING, so the iteration
+ *          calls EncodeObjectId(ecc_sets[i].oid, ...) BEFORE the guard, and
+ *          EncodeObjectId rejects a NULL input and makes the loop `continue`
+ *          without ever evaluating the guard.
+ *
+ *  5082:0  `if (checkInf && wc_ecc_point_is_at_infinity(result))`
+ *  5110:1  `if ((err == MP_OKAY) && checkInf)`
+ *          checkInf is a local initialized to the constant 1 and never
+ *          assigned again outside WOLFSSL_SE050 builds, so it cannot be FALSE
+ *          in any variant this campaign compiles.
+ *
+ *  5088:1  `x < mp_unsigned_bin_size(result->x)`
+ *          x is mp_unsigned_bin_size(curve->prime) and the guard only runs
+ *          after ecc_map_ex() succeeded, which leaves result->x reduced mod
+ *          that same prime. A reduced value can never need more bytes than
+ *          the modulus, so this operand is FALSE on every path that reaches
+ *          it -- including when the caller supplies its own curve, because
+ *          the multiply and the size both come from the one loaded prime.
+ *
+ *  5737:0  `if ((err == MP_OKAY) && !doneInCb)`
+ *  5737:1  doneInCb is only ever set inside the WOLF_CRYPTO_CB offload block,
+ *          which no variant of this module compiles, so it is a constant 0;
+ *          and with it absent nothing between the function's entry and this
+ *          guard can fail (the mp_init_multi above it cannot fail for the
+ *          fixed-size mp_ints of a live ecc_point), so err is a constant
+ *          MP_OKAY. Reaching either row needs a registered crypto callback,
+ *          i.e. a different build, not a different test.
+ *
+ *  8684:1  See the dedicated note above: over a prime field Z3 == 0 forces
+ *          H == 0, which makes Y3 a multiple of X3, so X3 == 0 drags Y3 to
+ *          zero with it. Composite moduli were tried too and do not help.
+ *
+ * 10221:0  `curve_idx != ECC_CUSTOM_IDX &&` (x2, uncompress dispatch)
+ * 10242:0  ECC_CUSTOM_IDX is -1 and wc_ecc_import_point_der_ex() returns
+ *          ECC_BAD_ARG_E for any curve_idx < 0 in its first guard, so the
+ *          custom index can never reach these decisions. The operand is a
+ *          defensive re-check of something already rejected.
+ *
+ * 10325:2  `mp_isodd(t2) == MP_NO` (and 11611:2, the same code in the key
+ * 11611:2  importer). This is the exact complement of the decision's FIRST
+ *          operand, `mp_isodd(t2) == MP_YES`, computed from the same value:
+ *          no pair of test vectors can vary one while holding the other
+ *          fixed, so the condition has no independence pair by construction.
+ *          The other three operands of each decision are covered.
+ *
+ * 10769:0  `while (err == MP_OKAY && mp_isneg(t1))`
+ * 10769:1
+ * 10772:0  `while (err == MP_OKAY && mp_cmp(t1, prime) != MP_LT)`
+ * 10772:1  Both loops are defensive range fixups running immediately after
+ *          the step that already normalized t1: whichever arm of the "is a
+ *          equal to -3" test was taken, t1 was last written by mp_mod() or
+ *          mp_addmod() against prime, and both backends return a result with
+ *          the sign of the modulus and strictly below it. So t1 is never
+ *          negative and never >= prime, neither loop body ever runs, and
+ *          neither the loop-entry operand nor the err operand can form a
+ *          pair. (A negative prime WOULD make the first test TRUE, but the
+ *          body then adds that negative prime and never terminates, so it is
+ *          not a legitimate input.)
+ *
+ * The remaining rows -- 14180, 14289 and 16564 -- are the campaign's
+ * pre-existing exclusions and are unchanged by this pass.
+ * ========================================================================= */
+
 int main(void)
 {
     /* Unbuffered: on a timeout or a fault the process is killed and anything
@@ -2500,6 +3705,18 @@ int main(void)
     wb_gap_pass2();
     wb_custom_curve_dispatch();
     wb_ecies_algos();
+    wb_forged_pubkey_order();
+    wb_forged_make_pub_sw();
+    wb_forged_validate_public_key();
+    wb_forged_is_point_neg();
+    wb_uncompress_parity();
+    wb_untrusted_import();
+    wb_forged_negative_strings();
+    wb_forged_order_minus_1();
+    wb_sign_hash_sw_indices();
+    wb_forged_rs_range();
+    wb_deterministic_k_retry();
+    wb_ecies_bad_kdf();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */
