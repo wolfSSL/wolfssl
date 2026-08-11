@@ -55,6 +55,12 @@
 
 #include <wolfcrypt/src/asn.c>
 
+/* Structural DER edits: the acert date gates sit inside
+ * `if (CheckDate(...) < 0)`, which an out-of-range date can no longer enter
+ * once the runtime skip flag is set, so the fixture needs a validity item that
+ * is malformed rather than expired. */
+#include "mcdc_der_edit.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -2212,6 +2218,107 @@ static void wb_parse_acert_bad_dates(void)
 #endif
         }
 #endif /* WC_ASN_RUNTIME_DATE_CHECK_CONTROL && !NO_ASN_TIME */
+    }
+
+    /* CheckDate()'s length check (asn.c:22487) runs before the
+     * AsnSkipDateCheck gate at :22494, so shortening the notBefore
+     * GeneralizedTime below MIN_DATE_SIZE makes CheckDate() negative whatever
+     * the flag says. That is the only way to evaluate the 3rd operand of
+     * :40562/:40576 -- an out-of-range date cannot, because with the flag set
+     * CheckDate() returns 0 and the enclosing `if` is not entered. */
+    {
+        byte shortDer[2048];
+        word32 gt[2];
+        int nGt = 0;
+        word32 i;
+        int which;
+
+        /* The first two 15-byte GeneralizedTimes are the ACINFO validity
+         * pair. Each is shortened in its own copy, so the notBefore gate and
+         * the notAfter gate are driven independently -- a malformed
+         * notBefore alone leaves the notAfter check unreached. */
+        for (i = 0; (i + 17U <= der->length) && (nGt < 2); i++) {
+            if ((der->buffer[i] == ASN_GENERALIZED_TIME) &&
+                    (der->buffer[i + 1] == 0x0F)) {
+                gt[nGt++] = i + 2U + 11U;   /* keep 11 content bytes */
+                i += 16U;
+            }
+        }
+        WB_CHECK(nGt == 2, "located both ACINFO GeneralizedTime items");
+
+        for (which = 0; which < nGt; which++) {
+            word32 sz = der->length;
+            static const int modes[2] = { NO_VERIFY, VERIFY };
+            int m;
+
+            if (sz > sizeof(shortDer)) {
+                WB_NOTE("acert larger than the edit buffer; skipped");
+                break;
+            }
+            XMEMCPY(shortDer, der->buffer, sz);
+            if (mcdc_der_shrink(shortDer, &sz, gt[which], 4) != 0) {
+                WB_NOTE("acert validity shrink refused; row skipped");
+                continue;
+            }
+
+            WB_NOTE(which == 0
+                    ? "wc_ParseX509Acert(): malformed notBefore item [:40562]"
+                    : "wc_ParseX509Acert(): malformed notAfter item [:40576]");
+            for (m = 0; m < 2; m++) {
+                WC_DECLARE_VAR(acert, DecodedAcert, 1, 0);
+#ifdef WOLFSSL_SMALL_STACK
+                acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), NULL,
+                        DYNAMIC_TYPE_DCERT);
+#else
+                XMEMSET(acert, 0, sizeof(DecodedAcert));
+#endif
+                if (acert != NULL) {
+                    wc_InitDecodedAcert(acert, shortDer, sz, NULL);
+                    ret = wc_ParseX509Acert(acert, modes[m]);
+                    /* CheckDate()'s tag/length checks are outside the
+                     * NO_ASN_TIME_CHECK guard, so a structurally malformed
+                     * item is rejected in every variant -- unlike the
+                     * expired-date fixture above, which needs a clock. */
+                    if (modes[m] == VERIFY) {
+                        WB_CHECK(ret != 0,
+                                "short validity item, verify=VERIFY (all "
+                                "operands true)");
+                    }
+                    else {
+                        WB_CHECK(ret == 0,
+                                "short validity item, verify=NO_VERIFY (1st "
+                                "operand false)");
+                    }
+                    wc_FreeDecodedAcert(acert);
+                }
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+            }
+#if defined(WC_ASN_RUNTIME_DATE_CHECK_CONTROL) && !defined(NO_ASN_TIME)
+            {
+                WC_DECLARE_VAR(acert, DecodedAcert, 1, 0);
+#ifdef WOLFSSL_SMALL_STACK
+                acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), NULL,
+                        DYNAMIC_TYPE_DCERT);
+#else
+                XMEMSET(acert, 0, sizeof(DecodedAcert));
+#endif
+                if (acert != NULL) {
+                    (void)wc_AsnSetSkipDateCheck(1);
+                    wc_InitDecodedAcert(acert, shortDer, sz, NULL);
+                    ret = wc_ParseX509Acert(acert, VERIFY);
+                    WB_CHECK(ret == 0, "short validity item with "
+                            "AsnSkipDateCheck set (3rd operand false)");
+                    wc_FreeDecodedAcert(acert);
+                    (void)wc_AsnSetSkipDateCheck(0);
+                }
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+            }
+#endif
+        }
     }
 
     FreeDer(&der);

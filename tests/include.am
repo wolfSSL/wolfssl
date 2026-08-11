@@ -120,6 +120,7 @@ DISTCLEANFILES+= tests/.libs/unit.test
 # non-compiled files.  Do not move them to tests_unit_test_SOURCES.
 EXTRA_DIST += \
               tests/unit-mcdc/README.md \
+              tests/unit-mcdc/mcdc_der_edit.h \
               tests/unit-mcdc/mcdc_fault_alloc.h \
               tests/unit-mcdc/mcdc_fault_hash.h \
               tests/unit-mcdc/mcdc_fault_mp.h \

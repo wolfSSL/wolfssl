@@ -124,6 +124,11 @@
  * rows are issued unarmed in the same binary. */
 #include "mcdc_fault_alloc.h"
 
+/* Structural DER edits: the date gates inside `if (CheckDate(...) < 0)` need a
+ * validity item that is malformed rather than merely out of range, which means
+ * changing a nested item's length and fixing up every enclosing SEQUENCE. */
+#include "mcdc_der_edit.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -1987,6 +1992,71 @@ static void wb_decode_cert_internal(void)
         ret = DecodeCertInternal(&cert, VERIFY_SKIP_DATE, &crit, &badDate, 0, 0);
         WB_CHECK(ret == 0, "verify=VERIFY_SKIP_DATE (:22621 3rd operand false)");
         FreeDecodedCert(&cert);
+    }
+
+    /* --- structurally malformed validity items -------------------------- *
+     * CheckDate()'s length check (asn.c:22487) runs BEFORE the
+     * AsnSkipDateCheck gate at :22494, so shortening a UTCTime below
+     * MIN_DATE_SIZE makes CheckDate() negative whatever the flag says. That
+     * is the only way to evaluate the 4th operand of :22662/:22674 -- an
+     * out-of-range date cannot do it, because setting the flag makes
+     * CheckDate() return 0 and the enclosing `if` is not entered at all. */
+    {
+        DecodedCert cert;
+        byte shortB[4096], shortA[4096];
+        word32 shortBSz = (word32)origSz, shortASz = (word32)origSz;
+        int okB, okA;
+        int ret, crit, badDate;
+
+        XMEMCPY(shortB, orig, origSz);
+        XMEMCPY(shortA, orig, origSz);
+        /* notBefore content starts at 187, notAfter at 202 (both 13-byte
+         * UTCTimes; see the offsets asserted above). Drop the last two
+         * content bytes so the item's length becomes 11 < MIN_DATE_SIZE. */
+        okB = (mcdc_der_shrink(shortB, &shortBSz, 187 + 11, 2) == 0);
+        okA = (mcdc_der_shrink(shortA, &shortASz, 202 + 11, 2) == 0);
+        WB_CHECK(okB && okA, "validity items shortened below MIN_DATE_SIZE");
+
+        if (okB) {
+            WB_NOTE("DecodeCertInternal(): malformed notBefore item [:22608]");
+            wc_InitDecodedCert(&cert, shortB, shortBSz, NULL);
+            badDate = 0;
+            ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
+                    "short notBefore, verify=VERIFY (all 4 operands true)");
+            FreeDecodedCert(&cert);
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+            (void)wc_AsnSetSkipDateCheck(1);
+            wc_InitDecodedCert(&cert, shortB, shortBSz, NULL);
+            badDate = 0;
+            ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+            WB_CHECK(ret == 0,
+                    "short notBefore with AsnSkipDateCheck set "
+                    "(:22609 4th operand false)");
+            FreeDecodedCert(&cert);
+            (void)wc_AsnSetSkipDateCheck(0);
+#endif
+        }
+        if (okA) {
+            WB_NOTE("DecodeCertInternal(): malformed notAfter item [:22620]");
+            wc_InitDecodedCert(&cert, shortA, shortASz, NULL);
+            badDate = 0;
+            ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E),
+                    "short notAfter, verify=VERIFY (all 4 operands true)");
+            FreeDecodedCert(&cert);
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+            (void)wc_AsnSetSkipDateCheck(1);
+            wc_InitDecodedCert(&cert, shortA, shortASz, NULL);
+            badDate = 0;
+            ret = DecodeCertInternal(&cert, VERIFY, &crit, &badDate, 0, 0);
+            WB_CHECK(ret == 0,
+                    "short notAfter with AsnSkipDateCheck set "
+                    "(:22621 4th operand false)");
+            FreeDecodedCert(&cert);
+            (void)wc_AsnSetSkipDateCheck(0);
+#endif
+        }
     }
 
     /* --- stopAtPubKey / stopAfterPubKey / done combinations [:22639,

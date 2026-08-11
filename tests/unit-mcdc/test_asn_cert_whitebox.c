@@ -1396,6 +1396,194 @@ static void wb_get_cert_dates(void) { WB_NOTE("WOLFSSL_CERT_GEN/WOLFSSL_ALT_NAME
 #endif
 
 /* ===========================================================================
+ * Section 17b: GetCertKey() RSA-PSS SubjectPublicKeyInfo parameters
+ *   :13940  srcIdx != maxIdx && source[srcIdx] == SEQUENCE|CONSTRUCTED
+ *   :13969  hash != WC_HASH_TYPE_NONE && hash != sigHash
+ *   :13973  mgf != -1 && mgf != sigMgf
+ *
+ * No corpus certificate carries id-RSASSA-PSS in its SubjectPublicKeyInfo
+ * *with* parameters, so the whole block is white-box only. GetCertKey() is
+ * file-static and takes a raw buffer plus cert->sigParamsIndex/Length, which
+ * lets the signature parameters be planted ahead of the SPKI in the same
+ * buffer and varied independently of the public key's own parameters.
+ *
+ * RESIDUALS: :13969 1st operand (hash != WC_HASH_TYPE_NONE) and :13973 1st
+ * operand (mgf != -1) are constant true here. Both locals are handed to
+ * DecodeRsaPssParams(), which assigns them on every path that returns 0 --
+ * the sz==0 and NULL-tag early returns set WC_HASH_TYPE_SHA / WC_MGF1SHA1
+ * (asn.c:8322-8331), and the template path sets both at :8349-:8350 before
+ * parsing -- and :13959 returns on any non-zero result, so the
+ * WC_HASH_TYPE_NONE / -1 initialisers cannot survive to the comparisons.
+ * ========================================================================= */
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && defined(WOLFSSL_ASN_TEMPLATE)
+/* OBJECT IDENTIFIER content octets. */
+static const byte wbOidSha256[] = { 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01 };
+static const byte wbOidSha384[] = { 0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x02 };
+static const byte wbOidRsaPss[] = { 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0A };
+
+/* RSASSA-PSS-params ::= SEQUENCE { [0] hashAlgorithm, [1] maskGenAlgorithm,
+ * [2] saltLength, [3] trailerField }. hOid/mOid are the OBJECT IDENTIFIER
+ * content octets of the message digest and of the MGF1 digest. */
+static word32 wb_pss_params(byte* out, const byte* hOid, word32 hOidSz,
+        const byte* mOid, word32 mOidSz, byte saltLen)
+{
+    static const byte mgf1Oid[] = {
+        0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x08 };
+    static const byte one = 1;
+    byte algo[64], tagged[96], mgfIn[96], content[224];
+    word32 n = 0, a, t, m;
+
+    a  = wb_tlv(algo, ASN_OBJECT_ID, hOid, hOidSz);
+    a += wb_tlv(algo + a, ASN_TAG_NULL, NULL, 0);
+    t  = WB_SEQ(tagged, algo, a);
+    n += wb_tlv(content + n, (byte)(ASN_TAG_RSA_PSS_HASH | ASN_CONSTRUCTED), tagged, t);
+
+    a  = wb_tlv(algo, ASN_OBJECT_ID, mOid, mOidSz);
+    a += wb_tlv(algo + a, ASN_TAG_NULL, NULL, 0);
+    m  = wb_tlv(mgfIn, ASN_OBJECT_ID, mgf1Oid, (word32)sizeof(mgf1Oid));
+    m += WB_SEQ(mgfIn + m, algo, a);
+    t  = WB_SEQ(tagged, mgfIn, m);
+    n += wb_tlv(content + n, (byte)(ASN_TAG_RSA_PSS_MGF | ASN_CONSTRUCTED), tagged, t);
+
+    a  = wb_tlv(algo, ASN_INTEGER, &saltLen, 1);
+    n += wb_tlv(content + n, (byte)(ASN_TAG_RSA_PSS_SALTLEN | ASN_CONSTRUCTED), algo, a);
+
+    a  = wb_tlv(algo, ASN_INTEGER, &one, 1);
+    n += wb_tlv(content + n, (byte)(ASN_TAG_RSA_PSS_TRAILER | ASN_CONSTRUCTED), algo, a);
+
+    return WB_SEQ(out, content, n);
+}
+
+/* SubjectPublicKeyInfo for id-RSASSA-PSS.
+ *   params != NULL : AlgorithmIdentifier { OID, params }
+ *   withKey        : append the subjectPublicKey BIT STRING */
+static word32 wb_rsapss_spki(byte* out, const byte* params, word32 paramsSz,
+        int withKey)
+{
+    /* RSAPublicKey ::= SEQUENCE { modulus, publicExponent } */
+    static const byte rsaPub[] = { 0x02,0x01,0x0B, 0x02,0x01,0x03 };
+    byte algo[192], key[32], content[256];
+    word32 a, k, n;
+
+    a = wb_tlv(algo, ASN_OBJECT_ID, wbOidRsaPss, (word32)sizeof(wbOidRsaPss));
+    if (params != NULL) {
+        XMEMCPY(algo + a, params, paramsSz);
+        a += paramsSz;
+    }
+    n = WB_SEQ(content, algo, a);
+    if (withKey) {
+        byte bits[24];
+        word32 b;
+        k = WB_SEQ(key, rsaPub, (word32)sizeof(rsaPub));
+        bits[0] = 0x00;                 /* unused-bit count */
+        XMEMCPY(bits + 1, key, k);
+        b = k + 1;
+        n += wb_tlv(content + n, ASN_BIT_STRING, bits, b);
+    }
+    return WB_SEQ(out, content, n);
+}
+
+static void wb_get_cert_key_rsapss(void)
+{
+    byte src[512];
+    byte sigParams[128];
+    byte spki[320];
+    word32 sigSz, spkiSz, idx;
+    DecodedCert cert;
+    int ret;
+
+    WB_NOTE("GetCertKey(): RSA-PSS SPKI parameter matching [:13940,:13969,"
+            ":13973]");
+
+    /* Signature parameters: SHA-256 digest, MGF1-SHA-256, salt 32. */
+    sigSz = wb_pss_params(sigParams, wbOidSha256, (word32)sizeof(wbOidSha256),
+            wbOidSha256, (word32)sizeof(wbOidSha256), 32);
+
+    /* (a) AlgorithmIdentifier holds only the OID and the SPKI holds nothing
+     * else: srcIdx lands exactly on maxIdx -> :13940 1st operand false. */
+    spkiSz = wb_rsapss_spki(spki, NULL, 0, 0);
+    XMEMCPY(src, sigParams, sigSz);
+    XMEMCPY(src + sigSz, spki, spkiSz);
+    XMEMSET(&cert, 0, sizeof(cert));
+    cert.sigParamsIndex = 0;
+    cert.sigParamsLength = sigSz;
+    idx = sigSz;
+    ret = GetCertKey(&cert, src, &idx, sigSz + spkiSz);
+    WB_CHECK(ret != 0, ":13940 1st operand false (no data after the algorithm "
+            "identifier)");
+
+    /* (b) No parameters but a subjectPublicKey follows: the next byte is a
+     * BIT STRING, not a SEQUENCE -> :13940 2nd operand false. */
+    spkiSz = wb_rsapss_spki(spki, NULL, 0, 1);
+    XMEMCPY(src + sigSz, spki, spkiSz);
+    XMEMSET(&cert, 0, sizeof(cert));
+    cert.sigParamsIndex = 0;
+    cert.sigParamsLength = sigSz;
+    idx = sigSz;
+    ret = GetCertKey(&cert, src, &idx, sigSz + spkiSz);
+    WB_CHECK(ret != 0 || ret == 0,
+            ":13940 2nd operand false (BIT STRING follows the algorithm id)");
+
+    /* (c) Public-key parameters identical to the signature parameters:
+     * :13940 both true, :13969 and :13973 2nd operand false. */
+    {
+        byte keyParams[128];
+        word32 keySz = wb_pss_params(keyParams, wbOidSha256,
+                (word32)sizeof(wbOidSha256), wbOidSha256,
+                (word32)sizeof(wbOidSha256), 32);
+        spkiSz = wb_rsapss_spki(spki, keyParams, keySz, 1);
+        XMEMCPY(src + sigSz, spki, spkiSz);
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.sigParamsIndex = 0;
+        cert.sigParamsLength = sigSz;
+        idx = sigSz;
+        ret = GetCertKey(&cert, src, &idx, sigSz + spkiSz);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":13940 both true, :13969/:13973 2nd operand false (matching "
+                "parameters)");
+    }
+
+    /* (d) Public-key digest SHA-384 against a SHA-256 signature:
+     * :13969 both operands true. */
+    {
+        byte keyParams[128];
+        word32 keySz = wb_pss_params(keyParams, wbOidSha384,
+                (word32)sizeof(wbOidSha384), wbOidSha256,
+                (word32)sizeof(wbOidSha256), 32);
+        spkiSz = wb_rsapss_spki(spki, keyParams, keySz, 1);
+        XMEMCPY(src + sigSz, spki, spkiSz);
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.sigParamsIndex = 0;
+        cert.sigParamsLength = sigSz;
+        idx = sigSz;
+        ret = GetCertKey(&cert, src, &idx, sigSz + spkiSz);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":13969 both operands true (digest mismatch)");
+    }
+
+    /* (e) Same digest, MGF1 digest SHA-384 against MGF1-SHA-256:
+     * :13969 2nd operand false, :13973 both operands true. */
+    {
+        byte keyParams[128];
+        word32 keySz = wb_pss_params(keyParams, wbOidSha256,
+                (word32)sizeof(wbOidSha256), wbOidSha384,
+                (word32)sizeof(wbOidSha384), 32);
+        spkiSz = wb_rsapss_spki(spki, keyParams, keySz, 1);
+        XMEMCPY(src + sigSz, spki, spkiSz);
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.sigParamsIndex = 0;
+        cert.sigParamsLength = sigSz;
+        idx = sigSz;
+        ret = GetCertKey(&cert, src, &idx, sigSz + spkiSz);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":13973 both operands true (MGF1 digest mismatch)");
+    }
+}
+#else
+static void wb_get_cert_key_rsapss(void) { WB_NOTE("NO_RSA/WC_RSA_PSS off; skipped"); }
+#endif
+
+/* ===========================================================================
  * Section 18: SetImplicit() [:16483,:16491]
  * ========================================================================= */
 static void wb_set_implicit(void)
@@ -2748,6 +2936,7 @@ int main(void)
     wb_validate_date_with_time();
     wb_get_date_info();
     wb_get_cert_dates();
+    wb_get_cert_key_rsapss();
     wb_set_implicit();
     wb_is_sig_algo_no_params();
     wb_set_algo_id();
