@@ -441,11 +441,17 @@ static NOOPT void Octeon_GHASH_Init(word16 poly, byte* h)
 }
 
 
+/* in may be a caller supplied buffer with no alignment guarantee, so load it
+ * the same unaligned safe way Octeon_AesGcm_SetAAD does. A plain 64-bit
+ * dereference of an odd address traps on MIPS64. */
 static NOOPT void Octeon_GHASH_Update(byte* in)
 {
-    word64* bigIn = (word64*)in;
-    CVMX_MT_GFM_XOR0(bigIn[0]);
-    CVMX_MT_GFM_XORMUL1(bigIn[1]);
+    word64 in0, in1;
+
+    CVMX_LOADUNA_INT64(in0, in, 0);
+    CVMX_LOADUNA_INT64(in1, in, 8);
+    CVMX_MT_GFM_XOR0(in0);
+    CVMX_MT_GFM_XORMUL1(in1);
 }
 
 
@@ -478,7 +484,7 @@ static NOOPT int Octeon_AesGcm_SetKey(Aes* aes)
         CVMX_MT_AES_KEYLENGTH((aes->keylen / 8) - 1);
 
         if (!aes->keySet) {
-            uint64_t* bigH = (uint64_t*)aes->H;
+            uint64_t* bigH = (uint64_t*)aes->gcm.H;
             CVMX_MT_AES_ENC0(0);
             CVMX_MT_AES_ENC1(0);
             CVMX_MF_AES_RESULT(bigH[0], 0);
@@ -506,10 +512,16 @@ static NOOPT int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
         }
         else {
             int blocks, remainder, i;
-            byte aesBlock[WC_AES_BLOCK_SIZE];
+            ALIGN16 byte aesBlock[WC_AES_BLOCK_SIZE];
 
             blocks = ivSz / WC_AES_BLOCK_SIZE;
             remainder = ivSz % WC_AES_BLOCK_SIZE;
+
+            /* Hash the IV against a freshly loaded H. SetKey only computes
+             * aes->gcm.H in memory, it does not touch the GFM hardware, so
+             * without this J0 would be derived from whatever GFM state the
+             * previous operation left behind. */
+            Octeon_GHASH_Init(0xe100, aes->gcm.H);
 
             for (i = 0; i < blocks; i++, iv += WC_AES_BLOCK_SIZE)
                 Octeon_GHASH_Update(iv);
@@ -527,7 +539,7 @@ static NOOPT int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
         aes->y0 = aes->reg[3];
         aes->reg[3]++;
 
-        Octeon_GHASH_Init(0xe100, aes->H);
+        Octeon_GHASH_Init(0xe100, aes->gcm.H);
     }
 
     return ret;
@@ -549,7 +561,7 @@ static NOOPT int Octeon_AesGcm_SetAAD(Aes* aes, byte* aad, word32 aadSz)
     blocks = aadSz / WC_AES_BLOCK_SIZE;
     remainder = aadSz % WC_AES_BLOCK_SIZE;
 
-    Octeon_GHASH_Restore(0xe100, aes->H);
+    Octeon_GHASH_Restore(0xe100, aes->gcm.H);
 
     p = (word64*)aesBlock;
 
