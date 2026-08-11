@@ -430,10 +430,20 @@ static void wb_verify_ctx_hash_null(void)
  * Both are reached from wc_MlDsaKey_PrivateKeyDecode() after
  * DecodeAsymKey_Assign() has filled the two lengths, so the vectors are
  * "private key present but empty" (with and without an accompanying public
- * key). Those are structurally valid OneAsymmetricKey encodings -- an empty
- * privateKey OCTET STRING -- that the decoder must reject, which is exactly the
- * branch under test. Neither buffer is ever imported: with privKeyLen == 0 both
- * else-ifs are false and control falls to the "contents are invalid" arm.
+ * key): structurally valid OneAsymmetricKey encodings with an empty privateKey
+ * OCTET STRING.
+ *
+ * RESULT: both are REJECTED before either else-if is reached, and that is not a
+ * defect in the vectors -- it is the answer. In the WOLFSSL_ASN_TEMPLATE build
+ * (the default, and the only one any mldsa variant compiles) DecodeAsymKey_
+ * Assign returns 0 with privKeyLen == 0 ONLY through its seed-only arm
+ * (asn.c:33977-33983), which also sets seedLen != 0 -- and a non-zero seedLen
+ * is taken by the earlier `if (seedLen != 0)` branch, so it never reaches these
+ * two. An empty privateKey with no seed falls to asn.c:33992 and returns
+ * ASN_PARSE_E. privKeyLen != 0 therefore holds on every arrival at both
+ * else-ifs, and all three operands are recorded in
+ * campaign/db/exclusions.json rather than left open. The rows below stay: they
+ * are what establishes the rejection, and they cost two decodes.
  *
  * The AlgorithmIdentifier carries id-ml-dsa-44 (2.16.840.1.101.3.4.3.17)
  * spelled out locally: wc_mldsa.c's own ml_dsa_oid_44[] table is compiled only
