@@ -577,13 +577,19 @@ static void wb_aarch64_gcm_ptr_guards(void)
  *
  * Both are public entry points, but the AES API groups only reach them with a
  * real key and with iv/ivSz always consistent, so wc_AesSetKey's userKey
- * operand and wc_AesGcmInit's "ivSz > 0" operand never get their independence
- * pair. Every rejected call short-circuits before the pointer is read.
+ * operand never gets its independence pair. Every rejected call
+ * short-circuits before the pointer is read.
  *
- * wc_AesGcmInit idx5 pair, both with aes/key valid so the earlier groups are
- * false:
+ * wc_AesGcmInit idx5 ("ivSz > 0") is EXCLUDED, not driven: it is the exact
+ * negation of idx3 ("ivSz == 0") over the same word32, so the two operands
+ * cannot be varied independently. The only two shapes that reach idx5 are
  *   iv == NULL, ivSz == 0  -> idx3 T, idx4 F (group false), idx5 F -> accept
  *   iv == NULL, ivSz  > 0  -> idx3 F (group false), idx5 T, idx6 T -> reject
+ * and idx3 flips with idx5 in both, so neither row isolates idx5. The calls
+ * below still run (they pair idx3/idx4/idx6); idx5 is recorded in
+ * campaign/db/exclusions.json. wc_AesGcmSetIV's idx5 ("ivFixed != NULL",
+ * ~14858) is excluded on the identical argument against its idx3
+ * ("ivFixed == NULL").
  * ------------------------------------------------------------------------- */
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
 static void wb_aes_setkey_guard(void)
