@@ -1330,10 +1330,13 @@ static void wb_residuals(void)
             "Babai coefficient is bounded by sqrt(|F|^2+|G|^2)/sqrt(|f|^2+"
             "|g|^2) with |F|,|G| < 2^61 (2-word CRT limbs), so |z| >= 2^63 "
             "needs both depth-1 field norms to nearly vanish at one FFT slot");
-    WB_NOTE("residual: keygen f[u]/g[u] vs lim halves: poly_small_mkgauss "
-            "guarantees |coeff| <= 127 and lim is 128 for logn <= 5 (provably "
-            "dead), while for logn >= 6 lim sits beyond 5.5 sigma of the "
-            "sampler and keygen seeds its own falcon_rng internally");
+    WB_NOTE("residual: keygen f[u]/g[u] vs lim halves: lim is 1 << "
+            "(falcon_max_fg_bits[logn] - 1), i.e. 32 at logn 9 and 16 at "
+            "logn 10, while poly_small_mkgauss sums 1 << (10 - logn) draws of "
+            "sigma 1.17*sqrt(q/2048) -- 4.05 total at logn 9. |f[u]| >= lim is "
+            "a 7.9 sigma deviate (~6e-14 per coefficient, ~6e-11 per keygen), "
+            "and f is generated inside falcon_keygen from its own falcon_rng, "
+            "so no supplied input reaches it");
     WB_NOTE("residual: sign_msg/verify_msg (ret==0)&&(!key->...Set) cond0 "
             "FALSE half: the preceding argument check returns early, so ret is "
             "invariably 0 at that line");
