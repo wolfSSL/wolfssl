@@ -732,6 +732,33 @@ static void test_agree_nonblock(void)
     wc_DhSetNonBlock(&key, NULL);
     wc_FreeDhKey(&key);
 
+    /* 2162 idx1 FALSE with idx0 TRUE: a prime that is none of the three SP
+     * sizes leaves "dispatched" clear all the way through the chain, which
+     * is the only way the 4096 test is reached and false. */
+    XMEMSET(&nb, 0, sizeof(nb));
+    wc_InitDhKey(&key);
+    mcdc_sr_arm(WB_DH_SEED);
+    ret = wc_DhGenerateParams(&rng, 1024, &key);
+    mcdc_sr_disarm();
+    WB_CHECK(ret == 0, "nb non-SP-size params should generate");
+    if (ret == 0) {
+        wc_DhSetNonBlock(&key, &nb);
+        privSz = sizeof(priv); pubSz = sizeof(pub);
+        ret = wc_DhGenerateKeyPair_Sync(&key, &rng, priv, &privSz, pub,
+                &pubSz);
+        WB_CHECK(ret == 0, "nb non-SP-size keypair should succeed");
+        agreeSz = sizeof(agree);
+        for (n = 0; n < 20000; n++) {
+            ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, pub, pubSz);
+            if (ret != WC_NO_ERR_TRACE(MP_WOULDBLOCK))
+                break;
+        }
+        WB_CHECK(ret == 0, "nb non-SP-size agree should fall through to the "
+                  "generic path");
+        wc_DhSetNonBlock(&key, NULL);
+    }
+    wc_FreeDhKey(&key);
+
     wc_FreeRng(&rng);
 }
 #endif /* WC_DH_NONBLOCK */
@@ -784,40 +811,23 @@ static void test_generate_params(void)
  * also measures the sweep length K -- and then the fail index is swept over
  * [1..K]. All inputs are built while disarmed; none of the swept calls
  * mutates the shared key, and the ones that do (SetKey / GenerateParams) get
- * a fresh key per iteration. Bounded by a point cap AND a wall-clock deadline
- * so the binary can never reach the campaign's 600 s TEST_TIMEOUT. */
+ * a fresh key per iteration. Bounded by a VECTOR COUNT only: a wall-clock
+ * budget makes coverage a function of machine load, so the same source
+ * measures differently run to run (proved on wc_lms_impl.c, 2026-08-11). */
 #define WB_MP_MAX       400
-#define WB_MP_DEADLINE  120
 
-static time_t wb_mp_t0;
-
-/* Budget by VECTOR COUNT, not elapsed time: a wall-clock budget makes coverage
- * a function of machine load, so the same source measures differently run to
- * run (proved on wc_lms_impl.c, 2026-08-11). The wall clock is kept only as a
- * backstop against TEST_TIMEOUT, and announces itself if it fires. */
 #ifndef WB_MAX_VECTORS
     #define WB_MAX_VECTORS 20000
 #endif
 
 static long wb_mp_vectors = 0;
-static int  wb_mp_backstop = 0;
 
 static int wb_mp_expired(void)
 {
-    if (++wb_mp_vectors > (long)WB_MAX_VECTORS) {
-        return 1;
-    }
-    if (difftime(time(NULL), wb_mp_t0) > (double)WB_MP_DEADLINE) {
-        if (!wb_mp_backstop) {
-            wb_mp_backstop = 1;
-            printf("  [wb] WALL-CLOCK BACKSTOP fired after %ld "
-                   "vectors; lower WB_MAX_VECTORS\n", wb_mp_vectors);
-        }
-        return 1;
-    }
-    return 0;
+    return (++wb_mp_vectors > (long)WB_MAX_VECTORS);
 }
 
+/* Sweep the fail index over the FIRST `cap` mp_* calls of the entry point. */
 #define WB_MP_SWEEP(lbl, cap, ...)                                       \
     do {                                                                  \
         long k_, i_;                                                      \
@@ -832,6 +842,28 @@ static int wb_mp_expired(void)
             mcdc_fm_disarm();                                             \
         }                                                                 \
         printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k_);                 \
+    } while (0)
+
+/* Sweep the fail index over the LAST `tail` mp_* calls of the entry point.
+ * wc_DhGenerateParams() spends the whole prefix in the prime search, so a
+ * head sweep never reaches the g-derivation chain at the end of it, which is
+ * where that function's residual guards live. */
+#define WB_MP_SWEEP_TAIL(lbl, tail, ...)                                 \
+    do {                                                                  \
+        long k_, i_, first_;                                              \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fm_seen();                                              \
+        first_ = k_ - (long)(tail) + 1;                                   \
+        if (first_ < 1)                                                   \
+            first_ = 1;                                                   \
+        for (i_ = first_; (i_ <= k_) && !wb_mp_expired(); i_++) {         \
+            mcdc_fm_arm(i_);                                              \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp tail sweep %s: K=%ld first=%ld\n", (lbl), k_,   \
+               first_);                                                   \
     } while (0)
 
 static void test_mp_fault_sweeps(void)
@@ -851,7 +883,6 @@ static void test_mp_fault_sweeps(void)
     word32 gSz = (word32)sizeof(g);
     word32 qSz = (word32)sizeof(q);
 
-    wb_mp_t0 = time(NULL);
     mcdc_fm_disarm();
 
     XMEMSET(priv, 0, sizeof(priv));
@@ -935,15 +966,26 @@ static void test_mp_fault_sweeps(void)
             (void)wc_DhExportParamsRaw(&dh, pp, &a1, qq, &a2, gg, &a3);
         });
 
-    /* GenerateParams is by far the most expensive (prime search), so its cap
-     * is small: the residuals it owns (3346/3359/3365/3374) are all in the
-     * post-search g-derivation chain, which the deadline-bounded prefix
-     * reaches. */
-    WB_MP_SWEEP("DhGenerateParams", 40,
+    WB_MP_SWEEP("DhSetCheckKey", 200,
         {
             DhKey k2;
             if (wc_InitDhKey(&k2) == 0) {
+                (void)wc_DhSetCheckKey(&k2, p, pSz, g, gSz, q, qSz, 0, &rng);
+                wc_FreeDhKey(&k2);
+            }
+        });
+
+    /* GenerateParams spends its whole prefix in the prime search; the
+     * residuals it owns (3365/3374) are in the g-derivation chain that runs
+     * after it, so this sweep arms the TAIL of the call sequence. The seeded
+     * RNG makes the sequence, and therefore the index range, reproducible. */
+    WB_MP_SWEEP_TAIL("DhGenerateParams", 24,
+        {
+            DhKey k2;
+            if (wc_InitDhKey(&k2) == 0) {
+                mcdc_sr_arm(WB_DH_SEED);
                 (void)wc_DhGenerateParams(&rng, 1024, &k2);
+                mcdc_sr_disarm();
                 wc_FreeDhKey(&k2);
             }
         });

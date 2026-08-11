@@ -593,6 +593,61 @@ static void wb_rsa_function_nonblock(void)
             RSA_PUBLIC_ENCRYPT, &key);
     }
 
+    /* rsa.c:3377 - wc_RsaDirect()'s "skip cleanup while still pending" guard.
+     * Its FP_WOULDBLOCK operand needs a call that yields, which only the
+     * non-blocking state machine produces; the all-false row is the same
+     * call with no non-blocking context attached. Both rows are here so the
+     * pair is shown in this binary. */
+#if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    {
+        byte   dIn[512];
+        byte   dOut[512];
+        word32 dInSz;
+        int    encSz = wc_RsaEncryptSize(&key);
+        int    ret;
+        int    i;
+
+        if ((encSz > 0) && ((word32)encSz <= sizeof(dIn))) {
+            dInSz = (word32)encSz;
+            XMEMSET(dIn, 0, dInSz);
+            dIn[dInSz - 1] = 0x02;
+
+            /* all-false row: no non-blocking context, the call completes. */
+            (void)wc_RsaSetNonBlock(&key, NULL);
+            outLen = sizeof(dOut);
+            key.state = RSA_STATE_NONE;
+            ret = wc_RsaDirect(dIn, dInSz, dOut, &outLen, &key,
+                RSA_PUBLIC_ENCRYPT, &rng);
+            if (ret <= 0) {
+                WB_NOTE("wc_RsaDirect blocking case misbehaved");
+                wb_fail = 1;
+            }
+
+            /* FP_WOULDBLOCK row: with a context attached each call yields
+             * until the state machine finishes. Bounded by a vector count,
+             * never by elapsed time. */
+            XMEMSET(&nb, 0, sizeof(nb));
+            if (wc_RsaSetNonBlock(&key, &nb) == 0) {
+                key.state = RSA_STATE_NONE;
+                for (i = 0; i < 1000000; i++) {
+                    outLen = sizeof(dOut);
+                    ret = wc_RsaDirect(dIn, dInSz, dOut, &outLen, &key,
+                        RSA_PUBLIC_ENCRYPT, &rng);
+                    if (ret != FP_WOULDBLOCK) {
+                        break;
+                    }
+                }
+                if (ret <= 0) {
+                    WB_NOTE("wc_RsaDirect non-blocking case did not complete");
+                    wb_fail = 1;
+                }
+                (void)wc_RsaSetNonBlock(&key, NULL);
+            }
+        }
+    }
+#endif
+
     wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
     WB_NOTE("wc_RsaFunctionNonBlock key/nb NULL guard pairs exercised");

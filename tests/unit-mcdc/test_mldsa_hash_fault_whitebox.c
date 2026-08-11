@@ -305,7 +305,27 @@ static void wb_sign_no_private(void)
         }
     }
     wc_MlDsaKey_Free(&key);
-    WB_NOTE("sign-without-private-key row exercised");
+
+    /* The partner row: the SAME entry point on a key that DOES have a private
+     * key, so the operand is false with the decision reaching its other
+     * outcome. Nothing else in the campaign calls the seeded pre-hash signer,
+     * so without this the operand above has no vector to pair against. */
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    XMEMSET(&key, 0, sizeof(key));
+    if (wb_build_key(&key) == 0) {
+        byte   sig2[8192];
+        word32 sig2Len = (word32)sizeof(sig2);
+
+        if (wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig2, &sig2Len,
+                hash, (word32)sizeof(hash), (int)WC_HASH_TYPE_SHA256,
+                s_sigSeed) != 0) {
+            WB_NOTE("seeded pre-hash sign failed on a full key");
+        }
+    }
+    wc_MlDsaKey_Free(&key);
+#endif
+
+    WB_NOTE("sign-without-private-key rows exercised");
 }
 #else
 static void wb_sign_no_private(void)
@@ -367,7 +387,29 @@ static void wb_verify_ctx_hash_null(void)
         WB_NOTE("mldsa_verify_ctx_hash accepted a NULL key");
         wb_fail = 1;
     }
-    WB_NOTE("mldsa_verify_ctx_hash NULL-key row exercised");
+
+    /* The partner row: a real key with a hash length that does NOT match the
+     * algorithm's digest size, so the decision is TRUE. A row that is FALSE in
+     * both vectors proves nothing about the first operand. */
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+    {
+        wc_MlDsaKey key;
+
+        XMEMSET(&key, 0, sizeof(key));
+        if (wb_build_key(&key) == 0) {
+            res = 0;
+            if (mldsa_verify_ctx_hash(&key, NULL, 0, (int)WC_HASH_TYPE_SHA256,
+                    hash, (word32)sizeof(hash) - 1, sig, (word32)sizeof(sig),
+                    &res) == 0) {
+                WB_NOTE("mldsa_verify_ctx_hash accepted a short digest");
+                wb_fail = 1;
+            }
+        }
+        wc_MlDsaKey_Free(&key);
+    }
+#endif
+
+    WB_NOTE("mldsa_verify_ctx_hash key/hashLen rows exercised");
 }
 #else
 static void wb_verify_ctx_hash_null(void)

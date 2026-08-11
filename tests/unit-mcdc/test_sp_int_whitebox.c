@@ -43,6 +43,8 @@
  * -DWOLFSSL_USER_SETTINGS) and sp_int.h itself. */
 #include <wolfcrypt/src/sp_int.c>
 
+#include "mcdc_fault_alloc.h"
+
 #include <stdio.h>
 
 static int wb_fail = 0;
@@ -1291,6 +1293,353 @@ static void wb_prime_small_witness(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Class 8: the sign-of-c arm of the division-based inverse.
+ *
+ *   if ((err == MP_OKAY) && sp_isneg(c)) c += m;      (SP_INT_NEGATIVE)
+ *   if ((err == MP_OKAY) && cneg)        c = m - |c|; (default)
+ *
+ * The leading operand's false side is the failed-inverse exit above (the
+ * Euclid loop divides by zero once the remainder reaches zero for a
+ * non-coprime pair, so sp_div() latches MP_VAL). Its true side needs a
+ * SUCCESSFUL inverse whose accumulated coefficient came out negative, in
+ * the same binary. Whether it does depends only on the parity of the number
+ * of Euclid steps, so sweep a range of coprime operands rather than picking
+ * one and hoping.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_SP_INVMOD) && !defined(WOLFSSL_SP_LOW_MEM) && \
+    !defined(WOLFSSL_SP_SMALL) && (!defined(NO_RSA) || !defined(NO_DH))
+static void wb_invmod_c_sign(void)
+{
+    sp_int a;
+    sp_int m;
+    sp_int r;
+    sp_int_digit v;
+
+    /* Same 1024-bit odd modulus shape as the no-inverse rows: only a
+     * modulus of at least 1024 bits selects _sp_invmod_div(). */
+    if (wb_pow2(&m, 1022) != MP_OKAY) {
+        WB_NOTE("digit ceiling below 1024 bits; inverse sign rows skipped");
+        return;
+    }
+    if ((sp_add_d(&m, 1, &m) != MP_OKAY) || (sp_mul_d(&m, 3, &m) != MP_OKAY)) {
+        wb_fail = 1;
+        return;
+    }
+
+    for (v = 5; v <= 61; v += 2) {
+        if ((v % 3) == 0) {
+            continue;               /* shares the factor 3: no inverse */
+        }
+        wb_set_d(&a, v);
+        _sp_init_size(&r, SP_INT_DIGITS);
+        (void)sp_invmod(&a, &m, &r);
+    }
+
+    WB_NOTE("division-based inverse coefficient-sign rows exercised");
+}
+#else
+static void wb_invmod_c_sign(void)
+{
+    WB_NOTE("division-based inverse not compiled; sign rows skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 9: sp_exptmod_nct()'s negative-operand rejection.
+ *
+ *   else if ((e->sign == MP_NEG) || (m->sign == MP_NEG)) err = MP_VAL;
+ *
+ * Only compiled with WOLFSSL_SP_INT_NEGATIVE, and no caller in the library
+ * or in the API tests hands it a negative exponent or modulus, so the whole
+ * decision was never evaluated with either operand true. Both are set here
+ * directly - sp_int's sign field is in scope in this TU.
+ * ------------------------------------------------------------------------- */
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+static void wb_exptmod_nct_negative(void)
+{
+    sp_int b;
+    sp_int e;
+    sp_int m;
+    sp_int r;
+
+    wb_set_d(&b, (sp_int_digit)3);
+    wb_set_d(&e, (sp_int_digit)5);
+    wb_set_d(&m, (sp_int_digit)0x0fffffffffffffc5ULL);
+    _sp_init_size(&r, SP_INT_DIGITS);
+
+    /* Negative exponent, positive modulus: first operand true. */
+    e.sign = MP_NEG;
+    (void)sp_exptmod_nct(&b, &e, &m, &r);
+    e.sign = MP_ZPOS;
+
+    /* Positive exponent, negative modulus: first operand false, second
+     * true - the second operand's own vector. */
+    m.sign = MP_NEG;
+    (void)sp_exptmod_nct(&b, &e, &m, &r);
+    m.sign = MP_ZPOS;
+
+    /* Both positive: the all-false row that completes both pairs. */
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_exptmod_nct(&b, &e, &m, &r);
+
+    WB_NOTE("sp_exptmod_nct negative-operand rows exercised");
+}
+#else
+static void wb_exptmod_nct_negative(void)
+{
+    WB_NOTE("WOLFSSL_SP_INT_NEGATIVE off; exptmod sign rows skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 10: the SP-accelerated-backend selector's base-width operand.
+ *
+ *   if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
+ *           (eBits <= 1024)) { err = sp_ModExp_1024(...); }
+ *
+ * bBits is sp_count_bits(b) taken at ENTRY, before "Ensure base is less
+ * than modulus" reduces b, so a base WIDER than the modulus is the only
+ * thing that makes this operand false with the operands before it true.
+ * Every caller in the library and in the API tests reduces first.
+ * ------------------------------------------------------------------------- */
+static void wb_exptmod_wide_base(void)
+{
+    static const int widths[4] = { 1024, 2048, 1536, 3072 };
+    sp_int b;
+    sp_int e;
+    sp_int m;
+    sp_int r;
+    int    i;
+    int    ran = 0;
+
+    for (i = 0; i < 4; i++) {
+        /* m = 2^(w-1) + 1: exactly w bits and odd. */
+        if (wb_pow2(&m, widths[i] - 1) != MP_OKAY) {
+            continue;
+        }
+        if (sp_add_d(&m, 1, &m) != MP_OKAY) {
+            wb_fail = 1;
+            return;
+        }
+        /* b one word wider than the modulus, so bBits > w. */
+        if (wb_pow2(&b, widths[i] + SP_WORD_SIZE) != MP_OKAY) {
+            continue;
+        }
+        wb_set_d(&e, (sp_int_digit)3);
+        _sp_init_size(&r, SP_INT_DIGITS);
+        (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
+        ran = 1;
+    }
+
+    if (ran) {
+        WB_NOTE("modexp backend selector wide-base rows exercised");
+    }
+    else {
+        WB_NOTE("digit ceiling too low; wide-base selector rows skipped");
+    }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Class 11: the "base == modulus" shortcut inside the exponentiation
+ * engines, and the err chains that ride the same allocations.
+ *
+ *   if ((err == MP_OKAY) && sp_iszero(t[0]))  { _sp_set(r, 0); done = 1; }
+ *   if ((err == MP_OKAY) && sp_iszero(bm))    { _sp_set(r, 0); done = 1; }
+ *   while ((err == MP_OKAY) && ((i >= 0) || (c >= winBits)));
+ *
+ * The second operand's true side needs a base that reduces to zero, i.e. an
+ * exact multiple of the modulus - nothing in the library or the API tests
+ * asks for one. The leading operand only moves when the sp_mod()/window
+ * step underneath fails an allocation, which needs WOLFSSL_SMALL_STACK, and
+ * llvm-cov derives independence pairs per BINARY, so both have to be here.
+ * ------------------------------------------------------------------------- */
+static void wb_exptmod_base_multiple(void)
+{
+    sp_int b;
+    sp_int e;
+    sp_int m;
+    sp_int r;
+    int    n;
+
+    /* A 2-digit odd modulus: big enough for the Montgomery engine
+     * (m->used > 1 && odd), small enough that the sweep is cheap. */
+    wb_fill(&m, 2, (sp_int_digit)0);
+    m.dp[0] = (sp_int_digit)0x0fffffffffffffc5ULL;
+    m.dp[1] = (sp_int_digit)0x00000000000000f1ULL;
+    wb_set_d(&e, (sp_int_digit)0x10001);
+
+    /* b = m * 2: >= m, and b mod m == 0. */
+    if (sp_mul_d(&m, 2, &b) != MP_OKAY) {
+        wb_fail = 1;
+        return;
+    }
+
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_exptmod_nct(&b, &e, &m, &r);
+
+    /* Ordinary base through the same engines: the shortcut's false side. */
+    wb_set_d(&b, (sp_int_digit)3);
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_exptmod_nct(&b, &e, &m, &r);
+
+    /* Allocation sweep over the same two calls. No-op unless the variant
+     * sets WOLFSSL_SMALL_STACK: without it the temporaries are stack arrays
+     * and err cannot leave MP_OKAY. */
+    mcdc_fa_install();
+    for (n = 1; n <= 12; n++) {
+        _sp_init_size(&r, SP_INT_DIGITS);
+        mcdc_fa_arm(n);
+        (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
+        mcdc_fa_disarm();
+
+        _sp_init_size(&r, SP_INT_DIGITS);
+        mcdc_fa_arm(n);
+        (void)sp_exptmod_nct(&b, &e, &m, &r);
+        mcdc_fa_disarm();
+    }
+    mcdc_fa_disarm();
+
+    WB_NOTE("exponentiation base-multiple and allocation rows exercised");
+}
+
+/* ------------------------------------------------------------------------- *
+ * Class 12: sp_div_2d()'s remainder copy.
+ *
+ *   if ((err == MP_OKAY) && (rem != NULL)) { ... mask the top digit ... }
+ *
+ * The leading operand's false side is a remainder sp_int too small to hold
+ * the dividend: sp_copy() then returns MP_VAL with rem still non-NULL. Every
+ * caller sizes the remainder from the dividend, so it never happens there.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+static void wb_div_2d_rem_small(void)
+{
+    sp_int a;
+    sp_int r;
+    sp_int rem;
+
+    wb_fill(&a, 3, (sp_int_digit)0x0123456789abcdefULL);
+    _sp_init_size(&r, SP_INT_DIGITS);
+
+    /* Remainder with room for one digit only. */
+    _sp_init_size(&rem, 1);
+    (void)sp_div_2d(&a, SP_WORD_SIZE + 3, &r, &rem);
+
+    /* Same shift with a remainder that fits: the operand's true side. */
+    _sp_init_size(&rem, SP_INT_DIGITS);
+    (void)sp_div_2d(&a, SP_WORD_SIZE + 3, &r, &rem);
+
+    WB_NOTE("sp_div_2d remainder-capacity rows exercised");
+}
+#else
+static void wb_div_2d_rem_small(void)
+{
+    WB_NOTE("sp_div_2d not compiled; remainder-capacity rows skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 13: sp_gcd()'s result-capacity check, second link.
+ *
+ *   else if (((a->used <= b->used) && (r->size < a->used)) ||
+ *            ((a->used > b->used) && (r->size < b->used)))
+ *
+ * The second link is only evaluated when the first is false, i.e. with
+ * a->used > b->used; it then needs a result too small for the SMALLER
+ * operand. The committed rows only ever undersized the result against the
+ * larger one, which the first link catches.
+ * ------------------------------------------------------------------------- */
+#ifdef WOLFSSL_SP_MATH_ALL
+static void wb_gcd_r_small_b(void)
+{
+    sp_int a;
+    sp_int b;
+    sp_int r;
+
+    wb_fill(&a, 4, (sp_int_digit)0x0123456789abcdefULL);
+    wb_fill(&b, 3, (sp_int_digit)0x00fedcba98765432ULL);
+
+    /* a->used > b->used and r too small for b: second link true. */
+    _sp_init_size(&r, 2);
+    (void)sp_gcd(&a, &b, &r);
+
+    /* Same shape with a result that fits: second link false. */
+    _sp_init_size(&r, SP_INT_DIGITS);
+    (void)sp_gcd(&a, &b, &r);
+
+    WB_NOTE("sp_gcd smaller-operand capacity rows exercised");
+}
+#else
+static void wb_gcd_r_small_b(void)
+{
+    WB_NOTE("sp_gcd not compiled; smaller-operand capacity rows skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 14: the primality trial loops' error arm.
+ *
+ *   if ((err != MP_OKAY) || (*result == MP_NO)) break;
+ *
+ * The leading operand's true side needs sp_prime_miller_rabin() to fail,
+ * which on this configuration means an allocation failure inside the
+ * modular exponentiation it performs. Its false side (a composite rejected
+ * on the result operand) has to be in the same binary.
+ * ------------------------------------------------------------------------- */
+static void wb_prime_trial_alloc(void)
+{
+    sp_int  a;
+    int     res = 0;
+    int     n;
+#ifndef WC_NO_RNG
+    WC_RNG  rng;
+    int     haveRng;
+#endif
+
+    /* A composite with no small factors: the trial loop runs a real
+     * Miller-Rabin round and then rejects on *result. */
+    wb_fill(&a, 2, (sp_int_digit)0);
+    a.dp[0] = (sp_int_digit)0x000000000000ffe1ULL;   /* 65505 = 3*5*11*397 */
+    a.dp[1] = (sp_int_digit)0;
+    a.used  = 1;
+    (void)sp_prime_is_prime(&a, 8, &res);
+
+    /* A prime, so the loop runs every trial to completion. */
+    wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+    (void)sp_prime_is_prime(&a, 8, &res);
+
+    mcdc_fa_install();
+    for (n = 1; n <= 12; n++) {
+        wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+        mcdc_fa_arm(n);
+        (void)sp_prime_is_prime(&a, 8, &res);
+        mcdc_fa_disarm();
+    }
+
+#ifndef WC_NO_RNG
+    haveRng = (wc_InitRng(&rng) == 0);
+    if (haveRng) {
+        wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+        (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
+        for (n = 1; n <= 12; n++) {
+            wb_set_d(&a, (sp_int_digit)0x0fffffffffffffc5ULL);
+            mcdc_fa_arm(n);
+            (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
+            mcdc_fa_disarm();
+        }
+        wc_FreeRng(&rng);
+    }
+#endif
+    mcdc_fa_disarm();
+
+    WB_NOTE("prime trial-loop error rows exercised");
+}
+
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_SP_MATH */
 
 int main(void)
@@ -1326,6 +1675,13 @@ int main(void)
     wb_div_zero_divisor();
     wb_prime_arg_rejected();
     wb_prime_small_witness();
+    wb_invmod_c_sign();
+    wb_exptmod_nct_negative();
+    wb_exptmod_wide_base();
+    wb_exptmod_base_multiple();
+    wb_div_2d_rem_small();
+    wb_gcd_r_small_b();
+    wb_prime_trial_alloc();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */

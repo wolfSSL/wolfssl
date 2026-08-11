@@ -156,6 +156,135 @@ static void wb_param_roundtrip(WC_RNG* rng, const char* paramStr)
     wc_XmssKey_Free(&key);
 }
 
+/* ------------------------------------------------------------------------- *
+ * Exhausted-index rows.
+ *
+ * wc_xmssmt_sign() and wc_xmss_sigsleft() both guard on
+ *
+ *     if ((ret == 0) && (WC_IDX_INVALID(idx, params->idx_len, params->h)))
+ *
+ * whose macro expands, in the mixed 32/64-bit build, to
+ *
+ *     ((idx_len >  4) && IDX64_INVALID(idx.u64, idx_len, h)) ||
+ *     ((idx_len <= 4) && IDX32_INVALID(idx.u32, idx_len, h))
+ *
+ * A key is "exhausted" only after 2^h - 1 signatures, so no test can reach the
+ * TRUE side by signing: for h == 10 that is a thousand signatures and for
+ * h == 40 it is a trillion. Without a TRUE row NONE of the operands pairs --
+ * the decision is false in every vector, so flipping any single operand cannot
+ * change the outcome.
+ *
+ * The index lives in the first idx_len bytes of the persisted secret key, and
+ * this file already owns that storage (wb_priv, via the write/read callbacks).
+ * Writing it to all-ones is exactly what the library itself writes when it
+ * retires a key, so the forged state is one the library produces in the field
+ * -- it is simply not one a test can reach by counting. Both the 64-bit
+ * (idx_len == 5, XMSS^MT h=40) and 32-bit (idx_len == 4) arms are driven, so
+ * IDX64_INVALID and IDX32_INVALID each get their TRUE row against the ordinary
+ * FALSE row from wb_param_roundtrip().
+ *
+ * `(idx_len > 4)` and `(idx_len <= 4)` are exact logical complements of one
+ * parameter, so the second of them has no independence pair by construction;
+ * that residual is recorded in campaign/db/exclusions.json.
+ */
+static void wb_exhausted_index(WC_RNG* rng, const char* paramStr, int doSign)
+{
+    XmssKey key;
+    byte    msg[] = "wc_xmss_impl exhausted-index message";
+    byte*   sig = NULL;
+    word32  sigLen = 0;
+    word32  sigSz;
+    word32  privLen = 0;
+    byte    idxLen;
+
+    XMEMSET(&key, 0, sizeof(key));
+    wb_privSz = 0;
+
+    if (wc_XmssKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        return;
+    }
+    if (wc_XmssKey_SetParamStr(&key, paramStr) != 0) {
+        WB_NOTE(paramStr);
+        WB_NOTE("  parameter set unavailable; exhausted-index rows skipped");
+        wc_XmssKey_Free(&key);
+        return;
+    }
+    (void)wc_XmssKey_SetWriteCb(&key, wb_write_key);
+    (void)wc_XmssKey_SetReadCb(&key, wb_read_key);
+    (void)wc_XmssKey_SetContext(&key, (void*)wb_priv);
+
+    if (wc_XmssKey_GetPrivLen(&key, &privLen) != 0 ||
+            privLen > (word32)sizeof(wb_priv)) {
+        WB_NOTE(paramStr);
+        WB_NOTE("  secret key exceeds scratch; skipped");
+        wc_XmssKey_Free(&key);
+        return;
+    }
+    if (wc_XmssKey_MakeKey(&key, rng) != 0) {
+        WB_NOTE(paramStr);
+        WB_NOTE("  MakeKey failed; exhausted-index rows skipped");
+        wb_fail = 1;
+        wc_XmssKey_Free(&key);
+        return;
+    }
+    if (wc_XmssKey_GetSigLen(&key, &sigLen) != 0 || sigLen == 0) {
+        wc_XmssKey_Free(&key);
+        return;
+    }
+    sig = (byte*)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sig == NULL) {
+        wc_XmssKey_Free(&key);
+        return;
+    }
+
+    idxLen = key.params->idx_len;
+
+    /* The FALSE row for this parameter set: one ordinary signature, so the
+     * decision is evaluated with a valid index and the same idx_len. Under
+     * WOLFSSL_WC_XMSS_SMALL a height-40 signature recomputes every subtree and
+     * does not fit the campaign's TEST_TIMEOUT -- a timed-out white-box is
+     * scored as a SILENT SKIP and would lose the whole file -- so that one row
+     * is skipped there. wc_XmssKey_SigsLeft() is cheap in every build and
+     * still supplies the live-index row for wc_xmss_sigsleft()'s copy of the
+     * same macro. */
+    if (doSign) {
+        sigSz = sigLen;
+        if (wc_XmssKey_Sign(&key, sig, &sigSz, msg, (int)sizeof(msg)) != 0) {
+            WB_NOTE(paramStr);
+            WB_NOTE("  baseline Sign failed; exhausted-index rows skipped");
+            wb_fail = 1;
+            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wc_XmssKey_Free(&key);
+            return;
+        }
+    }
+    /* SigsLeft on a live key: the FALSE row of the same macro in
+     * wc_xmss_sigsleft(). */
+    if (wc_XmssKey_SigsLeft(&key) == 0) {
+        WB_NOTE("SigsLeft reported an exhausted key after one signature");
+        wb_fail = 1;
+    }
+
+    /* The TRUE row: retire the persisted index. Both entry points reload the
+     * secret key through the read callback, so this is all that is needed. */
+    XMEMSET(wb_priv, 0xFF, idxLen);
+
+    if (wc_XmssKey_SigsLeft(&key) != 0) {
+        WB_NOTE("SigsLeft accepted a retired index");
+        wb_fail = 1;
+    }
+    sigSz = sigLen;
+    if (wc_XmssKey_Sign(&key, sig, &sigSz, msg, (int)sizeof(msg)) == 0) {
+        WB_NOTE("Sign accepted a retired index");
+        wb_fail = 1;
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_XmssKey_Free(&key);
+    WB_NOTE(paramStr);
+    WB_NOTE("  exhausted-index rows exercised");
+}
+
 static void wb_run(void)
 {
     WC_RNG rng;
@@ -193,6 +322,22 @@ static void wb_run(void)
     (WOLFSSL_XMSS_MAX_HEIGHT >= 40) && \
     (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40))
     wb_param_roundtrip(&rng, "XMSSMT-SHA2_40/8_256");
+#endif
+
+    /* Retired-index rows. The 32-bit arm (idx_len == 4) comes from the single
+     * tree; the 64-bit arm (idx_len == 5) needs the tall XMSS^MT set, and is
+     * driven under WOLFSSL_WC_XMSS_SMALL too -- unlike the roundtrip above,
+     * this one produces exactly one signature per key. */
+#ifdef WC_XMSS_SHA256
+    wb_exhausted_index(&rng, "XMSS-SHA2_10_256", 1);
+#endif
+#if defined(WC_XMSS_SHA256) && (WOLFSSL_XMSS_MAX_HEIGHT >= 40) && \
+    (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40))
+#ifdef WOLFSSL_WC_XMSS_SMALL
+    wb_exhausted_index(&rng, "XMSSMT-SHA2_40/8_256", 0);
+#else
+    wb_exhausted_index(&rng, "XMSSMT-SHA2_40/8_256", 1);
+#endif
 #endif
 
     wc_FreeRng(&rng);
