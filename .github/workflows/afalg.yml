@@ -1,0 +1,198 @@
+name: AF_ALG Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+  # Weekday-morning cron (10:00 UTC) seeds the master-scoped ccache that PR runs
+  # restore: re-runs --build-only (compile only, no tests) on the
+  # default branch. PR runs are read-only (see ccache-setup).
+  schedule:
+    - cron: '2 10 * * 1-5'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  # The Linux AF_ALG port (wolfcrypt/src/port/af_alg/) offloads AES and SHA-256
+  # to the kernel crypto API over AF_ALG sockets. Note that Docker's default
+  # seccomp profile blocks socket(AF_ALG).
+  #
+  # Both configs build on one runner via .github/scripts/parallel-make-check.py
+  # (see os-check.yml for the full pattern): each builds in its own out-of-tree
+  # ("VPATH") build directory off one checkout/autogen, on a pool of one-per-CPU
+  # worker threads, longest first.
+  make_check:
+    name: make check
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    # Generous for a cold ccache; warm reruns finish in a fraction.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential bubblewrap
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # The socket families the port binds through (algif_hash, algif_skcipher,
+      # algif_aead) are loadable modules, normally autoloaded on bind() via
+      # their module aliases. On the -azure kernels the hosted runners boot,
+      # algif_aead is not in the installed linux-modules-azure package, and
+      # Ubuntu's generated blacklist neutralizes it with an
+      # "install algif_aead /bin/false" rule -- which defeats the bind-time
+      # autoload too, so aead/gcm(aes) is unreachable until it is loaded by
+      # hand. The underlying cipher is not the problem: gcm(aes) is already
+      # registered by aesni_intel.
+      #
+      # --ignore-install skips that /bin/false rule; linux-modules-extra
+      # supplies the .ko if the base package really lacks it (that package is
+      # often absent from the mirrors for the runner's exact kernel revision,
+      # so it is a best-effort second try, not a dependency). Failures stay
+      # non-fatal here: the probe below is what turns a missing algorithm into
+      # a red check, and it names the algorithm when it does.
+      - name: Load AF_ALG kernel modules
+        run: |
+          uname -r
+          missing=
+          for m in algif_hash algif_skcipher algif_aead gcm; do
+            if sudo modprobe --ignore-install "$m"; then
+              echo "modprobe $m: ok"
+            else
+              echo "modprobe $m: not loadable, will retry after modules-extra"
+              missing="$missing $m"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            grep -rn 'algif_' /etc/modprobe.d /lib/modprobe.d || true
+            sudo apt-get update -qq || true
+            sudo apt-get install -y "linux-modules-extra-$(uname -r)" || true
+            for m in $missing; do
+              if sudo modprobe --ignore-install "$m"; then
+                echo "modprobe $m: ok after modules-extra"
+              else
+                echo "modprobe $m: still not loadable"
+              fi
+            done
+          fi
+          echo '--- registered AES/SHA-256 algorithms (name/driver) ---'
+          awk '/^name/ { n = $3 } /^driver/ { print n "\t" $3 }' /proc/crypto \
+            | grep -E 'aes|sha256' | sort -u || true
+
+      # Preflight: bind every (type, name) pair wolfcrypt/src/port/af_alg/ uses,
+      # so a runner image without one of them fails here with the missing
+      # algorithm named, rather than deep inside testwolfcrypt. Deliberately a
+      # hard failure and not a skip: a green check that exercised no AF_ALG code
+      # would be worse than a red one. The set mirrors afalg_hash.c (sha256) and
+      # afalg_aes.c (cbc/ecb/ctr/gcm); extend it when the port grows an
+      # algorithm.
+      - name: Verify the kernel provides the algorithms the port needs
+        run: |
+          cat > "$RUNNER_TEMP/afalg-probe.c" <<'EOF'
+          #include <stdio.h>
+          #include <string.h>
+          #include <unistd.h>
+          #include <sys/socket.h>
+          #include <linux/if_alg.h>
+
+          static const char* types[] = {
+              "hash", "skcipher", "skcipher", "skcipher", "aead"
+          };
+          static const char* names[] = {
+              "sha256", "cbc(aes)", "ecb(aes)", "ctr(aes)", "gcm(aes)"
+          };
+
+          int main(void)
+          {
+              struct sockaddr_alg sa;
+              size_t i;
+              int fd;
+              int missing = 0;
+
+              for (i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
+                  fd = socket(AF_ALG, SOCK_SEQPACKET, 0);
+                  if (fd < 0) {
+                      printf("::error::socket(AF_ALG) unavailable on this kernel\n");
+                      return 1;
+                  }
+                  memset(&sa, 0, sizeof(sa));
+                  sa.salg_family = AF_ALG;
+                  strncpy((char*)sa.salg_type, types[i], sizeof(sa.salg_type) - 1);
+                  strncpy((char*)sa.salg_name, names[i], sizeof(sa.salg_name) - 1);
+                  if (bind(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
+                      printf("::error::kernel is missing %s/%s\n", types[i], names[i]);
+                      missing = 1;
+                  }
+                  else {
+                      printf("ok: %s/%s\n", types[i], names[i]);
+                  }
+                  close(fd);
+              }
+              return missing;
+          }
+          EOF
+          gcc -Wall -Werror -o "$RUNNER_TEMP/afalg-probe" "$RUNNER_TEMP/afalg-probe.c"
+          "$RUNNER_TEMP/afalg-probe"
+
+      # ccache via the cross-platform composite; the script passes the
+      # compiler to configure as CC="ccache gcc" (or a per-config "cc").
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: afalg
+          read-only: ${{ github.event_name == 'pull_request' }}
+          max-size: 100M
+
+      - name: Build all configs (parallel, out-of-tree)
+        run: |
+          cat > "$RUNNER_TEMP/afalg-configs.json" <<'EOF'
+          [
+          {"name": "defaults-afalg", "minutes": 2,
+           "configure": ["--enable-afalg"],
+           "cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"},
+          {"name": "all-afalg", "minutes": 5,
+           "configure": ["--enable-all", "--enable-testcert", "--enable-acert",
+            "--enable-dtls13", "--enable-dtls-mtu", "--enable-dtls-frag-ch",
+            "--enable-dtlscid", "--enable-quic", "--enable-afalg",
+            "--disable-srtp", "--disable-sha224", "--disable-hashflags",
+            "--disable-cryptocb", "--disable-aesgcm-stream"],
+           "cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"}
+          ]
+          EOF
+          .github/scripts/parallel-make-check.py \
+            ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --private-dir=certs \
+            "$RUNNER_TEMP/afalg-configs.json"
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 7
+          name: afalg-logs
+          path: |
+            build-*/make-check.log
+            build-*/test-suite.log
+            build-*/config.log
+          if-no-files-found: ignore
