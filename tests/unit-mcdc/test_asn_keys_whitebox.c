@@ -1767,6 +1767,11 @@ static void wb_ecc_specified_ec_domain_decode(void)
     int curveSz;
 
     WB_NOTE("EccSpecifiedECDomainDecode(): version<1||version>3 [:32969]");
+    /* Truncated encoding: GetASN_Items() fails, so every later step in the
+     * function runs with ret != 0 and their leading operands go false. */
+    sz = wb_build_ecc_specified_der(der, 2, 0, 0, 0, 0x04, 3);
+    ret = EccSpecifiedECDomainDecode(der, sz - 3, NULL, NULL, NULL);
+    WB_CHECK(ret != 0, ":32969 1st operand false (truncated encoding)");
     sz = wb_build_ecc_specified_der(der, 0, 0, 0, 0, 0x04, 3);
     ret = EccSpecifiedECDomainDecode(der, sz, NULL, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "version==0 (1st true)");

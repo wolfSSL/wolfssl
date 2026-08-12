@@ -813,7 +813,7 @@ static void wb_decode_basic_ca_constraint(void)
     /* CA=TRUE + pathLen encoded as 128 (needs a leading zero byte since
      * MSB of 0x80 is set): triggers :20016 true. */
     static const byte bcPathLen128[] =
-        { 0x30,0x08, 0x01,0x01,0xFF, 0x02,0x02,0x00,0x80 };
+        { 0x30,0x07, 0x01,0x01,0xFF, 0x02,0x02,0x00,0x80 };
     /* CA=TRUE + pathLen=127 (fits in 7 bits, valid, also the maximum
      * WOLFSSL_MAX_PATH_LEN, so :20020 stays false here too). */
     static const byte bcPathLen127[] =
