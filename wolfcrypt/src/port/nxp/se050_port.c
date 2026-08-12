@@ -1210,6 +1210,7 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
     sss_asymmetric_t ctx_asymm;
     byte* derBuf = NULL;
     int derSz = 0;
+    int derBufSz = 0;
 
     /* SE050 does not support optional label */
     (void)label;
@@ -1291,6 +1292,9 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
                     status = kStatus_SSS_Fail;
                     ret = MEMORY_E;
                 }
+                else {
+                    derBufSz = derSz;
+                }
             }
             if (status == kStatus_SSS_Success) {
                 derSz = wc_RsaKeyToDer(key, derBuf, derSz);
@@ -1334,6 +1338,12 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
 #endif
             }
 
+            if ((derBuf != NULL) && (derBufSz > 0)) {
+                /* Private key encoding sent to the SE. Wipe the whole
+                 * allocation: a failed encode leaves derSz negative having
+                 * possibly already written to the buffer. */
+                ForceZero(derBuf, (word32)derBufSz);
+            }
             XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
@@ -1832,6 +1842,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     sss_asymmetric_t ctx_asymm;
     byte* derBuf = NULL;
     int derSz = 0;
+    int derBufSz = 0;
 
     /* SE050 does not support optional label */
     (void)label;
@@ -1903,6 +1914,9 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
                     status = kStatus_SSS_Fail;
                     ret = MEMORY_E;
                 }
+                else {
+                    derBufSz = derSz;
+                }
             }
             if (status == kStatus_SSS_Success) {
                 derSz = wc_RsaKeyToDer(key, derBuf, derSz);
@@ -1931,6 +1945,12 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
+        if ((derBuf != NULL) && (derBufSz > 0)) {
+            /* Private key encoding sent to the SE. Wipe the whole allocation:
+             * a failed encode leaves derSz negative having possibly already
+             * written to the buffer. */
+            ForceZero(derBuf, (word32)derBufSz);
+        }
         XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
@@ -2273,6 +2293,8 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
                                                 derSz, keySizeBits, NULL, 0);
             }
+            /* Private scalar encoding sent to the SE. */
+            ForceZero(derBuf, sizeof(derBuf));
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
