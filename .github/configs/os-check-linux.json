@@ -601,5 +601,8 @@
  "run": [["./wolfcrypt/test/testwolfcrypt"]]},
 {"name": "postauth-no-compat",
  "comment": "Post-handshake auth without OPENSSL_EXTRA, which otherwise compiles out the handshake-end unload of SSL-owned certs and keys.",
- "configure": ["--enable-postauth", "--enable-sessioncerts"]}
+ "configure": ["--enable-postauth", "--enable-sessioncerts"]},
+{"name": "fpecc-no-shamir",
+ "comment": "FP_ECC with ECC_TIMING_RESISTANT but no ECC_SHAMIR: nothing consumes the fixed-point cache, so its table, lock and helpers are compiled out.",
+ "configure": ["--enable-fpecc", "--disable-eccshamir"]}
 ]

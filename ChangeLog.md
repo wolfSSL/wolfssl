@@ -91,6 +91,14 @@
   inverse, and DSA signing draws one extra random value for the blinding
   factor; defining it has no effect. by @stenslae (PR 11159)
 
+* **Behavioral change (`FP_ECC` with `ECC_TIMING_RESISTANT`)**:
+  `wc_ecc_mulmod_ex()`/`_ex2()` no longer use the fixed-point cache, so key
+  generation, ECDH and signing run at uncached speed. Only `ecc_mul2add()`
+  still uses it (ECDSA verify with Shamir's trick, and `wolfSSL_EC_POINT_mul()`
+  given both scalars). Without `ECC_SHAMIR` nothing uses the cache, so it and
+  its lock are compiled out and `--enable-fpecc` has no effect. by @stenslae
+  (PR 11159)
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
