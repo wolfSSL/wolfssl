@@ -103,6 +103,7 @@
 ## Bug Fixes
 
 * Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
+* With `FP_ECC` and `ECC_TIMING_RESISTANT` (the default), `wc_ecc_mulmod_ex()`/`_ex2()` no longer use the fixed-point cache; only `ecc_mul2add()` still does (ECDSA verify with Shamir's trick, and `wolfSSL_EC_POINT_mul()` given both scalars). by @stenslae (PR 11159)
 
 * Fixed `wc_AsconAEAD128_SetAD` called more than once: the function
   absorbs the key, nonce and associated data into the sponge state and then
