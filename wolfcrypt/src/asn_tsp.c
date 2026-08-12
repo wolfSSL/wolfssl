@@ -112,9 +112,8 @@ enum {
  * @param [in, out] outSz  On in, length of buffer in bytes.
  *                         On out, length of encoding in bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when req or outSz is NULL, the message imprint hash
- *          is not set, a field is too long for its array or the nonce has a
- *          leading zero byte.
+ * @return  BAD_FUNC_ARG when req or outSz is NULL, or a field is unset, the
+ *          wrong length or not encodable as given.
  * @return  BUFFER_E when out is not NULL and encoding is longer than outSz.
  * @return  ASN_UNKNOWN_OID_E when the hash algorithm is not recognized.
  * @return  MEMORY_E on dynamic memory allocation failure.
@@ -124,6 +123,7 @@ int wc_TspRequest_Encode(const TspRequest* req, byte* out, word32* outSz)
     DECL_ASNSETDATA(dataASN, tspReqASN_Length);
     int ret = 0;
     word32 sz = 0;
+    int digestSz = 0;
 
     WOLFSSL_ENTER("wc_TspRequest_Encode");
 
@@ -131,10 +131,17 @@ int wc_TspRequest_Encode(const TspRequest* req, byte* out, word32* outSz)
     if ((req == NULL) || (outSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* The message imprint is the only required field. */
-    if ((ret == 0) && ((req->imprint.hashSz == 0) ||
-            (req->imprint.hashSz > sizeof(req->imprint.hash)))) {
-        ret = BAD_FUNC_ARG;
+    /* The message imprint is the only required field. Its length is checked
+     * against the hash algorithm when the algorithm is known and available. */
+    if (ret == 0) {
+        digestSz = wc_HashGetDigestSize(
+            wc_OidGetHash((int)req->imprint.hashAlgOID));
+        if ((req->imprint.hashSz == 0) ||
+                (req->imprint.hashSz > sizeof(req->imprint.hash)) ||
+                ((digestSz > 0) &&
+                    (req->imprint.hashSz != (word32)digestSz))) {
+            ret = BAD_FUNC_ARG;
+        }
     }
     /* Policy, when set, must fit. */
     if ((ret == 0) && (req->policySz > sizeof(req->policy))) {
@@ -447,11 +454,8 @@ enum {
  * @param [in, out] outSz    On in, length of buffer in bytes.
  *                           On out, length of encoding in bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when tstInfo or outSz is NULL, a required field of
- *          tstInfo is not set or empty, the hash is too long, the genTime
- *          is not a valid GeneralizedTime, the tsa is empty, the serial
- *          number or nonce is empty or has a leading zero byte or accuracy
- *          millis or micros is out of range.
+ * @return  BAD_FUNC_ARG when tstInfo or outSz is NULL, or a field is unset,
+ *          the wrong length or not encodable as given.
  * @return  BUFFER_E when out is not NULL and encoding is longer than outSz.
  * @return  ASN_UNKNOWN_OID_E when the hash algorithm is not recognized.
  * @return  ASN_TIME_E when getting the current time failed.
@@ -462,6 +466,7 @@ int wc_TspTstInfo_Encode(const TspTstInfo* tstInfo, byte* out, word32* outSz)
     DECL_ASNSETDATA(dataASN, tspTstInfoASN_Length);
     int ret = 0;
     word32 sz = 0;
+    int digestSz = 0;
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
     byte timeBuf[ASN_GENERALIZED_TIME_SIZE];
 #endif
@@ -479,6 +484,15 @@ int wc_TspTstInfo_Encode(const TspTstInfo* tstInfo, byte* out, word32* outSz)
             (tstInfo->imprint.hashSz > sizeof(tstInfo->imprint.hash)) ||
             (tstInfo->serial == NULL))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* The imprint length must match the hash algorithm when the algorithm is
+     * known and available. */
+    if (ret == 0) {
+        digestSz = wc_HashGetDigestSize(
+            wc_OidGetHash((int)tstInfo->imprint.hashAlgOID));
+        if ((digestSz > 0) && (tstInfo->imprint.hashSz != (word32)digestSz)) {
+            ret = BAD_FUNC_ARG;
+        }
     }
     /* genTime, when set, must be a valid GeneralizedTime of RFC 3161. */
     if ((ret == 0) && (tstInfo->genTime != NULL) &&

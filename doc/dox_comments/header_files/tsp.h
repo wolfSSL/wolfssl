@@ -18,9 +18,8 @@
     // hash the data to be time-stamped into hash
 
     wc_TspRequest_Init(&req);
-    req.imprint.hashAlgOID = SHA256h;
-    XMEMCPY(req.imprint.hash, hash, sizeof(hash));
-    req.imprint.hashSz = (word32)sizeof(hash);
+    wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256);
+    wc_TspRequest_SetHash(&req, hash, sizeof(hash));
     req.certReq = 1;
     \endcode
 
@@ -33,13 +32,13 @@ int wc_TspRequest_Init(TspRequest* req);
 /*!
     \ingroup TSP
 
-    \brief This function sets the message imprint hash algorithm and hash size
-    of a TimeStampReq from a hash type. After calling, fill
-    req->imprint.hash with the digest of the data to be time-stamped.
+    \brief This function sets the message imprint hash algorithm of a
+    TimeStampReq from a hash type. Any digest already set is discarded.
 
     \return 0 Returned on successfully setting the hash algorithm.
     \return BAD_FUNC_ARG Returned when req is NULL.
-    \return HASH_TYPE_E Returned when the hash algorithm is not available.
+    \return HASH_TYPE_E Returned when the hash algorithm is not available or
+    is not identified by its OID.
     \return BUFFER_E Returned when the digest is too big for the message
     imprint.
 
@@ -54,11 +53,12 @@ int wc_TspRequest_Init(TspRequest* req);
 
     wc_TspRequest_Init(&req);
     wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256);
-    XMEMCPY(req.imprint.hash, hash, sizeof(hash));
+    wc_TspRequest_SetHash(&req, hash, sizeof(hash));
     req.certReq = 1;
     \endcode
 
     \sa wc_TspRequest_Init
+    \sa wc_TspRequest_SetHash
     \sa wc_TspRequest_GetHashType
     \sa wc_TspRequest_Encode
 */
@@ -133,11 +133,15 @@ int wc_TspRequest_GetHash(const TspRequest* req, byte* hash, word32* hashSz);
 
     \brief This function sets the message imprint hash of a TimeStampReq. The
     hash and its length are copied into the message imprint. Set the hash
-    algorithm separately with wc_TspRequest_SetHashType().
+    algorithm first with wc_TspRequest_SetHashType() - hashSz must be the
+    digest size of that algorithm.
 
     \return 0 Returned on successfully setting the hash.
     \return BAD_FUNC_ARG Returned when req or hash is NULL or hashSz is 0.
-    \return BUFFER_E Returned when hashSz is too big for the message imprint.
+    \return HASH_TYPE_E Returned when the hash algorithm is not set or not
+    available.
+    \return BUFFER_E Returned when hashSz is not the algorithm's digest size
+    or is too big for the message imprint.
 
     \param [in,out] req Pointer to the TspRequest structure to update.
     \param [in] hash Hash of the data to be time-stamped.
@@ -374,9 +378,8 @@ void wc_TspRequest_SetCertReq(TspRequest* req, int val);
     have a leading zero byte.
 
     \return 0 Returned on successfully encoding the request.
-    \return BAD_FUNC_ARG Returned when req or outSz is NULL, the message
-    imprint hash is not set, a field is too long for its array or the nonce
-    has a leading zero byte.
+    \return BAD_FUNC_ARG Returned when req or outSz is NULL, or a field is
+    unset, the wrong length or not encodable as given.
     \return BUFFER_E Returned when out is not NULL and the encoding is
     longer than outSz.
     \return ASN_UNKNOWN_OID_E Returned when the hash algorithm is not
@@ -636,7 +639,10 @@ int wc_TspTstInfo_GetMsgImprint(const TspTstInfo* tstInfo, word32* hashOID,
 
     \return 0 Returned on successfully setting the message imprint.
     \return BAD_FUNC_ARG Returned when tstInfo or hash is NULL or hashSz is 0.
-    \return BUFFER_E Returned when hashSz is too big for the message imprint.
+    \return HASH_TYPE_E Returned when the hash algorithm is not known or not
+    available.
+    \return BUFFER_E Returned when hashSz is too big for the message imprint
+    or not the digest size of hashOID.
 
     \param [in,out] tstInfo Pointer to the TspTstInfo structure to update.
     \param [in] hashOID Hash algorithm OID sum: SHA256h, etc.
@@ -897,11 +903,8 @@ int wc_TspTstInfo_SetFromRequest(TspTstInfo* tstInfo, const TspRequest* req,
     wc_TspTstInfo_SignWithPkcs7() which encodes and signs in one call.
 
     \return 0 Returned on successfully encoding the TSTInfo.
-    \return BAD_FUNC_ARG Returned when tstInfo or outSz is NULL, a required
-    field is not set or empty, the hash is too long, the genTime is not a
-    valid GeneralizedTime, the tsa is empty, the serial number or nonce is
-    empty or has a leading zero byte or accuracy millis or micros is out of
-    range.
+    \return BAD_FUNC_ARG Returned when tstInfo or outSz is NULL, or a field
+    is unset, the wrong length or not encodable as given.
     \return BUFFER_E Returned when out is not NULL and the encoding is
     longer than outSz.
     \return ASN_UNKNOWN_OID_E Returned when the hash algorithm is not
