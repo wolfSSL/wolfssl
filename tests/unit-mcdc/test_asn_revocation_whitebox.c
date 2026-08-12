@@ -1144,6 +1144,35 @@ static void wb_compare_ocsp_req_resp(void)
     resp.nonce = NULL;
     ret = CompareOcspReqResp(&req, &resp);
     WB_CHECK(ret == 0, ":36619 2nd operand false (resp->nonce==NULL)");
+
+    /* The identity chain is `serial || issuerHash || issuerKeyHash`; the two
+     * trailing comparisons only decide the outcome when every earlier one is
+     * zero, which a response built from a different issuer never produces.
+     * Two single-entry responses isolate them: one whose serial matches but
+     * whose issuer name hash does not, and one where both match but the
+     * issuer key hash does not. */
+    req.nonceSz = 0;
+    resp.nonce = NULL;
+    single1.next = NULL;
+    status1.serialSz = 1;
+    status1.serial[0] = 0xBB;                   /* serial now matches */
+    XMEMSET(single1.issuerHash, 0x03, sizeof(single1.issuerHash));
+    XMEMSET(single1.issuerKeyHash, 0x04, sizeof(single1.issuerKeyHash));
+    resp.single = &single1;
+    ret = CompareOcspReqResp(&req, &resp);
+    WB_CHECK(ret == 0, "serial/issuer/key hashes all match (all three "
+            "comparisons zero)");
+
+    XMEMSET(single1.issuerHash, 0x77, sizeof(single1.issuerHash));
+    resp.single = &single1;
+    ret = CompareOcspReqResp(&req, &resp);
+    WB_CHECK(ret != 0, ":36812 2nd operand true (issuer name hash differs)");
+
+    XMEMSET(single1.issuerHash, 0x03, sizeof(single1.issuerHash));
+    XMEMSET(single1.issuerKeyHash, 0x77, sizeof(single1.issuerKeyHash));
+    resp.single = &single1;
+    ret = CompareOcspReqResp(&req, &resp);
+    WB_CHECK(ret != 0, ":36812 3rd operand true (issuer key hash differs)");
 }
 
 #if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
@@ -1265,6 +1294,47 @@ static void wb_parse_crl_entry_extensions(void)
             reasonCode = -1;
             ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
             WB_CHECK(reasonCode == -1, "reason OID with no value (probe fails)");
+        }
+
+        /* (c2) reason OID with a ZERO-LENGTH OCTET STRING: GetOctetString()
+         *      succeeds but there is no tag byte left, so the value probe's
+         *      1st operand (GetASNTag() == 0) goes false. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte octet[4];
+            word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, NULL, 0);
+
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1,
+                    ":37042 1st operand false (empty reason OCTET STRING)");
+        }
+
+        /* (c3) reason OID whose OCTET STRING holds only the ENUMERATED tag
+         *      byte: the tag probe succeeds, then GetLength() runs off the
+         *      end, driving :37046's 1st operand false. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte tagOnly = ASN_ENUMERATED;
+            byte octet[8];
+            word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, &tagOnly, 1);
+
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1,
+                    ":37046 1st operand false (truncated reason length)");
         }
 
         /* (d) reason OID whose OCTET STRING holds an INTEGER instead of an
@@ -1918,6 +1988,76 @@ static word32 wb_build_crl_tbs(byte* out, int version,
     }
 }
 
+/* A CRL whose two AlgorithmIdentifiers carry explicit parameters, which
+ * SetAlgoID() cannot emit. `pssOid` selects id-RSASSA-PSS (the only algorithm
+ * allowed to carry them) or sha256WithRSAEncryption. */
+static word32 wb_build_crl_params(byte* out, const byte* tbsParams,
+        word32 tbsParamsSz, const byte* sigParams, word32 sigParamsSz,
+        int pssOid)
+{
+    static const byte oidPss[]    = {
+        0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0A };
+    static const byte oidRsaSha[] = {
+        0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0B };
+    static const byte pastDate[15]   = "20200101000000Z";
+    static const byte futureDate[15] = "20991231235959Z";
+    const byte* oid = pssOid ? oidPss : oidRsaSha;
+    byte algo[64];
+    byte content[400];
+    byte issuer[2] = { 0x30, 0x00 };
+    word32 idx = 0;
+    word32 a1Sz, a2Sz;
+
+    /* tbsCertList.signature */
+    {
+        byte inner[64];
+        word32 n = wb_tlv(inner, ASN_OBJECT_ID, oid, 9);
+        XMEMCPY(inner + n, tbsParams, tbsParamsSz);
+        n += tbsParamsSz;
+        a1Sz = WB_SEQ(algo, inner, n);
+    }
+    XMEMCPY(content + idx, algo, a1Sz);
+    idx += a1Sz;
+
+    XMEMCPY(content + idx, issuer, sizeof(issuer));
+    idx += sizeof(issuer);
+    idx += wb_tlv(content + idx, ASN_GENERALIZED_TIME, pastDate, 15);
+    idx += wb_tlv(content + idx, ASN_GENERALIZED_TIME, futureDate, 15);
+
+    /* signatureAlgorithm */
+    {
+        byte inner[64];
+        word32 n = wb_tlv(inner, ASN_OBJECT_ID, oid, 9);
+        XMEMCPY(inner + n, sigParams, sigParamsSz);
+        n += sigParamsSz;
+        a2Sz = WB_SEQ(algo, inner, n);
+    }
+    {
+        byte sigHdr[8];
+        byte fakeSig[16];
+        word32 sigHdrSz;
+        byte tbsSeqBuf[8];
+        word32 tbsSeqSz;
+        byte outer[8];
+        word32 outerSz;
+        word32 total;
+        word32 o = 0;
+
+        XMEMSET(fakeSig, 0xAA, sizeof(fakeSig));
+        sigHdrSz = SetBitString(sizeof(fakeSig), 0, sigHdr);
+        tbsSeqSz = SetSequence(idx, tbsSeqBuf);
+        total = tbsSeqSz + idx + a2Sz + sigHdrSz + (word32)sizeof(fakeSig);
+        outerSz = SetSequence(total, outer);
+        XMEMCPY(out + o, outer, outerSz); o += outerSz;
+        XMEMCPY(out + o, tbsSeqBuf, tbsSeqSz); o += tbsSeqSz;
+        XMEMCPY(out + o, content, idx); o += idx;
+        XMEMCPY(out + o, algo, a2Sz); o += a2Sz;
+        XMEMCPY(out + o, sigHdr, sigHdrSz); o += sigHdrSz;
+        XMEMCPY(out + o, fakeSig, sizeof(fakeSig)); o += (word32)sizeof(fakeSig);
+        return o;
+    }
+}
+
 static void wb_parse_crl(void)
 {
     byte der[512];
@@ -2022,6 +2162,55 @@ static void wb_parse_crl(void)
     ret = ParseCRL(rcertArr, &dcrl, der, sz, VERIFY, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
             ":37630-:37632 all true (verify!=NO_VERIFY, expired nextUpdate)");
+    FreeDecodedCRL(&dcrl);
+
+    /* --- signature-parameter agreement [:37713,:37773,:37778] ---------- *
+     * SetAlgoID() cannot emit explicit parameters, so these rows use the
+     * dedicated builder above. */
+#ifdef WC_RSA_PSS
+    {
+        static const byte paramsA[] = { 0x30, 0x01, 0x01 };
+        static const byte paramsB[] = { 0x30, 0x01, 0x02 };
+
+        InitDecodedCRL(&dcrl, NULL);
+        XMEMSET(rcertArr, 0, sizeof(rcertArr));
+        sz = wb_build_crl_params(der, paramsA, (word32)sizeof(paramsA),
+                paramsA, (word32)sizeof(paramsA), 1);
+        ret = ParseCRL(rcertArr, &dcrl, der, sz, NO_VERIFY, NULL);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":37773 2nd operand false, :37778 2nd operand false "
+                "(matching PSS parameters)");
+        FreeDecodedCRL(&dcrl);
+
+        InitDecodedCRL(&dcrl, NULL);
+        XMEMSET(rcertArr, 0, sizeof(rcertArr));
+        sz = wb_build_crl_params(der, paramsA, (word32)sizeof(paramsA),
+                paramsA, (word32)sizeof(paramsA), 0);
+        ret = ParseCRL(rcertArr, &dcrl, der, sz, NO_VERIFY, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":37773 both operands true (parameters under a non-PSS "
+                "algorithm)");
+        FreeDecodedCRL(&dcrl);
+
+        InitDecodedCRL(&dcrl, NULL);
+        XMEMSET(rcertArr, 0, sizeof(rcertArr));
+        sz = wb_build_crl_params(der, paramsA, (word32)sizeof(paramsA),
+                paramsB, (word32)sizeof(paramsB), 1);
+        ret = ParseCRL(rcertArr, &dcrl, der, sz, NO_VERIFY, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":37778 both operands true (PSS parameters differ)");
+        FreeDecodedCRL(&dcrl);
+    }
+#endif /* WC_RSA_PSS */
+
+    /* Truncated CRL: GetASN_Items() fails, so the version gate at :37713
+     * runs with ret != 0. */
+    InitDecodedCRL(&dcrl, NULL);
+    XMEMSET(rcertArr, 0, sizeof(rcertArr));
+    sz = wb_build_crl_tbs(der, 2, pastDate, 15, ASN_GENERALIZED_TIME,
+            futureDate, 15, ASN_GENERALIZED_TIME, 0);
+    ret = ParseCRL(rcertArr, &dcrl, der, sz - 4, NO_VERIFY, NULL);
+    WB_CHECK(ret != 0, ":37713 1st operand false (truncated CRL)");
     FreeDecodedCRL(&dcrl);
 
 #if defined(WC_ASN_RUNTIME_DATE_CHECK_CONTROL) && !defined(NO_ASN_TIME)
