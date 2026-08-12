@@ -4597,7 +4597,7 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, const byte* sig,
                       sigCheck, inSz);
     }
     if (ret == 0) {
-        if (XMEMCMP(sigCheck, sig + saltLen, inSz) != 0) {
+        if (ConstantCompare(sigCheck, sig + saltLen, (int)inSz) != 0) {
             WOLFSSL_MSG("RsaPSS_CheckPadding: Padding Error");
             ret = BAD_PADDING_E;
         }

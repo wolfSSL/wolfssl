@@ -5012,8 +5012,19 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WOLFSSL_NO_CT_OPS
 #endif
 
+/* Only auto-disable ConstantCompare() when no feature below still calls it.
+ * Manually defining WOLFSSL_NO_CONST_CMP still requires supplying your own
+ * ConstantCompare() (see wolfssl/wolfcrypt/misc.h). */
 #if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(HAVE_CURVE25519) && \
-        !defined(HAVE_CURVE448) && defined(WC_NO_RNG) && defined(WC_NO_RSA_OAEP)
+        !defined(HAVE_CURVE448) && defined(WC_NO_RNG) && \
+        defined(WC_NO_RSA_OAEP) && defined(NO_RSA) && !defined(HAVE_ECC) && \
+        !defined(HAVE_ASCON) && \
+        !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) && \
+        !defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_HAVE_XMSS) && \
+        !defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_HAVE_SLHDSA) && \
+        !defined(HAVE_ED25519) && !defined(HAVE_ED448) && \
+        !defined(WOLFSSL_CMAC) && !defined(WOLFCRYPT_HAVE_SRP) && \
+        !defined(HAVE_PKCS12)
     #undef  WOLFSSL_NO_CONST_CMP
     #define WOLFSSL_NO_CONST_CMP
 #endif

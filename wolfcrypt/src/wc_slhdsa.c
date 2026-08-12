@@ -5018,7 +5018,7 @@ static int slhdsakey_ht_verify(SlhDsaKey* key, const byte* m,
         }
     }
     /* Step 13: Compare computed node with public key root. */
-    if ((ret == 0) && (XMEMCMP(node, pk_root, n) != 0)) {
+    if ((ret == 0) && (ConstantCompare(node, pk_root, (int)n) != 0)) {
         /* Step 16: Return signature verification failed. */
         ret = SIG_VERIFY_E;
     }
