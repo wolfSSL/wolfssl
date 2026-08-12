@@ -148,6 +148,13 @@ wc_AlteraFcs_HmacRemoveKey(keyId);
 Key sizes 256, 384 and 512 bits; digests SHA-256/384/512. Tags produced by any
 standard HMAC implementation verify correctly.
 
+The two key origins differ in what they protect. `wc_AlteraFcs_HmacImportKey()`
+starts from a plaintext key the HPS already held, so it provides usage
+enforcement only. `wc_AlteraFcs_HmacMakeKey()` creates a key the HPS can never
+read, but since the SDM only verifies, such a key is useful only when the tag
+producer receives the same key through a separate provisioning channel; nothing
+in this port can export it to them.
+
 ## Why HKDF stays in software
 
 `wc_HKDF()` works normally on this platform and always runs in software. This
