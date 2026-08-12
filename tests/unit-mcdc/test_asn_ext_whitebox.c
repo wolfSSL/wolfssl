@@ -749,15 +749,26 @@ static void wb_decode_general_name_uri(void)
     ret = DecodeGeneralName(uriColonFirst, &idx,
             (byte)(ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE),
             (int)sizeof(uriColonFirst), &cert);
+    /* The strict URI hier-part validation is inside the name-constraint
+     * block, so it is compiled out with IGNORE_NAME_CONSTRAINTS and the
+     * malformed URIs are then accepted. */
+#ifndef IGNORE_NAME_CONSTRAINTS
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_ALT_NAME_E), "i==0 (1st operand true)");
+#else
+    WB_CHECK(ret == 0, "i==0, URI validation compiled out");
+#endif
 
     XMEMSET(&cert, 0, sizeof(cert));
     idx = 0;
     ret = DecodeGeneralName(uriNoColon, &idx,
             (byte)(ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE),
             (int)sizeof(uriNoColon), &cert);
+#ifndef IGNORE_NAME_CONSTRAINTS
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_ALT_NAME_E),
             "i==len, no ':' found (2nd operand true, 1st false)");
+#else
+    WB_CHECK(ret == 0, "i==len, URI validation compiled out");
+#endif
 
     XMEMSET(&cert, 0, sizeof(cert));
     idx = 0;
@@ -779,9 +790,15 @@ static void wb_decode_general_name_uri(void) { WB_NOTE("WOLFSSL_NO_ASN_STRICT; s
  * ------------------------------------------------------------------------- */
 static void wb_decode_basic_ca_constraint(void)
 {
-    byte isCa;
-    word16 pathLen;
-    byte pathLenSet;
+    /* DecodeBasicCaConstraint() only writes *pathLength when the encoding
+     * carries a pathLenConstraint, but reads it unconditionally at :20070
+     * and :20074, so the caller owns the initialisation -- exactly as the
+     * in-library caller DecodeBasicCaConstraintInternal() does at :20114.
+     * Leaving these uninitialised made the pathLength checks read stack
+     * garbage, which is both a wrong result and a variant-dependent one. */
+    byte isCa = 0;
+    word16 pathLen = 0;
+    byte pathLenSet = 0;
     int ret;
 
     /* Empty SEQUENCE -> :20005 false, nothing else checked. */
@@ -803,27 +820,33 @@ static void wb_decode_basic_ca_constraint(void)
         { 0x30,0x06, 0x01,0x01,0xFF, 0x02,0x01,0x7F };
 
     WB_NOTE("DecodeBasicCaConstraint(): empty SEQ bypass [:20005]");
+    isCa = 0; pathLen = 0; pathLenSet = 0;
     ret = DecodeBasicCaConstraint(bcEmpty, (int)sizeof(bcEmpty), &isCa,
             &pathLen, &pathLenSet);
     WB_CHECK(ret == 0, "empty BasicConstraints SEQUENCE (:20005 false)");
 
     WB_NOTE("DecodeBasicCaConstraint(): CA boolean present-and-false OR [:20010]");
+    isCa = 0; pathLen = 0; pathLenSet = 0;
     ret = DecodeBasicCaConstraint(bcCaFalse, (int)sizeof(bcCaFalse), &isCa,
             &pathLen, &pathLenSet);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             "CA=FALSE explicit (both operands true)");
+    isCa = 0; pathLen = 0; pathLenSet = 0;
     ret = DecodeBasicCaConstraint(bcCaTrue, (int)sizeof(bcCaTrue), &isCa,
             &pathLen, &pathLenSet);
     WB_CHECK(ret == 0 && isCa == 1,
             "CA=TRUE (1st operand true, 2nd false: !innerIsCA is false)");
+    isCa = 0; pathLen = 0; pathLenSet = 0;
     ret = DecodeBasicCaConstraint(bcNoCa, (int)sizeof(bcNoCa), &isCa,
             &pathLen, &pathLenSet);
     WB_CHECK(ret == 0, "CA absent (1st operand false, short-circuit)");
 
     WB_NOTE("DecodeBasicCaConstraint(): pathLength >= 128 [:20016]");
+    isCa = 0; pathLen = 0; pathLenSet = 0;
     ret = DecodeBasicCaConstraint(bcPathLen128, (int)sizeof(bcPathLen128),
             &isCa, &pathLen, &pathLenSet);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "pathLength==128 (true)");
+    isCa = 0; pathLen = 0; pathLenSet = 0;
     ret = DecodeBasicCaConstraint(bcPathLen127, (int)sizeof(bcPathLen127),
             &isCa, &pathLen, &pathLenSet);
     WB_CHECK(ret == 0 && pathLen == 127 && pathLenSet == 1,
