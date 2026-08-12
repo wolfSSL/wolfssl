@@ -2621,6 +2621,96 @@ static int test_wc_SignCert_makeBodyEcc(Cert* cert, ecc_key* key, WC_RNG* rng,
  * bit string header, so capacities in a narrow band just below the exact
  * encoding size get accepted and overrun.
  */
+#if !defined(NO_ASN) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME) && !defined(WC_NO_RNG) && !defined(NO_ASN_CRYPT)
+    #define TEST_KEYUSAGE_DECIPHER_ONLY
+#endif
+
+/*
+ * decipherOnly is bit 8, the only KeyUsage value landing in the second byte
+ * of the BIT STRING - so the only one needing a second content byte to encode
+ * and the high-byte shift to decode. Round-trip it alone and combined with a
+ * first-byte bit to cover both halves.
+ */
+int test_wc_DecodeKeyUsage_decipherOnly(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_KEYUSAGE_DECIPHER_ONLY
+    static const struct {
+        const char* str;
+        word16      expected;
+    } kuCases[] = {
+        { "decipherOnly",                  KEYUSE_DECIPHER_ONLY },
+        { "digitalSignature,decipherOnly", (word16)(KEYUSE_DIGITAL_SIG |
+                                                    KEYUSE_DECIPHER_ONLY) },
+        { "encipherOnly,decipherOnly",     (word16)(KEYUSE_ENCIPHER_ONLY |
+                                                    KEYUSE_DECIPHER_ONLY) },
+        /* A first-byte-only value must keep encoding in a single byte. */
+        { "digitalSignature",              KEYUSE_DIGITAL_SIG },
+    };
+    WC_RNG      rng;
+    RsaKey      key;
+    byte*       der = NULL;
+    word32      idx = 0;
+    int         rngInit = 0;
+    int         keyInit = 0;
+    size_t      c;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    for (c = 0; c < XELEM_CNT(kuCases); c++) {
+        Cert        cert;
+        DecodedCert dCert;
+        int         dCertInit = 0;
+        int         derSz = 0;
+
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        if (EXPECT_SUCCESS()) {
+            cert.sigType = CTC_SHA256wRSA;
+            cert.isCA = 0;
+            XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.commonName, "keyUsage", CTC_NAME_SIZE);
+        }
+        ExpectIntEQ(wc_SetKeyUsage(&cert, kuCases[c].str), 0);
+        ExpectIntGT(derSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng),
+            0);
+
+        if (EXPECT_SUCCESS() && (der != NULL)) {
+            wc_InitDecodedCert(&dCert, der, (word32)derSz, HEAP_HINT);
+            dCertInit = 1;
+            ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+            /* Every requested bit must survive and nothing else be set - a
+             * byte-order slip silently yields a first-byte usage. */
+            ExpectIntEQ(dCert.extKeyUsage, kuCases[c].expected);
+        }
+        if (dCertInit) wc_FreeDecodedCert(&dCert);
+    }
+
+    if (keyInit) wc_FreeRsaKey(&key);
+    if (rngInit) wc_FreeRng(&rng);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* TEST_KEYUSAGE_DECIPHER_ONLY */
+    return EXPECT_RESULT();
+}
+
 int test_wc_SignCert_buffer_bounds(void)
 {
     EXPECT_DECLS;
