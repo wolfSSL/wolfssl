@@ -3663,8 +3663,12 @@ int test_wc_TspTstInfo_VerifyWithPKCS7_tsa_name_dirname(void)
     return EXPECT_RESULT();
 }
 
+/* TspEncodeSigningCertV2(), TspCheckSigningCertAttr(), TspCheckOneSignerInfo()
+ * and tspSigningCertV2Oid are WOLFSSL_LOCAL (hidden visibility): they only link
+ * into the test binary when the library is built static, so the blocks below
+ * are additionally guarded on WOLFSSL_TEST_STATIC_BUILD. */
 #if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_SHA256) && \
-    defined(WOLFSSL_TSP_RESPONDER)
+    defined(WOLFSSL_TSP_RESPONDER) && defined(WOLFSSL_TEST_STATIC_BUILD)
 /* Opaque certificate bytes - only their hash matters to the attribute. */
 static const byte tsEssCert[16] = {
     0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -3676,7 +3680,7 @@ int test_wc_TspEncodeSigningCertV2(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_SHA256) && \
-    defined(WOLFSSL_TSP_RESPONDER)
+    defined(WOLFSSL_TSP_RESPONDER) && defined(WOLFSSL_TEST_STATIC_BUILD)
     byte essCert[128];
     word32 essCertSz;
     word32 lenOnly = 0;
@@ -3703,7 +3707,8 @@ int test_wc_TspCheckSigningCertAttr(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && !defined(NO_SHA256) && \
-    defined(WOLFSSL_TSP_RESPONDER) && defined(WOLFSSL_TSP_VERIFIER)
+    defined(WOLFSSL_TSP_RESPONDER) && defined(WOLFSSL_TSP_VERIFIER) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
     /* SigningCertificateV2 with no hashAlgorithm - SHA-256 by default - and
      * a 16 byte certHash, which is not the SHA-256 digest length. */
     static const byte shortHashAttrib[] = {
@@ -3758,7 +3763,7 @@ int test_wc_TspCheckOneSignerInfo(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && \
-    defined(WOLFSSL_TSP_VERIFIER)
+    defined(WOLFSSL_TSP_VERIFIER) && defined(WOLFSSL_TEST_STATIC_BUILD)
     /* Minimal ContentInfo/SignedData wrappers parsed only as far as the
      * signerInfos SET - the SET content is what each case varies. */
     static const byte oneSigner[] = {
