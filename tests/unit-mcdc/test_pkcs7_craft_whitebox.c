@@ -2349,6 +2349,227 @@ static void wb_short_buffer_probes(void)
 #endif
 }
 
+/* ------------------------------------------------------------------------- *
+ * Section 13: wc_PKCS7_DecodeEnvelopedData() content-info walk
+ * [:14498, :14549, :14594].
+ *
+ * These three sit between the content-encryption AlgorithmIdentifier and the
+ * encryptedContent, on elements the encoder always writes in full. Driving
+ * them needs the message cut at an exact element boundary, or the [0]
+ * encryptedContent rewritten from PRIMITIVE (what wc_PKCS7_EncodeEnvelopedData
+ * writes, via SetImplicit) to CONSTRUCTED, which is what turns `explicitOctet`
+ * on and enables the inner-OCTET-STRING peek at :14594.
+ *
+ * The offsets are found by walking the message with the same calls the decoder
+ * uses, and every step is checked, so nothing is patched or cut at a guessed
+ * position.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+#define WB_EV_SEED   0x6ed4a91cUL
+#define WB_EV_BUF_SZ 2048
+static byte wbEvBuf[WB_EV_BUF_SZ];
+static word32 wbEvSz;
+static word32 wbEvAlgLen;   /* index of the AlgorithmIdentifier length byte */
+static word32 wbEvIvTag;    /* index of the IV OCTET STRING tag */
+static word32 wbEvContTag;  /* index of the [0] encryptedContent tag */
+
+static int wb_build_enveloped(void)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    WC_RNG    rng;
+    byte      data[32];
+    int       sz = 0;
+
+    XMEMSET(data, 0x63, sizeof(data));
+    wbEvSz = 0;
+    if (p == NULL) {
+        return -1;
+    }
+    mcdc_sr_arm(WB_EV_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) == 0) {
+        p->content    = data;
+        p->contentSz  = (word32)sizeof(data);
+        p->contentOID = DATA;
+        p->encryptOID = AES128CBCb;
+        p->rng        = &rng;
+        sz = wc_PKCS7_EncodeEnvelopedData(p, wbEvBuf, (word32)sizeof(wbEvBuf));
+    }
+    wc_PKCS7_Free(p);
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    if (sz <= 0) {
+        return -1;
+    }
+    wbEvSz = (word32)sz;
+    return 0;
+}
+
+/* Walks wbEvBuf the way wc_PKCS7_DecodeEnvelopedData() walks it, filling in
+ * wbEvIvTag and wbEvContTag. Returns 0 on success. */
+static int wb_enveloped_walk(void)
+{
+    word32 idx = 0, contentType, encOID;
+    int    length;
+    byte   tag;
+
+    wbEvIvTag = 0;
+    wbEvContTag = 0;
+    if (GetSequence(wbEvBuf, &idx, &length, wbEvSz) < 0)
+        return -1;
+    if (wc_GetContentType(wbEvBuf, &idx, &contentType, wbEvSz) < 0)
+        return -1;
+    if (GetASNTag(wbEvBuf, &idx, &tag, wbEvSz) < 0 ||
+            tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return -1;
+    if (GetLength(wbEvBuf, &idx, &length, wbEvSz) < 0)
+        return -1;
+    if (GetSequence(wbEvBuf, &idx, &length, wbEvSz) < 0)
+        return -1;
+    if (GetMyVersion(wbEvBuf, &idx, &length, wbEvSz) < 0)
+        return -1;
+    /* recipientInfos SET: skip its whole body */
+    if (GetSet(wbEvBuf, &idx, &length, wbEvSz) < 0)
+        return -1;
+    idx += (word32)length;
+    if (GetSequence(wbEvBuf, &idx, &length, wbEvSz) < 0)
+        return -1;
+    if (wc_GetContentType(wbEvBuf, &idx, &contentType, wbEvSz) < 0)
+        return -1;
+    /* the AlgorithmIdentifier SEQUENCE: remember its length byte before
+     * GetAlgoId() consumes the element */
+    if (idx + 1 >= wbEvSz ||
+            wbEvBuf[idx] != (ASN_SEQUENCE | ASN_CONSTRUCTED) ||
+            wbEvBuf[idx + 1] >= 0x80)
+        return -1;
+    wbEvAlgLen = idx + 1;
+    if (GetAlgoId(wbEvBuf, &idx, &encOID, oidBlkType, wbEvSz) < 0)
+        return -1;
+    if (idx >= wbEvSz || wbEvBuf[idx] != ASN_OCTET_STRING)
+        return -1;
+    wbEvIvTag = idx;
+    idx += 2 + (word32)wbEvBuf[idx + 1];      /* tag + length + IV bytes */
+    if (idx >= wbEvSz || wbEvBuf[idx] != (ASN_CONTEXT_SPECIFIC | 0))
+        return -1;
+    wbEvContTag = idx;
+    return 0;
+}
+
+static int wb_decode_enveloped(word32 msgSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_EV_BUF_SZ];
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->privateKey   = (byte*)client_key_der_2048;
+    p->privateKeySz = (word32)sizeof_client_key_der_2048;
+    ret = wc_PKCS7_DecodeEnvelopedData(p, wbEvBuf, msgSz, out, sizeof(out));
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_enveloped_content_walk(void)
+{
+    byte saveTag, saveLen;
+    int  ret;
+
+    if (wb_build_enveloped() != 0 || wb_enveloped_walk() != 0) {
+        WB_NOTE("EnvelopedData encode/walk failed; content walk skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): pristine AES-128-CBC/RSA bundle,"
+            " the accepting row the cuts below pair against");
+    ret = wb_decode_enveloped(wbEvSz);
+    WB_CHECK(ret > 0, "pristine EnvelopedData decodes");
+
+    /* Shrinking the AlgorithmIdentifier length so it covers only the OID
+     * makes GetAlgoId() stop at the IV instead of swallowing it, which is
+     * what lets the message end exactly on the IV element. Without this the
+     * cut is caught by GetAlgoId's own bounds-checked GetSequence() one step
+     * earlier and neither guard below is reached. */
+    saveLen = wbEvBuf[wbEvAlgLen];
+    wbEvBuf[wbEvAlgLen] = (byte)(wbEvIvTag - (wbEvAlgLen + 1));
+
+    WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): message ends on the IV element"
+            " [:14498 cond 1 true]");
+    (void)wb_decode_enveloped(wbEvIvTag);
+
+    WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): message ends after the IV length"
+            " byte, so the IV bytes themselves are missing [:14549 cond 2"
+            " true]");
+    (void)wb_decode_enveloped(wbEvIvTag + 2);
+
+    wbEvBuf[wbEvAlgLen] = saveLen;
+
+    WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): content-encryption algorithm"
+            " rewritten to an OID that is not a block cipher, so the"
+            " AlgorithmIdentifier parse fails [:14498 cond 0 false]");
+    saveTag = wbEvBuf[wbEvIvTag - 1];
+    wbEvBuf[wbEvIvTag - 1] = (byte)(saveTag ^ 0x40);
+    (void)wb_decode_enveloped(wbEvSz);
+    wbEvBuf[wbEvIvTag - 1] = saveTag;
+
+    /* A CONSTRUCTED [0] wrapping ONE definite OCTET STRING is the Go
+     * crypto/pkcs7 shape the peek exists for; wolfSSL's encoder never writes
+     * it. Built in place: the [0] length loses the two bytes the inner header
+     * takes, and the first two ciphertext bytes become that header, so
+     * innerSz + (peekIdx - idx) still equals the [0] length. */
+    WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): CONSTRUCTED [0] wrapping a single"
+            " OCTET STRING [:14594 all four operands true]");
+    saveTag = wbEvBuf[wbEvContTag];
+    saveLen = wbEvBuf[wbEvContTag + 1];
+    {
+        byte inner = (byte)(saveLen - 2);
+        byte c0 = wbEvBuf[wbEvContTag + 2];
+        byte c1 = wbEvBuf[wbEvContTag + 3];
+
+        wbEvBuf[wbEvContTag] =
+                (byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0);
+        wbEvBuf[wbEvContTag + 2] = ASN_OCTET_STRING;
+        wbEvBuf[wbEvContTag + 3] = inner;
+        (void)wb_decode_enveloped(wbEvSz);
+        wbEvBuf[wbEvContTag + 2] = c0;
+        wbEvBuf[wbEvContTag + 3] = c1;
+    }
+
+    WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): same, cut immediately after the"
+            " CONSTRUCTED [0] header [:14594 cond 0 false]");
+    (void)wb_decode_enveloped(wbEvContTag + 2);
+
+    WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): same, inner OCTET STRING with a"
+            " long-form length prefix and no length bytes [:14594 cond 2"
+            " false]");
+    wbEvBuf[wbEvContTag + 2] = ASN_OCTET_STRING;
+    wbEvBuf[wbEvContTag + 3] = 0x84;
+    (void)wb_decode_enveloped(wbEvContTag + 4);
+
+    wbEvBuf[wbEvContTag] = saveTag;
+    wbEvBuf[wbEvContTag + 1] = saveLen;
+}
+#else
+static void wb_enveloped_content_walk(void)
+{
+    WB_NOTE("no RSA/AES-128-CBC/2048-cert-buffers; EnvelopedData content walk"
+            " skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -2367,6 +2588,7 @@ int main(void)
     wb_stage4_cert_tails();
     wb_kekri_keysize_guard();
     wb_short_buffer_probes();
+    wb_enveloped_content_walk();
     wb_footer_hash_matrix();
     wb_der_handoff();
     wb_key_oid_matrix();
