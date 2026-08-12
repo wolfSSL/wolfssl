@@ -2559,6 +2559,67 @@ static void wb_enveloped_content_walk(void)
     wbEvBuf[wbEvContTag + 3] = 0x84;
     (void)wb_decode_enveloped(wbEvContTag + 4);
 
+    /* BER-fragmented content: an INDEFINITE-length constructed [0] holding one
+     * OCTET STRING chunk and the end-of-contents pair. wolfSSL's encoder only
+     * writes this shape when streaming out, which the decode-side tests never
+     * exercise, so the whole fragment loop is otherwise unreached. Built in
+     * place: the [0] length byte becomes 0x80, the first two ciphertext bytes
+     * become the chunk header and the last two become the EOC. */
+    {
+        byte chunk = (byte)(saveLen - 4);
+        byte c0 = wbEvBuf[wbEvContTag + 2];
+        byte c1 = wbEvBuf[wbEvContTag + 3];
+        word32 eoc = wbEvContTag + 2 + (word32)saveLen - 2;
+        byte e0 = wbEvBuf[eoc];
+        byte e1 = wbEvBuf[eoc + 1];
+
+        wbEvBuf[wbEvContTag] =
+                (byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0);
+        wbEvBuf[wbEvContTag + 1] = ASN_INDEF_LENGTH;
+        wbEvBuf[wbEvContTag + 2] = ASN_OCTET_STRING;
+        wbEvBuf[wbEvContTag + 3] = chunk;
+        wbEvBuf[eoc]     = ASN_EOC;
+        wbEvBuf[eoc + 1] = ASN_EOC;
+
+        WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): BER-fragmented content, one"
+                " OCTET STRING chunk then end-of-contents [:14707/:14711"
+                " accepting rows, :14790 both true]");
+        (void)wb_decode_enveloped(wbEvSz);
+
+        WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): same, second EOC byte is not"
+                " zero [:14790 cond 1 false]");
+        wbEvBuf[eoc + 1] = 0x01;
+        (void)wb_decode_enveloped(wbEvSz);
+        wbEvBuf[eoc + 1] = ASN_EOC;
+
+        /* Ending the message one byte past the chunk tag puts it inside the
+         * loop's look-ahead window, so :14698 raises BUFFER_E while the tag
+         * read at :14703 still succeeds -- the only way :14707 is reached
+         * with ret already non-zero. */
+        WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): same, message ends inside the"
+                " fragment loop's look-ahead window [:14707 and :14711 cond 0"
+                " false]");
+        (void)wb_decode_enveloped(wbEvContTag + 3);
+        (void)wb_decode_enveloped(wbEvContTag + 4);
+
+        WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): same, chunk declaring a"
+                " zero-length OCTET STRING [:14711 cond 1 true]");
+        wbEvBuf[wbEvContTag + 3] = 0x00;
+        (void)wb_decode_enveloped(wbEvSz);
+        wbEvBuf[wbEvContTag + 3] = chunk;
+
+        WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): same, fragment tag that is"
+                " not an OCTET STRING [:14707 cond 1 true, so cond 0 has a"
+                " decision-true row to pair against]");
+        wbEvBuf[wbEvContTag + 2] = 0x05;
+        (void)wb_decode_enveloped(wbEvSz);
+
+        wbEvBuf[wbEvContTag + 2] = c0;
+        wbEvBuf[wbEvContTag + 3] = c1;
+        wbEvBuf[eoc]     = e0;
+        wbEvBuf[eoc + 1] = e1;
+    }
+
     wbEvBuf[wbEvContTag] = saveTag;
     wbEvBuf[wbEvContTag + 1] = saveLen;
 }
