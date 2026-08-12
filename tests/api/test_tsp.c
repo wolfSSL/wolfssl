@@ -2698,24 +2698,27 @@ int test_wc_TspResponse_Verify(void)
         TEST_SUCCESS);
 
     /* Bad arguments. */
-    ExpectIntEQ(wc_TspResponse_Verify(NULL, NULL, 0, &tstDec),
+    ExpectIntEQ(wc_TspResponse_Verify(NULL, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The trusted TSA certificate is required - the certificate in the token
+     * is not a trust anchor. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048, 0, &tstDec),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    /* Verifies with the certificate in the token - no certificate needed.
-     * The returned TSTInfo references the response's token, which is still
-     * available after the call. */
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    /* The signer matches the trusted TSA certificate. The returned TSTInfo
+     * references the response's token, still available after the call. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), 0);
     ExpectIntEQ(tstDec.version, 1);
     ExpectIntEQ(tstDec.genTimeSz, (word32)sizeof(tsGenTime) - 1);
     ExpectBufEQ(tstDec.genTime, tsGenTime, (int)sizeof(tsGenTime) - 1);
     ExpectIntEQ(tstDec.serialSz, (word32)sizeof(tsSerial));
     ExpectBufEQ(tstDec.serial, tsSerial, (int)sizeof(tsSerial));
     /* The TSTInfo object is optional. */
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, NULL), 0);
-
-    /* The signer matches the trusted TSA certificate. */
     ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
-        sizeof_tsa_cert_der_2048, &tstDec), 0);
+        sizeof_tsa_cert_der_2048, NULL), 0);
 
     wc_FreeRng(&rng);
 #endif
@@ -2779,17 +2782,18 @@ int test_wc_TspResponse_Verify_status(void)
 
     /* A response that was not granted has no token to trust. */
     resp.status = WC_TSP_PKISTATUS_REJECTION;
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
-        WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(TSP_VERIFY_E));
     resp.status = WC_TSP_PKISTATUS_GRANTED_WITH_MODS;
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), 0);
 
     /* A granted response with no token does not verify. */
     resp.status = WC_TSP_PKISTATUS_GRANTED;
     resp.token = NULL;
     resp.tokenSz = 0;
-    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
-        WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(TSP_VERIFY_E));
 
     wc_FreeRng(&rng);
 #endif
@@ -2816,7 +2820,8 @@ int test_wc_TspResponse_Verify_modified(void)
     if (EXPECT_SUCCESS()) {
         token[tokenSz - 5] ^= 0x80;
     }
-    ExpectIntLT(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    ExpectIntLT(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), 0);
 
     wc_FreeRng(&rng);
 #endif
@@ -2844,11 +2849,55 @@ int test_wc_TspResponse_Verify_nocerts(void)
     resp.token = token;
     resp.tokenSz = tokenSz;
 
-    /* Cannot verify without the TSA's certificate. */
-    ExpectIntLT(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec), 0);
+    /* The TSA's certificate is required - the token-level case with no
+     * certificate is covered by test_wc_TspTstInfo_VerifyWithPKCS7_nocerts. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Verifies when the TSA's certificate is supplied. */
     ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
         sizeof_tsa_cert_der_2048, &tstDec), 0);
+    /* A different certificate is not the signer. */
+    ExpectIntLT(wc_TspResponse_Verify(&resp, client_cert_der_2048,
+        sizeof_client_cert_der_2048, &tstDec), 0);
+
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_TspResponse_Verify_no_anchor(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TSP) && defined(HAVE_PKCS7) && defined(HAVE_ECC) && \
+    defined(USE_CERT_BUFFERS_256) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_TSP_REQUESTER) && defined(WOLFSSL_TSP_RESPONDER)
+    WC_RNG rng;
+    TspTstInfo tstDec;
+    TspResponse resp;
+    byte token[3072];
+    word32 tokenSz = (word32)sizeof(token);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* A granted response signed by a TSA the caller does not trust. */
+    ExpectIntEQ(test_tsp_make_token(token, &tokenSz, tsa_ecc_cert_der_256,
+        sizeof_tsa_ecc_cert_der_256, tsa_ecc_key_der_256,
+        sizeof_tsa_ecc_key_der_256, ECDSAk, &rng), TEST_SUCCESS);
+    ExpectIntEQ(wc_TspResponse_Init(&resp), 0);
+    resp.status = WC_TSP_PKISTATUS_GRANTED;
+    resp.token = token;
+    resp.tokenSz = tokenSz;
+
+    /* The token carries a self-signed certificate with the time-stamping EKU
+     * that verifies its own signature - it is not a trust anchor. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The trusted TSA is not the signer of this token. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, &tstDec), WC_NO_ERR_TRACE(TSP_VERIFY_E));
+    /* Pinning the certificate that actually signed the token verifies. */
+    ExpectIntEQ(wc_TspResponse_Verify(&resp, tsa_ecc_cert_der_256,
+        sizeof_tsa_ecc_cert_der_256, &tstDec), 0);
 
     wc_FreeRng(&rng);
 #endif
@@ -2892,23 +2941,30 @@ int test_wc_TspResponse_VerifyData(void)
     resp.tokenSz = tokenSz;
 
     /* Bad arguments. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(NULL, NULL, 0, data,
-        (word32)sizeof(data) - 1, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, NULL, 0, &tstDec),
+    ExpectIntEQ(wc_TspResponse_VerifyData(NULL, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, data, (word32)sizeof(data) - 1, &tstDec),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, NULL, 0, &tstDec),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The trusted TSA certificate is required. */
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, data,
+        (word32)sizeof(data) - 1, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048, 0, data,
+        (word32)sizeof(data) - 1, &tstDec), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Verifies the token and that it is over the data - no hashing by the
      * caller. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, data,
-        (word32)sizeof(data) - 1, &tstDec), 0);
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, data, (word32)sizeof(data) - 1, &tstDec), 0);
     ExpectIntEQ(tstDec.imprint.hashSz, (word32)sizeof(dataHash));
     /* The TSTInfo object is optional. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0, data,
-        (word32)sizeof(data) - 1, NULL), 0);
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, data, (word32)sizeof(data) - 1, NULL), 0);
 
     /* Different data does not match the message imprint. */
-    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, NULL, 0,
-        (const byte*)"different data", 14, &tstDec),
+    ExpectIntEQ(wc_TspResponse_VerifyData(&resp, tsa_cert_der_2048,
+        sizeof_tsa_cert_der_2048, (const byte*)"different data", 14, &tstDec),
         WC_NO_ERR_TRACE(TSP_VERIFY_E));
 
     /* wc_TspTstInfo_VerifyData directly - bad args and match/mismatch. */

@@ -1595,9 +1595,10 @@ int wc_TspTstInfo_SignWithPkcs7(const TspTstInfo* tstInfo, wc_PKCS7* pkcs7,
     Only the certHash of the first ESSCertID(v2) of the attribute is
     checked. The TSA name of the TSTInfo, when present, must correspond to
     a subject name of the signer's certificate. Trust in the TSA's
-    certificate must be established by the caller. Define
-    WC_TSP_MIN_HASH_STRENGTH_BITS to require a minimum security strength of
-    the hash algorithms used.
+    certificate must be established by the caller: the verified signer is
+    available as pkcs7->verifyCert and pkcs7->verifyCertSz for that decision.
+    Define WC_TSP_MIN_HASH_STRENGTH_BITS to require a minimum security
+    strength of the hash algorithms used.
 
     Pointers in tstInfo reference the content of the PKCS7 object - the
     PKCS7 object and the token buffer must remain available while tstInfo
@@ -1644,6 +1645,8 @@ int wc_TspTstInfo_SignWithPkcs7(const TspTstInfo* tstInfo, wc_PKCS7* pkcs7,
     \endcode
 
     \sa wc_TspResponse_Decode
+    \sa wc_TspResponse_Verify
+    \sa wc_TspResponse_VerifyWithCm
     \sa wc_TspTstInfo_CheckRequest
     \sa wc_TspTstInfo_CheckGenTime
     \sa wc_TspTstInfo_CheckTsaName
@@ -1657,21 +1660,15 @@ int wc_TspTstInfo_VerifyWithPKCS7(wc_PKCS7* pkcs7, byte* token, word32 tokenSz,
     \brief This function verifies the time-stamp token of a response and
     decodes its TSTInfo content. A convenience wrapper around
     wc_TspTstInfo_VerifyWithPKCS7() that manages the PKCS7 object. The response
-    must be granted and have a token. When cert is not NULL, the signer must
-    be that trusted TSA certificate; the certificate is also used to verify
-    the signature when the token does not include the signer's certificate.
-    When cert is NULL the token must include the signer's certificate: the
-    token's signature is verified against that embedded certificate but NO
-    trust anchoring is performed - any self-signed certificate carrying the
-    time-stamping EKU is accepted. The NULL-cert form verifies the signature
-    only; the caller must establish trust in the signer by other means. To
-    anchor the signer to a trusted CA, use wc_TspResponse_VerifyWithCm().
+    must be granted and have a token. The trusted TSA certificate is required:
+    the signer must be that certificate, which is also used to verify the
+    signature when the token does not include the signer's certificate.
 
     Pointers in tstInfo reference the token of the response - the response
     and its token buffer must remain available while tstInfo is in use.
 
     \return 0 Returned on successfully verifying the response.
-    \return BAD_FUNC_ARG Returned when resp is NULL.
+    \return BAD_FUNC_ARG Returned when resp or cert is NULL, or certSz is 0.
     \return TSP_VERIFY_E Returned when the response was not granted, has no
     token, the token does not verify or the signer is not the trusted TSA
     certificate.
@@ -1679,10 +1676,9 @@ int wc_TspTstInfo_VerifyWithPKCS7(wc_PKCS7* pkcs7, byte* token, word32 tokenSz,
 
     \param [in] resp Pointer to the TspResponse structure with a token to
     verify.
-    \param [in] cert DER encoded certificate of the trusted TSA. May be NULL
-    when the token includes the signer's certificate - the NULL-cert form
-    verifies the signature only and establishes no trust.
-    \param [in] certSz Length of the certificate in bytes.
+    \param [in] cert DER encoded certificate of the trusted TSA. Must not be
+    NULL.
+    \param [in] certSz Length of the certificate in bytes. Must not be 0.
     \param [out] tstInfo Pointer to the TspTstInfo structure to fill. May be
     NULL.
 
@@ -1697,6 +1693,7 @@ int wc_TspTstInfo_VerifyWithPKCS7(wc_PKCS7* pkcs7, byte* token, word32 tokenSz,
     }
     \endcode
 
+    \sa wc_TspResponse_VerifyWithCm
     \sa wc_TspTstInfo_VerifyWithPKCS7
     \sa wc_TspTstInfo_CheckRequest
     \sa wc_TspTstInfo_CheckGenTime
@@ -1762,7 +1759,8 @@ int wc_TspResponse_VerifyWithCm(TspResponse* resp, void* cm,
     does not hash the data.
 
     \return 0 Returned on successfully verifying the response and data.
-    \return BAD_FUNC_ARG Returned when resp or data is NULL.
+    \return BAD_FUNC_ARG Returned when resp, cert or data is NULL, or certSz
+    is 0.
     \return TSP_VERIFY_E Returned when the token does not verify or the data
     does not match the message imprint.
     \return HASH_TYPE_E Returned when the imprint's hash algorithm is not
@@ -1771,9 +1769,9 @@ int wc_TspResponse_VerifyWithCm(TspResponse* resp, void* cm,
 
     \param [in] resp Pointer to the TspResponse structure with a token to
     verify.
-    \param [in] cert DER encoded certificate of the trusted TSA. May be NULL -
-    see wc_TspResponse_Verify().
-    \param [in] certSz Length of the certificate in bytes.
+    \param [in] cert DER encoded certificate of the trusted TSA. Must not be
+    NULL - see wc_TspResponse_Verify().
+    \param [in] certSz Length of the certificate in bytes. Must not be 0.
     \param [in] data Data that was time-stamped.
     \param [in] dataSz Length of the data in bytes.
     \param [out] tstInfo Pointer to the TspTstInfo structure to fill. May be
@@ -1793,6 +1791,7 @@ int wc_TspResponse_VerifyWithCm(TspResponse* resp, void* cm,
     \endcode
 
     \sa wc_TspResponse_Verify
+    \sa wc_TspResponse_VerifyWithCm
     \sa wc_TspTstInfo_VerifyData
 */
 int wc_TspResponse_VerifyData(TspResponse* resp, const byte* cert,
