@@ -410,6 +410,136 @@ static void wb_authenv_content_alloc(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 4: wc_PKCS7_KariGetIssuerAndSerialNumber() serial match [:12743].
+ *
+ * `kari->decodedInit == 1 && mp_cmp(recipSerial, serial) != MP_EQ` needs three
+ * rows that no API-level test produces together: a KARI decode with a
+ * recipient certificate whose serial matches the message, one whose serial
+ * does not, and one with no recipient certificate at all (decodedInit stays 0,
+ * the "cannot confirm the serial" path at :12705).
+ *
+ * The KARI handle and the IssuerAndSerialNumber blob are built here rather
+ * than encoded, so the serial can be perturbed by one byte without disturbing
+ * anything else. wc_PKCS7_KariNew() zeroes kari->decoded, so the decodedInit
+ * == 0 call is well defined.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+static byte wbIas[WB_SID_SZ + 4];
+
+/* wraps the issuer Name TLV + serial INTEGER in the IssuerAndSerialNumber
+ * SEQUENCE the decoder expects. Returns the size, or 0. */
+static word32 wb_build_ias(DecodedCert* dCert, word32* serialOff)
+{
+    word32 body, idx = 0;
+
+    body = wb_build_sid(dCert);
+    if (body == 0 || body + 4 > (word32)sizeof(wbIas)) {
+        return 0;
+    }
+    wbIas[idx++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    if (body < 0x80) {
+        wbIas[idx++] = (byte)body;
+    }
+    else if (body < 0x100) {
+        wbIas[idx++] = 0x81;
+        wbIas[idx++] = (byte)body;
+    }
+    else {
+        wbIas[idx++] = 0x82;
+        wbIas[idx++] = (byte)(body >> 8);
+        wbIas[idx++] = (byte)body;
+    }
+    XMEMCPY(wbIas + idx, wbSid, body);
+    /* the serial value starts two bytes (tag + length) before the end */
+    *serialOff = idx + body - (word32)dCert->serialSz;
+    idx += body;
+    return idx;
+}
+
+static int wb_kari_ias_call(int withCert, word32 blobSz)
+{
+    wc_PKCS7        pkcs7;
+    WC_PKCS7_KARI*  kari;
+    byte            rid[KEYID_SIZE];
+    word32          idx = 0;
+    int             recipFound = 0;
+    int             ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    if (wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID) != 0) {
+        return -1;
+    }
+    kari = wc_PKCS7_KariNew(&pkcs7, WC_PKCS7_DECODE);
+    if (kari == NULL) {
+        wc_PKCS7_Free(&pkcs7);
+        return -1;
+    }
+    if (withCert) {
+        ret = wc_PKCS7_KariParseRecipCert(kari,
+                (byte*)cliecc_cert_der_256, (word32)sizeof_cliecc_cert_der_256,
+                (byte*)ecc_clikey_der_256, (word32)sizeof_ecc_clikey_der_256);
+        if (ret != 0) {
+            (void)wc_PKCS7_KariFree(kari);
+            wc_PKCS7_Free(&pkcs7);
+            return ret;
+        }
+    }
+    ret = wc_PKCS7_KariGetIssuerAndSerialNumber(kari, wbIas, blobSz, &idx,
+            &recipFound, rid);
+    (void)wc_PKCS7_KariFree(kari);
+    wc_PKCS7_Free(&pkcs7);
+    return ret;
+}
+
+static void wb_kari_serial_match(void)
+{
+    DecodedCert dCert;
+    word32      blobSz, serialOff = 0;
+    int         ret;
+
+    InitDecodedCert(&dCert, (byte*)cliecc_cert_der_256,
+            (word32)sizeof_cliecc_cert_der_256, NULL);
+    if (ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+        FreeDecodedCert(&dCert);
+        WB_NOTE("ECC ParseCert failed; KARI serial-match drive skipped");
+        wb_fail = 1;
+        return;
+    }
+    blobSz = wb_build_ias(&dCert, &serialOff);
+    WB_CHECK(blobSz > 0 && serialOff > 0,
+            "IssuerAndSerialNumber blob assembled from the ECC cert");
+    FreeDecodedCert(&dCert);
+    if (blobSz == 0) {
+        return;
+    }
+
+    WB_NOTE("wc_PKCS7_KariGetIssuerAndSerialNumber(): recipient certificate"
+            " loaded, serial matches [:12743 cond 0 true, cond 1 false]");
+    ret = wb_kari_ias_call(1, blobSz);
+    WB_CHECK(ret == 0, ":12743 cond 1 false (serial matched)");
+
+    WB_NOTE("wc_PKCS7_KariGetIssuerAndSerialNumber(): recipient certificate"
+            " loaded, serial differs by one byte [:12743 both operands true]");
+    wbIas[serialOff] = (byte)(wbIas[serialOff] ^ 0x01);
+    ret = wb_kari_ias_call(1, blobSz);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(PKCS7_RECIP_E), ":12743 both true");
+    wbIas[serialOff] = (byte)(wbIas[serialOff] ^ 0x01);
+
+    WB_NOTE("wc_PKCS7_KariGetIssuerAndSerialNumber(): no recipient certificate"
+            " loaded, so the serial cannot be confirmed [:12743 cond 0"
+            " false]");
+    ret = wb_kari_ias_call(0, blobSz);
+    WB_CHECK(ret == 0, ":12743 cond 0 false (no cert loaded)");
+}
+#else
+static void wb_kari_serial_match(void)
+{
+    WB_NOTE("no ECC or no 256-bit cert buffers; KARI serial-match drive"
+            " skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 fault-lever white-box (Part 5) ===\n");
@@ -422,6 +552,7 @@ int main(void)
     wb_cert_matches_signer();
     wb_tmpcert_alloc();
     wb_authenv_content_alloc();
+    wb_kari_serial_match();
 
     wolfCrypt_Cleanup();
     printf(wb_fail ? "done (with failures)\n" : "done\n");
