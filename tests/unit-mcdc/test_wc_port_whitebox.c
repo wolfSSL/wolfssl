@@ -25,7 +25,69 @@
  * tests/api "port" group cannot reach it. Its loop guard
  * "n >= s2_len && s1[0]" needs both operands driven false independently,
  * which needs a haystack shorter than the needle and an empty haystack.
+ *
+ * This file also interposes accept4() for wc_accept_cloexec(), see the
+ * block immediately below and the note above wb_cloexec_wrappers().
  */
+
+/* ---- accept4() macro interposition -------------------------------------- *
+ *
+ * wc_accept_cloexec()'s guard `if (errno != ENOSYS && errno != EINVAL)`
+ * (wc_port.c ~:5684) can only see errno == ENOSYS on a kernel that does not
+ * implement accept4(). Every host this campaign runs on does, so the first
+ * operand has no reachable independence pair from the outside.
+ *
+ * The white-box TU #includes wc_port.c directly, so accept4() can be
+ * replaced at PREPROCESSING time for this translation unit only - the same
+ * technique mcdc_fault_hash.h uses for the hash primitives. Ordering is
+ * load-bearing and mirrors that header exactly:
+ *   1. define _GNU_SOURCE before the first libc header, exactly as
+ *      wc_port.c does at its own top. Without it glibc does not declare
+ *      accept4(), __USE_GNU is never set, and wc_port.c's
+ *      `#if defined(__USE_GNU) && ...` block - the block that CONTAINS the
+ *      target guard - would compile out of this TU entirely;
+ *   2. include <sys/socket.h> so the REAL accept4() declaration is in scope
+ *      and is never rewritten by the macro;
+ *   3. define the wrapper, which is compiled BEFORE the macro exists and so
+ *      still calls the real accept4() when disarmed;
+ *   4. only then #define accept4 to the wrapper, and include wc_port.c.
+ * wc_port.c's own `#include <sys/socket.h>` becomes a no-op (include guard)
+ * and its own `#define _GNU_SOURCE 1` is skipped by its `!defined(_GNU_SOURCE)`
+ * test, so the preprocessor state wc_port.c sees is identical to a normal
+ * build. accept4 appears exactly once in wc_port.c (in wc_accept_cloexec),
+ * so nothing else in the file is affected.
+ * ------------------------------------------------------------------------ */
+#if (defined(__linux__) || defined(__ANDROID__)) && \
+    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ZEPHYR) && \
+    !defined(_GNU_SOURCE)
+    #define _GNU_SOURCE 1
+#endif
+
+#if (defined(__unix__) || defined(__APPLE__)) && \
+    !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_KERNEL_MODE) && \
+    !defined(WOLFSSL_ZEPHYR) && !defined(WOLFSSL_SGX)
+#include <errno.h>
+#include <sys/socket.h>
+#endif
+
+#if defined(__USE_GNU) && (defined(__linux__) || defined(__ANDROID__))
+#define WB_HAVE_ACCEPT4_HOOK
+
+/* 0 = pass through to the real accept4(); otherwise fail with this errno. */
+static int wb_accept4_errno = 0;
+
+static int wb_accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen,
+    int flags)
+{
+    if (wb_accept4_errno != 0) {
+        errno = wb_accept4_errno;
+        return -1;
+    }
+    return accept4(sockfd, addr, addrlen, flags);
+}
+
+#define accept4 wb_accept4
+#endif /* __USE_GNU && (__linux__ || __ANDROID__) */
 
 #include <wolfcrypt/src/wc_port.c>
 
@@ -102,6 +164,7 @@ static void wb_strnstr(void) { WB_NOTE("wolfSSL_strnstr not compiled; skipped");
  *   socket(AF_INET, SOCK_STREAM, 0)               -> succeeds (F,-)
  *   accept on a NON-listening socket -> EINVAL               (T,F) at 5684
  *   accept on a bad descriptor       -> EBADF                (T,T) at 5684
+ *   accept4() interposed to fail with ENOSYS -> (F,-) at 5684
  *
  * Every failing call returns a negative fd that the wrapper only ever passes
  * to wc_set_cloexec(), which returns immediately for fd < 0; the two
@@ -109,9 +172,15 @@ static void wb_strnstr(void) { WB_NOTE("wolfSSL_strnstr not compiled; skipped");
  * no socket is ever connected or bound, so nothing outside this process is
  * touched.
  *
- * 5684's idx0 ("errno != ENOSYS") stays a justified residual: making accept4()
- * report ENOSYS needs a kernel without the syscall, which no build variant of
- * this campaign runs on, so that operand has no reachable independence pair.
+ * 5684's idx0 ("errno != ENOSYS") is the one operand no argument choice can
+ * reach, because it needs a kernel that does not implement accept4(). It is
+ * driven instead by the macro interposition set up at the top of this file:
+ * the wrapper reports ENOSYS for exactly one call, which short-circuits the
+ * AND and drops wc_accept_cloexec() into its plain accept() fallback. That
+ * fallback is issued on fd -1, so accept() returns -1/EBADF and
+ * wc_set_cloexec(-1) returns immediately - no descriptor is produced and
+ * nothing blocks. The hook is disarmed again on the next line, so every other
+ * call in this file reaches the real accept4().
  * ------------------------------------------------------------------------ */
 #if (defined(__unix__) || defined(__APPLE__)) && \
     !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_ZEPHYR) && \
@@ -193,6 +262,25 @@ static void wb_cloexec_wrappers(void)
         close(fd);
         WB_NOTE("accept on fd -1 unexpectedly succeeded");
     }
+
+    /* --- 5684 idx0 FALSE: accept4() reports ENOSYS, so `errno != ENOSYS` is
+     * false and the AND short-circuits into the accept() fallback below it.
+     * Paired in this same binary with the EBADF vector immediately above,
+     * which has idx0 TRUE and the same outcome flip. --- */
+#ifdef WB_HAVE_ACCEPT4_HOOK
+    errno = 0;
+    wb_accept4_errno = ENOSYS;
+    fd = wc_accept_cloexec(-1, NULL, NULL);
+    wb_accept4_errno = 0;
+    if (fd >= 0) {
+        close(fd);
+        WB_NOTE("accept() fallback on fd -1 unexpectedly succeeded");
+    }
+    WB_NOTE("accept4 ENOSYS interposition drove 5684 idx0 false");
+#else
+    WB_NOTE("accept4() not compiled in this TU; 5684 idx0 false vector "
+            "skipped");
+#endif
 
     WB_NOTE("cloexec open/socket/accept fallback guard pairs done");
 }

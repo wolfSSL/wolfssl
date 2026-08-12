@@ -83,8 +83,9 @@
  *   :844  wolfSSL_StaticBufferSz_ex() same alignment pattern as :621.
  *   :851  wolfSSL_StaticBufferSz_ex() same IO_POOL/IO_POOL_FIXED OR as :635.
  *   :867  wolfSSL_StaticBufferSz_ex() `(ava >= sizeList[0]+padSz+memSz) &&
- *         (ava > 0)` -- see RESIDUAL note below; only the first operand's
- *         independence is satisfiable.
+ *         (ava > 0)` -- both operands' independence pairs driven; see the
+ *         comment above the third vector in Section 4a for why the second
+ *         operand needs a sizeList[0] that wraps the word32 sum to zero.
  *   :1013 wolfSSL_Malloc() `heap==NULL && globalHeapHint==NULL`.
  *   :1068 wolfSSL_Malloc() `mem->flag & WOLFMEM_IO_POOL_FIXED &&
  *         (type==DYNAMIC_TYPE_OUT_BUFFER || type==DYNAMIC_TYPE_IN_BUFFER)`.
@@ -101,13 +102,6 @@
  *
  * RESIDUALS (structurally dead operand, provably unsatisfiable -- not a gap
  * in this test, a property of the source):
- *   - :867 `ava > 0`: every bucket size in sizeList[] is a positive value
- *     (callers only ever pass positive bucket sizes), so
- *     `ava >= sizeList[0]+padSz+memSz` being true always implies `ava > 0`
- *     (padSz+memSz >= 0, sizeList[0] > 0). The pair that would show `ava>0`
- *     independently (first operand true, second false) requires
- *     `sizeList[0]+padSz+memSz <= 0`, which cannot happen. Only the first
- *     operand's independence pair is driven here.
  *   - :1414 `res == NULL`: this check is reached solely via the `else`
  *     branch of the IO-pool `if` immediately above it (memory.c ~:1387-1400
  *     in this same function). Every route into that `else` branch leaves
@@ -353,11 +347,10 @@ int main(void)
                 WOLFMEM_IO_POOL_FIXED);
         WB_CHECK(sz >= 0, "IO-flag OR: second true (WOLFMEM_IO_POOL_FIXED)");
 
-        /* :867 `ava >= sizeList[0]+padSz+memSz && ava > 0` -- only the
-         * first operand's independence is satisfiable (see RESIDUAL note
-         * in the header comment): "true" vector (loop iterates, ample
-         * buffer) and "false" vector (buffer smaller than one bucket). */
-        WB_NOTE("wolfSSL_StaticBufferSz_ex(): ava-loop [:867] (residual: ava>0 dead, see header)");
+        /* :867 `ava >= sizeList[0]+padSz+memSz && ava > 0`.
+         * First operand: "true" vector (loop iterates, ample buffer) and
+         * "false" vector (buffer smaller than one bucket). */
+        WB_NOTE("wolfSSL_StaticBufferSz_ex(): ava-loop [:867]");
         sz = wolfSSL_StaticBufferSz_ex(3, s_sizeList, s_distList, aligned,
                 (word32)(sizeof(s_scratch) - (aligned - s_scratch)),
                 WOLFMEM_GENERAL);
@@ -366,6 +359,43 @@ int main(void)
         sz = wolfSSL_StaticBufferSz_ex(3, s_sizeList, s_distList, aligned,
                 4 /* smaller than sizeList[0]=64 + overhead */, WOLFMEM_GENERAL);
         WB_CHECK(sz == 0, "ava-loop first-operand false vector (buffer too small)");
+
+        /* Second operand (`ava > 0`) FALSE half, i.e. first operand TRUE and
+         * second FALSE. That needs `sizeList[0] + padSz + memSz` to be 0:
+         * `ava` is word32 and the sum is computed in word32 (sizeList[0],
+         * padSz and memSz are all word32 == unsigned int here, so the usual
+         * arithmetic conversions keep the whole sum unsigned 32-bit), and for
+         * any strictly positive sum `ava >= sum` already implies `ava > 0`.
+         * The sum is only zero when it wraps, which is well defined for
+         * unsigned arithmetic and is reachable because sizeList[] is a caller
+         * -supplied argument of the public wolfSSL_StaticBufferSz_ex() API.
+         * With sum == 0 and sz == 0:
+         *   - the alignment while-loop at :844 cannot run (pt == buffer + sz
+         *     immediately), so ava stays 0 and no byte of the buffer is read
+         *     or written;
+         *   - the :863 "not enough room for even one bucket" pre-check is
+         *     `0 < 0`, false, so control reaches :867;
+         *   - :867 evaluates `0 >= 0` (TRUE) && `0 > 0` (FALSE) and the loop
+         *     body never executes, so distList[]/sizeList[] are never indexed
+         *     and the wrapped bucket size is never used for anything.
+         * The function returns sz - ava == 0. */
+        {
+            word32 wrapMemSz;
+            word32 wrapPadSz;
+            word32 wrapList[3];
+
+            wrapMemSz = (word32)sizeof(wc_Memory);
+            wrapPadSz = (word32)(-(int)wrapMemSz & (WOLFSSL_STATIC_ALIGN - 1));
+            wrapList[0] = (word32)(0U - (wrapPadSz + wrapMemSz));
+            wrapList[1] = 128;
+            wrapList[2] = 256;
+
+            sz = wolfSSL_StaticBufferSz_ex(3, wrapList, s_distList,
+                    s_bufGeneral, 0, WOLFMEM_GENERAL);
+            WB_CHECK(sz == 0,
+                    "ava-loop second-operand false vector (sizeList[0] chosen "
+                    "so sizeList[0]+padSz+memSz wraps to 0, sz==0)");
+        }
     }
 
     /* ==================================================================
