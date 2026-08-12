@@ -81,6 +81,7 @@ int test_wc_TspResponse_Verify_wrong_cert(void);
 int test_wc_TspResponse_Verify_status(void);
 int test_wc_TspResponse_Verify_modified(void);
 int test_wc_TspResponse_Verify_nocerts(void);
+int test_wc_TspResponse_Verify_no_anchor(void);
 int test_wc_TspResponse_VerifyData(void);
 int test_wc_TspTstInfo_SetFromRequest(void);
 
@@ -142,6 +143,7 @@ int test_wc_TspTstInfo_SetFromRequest(void);
     TEST_DECL_GROUP("tsp", test_wc_TspResponse_Verify_status), \
     TEST_DECL_GROUP("tsp", test_wc_TspResponse_Verify_modified), \
     TEST_DECL_GROUP("tsp", test_wc_TspResponse_Verify_nocerts), \
+    TEST_DECL_GROUP("tsp", test_wc_TspResponse_Verify_no_anchor), \
     TEST_DECL_GROUP("tsp", test_wc_TspResponse_VerifyData), \
     TEST_DECL_GROUP("tsp", test_wc_TspTstInfo_SetFromRequest)
 
