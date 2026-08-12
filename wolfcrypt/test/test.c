@@ -80546,11 +80546,26 @@ static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
     if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
-    if (wc_AesSetKeyDirect(&aes, key, (word32)sizeof(key), iv,
-                           AES_ENCRYPTION) == 0)
+    ret = wc_AesSetKeyDirect(&aes, key, (word32)sizeof(key), iv,
+                             AES_ENCRYPTION);
+    if (ret == 0) {
+        /* This build's direct setup bypassed the callback. The contamination
+         * must drop the device-key report and refuse device operations. */
+        if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+        if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096) {
+            ret = wc_AesSetIV(&aes, iv);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+            if (wc_AesCbcEncrypt(&aes, out1, pt, 4096) == 0)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+        }
+    }
+    else if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1) {
+        /* Refused through the callback; the device key must survive. */
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
-    if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    }
+    ret = 0;
 #endif
 #endif /* !WOLF_CRYPTO_CB_AES_SETKEY */
 
