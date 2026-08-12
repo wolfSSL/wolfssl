@@ -1512,7 +1512,7 @@ size_t wc_ecc_get_sets_count(void) {
     static wolfSSL_Mutex ecc_oid_cache_lock
         WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_oid_cache_lock);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    static volatile int eccOidLockInit = 0;
+    static wc_MutexOnceFlag eccOidLockInit = WOLFSSL_ATOMIC_INITIALIZER(0);
 #endif
 #endif /* HAVE_OID_ENCODING */
 
@@ -13101,7 +13101,8 @@ static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 #ifndef HAVE_THREAD_LS
     static wolfSSL_Mutex ecc_fp_lock WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_fp_lock);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    static volatile int initMutex = 0;  /* prevent multiple mutex inits */
+    /* Elects a single initializer for ecc_fp_lock. */
+    static wc_MutexOnceFlag initMutex = WOLFSSL_ATOMIC_INITIALIZER(0);
 #endif
 #endif /* HAVE_THREAD_LS */
 
@@ -14393,9 +14394,11 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0) {
+       mp_clear(mu);
+       WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+       return BAD_MUTEX_E;
    }
 #endif
 
@@ -14541,9 +14544,10 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0) {
+      err = BAD_MUTEX_E;
+      goto out;
    }
 #endif
 
@@ -14700,9 +14704,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0) {
+      err = BAD_MUTEX_E;
+      goto out;
    }
 #endif
 
@@ -14848,10 +14853,8 @@ void wc_ecc_fp_init(void)
 #ifndef WOLFSSL_SP_MATH
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) {
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
+   /* Losing the election is fine - the winner finishes the init. */
+   (void)wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex);
 #endif
 #endif
 #endif
@@ -14865,10 +14868,9 @@ void wc_ecc_fp_free(void)
 #if !defined(WOLFSSL_SP_MATH)
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0)
+       return;
 #endif
 
    if (wc_LockMutex(&ecc_fp_lock) == 0) {
@@ -14880,7 +14882,7 @@ void wc_ecc_fp_free(void)
        wc_UnLockMutex(&ecc_fp_lock);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
        wc_FreeMutex(&ecc_fp_lock);
-       initMutex = 0;
+       WOLFSSL_ATOMIC_STORE(initMutex, 0);
 #endif
    }
 #endif /* HAVE_THREAD_LS */
@@ -16917,12 +16919,7 @@ int wc_ecc_oid_cache_init(void)
 {
     int ret = 0;
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-    if (eccOidLockInit == 0) {
-        ret = wc_InitMutex(&ecc_oid_cache_lock);
-        if (ret == 0) {
-            eccOidLockInit = 1;
-        }
-    }
+    ret = wc_local_InitMutexOnce(&ecc_oid_cache_lock, &eccOidLockInit);
 #endif
     return ret;
 }
@@ -16931,7 +16928,7 @@ void wc_ecc_oid_cache_free(void)
 {
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
     wc_FreeMutex(&ecc_oid_cache_lock);
-    eccOidLockInit = 0;
+    WOLFSSL_ATOMIC_STORE(eccOidLockInit, 0);
 #endif
 }
 #endif /* HAVE_OID_ENCODING */
@@ -16951,12 +16948,9 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
 #ifdef HAVE_OID_ENCODING
     #ifndef WOLFSSL_MUTEX_INITIALIZER
         /* extra sanity check if wolfCrypt_Init not called */
-        if (eccOidLockInit == 0) {
-            ret = wc_InitMutex(&ecc_oid_cache_lock);
-            if (ret != 0) {
-                return BAD_MUTEX_E;
-            }
-            eccOidLockInit = 1;
+        if (wc_local_InitMutexOnce(&ecc_oid_cache_lock,
+                &eccOidLockInit) != 0) {
+            return BAD_MUTEX_E;
         }
     #endif
 

@@ -1024,6 +1024,18 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
     WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
 #endif
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* Election state for wc_local_InitMutexOnce(). Define objects with
+     * WOLFSSL_ATOMIC_INITIALIZER(0) and only touch them through
+     * WOLFSSL_ATOMIC_LOAD/STORE. */
+    #if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+        typedef wolfSSL_Atomic_Uint wc_MutexOnceFlag;
+    #else
+        typedef unsigned int wc_MutexOnceFlag;
+    #endif
+    WOLFSSL_LOCAL int wc_local_InitMutexOnce(wolfSSL_Mutex* m,
+        wc_MutexOnceFlag* flag);
+#endif
 #ifndef WC_RWLOCK_OPS_INLINE
     /* RwLock functions. Fallback to Mutex when not implemented explicitly. */
     WOLFSSL_API int wc_InitRwLock(wolfSSL_RwLock* m);

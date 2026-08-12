@@ -172,7 +172,8 @@ This library contains implementation for the random number generator.
     wolfSSL_Mutex wnr_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wnr_mutex);    /* global netRandom mutex */
     int wnr_timeout     = 0;    /* entropy timeout, milliseconds */
     #ifndef WOLFSSL_MUTEX_INITIALIZER
-    int wnr_mutex_inited = 0;   /* flag for mutex init */
+    /* Elects a single initializer for wnr_mutex. */
+    wc_MutexOnceFlag wnr_mutex_inited = WOLFSSL_ATOMIC_INITIALIZER(0);
     #endif
     int wnr_inited = 0;    /* flag for whether wc_InitNetRandom() has been called */
     wnr_context*  wnr_ctx;      /* global netRandom context */
@@ -3700,23 +3701,17 @@ exit_sha512_ex2:
  */
 int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
 {
-    int ret;
+    int ret = 0;
 
     if (configFile == NULL || timeout < 0)
         return BAD_FUNC_ARG;
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (wnr_mutex_inited > 0) {
-        WOLFSSL_MSG("netRandom context already created, skipping");
-        return 0;
-    }
-
-    if (wc_InitMutex(&wnr_mutex) != 0) {
+    ret = wc_local_InitMutexOnce(&wnr_mutex, &wnr_mutex_inited);
+    if (ret != 0) {
         WOLFSSL_MSG("Bad Init Mutex wnr_mutex");
-        return BAD_MUTEX_E;
+        return ret;
     }
-
-    wnr_mutex_inited = 1;
 #endif
 
     if (wnr_inited > 0) {
@@ -3799,7 +3794,7 @@ int wc_FreeNetRandom(void)
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
         wc_FreeMutex(&wnr_mutex);
-        wnr_mutex_inited = 0;
+        WOLFSSL_ATOMIC_STORE(wnr_mutex_inited, 0);
 #endif
 
         wnr_inited = 0;
@@ -5028,10 +5023,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return BAD_FUNC_ARG;
         }
 
-        if (wnr_mutex_init == 0) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        if (WOLFSSL_ATOMIC_LOAD(wnr_mutex_inited) != 2) {
             WOLFSSL_MSG("netRandom context must be created before use");
             return RNG_FAILURE_E;
         }
+    #endif
 
         if (wc_LockMutex(&wnr_mutex) != 0) {
             WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
