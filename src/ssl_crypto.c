@@ -2672,6 +2672,12 @@ WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
  *       we are padding the last block. This is not a padding API.
  * TODO: Validate parameters?
  *
+ * A length that is not a multiple of DES_BLOCK_SIZE is rounded up to a whole
+ * block: on encrypt the trailing partial block is 0 padded and a full block is
+ * written to output, and on decrypt a full block is read from input. Both
+ * buffers must therefore hold length rounded up to DES_BLOCK_SIZE, not just
+ * length bytes.
+ *
  * @param [in]  input     Data to encipher.
  * @param [out] output    Enciphered data.
  * @param [in]  length    Length of data to encipher.
@@ -2740,6 +2746,10 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
  *       we are padding the last block. This is not a padding API.
  * TODO: Validate parameters?
  *
+ * A length that is not a multiple of DES_BLOCK_SIZE is rounded up to a whole
+ * block, and the new IV is taken from that last whole block. Both buffers must
+ * therefore hold length rounded up to DES_BLOCK_SIZE, not just length bytes.
+ *
  * @param [in]      input     Data to encipher.
  * @param [out]     output    Enciphered data.
  * @param [in]      length    Length of data to encipher.
@@ -2791,6 +2801,12 @@ void wolfSSL_DES_ncbc_encrypt(const unsigned char* input, unsigned char* output,
  * TODO: OpenSSL expects a length that is a multiple of the block size but
  *       we are padding the last block. This is not a padding API.
  * TODO: Validate parameters?
+ *
+ * A size that is not a multiple of DES_BLOCK_SIZE is rounded up to a whole
+ * block: on encrypt the trailing partial block is 0 padded and a full block is
+ * written to output, and on decrypt a full block is read from input. Both
+ * buffers must therefore hold sz rounded up to DES_BLOCK_SIZE, not just sz
+ * bytes.
  *
  * @param [in]      input     Data to encipher.
  * @param [out]     output    Enciphered data.
