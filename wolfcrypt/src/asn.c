@@ -18477,8 +18477,8 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                             sigCtx->digest, (word32)sigCtx->digestSz,
                             sigCtx->typeH);
                     if (encodedSigSz == verifySz && sigCtx->out != NULL &&
-                        XMEMCMP(sigCtx->out, encodedSig,
-                            (size_t)encodedSigSz) == 0) {
+                        ConstantCompare(sigCtx->out, encodedSig,
+                            encodedSigSz) == 0) {
                         ret = 0;
                     }
                     else {

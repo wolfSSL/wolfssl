@@ -826,9 +826,11 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
 {
     int i;
     int compareSum = 0;
+    const volatile byte* va = (const volatile byte*)a;
+    const volatile byte* vb = (const volatile byte*)b;
 
     for (i = 0; i < length; i++) {
-        compareSum |= a[i] ^ b[i];
+        compareSum |= va[i] ^ vb[i];
     }
 
     return compareSum;
