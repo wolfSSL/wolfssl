@@ -89,9 +89,9 @@
  * WOLFSSL_TICKET_ENC_CHACHA20_POLY1305:
  *                  ChaCha20-Poly1305 for ticket encryption            default: auto
  * WOLFSSL_TICKET_ENC_AES128_GCM:
- *                  AES128-GCM for ticket encryption                   default: auto
+ *                  AES128-GCM for ticket encryption                   default: off
  * WOLFSSL_TICKET_ENC_AES256_GCM:
- *                  AES256-GCM for ticket encryption                   default: off
+ *                  AES256-GCM for ticket encryption                   default: auto
  * WOLFSSL_TICKET_DECRYPT_NO_CREATE:
  *                  No new ticket on successful decryption             default: off
  * WOLFSSL_TICKET_ENC_CBC_HMAC:
