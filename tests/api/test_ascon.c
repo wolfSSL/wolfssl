@@ -413,7 +413,6 @@ int test_ascon_decision_coverage(void)
     byte ptbuf[8] = { 0 };
     byte ctbuf[8] = { 0 };
     byte tag[ASCON_AEAD128_TAG_SZ] = { 0 };
-    byte dummy[1] = { 0 }; /* non-NULL placeholder for 0-length in/ad args */
 
     /* ---------------------------------------------------------------- */
     /* wc_AsconHash256_Update:                                           */
@@ -725,3 +724,161 @@ int test_ascon_decision_coverage(void)
 #endif /* HAVE_ASCON */
     return EXPECT_RESULT();
 } /* END test_ascon_decision_coverage */
+
+/*
+ * Regression coverage for contexts reused after a Final call.
+ *
+ * The Final functions wipe the context with ForceZero(). Before the fix that
+ * also erased the algorithm IV installed by Init(), so a reused context
+ * silently absorbed into an all-zero state and returned 0 while producing a
+ * digest/ciphertext that is not Ascon. Final now re-initializes, so a reused
+ * context must produce exactly the same output as a freshly initialized one.
+ */
+int test_ascon_reuse_after_final(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_ASCON
+    static const byte key[ASCON_AEAD128_KEY_SZ] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    static const byte nonce[ASCON_AEAD128_NONCE_SZ] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    static const byte ad[4] = { 0x00, 0x01, 0x02, 0x03 };
+    static const byte pt[8] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    /* KAT[0]: PT = "", AD = "" -> tag only */
+    static const byte expTag0[ASCON_AEAD128_TAG_SZ] = {
+        0x44, 0x27, 0xD6, 0x4B, 0x8E, 0x1E, 0x14, 0x51,
+        0xFC, 0x44, 0x59, 0x60, 0xF0, 0x83, 0x9B, 0xB0
+    };
+    wc_AsconHash256 hashCtx;
+    wc_AsconAEAD128 aeadCtx;
+    byte msg[32];
+    byte md1[ASCON_HASH256_SZ];
+    byte md2[ASCON_HASH256_SZ];
+    byte ct1[sizeof(pt)];
+    byte ct2[sizeof(pt)];
+    byte tag1[ASCON_AEAD128_TAG_SZ];
+    byte tag2[ASCON_AEAD128_TAG_SZ];
+    byte ptOut[sizeof(pt)];
+    byte badTag[ASCON_AEAD128_TAG_SZ];
+    byte dummy[1]; /* non-NULL placeholder for 0-length pt/ad args */
+    word32 i;
+
+    for (i = 0; i < (word32)sizeof(msg); i++)
+        msg[i] = (byte)i;
+    dummy[0] = 0;
+
+    /* ------------------------------------------------------------------ */
+    /* 1. Hash256 reused after Final, with no intervening Init            */
+    /* ------------------------------------------------------------------ */
+    XMEMSET(md1, 0, sizeof(md1));
+    ExpectIntEQ(wc_AsconHash256_Init(&hashCtx), 0);
+    ExpectIntEQ(wc_AsconHash256_Update(&hashCtx, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_AsconHash256_Final(&hashCtx, md1), 0);
+    ExpectBufEQ(md1, ascon_hash256_output[sizeof(msg)], ASCON_HASH256_SZ);
+
+    /* Deliberately no Init: Final must leave a usable context behind */
+    XMEMSET(md2, 0, sizeof(md2));
+    ExpectIntEQ(wc_AsconHash256_Update(&hashCtx, msg, (word32)sizeof(msg)), 0);
+    ExpectIntEQ(wc_AsconHash256_Final(&hashCtx, md2), 0);
+    ExpectBufEQ(md2, ascon_hash256_output[sizeof(msg)], ASCON_HASH256_SZ);
+
+    /* A third pass, split across two Updates, must still match */
+    XMEMSET(md2, 0, sizeof(md2));
+    ExpectIntEQ(wc_AsconHash256_Update(&hashCtx, msg, 8), 0);
+    ExpectIntEQ(wc_AsconHash256_Update(&hashCtx, msg + 8,
+        (word32)sizeof(msg) - 8), 0);
+    ExpectIntEQ(wc_AsconHash256_Final(&hashCtx, md2), 0);
+    ExpectBufEQ(md2, ascon_hash256_output[sizeof(msg)], ASCON_HASH256_SZ);
+    wc_AsconHash256_Clear(&hashCtx);
+
+    /* ------------------------------------------------------------------ */
+    /* 2. AEAD128 encrypt reused after EncryptFinal                        */
+    /* ------------------------------------------------------------------ */
+    XMEMSET(ct1, 0, sizeof(ct1));
+    XMEMSET(tag1, 0, sizeof(tag1));
+    ExpectIntEQ(wc_AsconAEAD128_Init(&aeadCtx), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(&aeadCtx, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(&aeadCtx, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(&aeadCtx, ad, (word32)sizeof(ad)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptUpdate(&aeadCtx, ct1, pt,
+        (word32)sizeof(pt)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptFinal(&aeadCtx, tag1), 0);
+
+    /* Deliberately no Init: the same sequence on the reused context must
+     * reproduce the ciphertext and tag of the fresh context above */
+    XMEMSET(ct2, 0, sizeof(ct2));
+    XMEMSET(tag2, 0, sizeof(tag2));
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(&aeadCtx, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(&aeadCtx, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(&aeadCtx, ad, (word32)sizeof(ad)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptUpdate(&aeadCtx, ct2, pt,
+        (word32)sizeof(pt)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptFinal(&aeadCtx, tag2), 0);
+    ExpectBufEQ(ct2, ct1, (word32)sizeof(ct1));
+    ExpectBufEQ(tag2, tag1, ASCON_AEAD128_TAG_SZ);
+
+    /* Absolute anchor: a third pass on the twice-reused context, with the
+     * empty PT/AD KAT, must yield the published tag. This only holds if
+     * state.s64[0] really was restored to ASCON_AEAD128_IV */
+    XMEMSET(tag2, 0, sizeof(tag2));
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(&aeadCtx, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(&aeadCtx, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(&aeadCtx, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptUpdate(&aeadCtx, dummy, dummy, 0), 0);
+    ExpectIntEQ(wc_AsconAEAD128_EncryptFinal(&aeadCtx, tag2), 0);
+    ExpectBufEQ(tag2, expTag0, ASCON_AEAD128_TAG_SZ);
+    wc_AsconAEAD128_Clear(&aeadCtx);
+
+    /* ------------------------------------------------------------------ */
+    /* 3. AEAD128 decrypt reused after DecryptFinal                        */
+    /* ------------------------------------------------------------------ */
+    XMEMSET(ptOut, 0, sizeof(ptOut));
+    ExpectIntEQ(wc_AsconAEAD128_Init(&aeadCtx), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(&aeadCtx, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(&aeadCtx, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(&aeadCtx, ad, (word32)sizeof(ad)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(&aeadCtx, ptOut, ct1,
+        (word32)sizeof(ct1)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(&aeadCtx, tag1), 0);
+    ExpectBufEQ(ptOut, pt, (word32)sizeof(pt));
+
+    /* Deliberately no Init: the reused context must authenticate again */
+    XMEMSET(ptOut, 0, sizeof(ptOut));
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(&aeadCtx, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(&aeadCtx, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(&aeadCtx, ad, (word32)sizeof(ad)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(&aeadCtx, ptOut, ct1,
+        (word32)sizeof(ct1)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(&aeadCtx, tag1), 0);
+    ExpectBufEQ(ptOut, pt, (word32)sizeof(pt));
+
+    /* A tag failure must still reset the context for the next message */
+    XMEMCPY(badTag, tag1, ASCON_AEAD128_TAG_SZ);
+    badTag[0] ^= 0xFF;
+    XMEMSET(ptOut, 0, sizeof(ptOut));
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(&aeadCtx, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(&aeadCtx, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(&aeadCtx, ad, (word32)sizeof(ad)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(&aeadCtx, ptOut, ct1,
+        (word32)sizeof(ct1)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(&aeadCtx, badTag),
+        WC_NO_ERR_TRACE(ASCON_AUTH_E));
+
+    XMEMSET(ptOut, 0, sizeof(ptOut));
+    ExpectIntEQ(wc_AsconAEAD128_SetKey(&aeadCtx, key), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetNonce(&aeadCtx, nonce), 0);
+    ExpectIntEQ(wc_AsconAEAD128_SetAD(&aeadCtx, ad, (word32)sizeof(ad)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptUpdate(&aeadCtx, ptOut, ct1,
+        (word32)sizeof(ct1)), 0);
+    ExpectIntEQ(wc_AsconAEAD128_DecryptFinal(&aeadCtx, tag1), 0);
+    ExpectBufEQ(ptOut, pt, (word32)sizeof(pt));
+    wc_AsconAEAD128_Clear(&aeadCtx);
+#endif /* HAVE_ASCON */
+    return EXPECT_RESULT();
+} /* END test_ascon_reuse_after_final */
