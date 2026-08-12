@@ -121,6 +121,10 @@ Properties of a resident AES key, mirroring ECC device keys:
   per-algorithm setkey callback (`WOLF_CRYPTO_CB_AES_SETKEY`) the refusal also
   releases the device key; re-keying always means freeing the context and
   creating a new device key
+* a key setup that bypasses the crypto callback entirely (some hardware AES
+  ports replace `wc_AesSetKeyDirect()`) is detected by the software schedule
+  it leaves behind: `wc_AlteraFcsAes_IsDeviceKey()` drops to 0 and every
+  device operation fails with `WC_HW_E` until the context is freed
 * every operation runs on the device by handle; an SDM-ineligible length or a
   device failure is reported as `WC_HW_E` and never falls back to software,
   because no plaintext key exists to fall back to
