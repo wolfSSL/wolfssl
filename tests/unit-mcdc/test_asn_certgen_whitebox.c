@@ -2328,10 +2328,330 @@ static void wb_parse_acert_bad_dates(void)
 
     FreeDer(&der);
 }
+
+/* ------------------------------------------------------------------------- *
+ * RSA-PSS attribute certificate: signature-parameter agreement.
+ *   ParseX509Acert()   :40601  SIGALGO_PARAMS_NULL.tag != 0 ||
+ *                              SIGALGO_PARAMS.tag != 0   (no-params algorithms)
+ *                      :40638  acParamsSz != sigAlgParamsSz ||
+ *                              XMEMCMP(acParams, sigAlgParams, ...) != 0
+ *   VerifyX509Acert()  :40871  (acParamsSz > 0) && (sigOID != CTC_RSASSAPSS)
+ *                      :40874  (acParamsSz > 0) && XMEMCMP(...) != 0
+ *
+ * certs/acert/rsa_pss/acert.pem is signed with id-RSASSA-PSS and repeats the
+ * same RSASSA-PSS-params in the ACINFO signature field and in the outer
+ * signatureAlgorithm, which is the all-false row for both comparisons. The
+ * other rows come from edited copies:
+ *   - one byte flipped inside the outer parameters (same size, different
+ *     content);
+ *   - the optional [2] saltLength removed from the outer parameters
+ *     (different size), which needs every enclosing SEQUENCE length rewritten;
+ *   - both algorithm OIDs rewritten to sha256WithRSAEncryption, which is the
+ *     same 9 bytes as id-RSASSA-PSS so no length changes, leaving parameters
+ *     present under an algorithm that must not carry them;
+ *   - both algorithm OIDs rewritten to ecdsa-with-SHA256, one byte shorter,
+ *     which makes IsSigAlgoNoParams() true with parameters still present.
+ * ------------------------------------------------------------------------- */
+static int wb_acert_parse(const byte* der, word32 sz)
+{
+    int ret;
+    WC_DECLARE_VAR(acert, DecodedAcert, 1, 0);
+#ifdef WOLFSSL_SMALL_STACK
+    acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), NULL,
+            DYNAMIC_TYPE_DCERT);
+    if (acert == NULL) {
+        return MEMORY_E;
+    }
+#else
+    XMEMSET(acert, 0, sizeof(DecodedAcert));
+#endif
+    wc_InitDecodedAcert(acert, der, sz, NULL);
+    ret = wc_ParseX509Acert(acert, NO_VERIFY);
+    wc_FreeDecodedAcert(acert);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+    return ret;
+}
+
+/* Offsets of the two algorithm-identifier OID TLVs (ACINFO's and the outer
+ * signatureAlgorithm's) carrying `oid`, and of the parameters that follow
+ * each. Returns the number found. */
+static int wb_acert_find_algo(const byte* der, word32 sz, const byte* oid,
+        word32 oidSz, word32* oidOff, word32* paramOff, int max)
+{
+    word32 i;
+    int n = 0;
+
+    for (i = 0; (i + oidSz < sz) && (n < max); i++) {
+        if (XMEMCMP(der + i, oid, oidSz) == 0) {
+            oidOff[n] = i;
+            paramOff[n] = (word32)(i + oidSz);
+            n++;
+            i += oidSz - 1;
+        }
+    }
+    return n;
+}
+
+static void wb_acert_rsapss_params(void)
+{
+    static const char* path = "./certs/acert/rsa_pss/acert.pem";
+    /* OBJECT IDENTIFIER TLVs (tag + length + content). */
+    static const byte oidPss[]    = {
+        0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0A };
+    static const byte oidRsaSha[] = {
+        0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0B };
+    static const byte oidEcdsa[]  = {
+        0x06,0x08,0x2A,0x86,0x48,0xCE,0x3D,0x04,0x03,0x02 };
+    static byte edit[4096];
+    byte* pem;
+    long pemSz = 0;
+    DerBuffer* der = NULL;
+    word32 oidOff[4], paramOff[4];
+    word32 editSz;
+    int found;
+    int ret;
+
+    WB_NOTE("wc_ParseX509Acert()/VerifyX509Acert(): RSA-PSS parameter "
+            "agreement [:40601,:40638,:40871,:40874]");
+
+    pem = wb_read_file(path, &pemSz);
+    if (pem == NULL) {
+        WB_NOTE("corpus RSA-PSS ACERT PEM not found; section skipped");
+        return;
+    }
+    ret = wc_PemToDer(pem, pemSz, ACERT_TYPE, &der, NULL, NULL, NULL);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if ((ret != 0) || (der == NULL) || (der->length > sizeof(edit))) {
+        WB_NOTE("RSA-PSS ACERT unusable; section skipped");
+        if (der != NULL) {
+            FreeDer(&der);
+        }
+        return;
+    }
+
+    found = wb_acert_find_algo(der->buffer, der->length, oidPss,
+            (word32)sizeof(oidPss), oidOff, paramOff, 4);
+    WB_CHECK(found == 2, "both id-RSASSA-PSS algorithm identifiers located");
+
+    /* Unedited: parameters agree. */
+    ret = wb_acert_parse(der->buffer, der->length);
+    WB_CHECK(ret == 0, "unedited RSA-PSS acert (:40638 both operands false)");
+    /* The public key handed to VerifyX509Acert() is deliberately not the
+     * issuer's, so the call always ends in a signature failure; what matters
+     * is that it reaches the parameter comparisons on the way there. */
+    ret = wc_VerifyX509Acert(der->buffer, der->length, der->buffer, 1, RSAk,
+            NULL);
+    WB_CHECK(ret != 0,
+            "unedited RSA-PSS acert (:40871/:40874 1st operand true, 2nd "
+            "false)");
+
+    /* The plain sha256WithRSAEncryption acert carries a NULL parameters
+     * element, so acParamsSz stays 0 and both else-ifs take their 1st operand
+     * false. */
+    {
+        byte* plainPem;
+        long plainSz = 0;
+        DerBuffer* plainDer = NULL;
+
+        plainPem = wb_read_file("./certs/acert/acert.pem", &plainSz);
+        if (plainPem != NULL) {
+            ret = wc_PemToDer(plainPem, plainSz, ACERT_TYPE, &plainDer, NULL,
+                    NULL, NULL);
+            XFREE(plainPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if ((ret == 0) && (plainDer != NULL)) {
+                ret = wc_VerifyX509Acert(plainDer->buffer, plainDer->length,
+                        plainDer->buffer, 1, RSAk, NULL);
+                WB_CHECK(ret != 0,
+                        "acert without parameters (:40871/:40874 1st operand "
+                        "false)");
+            }
+            if (plainDer != NULL) {
+                FreeDer(&plainDer);
+            }
+        }
+        else {
+            WB_NOTE("corpus plain ACERT PEM not found; the no-parameters rows "
+                    "are skipped");
+        }
+    }
+
+    if (found == 2) {
+        word32 co, cl, lo, lw;
+        word32 salt = 0;
+        word32 i;
+
+        /* (1) Same size, different content: flip the last content byte of
+         * the outer parameters. */
+        XMEMCPY(edit, der->buffer, der->length);
+        editSz = der->length;
+        if (mcdc_der_hdr(edit, editSz, paramOff[1], &co, &cl, &lo, &lw) != 0) {
+            edit[co + cl - 1] ^= 0x01;
+            ret = wb_acert_parse(edit, editSz);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                    ":40638 1st operand false, 2nd true (parameters differ)");
+            ret = wc_VerifyX509Acert(edit, editSz, edit, 1, RSAk, NULL);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                    ":40874 both operands true (parameters differ)");
+
+            /* Locate the optional [2] saltLength inside those parameters. */
+            for (i = co; i < co + cl; ) {
+                word32 ico, icl, ilo, ilw;
+                if (mcdc_der_hdr(edit, editSz, i, &ico, &icl, &ilo, &ilw)
+                        == 0) {
+                    break;
+                }
+                if (edit[i] ==
+                        (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)) {
+                    salt = i;
+                    break;
+                }
+                i = ico + icl;
+            }
+            WB_CHECK(salt != 0, "[2] saltLength located in the outer params");
+        }
+
+        /* (2) Different size: drop the outer [2] saltLength. */
+        if (salt != 0) {
+            word32 sco, scl, slo, slw;
+            XMEMCPY(edit, der->buffer, der->length);
+            editSz = der->length;
+            (void)mcdc_der_hdr(edit, editSz, salt, &sco, &scl, &slo, &slw);
+            if (mcdc_der_shrink(edit, &editSz, salt,
+                        (sco - salt) + scl) == 0) {
+                ret = wb_acert_parse(edit, editSz);
+                WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                        ":40638 1st operand true (parameter sizes differ)");
+            }
+            else {
+                WB_NOTE("saltLength removal refused; size-mismatch row skipped");
+            }
+        }
+
+        /* (3) Parameters present under sha256WithRSAEncryption: the OID is
+         * the same nine bytes, so both identifiers can be rewritten in
+         * place. ParseX509Acert() rejects it at :40622 and VerifyX509Acert()
+         * at :40871 with both operands true. */
+        XMEMCPY(edit, der->buffer, der->length);
+        editSz = der->length;
+        XMEMCPY(edit + oidOff[0], oidRsaSha, sizeof(oidRsaSha));
+        XMEMCPY(edit + oidOff[1], oidRsaSha, sizeof(oidRsaSha));
+        ret = wc_VerifyX509Acert(edit, editSz, edit, 1, RSAk, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":40871 both operands true (params under a non-PSS algorithm)");
+
+        /* (4) Parameters present under ecdsa-with-SHA256, whose OID is one
+         * byte shorter: IsSigAlgoNoParams() is true, so ParseX509Acert()
+         * rejects the parameters at :40601 with the 2nd operand true. */
+        XMEMCPY(edit, der->buffer, der->length);
+        editSz = der->length;
+        if ((mcdc_der_shrink(edit, &editSz, oidOff[1] + sizeof(oidEcdsa), 1)
+                    == 0) &&
+            (mcdc_der_shrink(edit, &editSz, oidOff[0] + sizeof(oidEcdsa), 1)
+                    == 0)) {
+            word32 outerParam;
+            word32 innerParam;
+
+            XMEMCPY(edit + oidOff[0], oidEcdsa, sizeof(oidEcdsa));
+            XMEMCPY(edit + oidOff[1] - 1, oidEcdsa, sizeof(oidEcdsa));
+            innerParam = oidOff[0] + (word32)sizeof(oidEcdsa);
+            outerParam = oidOff[1] - 1 + (word32)sizeof(oidEcdsa);
+            ret = wb_acert_parse(edit, editSz);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                    ":40601 2nd operand true (params under a no-params "
+                    "algorithm)");
+
+            /* Same certificate with both parameter elements removed: the
+             * algorithm still takes no parameters and none are present, so
+             * both operands go false. Removed outermost-first so the earlier
+             * offset stays valid. */
+            {
+                word32 co2, cl2, lo2, lw2;
+                int okOuter = 0, okInner = 0;
+                if (mcdc_der_hdr(edit, editSz, outerParam, &co2, &cl2, &lo2,
+                            &lw2) != 0) {
+                    okOuter = (mcdc_der_shrink(edit, &editSz, outerParam,
+                                (co2 - outerParam) + cl2) == 0);
+                }
+                if (okOuter && (mcdc_der_hdr(edit, editSz, innerParam, &co2,
+                                &cl2, &lo2, &lw2) != 0)) {
+                    okInner = (mcdc_der_shrink(edit, &editSz, innerParam,
+                                (co2 - innerParam) + cl2) == 0);
+                }
+                if (okOuter && okInner) {
+                    ret = wb_acert_parse(edit, editSz);
+                    WB_CHECK(ret == 0,
+                            ":40601 both operands false (no-params algorithm "
+                            "without parameters)");
+                }
+                else {
+                    WB_NOTE("parameter removal refused; the :40601 false row "
+                            "is skipped");
+                }
+            }
+        }
+        else {
+            WB_NOTE("OID shortening refused; the no-params rows are skipped");
+        }
+
+        /* Parameters present as a NULL element under a no-parameters
+         * algorithm: the plain acert's AlgorithmIdentifiers already carry
+         * NULL, so rewriting their OIDs to ecdsa-with-SHA256 drives :40601's
+         * 1st operand true. */
+        {
+            byte* plainPem;
+            long plainSz = 0;
+            DerBuffer* plainDer = NULL;
+            static const byte oidRsaShaTlv[] = {
+                0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0B };
+
+            plainPem = wb_read_file("./certs/acert/acert.pem", &plainSz);
+            if (plainPem != NULL) {
+                ret = wc_PemToDer(plainPem, plainSz, ACERT_TYPE, &plainDer,
+                        NULL, NULL, NULL);
+                XFREE(plainPem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            if ((plainDer != NULL) && (plainDer->length <= sizeof(edit))) {
+                word32 pOid[4], pParam[4];
+                int pFound = wb_acert_find_algo(plainDer->buffer,
+                        plainDer->length, oidRsaShaTlv,
+                        (word32)sizeof(oidRsaShaTlv), pOid, pParam, 4);
+                WB_CHECK(pFound == 2,
+                        "both sha256WithRSAEncryption identifiers located");
+                if (pFound == 2) {
+                    XMEMCPY(edit, plainDer->buffer, plainDer->length);
+                    editSz = plainDer->length;
+                    if ((mcdc_der_shrink(edit, &editSz,
+                                pOid[1] + sizeof(oidEcdsa), 1) == 0) &&
+                        (mcdc_der_shrink(edit, &editSz,
+                                pOid[0] + sizeof(oidEcdsa), 1) == 0)) {
+                        XMEMCPY(edit + pOid[0], oidEcdsa, sizeof(oidEcdsa));
+                        XMEMCPY(edit + pOid[1] - 1, oidEcdsa,
+                                sizeof(oidEcdsa));
+                        ret = wb_acert_parse(edit, editSz);
+                        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                                ":40601 1st operand true (NULL parameters "
+                                "under a no-params algorithm)");
+                    }
+                }
+            }
+            if (plainDer != NULL) {
+                FreeDer(&plainDer);
+            }
+        }
+    }
+
+    FreeDer(&der);
+}
 #else
 static void wb_decode_holder_issuer_guards(void)
 {
     WB_NOTE("DecodeHolder/DecodeAttCertIssuer (no WOLFSSL_ACERT); skipped");
+}
+static void wb_acert_rsapss_params(void)
+{
+    WB_NOTE("RSA-PSS acert parameters (no WOLFSSL_ACERT); skipped");
 }
 static void wb_verify_x509_acert_bad_args(void)
 {
@@ -2691,6 +3011,7 @@ int main(void)
     wb_verify_x509_acert_bad_args();
     wb_parse_x509_acert();
     wb_parse_acert_bad_dates();
+    wb_acert_rsapss_params();
 
     wb_pem_to_der_guards();
     wb_encrypted_info_parse_guards();
