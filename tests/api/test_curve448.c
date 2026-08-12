@@ -167,18 +167,30 @@ int test_wc_curve448_export_public_ex(void)
 #if defined(HAVE_CURVE448)
     WC_RNG        rng;
     curve448_key  key;
+    curve448_key  unset;
+    curve448_key  pubOnly;
     byte          out[CURVE448_KEY_SIZE];
+    byte          pubOut[CURVE448_KEY_SIZE];
     word32        outLen = sizeof(out);
+    word32        pubOutLen = sizeof(pubOut);
     int           endian = EC448_BIG_ENDIAN;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_curve448_init(&key), 0);
+    ExpectIntEQ(wc_curve448_init(&unset), 0);
+    ExpectIntEQ(wc_curve448_init(&pubOnly), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key), 0);
 
     ExpectIntEQ(wc_curve448_export_public(&key, out, &outLen), 0);
     ExpectIntEQ(wc_curve448_export_public_ex(&key, out, &outLen, endian), 0);
+    /* a key holding only a public component exports it unchanged */
+    ExpectIntEQ(wc_curve448_import_public(out, outLen, &pubOnly), 0);
+    ExpectIntEQ(wc_curve448_export_public_ex(&pubOnly, pubOut, &pubOutLen,
+        endian), 0);
+    ExpectIntEQ(pubOutLen, CURVE448_PUB_KEY_SIZE);
+    ExpectIntEQ(XMEMCMP(out, pubOut, CURVE448_PUB_KEY_SIZE), 0);
     /* test bad cases */
     ExpectIntEQ(wc_curve448_export_public_ex(NULL, NULL, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -188,12 +200,19 @@ int test_wc_curve448_export_public_ex(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_curve448_export_public_ex(&key, out, NULL, endian),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* no private or public key set to export */
+    ExpectIntEQ(wc_curve448_export_public(&unset, out, &outLen),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(wc_curve448_export_public_ex(&unset, out, &outLen, endian),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     outLen = outLen - 2;
     ExpectIntEQ(wc_curve448_export_public_ex(&key, out, &outLen, endian),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_curve448_free(&key);
+    wc_curve448_free(&unset);
+    wc_curve448_free(&pubOnly);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_curve448_export_public_ex */

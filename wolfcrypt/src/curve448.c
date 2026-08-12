@@ -232,7 +232,8 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
  * outLen  [in/out]  On in, the number of bytes in array.
  *                   On out, the number bytes put into array.
  * returns BAD_FUNC_ARG when a parameter is NULL,
- *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE,
+ *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE or
+ *         neither the public nor the private key has been set,
  *         0 otherwise.
  */
 int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen)
@@ -248,7 +249,8 @@ int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen)
  *                   On out, the number bytes put into array.
  * endian  [in]      Endianness to use when encoding number in array.
  * returns BAD_FUNC_ARG when a parameter is NULL,
- *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE,
+ *         ECC_BAD_ARG_E when outLen is less than CURVE448_PUB_KEY_SIZE or
+ *         neither the public nor the private key has been set,
  *         0 otherwise.
  */
 int wc_curve448_export_public_ex(curve448_key* key, byte* out, word32* outLen,
@@ -263,6 +265,11 @@ int wc_curve448_export_public_ex(curve448_key* key, byte* out, word32* outLen,
     /* check and set outgoing key size */
     if ((ret == 0) && (*outLen < CURVE448_PUB_KEY_SIZE)) {
         *outLen = CURVE448_PUB_KEY_SIZE;
+        ret = ECC_BAD_ARG_E;
+    }
+
+    /* no public key to export and no private key to derive it from */
+    if ((ret == 0) && (!key->pubSet) && (!key->privSet)) {
         ret = ECC_BAD_ARG_E;
     }
     if (ret == 0) {
