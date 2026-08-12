@@ -694,6 +694,16 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         WOLFSSL_MSG("CMSG_FIRSTHDR() in wc_AesGcmEncrypt() returned NULL unexpectedly.");
         return SYSLIB_FAILED_E;
     }
+
+    /* Always set the operation. The same Aes structure, and with it the same
+     * AF_ALG socket, can be used for both encrypt and decrypt calls, so the
+     * operation currently stored in the control message could be left over
+     * from a previous call in the other direction. */
+    if (wc_Afalg_SetOp(cmsg, AES_ENCRYPTION) < 0) {
+        WOLFSSL_MSG("Error with setting AF_ALG operation");
+        return WC_AFALG_SOCK_E;
+    }
+
     cmsg = CMSG_NXTHDR(msg, cmsg);
     if (cmsg == NULL) {
         WOLFSSL_MSG("CMSG_NEXTHDR() in wc_AesGcmEncrypt() returned NULL unexpectedly.");
@@ -872,7 +882,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return ret;
 
     if (aes->rdFd == WC_SOCK_NOTSET) {
-        aes->dir = AES_DECRYPTION;
+        /* aes->dir is not changed here, the operation used with the socket is
+         * set on every call below. It is left as AES_ENCRYPTION, the value set
+         * by wc_AesGcmSetKey, so that the software tag handling can still make
+         * use of wc_AesEncryptDirect. */
         if ((ret = wc_AesSetup(aes, WC_TYPE_AEAD, WC_NAME_AESGCM, ivSz,
                         authInSz)) != 0) {
             WOLFSSL_MSG("Error with first time setup of AF_ALG socket");
@@ -896,7 +909,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if ((cmsg = CMSG_FIRSTHDR(msg)) == NULL) {
         return WC_AFALG_SOCK_E;
     }
-    if (wc_Afalg_SetOp(cmsg, aes->dir) < 0) {
+    /* Always set the operation. The socket could have been created by a
+     * previous wc_AesGcmEncrypt call made with this same Aes structure. */
+    if (wc_Afalg_SetOp(cmsg, AES_DECRYPTION) < 0) {
         WOLFSSL_MSG("Error with setting AF_ALG operation");
         return WC_AFALG_SOCK_E;
     }
