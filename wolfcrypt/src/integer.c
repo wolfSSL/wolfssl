@@ -1698,19 +1698,43 @@ int mp_div_2(mp_int * a, mp_int * b)
 /* c = a / 2 (mod b) - constant time (a < b and positive) */
 int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c)
 {
-    int res;
+    int res, i;
+    mp_digit mask, u;
 
-    if (mp_isodd(a)) {
-        res = mp_add(a, b, c);
-        if (res == MP_OKAY) {
-            res = mp_div_2(c, c);
+    if (a->used > b->used) {
+        return MP_VAL;
+    }
+
+    if ((res = mp_grow(c, b->used + 1)) != MP_OKAY) {
+        return res;
+    }
+
+    mask = (mp_digit)0 - (a->used > 0 ? (a->dp[0] & 1) : 0);
+    u = 0;
+    for (i = 0; i < b->used; i++) {
+        mp_digit a_val = (i < a->used) ? a->dp[i] : 0;
+        c->dp[i] = a_val + (b->dp[i] & mask) + u;
+        u = c->dp[i] >> DIGIT_BIT;
+        c->dp[i] &= MP_MASK;
+    }
+    c->dp[b->used] = u;
+
+    for (i = 0; i < b->used; i++) {
+        c->dp[i] = (c->dp[i] >> 1) | ((c->dp[i+1] & 1) << (DIGIT_BIT - 1));
+    }
+
+    {
+        int old_used = c->used;
+        c->used = b->used;
+        for (i = b->used; i < old_used; i++) {
+            c->dp[i] = 0;
         }
+        c->dp[b->used] = 0;
     }
-    else {
-        res = mp_div_2(a, c);
-    }
+    c->sign = MP_ZPOS;
+    mp_clamp(c);
 
-    return res;
+    return MP_OKAY;
 }
 
 
@@ -3115,29 +3139,59 @@ int mp_submod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
   int     res;
   mp_int  t;
   mp_int* r = d;
+  mp_digit u, mask;
+  int i;
+
+  if (a->used > c->used || b->used > c->used) {
+    return MP_VAL;
+  }
 
   if (c == d) {
     r = &t;
-
     if ((res = mp_init (r)) != MP_OKAY) {
       return res;
     }
   }
 
-  res = mp_sub (a, b, r);
-  if (res == MP_OKAY) {
-    if (mp_isneg (r)) {
-      res = mp_add (r, c, d);
-    } else if (c == d) {
-      res = mp_copy (r, d);
+  if ((res = mp_grow(r, c->used)) != MP_OKAY) {
+    if (c == d) { mp_clear(r); }
+    return res;
+  }
+
+  u = 0;
+  for (i = 0; i < c->used; i++) {
+    mp_digit a_val = (i < a->used) ? a->dp[i] : 0;
+    mp_digit b_val = (i < b->used) ? b->dp[i] : 0;
+    mp_digit val = a_val - b_val - u;
+    r->dp[i] = val & MP_MASK;
+    u = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+
+  mask = (mp_digit)0 - u;
+  u = 0;
+  for (i = 0; i < c->used; i++) {
+    r->dp[i] += (c->dp[i] & mask) + u;
+    u = r->dp[i] >> DIGIT_BIT;
+    r->dp[i] &= MP_MASK;
+  }
+
+  {
+    int old_used = r->used;
+    r->used = c->used;
+    for (i = c->used; i < old_used; i++) {
+      r->dp[i] = 0;
     }
   }
+  r->sign = MP_ZPOS;
+  mp_clamp(r);
 
   if (c == d) {
-    mp_clear (r);
+    res = mp_copy(r, d);
+    mp_clear(r);
+    return res;
   }
 
-  return res;
+  return MP_OKAY;
 }
 
 /* d = a + b (mod c) - a < c and b < c and positive */
@@ -3146,29 +3200,72 @@ int mp_addmod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
   int     res;
   mp_int  t;
   mp_int* r = d;
+  mp_digit u, borrow, mask;
+  int i;
+
+  if (a->used > c->used || b->used > c->used) {
+    return MP_VAL;
+  }
 
   if (c == d) {
     r = &t;
-
     if ((res = mp_init (r)) != MP_OKAY) {
       return res;
     }
   }
 
-  res = mp_add (a, b, r);
-  if (res == MP_OKAY) {
-    if (mp_cmp (r, c) != MP_LT) {
-      res = mp_sub (r, c, d);
-    } else if (c == d) {
-      res = mp_copy (r, d);
-    }
+  if ((res = mp_grow(r, c->used + 1)) != MP_OKAY) {
+    if (c == d) { mp_clear(r); }
+    return res;
   }
+
+  u = 0;
+  for (i = 0; i < c->used; i++) {
+    mp_digit a_val = (i < a->used) ? a->dp[i] : 0;
+    mp_digit b_val = (i < b->used) ? b->dp[i] : 0;
+    r->dp[i] = a_val + b_val + u;
+    u = r->dp[i] >> DIGIT_BIT;
+    r->dp[i] &= MP_MASK;
+  }
+  r->dp[c->used] = u;
+
+  borrow = 0;
+  for (i = 0; i < c->used; i++) {
+    mp_digit val = r->dp[i] - c->dp[i] - borrow;
+    borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+  {
+    mp_digit val = r->dp[c->used] - borrow;
+    borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+
+  mask = (mp_digit)0 - (1 - borrow);
+
+  borrow = 0;
+  for (i = 0; i < c->used; i++) {
+    mp_digit val = r->dp[i] - (c->dp[i] & mask) - borrow;
+    r->dp[i] = val & MP_MASK;
+    borrow = val >> (CHAR_BIT * sizeof(mp_digit) - 1);
+  }
+
+  {
+    int old_used = r->used;
+    r->used = c->used;
+    for (i = c->used; i < old_used; i++) {
+      r->dp[i] = 0;
+    }
+    r->dp[c->used] = 0;
+  }
+  r->sign = MP_ZPOS;
+  mp_clamp(r);
 
   if (c == d) {
-    mp_clear (r);
+    res = mp_copy(r, d);
+    mp_clear(r);
+    return res;
   }
 
-  return res;
+  return MP_OKAY;
 }
 
 /* computes b = a*a */
