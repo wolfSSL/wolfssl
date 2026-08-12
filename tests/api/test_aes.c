@@ -234,8 +234,11 @@ int test_wc_AesSetIV(void)
 int test_wc_AesSetIV_RestartsStream(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && !defined(WOLFSSL_KCAPI) && \
-    (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER))
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    (defined(HAVE_AES_CBC) || (defined(WOLFSSL_AES_COUNTER) && \
+     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+     !defined(WOLFSSL_KCAPI)))
     Aes  aes;
     byte key16[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -264,7 +267,10 @@ int test_wc_AesSetIV_RestartsStream(void)
     wc_AesFree(&aes);
 #endif
 
-#ifdef WOLFSSL_AES_COUNTER
+#if defined(WOLFSSL_AES_COUNTER) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
     XMEMSET(first, 0, sizeof(first));
     XMEMSET(second, 0, sizeof(second));
 
