@@ -2913,6 +2913,97 @@ static void wb_empty_issuer_recipient(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 15: RSASSA-PSS signer certificate [:5166, :5298].
+ *
+ * Both guards reject a sid-matched certificate that does not carry an
+ * RSA-family key, and their `keyOID != RSAPSSk` operand only goes false for a
+ * certificate whose SubjectPublicKeyInfo names id-RSASSA-PSS. Every signer in
+ * certs/ except certs/rsapss/ names rsaEncryption, so the row needs a bundle
+ * signed with the RSA-PSS credential.
+ *
+ * RESIDUAL: this supplies the operand's FALSE row only. Its true row needs a
+ * certificate that is neither RSAk nor RSAPSSk to reach the same guard, and
+ * :5155 lets only the sid-matched certificate through -- so the certificate
+ * would have to carry a non-RSA key while still matching the SignerInfo sid.
+ * Rewriting the embedded certificate's SubjectPublicKeyInfo algorithm was
+ * considered and rejected: every key OID the oidKeyType table accepts has a
+ * different encoded length from rsaEncryption, so the rewrite would have to
+ * re-length six nested elements, and the resulting certificate then fails
+ * ParseCert on the missing curve parameters before reaching the guard.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256)
+#define WB_PSS_BUF_SZ 4096
+static byte wbPssCert[2048];
+static byte wbPssKey[2048];
+static byte wbPssBundle[WB_PSS_BUF_SZ];
+
+static void wb_pss_signed_verify(void)
+{
+    wc_PKCS7* p;
+    WC_RNG    rng;
+    word32    certSz, keySz;
+    byte      data[32];
+    int       sz, ret;
+
+    certSz = wb_load_file("./certs/rsapss/client-rsapss.der", wbPssCert,
+            (word32)sizeof(wbPssCert));
+    keySz  = wb_load_file("./certs/rsapss/client-rsapss-priv.der", wbPssKey,
+            (word32)sizeof(wbPssKey));
+    if (certSz == 0 || keySz == 0) {
+        return;
+    }
+    XMEMSET(data, 0x64, sizeof(data));
+
+    mcdc_sr_arm(WB_EV_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        return;
+    }
+    sz = -1;
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, wbPssCert, certSz) == 0) {
+            p->content      = data;
+            p->contentSz    = (word32)sizeof(data);
+            p->contentOID   = DATA;
+            p->hashOID      = SHA256h;
+            p->privateKey   = wbPssKey;
+            p->privateKeySz = keySz;
+            p->encryptOID   = RSAPSSk;
+            p->rng          = &rng;
+            (void)wc_PKCS7_NoDefaultSignedAttribs(p);
+            sz = wc_PKCS7_EncodeSignedData(p, wbPssBundle,
+                    (word32)sizeof(wbPssBundle));
+        }
+        wc_PKCS7_Free(p);
+    }
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+
+    WB_CHECK(sz > 0, "RSA-PSS SignedData bundle encoded");
+    if (sz <= 0) {
+        return;
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): signer certificate carrying an"
+            " id-RSASSA-PSS public key [:5166 and :5298 cond 1 false]");
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+            ret = wc_PKCS7_VerifySignedData(p, wbPssBundle, (word32)sz);
+            WB_CHECK(ret == 0, "RSA-PSS SignedData verifies");
+        }
+        wc_PKCS7_Free(p);
+    }
+}
+#else
+static void wb_pss_signed_verify(void)
+{
+    WB_NOTE("no RSA-PSS/SHA-256; RSA-PSS signer drive skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -2933,6 +3024,7 @@ int main(void)
     wb_short_buffer_probes();
     wb_enveloped_content_walk();
     wb_empty_issuer_recipient();
+    wb_pss_signed_verify();
     wb_footer_hash_matrix();
     wb_der_handoff();
     wb_key_oid_matrix();
