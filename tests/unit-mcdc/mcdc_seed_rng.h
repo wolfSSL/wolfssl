@@ -79,7 +79,9 @@
  * implementation half for why that matters.
  */
 
-#if defined(WOLFSSL_NO_SHAKE256) || defined(NO_SHA3) || defined(WC_NO_RNG)
+/* SHAKE-256 is gated positively by WOLFSSL_SHAKE256; there is no NO_SHA3. */
+#if !defined(WOLFSSL_SHAKE256) || defined(WOLFSSL_NO_SHAKE256) || \
+    defined(WC_NO_RNG)
     #define MCDC_SR_UNAVAILABLE
 #endif
 
