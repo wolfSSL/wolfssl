@@ -111,9 +111,10 @@ WOLFSSL_API int  wc_AlteraFcs_HardwareAvailable(void);
 WOLFSSL_API void wc_AlteraFcs_TestHwReset(void);
 WOLFSSL_API word32 wc_AlteraFcs_TestHwGet(void);
 
-#define WC_ALTERA_FCS_TEST_HW_RNG  0x01
-#define WC_ALTERA_FCS_TEST_HW_HASH 0x02
-#define WC_ALTERA_FCS_TEST_HW_AES  0x04
+#define WC_ALTERA_FCS_TEST_HW_RNG          0x01
+#define WC_ALTERA_FCS_TEST_HW_HASH         0x02
+#define WC_ALTERA_FCS_TEST_HW_AES          0x04
+#define WC_ALTERA_FCS_TEST_HW_AES_RESIDENT 0x08
 WOLFSSL_LOCAL void wc_AlteraFcs_TestHwMark(word32 operation);
 
 /* Which algorithm classes the callback accepts. Signing and key exchange are
@@ -174,6 +175,13 @@ WOLFSSL_LOCAL int wc_AlteraFcs_Hash(wc_CryptoInfo* info);
 
 #ifdef WOLFSSL_ALTERA_FCS_AES
 WOLFSSL_LOCAL int wc_AlteraFcs_Aes(wc_CryptoInfo* info);
+/* Device resident AES. The key is generated inside the SDM and never appears in
+ * HPS memory, unlike wc_AesSetKey which stores a plaintext key the port can only
+ * import. Created explicitly because an SDM key object commits to its usage at
+ * creation. CBC and CTR are then offloaded by handle with no software fallback,
+ * so callers that depend on key isolation should assert IsDeviceKey. */
+WOLFSSL_API int wc_AlteraFcsAes_MakeKey(Aes* aes, int keyBits);
+WOLFSSL_API int wc_AlteraFcsAes_IsDeviceKey(const Aes* aes);
 #endif
 
 #ifdef WC_ALTERA_FCS_HAVE_ECC
