@@ -3700,6 +3700,132 @@ static void wb_ecies_bad_kdf(void)
  *          curve; not attempted in this pass.
  * ========================================================================= */
 
+/* ------------------------------------------------------------------------- *
+ * Class 33: accel_fp_mul2add()'s KB_SIZE scalar-length guard (ecc.c:14180),
+ *   if ((mp_unsigned_bin_size(tka) > (int)(KB_SIZE - 2)) ||
+ *       (mp_unsigned_bin_size(tkb) > (int)(KB_SIZE - 2))  )
+ *
+ * accel_fp_mul2add() declares a flat `#define KB_SIZE 128` -- unlike
+ * accel_fp_mul(), which is 256 under WOLFCRYPT_HAVE_SAKKE -- so the bound is
+ * 126 bytes. The base configs #define WOLFCRYPT_HAVE_SAKKE, which puts the
+ * 128-byte ECC_SAKKE_1 curve in ecc_sets[] and raises MAX_ECC_BITS to 1024,
+ * so a scalar sized to that curve is 128 bytes and the guard fires.
+ *
+ * Each operand is isolated: the scalars are only reduced when they are LARGER
+ * than the modulus, so a 128-byte scalar against a 128-byte modulus is
+ * carried through unchanged and reaches the test at full width, while a
+ * one-digit scalar stays short. The all-false row is the same call with both
+ * scalars short. Reaching accel_fp_mul2add() at all needs both points in the
+ * fixed-point cache with their LUTs built, which ecc_mul2add() does once an
+ * entry's lru_count reaches 2 -- A and B are the same point here, so a single
+ * warm-up call gets there.
+ * ------------------------------------------------------------------------- */
+#if defined(FP_ECC) && defined(ECC_SHAMIR) && !defined(WOLFSSL_SP_MATH) && \
+    defined(WOLFCRYPT_HAVE_SAKKE)
+#define WB_SAKKE_FIELD 200
+static void wb_fp_mul2add_kb_size(void)
+{
+    int idx = wc_ecc_get_curve_idx(ECC_SAKKE_1);
+    const ecc_set_type* cs;
+    mp_int a, modulus, kShort, kWide;
+    ecc_point *A = NULL, *B = NULL, *C = NULL;
+    byte fbuf[WB_SAKKE_FIELD];
+    byte wide[128];
+    word32 sz;
+    int ret;
+
+    if (idx == ECC_CURVE_INVALID) {
+        WB_NOTE("SAKKE1 curve absent; KB_SIZE guard skipped");
+        return;
+    }
+    cs = wc_ecc_get_curve_params(idx);
+    if (cs == NULL || cs->size != 128) {
+        WB_NOTE("SAKKE1 curve is not 128 bytes; KB_SIZE guard skipped");
+        return;
+    }
+    if (mp_init_multi(&a, &modulus, &kShort, &kWide, NULL, NULL) != MP_OKAY) {
+        wb_fail = 1;
+        return;
+    }
+
+    wc_ecc_fp_free(); /* deterministic empty-cache start */
+
+    if (wb_hex_to_bin(cs->Af, fbuf, &sz) != 0 ||
+            mp_read_unsigned_bin(&a, fbuf, (int)sz) != MP_OKAY) {
+        wb_fail = 1; goto out;
+    }
+    if (wb_hex_to_bin(cs->prime, fbuf, &sz) != 0 ||
+            mp_read_unsigned_bin(&modulus, fbuf, (int)sz) != MP_OKAY) {
+        wb_fail = 1; goto out;
+    }
+    if (mp_unsigned_bin_size(&modulus) != 128) { wb_fail = 1; goto out; }
+
+    (void)mp_set(&kShort, 3);
+    /* 128 bytes: the same width as the modulus, so accel_fp_mul2add's
+     * "smaller than modulus" test does not reduce it. */
+    XMEMSET(wide, 0xFF, sizeof(wide));
+    if (mp_read_unsigned_bin(&kWide, wide, (int)sizeof(wide)) != MP_OKAY) {
+        wb_fail = 1; goto out;
+    }
+
+    A = wc_ecc_new_point();
+    B = wc_ecc_new_point();
+    C = wc_ecc_new_point();
+    if (A == NULL || B == NULL || C == NULL) { wb_fail = 1; goto out; }
+
+    if (wb_hex_to_bin(cs->Gx, fbuf, &sz) != 0 ||
+            mp_read_unsigned_bin(A->x, fbuf, (int)sz) != MP_OKAY) {
+        wb_fail = 1; goto out;
+    }
+    if (wb_hex_to_bin(cs->Gy, fbuf, &sz) != 0 ||
+            mp_read_unsigned_bin(A->y, fbuf, (int)sz) != MP_OKAY) {
+        wb_fail = 1; goto out;
+    }
+    (void)mp_set(A->z, 1);
+    (void)mp_copy(A->x, B->x);
+    (void)mp_copy(A->y, B->y);
+    (void)mp_copy(A->z, B->z);
+
+    /* Warm-up: caches the base point and builds its LUT, then dispatches to
+     * accel_fp_mul2add with both scalars short -- the (FALSE,FALSE) row. */
+    ret = ecc_mul2add(A, &kShort, B, &kShort, C, &a, &modulus, NULL);
+    if (ret != MP_OKAY) {
+        WB_NOTE("SAKKE1 fp mul2add warm-up did not complete; KB_SIZE rows "
+                "skipped");
+        goto out;
+    }
+    ret = ecc_mul2add(A, &kShort, B, &kShort, C, &a, &modulus, NULL);
+    if (ret != MP_OKAY) { wb_fail = 1; goto out; }
+
+    /* operand 0 TRUE (short-circuits) */
+    ret = ecc_mul2add(A, &kWide, B, &kShort, C, &a, &modulus, NULL);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) { wb_fail = 1; }
+    /* operand 0 FALSE, operand 1 TRUE */
+    ret = ecc_mul2add(A, &kShort, B, &kWide, C, &a, &modulus, NULL);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) { wb_fail = 1; }
+
+    if (wb_fail) {
+        WB_NOTE("accel_fp_mul2add KB_SIZE guard unexpected return");
+    }
+    WB_NOTE("accel_fp_mul2add KB_SIZE scalar-width pairs done");
+
+out:
+    wc_ecc_del_point(A);
+    wc_ecc_del_point(B);
+    wc_ecc_del_point(C);
+    mp_clear(&kWide);
+    mp_clear(&kShort);
+    mp_clear(&modulus);
+    mp_clear(&a);
+    wc_ecc_fp_free();
+}
+#else
+static void wb_fp_mul2add_kb_size(void)
+{
+    WB_NOTE("FP_ECC/ECC_SHAMIR/SAKKE off; accel_fp_mul2add KB_SIZE skipped");
+}
+#endif
+
 int main(void)
 {
     /* Unbuffered: on a timeout or a fault the process is killed and anything
@@ -3745,6 +3871,7 @@ int main(void)
     wb_forged_rs_range();
     wb_deterministic_k_retry();
     wb_ecies_bad_kdf();
+    wb_fp_mul2add_kb_size();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */
