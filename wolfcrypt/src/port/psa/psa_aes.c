@@ -120,9 +120,14 @@ int wc_psa_aes_get_key_size(Aes *aes, word32 *keySize)
  * wc_psa_aes_reset_ctx() - abort the cipher operation in progress, if any
  * @aes: Aes object
  *
- * After this call the next wc_psa_aes_encrypt_decrypt() sets up a fresh
- * operation, re-reading the IV from aes->reg. The imported key (if any) is
- * left untouched.
+ * After a successful call the next wc_psa_aes_encrypt_decrypt() sets up a
+ * fresh operation, re-reading the IV from aes->reg. The imported key (if any)
+ * is left untouched.
+ *
+ * If the abort itself fails, psa_ctx may still hold resources and is no longer
+ * trustworthy for a fresh setup, so the whole object is torn down: the next
+ * operation then fails loudly rather than silently carrying on with the stale
+ * chaining state that this function exists to discard.
  *
  * returns: 0 on success, BAD_FUNC_ARG for bad argument, WC_HW_E on PSA error
  */
@@ -140,10 +145,13 @@ int wc_psa_aes_reset_ctx(Aes *aes)
     s = psa_cipher_abort(&aes->psa_ctx);
     PSA_UNLOCK();
 
+    /* cleared before the check so wc_psa_aes_free() below doesn't abort twice */
     aes->ctx_initialized = 0;
 
-    if (s != PSA_SUCCESS)
+    if (s != PSA_SUCCESS) {
+        wc_psa_aes_free(aes);
         return WC_HW_E;
+    }
 
     return 0;
 }
