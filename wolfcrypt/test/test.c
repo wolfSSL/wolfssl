@@ -78003,6 +78003,21 @@ static wc_test_ret_t altera_fcs_no_hardware_test(void)
         XFREE(swOut, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (hwOut != NULL)
         XFREE(hwOut, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ret == 0) {
+        Aes resAes;
+
+        ret = wc_AesInit(&resAes, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
+        if (ret == 0) {
+            /* Without hardware a resident key must fail rather than let the
+             * caller believe an isolated key exists. */
+            if (wc_AlteraFcsAes_MakeKey(&resAes, 256) == 0 ||
+                wc_AlteraFcsAes_IsDeviceKey(&resAes) != 0) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+            wc_AesFree(&resAes);
+        }
+    }
 #endif
 
 #if defined(WC_ALTERA_FCS_HAVE_ECC) && defined(HAVE_ECC) && \
@@ -78579,6 +78594,138 @@ exit_fcs_aes:
         wc_AesFree(&hwAes);
     return ret;
 }
+
+/* Device resident AES: the key is generated inside the SDM and cannot be
+ * reproduced in software, so correctness is proven by round-trip plus the
+ * resident hardware marker, and isolation by the context staying free of key
+ * material. */
+static wc_test_ret_t altera_fcs_aes_resident_test(const byte* pt, byte* out1,
+                                                  byte* out2)
+{
+    wc_test_ret_t ret = 0;
+    Aes aes;
+    const byte* ctxBytes;
+    word32 i;
+    int aesInit = 0;
+
+    WOLFSSL_SMALL_STACK_STATIC const byte key[32] = {
+        0xd0,0xd1,0xd2,0xd3,0xd4,0xd5,0xd6,0xd7,
+        0xd8,0xd9,0xda,0xdb,0xdc,0xdd,0xde,0xdf,
+        0xe0,0xe1,0xe2,0xe3,0xe4,0xe5,0xe6,0xe7,
+        0xe8,0xe9,0xea,0xeb,0xec,0xed,0xee,0xef
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv[16] = {
+        0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+        0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f
+    };
+
+    wc_AlteraFcs_TestHwReset();
+    ret = wc_AesInit(&aes, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    aesInit = 1;
+
+    /* The key object has no 192 bit code, and a second device key would
+     * strand the first slot; both must be refused. */
+    if (wc_AlteraFcsAes_MakeKey(&aes, 192) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    ret = wc_AlteraFcsAes_MakeKey(&aes, 256);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    if (wc_AlteraFcsAes_MakeKey(&aes, 256) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+
+    /* No key material may appear in the context. */
+    ctxBytes = (const byte*)aes.devKey;
+    for (i = 0; i < (word32)sizeof(aes.devKey); i++) {
+        if (ctxBytes[i] != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    }
+    ctxBytes = (const byte*)aes.key;
+    for (i = 0; i < (word32)sizeof(aes.key); i++) {
+        if (ctxBytes[i] != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    }
+
+    if (WOLFSSL_ALTERA_FCS_AES_MIN <= 4096) {
+        ret = wc_AesSetIV(&aes, iv);
+        if (ret == 0)
+            ret = wc_AesCbcEncrypt(&aes, out1, pt, 4096);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+        if ((wc_AlteraFcs_TestHwGet() &
+             WC_ALTERA_FCS_TEST_HW_AES_RESIDENT) == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+        if (XMEMCMP(out1, pt, 4096) == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+#ifdef HAVE_AES_DECRYPT
+        ret = wc_AesSetIV(&aes, iv);
+        if (ret == 0)
+            ret = wc_AesCbcDecrypt(&aes, out2, out1, 4096);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+        if (XMEMCMP(out2, pt, 4096) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+#endif
+#ifdef WOLFSSL_AES_COUNTER
+        ret = wc_AesSetIV(&aes, iv);
+        if (ret == 0)
+            ret = wc_AesCtrEncrypt(&aes, out1, pt, 4096);
+        if (ret == 0)
+            ret = wc_AesSetIV(&aes, iv);
+        if (ret == 0)
+            ret = wc_AesCtrEncrypt(&aes, out2, out1, 4096);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+        if (XMEMCMP(out2, pt, 4096) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+#endif
+        /* The context must stay free of key material after use. */
+        ctxBytes = (const byte*)aes.devKey;
+        for (i = 0; i < (word32)sizeof(aes.devKey); i++) {
+            if (ctxBytes[i] != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+        }
+    }
+
+    /* Re-keying with a plaintext key would downgrade the isolation. */
+    if (wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                     AES_ENCRYPTION) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+
+    /* An SDM-ineligible length must fail rather than silently use
+     * software: there is no plaintext key to fall back to. */
+    XMEMCPY(out1, pt, 48);
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (wc_AesCbcEncrypt(&aes, out1, out1, 48) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+
+    /* Free releases the slot; AES-128 exercises the other size code. */
+    wc_AesFree(&aes);
+    aesInit = 0;
+    if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+    ret = wc_AesInit(&aes, HEAP_HINT, WOLFSSL_ALTERA_FCS_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    aesInit = 1;
+    ret = wc_AlteraFcsAes_MakeKey(&aes, 128);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_fcs_res);
+    if (wc_AlteraFcsAes_IsDeviceKey(&aes) != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_fcs_res);
+
+exit_fcs_res:
+    if (aesInit)
+        wc_AesFree(&aes);
+    return ret;
+}
 #endif /* WOLFSSL_ALTERA_FCS_AES && !NO_AES && HAVE_AES_CBC */
 
 #if defined(WC_ALTERA_FCS_HAVE_ECC) && defined(HAVE_ECC) && \
@@ -79022,6 +79169,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t altera_fcs_test(void)
     defined(HAVE_AES_CBC)
     if (ret == 0 && wc_AlteraFcs_AlgoEnabled(WC_ALTERA_FCS_ALGO_AES))
         ret = altera_fcs_aes_test(buf, out1, out2);
+    if (ret == 0 && wc_AlteraFcs_AlgoEnabled(WC_ALTERA_FCS_ALGO_AES))
+        ret = altera_fcs_aes_resident_test(buf, out1, out2);
 #endif
 #if defined(WC_ALTERA_FCS_HAVE_ECC) && defined(HAVE_ECC) && \
     defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
