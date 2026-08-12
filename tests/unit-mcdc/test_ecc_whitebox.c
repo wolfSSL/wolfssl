@@ -3686,18 +3686,15 @@ static void wb_ecies_bad_kdf(void)
  *
  * 14180:0  `if ((mp_unsigned_bin_size(tka) > (int)(KB_SIZE - 2)) ||`
  * 14180:1  `    (mp_unsigned_bin_size(tkb) > (int)(KB_SIZE - 2)))`
- *          NOT excluded -- carried as open. The withdrawn argument was that
- *          MAX_ECC_BITS caps the scalars at 521 bits (66 bytes), well under
- *          KB_SIZE - 2 = 126. That is false for this campaign's configs:
- *          they #define WOLFCRYPT_HAVE_SAKKE, which raises MAX_ECC_BITS to
- *          1024 and adds the 128-byte ECC_SAKKE_1 entry to ecc_sets[].
- *          accel_fp_mul2add() uses a flat `#define KB_SIZE 128`, unlike
- *          accel_fp_mul() which is 256 under WOLFCRYPT_HAVE_SAKKE, so a
- *          scalar reduced modulo a 1024-bit order occupies 128 bytes and the
- *          operand can be TRUE. Reaching it needs ecc_mul2add() driven twice
- *          with the same A and B (so both fp_cache entries reach
- *          lru_count >= 2 and have their LUT built) on a 128-byte-modulus
- *          curve; not attempted in this pass.
+ *          NOT a residual -- COVERED by Class 33 below. The argument that
+ *          used to be filed here (MAX_ECC_BITS caps the scalars at 521 bits,
+ *          66 bytes, well under KB_SIZE - 2 = 126) is false for this
+ *          campaign's configs: they #define WOLFCRYPT_HAVE_SAKKE, which
+ *          raises MAX_ECC_BITS to 1024 and puts the 128-byte ECC_SAKKE_1
+ *          curve in ecc_sets[], while accel_fp_mul2add() uses a flat
+ *          `#define KB_SIZE 128` (accel_fp_mul() is 256 under the same
+ *          macro). A scalar the width of that curve's modulus is 128 bytes
+ *          and is not reduced on the way in, so the guard fires.
  * ========================================================================= */
 
 /* ------------------------------------------------------------------------- *
