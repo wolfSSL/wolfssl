@@ -2644,10 +2644,110 @@ static void wb_acert_rsapss_params(void)
 
     FreeDer(&der);
 }
+/* ------------------------------------------------------------------------- *
+ * DecodeAcertGeneralName()/DecodeAcertGeneralNames() URI validation.
+ *   :39961  if (i == 0 || i == len)          (empty or malformed hier-part)
+ *   :40068  while ((ret == 0) && (idx < sz)) (loop re-test after a failure)
+ * Both are file-static and take a raw GeneralNames blob, which no corpus
+ * attribute certificate supplies in a malformed form. The URI check itself
+ * sits inside the rfc822Name/dNSName block at asn.c:39908, which is
+ * IGNORE_NAME_CONSTRAINTS-gated, so the rejecting rows only exist in the
+ * variants that compile name constraints in.
+ * ------------------------------------------------------------------------- */
+static void wb_acert_general_names(void)
+{
+    DecodedAcert acert;
+    DNS_entry* entries = NULL;
+    word32 idx;
+    int ret;
+    /* [4] GeneralNames wrapper holding two [6] uniformResourceIdentifiers:
+     * the first is absolute, the second has no scheme separator at all, so
+     * the loop's ret==0 operand goes false on the re-test. */
+    static const byte gnTwo[] = {
+        0xA4, 0x13,
+          0x86, 0x08, 'h','t','t','p',':','/','/','a',
+          0x86, 0x07, 'n','o','c','o','l','o','n'
+    };
+    /* One well-formed URI: the loop runs once and exits on idx < sz. */
+    static const byte gnOne[] = {
+        0xA4, 0x0A,
+          0x86, 0x08, 'h','t','t','p',':','/','/','a'
+    };
+    static const byte uriOk[]     = { 'h','t','t','p',':','/','/','a' };
+    static const byte uriColon0[] = { ':','x' };
+    static const byte uriNoColon[]= { 'n','o','c','o','l','o','n' };
+
+    WB_NOTE("DecodeAcertGeneralName(): URI hier-part [:39961]; "
+            "DecodeAcertGeneralNames() loop [:40068]");
+
+    XMEMSET(&acert, 0, sizeof(acert));
+    idx = 0;
+    ret = DecodeAcertGeneralName(uriOk, &idx,
+            (byte)(ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE), (int)sizeof(uriOk),
+            &acert, &entries);
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(IGNORE_NAME_CONSTRAINTS)
+    WB_CHECK(ret == 0, ":39961 both operands false (absolute URI)");
+#else
+    WB_CHECK(ret == 0, "absolute URI (strict validation compiled out)");
+#endif
+    FreeAltNames(entries, NULL);
+    entries = NULL;
+
+    XMEMSET(&acert, 0, sizeof(acert));
+    idx = 0;
+    ret = DecodeAcertGeneralName(uriColon0, &idx,
+            (byte)(ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE),
+            (int)sizeof(uriColon0), &acert, &entries);
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(IGNORE_NAME_CONSTRAINTS)
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_ALT_NAME_E),
+            ":39961 1st operand true (scheme separator first)");
+#else
+    WB_CHECK(ret == 0, "leading colon (strict validation compiled out)");
+#endif
+    FreeAltNames(entries, NULL);
+    entries = NULL;
+
+    XMEMSET(&acert, 0, sizeof(acert));
+    idx = 0;
+    ret = DecodeAcertGeneralName(uriNoColon, &idx,
+            (byte)(ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE),
+            (int)sizeof(uriNoColon), &acert, &entries);
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(IGNORE_NAME_CONSTRAINTS)
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_ALT_NAME_E),
+            ":39961 1st operand false, 2nd true (no scheme separator)");
+#else
+    WB_CHECK(ret == 0, "no colon (strict validation compiled out)");
+#endif
+    FreeAltNames(entries, NULL);
+    entries = NULL;
+
+    XMEMSET(&acert, 0, sizeof(acert));
+    ret = DecodeAcertGeneralNames(gnOne, (word32)sizeof(gnOne),
+            (byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 4), &acert,
+            &entries);
+    WB_CHECK(ret == 0, ":40068 both operands true then 2nd false (one name)");
+    FreeAltNames(entries, NULL);
+    entries = NULL;
+
+    XMEMSET(&acert, 0, sizeof(acert));
+    ret = DecodeAcertGeneralNames(gnTwo, (word32)sizeof(gnTwo),
+            (byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 4), &acert,
+            &entries);
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(IGNORE_NAME_CONSTRAINTS)
+    WB_CHECK(ret != 0, ":40068 1st operand false (second name rejected)");
+#else
+    WB_CHECK(ret == 0, "two names (strict validation compiled out)");
+#endif
+    FreeAltNames(entries, NULL);
+}
 #else
 static void wb_decode_holder_issuer_guards(void)
 {
     WB_NOTE("DecodeHolder/DecodeAttCertIssuer (no WOLFSSL_ACERT); skipped");
+}
+static void wb_acert_general_names(void)
+{
+    WB_NOTE("acert general names (no WOLFSSL_ACERT); skipped");
 }
 static void wb_acert_rsapss_params(void)
 {
@@ -3012,6 +3112,7 @@ int main(void)
     wb_parse_x509_acert();
     wb_parse_acert_bad_dates();
     wb_acert_rsapss_params();
+    wb_acert_general_names();
 
     wb_pem_to_der_guards();
     wb_encrypted_info_parse_guards();

@@ -1363,6 +1363,22 @@ static void wb_parse_key_usage_str_null_args(void)
     ret = ParseKeyUsageStr("digitalSignature,keyCertSign", &keyUsage, NULL);
     WB_CHECK(ret == 0 && keyUsage != 0, ":28135 both operands false");
 
+    /* The nonRepudiation arm accepts two spellings; every in-tree caller and
+     * every tests/api case uses the older one, so the X.509v3 spelling is the
+     * only way to drive the OR's second operand. */
+    keyUsage = 0;
+    ret = ParseKeyUsageStr("nonRepudiation", &keyUsage, NULL);
+    WB_CHECK(ret == 0 && (keyUsage & KEYUSE_CONTENT_COMMIT) != 0,
+            ":28155 1st operand true");
+    keyUsage = 0;
+    ret = ParseKeyUsageStr("contentCommitment", &keyUsage, NULL);
+    WB_CHECK(ret == 0 && (keyUsage & KEYUSE_CONTENT_COMMIT) != 0,
+            ":28155 1st operand false, 2nd true");
+    keyUsage = 0;
+    ret = ParseKeyUsageStr("keyEncipherment", &keyUsage, NULL);
+    WB_CHECK(ret == 0 && (keyUsage & KEYUSE_CONTENT_COMMIT) == 0,
+            ":28155 both operands false");
+
     ret = ParseKeyUsageStr(NULL, &keyUsage, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":28135 value==NULL");
 
