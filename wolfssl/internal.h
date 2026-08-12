@@ -2523,6 +2523,7 @@ WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                        int tls1_2, int tls1_3, int keySz,
                                        word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
@@ -7511,6 +7512,7 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
                                 void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509* x509);
+    WOLFSSL_LOCAL void ReinitX509(WOLFSSL_X509* x509);
     #ifndef NO_ASN
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509* x509,
                                          DecodedCert* dCert);

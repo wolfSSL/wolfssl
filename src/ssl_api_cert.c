@@ -2867,9 +2867,13 @@ static int DecodeToX509(WOLFSSL_X509* x509, const byte* in, int len)
         InitDecodedCert(cert, (byte*)in, (word32)len, NULL);
         ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL);
         if (ret == 0) {
-            /* Initialize when not done by wolfSSL_X509_new() already. */
+        /* Check if x509 was not previously initialized by wolfSSL_X509_new() */
             if (x509->dynamicMemory != TRUE) {
-                InitX509(x509, 0, NULL);
+                /* A non-dynamic x509 (e.g. ssl->peerCert) may already hold
+                 * decoded contents; free them before re-populating. ReinitX509
+                 * keeps the object's heap and reference state, as the object
+                 * may be referenced elsewhere. */
+                ReinitX509(x509);
             }
             ret = CopyDecodedToX509(x509, cert);
         }
