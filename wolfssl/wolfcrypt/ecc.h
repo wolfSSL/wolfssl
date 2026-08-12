@@ -71,6 +71,17 @@
     #include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
 #endif
 
+#if defined(WOLFSSL_DHUK) || defined(WOLFSSL_STM32U5_DHUK)
+    /* wc_ecc_import_wrapped_private below is gated on WC_STM32_HAS_DHUK, which
+     * only stm32.h defines. Pull it in here so the prototype and the ecc.c
+     * definition are always gated identically -- otherwise the guard silently
+     * evaluates false in any translation unit that has not seen stm32.h.
+     * WOLFSSL_STM32U5_DHUK is the documented legacy spelling; stm32.h maps it
+     * to WOLFSSL_DHUK, so it has to be tested here too or the include is
+     * skipped for exactly the users following the older docs. */
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -763,8 +774,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
-#if defined(WOLFSSL_DHUK) && defined(WOLFSSL_STM32_BARE) && \
-    defined(WC_STM32_HAS_DHUK)
+#if defined(WOLFSSL_DHUK) && defined(WC_STM32_HAS_DHUK) && \
+    (defined(WOLFSSL_STM32_BARE) || defined(WOLFSSL_STM32_CUBEMX))
 /* DHUK ECC sign: import a hardware-wrapped ECC private scalar + its derivation
  * seed onto the ecc_key for the crypto-callback sign path. The caller MUST also
  * populate key->pubkey (via wc_ecc_import_x963) so verify can use the
