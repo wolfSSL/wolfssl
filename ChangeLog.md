@@ -84,6 +84,13 @@
   compile error; the ATECC508A/608A gating is identical, and on the TA100 the
   helper was declared without a definition, so that build failed at link.
 
+* **Behavioral change (`WOLFSSL_MP_INVMOD_CONSTANT_TIME` removed)**: DSA
+  signing and RSA key generation now always use their blinded or Fermat
+  inverse, as builds without the macro already did.  Builds that defined it
+  switch from a direct `mp_invmod()` to the blinded (DSA) or Fermat (RSA)
+  inverse, and DSA signing draws one extra random value for the blinding
+  factor; defining it has no effect. by @stenslae (PR 11159)
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
