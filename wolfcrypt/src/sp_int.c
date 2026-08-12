@@ -5131,7 +5131,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     !defined(NO_DSA) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA) || \
     (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
-    defined(WOLFCRYPT_HAVE_ECCSI)
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 #ifndef WC_NO_CACHE_RESISTANT
 #ifdef WC_NO_PTR_INT_CAST
 static void _sp_cond_copy(const sp_int* a, int copy, sp_int* r, sp_size_t used)
@@ -13141,7 +13141,8 @@ int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
-    defined(OPENSSL_ALL) || defined(WOLFCRYPT_HAVE_ECCSI)
+    defined(OPENSSL_ALL) || defined(WOLFCRYPT_HAVE_ECCSI) || \
+    defined(WOLFCRYPT_HAVE_SAKKE)
 
 #ifndef WC_PROTECT_ENCRYPTED_MEM
 
@@ -14172,7 +14173,8 @@ static int _sp_exptmod_base_2(const sp_int* e, int digits, const sp_int* m,
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     !defined(NO_DH) || (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
-    defined(OPENSSL_ALL) || defined(WOLFCRYPT_HAVE_ECCSI)
+    defined(OPENSSL_ALL) || defined(WOLFCRYPT_HAVE_ECCSI) || \
+    defined(WOLFCRYPT_HAVE_SAKKE)
 /* Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  *
  * Error returned when parameters r == e or r == m and base >= modulus.
@@ -14304,11 +14306,11 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
         }
     }
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(OPENSSL_ALL) || \
-    defined(WOLFCRYPT_HAVE_ECCSI)
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 #if (defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)) && \
     defined(NO_DH)
     if ((!done) && (err == MP_OKAY)) {
-    #if defined(WOLFCRYPT_HAVE_ECCSI)
+    #if defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
         /* Base may be secret (Fermat inverse): constant-time ladder. */
         err = _sp_exptmod_ex(b, e, digits * SP_WORD_SIZE, m, r);
     #else
@@ -14363,7 +14365,8 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     !defined(NO_DH) || (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
-    defined(OPENSSL_ALL) || defined(WOLFCRYPT_HAVE_ECCSI)
+    defined(OPENSSL_ALL) || defined(WOLFCRYPT_HAVE_ECCSI) || \
+    defined(WOLFCRYPT_HAVE_SAKKE)
 /* Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  *
  * @param [in]  b  SP integer that is the base.

@@ -144,13 +144,7 @@ int wc_InitSakkeKey_ex(SakkeKey* key, int keySize, int curveId, void* heap,
 #endif
         if (err == 0) {
             err = mp_init_multi(&params->prime, &params->q, &params->g,
-                    &params->a, &key->tmp.m1,
-#ifdef WOLFCRYPT_SAKKE_CLIENT
-                    &key->tmp.m2
-#else
-                    NULL
-#endif
-                    );
+                    &params->a, &key->tmp.m1, &key->tmp.m2);
         }
         if (err == 0) {
             key->mpInit = 1;
@@ -201,9 +195,7 @@ void wc_FreeSakkeKey(SakkeKey* key)
             mp_free(&params->g);
             mp_free(&params->a);
             mp_free(&key->tmp.m1);
-#ifdef WOLFCRYPT_SAKKE_CLIENT
             mp_free(&key->tmp.m2);
-#endif
             key->mpInit = 0;
         }
 #ifdef WOLFCRYPT_SAKKE_CLIENT
@@ -1012,9 +1004,16 @@ int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz, ecc_point* rsk)
     if (err == 0) {
         err = mp_addmod(a, wc_ecc_key_get_priv(&key->ecc), &key->params.q, a);
     }
-    /* (a + z_T) ^ 1 modulo q */
+    /* mp_exptmod silently yields 0 for a zero base; check invertibility. */
+    if ((err == 0) && mp_iszero(a)) {
+        err = MP_VAL;
+    }
+    /* (a + z_T)^-1 = a^(q-2) mod q; q is prime. */
     if (err == 0) {
-        err = mp_invmod(a, &key->params.q, a);
+        err = mp_sub_d(&key->params.q, 2, &key->tmp.m2);
+    }
+    if (err == 0) {
+        err = mp_exptmod(a, &key->tmp.m2, &key->params.q, a);
     }
 
     /* [ (a + z_T) ^ 1 modulo q ]P */
