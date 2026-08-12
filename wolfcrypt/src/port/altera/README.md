@@ -55,7 +55,7 @@ because doing so could strand state or device keys owned by the port.
 |---|---|---|
 | RNG | yes | the TRNG seeds wolfSSL's DRBG; generate requests stay in the DRBG unless built with `WOLFSSL_ALTERA_FCS_RAW_RNG` |
 | SHA-256 | yes | messages from `WOLFSSL_ALTERA_FCS_HASH_MIN` (default 4096) through 4 MiB; other sizes complete in software |
-| AES-128/256 CBC, CTR | yes | length must be a multiple of 32 bytes and at least `WOLFSSL_ALTERA_FCS_AES_MIN` (default 4096); other requests fall back to software |
+| AES-128/256 CBC, CTR | yes | length must be a multiple of 32 bytes and at least `WOLFSSL_ALTERA_FCS_AES_MIN` (default 4096); other requests fall back to software. Device resident keys are supported, see below |
 | AES-192 | software | the SDM key object has no 192 bit code |
 | AES-GCM | software | not offloaded by this port |
 | ECDSA sign | yes | device resident keys only, see below; verify always runs in software |
@@ -99,6 +99,37 @@ Properties of a device key:
 
 The device holds roughly 27 key slots. `wc_ecc_free()` releases the slot; a
 leaked slot lasts until the service session closes.
+
+## AES device keys
+
+An AES key handed to `wc_AesSetKey()` is already plaintext in HPS memory, so
+importing it buys SDM usage enforcement, not secrecy. For a key that never
+exists outside the device, create it inside the SDM:
+
+```c
+wc_AesInit(&aes, NULL, WOLFSSL_ALTERA_FCS_DEVID);
+wc_AlteraFcsAes_MakeKey(&aes, 256);                 /* or 128 */
+wc_AesSetIV(&aes, iv);
+wc_AesCbcEncrypt(&aes, out, in, sz);                /* or CTR */
+```
+
+Properties of a resident AES key, mirroring ECC device keys:
+
+* the key never exists in HPS memory: `aes.devKey` and the round key schedule
+  stay empty, and `wc_AlteraFcsAes_IsDeviceKey()` returns 1
+* `wc_AesSetKey()` on the context is refused with `WC_HW_E`; re-keying means
+  freeing the context and creating a new device key
+* every operation runs on the device by handle; an SDM-ineligible length or a
+  device failure is reported as `WC_HW_E` and never falls back to software,
+  because no plaintext key exists to fall back to
+* the usage mask is fixed to encrypt/decrypt at creation; 192 bit keys are
+  refused because the key object has no code for them
+* `wc_AesFree()` releases the device slot
+
+The same 32-byte length multiple and `WOLFSSL_ALTERA_FCS_AES_MIN` floor apply,
+but as hard requirements rather than fallback thresholds. Both plaintext data
+and ciphertext still pass through HPS memory; the protection is key custody,
+not data-path secrecy.
 
 ## HMAC verification with vault keys
 
