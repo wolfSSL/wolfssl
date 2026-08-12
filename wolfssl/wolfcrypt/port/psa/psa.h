@@ -92,6 +92,7 @@ WOLFSSL_API int wc_psa_get_random(unsigned char *out, word32 sz);
 
 int wc_psa_aes_init(Aes *aes);
 int wc_psa_aes_free(Aes *aes);
+int wc_psa_aes_reset_ctx(Aes *aes);
 int wc_psa_aes_get_key_size(Aes *aes, word32 *keySize);
 int wc_psa_aes_set_key(Aes *aes, const uint8_t *key,
                        size_t key_length, uint8_t *iv,
