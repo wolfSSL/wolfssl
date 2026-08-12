@@ -2146,6 +2146,99 @@ static void wb_auth_env_shapes(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 11: wc_PKCS7_AddRecipient_KEKRI() wrapped-key size guard [:11192].
+ *
+ * `encryptedKeySz == 0 || encryptedKeySz > MAX_ENCRYPTED_KEY_SZ` sits on the
+ * result of wc_PKCS7_KeyWrap(). With the built-in AES key wrap the result is
+ * always between 1 and the output buffer size, so neither operand can be
+ * true -- but wc_PKCS7_SetAESKeyWrapUnwrapCb() lets an application replace the
+ * wrap, and this guard is precisely the check on what that application returns.
+ * The three callbacks below are the three rows: a wrap that reports nothing
+ * written, one that reports more than the buffer holds, and the real wrap.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && defined(WOLFSSL_AES_256)
+#define WB_KEKRI_SEED 0x2b1e7a44UL
+
+static int wb_kw_zero(const byte* key, word32 keySz, const byte* in,
+        word32 inSz, int wrap, byte* out, word32 outSz)
+{
+    (void)key; (void)keySz; (void)in; (void)inSz; (void)wrap; (void)out;
+    (void)outSz;
+    return 0;
+}
+
+static int wb_kw_toobig(const byte* key, word32 keySz, const byte* in,
+        word32 inSz, int wrap, byte* out, word32 outSz)
+{
+    (void)key; (void)keySz; (void)in; (void)inSz; (void)wrap; (void)out;
+    (void)outSz;
+    return MAX_ENCRYPTED_KEY_SZ + 1;
+}
+
+static int wb_kekri_add(CallbackAESKeyWrapUnwrap cb)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    WC_RNG    rng;
+    byte      kek[32];
+    byte      keyId[8];
+    int       ret = -1;
+
+    if (p == NULL) {
+        return -1;
+    }
+    XMEMSET(kek, 0x5c, sizeof(kek));
+    XMEMSET(keyId, 0x11, sizeof(keyId));
+
+    mcdc_sr_arm(WB_KEKRI_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    if (wc_PKCS7_Init(p, NULL, INVALID_DEVID) == 0) {
+        p->encryptOID = AES256CBCb;
+        p->rng        = &rng;
+        if (cb != NULL) {
+            (void)wc_PKCS7_SetAESKeyWrapUnwrapCb(p, cb);
+        }
+        ret = wc_PKCS7_AddRecipient_KEKRI(p, AES256_WRAP, kek,
+                (word32)sizeof(kek), keyId, (word32)sizeof(keyId), NULL, NULL,
+                0, NULL, 0, 0);
+    }
+    wc_PKCS7_Free(p);
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    return ret;
+}
+
+static void wb_kekri_keysize_guard(void)
+{
+    int ret;
+
+    WB_NOTE("wc_PKCS7_AddRecipient_KEKRI(): real AES key wrap [:11192 both"
+            " operands false]");
+    ret = wb_kekri_add(NULL);
+    WB_CHECK(ret > 0, ":11192 both false (real wrap returns the recipient"
+            " size)");
+
+    WB_NOTE("wc_PKCS7_AddRecipient_KEKRI(): key-wrap callback reporting a"
+            " zero-length wrapped key [:11192 cond 0 true]");
+    ret = wb_kekri_add(wb_kw_zero);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E), ":11192 cond 0 true");
+
+    WB_NOTE("wc_PKCS7_AddRecipient_KEKRI(): key-wrap callback reporting more"
+            " than the output buffer holds [:11192 cond 1 true]");
+    ret = wb_kekri_add(wb_kw_toobig);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E), ":11192 cond 1 true");
+}
+#else
+static void wb_kekri_keysize_guard(void)
+{
+    WB_NOTE("no AES-256 key wrap; KEKRI wrapped-key size guard skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -2162,6 +2255,7 @@ int main(void)
     wb_multipart_walk();
     wb_stage2_shells();
     wb_stage4_cert_tails();
+    wb_kekri_keysize_guard();
     wb_footer_hash_matrix();
     wb_der_handoff();
     wb_key_oid_matrix();
