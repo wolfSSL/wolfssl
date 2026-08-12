@@ -19,7 +19,7 @@
 
     wc_TspRequest_Init(&req);
     wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256);
-    wc_TspRequest_SetHash(&req, hash, sizeof(hash));
+    wc_TspRequest_SetHash(&req, hash, (word32)sizeof(hash));
     req.certReq = 1;
     \endcode
 
@@ -53,7 +53,7 @@ int wc_TspRequest_Init(TspRequest* req);
 
     wc_TspRequest_Init(&req);
     wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256);
-    wc_TspRequest_SetHash(&req, hash, sizeof(hash));
+    wc_TspRequest_SetHash(&req, hash, (word32)sizeof(hash));
     req.certReq = 1;
     \endcode
 
@@ -155,7 +155,7 @@ int wc_TspRequest_GetHash(const TspRequest* req, byte* hash, word32* hashSz);
 
     wc_TspRequest_Init(&req);
     wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256);
-    wc_TspRequest_SetHash(&req, hash, sizeof(hash));
+    wc_TspRequest_SetHash(&req, hash, (word32)sizeof(hash));
     \endcode
 
     \sa wc_TspRequest_GetHash

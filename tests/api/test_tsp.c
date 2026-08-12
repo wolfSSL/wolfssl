@@ -526,6 +526,19 @@ int test_wc_TspRequest_Encode(void)
     sz = (word32)sizeof(enc);
     ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &sz), 0);
     ExpectIntGT(sz, (word32)sizeof(tsMinReqDer));
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && defined(WOLFSSL_SHA512) && \
+    !defined(WOLFSSL_NOSHA512_224)
+    /* SHA-512/224 imprint - the OID maps back to the algorithm. */
+    ExpectIntEQ(wc_TspRequest_Init(&req), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA512_224), 0);
+    ExpectIntEQ(req.imprint.hashAlgOID, SHA512_224h);
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, tsHashedMsg,
+        WC_SHA512_224_DIGEST_SIZE), 0);
+    sz = (word32)sizeof(enc);
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &sz), 0);
+#endif
 #endif
     return EXPECT_RESULT();
 }
