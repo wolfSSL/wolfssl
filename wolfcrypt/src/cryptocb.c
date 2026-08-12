@@ -89,7 +89,11 @@ silence."
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
-/* TODO: Consider linked list with mutex */
+/* Fixed table, read without a lock on every offloaded operation. Lookups
+ * match on devId, so an entry is filled before devId is stored and cleared
+ * after devId is retired. Store ordering only - no barrier - so serializing
+ * register/unregister against each other and against in-flight operations
+ * remains the caller's job. */
 
 typedef struct CryptoCb {
     int devId;
@@ -435,8 +439,10 @@ static WC_INLINE int wc_CryptoCb_TranslateErrorCode(int ret)
 /* Helper function to reset a device entry to invalid */
 static WC_INLINE void wc_CryptoCb_ClearDev(CryptoCb *dev)
 {
-    XMEMSET(dev, 0, sizeof(*dev));
+    /* Retire the entry before clearing the rest of it. */
     dev->devId = INVALID_DEVID;
+    dev->cb    = NULL;
+    dev->ctx   = NULL;
 }
 
 void wc_CryptoCb_Init(void)
@@ -528,7 +534,7 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
     if (dev == NULL)
         return BUFFER_E; /* out of devices */
 
-    dev->devId = devId;
+    /* Fill the entry before publishing it - see the note on gCryptoDev. */
     dev->cb    = cb;
     dev->ctx   = ctx;
 
@@ -554,9 +560,14 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
         else {
             /* Error in callback register cmd. Don't register */
             wc_CryptoCb_ClearDev(dev);
+            return rc;
         }
     }
 #endif
+
+    /* Publish the entry last. */
+    dev->devId = devId;
+
     return rc;
 }
 
