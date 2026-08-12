@@ -159,7 +159,7 @@ typedef struct {
 } wc_CryptoCb_AesAuthDec;
 #endif
 
-#if defined(WOLFSSL_SM_CRYPTOCB) && \
+#if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB) && \
     (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
 /* GCM and CCM both pass the IV through nonce/nonceSz. */
 typedef struct {
@@ -679,7 +679,7 @@ typedef struct wc_CryptoInfo {
                 int         pad;      /* 1 = RFC 5649 padded, 0 = RFC 3394 */
             } aeskeywrap;
         #endif
-        #ifdef WOLFSSL_SM_CRYPTOCB
+        #if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
             #ifdef WOLFSSL_SM4_GCM
             wc_CryptoCb_Sm4AuthEnc sm4gcm_enc;
             wc_CryptoCb_Sm4AuthDec sm4gcm_dec;
@@ -712,7 +712,7 @@ typedef struct wc_CryptoInfo {
                 word32      sz;
             } sm4ecb;
             #endif /* WOLFSSL_SM4_ECB */
-        #endif /* WOLFSSL_SM_CRYPTOCB */
+        #endif /* WOLFSSL_SM4 && WOLFSSL_SM_CRYPTOCB */
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
