@@ -475,7 +475,7 @@ chacha_encrypt_sse3 PROC
         mov	r14, QWORD PTR [ptr_L_chacha20_sse3_rotl16]
         mov	r15, QWORD PTR [ptr_L_chacha20_sse3_one]
         cmp	r9d, 128
-        jl	L_chacha20_sse3_128_done
+        jb	L_chacha20_sse3_128_done
 L_chacha20_sse3_128_start:
         movdqu	xmm0, OWORD PTR [rcx]
         movdqu	xmm1, OWORD PTR [rcx+16]
@@ -616,7 +616,7 @@ L_chacha20_sse3_128_crypt2_start:
         add	rdx, 128
         add	r8, 128
         cmp	r9d, 128
-        jge	L_chacha20_sse3_128_start
+        jae	L_chacha20_sse3_128_start
 L_chacha20_sse3_128_done:
         cmp	r9d, 0
         je	L_chacha20_sse3_last_done
@@ -731,7 +731,7 @@ L_chacha20_sse3_last_crypt2_start:
         paddd	xmm7, xmm13
         paddd	xmm7, OWORD PTR [r15]
         cmp	r9d, 64
-        jle	L_chacha20_sse3_last_lt64
+        jbe	L_chacha20_sse3_last_lt64
         movdqu	xmm8, OWORD PTR [rdx]
         pxor	xmm0, xmm8
         movdqu	OWORD PTR [r8], xmm0
@@ -2060,7 +2060,7 @@ L_chacha20_avx512vl_loop128:
         sub	r9d, 256
         vmovdqa	OWORD PTR [r11+192], xmm12
         cmp	r9d, 256
-        jl	L_chacha20_avx512vl_done128
+        jb	L_chacha20_avx512vl_done128
         vmovdqa	xmm0, OWORD PTR [r11]
         vmovdqa	xmm1, OWORD PTR [r11+16]
         vmovdqa	xmm2, OWORD PTR [r11+32]
@@ -2298,7 +2298,7 @@ L_chacha20_avx512vl_last_round:
         vmovdqu	OWORD PTR [r11+224], xmm6
         vmovdqu	OWORD PTR [r11+240], xmm7
         cmp	r9d, 64
-        jl	L_chacha20_avx512vl_last_fdone
+        jb	L_chacha20_avx512vl_last_fdone
 L_chacha20_avx512vl_last_fstart:
         vmovdqu	xmm0, OWORD PTR [rdx]
         vpxor	xmm0, xmm0, [r11]
@@ -2318,7 +2318,7 @@ L_chacha20_avx512vl_last_fstart:
         add	r8, 64
         add	r11, 64
         cmp	r9d, 64
-        jge	L_chacha20_avx512vl_last_fstart
+        jae	L_chacha20_avx512vl_last_fstart
 L_chacha20_avx512vl_last_fdone:
         cmp	r9d, 0
         je	L_chacha20_avx512vl_last_done
@@ -2399,7 +2399,7 @@ chacha_encrypt_avx512 PROC
         vmovdqu	OWORD PTR [rsp+152], xmm15
         mov	r10, QWORD PTR [ptr_L_chacha20_avx512_add]
         cmp	r9d, 1024
-        jl	L_chacha20_avx512_end512
+        jb	L_chacha20_avx512_end512
 L_chacha20_avx512_start512:
         vpbroadcastd	zmm0, DWORD PTR [rcx]
         vpbroadcastd	zmm1, DWORD PTR [rcx+4]
@@ -2637,7 +2637,7 @@ L_chacha20_avx512_loop512:
         add	DWORD PTR [rcx+48], 16
         sub	r9d, 1024
         cmp	r9d, 1024
-        jge	L_chacha20_avx512_start512
+        jae	L_chacha20_avx512_start512
 L_chacha20_avx512_end512:
         sub	rsp, 32
         call	chacha_encrypt_avx2
