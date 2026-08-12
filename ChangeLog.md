@@ -97,6 +97,10 @@
   `wc_MakeSakkeRsk_ex()` takes an existing `WC_RNG` instead. SAKKE with
   `WC_NO_RNG` now stops with `#error`; it never linked. by @stenslae (PR 11159)
 
+* **Behavioral change (heap-math `mp_addmod_ct()`, `mp_submod_ct()`,
+  `mp_div_2_mod_ct()`)**: these now return `MP_VAL` for an operand wider than
+  the modulus, and grow their input operands to the modulus width. by @stenslae (PR 11159)
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -112,6 +116,7 @@
 * With `FP_ECC` and `ECC_TIMING_RESISTANT` (the default), `wc_ecc_mulmod_ex()`/`_ex2()` no longer use the fixed-point cache; only `ecc_mul2add()` still does (ECDSA verify with Shamir's trick, and `wolfSSL_EC_POINT_mul()` given both scalars). by @stenslae (PR 11159)
 * ECCSI signing (`wc_SignEccsiHash()`) now blinds its modular inverse instead of inverting the secret value directly. by @stenslae (PR 11159)
 * SAKKE RSK derivation now blinds the inverse of a + z_T, which involves the KMS master secret. by @stenslae (PR 11159)
+* Heap-math (`--enable-heapmath`) `mp_addmod_ct()`, `mp_submod_ct()` and `mp_div_2_mod_ct()` no longer branch on operand values or lengths. by @stenslae (PR 11159)
 
 * Fixed `wc_AsconAEAD128_SetAD` called more than once: the function
   absorbs the key, nonce and associated data into the sponge state and then
