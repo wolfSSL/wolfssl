@@ -91,6 +91,55 @@
  * interposed, so cleanup keeps working and armed calls stay crash-safe. */
 #include "mcdc_fault_mp.h"
 
+/* --------------------------------------------------------------------------
+ * Value-forcing mp_rand() interposer for the 543 master-secret retry loop.
+ *
+ *     do { ... err = mp_rand(priv, digits, rng);
+ *              err = mp_mod(priv, &key->params.q, priv); }
+ *     while ((err == 0) && mp_iszero(wc_ecc_key_get_priv(&key->ecc)));
+ *
+ * Both conditions need the loop to actually RETRY, which only happens when the
+ * drawn scalar reduces to zero -- a ~2^-1024 event under real entropy, and one
+ * a seeded RNG cannot force either, because mp_rand() is served by the sp_int
+ * layer in a different TU (the seeded-RNG macro only rewrites call sites in the
+ * TU it is included in). Interposing mp_rand() here is the one lever that
+ * reaches it: sakke.c has exactly ONE mp_rand() call site (line 536), so no
+ * disambiguation is needed.
+ *
+ * Modes are ONE-SHOT, so the loop's second iteration draws a genuine random
+ * scalar and the loop terminates on real data -- there is no retry loop here
+ * whose termination depends on a random draw going a particular way.
+ *
+ * Ordering is the same load-bearing trick as mcdc_fault_mp.h: the wrapper is
+ * compiled while mp_rand still names the real entry point, and only then is the
+ * name redefined. sakke.c must be #included AFTER this block.
+ * ----------------------------------------------------------------------- */
+#define WB_SR_OFF   0   /* pass through */
+#define WB_SR_ZERO  1   /* succeed, but hand back the scalar 0 */
+#define WB_SR_FAIL  2   /* fail the draw */
+
+static int wb_sr_mode = WB_SR_OFF;
+
+MCDC_FM_MAYBE_UNUSED static int wb_sr_rand(mp_int* a, int digits, WC_RNG* rng)
+{
+    int mode = wb_sr_mode;
+
+    if (mode != WB_SR_OFF) {
+        wb_sr_mode = WB_SR_OFF;   /* one-shot */
+    }
+    if (mode == WB_SR_FAIL) {
+        return MCDC_FM_ERR;
+    }
+    if (mode == WB_SR_ZERO) {
+        mp_zero(a);
+        return 0;
+    }
+    return mp_rand(a, digits, rng);
+}
+
+#undef  mp_rand
+#define mp_rand(a, d, r)    wb_sr_rand((a), (d), (r))
+
 #include <wolfcrypt/src/sakke.c>
 
 #include "mcdc_fault_alloc.h"
