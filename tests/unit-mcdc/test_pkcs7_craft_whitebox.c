@@ -2239,6 +2239,116 @@ static void wb_kekri_keysize_guard(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 12: two decode helpers driven straight, with the buffer ending on
+ * the element they are about to read [:6468, :12422, :12432].
+ *
+ * Each of these is `GetASNTag(...) == 0 && tag == <expected>`; the leading
+ * operand's false row needs the read index to sit exactly at the end of the
+ * buffer, which no encoder-produced message provides because every element it
+ * writes is followed by the next one.
+ * ------------------------------------------------------------------------- */
+
+/* v3 SignerInfo whose buffer ends right after the version, so :6441 sets
+ * BUFFER_E, the SKID probe at :6445 is skipped and the IssuerAndSerial
+ * fallback at :6468 reads past the end */
+static byte wbSiEndsOnVersion[] = {
+    0x30, 0x03, 0x02, 0x01, 0x03
+};
+
+/* v3 SignerInfo carrying a PRIMITIVE [0] SubjectKeyIdentifier, which is the
+ * shape the :6468 fallback accepts */
+static byte wbSiPrimSkid[] = {
+    0x30, 0x0D,
+      0x02, 0x01, 0x03,
+      0x80, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+};
+
+static int wb_parse_signer_info(byte* in, word32 inSz)
+{
+    wc_PKCS7 pkcs7;
+    word32   idx = 0;
+    byte*    signedAttrib = NULL;
+    int      signedAttribSz = 0;
+    int      ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    pkcs7.version = 3;
+    ret = wc_PKCS7_ParseSignerInfo(&pkcs7, in, inSz, &idx, 0, &signedAttrib,
+            &signedAttribSz);
+    wc_PKCS7_SignerInfoFree(&pkcs7);
+    return ret;
+}
+
+#ifdef HAVE_ECC
+/* [0] OriginatorIdentifierOrKey of length zero, so the [1] OriginatorPublicKey
+ * probe that follows starts at the end of the buffer */
+static byte wbKariOriEmpty[] = { 0xA0, 0x00 };
+/* both wrappers present, which is the accepting shape for both probes */
+static byte wbKariOriBoth[]  = { 0xA0, 0x02, 0xA1, 0x00 };
+
+static int wb_kari_originator_call(byte* in, word32 inSz)
+{
+    wc_PKCS7       pkcs7;
+    WC_PKCS7_KARI* kari;
+    word32         idx = 0;
+    int            ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    if (wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID) != 0) {
+        return -1;
+    }
+    kari = wc_PKCS7_KariNew(&pkcs7, WC_PKCS7_DECODE);
+    if (kari == NULL) {
+        wc_PKCS7_Free(&pkcs7);
+        return -1;
+    }
+    ret = wc_PKCS7_KariGetOriginatorIdentifierOrKey(kari, in, inSz, &idx);
+    (void)wc_PKCS7_KariFree(kari);
+    wc_PKCS7_Free(&pkcs7);
+    return ret;
+}
+#endif /* HAVE_ECC */
+
+static void wb_short_buffer_probes(void)
+{
+    int ret;
+
+    WB_NOTE("wc_PKCS7_ParseSignerInfo(): v3 SignerInfo ending on the version,"
+            " so the IssuerAndSerial fallback tag read runs out of input"
+            " [:6468 cond 0 false]");
+    ret = wb_parse_signer_info(wbSiEndsOnVersion,
+            (word32)sizeof(wbSiEndsOnVersion));
+    WB_CHECK(ret != 0, ":6468 cond 0 false");
+
+    WB_NOTE("wc_PKCS7_ParseSignerInfo(): v3 SignerInfo with a primitive [0]"
+            " SubjectKeyIdentifier [:6468 both operands true]");
+    ret = wb_parse_signer_info(wbSiPrimSkid, (word32)sizeof(wbSiPrimSkid));
+    WB_CHECK(ret != 0, ":6468 both true (fails later on digestAlgorithm)");
+
+#ifdef HAVE_ECC
+    WB_NOTE("wc_PKCS7_KariGetOriginatorIdentifierOrKey(): empty buffer, so the"
+            " OriginatorIdentifierOrKey tag read runs out of input [:12422"
+            " cond 0 false]");
+    ret = wb_kari_originator_call(wbKariOriEmpty, 0);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":12422 cond 0 false");
+
+    WB_NOTE("wc_PKCS7_KariGetOriginatorIdentifierOrKey(): [0] wrapper of"
+            " length zero, so the OriginatorPublicKey tag read runs out of"
+            " input [:12432 cond 0 false]");
+    ret = wb_kari_originator_call(wbKariOriEmpty,
+            (word32)sizeof(wbKariOriEmpty));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":12432 cond 0 false");
+
+    WB_NOTE("wc_PKCS7_KariGetOriginatorIdentifierOrKey(): both wrappers"
+            " present [:12422 and :12432 accepting rows]");
+    ret = wb_kari_originator_call(wbKariOriBoth,
+            (word32)sizeof(wbKariOriBoth));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            ":12422/:12432 accepted, fails later on the algorithm identifier");
+#endif
+}
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -2256,6 +2366,7 @@ int main(void)
     wb_stage2_shells();
     wb_stage4_cert_tails();
     wb_kekri_keysize_guard();
+    wb_short_buffer_probes();
     wb_footer_hash_matrix();
     wb_der_handoff();
     wb_key_oid_matrix();
