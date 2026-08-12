@@ -1193,6 +1193,46 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         ret = X509StoreCheckPathLen(ctx);
     }
 
+    /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
+     * Always check against the leaf (end-entity) certificate, captured in
+     * orig before the chain-building loop modified ctx->current_cert.
+     *
+     * A mismatch is reported to the application verify callback the way
+     * OpenSSL's check_id_error() does: record error, error_depth and
+     * current_cert, then call it with ok=0, and let a return of 1 override.
+     * Without that call a callback installed to inspect or override
+     * verification errors never sees a hostname or IP mismatch. */
+    if (ctx->param != NULL) {
+        WOLFSSL_X509_STORE_CTX_verify_cb idVerifyCb =
+            X509StoreGetVerifyCb(ctx);
+
+        if (ret == WOLFSSL_SUCCESS && ctx->param->hostName[0] != '\0') {
+            if (wolfSSL_X509_check_host(orig,
+                    ctx->param->hostName,
+                    XSTRLEN(ctx->param->hostName),
+                    ctx->param->hostFlags, NULL) != WOLFSSL_SUCCESS) {
+                ctx->error = WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
+                ctx->error_depth = 0;
+                ctx->current_cert = orig;
+                if (idVerifyCb == NULL || idVerifyCb(0, ctx) != 1) {
+                    ret = WOLFSSL_FAILURE;
+                }
+            }
+        }
+        if (ret == WOLFSSL_SUCCESS && ctx->param->ipasc[0] != '\0') {
+            if (wolfSSL_X509_check_ip_asc(orig,
+                    ctx->param->ipasc,
+                    ctx->param->hostFlags) != WOLFSSL_SUCCESS) {
+                ctx->error = WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
+                ctx->error_depth = 0;
+                ctx->current_cert = orig;
+                if (idVerifyCb == NULL || idVerifyCb(0, ctx) != 1) {
+                    ret = WOLFSSL_FAILURE;
+                }
+            }
+        }
+    }
+
 exit:
     /* Copy back failed certs. */
     numFailedCerts = wolfSSL_sk_X509_num(failedCerts);
@@ -1251,33 +1291,6 @@ exit:
     if (origTrustedSk != NULL) {
         /* Shallow free: only the snapshot's stack nodes, not the X509s. */
         wolfSSL_sk_X509_free(origTrustedSk);
-    }
-
-    /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
-     * Always check against the leaf (end-entity) certificate, captured in
-     * orig before the chain-building loop modified ctx->current_cert. */
-    if (ctx->param != NULL) {
-        if (ret == WOLFSSL_SUCCESS && ctx->param->hostName[0] != '\0') {
-            if (wolfSSL_X509_check_host(orig,
-                    ctx->param->hostName,
-                    XSTRLEN(ctx->param->hostName),
-                    ctx->param->hostFlags, NULL) != WOLFSSL_SUCCESS) {
-                ctx->error = WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
-                ctx->error_depth = 0;
-                ctx->current_cert = orig;
-                ret = WOLFSSL_FAILURE;
-            }
-        }
-        if (ret == WOLFSSL_SUCCESS && ctx->param->ipasc[0] != '\0') {
-            if (wolfSSL_X509_check_ip_asc(orig,
-                    ctx->param->ipasc,
-                    ctx->param->hostFlags) != WOLFSSL_SUCCESS) {
-                ctx->error = WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
-                ctx->error_depth = 0;
-                ctx->current_cert = orig;
-                ret = WOLFSSL_FAILURE;
-            }
-        }
     }
 
     /* Fail closed on the way out: every failure has to be reportable through

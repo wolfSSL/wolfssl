@@ -1369,6 +1369,131 @@ int test_wolfSSL_X509_STORE_CTX_verify_cb(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && !defined(NO_ASN)
+/* Records each rejection and its error, then overrides it only if
+ * checkid_cb_accept says to; anything else is accepted. */
+static int checkid_cb_rejects = 0;
+static int checkid_cb_error = 0;
+static int checkid_cb_accept = 1;
+static int checkid_override_cb(int ok, X509_STORE_CTX* ctx)
+{
+    if (ok == 0) {
+        checkid_cb_rejects++;
+        checkid_cb_error = X509_STORE_CTX_get_error(ctx);
+        return checkid_cb_accept;
+    }
+    return 1; /* accept */
+}
+#endif
+
+/* A hostname or IP mismatch from X509_VERIFY_PARAM must be reported to the
+ * verify callback with ok=0, and the callback's acceptance must override it,
+ * as OpenSSL's check_id_error() does. */
+int test_wolfSSL_X509_STORE_CTX_verify_cb_check_id(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && !defined(NO_ASN)
+    X509* ca = NULL;
+    X509* leaf = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    X509_VERIFY_PARAM* param = NULL;
+
+    ExpectNotNull(ca = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/ca-cert.pem"));
+    /* server-cert.pem carries SAN DNS:example.com and IP:127.0.0.1. */
+    ExpectNotNull(leaf = test_wolfSSL_X509_STORE_CTX_ex_helper(
+        "./certs/server-cert.pem"));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), 1);
+
+    /* Sanity check: with a matching hostname the chain verifies and the
+     * callback is never handed a rejection. */
+    checkid_cb_rejects = 0;
+    checkid_cb_error = 0;
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_set_verify_cb(ctx, checkid_override_cb);
+    ExpectNotNull(param = X509_STORE_CTX_get0_param(ctx));
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_host(param, "example.com", 0), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(checkid_cb_rejects, 0);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    param = NULL;
+
+    /* Same chain, mismatching hostname: the callback must see ok=0 with
+     * X509_V_ERR_HOSTNAME_MISMATCH, and its acceptance must stand. */
+    checkid_cb_rejects = 0;
+    checkid_cb_error = 0;
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_set_verify_cb(ctx, checkid_override_cb);
+    ExpectNotNull(param = X509_STORE_CTX_get0_param(ctx));
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_host(param, "not-example.com", 0), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(checkid_cb_rejects, 1);
+    ExpectIntEQ(checkid_cb_error, X509_V_ERR_HOSTNAME_MISMATCH);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    param = NULL;
+
+#ifdef WOLFSSL_IP_ALT_NAME
+    /* Mismatching IP: same contract, with X509_V_ERR_IP_ADDRESS_MISMATCH. */
+    checkid_cb_rejects = 0;
+    checkid_cb_error = 0;
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_set_verify_cb(ctx, checkid_override_cb);
+    ExpectNotNull(param = X509_STORE_CTX_get0_param(ctx));
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_ip_asc(param, "10.0.0.1"), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(checkid_cb_rejects, 1);
+    ExpectIntEQ(checkid_cb_error, X509_V_ERR_IP_ADDRESS_MISMATCH);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    param = NULL;
+#endif /* WOLFSSL_IP_ALT_NAME */
+
+    /* A callback that declines to override must leave the mismatch fatal: only
+     * a return of 1 overrides it. */
+    checkid_cb_rejects = 0;
+    checkid_cb_error = 0;
+    checkid_cb_accept = 0;
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_set_verify_cb(ctx, checkid_override_cb);
+    ExpectNotNull(param = X509_STORE_CTX_get0_param(ctx));
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_host(param, "not-example.com", 0), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(checkid_cb_rejects, 1);
+    ExpectIntEQ(checkid_cb_error, X509_V_ERR_HOSTNAME_MISMATCH);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_ERR_HOSTNAME_MISMATCH);
+    checkid_cb_accept = 1;
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    param = NULL;
+
+    /* With no callback installed the mismatch must still fail closed and stay
+     * reportable through get_error(). */
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    ExpectNotNull(param = X509_STORE_CTX_get0_param(ctx));
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_host(param, "not-example.com", 0), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_ERR_HOSTNAME_MISMATCH);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    X509_free(leaf);
+    X509_free(ca);
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_FILESYSTEM && !NO_RSA &&
+        * !NO_ASN_TIME && !NO_ASN */
+    return EXPECT_RESULT();
+}
+
 /* The trust anchor's own pathLenConstraint must bound the path (matching
  * OpenSSL's -partial_chain behavior and wolfSSL's native ParseCertRelative).
  * Trust chainF-ICA2 (pathlen:0) directly as a partial-chain anchor and verify
