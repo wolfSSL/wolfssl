@@ -147,7 +147,9 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_ecc_whitebox.c \
               tests/unit-mcdc/test_eccsi_fault_whitebox.c \
               tests/unit-mcdc/test_eccsi_whitebox.c \
+              tests/unit-mcdc/test_ed25519_hash_fault_whitebox.c \
               tests/unit-mcdc/test_ed25519_whitebox.c \
+              tests/unit-mcdc/test_ed448_hash_fault_whitebox.c \
               tests/unit-mcdc/test_ed448_whitebox.c \
               tests/unit-mcdc/test_falcon_whitebox.c \
               tests/unit-mcdc/test_frodokem_cryptocb_whitebox.c \
@@ -182,6 +184,8 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_pkcs7_whitebox.c \
               tests/unit-mcdc/test_poly1305_whitebox.c \
               tests/unit-mcdc/test_puf_whitebox.c \
+              tests/unit-mcdc/test_pwdbased_whitebox.c \
+              tests/unit-mcdc/test_random_fault_whitebox.c \
               tests/unit-mcdc/test_random_whitebox.c \
               tests/unit-mcdc/test_rsa_fault_whitebox.c \
               tests/unit-mcdc/test_rsa_whitebox.c \
@@ -191,6 +195,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_sha3_whitebox.c \
               tests/unit-mcdc/test_sha512_whitebox.c \
               tests/unit-mcdc/test_she_whitebox.c \
+              tests/unit-mcdc/test_signature_whitebox.c \
               tests/unit-mcdc/test_slhdsa_hash_fault_whitebox.c \
               tests/unit-mcdc/test_slhdsa_whitebox.c \
               tests/unit-mcdc/test_sp_arm32_fault_whitebox.c \
