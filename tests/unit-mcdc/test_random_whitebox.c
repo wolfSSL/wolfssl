@@ -35,7 +35,9 @@
  *     file-static Hash_gen()/Hash512_gen() directly, which this closes.
  *     The "outSz != 0" leaf's OWN independence pair (out!=NULL held true
  *     while outSz==0 is observed at this check) is a separate, genuinely
- *     UNSATISFIABLE residual, not just hard to reach: the caller normalizes
+ *     UNSATISFIABLE residual, not just hard to reach (this is the second
+ *     condition of 816:17-816:42 in Hash_gen and of 1416:17-1416:42 in
+ *     Hash512_gen): the caller normalizes
  *     "if (outSz == 0) outSz = 1;" before the loop, and the loop bound
  *     len=ceil(outSz/OUTPUT_BLOCK_LEN) is derived from that same outSz, so
  *     outSz can only reach exactly 0 on what is already the loop's last
@@ -65,7 +67,9 @@
  *     wc_Sha256Update()/wc_Sha256Final() (resp. SHA-512) to fail mid-
  *     operation on a live call with valid buffers, which does not happen
  *     under normal library operation (same transform-failure class as the
- *     sha module's residuals) and is not forced here.
+ *     sha module's residuals) and is not forced here. NOTE: this is no
+ *     longer a residual -- tests/unit-mcdc/test_random_fault_whitebox.c
+ *     now drives both operands of both chains with mcdc_fault_hash.h.
  *
  * This white-box #includes random.c directly to reach these file-static
  * helpers and drives both sides of each leaf in the same binary (a single
