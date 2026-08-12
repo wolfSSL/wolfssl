@@ -9894,6 +9894,7 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 {
     int derSz = 0;
+    word32 derSzOut = 0;
     byte* derBuf = NULL;
     ecc_key* ecc;
 
@@ -9905,11 +9906,14 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 #ifdef HAVE_PKCS8
         if (key->pkcs8HeaderSz) {
             /* when key has pkcs8 header the pkey should too */
-            if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+            if (wc_EccKeyToPKCS8(ecc, NULL, &derSzOut) ==
+                    WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+                derSz = (int)derSzOut;
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
-                    if (wc_EccKeyToPKCS8(ecc, derBuf, (word32*)&derSz) >= 0) {
+                    if (wc_EccKeyToPKCS8(ecc, derBuf, &derSzOut) >= 0) {
+                        derSz = (int)derSzOut;
                         if (pkey->pkey.ptr) {
                             /* The outgoing buffer can hold a private key
                              * encoding, so wipe it before it is returned to

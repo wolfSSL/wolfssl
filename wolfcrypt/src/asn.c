@@ -14775,7 +14775,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     int nid         = 0;
 #endif
-    int tmpSize     = MAX_OID_SZ;
+    word32 tmpSize  = MAX_OID_SZ;
     word32 oid      = 0;
     word32 idx      = 0;
     word16 tmpName[MAX_OID_SZ];
@@ -14805,17 +14805,17 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         {
             /* Decode OBJECT_ID into dotted form array. */
             ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
-                    tmpName, (word32*)&tmpSize);
+                    tmpName, &tmpSize);
 
             if (ret == 0) {
                 j = 0;
                 /* Append each number of dotted form. */
-                for (i = 0; i < tmpSize; i++) {
+                for (i = 0; (word32)i < tmpSize; i++) {
                     if (j >= MAX_OID_SZ) {
                         return BUFFER_E;
                     }
 
-                    if (i < tmpSize - 1) {
+                    if ((word32)i < tmpSize - 1) {
                         ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
                             "%d.", tmpName[i]);
                     }
@@ -23918,6 +23918,7 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     word32      startIdx;
     word32      idx;
     word32      length;
+    int         seqLen;
     int         badDate;
 
     if (certDer == NULL || certDerSz == 0 || pubKeyDerSz == NULL) {
@@ -23928,6 +23929,7 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
         return MEMORY_E);
 
     length = 0;
+    seqLen = 0;
     badDate = 0;
 
     wc_InitDecodedCert(cert, certDer, certDerSz, NULL);
@@ -23940,8 +23942,9 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
 
         /* Get the length of the SubjectPublicKeyInfo sequence */
         idx = startIdx;
-        ret = GetSequence(certDer, &idx, (int*)&length, certDerSz);
+        ret = GetSequence(certDer, &idx, &seqLen, certDerSz);
         if (ret >= 0) {
+            length = (word32)seqLen;
             /* Calculate total length including sequence header */
             length += (idx - startIdx);
 
@@ -24132,7 +24135,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 #endif
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
-    int    idx = 0;
+    word32 idx = 0;
 #endif
     byte*  sce_tsip_encRsaKeyIdx;
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -24659,7 +24662,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
     /* prepare for TSIP TLS cert verification API use */
     if (cert->keyOID == RSAk) {
         /* to call TSIP API, it needs keys position info in bytes */
-        if ((ret = RsaPublicKeyDecodeRawIndex(cert->publicKey, (word32*)&idx,
+        if ((ret = RsaPublicKeyDecodeRawIndex(cert->publicKey, &idx,
                                    cert->pubKeySize,
                                    &cert->sigCtx.CertAtt.pubkey_n_start,
                                    &cert->sigCtx.CertAtt.pubkey_n_len,
@@ -25962,6 +25965,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     int i;
     int err;
     int outLen;   /* return length or error */
+    word32 outLenSz;  /* Base64_Encode in/out length */
 
     (void)cipher_info;
 
@@ -26010,12 +26014,13 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     if (!output && outSz == 0) {
         WC_FREE_VAR_EX(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        outLen = 0;
-        if ((err = Base64_Encode(der, derSz, NULL, (word32*)&outLen))
+        outLenSz = 0;
+        if ((err = Base64_Encode(der, derSz, NULL, &outLenSz))
                 != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             WOLFSSL_ERROR_VERBOSE(err);
             return err;
         }
+        outLen = (int)outLenSz;
         return (int)headerLen + (int)footerLen + outLen;
     }
 
@@ -26038,13 +26043,16 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     WC_FREE_VAR_EX(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* body */
-    outLen = (int)outSz - (int)(headerLen + footerLen);  /* input to Base64_Encode */
-    if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0) {
+    /* body - capacity for Base64_Encode. Kept in word32: the size guard above
+     * already established outSz >= headerLen + footerLen + derSz, and going
+     * via int would truncate where int is 16-bit. */
+    outLenSz = outSz - ((word32)headerLen + (word32)footerLen);
+    if ( (err = Base64_Encode(der, derSz, output + i, &outLenSz)) < 0) {
         WC_FREE_VAR_EX(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_ERROR_VERBOSE(err);
         return err;
     }
+    outLen = (int)outLenSz;
     i += outLen;
 
     /* footer */
