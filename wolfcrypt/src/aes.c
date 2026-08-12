@@ -3332,15 +3332,24 @@ static void bs_ke_sub_bytes(unsigned char* out, unsigned char *in) {
 }
 
 static void bs_ke_transform(unsigned char* out, unsigned char *in, word8 i) {
-    /* Rotate the input 8 bits to the left */
+    /* Rotate left 8 bits. The key schedule is a byte array, so use the
+     * unaligned accessors. */
 #ifdef LITTLE_ENDIAN_ORDER
-    *(word32*)out = rotrFixed(*(word32*)in, 8);
+    (void)writeUnalignedWord32(out, rotrFixed(readUnalignedWord32(in), 8));
 #else
-    *(word32*)out = rotlFixed(*(word32*)in, 8);
+    (void)writeUnalignedWord32(out, rotlFixed(readUnalignedWord32(in), 8));
 #endif
     bs_ke_sub_bytes(out, out);
     /* On just the first byte, add 2^i to the byte */
     out[0] ^= bs_rcon[i];
+}
+
+/* r = a ^ b, on schedule words in byte arrays of unknown alignment. */
+static void bs_ke_xor(unsigned char* r, const unsigned char* a,
+    const unsigned char* b)
+{
+    (void)writeUnalignedWord32(r,
+        readUnalignedWord32(a) ^ readUnalignedWord32(b));
 }
 
 static void bs_expand_key(unsigned char *in, word32 sz) {
@@ -3353,14 +3362,10 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
         for (o = 16; o < sz; o += 16) {
             bs_ke_transform(t, in + o - 4, i);
             i++;
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 16) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 12) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o -  8) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o -  4) ^
-                                      *(word32*)(in + o +  8);
+            bs_ke_xor(in + o +  0, in + o - 16, t);
+            bs_ke_xor(in + o +  4, in + o - 12, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o -  8, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o -  4, in + o +  8);
         }
     }
     else if (sz == 208) {
@@ -3368,18 +3373,12 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
         for (o = 24; o < sz; o += 24) {
             bs_ke_transform(t, in + o - 4, i);
             i++;
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 24) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 20) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o - 16) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o - 12) ^
-                                      *(word32*)(in + o +  8);
-            *(word32*)(in + o + 16) = *(word32*)(in + o -  8) ^
-                                      *(word32*)(in + o + 12);
-            *(word32*)(in + o + 20) = *(word32*)(in + o -  4) ^
-                                      *(word32*)(in + o + 16);
+            bs_ke_xor(in + o +  0, in + o - 24, t);
+            bs_ke_xor(in + o +  4, in + o - 20, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o - 16, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o - 12, in + o +  8);
+            bs_ke_xor(in + o + 16, in + o -  8, in + o + 12);
+            bs_ke_xor(in + o + 20, in + o -  4, in + o + 16);
         }
     }
     else if (sz == 240) {
@@ -3392,14 +3391,10 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
             else {
                 bs_ke_sub_bytes(t, in + o - 4);
             }
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 32) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 28) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o - 24) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o - 20) ^
-                                      *(word32*)(in + o +  8);
+            bs_ke_xor(in + o +  0, in + o - 32, t);
+            bs_ke_xor(in + o +  4, in + o - 28, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o - 24, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o - 20, in + o +  8);
         }
     }
 }

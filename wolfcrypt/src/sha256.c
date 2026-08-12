@@ -2397,8 +2397,20 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         }
 
         if (SHA256_UPDATE_REV_BYTES(&sha256->ctx)) {
-            ByteReverseWords(sha256->buffer, (const word32*)data,
+        #ifdef WOLFSSL_WIDE_BYTE
+            /* CHAR_BIT != 8: pack 16 big-endian schedule words octet-wise */
+            WordsFromBytesBE32(sha256->buffer, data,
+                WC_SHA256_BLOCK_SIZE / 4);
+        #else
+            /* Reverse in place. Stage first only when data is the caller's
+             * own buffer, which may be unaligned - LMS hands us
+             * sha256->buffer itself, and copying that onto itself is UB. */
+            if (data != (const unsigned char*)sha256->buffer) {
+                XMEMCPY(sha256->buffer, data, WC_SHA256_BLOCK_SIZE);
+            }
+            ByteReverseWords(sha256->buffer, sha256->buffer,
                 WC_SHA256_BLOCK_SIZE);
+        #endif
             data = (const unsigned char*)sha256->buffer;
         }
         ret = XTRANSFORM(sha256, data);

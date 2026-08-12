@@ -985,10 +985,12 @@ static void scryptROMix(byte* x, byte* v, byte* y, int r, word32 n)
     for (i = 0; i < n; i++)
     {
 #ifdef LITTLE_ENDIAN_ORDER
-#ifdef WORD64_AVAILABLE
-        j = (word32)(*(word64*)(x + (2*r - 1) * 64) & (n-1));
+        /* x is an allocator byte array; the big-endian path below already
+         * assembles this byte-wise. */
+#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
+        j = (word32)(readUnalignedWord64(x + (2*r - 1) * 64) & (n-1));
 #else
-        j = *(word32*)(x + (2*r - 1) * 64) & (n-1);
+        j = readUnalignedWord32(x + (2*r - 1) * 64) & (n-1);
 #endif
 #else
         byte* t = x + (2*r - 1) * 64;
