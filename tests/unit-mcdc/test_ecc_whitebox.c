@@ -3722,16 +3722,13 @@ static void wb_ecies_bad_kdf(void)
  * ------------------------------------------------------------------------- */
 #if defined(FP_ECC) && defined(ECC_SHAMIR) && !defined(WOLFSSL_SP_MATH) && \
     defined(WOLFCRYPT_HAVE_SAKKE)
-#define WB_SAKKE_FIELD 200
 static void wb_fp_mul2add_kb_size(void)
 {
     int idx = wc_ecc_get_curve_idx(ECC_SAKKE_1);
     const ecc_set_type* cs;
     mp_int a, modulus, kShort, kWide;
     ecc_point *A = NULL, *B = NULL, *C = NULL;
-    byte fbuf[WB_SAKKE_FIELD];
     byte wide[128];
-    word32 sz;
     int ret;
 
     if (idx == ECC_CURVE_INVALID) {
@@ -3744,41 +3741,46 @@ static void wb_fp_mul2add_kb_size(void)
         return;
     }
     if (mp_init_multi(&a, &modulus, &kShort, &kWide, NULL, NULL) != MP_OKAY) {
+        WB_NOTE("KB_SIZE: mp_init_multi failed");
         wb_fail = 1;
         return;
     }
 
     wc_ecc_fp_free(); /* deterministic empty-cache start */
 
-    if (wb_hex_to_bin(cs->Af, fbuf, &sz) != 0 ||
-            mp_read_unsigned_bin(&a, fbuf, (int)sz) != MP_OKAY) {
+    /* Read the curve fields straight into mp_ints: the file's shared
+     * wb_hex_to_bin() caps a field at WB_MAXFIELD (100) bytes, which the
+     * 128-byte SAKKE1 fields exceed. */
+    if ((mp_read_radix(&a, cs->Af, MP_RADIX_HEX) != MP_OKAY) ||
+        (mp_read_radix(&modulus, cs->prime, MP_RADIX_HEX) != MP_OKAY)) {
+        WB_NOTE("KB_SIZE: SAKKE1 a/prime would not parse");
         wb_fail = 1; goto out;
     }
-    if (wb_hex_to_bin(cs->prime, fbuf, &sz) != 0 ||
-            mp_read_unsigned_bin(&modulus, fbuf, (int)sz) != MP_OKAY) {
+    if (mp_unsigned_bin_size(&modulus) != 128) {
+        WB_NOTE("KB_SIZE: SAKKE1 prime is not 128 bytes");
         wb_fail = 1; goto out;
     }
-    if (mp_unsigned_bin_size(&modulus) != 128) { wb_fail = 1; goto out; }
 
     (void)mp_set(&kShort, 3);
     /* 128 bytes: the same width as the modulus, so accel_fp_mul2add's
-     * "smaller than modulus" test does not reduce it. */
+     * "smaller than modulus" test does not reduce it and it reaches the
+     * KB_SIZE test at full width. */
     XMEMSET(wide, 0xFF, sizeof(wide));
-    if (mp_read_unsigned_bin(&kWide, wide, (int)sizeof(wide)) != MP_OKAY) {
+    if (mp_read_unsigned_bin(&kWide, wide, (word32)sizeof(wide)) != MP_OKAY) {
+        WB_NOTE("KB_SIZE: 128-byte scalar would not load");
         wb_fail = 1; goto out;
     }
 
     A = wc_ecc_new_point();
     B = wc_ecc_new_point();
     C = wc_ecc_new_point();
-    if (A == NULL || B == NULL || C == NULL) { wb_fail = 1; goto out; }
-
-    if (wb_hex_to_bin(cs->Gx, fbuf, &sz) != 0 ||
-            mp_read_unsigned_bin(A->x, fbuf, (int)sz) != MP_OKAY) {
+    if (A == NULL || B == NULL || C == NULL) {
+        WB_NOTE("KB_SIZE: point allocation failed");
         wb_fail = 1; goto out;
     }
-    if (wb_hex_to_bin(cs->Gy, fbuf, &sz) != 0 ||
-            mp_read_unsigned_bin(A->y, fbuf, (int)sz) != MP_OKAY) {
+    if ((mp_read_radix(A->x, cs->Gx, MP_RADIX_HEX) != MP_OKAY) ||
+        (mp_read_radix(A->y, cs->Gy, MP_RADIX_HEX) != MP_OKAY)) {
+        WB_NOTE("KB_SIZE: SAKKE1 generator would not parse");
         wb_fail = 1; goto out;
     }
     (void)mp_set(A->z, 1);
@@ -3790,23 +3792,28 @@ static void wb_fp_mul2add_kb_size(void)
      * accel_fp_mul2add with both scalars short -- the (FALSE,FALSE) row. */
     ret = ecc_mul2add(A, &kShort, B, &kShort, C, &a, &modulus, NULL);
     if (ret != MP_OKAY) {
-        WB_NOTE("SAKKE1 fp mul2add warm-up did not complete; KB_SIZE rows "
-                "skipped");
-        goto out;
+        WB_NOTE("KB_SIZE: SAKKE1 fp mul2add warm-up did not complete");
+        wb_fail = 1; goto out;
     }
     ret = ecc_mul2add(A, &kShort, B, &kShort, C, &a, &modulus, NULL);
-    if (ret != MP_OKAY) { wb_fail = 1; goto out; }
+    if (ret != MP_OKAY) {
+        WB_NOTE("KB_SIZE: second warm-up call failed");
+        wb_fail = 1; goto out;
+    }
 
     /* operand 0 TRUE (short-circuits) */
     ret = ecc_mul2add(A, &kWide, B, &kShort, C, &a, &modulus, NULL);
-    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) { wb_fail = 1; }
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
+        WB_NOTE("KB_SIZE: wide kA did not give BUFFER_E");
+        wb_fail = 1;
+    }
     /* operand 0 FALSE, operand 1 TRUE */
     ret = ecc_mul2add(A, &kShort, B, &kWide, C, &a, &modulus, NULL);
-    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) { wb_fail = 1; }
-
-    if (wb_fail) {
-        WB_NOTE("accel_fp_mul2add KB_SIZE guard unexpected return");
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
+        WB_NOTE("KB_SIZE: wide kB did not give BUFFER_E");
+        wb_fail = 1;
     }
+
     WB_NOTE("accel_fp_mul2add KB_SIZE scalar-width pairs done");
 
 out:
