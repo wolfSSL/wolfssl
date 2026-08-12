@@ -398,19 +398,19 @@ impl ECC {
 
     /// Allocate and initialize a new `sys::ecc_key` on the C heap.
     fn new_ecc_key(heap: *mut core::ffi::c_void, dev_id: i32) -> Result<*mut sys::ecc_key, i32> {
+        #[cfg(ecc_key_new_ex)]
+        let key = unsafe { sys::wc_ecc_key_new_ex(heap, dev_id) };
+        #[cfg(not(ecc_key_new_ex))]
         let key = unsafe { sys::wc_ecc_key_new(heap) };
         if key.is_null() {
             return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
         }
-        // wc_ecc_key_new() always initializes the key with INVALID_DEVID.
-        // Calling wc_ecc_init_ex() a second time to install the user's dev_id
-        // would re-run every initialization step (including allocations under
-        // some build configurations such as async crypto without WOLF_CRYPTO_CB)
-        // and orphan resources from the first init. Instead, just patch devId
-        // in place for WOLF_CRYPTO_CB builds.
-        #[cfg(wolf_crypto_cb)]
+        // wc_ecc_key_new() does not take a devId argument. Patch devId in
+        // place for WOLF_CRYPTO_CB builds where wc_ecc_key_new_ex() is not
+        // available.
+        #[cfg(all(not(ecc_key_new_ex), wolf_crypto_cb))]
         unsafe { (*key).devId = dev_id; }
-        #[cfg(not(wolf_crypto_cb))]
+        #[cfg(all(not(ecc_key_new_ex), not(wolf_crypto_cb)))]
         let _ = dev_id;
         Ok(key)
     }

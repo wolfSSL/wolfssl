@@ -44476,6 +44476,39 @@ exit:
     wc_ecc_key_free(key);
     return ret;
 }
+
+/* Test for the wc_ecc_key_new_ex() and wc_ecc_key_free() functions. */
+static wc_test_ret_t ecc_test_allocator_ex(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    ecc_key* key;
+#ifdef WC_NO_RNG
+    word32 idx = 0;
+#endif
+
+    key = wc_ecc_key_new_ex(HEAP_HINT, devId);
+    if (key == NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
+    }
+
+#ifndef WC_NO_RNG
+    ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+#else
+    /* use test ECC key */
+    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, key,
+        (word32)sizeof_ecc_key_der_256);
+    (void)rng;
+#endif
+
+exit:
+    wc_ecc_key_free(key);
+    return ret;
+}
 #endif
 
 /* ECC Non-blocking tests for Sign and Verify */
@@ -45480,6 +45513,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
     ret = ecc_test_allocator(&rng);
     if (ret != 0) {
         printf("ecc_test_allocator failed!\n");
+        goto done;
+    }
+    ret = ecc_test_allocator_ex(&rng);
+    if (ret != 0) {
+        printf("ecc_test_allocator_ex failed!\n");
         goto done;
     }
 #endif

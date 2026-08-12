@@ -682,7 +682,8 @@ int wc_ecc_init(ecc_key* key);
 
     \param key pointer to the ecc_key object to initialize
     \param heap pointer to a heap identifier
-    \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
+    \param devId ID to use with crypto callbacks or async hardware. Set to
+    INVALID_DEVID if not used
 
     _Example_
     \code
@@ -703,8 +704,11 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
     \brief This function uses a user defined heap and allocates space for the
     key structure.
 
-    \return 0 Returned upon successfully initializing the ecc_key object
-    \return MEMORY_E Returned if there is an error allocating memory
+    \param heap pointer to a heap identifier
+
+    \return Non-null returned upon successfully allocating and initializing the
+    ecc_key object
+    \return NULL returned if there is an error allocating memory
 
 
     _Example_
@@ -712,12 +716,41 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
     wc_ecc_key_new(&heap);
     \endcode
 
+    \sa wc_ecc_key_new_ex
     \sa wc_ecc_make_key
     \sa wc_ecc_key_free
     \sa wc_ecc_init
 */
 
 ecc_key* wc_ecc_key_new(void* heap);
+
+/*!
+    \ingroup ECC
+
+    \brief This function uses a user defined heap and allocates space for the
+    key structure.
+
+    \param heap pointer to a heap identifier
+    \param devId ID to use with crypto callbacks or async hardware. Set to
+    INVALID_DEVID if not used
+
+    \return Non-null returned upon successfully allocating and initializing the
+    ecc_key object
+    \return NULL returned if there is an error allocating memory
+
+
+    _Example_
+    \code
+    wc_ecc_key_new_ex(&heap, MY_DEVID);
+    \endcode
+
+    \sa wc_ecc_key_new
+    \sa wc_ecc_make_key
+    \sa wc_ecc_key_free
+    \sa wc_ecc_init
+*/
+
+ecc_key* wc_ecc_key_new_ex(void* heap, int devId);
 
 /*!
     \ingroup ECC
@@ -2297,28 +2330,6 @@ int wc_ecc_set_curve(ecc_key *key, int keysize, int curve_id);
     \sa wc_ecc_init
 */
 mp_int* wc_ecc_key_get_priv(ecc_key* key);
-
-/*!
-    \ingroup ECC
-    \brief Allocates and initializes new ECC key.
-
-    \return ecc_key pointer on success
-    \return NULL on failure
-
-    \param heap Heap hint for memory allocation
-
-    _Example_
-    \code
-    ecc_key* key = wc_ecc_key_new(NULL);
-    if (key != NULL) {
-        // use key
-        wc_ecc_key_free(key);
-    }
-    \endcode
-
-    \sa wc_ecc_key_free
-*/
-ecc_key* wc_ecc_key_new(void* heap);
 
 /*!
     \ingroup ECC

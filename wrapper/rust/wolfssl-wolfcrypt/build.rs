@@ -396,6 +396,7 @@ fn scan_cfg() -> Result<()> {
 
     /* ecc */
     check_cfg(&binding, "wc_ecc_init", "ecc");
+    check_cfg(&binding, "wc_ecc_key_new_ex", "ecc_key_new_ex");
     check_cfg(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key");
     check_cfg(&binding, "wc_ecc_shared_secret", "ecc_dh");
     check_cfg(&binding, "wc_ecc_sign_hash", "ecc_sign");
