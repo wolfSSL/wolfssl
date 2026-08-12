@@ -652,20 +652,34 @@ static void wb_IntegerDecisionCoverage(void)
     (void)mp_set(&b, 4); /* min_b(1) > 0 */
     (void)s_mp_sub(&a, &b, &c); /* tmpa==NULL: true */
 
-    /* mp_exptmod_fast / mp_exptmod_base_2 / mp_montgomery_reduce: all
-     * three share
-     *   (N->used * 2 + 1 < MP_WARRAY) && (N->used < 1L<<(WORD_BITS-2*DB))
-     * (or the SUM-based digs variant for mp_montgomery_reduce) to pick
-     * between the comba-accelerated and generic montgomery reduce - both
-     * arms are functionally equivalent (just performance), so a small and
-     * a large (real, legitimately grown) modulus both succeed; only the
-     * dispatch is different. The two thresholds are numerically disjoint
-     * for this shape (N->used <= 255 from the first vs N->used >= 256
-     * needed for the second to go false), so the second operand's false
-     * side can never coexist with the first operand's true side -
-     * documented residual (see REPORT.md); only the first operand's pair
-     * is targeted here (small N takes the comba path, big N the generic
-     * one). */
+    /* mp_exptmod_fast (2107:*:1) / mp_exptmod_base_2 (2350:*:1) /
+     * mp_montgomery_reduce (2690:*:1): all three share
+     *   (N->used * 2 + 1 < (int)MP_WARRAY) &&
+     *   (N->used < (1L << (CHAR_BIT*sizeof(mp_word) - 2*DIGIT_BIT)))
+     * (mp_montgomery_reduce spells the first operand with the hoisted
+     * digs = n->used * 2 + 1 at :2689) to pick between the comba-accelerated
+     * and the generic montgomery reduce - both arms are functionally
+     * equivalent (just performance), so a small and a large (real,
+     * legitimately grown) modulus both succeed; only the dispatch differs.
+     *
+     * The second operand is EXCLUDED, not driven, and the argument is
+     * algebraic rather than numeric. wolfssl/wolfcrypt/integer.h:189 defines
+     *   MP_WARRAY = (mp_word)1 << (sizeof(mp_word)*CHAR_BIT - 2*DIGIT_BIT + 1)
+     * i.e. MP_WARRAY == 2 * B where B is the very bound the second operand
+     * tests against, for EVERY digit configuration (the two expressions are
+     * the same exponent, +1 apart). So over a non-negative integer u:
+     *   operand0 <=> 2u + 1 < 2B <=> 2u <= 2B - 2 <=> u <= B - 1 <=> u < B
+     * which is operand1 verbatim. The two operands are not merely disjoint,
+     * they are the SAME predicate, so the (T,F) row that operand1's
+     * independence pair needs does not exist. (Contrast mp_sqr at :3162,
+     * whose second operand uses "- 1" in the exponent, i.e. B/2; there the
+     * pair IS satisfiable and is driven below.) u is int-typed ->used, which
+     * mp_clamp/mp_grow keep in [0, alloc]; a used large enough to overflow
+     * "used * 2 + 1" would need >2^30 digits of dp and is undefined behaviour
+     * besides, so it is not a vector.
+     *
+     * Only the first operand's pair is targeted here (small N takes the
+     * comba path, big N the generic one). */
     (void)mp_init(&a);
     (void)mp_set(&a, 3);
     (void)mp_init(&b);
@@ -728,14 +742,16 @@ static void wb_IntegerDecisionCoverage(void)
     wolfmath_big_fill(&a, 300, 3); /* > 1st threshold too */
     (void)mp_sqr(&a, &c); /* both false: falls back */
 
-    /* mp_mul: "(digs < MP_WARRAY) && MIN(a->used,b->used) <= threshold" -
-     * digs is the SUM a->used+b->used+1, so making MIN large forces BOTH
-     * operands large, which forces digs large too - the same disjoint-
-     * threshold shape as mp_exptmod_fast/mp_montgomery_reduce above.
-     * Documented residual for the MIN operand's false side (see
-     * REPORT.md); the digs operand's pair is targeted here (small
-     * operands vs one huge operand with the other tiny, which keeps MIN
-     * small while pushing digs past MP_WARRAY). */
+    /* mp_mul (3199:*:1): "(digs < (int)MP_WARRAY) &&
+     * MIN(a->used,b->used) <= B", digs = a->used + b->used + 1 (:3197) and
+     * B == MP_WARRAY / 2 (see the identity spelled out above). The MIN
+     * operand is EXCLUDED: operand0 true means a->used + b->used + 1 <= 2B-1,
+     * hence a->used + b->used <= 2B-2, hence MIN <= B-1 <= B, so operand1 is
+     * forced TRUE whenever it is evaluated at all. MIN can only go false with
+     * both operands large, which drives digs past MP_WARRAY and
+     * short-circuits operand1 away. The digs operand's pair IS targeted here
+     * (small operands vs one huge operand with the other tiny, which keeps
+     * MIN small while pushing digs past MP_WARRAY). */
     wolfmath_big_fill(&a, 10, 3);
     wolfmath_big_fill(&b, 2, 3);
     (void)mp_init(&c);
@@ -758,11 +774,27 @@ static void wb_IntegerDecisionCoverage(void)
     (void)s_mp_mul_digs(&a, &b, &c, 305); /* digs(305)<
                                     WARRAY:T, MIN(300,300)<256: F */
 
-    /* s_mp_exptmod tail: "mode == 2 && bitcpy > 0" - same window-size
-     * reasoning as tfm.c's _fp_exptmod_nct (see
-     * wb_TfmExptModDecisionCoverage): a small exponent (<= 21 bits)
-     * always flushes its window exactly (bitcpy==0 at the tail); a bigger
-     * exponent leaves a partial window (bitcpy>0). */
+    /* s_mp_exptmod tail (3959:*:1), identical idiom in mp_exptmod_fast
+     * (2279:*:1): "if (mode == 2 && bitcpy > 0)".
+     *
+     * The "bitcpy > 0" operand is EXCLUDED: the sliding-window state machine
+     * maintains the invariant (mode == 2) => (bitcpy >= 1), so the (T,F) row
+     * operand1 needs does not exist. Exhaustively, in each function there are
+     * only three writes to 'mode' and two to 'bitcpy':
+     *   :3884/:2204  mode = 0    and  :3888/:2208  bitcpy = 0   (entry)
+     *   :3928/:2248  bitbuf |= (y << (winsize - ++bitcpy));  -- PRE-increment
+     *   :3929/:2249  mode = 2    -- immediately after, so bitcpy >= 1 here
+     *   :3952/:2272  bitcpy = 0  } same straight-line block, guarded by
+     *   :3954/:2274  mode   = 1  } "if (bitcpy == winsize)", no break/goto
+     *                              between them
+     * The only assignment that clears bitcpy also leaves mode == 1, and the
+     * only assignment that sets mode == 2 is preceded by an increment of
+     * bitcpy in the same expression statement. Hence at the tail guard
+     * mode == 2 implies bitcpy >= 1.
+     *
+     * The two calls below still pair the FIRST operand: a small exponent
+     * flushes its last window exactly (mode == 1 at the tail -> operand0 F),
+     * a bigger one leaves a partial window (mode == 2, bitcpy > 0 -> T,T). */
     (void)mp_init(&a);
     (void)mp_set(&a, 3);
     (void)mp_init(&b);
@@ -771,12 +803,14 @@ static void wb_IntegerDecisionCoverage(void)
     (void)mp_set(&b, 0x3FFFFFFF); /* 30 bits: winsize 3 */
     (void)s_mp_exptmod(&a, &b, &c, &a, 0);
 
-    /* s_mp_mul_high_digs: "(digs < MP_WARRAY) && MIN(a->used,b->used) <
-     * threshold" - here 'digs' is only used AFTER the threshold check
-     * (the check itself is SUM-based, from a->used+b->used, not the
-     * parameter), so it has the same disjoint-threshold shape as mp_mul;
-     * documented residual for the MIN operand (see REPORT.md), first
-     * operand's pair targeted here. */
+    /* s_mp_mul_high_digs (4170:*:1): "((a->used + b->used + 1) <
+     * (int)MP_WARRAY) && MIN(a->used,b->used) < B" - the 'digs' PARAMETER is
+     * only used after the check; the check itself is SUM-based on
+     * a->used+b->used, so this is the same coupling as mp_mul above (this
+     * one spells the second operand with "<" rather than "<=", which only
+     * makes the implication stricter: operand0 true => MIN <= B-1 < B).
+     * The MIN operand is EXCLUDED; the first operand's pair is targeted
+     * here. */
     wolfmath_big_fill(&a, 10, 3);
     wolfmath_big_fill(&b, 2, 3);
     (void)mp_init(&c);
