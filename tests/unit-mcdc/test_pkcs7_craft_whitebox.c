@@ -760,12 +760,13 @@ static word32 wb_wrap_signed(const byte* eblob, word32 eblobSz)
  * header included -- so its length byte can be a definite zero or an
  * indefinite 0x80, which is what the stage-2 encapContentInfo probes branch
  * on. Returns the total message size. */
-static word32 wb_wrap_signed_eci(const byte* eci, word32 eciSz)
+static word32 wb_wrap_signed_eci_tail(const byte* eci, word32 eciSz,
+        const byte* tail, word32 tailSz)
 {
     word32 sdBody, a0OutSz, ciBody, idx = 0;
 
     sdBody  = (word32)sizeof(wbVersion) + (word32)sizeof(wbDigestAlgs) +
-              eciSz + (word32)sizeof(wbNoSigners);
+              eciSz + tailSz;
     a0OutSz = wb_hdr_len(sdBody) + sdBody;
     ciBody  = (word32)sizeof(wbSignedDataOid) + wb_hdr_len(a0OutSz) + a0OutSz;
 
@@ -786,10 +787,17 @@ static word32 wb_wrap_signed_eci(const byte* eci, word32 eciSz)
     XMEMCPY(wbSdBuf + idx, eci, eciSz);
     idx += eciSz;
     wbSdBlobEnd = idx;
-    XMEMCPY(wbSdBuf + idx, wbNoSigners, sizeof(wbNoSigners));
-    idx += (word32)sizeof(wbNoSigners);
+    XMEMCPY(wbSdBuf + idx, tail, tailSz);
+    idx += tailSz;
 
     return idx;
+}
+
+/* the ordinary tail: an empty signerInfos SET */
+static word32 wb_wrap_signed_eci(const byte* eci, word32 eciSz)
+{
+    return wb_wrap_signed_eci_tail(eci, eciSz, wbNoSigners,
+            (word32)sizeof(wbNoSigners));
 }
 
 /* two definite OCTET STRINGs inside a CONSTRUCTED OCTET STRING: multiPart */
@@ -937,6 +945,58 @@ static int wb_verify_shell_content(word32 msgSz, word32 contentSz)
     p->content   = NULL;
     wc_PKCS7_Free(p);
     return ret;
+}
+
+/* ---- stage-4 certificate-set tails [:7699, :7708] -----------------------
+ * The certificates [0] element is OPTIONAL and every encoder writes it whole,
+ * so the two probes that read past its tag never see the tag as the last byte
+ * of the message. These tails put it there. */
+
+/* an eContent that parses cleanly, so stage 3 completes and stage 4 runs */
+static const byte wbEciPlain[] = {
+    0x30, 0x13,
+      0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+      0xA0, 0x06, 0x04, 0x04, 'A', 'A', 'A', 'A'
+};
+
+/* certificates [0] tag as the last byte: :7692 sets BUFFER_E, so :7699 is
+ * reached with ret already non-zero */
+static const byte wbTailCertTag[]   = { 0xA0 };
+/* certificates [0] of indefinite length, ending the message: the SEQUENCE tag
+ * read at :7707 runs out of input, so :7708 sees a non-zero ret */
+static const byte wbTailCertIndef[] = { 0xA0, 0x80 };
+/* the accepting shape both of the above pair against */
+static const byte wbTailCertOk[]    = { 0xA0, 0x80, 0x30, 0x03, 0x02, 0x01,
+                                        0x01, 0x00, 0x00, 0x31, 0x00 };
+
+static void wb_stage4_cert_tails(void)
+{
+    word32 msgSz;
+
+    WB_NOTE("PKCS7_VerifySignedData(): certificates [0] of indefinite length"
+            " holding one SEQUENCE [:7699 and :7708 accepting rows]");
+    msgSz = wb_wrap_signed_eci_tail(wbEciPlain, (word32)sizeof(wbEciPlain),
+            wbTailCertOk, (word32)sizeof(wbTailCertOk));
+    WB_CHECK(msgSz > 0, "certificate-set shell built");
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): certificates [0] tag as the last byte"
+            " of the message [:7699 cond 0 false]");
+    msgSz = wb_wrap_signed_eci_tail(wbEciPlain, (word32)sizeof(wbEciPlain),
+            wbTailCertTag, (word32)sizeof(wbTailCertTag));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): certificates [0] of indefinite length"
+            " ending the message [:7708 cond 0 false]");
+    msgSz = wb_wrap_signed_eci_tail(wbEciPlain, (word32)sizeof(wbEciPlain),
+            wbTailCertIndef, (word32)sizeof(wbTailCertIndef));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
 }
 
 static void wb_stage2_shells(void)
@@ -2101,6 +2161,7 @@ int main(void)
     wb_pwri_optional_params();
     wb_multipart_walk();
     wb_stage2_shells();
+    wb_stage4_cert_tails();
     wb_footer_hash_matrix();
     wb_der_handoff();
     wb_key_oid_matrix();
