@@ -2482,6 +2482,45 @@ static int wb_decode_enveloped(word32 msgSz)
     return ret;
 }
 
+/* A registered content-decryption callback replaces the built-in cipher at
+ * :14759. No API-level pkcs7 test registers one, so both rows of that guard
+ * have to come from here. Returning 0 without writing output is enough: the
+ * guard is what is under test, and the padding check downstream rejects the
+ * result either way. */
+static int wb_decrypt_cb(wc_PKCS7* p, int encryptOID, byte* iv, int ivSz,
+        byte* aad, word32 aadSz, byte* authTag, word32 authTagSz, byte* in,
+        int inSz, byte* out, void* ctx)
+{
+    (void)p; (void)encryptOID; (void)iv; (void)ivSz; (void)aad; (void)aadSz;
+    (void)authTag; (void)authTagSz; (void)ctx;
+    if (out != NULL && in != NULL && inSz > 0) {
+        XMEMCPY(out, in, (word32)inSz);
+    }
+    return 0;
+}
+
+static int wb_decode_enveloped_cb(word32 msgSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_EV_BUF_SZ];
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->privateKey   = (byte*)client_key_der_2048;
+    p->privateKeySz = (word32)sizeof_client_key_der_2048;
+    (void)wc_PKCS7_SetDecodeEncryptedCb(p, wb_decrypt_cb);
+    ret = wc_PKCS7_DecodeEnvelopedData(p, wbEvBuf, msgSz, out, sizeof(out));
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
 static void wb_enveloped_content_walk(void)
 {
     byte saveTag, saveLen;
@@ -2613,6 +2652,15 @@ static void wb_enveloped_content_walk(void)
                 " decision-true row to pair against]");
         wbEvBuf[wbEvContTag + 2] = 0x05;
         (void)wb_decode_enveloped(wbEvSz);
+        wbEvBuf[wbEvContTag + 2] = ASN_OCTET_STRING;
+
+        WB_NOTE("wc_PKCS7_DecodeEnvelopedData(): same, with a registered"
+                " content-decryption callback [:14759 cond 1 true], and cut"
+                " short so the callback guard is reached with ret already set"
+                " [:14759 cond 0 false]");
+        (void)wb_decode_enveloped_cb(wbEvSz);
+        (void)wb_decode_enveloped_cb(wbEvContTag + 3);
+        (void)wb_decode_enveloped_cb(wbEvContTag + 6);
 
         wbEvBuf[wbEvContTag + 2] = c0;
         wbEvBuf[wbEvContTag + 3] = c1;
@@ -2624,6 +2672,45 @@ static void wb_enveloped_content_walk(void)
     wbEvBuf[wbEvContTag + 1] = saveLen;
 }
 #else
+/* A registered content-decryption callback replaces the built-in cipher at
+ * :14759. No API-level pkcs7 test registers one, so both rows of that guard
+ * have to come from here. Returning 0 without writing output is enough: the
+ * guard is what is under test, and the padding check downstream rejects the
+ * result either way. */
+static int wb_decrypt_cb(wc_PKCS7* p, int encryptOID, byte* iv, int ivSz,
+        byte* aad, word32 aadSz, byte* authTag, word32 authTagSz, byte* in,
+        int inSz, byte* out, void* ctx)
+{
+    (void)p; (void)encryptOID; (void)iv; (void)ivSz; (void)aad; (void)aadSz;
+    (void)authTag; (void)authTagSz; (void)ctx;
+    if (out != NULL && in != NULL && inSz > 0) {
+        XMEMCPY(out, in, (word32)inSz);
+    }
+    return 0;
+}
+
+static int wb_decode_enveloped_cb(word32 msgSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_EV_BUF_SZ];
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    p->privateKey   = (byte*)client_key_der_2048;
+    p->privateKeySz = (word32)sizeof_client_key_der_2048;
+    (void)wc_PKCS7_SetDecodeEncryptedCb(p, wb_decrypt_cb);
+    ret = wc_PKCS7_DecodeEnvelopedData(p, wbEvBuf, msgSz, out, sizeof(out));
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
 static void wb_enveloped_content_walk(void)
 {
     WB_NOTE("no RSA/AES-128-CBC/2048-cert-buffers; EnvelopedData content walk"
