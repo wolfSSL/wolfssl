@@ -2262,6 +2262,60 @@ static void wb_decode_cert_extensions_unknown_cb(void)
             ":22258 unknownExtCallbackEx dispatched (3rd operand true)");
     (void)ret;
 
+    /* (c2) unknown OID with MORE sub-identifiers than DecodeObjectId()'s
+     *      output array holds (MAX_OID_SZ == 32): the re-decode at :22262
+     *      fails, so both callback dispatches at :22273 and :22279 run with
+     *      ret != 0 and their leading operand false. */
+    {
+        static byte longOidExts[64];
+        word32 o = 0;
+        word32 k;
+
+        /* 0xA3 [0x30 [0x30 [OID(34 arcs), OCTET STRING(1)]]] */
+        longOidExts[o++] = 0x06;
+        longOidExts[o++] = 33;
+        longOidExts[o++] = 0x2A;               /* 1.2 */
+        for (k = 0; k < 32; k++) {
+            longOidExts[o++] = (byte)(k + 1);  /* 32 more arcs */
+        }
+        longOidExts[o++] = 0x04;
+        longOidExts[o++] = 0x01;
+        longOidExts[o++] = 0x00;
+        {
+            byte inner[64];
+            word32 innerSz = o;
+            byte wrapped[80];
+            word32 w = 0;
+            XMEMCPY(inner, longOidExts, innerSz);
+            wrapped[w++] = 0x30; wrapped[w++] = (byte)innerSz;
+            XMEMCPY(wrapped + w, inner, innerSz); w += innerSz;
+            o = 0;
+            longOidExts[o++] = 0xA3; longOidExts[o++] = (byte)(w + 2);
+            longOidExts[o++] = 0x30; longOidExts[o++] = (byte)w;
+            XMEMCPY(longOidExts + o, wrapped, w); o += w;
+        }
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.extensions   = longOidExts;
+        cert.extensionsSz = (int)o;
+        cert.unknownExtCallback = wb_fault_ext_cb;
+        wbFaultExtCbCalls = 0; wbFaultExtCbExCalls = 0;
+        ret = DecodeCertExtensions(&cert);
+        WB_CHECK(wbFaultExtCbCalls == 0,
+                ":22273 1st operand false (OID too long to re-decode)");
+        (void)ret;
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.extensions   = longOidExts;
+        cert.extensionsSz = (int)o;
+        cert.unknownExtCallbackEx = wb_fault_ext_cb_ex;
+        wbFaultExtCbCalls = 0; wbFaultExtCbExCalls = 0;
+        ret = DecodeCertExtensions(&cert);
+        WB_CHECK(wbFaultExtCbExCalls == 0,
+                ":22279 1st operand false (OID too long to re-decode)");
+        (void)ret;
+    }
+
     /* (d) RECOGNISED OID with both callbacks registered -> 1st operand false,
      *     so the callback operands are masked and the decision is false. */
     XMEMSET(&cert, 0, sizeof(cert));
