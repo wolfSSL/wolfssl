@@ -2310,6 +2310,40 @@ static int wb_kari_originator_call(byte* in, word32 inSz)
 }
 #endif /* HAVE_ECC */
 
+/* ---- SignerInfo signatureAlgorithm parameters [:6566] --------------------
+ * `(word32)sigOID == CTC_RSASSAPSS && paramTag == (ASN_SEQUENCE |
+ * ASN_CONSTRUCTED)` decides whether the AlgorithmIdentifier parameters are
+ * decoded as RSASSA-PSS parameters. wolfSSL's own encoder always writes the
+ * PSS parameters as a SEQUENCE, so the trailing operand's false row needs a
+ * SignerInfo that names id-RSASSA-PSS and then supplies something else --
+ * here a NULL, which is what an RSA PKCS#1 v1.5 signer would have written.
+ *
+ * The two blobs are complete up to the signature algorithm: version 1, an
+ * IssuerAndSerialNumber the parser only records, and a SHA-256
+ * digestAlgorithm. Parsing stops on the missing signature afterwards, which
+ * is past both decisions. */
+#define WB_SI_PREFIX \
+    0x02, 0x01, 0x01,                                      /* version 1 */   \
+    0x30, 0x04, 0x05, 0x00, 0x05, 0x00,                    /* sid */         \
+    0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,  /* sha256 */      \
+                0x03, 0x04, 0x02, 0x01, 0x05, 0x00
+#define WB_SI_PSS_OID \
+    0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0A
+
+/* id-RSASSA-PSS with NULL parameters */
+static byte wbSiPssNullParams[] = {
+    0x30, 0x27,
+      WB_SI_PREFIX,
+      0x30, 0x0D, WB_SI_PSS_OID, 0x05, 0x00
+};
+
+/* id-RSASSA-PSS with SEQUENCE parameters */
+static byte wbSiPssSeqParams[] = {
+    0x30, 0x29,
+      WB_SI_PREFIX,
+      0x30, 0x0F, WB_SI_PSS_OID, 0x30, 0x02, 0x05, 0x00
+};
+
 static void wb_short_buffer_probes(void)
 {
     int ret;
@@ -2325,6 +2359,20 @@ static void wb_short_buffer_probes(void)
             " SubjectKeyIdentifier [:6468 both operands true]");
     ret = wb_parse_signer_info(wbSiPrimSkid, (word32)sizeof(wbSiPrimSkid));
     WB_CHECK(ret != 0, ":6468 both true (fails later on digestAlgorithm)");
+
+    WB_NOTE("wc_PKCS7_ParseSignerInfo(): id-RSASSA-PSS signature algorithm"
+            " with SEQUENCE parameters [:6566 both operands true]");
+    ret = wb_parse_signer_info(wbSiPssSeqParams,
+            (word32)sizeof(wbSiPssSeqParams));
+    WB_CHECK(ret != 0, ":6566 both true (fails on the PSS parameters)");
+
+    WB_NOTE("wc_PKCS7_ParseSignerInfo(): id-RSASSA-PSS signature algorithm"
+            " with NULL parameters [:6566 cond 1 false]");
+    ret = wb_parse_signer_info(wbSiPssNullParams,
+            (word32)sizeof(wbSiPssNullParams));
+    /* ParseSignerInfo stops after the signature algorithm; the signature
+     * itself is read by the caller, so a SignerInfo that ends here parses. */
+    WB_CHECK(ret == 0, ":6566 cond 1 false (NULL parameters, no PSS decode)");
 
 #ifdef HAVE_ECC
     WB_NOTE("wc_PKCS7_KariGetOriginatorIdentifierOrKey(): empty buffer, so the"
