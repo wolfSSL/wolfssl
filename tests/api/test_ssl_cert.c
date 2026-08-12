@@ -1507,31 +1507,47 @@ int test_wolfSSL_cert_unload(void)
 
 /* Keys and scratch buffers shared by every case. */
 typedef struct test_eku_fixture {
-    RsaKey* caKey;
-    RsaKey* intKey;
+    RsaKey* caKey;      /* the 2048-bit test root */
+    RsaKey* midKey;     /* CA between the root and the CA under test */
+    RsaKey* intKey;     /* the CA whose Extended Key Usage is under test */
     RsaKey* leafKey;
     WC_RNG* rng;
+    byte*   midDer;
     byte*   interDer;
     byte*   chainDer;
 } test_eku_fixture;
 
 /* One chain Extended Key Usage scenario. */
 typedef struct test_eku_case {
-    const char* extKeyUsage;   /* Extended Key Usage on the issuing CA, NULL
-                                * omits the extension */
-    int selfSignedCa;          /* issuing CA is self-signed and is itself the
-                                * trust anchor */
+    const char* extKeyUsage;   /* Extended Key Usage on the CA under test,
+                                * NULL omits the extension */
+    int selfSignedCa;          /* CA under test is self-signed and is itself
+                                * the trust anchor */
     int clientPresents;        /* client sends the chain, server verifies it */
-    int pinCa;                 /* issuing CA is also loaded as a trusted CA */
+    int pinCa;                 /* CA under test is also loaded as a trusted
+                                * CA before the handshake */
+    int extraLevel;            /* insert a CA between the root and the CA
+                                * under test, putting it at depth 2 */
+    int overrideCb;            /* verify callback accepts what the library
+                                * rejected */
     int expectRet;             /* expected handshake result */
 } test_eku_case;
 
-/* Build a CA:TRUE certificate for the given key. Unless selfSign is set it is
- * signed by the 2048-bit test root (ca_cert_der_2048 / ca_key_der_2048). A NULL
- * extKeyUsage omits the Extended Key Usage extension entirely. Returns the DER
- * length, or < 0 on failure. */
+/* Stand in for an application that knowingly accepts a rejected certificate. */
+static int test_eku_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    return 1;
+}
+
+/* Build a CA:TRUE certificate for subjKey. A NULL issuerDer makes it
+ * self-signed, otherwise it is signed by issuerKey in the name of issuerDer. A
+ * NULL extKeyUsage omits the Extended Key Usage extension entirely. Returns the
+ * DER length, or < 0 on failure. */
 static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
-    RsaKey* caKey, WC_RNG* rng, const char* extKeyUsage, int selfSign)
+    const byte* issuerDer, int issuerDerSz, RsaKey* issuerKey, WC_RNG* rng,
+    const char* extKeyUsage, const char* cn)
 {
     Cert cert;
     int  ret = 0;
@@ -1542,9 +1558,7 @@ static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
     cert.sigType = CTC_SHA256wRSA;
     XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
     XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
-    XSTRNCPY(cert.subject.commonName,
-        selfSign ? "EKU Self Signed CA" : "EKU Intermediate",
-        CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, cn, CTC_NAME_SIZE - 1);
     if (wc_SetSubjectKeyIdFromPublicKey(&cert, subjKey, NULL) != 0)
         ret = -1;
     if (ret == 0 && wc_SetKeyUsage(&cert, "keyCertSign,cRLSign") != 0)
@@ -1554,19 +1568,17 @@ static int test_eku_gen_ca(byte* out, int outMax, RsaKey* subjKey,
         ret = -1;
     /* wc_InitCert() leaves selfSigned set, so naming no issuer is what makes
      * the generated certificate self-signed. */
-    if (ret == 0 && !selfSign) {
-        if (wc_SetAuthKeyIdFromCert(&cert, ca_cert_der_2048,
-                (int)sizeof_ca_cert_der_2048) != 0)
+    if (ret == 0 && issuerDer != NULL) {
+        if (wc_SetAuthKeyIdFromCert(&cert, issuerDer, issuerDerSz) != 0)
             ret = -1;
-        if (ret == 0 && wc_SetIssuerBuffer(&cert, ca_cert_der_2048,
-                (int)sizeof_ca_cert_der_2048) != 0)
+        if (ret == 0 && wc_SetIssuerBuffer(&cert, issuerDer, issuerDerSz) != 0)
             ret = -1;
     }
     if (ret == 0)
         ret = wc_MakeCert(&cert, out, (word32)outMax, subjKey, NULL, rng);
     if (ret >= 0)
         ret = wc_SignCert(cert.bodySz, cert.sigType, out, (word32)outMax,
-            selfSign ? subjKey : caKey, NULL, rng);
+            (issuerDer == NULL) ? subjKey : issuerKey, NULL, rng);
 #ifdef WOLFSSL_CERT_GEN_CACHE
     wc_SetCert_Free(&cert);
 #endif
@@ -1610,16 +1622,16 @@ static int test_eku_gen_leaf(byte* out, int outMax, RsaKey* leafKey,
     return ret;
 }
 
-/* Run a memio handshake in which one side presents "leaf <- CA" and the peer
- * verifies that chain against rootDer. When clientPresents is set the client
- * sends the chain and the server verifies it, which is the client
- * authentication direction. A non-NULL pinnedDer is loaded as an additional
- * trusted CA on the verifying side, so the chain CA is already a known signer
- * when it arrives. The handshake result and the compatibility-layer verify
- * result are returned through hsRet and verifyRet. */
+/* Run a memio handshake in which one side presents the given chain and the
+ * peer verifies it against rootDer. When clientPresents is set the client sends
+ * the chain and the server verifies it, which is the client authentication
+ * direction. A non-NULL pinnedDer is loaded as an additional trusted CA on the
+ * verifying side, so the chain CA is already a known signer when it arrives.
+ * The handshake result and the compatibility-layer verify result are returned
+ * through hsRet and verifyRet. */
 static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
     const byte* rootDer, int rootSz, const byte* pinnedDer, int pinnedSz,
-    int clientPresents, int* hsRet, long* verifyRet)
+    const test_eku_case* tc, int* hsRet, long* verifyRet)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx_c = NULL;
@@ -1628,7 +1640,11 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
     WOLFSSL* ssl_c = NULL;
     WOLFSSL* ssl_s = NULL;
     WOLFSSL* verifySsl = NULL;
+    VerifyCallback verifyCb = NULL;
     struct test_memio_ctx test_ctx;
+
+    if (tc->overrideCb)
+        verifyCb = test_eku_override_cb;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     /* The server always presents the generated chain so a single set of
@@ -1638,7 +1654,7 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
         (byte*)rootDer, rootSz, (byte*)chainDer, chainSz,
         (byte*)client_key_der_2048, (int)sizeof_client_key_der_2048), 0);
 
-    if (clientPresents) {
+    if (tc->clientPresents) {
         /* Leave the server chain unverified so only the server's view of the
          * client chain decides the handshake. */
         wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
@@ -1650,12 +1666,12 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
         ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx_s, rootDer,
             (long)rootSz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
         wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
-            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, verifyCb);
         verifyCtx = ctx_s;
         verifySsl = ssl_s;
     }
     else {
-        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, verifyCb);
         verifyCtx = ctx_c;
         verifySsl = ssl_c;
     }
@@ -1686,41 +1702,68 @@ static int test_eku_chain_handshake(const byte* chainDer, int chainSz,
     return EXPECT_RESULT();
 }
 
-/* Build "leaf <- CA" for one scenario, run the handshake and check both the
+/* Build the chain for one scenario, run the handshake and check both the
  * handshake result and the verify result it is reported as. */
 static int test_eku_chain_case(const test_eku_fixture* f,
     const test_eku_case* tc)
 {
     EXPECT_DECLS;
     const byte* rootDer = ca_cert_der_2048;
+    const byte* issuerDer = ca_cert_der_2048;
     int rootSz = (int)sizeof_ca_cert_der_2048;
+    int issuerSz = (int)sizeof_ca_cert_der_2048;
+    RsaKey* issuerKey = f->caKey;
+    int midSz = 0;
     int caSz = 0;
     int leafSz = 0;
+    int chainSz = 0;
     int hsRet = -1;
     long verifyRet = -1;
 
+    /* An extra level puts the CA under test at depth 2, below a CA that does
+     * carry the TLS purposes. */
+    if (tc->extraLevel) {
+        ExpectIntGT((midSz = test_eku_gen_ca(f->midDer, TEST_EKU_CERT_BUF_SZ,
+            f->midKey, ca_cert_der_2048, (int)sizeof_ca_cert_der_2048,
+            f->caKey, f->rng, "serverAuth,clientAuth", "EKU Middle CA")), 0);
+        issuerDer = f->midDer;
+        issuerSz = midSz;
+        issuerKey = f->midKey;
+    }
+
     ExpectIntGT((caSz = test_eku_gen_ca(f->interDer, TEST_EKU_CERT_BUF_SZ,
-        f->intKey, f->caKey, f->rng, tc->extKeyUsage, tc->selfSignedCa)), 0);
+        f->intKey, tc->selfSignedCa ? NULL : issuerDer, issuerSz, issuerKey,
+        f->rng, tc->extKeyUsage,
+        tc->selfSignedCa ? "EKU Self Signed CA" : "EKU Intermediate")), 0);
     ExpectIntGT((leafSz = test_eku_gen_leaf(f->chainDer, TEST_EKU_CERT_BUF_SZ,
         f->leafKey, f->interDer, caSz, f->intKey, f->rng)), 0);
-    /* The chain buffer holds the leaf first, then its issuer. */
-    ExpectIntLE(leafSz + caSz, TEST_EKU_CERT_BUF_SZ);
+    /* The chain buffer holds the leaf first, then its issuers in order. */
+    ExpectIntLE(leafSz + caSz + midSz, TEST_EKU_CERT_BUF_SZ);
 
     if (EXPECT_SUCCESS()) {
         XMEMCPY(f->chainDer + leafSz, f->interDer, (size_t)caSz);
+        chainSz = leafSz + caSz;
+        if (tc->extraLevel) {
+            XMEMCPY(f->chainDer + chainSz, f->midDer, (size_t)midSz);
+            chainSz += midSz;
+        }
         if (tc->selfSignedCa) {
             rootDer = f->interDer;
             rootSz = caSz;
         }
-        ExpectIntEQ(test_eku_chain_handshake(f->chainDer, leafSz + caSz,
-            rootDer, rootSz, tc->pinCa ? f->interDer : NULL, caSz,
-            tc->clientPresents, &hsRet, &verifyRet), TEST_SUCCESS);
+        ExpectIntEQ(test_eku_chain_handshake(f->chainDer, chainSz,
+            rootDer, rootSz, tc->pinCa ? f->interDer : NULL, caSz, tc,
+            &hsRet, &verifyRet), TEST_SUCCESS);
     }
 
     ExpectIntEQ(hsRet, tc->expectRet);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    ExpectIntEQ(verifyRet, (tc->expectRet == 0) ?
-        WOLFSSL_X509_V_OK : WOLFSSL_X509_V_ERR_INVALID_PURPOSE);
+    /* An override leaves the rejection already recorded in place, so only the
+     * cases the library decided on its own have a predictable verify result. */
+    if (!tc->overrideCb) {
+        ExpectIntEQ(verifyRet, (tc->expectRet == 0) ?
+            WOLFSSL_X509_V_OK : WOLFSSL_X509_V_ERR_INVALID_PURPOSE);
+    }
 #endif
 
     return EXPECT_RESULT();
@@ -1746,45 +1789,58 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
     defined(USE_CERT_BUFFERS_2048) && !defined(IGNORE_KEY_EXTENSIONS)
     static const test_eku_case cases[] = {
+        /* eku, selfSigned, clientPresents, pinCa, extraLevel, overrideCb,
+         * expected handshake result. */
+
         /* Server authentication: a CA restricted to code signing, or to
          * client authentication, must be refused. */
-        { "codeSigning",  0, 0, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "clientAuth",   0, 0, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "codeSigning",  0, 0, 0, 0, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 0, 0, 0, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
         /* A CA that carries the purpose, or leaves it unrestricted, must not
          * be over-rejected. */
-        { "serverAuth",   0, 0, 0, 0 },
-        { NULL,           0, 0, 0, 0 },
-        { "any",          0, 0, 0, 0 },
+        { "serverAuth",   0, 0, 0, 0, 0, 0 },
+        { NULL,           0, 0, 0, 0, 0, 0 },
+        { "any",          0, 0, 0, 0, 0, 0 },
         /* The rule applies to a CA the certificate manager already holds, not
          * only to one seen for the first time. */
-        { "codeSigning",  0, 0, 1, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "serverAuth",   0, 0, 1, 0 },
+        { "codeSigning",  0, 0, 1, 0, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 1, 0, 0, 0 },
         /* A self-signed trust anchor is exempt: here it is the selfSigned
          * test, not the Extended Key Usage, that decides. */
-        { "codeSigning",  1, 0, 0, 0 },
+        { "codeSigning",  1, 0, 0, 0, 0, 0 },
+        /* Enforcement is not limited to the CA directly above the leaf. */
+        { "codeSigning",  0, 0, 0, 1, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 0, 0, 1, 0, 0 },
+        /* An application that installs a verify callback keeps the last word,
+         * as it does for every other chain error. */
+        { "codeSigning",  0, 0, 0, 0, 1, 0 },
 #ifndef WOLFSSL_NO_CLIENT_AUTH
         /* Client authentication: the server applies the same rule with the
          * clientAuth purpose. */
-        { "codeSigning",  0, 1, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "serverAuth",   0, 1, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
-        { "clientAuth",   0, 1, 0, 0 },
-        { NULL,           0, 1, 0, 0 },
-        { "any",          0, 1, 0, 0 },
+        { "codeSigning",  0, 1, 0, 0, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "serverAuth",   0, 1, 0, 0, 0, WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) },
+        { "clientAuth",   0, 1, 0, 0, 0, 0 },
+        { NULL,           0, 1, 0, 0, 0, 0 },
+        { "any",          0, 1, 0, 0, 0, 0 },
 #endif
     };
     test_eku_fixture fixture;
     WC_RNG rng;
     RsaKey caKey;
+    RsaKey midKey;
     RsaKey intKey;
     RsaKey leafKey;
     int rngInit = 0;
     int caInit = 0;
+    int midInit = 0;
     int intInit = 0;
     int leafInit = 0;
     word32 idx;
     size_t i;
 
     XMEMSET(&fixture, 0, sizeof(fixture));
+    ExpectNotNull(fixture.midDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(fixture.interDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(fixture.chainDer = (byte*)XMALLOC(TEST_EKU_CERT_BUF_SZ, NULL,
@@ -1797,6 +1853,11 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
     idx = 0;
     ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
         (word32)sizeof_ca_key_der_2048), 0);
+    ExpectIntEQ(wc_InitRsaKey(&midKey, NULL), 0);
+    if (EXPECT_SUCCESS()) midInit = 1;
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(rsa_key_der_2048, &idx, &midKey,
+        (word32)sizeof_rsa_key_der_2048), 0);
     ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
     if (EXPECT_SUCCESS()) intInit = 1;
     idx = 0;
@@ -1809,6 +1870,7 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
         (word32)sizeof_client_key_der_2048), 0);
 
     fixture.caKey = &caKey;
+    fixture.midKey = &midKey;
     fixture.intKey = &intKey;
     fixture.leafKey = &leafKey;
     fixture.rng = &rng;
@@ -1819,8 +1881,10 @@ int test_wolfSSL_chain_ca_ext_key_usage(void)
 
     if (rngInit)  wc_FreeRng(&rng);
     if (caInit)   wc_FreeRsaKey(&caKey);
+    if (midInit)  wc_FreeRsaKey(&midKey);
     if (intInit)  wc_FreeRsaKey(&intKey);
     if (leafInit) wc_FreeRsaKey(&leafKey);
+    XFREE(fixture.midDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(fixture.interDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(fixture.chainDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

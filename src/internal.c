@@ -18199,14 +18199,21 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         #endif
                         }
                     #endif /* IGNORE_KEY_EXTENSIONS */
-                    #ifdef OPENSSL_EXTRA
-                        if (args->certIdx > args->untrustedDepth) {
-                            args->untrustedDepth = (char)args->certIdx + 1;
-                        }
-                    #endif
+                        /* A CA turned away above is neither part of the
+                         * verified chain nor something to report as verified,
+                         * so leave the depth and the log to the accepted
+                         * case. */
+                        if (ret == 0) {
+                        #ifdef OPENSSL_EXTRA
+                            if (args->certIdx > args->untrustedDepth) {
+                                args->untrustedDepth = (char)args->certIdx + 1;
+                            }
+                        #endif
 
-                        if (alreadySigner) {
-                            WOLFSSL_MSG("Verified CA from chain and already had it");
+                            if (alreadySigner) {
+                                WOLFSSL_MSG("Verified CA from chain and "
+                                            "already had it");
+                            }
                         }
                     }
                     else {
