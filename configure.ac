@@ -12241,10 +12241,13 @@ then
         ENABLED_CERTEXT="yes"
     fi
 
-    # Requires md5
-    if test "$ENABLED_MD5" = "no"
+    # Has option for md5 hashing, enabled by default for non-FIPS 140-3
+    if test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -lt 5
     then
         ENABLED_MD5="yes"
+    elif test "$enable_md5" != "yes"
+    then
+        ENABLED_MD5="no"
     fi
 
     # Requires aesctr
@@ -12266,7 +12269,7 @@ then
     fi
 
     # Has option for signing with ED25519
-    if test "$ENABLED_ED25519" = "no"
+    if test "$ENABLED_ED25519" = "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -ge 6)
     then
         ENABLED_ED25519=yes
         ENABLED_FEMATH=yes
@@ -12295,7 +12298,12 @@ then
     # Uses alt name
     ENABLED_ALTNAMES="yes"
 
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING -DWOLFSSL_NO_ASN_STRICT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_OID_ENCODING"
+
+    if test "$ENABLED_FIPS" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ASN_STRICT"
+    fi
 
     # wolfCLU allows MD5 with wc_Signature*; lower the hash strength floor
     # when MD5 is compiled in.
