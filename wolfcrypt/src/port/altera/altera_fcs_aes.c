@@ -117,6 +117,16 @@ static AlteraAesKey* wc_AlteraFcs_AesCtx(const Aes* aes)
     return keyCtx;
 }
 
+/* Non-zero when the context owns a resident device key, contaminated or not.
+ * Internal checks use this so a resident key keeps failing hard even after a
+ * bypassing key setup installed a software schedule. */
+static int wc_AlteraFcs_AesResident(const Aes* aes)
+{
+    AlteraAesKey* keyCtx = wc_AlteraFcs_AesCtx(aes);
+
+    return (keyCtx != NULL && keyCtx->origin == WC_ALTERA_FCS_AES_RESIDENT);
+}
+
 static void wc_AlteraFcs_Put32(byte* out, word32 val)
 {
     out[0] = (byte)( val        & 0xFF);
@@ -409,7 +419,7 @@ static int wc_AlteraFcs_AesCbc(wc_CryptoInfo* info)
         return BAD_FUNC_ARG;
     }
     if (!wc_AlteraFcs_AesEligible(aes, sz)) {
-        return wc_AlteraFcsAes_IsDeviceKey(aes) ? WC_HW_E
+        return wc_AlteraFcs_AesResident(aes) ? WC_HW_E
                                                 : CRYPTOCB_UNAVAILABLE;
     }
 
@@ -467,11 +477,11 @@ static int wc_AlteraFcs_AesCtr(wc_CryptoInfo* info)
     /* Keystream left over from an earlier call cannot be expressed in a whole
      * operation request, so such calls stay in software. */
     if (aes->left != 0) {
-        return wc_AlteraFcsAes_IsDeviceKey(aes) ? WC_HW_E
+        return wc_AlteraFcs_AesResident(aes) ? WC_HW_E
                                                 : CRYPTOCB_UNAVAILABLE;
     }
     if (!wc_AlteraFcs_AesEligible(aes, sz)) {
-        return wc_AlteraFcsAes_IsDeviceKey(aes) ? WC_HW_E
+        return wc_AlteraFcs_AesResident(aes) ? WC_HW_E
                                                 : CRYPTOCB_UNAVAILABLE;
     }
 
@@ -534,7 +544,7 @@ static int wc_AlteraFcs_AesSetKey(wc_CryptoInfo* info)
     }
 
     aes = (Aes*)info->setkey.obj;
-    if (wc_AlteraFcsAes_IsDeviceKey(aes)) {
+    if (wc_AlteraFcs_AesResident(aes)) {
         WOLFSSL_MSG("Altera FCS resident AES key cannot be re-keyed");
         return WC_HW_E;
     }
@@ -656,12 +666,15 @@ int wc_AlteraFcsAes_MakeKey(Aes* aes, int keyBits)
     return 0;
 }
 
-/* Non-zero when this Aes uses a key generated inside the SDM. */
+/* Non-zero when this Aes uses a key generated inside the SDM. A software
+ * schedule on such a context means some key setup bypassed the callback, so
+ * the isolation can no longer be asserted and 0 is returned. */
 int wc_AlteraFcsAes_IsDeviceKey(const Aes* aes)
 {
     AlteraAesKey* keyCtx = wc_AlteraFcs_AesCtx(aes);
 
-    return (keyCtx != NULL && keyCtx->origin == WC_ALTERA_FCS_AES_RESIDENT);
+    return (keyCtx != NULL && keyCtx->origin == WC_ALTERA_FCS_AES_RESIDENT &&
+            aes->rounds == 0);
 }
 
 /* Resolve the Aes context of an AES cipher request, reading only union
@@ -738,7 +751,7 @@ int wc_AlteraFcs_Aes(wc_CryptoInfo* info)
              * devCtx on any error it returns, so the resident slot must be
              * released here rather than leaked; the context is then unusable
              * until a new device key is made. */
-            if (wc_AlteraFcsAes_IsDeviceKey(info->cipher.aessetkey.aes)) {
+            if (wc_AlteraFcs_AesResident(info->cipher.aessetkey.aes)) {
                 WOLFSSL_MSG("Altera FCS resident AES key cannot be re-keyed");
                 wc_AlteraFcs_AesKeyFree(info->cipher.aessetkey.aes);
                 ret = WC_HW_E;
@@ -748,7 +761,7 @@ int wc_AlteraFcs_Aes(wc_CryptoInfo* info)
         default:
             /* A resident key has no software schedule, so a mode the device
              * cannot serve must fail rather than fall back. */
-            if (wc_AlteraFcsAes_IsDeviceKey(wc_AlteraFcs_AesCipherCtx(info))) {
+            if (wc_AlteraFcs_AesResident(wc_AlteraFcs_AesCipherCtx(info))) {
                 WOLFSSL_MSG("Altera FCS resident AES key: unsupported mode");
                 ret = WC_HW_E;
             }
