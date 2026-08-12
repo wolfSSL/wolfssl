@@ -323,7 +323,7 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
         }
     #endif
 
-        XMEMCPY(row++, &SessionCache[i], SIZEOF_SESSION_ROW_SAVE);
+        XMEMCPY(row++, &SessionCache[i], SIZEOF_SESSION_ROW);
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
@@ -441,7 +441,7 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         }
     #endif
 
-        XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW_RESTORE);
+        XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
     #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
         (defined(PERSIST_SESSION_CACHE) || \
          defined(HAVE_SESSION_TICKET) || \
@@ -520,7 +520,7 @@ int wolfSSL_save_session_cache(const char *fname)
         }
     #endif
 
-        ret = (int)XFWRITE(&SessionCache[i], SIZEOF_SESSION_ROW_SAVE, 1, file);
+        ret = (int)XFWRITE(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
@@ -606,7 +606,7 @@ int wolfSSL_restore_session_cache(const char *fname)
         }
     #endif
 
-        ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW_RESTORE, 1, file);
+        ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
     #if !defined(SESSION_CACHE_DYNAMIC_MEM) && \
         (defined(PERSIST_SESSION_CACHE) || \
          defined(HAVE_SESSION_TICKET) || \
@@ -623,20 +623,6 @@ int wolfSSL_restore_session_cache(const char *fname)
             rc = FREAD_ERROR;
             break;
         }
-    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
-        /* the file read did not include the row lock members. seek to next
-         * read offset. */
-        if (i < cache_header.rows) {
-            ret = (int)XFSEEK(file, sizeof(cache_header) +
-                              (i + 1) * sizeof(SessionRow), XSEEK_SET);
-            if (ret) {
-                WOLFSSL_MSG_EX("Session cache file seek(%d * %zu) failed",
-                               i + 1, sizeof(SessionRow));
-                rc = FREAD_ERROR;
-                break;
-            }
-        }
-    #endif
     }
 #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     SESSION_ROW_UNLOCK(&SessionCache[0]);

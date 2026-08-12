@@ -108,17 +108,12 @@
     } SessionRow;
 
     #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
-        /* when writing session cache to storage, for simplicity just
-         * write the full SessionRow struct (including lock members).
-         *
-         * when restoring from storage however, do not read the full struct,
+        /* when writing / restoring from storage, do not read the full struct,
          * as this would clobber active row locks. */
-        #define SIZEOF_SESSION_ROW_SAVE (sizeof(SessionRow))
-
         #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
-            #define SIZEOF_SESSION_ROW_RESTORE WC_OFFSETOF(SessionRow, row_lock)
+            #define SIZEOF_SESSION_ROW WC_OFFSETOF(SessionRow, row_lock)
         #else
-            #define SIZEOF_SESSION_ROW_RESTORE (sizeof(SessionRow))
+            #define SIZEOF_SESSION_ROW (sizeof(SessionRow))
         #endif /* ENABLE_SESSION_CACHE_ROW_LOCK */
     #endif /* PERSIST_SESSION_CACHE && !SESSION_CACHE_DYNAMIC_MEM */
 
