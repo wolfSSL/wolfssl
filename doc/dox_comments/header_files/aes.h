@@ -368,6 +368,17 @@ int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     It also encodes the input authentication vector, authIn, into the
     authentication tag, authTag.
 
+    \note When built with WOLFSSL_AFALG_XILINX_AES, the Xilinx AF_ALG kernel
+    interface operates on a combined cipher text + tag buffer, so this function
+    does not honor the exact-size buffer contract described below. Both in and
+    out must be allocated with WC_AES_BLOCK_SIZE (16) bytes of room beyond sz:
+    sz + 16 bytes are sent to the kernel from in (the trailing 16 bytes are
+    scratch space for the tag and their contents are irrelevant), and sz + 16
+    bytes are read back into out. The tag is additionally copied out to authTag
+    as usual. Both buffers should also be aligned to WOLFSSL_XILINX_ALIGN; an
+    unaligned in is staged through a temporary allocation, or rejected with
+    BAD_ALIGN_E if NO_WOLFSSL_ALLOC_ALIGN is defined.
+
     \return 0 On successfully encrypting the input message
 
     \param aes - pointer to the AES object used to encrypt data
@@ -419,6 +430,17 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     supplied authentication tag, authTag.  If a nonzero error code is returned,
     the output data is undefined.  However, callers must unconditionally zeroize
     the output buffer to guard against leakage of cleartext data.
+
+    \note When built with WOLFSSL_AFALG_XILINX_AES, the Xilinx AF_ALG kernel
+    interface operates on a combined cipher text + tag buffer, so this function
+    does not honor the exact-size buffer contract described below. Both in and
+    out must be allocated with WC_AES_BLOCK_SIZE (16) bytes of room beyond sz.
+    The tag to check against is written into in + sz by this function, which
+    means the in buffer is modified even though it is declared const, and
+    sz + 16 bytes are read back into out. Both buffers should also be aligned
+    to WOLFSSL_XILINX_ALIGN; an unaligned in is staged through a temporary
+    allocation, or rejected with BAD_ALIGN_E if NO_WOLFSSL_ALLOC_ALIGN is
+    defined.
 
     \return 0 On successfully decrypting and authenticating the input message
     \return AES_GCM_AUTH_E If the authentication tag does not match the

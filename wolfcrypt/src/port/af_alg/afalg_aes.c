@@ -618,10 +618,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 /* Performs AES-GCM encryption and returns 0 on success
  *
- * Warning: If using Xilinx hardware acceleration it is assumed that the out
- *          buffer is large enough to hold both cipher text and tag. That is
- *          sz | 16 bytes. The input and output buffer is expected to be 64 bit
- *          aligned
+ * Warning: If using Xilinx hardware acceleration it is assumed that both the in
+ *          and out buffers are large enough to hold cipher text and tag. That is
+ *          sz | 16 bytes. sz | 16 bytes are sent to the kernel from the in
+ *          buffer, with the trailing 16 bytes being scratch space for the tag,
+ *          and sz | 16 bytes are read back into the out buffer. The input and
+ *          output buffer is expected to be 64 bit aligned
  *
  */
 int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -836,10 +838,12 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 /* Performs AES-GCM decryption and returns 0 on success
  *
- * Warning: If using Xilinx hardware acceleration it is assumed that the in
- *          buffer is large enough to hold both cipher text and tag. That is
+ * Warning: If using Xilinx hardware acceleration it is assumed that both the in
+ *          and out buffers are large enough to hold cipher text and tag. That is
  *          sz | 16 bytes. The in buffer has tag appended even though it is
- *          const for this wolfSSL API.
+ *          const for this wolfSSL API, and sz | 16 bytes are read back into the
+ *          out buffer. The input and output buffer is expected to be 64 bit
+ *          aligned.
  */
 int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* iv, word32 ivSz,
