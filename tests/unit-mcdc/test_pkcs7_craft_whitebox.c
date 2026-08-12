@@ -2766,6 +2766,153 @@ static void wb_enveloped_content_walk(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 14: wc_PKCS7_AddRecipient_KTRI() raw-issuer guard [:9471 cond 1].
+ *
+ * `decoded->issuerRawLen == 0` needs a certificate whose issuer Name is an
+ * EMPTY SEQUENCE. Every certificate in certs/ names an issuer, and the field
+ * is filled in by GetCertName() from the certificate itself, so the row can
+ * only come from a certificate built for it.
+ *
+ * Rather than hand-assemble a certificate, a real one is rewritten: the issuer
+ * Name element is replaced by `30 00` and the two enclosing definite lengths
+ * (Certificate and tbsCertificate) are reduced by the same amount. Both are
+ * two-byte long-form lengths in a 2048-bit certificate, which is asserted
+ * before anything is patched, so the rewrite cannot silently land on the
+ * wrong bytes. The signature no longer matches, which is why the recipient
+ * path is entered with NO_VERIFY semantics -- wc_PKCS7_AddRecipient_KTRI()
+ * parses the certificate with ParseCert(..., NO_VERIFY, ...) itself.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+#define WB_EMPTY_ISSUER_SZ 2048
+static byte wbEmptyIssuerCert[WB_EMPTY_ISSUER_SZ];
+
+/* Returns the size of the rewritten certificate, or 0 if the original does not
+ * have the shape this rewrite assumes. */
+static word32 wb_build_empty_issuer_cert(void)
+{
+    DecodedCert dCert;
+    word32      certSz = (word32)sizeof_client_cert_der_2048;
+    word32      nameStart, hdrSz, oldSz, shrink, tailSz;
+    word32      certLen, tbsLen;
+    int         nameLen;
+
+    if (certSz > (word32)sizeof(wbEmptyIssuerCert)) {
+        return 0;
+    }
+    XMEMCPY(wbEmptyIssuerCert, client_cert_der_2048, certSz);
+
+    InitDecodedCert(&dCert, wbEmptyIssuerCert, certSz, NULL);
+    if (ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL) != 0 ||
+            dCert.issuerRaw == NULL || dCert.issuerRawLen <= 0) {
+        FreeDecodedCert(&dCert);
+        return 0;
+    }
+    nameLen   = dCert.issuerRawLen;
+    nameStart = (word32)(dCert.issuerRaw - wbEmptyIssuerCert);
+    FreeDecodedCert(&dCert);
+
+    /* header in front of the Name content: 30 <len> in one of the three
+     * definite forms */
+    if (nameLen < 0x80)        hdrSz = 2;
+    else if (nameLen < 0x100)  hdrSz = 3;
+    else                       hdrSz = 4;
+    if (nameStart < hdrSz ||
+            wbEmptyIssuerCert[nameStart - hdrSz] !=
+                (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+        return 0;
+    }
+
+    /* both enclosing lengths must be the two-byte long form for the in-place
+     * patch below to be a simple subtraction */
+    if (wbEmptyIssuerCert[0] != (ASN_SEQUENCE | ASN_CONSTRUCTED) ||
+            wbEmptyIssuerCert[1] != 0x82 ||
+            wbEmptyIssuerCert[4] != (ASN_SEQUENCE | ASN_CONSTRUCTED) ||
+            wbEmptyIssuerCert[5] != 0x82) {
+        return 0;
+    }
+    certLen = ((word32)wbEmptyIssuerCert[2] << 8) | wbEmptyIssuerCert[3];
+    tbsLen  = ((word32)wbEmptyIssuerCert[6] << 8) | wbEmptyIssuerCert[7];
+
+    oldSz  = hdrSz + (word32)nameLen;
+    shrink = oldSz - 2;                      /* replaced by `30 00` */
+    if (shrink == 0 || shrink > certLen || shrink > tbsLen) {
+        return 0;
+    }
+
+    /* write the empty Name, then close the gap */
+    wbEmptyIssuerCert[nameStart - hdrSz]     = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    wbEmptyIssuerCert[nameStart - hdrSz + 1] = 0x00;
+    tailSz = certSz - (nameStart + (word32)nameLen);
+    XMEMMOVE(wbEmptyIssuerCert + nameStart - hdrSz + 2,
+             wbEmptyIssuerCert + nameStart + (word32)nameLen, tailSz);
+
+    certLen -= shrink;
+    tbsLen  -= shrink;
+    wbEmptyIssuerCert[2] = (byte)(certLen >> 8);
+    wbEmptyIssuerCert[3] = (byte)certLen;
+    wbEmptyIssuerCert[6] = (byte)(tbsLen >> 8);
+    wbEmptyIssuerCert[7] = (byte)tbsLen;
+
+    return certSz - shrink;
+}
+
+static int wb_add_ktri(const byte* cert, word32 certSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    WC_RNG    rng;
+    int       ret = -1;
+
+    if (p == NULL) {
+        return -1;
+    }
+    mcdc_sr_arm(WB_EV_SEED);
+    if (wc_InitRng(&rng) != 0) {
+        mcdc_sr_disarm();
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    if (wc_PKCS7_Init(p, NULL, INVALID_DEVID) == 0) {
+        p->contentOID = DATA;
+        p->encryptOID = AES256CBCb;
+        p->rng        = &rng;
+        ret = wc_PKCS7_AddRecipient_KTRI(p, cert, certSz, 0);
+    }
+    wc_PKCS7_Free(p);
+    wc_FreeRng(&rng);
+    mcdc_sr_disarm();
+    return ret;
+}
+
+static void wb_empty_issuer_recipient(void)
+{
+    word32 certSz;
+    int    ret;
+
+    WB_NOTE("wc_PKCS7_AddRecipient_KTRI(): ordinary recipient certificate"
+            " [:9471 both operands false]");
+    ret = wb_add_ktri((byte*)client_cert_der_2048,
+            (word32)sizeof_client_cert_der_2048);
+    WB_CHECK(ret > 0, ":9471 both false (recipient encoded)");
+
+    certSz = wb_build_empty_issuer_cert();
+    WB_CHECK(certSz > 0, "empty-issuer certificate rewritten");
+    if (certSz == 0) {
+        return;
+    }
+    WB_NOTE("wc_PKCS7_AddRecipient_KTRI(): recipient certificate whose issuer"
+            " Name is an empty SEQUENCE [:9471 cond 1 true]");
+    ret = wb_add_ktri(wbEmptyIssuerCert, certSz);
+    WB_CHECK(ret < 0, ":9471 cond 1 true (recipient rejected)");
+}
+#else
+static void wb_empty_issuer_recipient(void)
+{
+    WB_NOTE("no RSA or no 2048-bit cert buffers; empty-issuer recipient"
+            " skipped");
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -2785,6 +2932,7 @@ int main(void)
     wb_kekri_keysize_guard();
     wb_short_buffer_probes();
     wb_enveloped_content_walk();
+    wb_empty_issuer_recipient();
     wb_footer_hash_matrix();
     wb_der_handoff();
     wb_key_oid_matrix();
