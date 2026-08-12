@@ -1012,9 +1012,29 @@ int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz, ecc_point* rsk)
     if (err == 0) {
         err = mp_addmod(a, wc_ecc_key_get_priv(&key->ecc), &key->params.q, a);
     }
-    /* (a + z_T) ^ 1 modulo q */
+    /* mp_exptmod silently yields 0 for a zero base; check invertibility. */
+    if ((err == 0) && mp_iszero(a)) {
+        err = MP_VAL;
+    }
+    /* (a + z_T)^-1 mod q via Fermat's Little Theorem (a^(q-2) mod q),
+     * avoiding EGCD invmod timing leaks that would expose the fixed
+     * KMS secret z_T. Uses a local mp_int since m2 isn't init'd here. */
     if (err == 0) {
-        err = mp_invmod(a, &key->params.q, a);
+        WC_DECLARE_VAR(tmp, mp_int, 1, key->heap);
+
+        WC_ALLOC_VAR_EX(tmp, mp_int, 1, key->heap, DYNAMIC_TYPE_TMP_BUFFER,
+                err = MEMORY_E);
+        if (err == 0) {
+            err = mp_init(tmp);
+        }
+        if (err == 0) {
+            err = mp_sub_d(&key->params.q, 2, tmp);
+            if (err == 0) {
+                err = mp_exptmod(a, tmp, &key->params.q, a);
+            }
+            mp_free(tmp);
+        }
+        WC_FREE_VAR_EX(tmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     /* [ (a + z_T) ^ 1 modulo q ]P */
