@@ -20735,7 +20735,9 @@ int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage)
         /* Decode the bit string number as LE */
         *extKeyUsage = (word16)(keyUsage[0]);
         if (keyUsageSz == 2)
-            *extKeyUsage |= (word16)(keyUsage[1] << 8);
+            /* Cast first: a 0x80 byte overflows the shift where int is
+             * 16-bit. */
+            *extKeyUsage |= (word16)((word32)keyUsage[1] << 8);
     }
     return ret;
 }
