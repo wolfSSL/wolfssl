@@ -117,19 +117,30 @@ Properties of a resident AES key, mirroring ECC device keys:
 
 * the key never exists in HPS memory: `aes.devKey` and the round key schedule
   stay empty, and `wc_AlteraFcsAes_IsDeviceKey()` returns 1
-* `wc_AesSetKey()` on the context is refused with `WC_HW_E`; re-keying means
-  freeing the context and creating a new device key
+* `wc_AesSetKey()` on the context is refused with `WC_HW_E`, and with the
+  per-algorithm setkey callback (`WOLF_CRYPTO_CB_AES_SETKEY`) the refusal also
+  releases the device key; re-keying always means freeing the context and
+  creating a new device key
 * every operation runs on the device by handle; an SDM-ineligible length or a
   device failure is reported as `WC_HW_E` and never falls back to software,
   because no plaintext key exists to fall back to
+* only CBC and CTR are supported; any other AES mode on a resident context is
+  rejected with `WC_HW_E`
 * the usage mask is fixed to encrypt/decrypt at creation; 192 bit keys are
   refused because the key object has no code for them
+* the context must be freshly initialized: a context that went through
+  `wc_AesSetKey()` is refused, since its plaintext key and schedule would
+  still be in HPS memory
+* `wc_AesGetKeySize()` is not supported on a resident context; the software
+  key schedule it reads deliberately stays empty
 * `wc_AesFree()` releases the device slot
 
-The same 32-byte length multiple and `WOLFSSL_ALTERA_FCS_AES_MIN` floor apply,
-but as hard requirements rather than fallback thresholds. Both plaintext data
-and ciphertext still pass through HPS memory; the protection is key custody,
-not data-path secrecy.
+The same 32-byte length multiple, the `WOLFSSL_ALTERA_FCS_AES_MIN` floor and
+the 4 MiB `WC_ALTERA_FCS_MAX_XFER` ceiling apply, but as hard requirements
+rather than fallback thresholds: split larger buffers at the caller. For CTR
+no partial keystream may be outstanding from an earlier call. Both plaintext
+data and ciphertext still pass through HPS memory; the protection is key
+custody, not data-path secrecy.
 
 ## HMAC verification with vault keys
 
