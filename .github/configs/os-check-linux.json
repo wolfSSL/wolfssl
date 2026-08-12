@@ -621,5 +621,8 @@
  "configure": ["--enable-leanpsk", "--enable-weak-entropy"],
  "extra_cflags": "-Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -Werror=implicit-function-declaration -Wno-error=cpp",
  "check": false,
- "run": [["./wolfcrypt/test/testwolfcrypt"]]}
+ "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+{"name": "fpecc-no-shamir",
+ "comment": "FP_ECC with ECC_TIMING_RESISTANT but no ECC_SHAMIR: nothing consumes the fixed-point cache, so its table, lock and helpers are compiled out.",
+ "configure": ["--enable-fpecc", "--disable-eccshamir"]}
 ]

@@ -13582,6 +13582,10 @@ typedef struct {
                                /* permitted (0) or not (1) */
 } fp_cache_t;
 
+#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
+/* The cache, its lock, the LUT table and the cache-entry helpers below are
+ * only compiled when something can consume the FP cache: the variable-time
+ * path, or Shamir's trick in ecc_mul2add(). */
 /* if HAVE_THREAD_LS this cache is per thread, no locking needed */
 static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 
@@ -14218,9 +14222,11 @@ static int add_entry(int idx, ecc_point *g)
 
    return MP_OKAY;
 }
+#endif /* !ECC_TIMING_RESISTANT || ECC_SHAMIR */
 #endif
 
 #if !defined(WOLFSSL_SP_MATH)
+#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
 /* build the LUT by spacing the bits of the input by #modulus/FP_LUT bits apart
  *
  * The algorithm builds patterns in increasing bit order by first making all
@@ -14377,8 +14383,11 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 
    return err;
 }
+#endif /* !ECC_TIMING_RESISTANT || ECC_SHAMIR */
 
-/* perform a fixed point ECC mulmod */
+#ifndef ECC_TIMING_RESISTANT
+/* perform a fixed point ECC mulmod. Not constant-time; do not use with
+ * secret scalars. */
 static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
                         mp_int* modulus, mp_digit mp, int map)
 {
@@ -14563,6 +14572,7 @@ done:
 
    return err;
 }
+#endif /* !ECC_TIMING_RESISTANT */
 #endif
 
 #ifdef ECC_SHAMIR
@@ -15032,6 +15042,20 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     mp_int* modulus, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_MATH)
+#ifdef ECC_TIMING_RESISTANT
+   if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL) {
+       return ECC_BAD_ARG_E;
+   }
+
+   /* k can't have more bits than modulus count plus 1 */
+   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+      return ECC_OUT_OF_RANGE_E;
+   }
+
+   /* The FP-cache LUT is not constant-time, so secret scalars bypass the
+    * cache and its lock entirely. */
+   return normal_ecc_mulmod(k, G, R, a, modulus, NULL, map, heap);
+#else
    int   idx, err = MP_OKAY;
    mp_digit mp = 0;
    WC_DECLARE_VAR(mu, mp_int, 1, 0);
@@ -15137,6 +15161,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 
     return err;
+#endif /* ECC_TIMING_RESISTANT */
 
 #else /* WOLFSSL_SP_MATH */
 
@@ -15198,6 +15223,21 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     mp_int* modulus, mp_int* order, WC_RNG* rng, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_MATH)
+#ifdef ECC_TIMING_RESISTANT
+   if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL ||
+                                                                order == NULL) {
+       return ECC_BAD_ARG_E;
+   }
+
+   /* k can't have more bits than order */
+   if (mp_count_bits(k) > mp_count_bits(order)) {
+      return ECC_OUT_OF_RANGE_E;
+   }
+
+   /* The FP-cache LUT is not constant-time, so secret scalars bypass the
+    * cache and its lock entirely. */
+   return normal_ecc_mulmod(k, G, R, a, modulus, rng, map, heap);
+#else
    int   idx, err = MP_OKAY;
    mp_digit mp = 0;
    WC_DECLARE_VAR(mu, mp_int, 1, 0);
@@ -15304,6 +15344,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 
     return err;
+#endif /* ECC_TIMING_RESISTANT */
 
 #else /* WOLFSSL_SP_MATH */
 
@@ -15354,7 +15395,8 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif /* WOLFSSL_SP_MATH */
 }
 
-#if !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_SP_MATH) && \
+    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
 /* helper function for freeing the cache ...
    must be called with the cache mutex locked */
 static void wc_ecc_fp_free_cache(void)
@@ -15381,7 +15423,8 @@ static void wc_ecc_fp_free_cache(void)
 /** Init the Fixed Point cache */
 void wc_ecc_fp_init(void)
 {
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) && \
+    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
    /* Losing the election is fine - the winner finishes the init. */
@@ -15396,7 +15439,8 @@ void wc_ecc_fp_init(void)
 WOLFSSL_ABI
 void wc_ecc_fp_free(void)
 {
-#if !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_SP_MATH) && \
+    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
    /* extra sanity check if wolfCrypt_Init not called */
