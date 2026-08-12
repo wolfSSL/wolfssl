@@ -12824,8 +12824,12 @@ static int test_wc_CheckCertSigPubKey(void)
     ExpectIntEQ(load_file(ca_cert, &cert_buf, &cert_sz), 0);
     cert_dersz = (word32)cert_sz; /* DER will be smaller than PEM */
     ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
-    ExpectIntGE(ret = wc_CertPemToDer(cert_buf, (int)cert_sz, cert_der,
+    ExpectIntGT(ret = wc_CertPemToDer(cert_buf, (int)cert_sz, cert_der,
         (int)cert_dersz, CERT_TYPE), 0);
+    /* Use the actual DER length, not the (larger) PEM buffer size, otherwise
+     * the decoded cert would have trailing bytes after its outer SEQUENCE. */
+    if (ret > 0)
+        cert_dersz = (word32)ret;
 
     wc_InitDecodedCert(&decoded, cert_der, cert_dersz, NULL);
     ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
@@ -12863,6 +12867,175 @@ static int test_wc_CheckCertSigPubKey(void)
         free(cert_der);
     if (cert_buf != NULL)
         XFREE(cert_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Trailing data after a certificate's outer SEQUENCE must be rejected at parse
+ * time on a default (strict) build and tolerated when WOLFSSL_NO_ASN_STRICT is
+ * defined. In the latter case the stored/canonical DER (wolfSSL_X509_get_der /
+ * wolfSSL_i2d_X509) must still be bounded to the certificate itself and never
+ * re-emit the trailing bytes. TRUSTED CERTIFICATE blobs are the exception:
+ * their auxiliary trust data after the certificate parses on every build, with
+ * the stored DER again bounded to the certificate itself. */
+static int test_wc_ParseCert_trailing_data(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    const char*  ca_cert = "./certs/ca-cert.pem";
+    const char*  trusted_cert = "./certs/test/ossl-trusted-cert.pem";
+    byte*        pem = NULL;
+    size_t       pemSz = 0;
+    byte*        der = NULL;
+    word32       derBufSz = 0;
+    int          certSz = 0;
+    byte*        certPlusJunk = NULL;
+    word32       certPlusJunkSz = 0;
+    const word32 junkSz = 24;
+    DerBuffer*   trustedDer = NULL;
+    word32       trustedCertSz = 0;
+    EncryptedInfo info;
+    int          keyFormat = 0;
+    DecodedCert  decoded;
+
+    /* Load a known-good certificate and convert it to DER. */
+    ExpectIntEQ(load_file(ca_cert, &pem, &pemSz), 0);
+    derBufSz = (word32)pemSz; /* DER is always smaller than its PEM. */
+    ExpectNotNull(der = (byte*)XMALLOC(derBufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(certSz = wc_CertPemToDer(pem, (int)pemSz, der, (int)derBufSz,
+        CERT_TYPE), 0);
+
+    /* Build a buffer holding the certificate followed by N junk bytes. */
+    if (certSz > 0) {
+        certPlusJunkSz = (word32)certSz + junkSz;
+        ExpectNotNull(certPlusJunk = (byte*)XMALLOC(certPlusJunkSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    if (certPlusJunk != NULL) {
+        XMEMCPY(certPlusJunk, der, (size_t)certSz);
+        XMEMSET(certPlusJunk + certSz, 0xA5, junkSz);
+    }
+
+    /* Sanity: the clean certificate parses successfully. */
+    if (certSz > 0) {
+        wc_InitDecodedCert(&decoded, der, (word32)certSz, NULL);
+        ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
+        wc_FreeDecodedCert(&decoded);
+    }
+
+    /* Certificate with appended junk. */
+    if (certPlusJunk != NULL) {
+        wc_InitDecodedCert(&decoded, certPlusJunk, certPlusJunkSz, NULL);
+#ifdef WOLFSSL_NO_ASN_STRICT
+        /* Opt-out build: trailing data is tolerated at parse time, but srcIdx
+         * must stop at the end of the certificate (not the junk). */
+        ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL), 0);
+        ExpectIntEQ((int)decoded.srcIdx, certSz);
+#else
+        /* Default (strict) build: trailing data is rejected. */
+        ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+#endif
+        wc_FreeDecodedCert(&decoded);
+    }
+
+    /* TRUSTED CERTIFICATE: the certificate is followed by auxiliary trust
+     * data. TRUSTED_CERT_TYPE permits it on every build and srcIdx must still
+     * stop at the end of the certificate. */
+    XMEMSET(&info, 0, sizeof(info));
+    if (pem != NULL) {
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = NULL;
+    }
+    ExpectIntEQ(load_file(trusted_cert, &pem, &pemSz), 0);
+    ExpectIntEQ(wc_PemToDer(pem, (long)pemSz, TRUSTED_CERT_TYPE, &trustedDer,
+        NULL, &info, &keyFormat), 0);
+    if (trustedDer != NULL) {
+        wc_InitDecodedCert(&decoded, trustedDer->buffer, trustedDer->length,
+            NULL);
+        ExpectIntEQ(wc_ParseCert(&decoded, TRUSTED_CERT_TYPE, NO_VERIFY, NULL),
+            0);
+        trustedCertSz = decoded.srcIdx;
+        ExpectIntGT((int)trustedCertSz, 0);
+        /* The fixture must actually carry auxiliary data after the certificate
+         * for this test to prove anything. */
+        ExpectIntLT((int)trustedCertSz, (int)trustedDer->length);
+        wc_FreeDecodedCert(&decoded);
+
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* The same blob parsed as a plain certificate is rejected. */
+        wc_InitDecodedCert(&decoded, trustedDer->buffer, trustedDer->length,
+            NULL);
+        ExpectIntEQ(wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_FreeDecodedCert(&decoded);
+#endif
+    }
+
+#ifdef OPENSSL_EXTRA
+    /* derCert bounding: wolfSSL_X509_get_der / wolfSSL_i2d_X509 must re-emit
+     * only the certificate bytes, proving data after the certificate is never
+     * stored or re-serialized. */
+#ifdef WOLFSSL_NO_ASN_STRICT
+    if (certPlusJunk != NULL) {
+        WOLFSSL_X509* x509 = NULL;
+        const byte*   getDer = NULL;
+        int           getDerSz = 0;
+        byte*         i2dDer = NULL;
+        int           i2dSz = 0;
+
+        x509 = wolfSSL_X509_load_certificate_buffer(certPlusJunk,
+            (int)certPlusJunkSz, WOLFSSL_FILETYPE_ASN1);
+        ExpectNotNull(x509);
+
+        getDer = wolfSSL_X509_get_der(x509, &getDerSz);
+        ExpectNotNull(getDer);
+        ExpectIntEQ(getDerSz, certSz);
+
+        ExpectIntEQ((i2dSz = wolfSSL_i2d_X509(x509, &i2dDer)), certSz);
+        if (i2dDer != NULL)
+            XFREE(i2dDer, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
+
+        wolfSSL_X509_free(x509);
+    }
+#else
+    /* Default (strict) build: a certificate with trailing junk does not load
+     * as DER at all. */
+    if (certPlusJunk != NULL) {
+        ExpectNull(wolfSSL_X509_load_certificate_buffer(certPlusJunk,
+            (int)certPlusJunkSz, WOLFSSL_FILETYPE_ASN1));
+    }
+#endif /* WOLFSSL_NO_ASN_STRICT */
+
+#ifndef NO_BIO
+    /* PEM_read_bio_X509_AUX consumes the TRUSTED CERTIFICATE format; the
+     * X509's DER must hold only the certificate, not the auxiliary data. */
+    if ((pem != NULL) && (trustedCertSz > 0)) {
+        WOLFSSL_BIO*  bio = NULL;
+        WOLFSSL_X509* x509 = NULL;
+        const byte*   auxDer = NULL;
+        int           auxDerSz = 0;
+
+        ExpectNotNull(bio = wolfSSL_BIO_new_mem_buf(pem, (int)pemSz));
+        ExpectNotNull(x509 = wolfSSL_PEM_read_bio_X509_AUX(bio, NULL, NULL,
+            NULL));
+        auxDer = wolfSSL_X509_get_der(x509, &auxDerSz);
+        ExpectNotNull(auxDer);
+        ExpectIntEQ(auxDerSz, (int)trustedCertSz);
+        wolfSSL_X509_free(x509);
+        wolfSSL_BIO_free(bio);
+    }
+#endif /* !NO_BIO */
+#endif /* OPENSSL_EXTRA */
+
+    wc_FreeDer(&trustedDer);
+    if (certPlusJunk != NULL)
+        XFREE(certPlusJunk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der != NULL)
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem != NULL)
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
@@ -38936,6 +39109,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_GetPubKeyDerFromCert),
     TEST_DECL(test_wc_GetSubjectPubKeyInfoDerFromCert),
     TEST_DECL(test_wc_CheckCertSigPubKey),
+    TEST_DECL(test_wc_ParseCert_trailing_data),
 
     /* wolfCrypt ASN tests */
     TEST_DECL(test_ToTraditional),

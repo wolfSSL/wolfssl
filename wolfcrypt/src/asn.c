@@ -22557,6 +22557,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
 
 #if defined(HAVE_RPK)
     /* try to parse the cert as Raw Public Key cert */
+    word32 rpkStartIdx = cert->srcIdx;
     DECL_ASNGETDATA(RPKdataASN, RPKCertASN_Length);
     CALLOC_ASNGETDATA(RPKdataASN, RPKCertASN_Length, ret, cert->heap);
     GetASN_OID(&RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID],
@@ -22596,10 +22597,22 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     FREE_ASNGETDATA(RPKdataASN, cert->heap);
 
     if (ret == 0) {
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* Data after the SubjectPublicKeyInfo is rejected the same way as
+         * data after a certificate's outer SEQUENCE below. */
+        if ((!stopAtPubKey) && (!stopAfterPubKey) && (!cert->allowTrailing) &&
+                (cert->srcIdx != cert->maxIdx)) {
+            WOLFSSL_MSG("Trailing data after certificate");
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            return ASN_PARSE_E;
+        }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
         return ret;
     }
     else {
-        ret = 0;    /* proceed to the original x509 parsing */
+        /* Restore the index and proceed to the original x509 parsing. */
+        cert->srcIdx = rpkStartIdx;
+        ret = 0;
     }
 #endif /* HAVE_RPK */
 
@@ -22630,6 +22643,19 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
 #endif
     }
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* cert->srcIdx is now just past the certificate's outer SEQUENCE. Reject
+     * any data after it, with two exceptions: the pubkey-only paths
+     * (stopAtPubKey/stopAfterPubKey), whose callers may pass larger buffers,
+     * and the TRUSTED CERTIFICATE format (cert->allowTrailing), which carries
+     * auxiliary trust data after the certificate. */
+    if ((ret == 0) && (!stopAtPubKey) && (!stopAfterPubKey) &&
+            (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)) {
+        WOLFSSL_MSG("Trailing data after certificate");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        ret = ASN_PARSE_E;
+    }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
     /* Check version is valid/supported - can't be negative. */
     if ((ret == 0) && (version > MAX_X509_VERSION)) {
         WOLFSSL_MSG("Unexpected certificate version");
@@ -24127,6 +24153,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
     int    ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 confirmOID = 0;
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* Full input length before GetCertHeader() rebounds cert->maxIdx to the
+     * certificate's outer SEQUENCE; used to detect trailing data. */
+    word32 origMaxIdx = 0;
+#endif
 #ifdef WOLFSSL_CERT_REQ
     int    len = 0;
 #endif
@@ -24147,6 +24178,17 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         return BAD_FUNC_ARG;
     }
 
+    /* TRUSTED CERTIFICATE blobs (RFC/OpenSSL "TRUSTED CERTIFICATE") carry
+     * auxiliary trust data after the certificate. Permit that trailing data and
+     * parse only the certificate prefix; treat it as a normal certificate for
+     * all verification/path-length logic below. Doing this here (rather than in
+     * a single caller) means any caller of wc_ParseCert()/ParseCertRelative()
+     * that passes TRUSTED_CERT_TYPE gets the correct, consistent behavior. */
+    if (type == TRUSTED_CERT_TYPE) {
+        cert->allowTrailing = 1;
+        type = CERT_TYPE;
+    }
+
 #ifdef WOLFSSL_CERT_REQ
     if (type == CERTREQ_TYPE)
         cert->isCSR = 1;
@@ -24154,6 +24196,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 
     if (cert->sigCtx.state == SIG_STATE_BEGIN) {
 #ifndef WOLFSSL_ASN_TEMPLATE
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* Capture the full input length now: DecodeToKey()->GetCertHeader()
+         * rebounds cert->maxIdx to the certificate's outer SEQUENCE, after
+         * which trailing bytes would otherwise be invisible. */
+        origMaxIdx = cert->maxIdx;
+#endif
         cert->badDate = 0;
         cert->criticalExt = 0;
         if ((ret = DecodeToKey(cert, verify)) < 0) {
@@ -24170,6 +24218,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         WOLFSSL_MSG("Parsed Past Key");
 #if defined(HAVE_RPK)
         if (cert->isRPK) {
+#ifndef WOLFSSL_NO_ASN_STRICT
+            /* A Raw Public Key cert is only the SubjectPublicKeyInfo; reject
+             * data after it like data after a certificate's outer SEQUENCE. */
+            if ((!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)) {
+                WOLFSSL_MSG("Trailing data after certificate");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                return ASN_PARSE_E;
+            }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
             return ret;
         }
 #endif /* HAVE_RPK */
@@ -24396,6 +24453,27 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
             return ASN_SIG_OID_E;
         }
+
+#ifndef WOLFSSL_NO_ASN_STRICT
+        /* Reject trailing data after the certificate's outer SEQUENCE.
+         *
+         * This is the non-template counterpart to the trailing-data check in
+         * DecodeCertInternal(). GetCertHeader() rebounded cert->maxIdx to the
+         * end of the certificate's outer SEQUENCE, so comparing it against the
+         * original input length (origMaxIdx) detects any appended bytes. The
+         * TRUSTED CERTIFICATE format legitimately carries auxiliary trust data
+         * after the certificate (cert->allowTrailing), and CSRs carry their own
+         * trailing structure, so both are exempt. */
+        if ((cert->maxIdx != origMaxIdx) && (!cert->allowTrailing)
+#ifdef WOLFSSL_CERT_REQ
+                && (!cert->isCSR)
+#endif
+                ) {
+            WOLFSSL_MSG("Trailing data after certificate");
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            return ASN_PARSE_E;
+        }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
 #else
 #ifdef WOLFSSL_CERT_REQ
         if (cert->isCSR) {
@@ -35781,6 +35859,10 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
 #endif
 
     InitDecodedCert(cert, resp->cert, resp->certSz, heap);
+    /* The response's certs field may hold a chain (RFC 6960: SEQUENCE OF
+     * Certificate) and certSz spans all of it; only the first certificate is
+     * parsed and used, so permit the data that follows it. */
+    cert->allowTrailing = 1;
     ret = ParseCertRelative(cert, CERT_TYPE,
                             noVerify ? NO_VERIFY : VERIFY_OCSP_CERT,
                             cm, resp->pendingCAs);
