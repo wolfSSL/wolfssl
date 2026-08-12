@@ -166,6 +166,39 @@
  *         cannot fail, so :17005 cond 1 has no true row and :17007 cond 0 no
  *         false row. Attempted by cutting the message exactly at the IV tag;
  *         that makes GetAlgoId() fail one stage earlier instead.
+ * (h) FOUND WHILE DRIVING SECTIONS 11 TO 15 (attempted, then proved).
+ *       :6560 cond 0 -- the AlgorithmIdentifier SEQUENCE is parsed at :6544
+ *         with the bounds-checking GetSequence(), and the parameters this
+ *         GetASNTag() reads are only looked at once :6554 has established they
+ *         lie inside that SEQUENCE. The call cannot fail.
+ *       :6847 cond 0 -- the same argument as the already-filed :7524 cond 1:
+ *         stream->maxLen is set from the outer SEQUENCE and forced to defSz by
+ *         wc_PKCS7_SetMaxStream() when it computes 0, long before
+ *         wc_PKCS7_HandleOctetStrings() runs.
+ *       :9471 cond 0 -- ParseCert()'s result is checked at :9447 and returned
+ *         on failure, so decoded->issuerRaw has been filled in by
+ *         GetCertName(). (Cond 1 IS driven, with a certificate rewritten to
+ *         carry an empty issuer Name.)
+ *       :14549 cond 0 and cond 1 -- `length` is the IV length, which :14511
+ *         pins to expBlockSz (8 or 16 for every OID GetAlgoId(oidBlkType) can
+ *         return); it is neither negative nor larger than pkiMsgSz, which
+ *         :14506's GetLength_ex already required to hold the length bytes.
+ *       :14845 both -- the same argument as :16086, one stage earlier:
+ *         :14607 rejects an over-long encryptedContentTotalSz without
+ *         streaming, and with streaming :14621/:14657 make
+ *         wc_PKCS7_AddDataToStream() guarantee the bytes are buffered.
+ *       :14914 cond 0 -- the entry guard at :14316 only admits a NULL output
+ *         when pkcs7->streamOutCb is set, and :14901 then takes the
+ *         streamOutCb branch, so the else holding this guard always runs with
+ *         a non-NULL output.
+ *       :14958 cond 0 -- wc_PKCS7_DecodeEnvelopedData() creates the stream at
+ *         :14326 and returns at :14328 if that fails.
+ *       :14981 cond 1 -- pkcs7->cachedEncryptedContent is freed and NULLed on
+ *         the success path at :14926 before ret is set to a non-negative
+ *         size, so a non-NULL pointer at this cleanup guard implies ret < 0.
+ *       :15381 cond 1 -- authAttribsCount is incremented at every site that
+ *         increases authAttribsSz.
+ *
  *       :17100 cond 0 (`encryptedContentSz <= 0`) -- :17053 already rejected
  *         a GetLength_ex() result of `<= 0`, and the value is only carried
  *         through `stream->varThree` untouched, so it is at least 1 here.
