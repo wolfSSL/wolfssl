@@ -5289,6 +5289,33 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
             if (ret != WOLFSSL_SUCCESS &&
                     ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 break;
+#if defined(HAVE_FFDHE) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER)
+            /* RFC 7919 Section 4: any codepoint in the FFDHE range (256..511)
+             * restricts DHE to named groups even when the exact group is
+             * unknown. Keep it so TLSX_SupportedFFDHE_Set() sees the offer;
+             * an unsupported name can never match a server group. */
+            if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG) && isRequest &&
+                    WOLFSSL_NAMED_GROUP_IS_FFDHE(name)) {
+                TLSX* ext = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+                if (ext == NULL) {
+                    SupportedCurve* curve = NULL;
+                    ret = TLSX_SupportedCurve_New(&curve, name, ssl->heap);
+                    if (ret == 0) {
+                        ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS,
+                                        curve, ssl->heap);
+                        if (ret != 0)
+                            XFREE(curve, ssl->heap, DYNAMIC_TYPE_TLSX);
+                    }
+                }
+                else {
+                    ret = TLSX_SupportedCurve_Append(
+                        (SupportedCurve*)ext->data, name, ssl->heap);
+                }
+                if (ret != 0)
+                    break;
+            }
+#endif /* HAVE_FFDHE && !WOLFSSL_NO_TLS12 && !NO_WOLFSSL_SERVER */
             ret = 0;
         }
         /* All advertised groups are unsupported, so no node was added above.
