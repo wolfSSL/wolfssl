@@ -84,7 +84,7 @@
  *          5568 assigns it to wc_MakeRsaKey's own err, a different function,
  *          and no other callee on the path (RsaFunctionSync,
  *          wc_RsaFunctionNonBlock, which yields FP_WOULDBLOCK, and the
- *          mp_*/sp_* backends) produces the code. Neither macro is set by
+ *          mp_ / sp_ backends) produces the code. Neither macro is set by
  *          configs/rsa/user_settings.base.h or any variant's cppflags, and
  *          settings.h derives WOLF_CRYPTO_CB only from WOLF_CRYPTO_DEV.
  *          Confirmed against the measurement: no llvm-cov region exists for
