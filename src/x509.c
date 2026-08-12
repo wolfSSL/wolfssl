@@ -1115,12 +1115,11 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             (ext->obj->obj == NULL)) {
             byte* tmp;
         #ifdef WOLFSSL_NO_REALLOC
+            /* Don't carry the old OID over: objSz is the mapped NID's
+             * canonical length, which can exceed the certificate's OID. The
+             * buffer is rewritten from oidBuf below. */
             tmp = (byte*)XMALLOC(objSz, NULL, DYNAMIC_TYPE_ASN1);
-            if (tmp != NULL && ext->obj->obj != NULL) {
-                XMEMCPY(tmp, ext->obj->obj, ext->obj->objSz);
-                XFREE((byte*)ext->obj->obj, NULL, DYNAMIC_TYPE_ASN1);
-            }
-            else if (tmp == NULL) {
+            if (ext->obj->obj != NULL) {
                 XFREE((byte*)ext->obj->obj, NULL, DYNAMIC_TYPE_ASN1);
             }
             ext->obj->obj = tmp;

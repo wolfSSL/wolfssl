@@ -2685,3 +2685,49 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void)
         * !IGNORE_NAME_CONSTRAINTS */
     return EXPECT_RESULT();
 }
+
+int test_wolfSSL_X509_set_ext_oid_collision(void)
+{
+    EXPECT_DECLS;
+/* The fixture's OID collides under wc_oid_sum() only. With WOLFSSL_OLD_OID_SUM
+ * it maps elsewhere, no canonical OID is cached, and there is nothing to
+ * shrink. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(HAVE_ECC) && !defined(WOLFSSL_OLD_OID_SUM)
+    /* The fixture's extension OID, tag and length included. */
+    static const unsigned char certOid[] = {
+        0x06, 0x04, 0xE8, 0x85, 0xB6, 0x49
+    };
+    X509* x509 = NULL;
+    int count = 0;
+    int i;
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/test/cert-ext-oid-collide.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectIntEQ((count = X509_get_ext_count(x509)), 1);
+
+    for (i = 0; i < count; i++) {
+        X509_EXTENSION* ext = NULL;
+        ASN1_OBJECT* obj = NULL;
+        ASN1_OBJECT* canonical = NULL;
+
+        ExpectNotNull(ext = X509_get_ext(x509, i));
+        ExpectNotNull(obj = X509_EXTENSION_get_object(ext));
+
+        /* Must be the certificate's OID, byte for byte. */
+        ExpectIntEQ((int)obj->objSz, (int)sizeof(certOid));
+        ExpectBufEQ(obj->obj, certOid, sizeof(certOid));
+
+        /* Premise: the mapped NID's canonical OID is still longer, so the
+         * shrink is exercised. If this fails, regenerate the fixture with
+         * certs/test/gen-oid-collide-cert.sh. */
+        ExpectNotNull(canonical = wolfSSL_OBJ_nid2obj(obj->nid));
+        ExpectIntGT((int)canonical->objSz, (int)obj->objSz);
+        ASN1_OBJECT_free(canonical);
+    }
+
+    X509_free(x509);
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && HAVE_ECC &&
+        * !WOLFSSL_OLD_OID_SUM */
+    return EXPECT_RESULT();
+}
