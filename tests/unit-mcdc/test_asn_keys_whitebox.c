@@ -833,18 +833,32 @@ static void wb_decrypt_content_oid_len(void)
 {
     /* OID length 9 (a real PBES2 OID: 1.2.840.113549.1.5.13) -> idx==9,
      * neither branch of the OR is true -> proceeds to CheckAlgo(). */
+    /* EncryptedPrivateKeyInfo ::= SEQUENCE { AlgorithmIdentifier, OCTET
+     * STRING }. GetASN_OID(oidPBEType) does not reject an unrecognized OID
+     * (GetOID() forgives a NULL table entry), so the length of the OID that
+     * reaches :11096 is under the fixture's control. */
+    /* 9-byte OID: pbeWithSHA1And3-KeyTripleDES-CBC (1.2.840.113549.1.5.3). */
     static const byte oidLen9[] = {
-        0x30, 0x14,
-          0x30, 0x0F,
-            0x06, 0x09, 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x05,0x0D,
+        0x30, 0x12,
+          0x30, 0x0D,
+            0x06, 0x09, 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x05,0x03,
             0x30, 0x00,
           0x04, 0x01, 0x00
     };
-    /* OID length 3 (arbitrary, unsupported PBE OID) -> idx!=9 && idx!=10:
-     * both operands true. */
+    /* 10-byte OID: pbeWithSHAAnd3-KeyTripleDES-CBC
+     * (1.2.840.113549.1.12.1.3) -- idx != 9 but idx == 10. */
+    static const byte oidLen10[] = {
+        0x30, 0x13,
+          0x30, 0x0E,
+            0x06, 0x0A, 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x0C,0x01,0x03,
+            0x30, 0x00,
+          0x04, 0x01, 0x00
+    };
+    /* 3-byte OID (Ed25519, not a PBE algorithm at all) -> both operands
+     * true. */
     static const byte oidLen3[] = {
-        0x30, 0x0E,
-          0x30, 0x09,
+        0x30, 0x0C,
+          0x30, 0x07,
             0x06, 0x03, 0x2B,0x65,0x70,
             0x30, 0x00,
           0x04, 0x01, 0x00
@@ -852,12 +866,21 @@ static void wb_decrypt_content_oid_len(void)
     int ret;
 
     WB_NOTE("DecryptContent(): OID length gate idx!=9&&idx!=10 [:11096]");
-    ret = wc_DecryptPKCS8Key((byte*)oidLen9, sizeof(oidLen9), "pw", 2);
-    WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
-            "OID length 9 (both operands false)");
-    ret = wc_DecryptPKCS8Key((byte*)oidLen3, sizeof(oidLen3), "pw", 2);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
-            "OID length 3 (both operands true)");
+    {
+        byte tmp[32];
+        XMEMCPY(tmp, oidLen9, sizeof(oidLen9));
+        ret = wc_DecryptPKCS8Key(tmp, (word32)sizeof(oidLen9), "pw", 2);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+                "OID length 9 (1st operand false)");
+        XMEMCPY(tmp, oidLen10, sizeof(oidLen10));
+        ret = wc_DecryptPKCS8Key(tmp, (word32)sizeof(oidLen10), "pw", 2);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+                "OID length 10 (1st operand true, 2nd false)");
+        XMEMCPY(tmp, oidLen3, sizeof(oidLen3));
+        ret = wc_DecryptPKCS8Key(tmp, (word32)sizeof(oidLen3), "pw", 2);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+                "OID length 3 (both operands true)");
+    }
 }
 #else
 static void wb_decrypt_content_oid_len(void) { WB_NOTE("HAVE_PKCS8/template off; DecryptContent skipped"); }
@@ -1727,7 +1750,10 @@ static word32 wb_build_ecc_specified_der(byte* out, byte version,
         out[idx++] = ASN_INTEGER; out[idx++] = 1; out[idx++] = 0x01;
     }
     if (withHash) {
-        out[idx++] = ASN_SEQUENCE | ASN_CONSTRUCTED; out[idx++] = 0;
+        /* eccSpecifiedASN's HASH_SEQ item is declared with constructed == 0
+         * (asn.c:33051), so the engine matches a bare ASN_SEQUENCE tag here;
+         * emitting 0x30 makes the whole parse fail before the version gate. */
+        out[idx++] = ASN_SEQUENCE; out[idx++] = 0;
     }
 
     return idx;
