@@ -178,8 +178,11 @@ WOLFSSL_LOCAL int wc_AlteraFcs_Aes(wc_CryptoInfo* info);
 /* Device resident AES. The key is generated inside the SDM and never appears in
  * HPS memory, unlike wc_AesSetKey which stores a plaintext key the port can only
  * import. Created explicitly because an SDM key object commits to its usage at
- * creation. CBC and CTR are then offloaded by handle with no software fallback,
- * so callers that depend on key isolation should assert IsDeviceKey. */
+ * creation. CBC and CTR are then offloaded by handle with no software fallback;
+ * any other AES mode is refused, so callers that depend on key isolation should
+ * assert IsDeviceKey. MakeKey requires a freshly initialized context: one that
+ * already went through wc_AesSetKey is refused, and wc_AesSetKey,
+ * wc_AesSetKeyDirect and wc_AesGetKeySize are not usable on the result. */
 WOLFSSL_API int wc_AlteraFcsAes_MakeKey(Aes* aes, int keyBits);
 WOLFSSL_API int wc_AlteraFcsAes_IsDeviceKey(const Aes* aes);
 #endif

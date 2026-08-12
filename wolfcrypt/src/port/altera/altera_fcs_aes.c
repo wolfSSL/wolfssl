@@ -190,7 +190,16 @@ static int wc_AlteraFcs_AesKeyId(Aes* aes, word32* keyId)
     int           resourceReserved = 0;
     int           ret;
 
-    keyCtx = (AlteraAesKey*)aes->devCtx;
+    /* A schedule-less context never completed wc_AesSetKey here, so devKey is
+     * not caller key material; importing it would install an all-zero key. */
+    if (aes->rounds == 0) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    keyCtx = wc_AlteraFcs_AesCtx(aes);
+    if (keyCtx == NULL && aes->devCtx != NULL) {
+        /* Not a context this port created; leave it undisturbed. */
+        return CRYPTOCB_UNAVAILABLE;
+    }
     if (keyCtx != NULL) {
         void* heap = keyCtx->heap;
 
@@ -314,6 +323,13 @@ static int wc_AlteraFcs_AesOp(Aes* aes, byte* out, const byte* in, word32 sz,
      * make wolfSSL encrypt under an uninitialised software schedule. */
     keyCtx   = wc_AlteraFcs_AesCtx(aes);
     resident = (keyCtx != NULL && keyCtx->origin == WC_ALTERA_FCS_AES_RESIDENT);
+
+    /* A software schedule on a resident context means some key setup bypassed
+     * the callback. Refuse rather than guess which key the caller meant. */
+    if (resident && aes->rounds != 0) {
+        WOLFSSL_MSG("Altera FCS resident AES context was re-keyed unsafely");
+        return WC_HW_E;
+    }
 
     /* Keep caller input and output untouched until the device confirms a full
      * result. This makes in-place requests safe to retry in software after a
@@ -478,7 +494,7 @@ static void wc_AlteraFcs_AesKeyFree(Aes* aes)
         return;
     }
 
-    keyCtx = (AlteraAesKey*)aes->devCtx;
+    keyCtx = wc_AlteraFcs_AesCtx(aes);
     if (keyCtx != NULL) {
         void* heap = keyCtx->heap;
 
@@ -572,6 +588,14 @@ int wc_AlteraFcsAes_MakeKey(Aes* aes, int keyBits)
         WOLFSSL_MSG("Altera FCS AES key already has a device key");
         return BAD_FUNC_ARG;
     }
+    /* A context that went through wc_AesSetKey holds a plaintext key and
+     * software schedule in HPS memory. Accepting it would report device
+     * isolation while the earlier key material is still present, and leave
+     * software paths keyed differently than the device. */
+    if (aes->keylen != 0 || aes->rounds != 0) {
+        WOLFSSL_MSG("Altera FCS AES context already holds a key");
+        return BAD_FUNC_ARG;
+    }
 
     /* Past this point a failure is reported as a failure. Returning success
      * without a resident key would defeat the isolation the caller asked for. */
@@ -640,6 +664,48 @@ int wc_AlteraFcsAes_IsDeviceKey(const Aes* aes)
     return (keyCtx != NULL && keyCtx->origin == WC_ALTERA_FCS_AES_RESIDENT);
 }
 
+/* Resolve the Aes context of an AES cipher request, reading only union
+ * members this build compiled in. Unknown or non-AES types return NULL. */
+static Aes* wc_AlteraFcs_AesCipherCtx(const wc_CryptoInfo* info)
+{
+    Aes* aes = NULL;
+
+    switch (info->cipher.type) {
+    #ifdef HAVE_AESGCM
+        case WC_CIPHER_AES_GCM:
+            aes = info->cipher.enc ? info->cipher.aesgcm_enc.aes
+                                   : info->cipher.aesgcm_dec.aes;
+            break;
+    #endif
+    #ifdef HAVE_AESCCM
+        case WC_CIPHER_AES_CCM:
+            aes = info->cipher.enc ? info->cipher.aesccm_enc.aes
+                                   : info->cipher.aesccm_dec.aes;
+            break;
+    #endif
+    #if defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT) || \
+        defined(WOLF_CRYPTO_CB_ONLY_AES)
+        case WC_CIPHER_AES_ECB:
+            aes = info->cipher.aesecb.aes;
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_CFB
+        case WC_CIPHER_AES_CFB:
+            aes = info->cipher.aescfb.aes;
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_OFB
+        case WC_CIPHER_AES_OFB:
+            aes = info->cipher.aesofb.aes;
+            break;
+    #endif
+        default:
+            break;
+    }
+
+    return aes;
+}
+
 int wc_AlteraFcs_Aes(wc_CryptoInfo* info)
 {
     int ret = CRYPTOCB_UNAVAILABLE;
@@ -666,7 +732,26 @@ int wc_AlteraFcs_Aes(wc_CryptoInfo* info)
             ret = wc_AlteraFcs_AesCtr(info);
             break;
     #endif
+        case WC_CIPHER_AES:
+    #ifdef WOLF_CRYPTO_CB_AES_SETKEY
+            /* wc_CryptoCb_AesSetKey arrives as this cipher type. aes.c clears
+             * devCtx on any error it returns, so the resident slot must be
+             * released here rather than leaked; the context is then unusable
+             * until a new device key is made. */
+            if (wc_AlteraFcsAes_IsDeviceKey(info->cipher.aessetkey.aes)) {
+                WOLFSSL_MSG("Altera FCS resident AES key cannot be re-keyed");
+                wc_AlteraFcs_AesKeyFree(info->cipher.aessetkey.aes);
+                ret = WC_HW_E;
+            }
+    #endif
+            break;
         default:
+            /* A resident key has no software schedule, so a mode the device
+             * cannot serve must fail rather than fall back. */
+            if (wc_AlteraFcsAes_IsDeviceKey(wc_AlteraFcs_AesCipherCtx(info))) {
+                WOLFSSL_MSG("Altera FCS resident AES key: unsupported mode");
+                ret = WC_HW_E;
+            }
             break;
     }
 
