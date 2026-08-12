@@ -137,7 +137,7 @@
  * WOLFSSL_MAXQ10XX_TLS:       Maxim MAXQ10xx secure element           default: off
  * WOLFSSL_IOTSAFE:            IoTSAFE (GSMA) applet support           default: off
  * WOLFSSL_QNX_CAAM:           QNX CAAM crypto module support          default: off
- * HAVE_DH_DEFAULT_PARAMS:     Include default DH parameters           default: off
+ * HAVE_DH_DEFAULT_PARAMS:     No effect; kept for build compatibility
  * HAVE_EXT_CACHE:             External session cache callbacks        default: off
  *
  * Hardening:
@@ -41441,7 +41441,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
 
-#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_DH_DEFAULT_PARAMS)
+#if defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_QT)
     #if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
         if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) != NULL) {
             /* Set FFDHE parameters or clear DHE parameters if FFDH parameters
