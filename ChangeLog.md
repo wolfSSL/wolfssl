@@ -12,6 +12,7 @@
 ## Bug Fixes
 
 * Fixed `wc_PKCS7_DecodeEnvelopedData()` and `wc_PKCS7_DecodeAuthEnvelopedData()` failing on a message addressed to more than one recipient; AuthEnvelopedData never supported it at all. A message carrying no recipient for the reader now reports `PKCS7_RECIP_E` rather than a parse error. Streaming an AuthEnvelopedData now buffers the whole RecipientInfo set, as the EnvelopedData decoder already did, so peak memory rises by the size of that set. by @Frauschi (PR 11350)
+* Removed `WOLFSSL_MP_INVMOD_CONSTANT_TIME`: DSA signing and RSA key generation now always use their blinded or Fermat inverse. by @stenslae
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 

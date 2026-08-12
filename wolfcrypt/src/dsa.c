@@ -806,15 +806,11 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
     mp_int  *r = NULL;
     mp_int  *s = NULL;
     mp_int  *H = NULL;
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     mp_int  *b = NULL;
-#endif
     byte    *buffer = NULL;
 #else
     mp_int  k[1], kInv[1], r[1], s[1], H[1];
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     mp_int  b[1];
-#endif
     byte    buffer[DSA_MAX_HALF_SIZE];
 #endif
     mp_int* qMinus1;
@@ -838,9 +834,7 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
         r = (mp_int *)XMALLOC(sizeof *r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         s = (mp_int *)XMALLOC(sizeof *s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         H = (mp_int *)XMALLOC(sizeof *H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
         b = (mp_int *)XMALLOC(sizeof *b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
         buffer = (byte *)XMALLOC(DSA_MAX_HALF_SIZE, key->heap,
                                  DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -848,25 +842,18 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             (kInv == NULL) ||
             (r == NULL) ||
             (s == NULL) ||
-            (H == NULL)
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-            || (b == NULL)
-#endif
-            || (buffer == NULL)) {
+            (H == NULL) ||
+            (b == NULL) ||
+            (buffer == NULL)) {
             ret = MEMORY_E;
             break;
         }
 #endif
 
-#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-        if (mp_init_multi(k, kInv, r, s, H, 0) != MP_OKAY)
-#else
-            if (mp_init_multi(k, kInv, r, s, H, b) != MP_OKAY)
-#endif
-                {
-                    ret = MP_INIT_E;
-                    break;
-                }
+        if (mp_init_multi(k, kInv, r, s, H, b) != MP_OKAY) {
+            ret = MP_INIT_E;
+            break;
+        }
 
         halfSz = min(DSA_MAX_HALF_SIZE, (word32)mp_unsigned_bin_size(&key->q));
         /* NIST FIPS 186-4: Sections 4.1
@@ -935,46 +922,6 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             break;
         }
 
-#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-        /* inverse k mod q */
-        if (mp_invmod(k, &key->q, kInv) != MP_OKAY) {
-            ret = MP_INVMOD_E;
-            break;
-        }
-
-        /* generate r, r = (g exp k mod p) mod q */
-        if (mp_exptmod_ex(&key->g, k, key->q.used, &key->p, r) != MP_OKAY) {
-            ret = MP_EXPTMOD_E;
-            break;
-        }
-
-        if (mp_mod(r, &key->q, r) != MP_OKAY) {
-            ret = MP_MOD_E;
-            break;
-        }
-
-        /* generate H from sha digest */
-        if (mp_read_unsigned_bin(H, digest, digestSz) != MP_OKAY) {
-            ret = MP_READ_E;
-            break;
-        }
-
-        /* generate s, s = (kInv * (H + x*r)) % q */
-        if (mp_mul(&key->x, r, s) != MP_OKAY) {
-            ret = MP_MUL_E;
-            break;
-        }
-
-        if (mp_add(s, H, s) != MP_OKAY) {
-            ret = MP_ADD_E;
-            break;
-        }
-
-        if (mp_mulmod(s, kInv, &key->q, s) != MP_OKAY) {
-            ret = MP_MULMOD_E;
-            break;
-        }
-#else
         /* Blinding value
          * Generate b in range [1, q-1].
          */
@@ -1063,7 +1010,6 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             ret = MP_MOD_E;
             break;
         }
-#endif
 
         /* detect zero r or s */
         if ((mp_iszero(r) == MP_YES) || (mp_iszero(s) == MP_YES)) {
@@ -1113,14 +1059,12 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             mp_clear(H);
         XFREE(H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     if (b) {
         if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
             (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_forcezero(b);
         XFREE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif
     if (buffer) {
         ForceZero(buffer, halfSz);
         XFREE(buffer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1133,9 +1077,7 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
 #endif
         mp_forcezero(kInv);
         mp_forcezero(k);
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
         mp_forcezero(b);
-#endif
         mp_clear(H);
         mp_clear(s);
         mp_clear(r);
