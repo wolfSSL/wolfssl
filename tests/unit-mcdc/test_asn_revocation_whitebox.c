@@ -329,8 +329,15 @@ static void wb_decode_single_response_dates(void)
     sz = wb_build_single_response(buf, futureDate, futureDate);
     idx = 0;
     ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+    /* Without a clock the date range is not validated at all, so the
+     * out-of-range fixtures are accepted in that variant. */
+#if !defined(NO_ASN_TIME) && !defined(NO_ASN_TIME_CHECK) && \
+    !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
             ":34986/:34987 both true (thisUpdate in the future)");
+#else
+    WB_CHECK(ret == 0, "thisUpdate in the future, no clock (not validated)");
+#endif
 
     /* nextUpdate in the past (thisUpdate still valid) -> :35006/:35007 both
      * true (present), :35012/:35013 both true -> ASN_AFTER_DATE_E. Also
@@ -342,8 +349,13 @@ static void wb_decode_single_response_dates(void)
     sz = wb_build_single_response(buf, pastDate, pastDate);
     idx = 0;
     ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+#if !defined(NO_ASN_TIME) && !defined(NO_ASN_TIME_CHECK) && \
+    !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E),
             ":35012/:35013 both true (nextUpdate in the past)");
+#else
+    WB_CHECK(ret == 0, "nextUpdate in the past, no clock (not validated)");
+#endif
 
 #ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
     /* Same two rejecting fixtures with the runtime skip flag set: the
@@ -2160,8 +2172,13 @@ static void wb_parse_crl(void)
     InitDecodedCRL(&dcrl, NULL);
     XMEMSET(rcertArr, 0, sizeof(rcertArr));
     ret = ParseCRL(rcertArr, &dcrl, der, sz, VERIFY, NULL);
+#if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
     WB_CHECK(ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
             ":37630-:37632 all true (verify!=NO_VERIFY, expired nextUpdate)");
+#else
+    WB_CHECK(ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
+            "expired nextUpdate, no clock (date check compiled out)");
+#endif
     FreeDecodedCRL(&dcrl);
 
     /* --- signature-parameter agreement [:37713,:37773,:37778] ---------- *
