@@ -12115,6 +12115,71 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_KEY_IMPORT
+/* Check an imported private scalar is in [1, n-1] for the key's curve.
+ *
+ * Cheap by design - reads the order and compares, with no curve spec load or
+ * point arithmetic, so it runs on every import. The expensive public key
+ * consistency check stays behind WOLFSSL_VALIDATE_ECC_IMPORT.
+ *
+ * @param [in] key  ECC key with k and dp set.
+ * @return  0 when the scalar is in range.
+ * @return  ECC_PRIV_KEY_E when it is zero, negative or >= the order.
+ * @return  BAD_FUNC_ARG, MEMORY_E or a math error otherwise.
+ */
+static int ecc_check_privkey_range(ecc_key* key)
+{
+    int ret = 0;
+    mp_int* k;
+    WC_DECLARE_VAR(order, mp_int, 1, 0);
+
+    if ((key == NULL) || (key->dp == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* ecc_get_k() - not key->k - so this is correct on either side of
+     * ecc_blind_k_rng() under WOLFSSL_ECC_BLIND_K. */
+    k = ecc_get_k(key);
+
+#ifdef WOLFSSL_SE050
+    /* A zero scalar is how a key held in the secure element looks to
+     * software: se050_ecc_create_key() fills in only the public part, so the
+     * DER it round-trips through carries a zero private value. Range
+     * checking still applies to a scalar that is actually present. */
+    if (mp_iszero(k)) {
+        return 0;
+    }
+#endif
+
+    /* SP 800-56Ar3, section 5.6.2.1.2 - private keys are in [1, n-1]. */
+    if (mp_iszero(k) || mp_isneg(k)) {
+        return ECC_PRIV_KEY_E;
+    }
+
+    WC_ALLOC_VAR_EX(order, mp_int, 1, key->heap, DYNAMIC_TYPE_ECC,
+        ret=MEMORY_E);
+
+    if (ret == 0) {
+        ret = mp_init(order);
+    }
+    if (ret == 0) {
+        ret = mp_read_radix(order, key->dp->order, MP_RADIX_HEX);
+    #ifdef WOLFSSL_SM2
+        /* SM2 curve: private key must be less than order-1. */
+        if ((ret == 0) && (key->idx != ECC_CUSTOM_IDX) &&
+                (ecc_sets[key->idx].id == ECC_SM2P256V1)) {
+            ret = mp_sub_d(order, 1, order);
+        }
+    #endif
+        if ((ret == 0) && (mp_cmp(k, order) != MP_LT)) {
+            ret = ECC_PRIV_KEY_E;
+        }
+        mp_clear(order);
+    }
+    WC_FREE_VAR_EX(order, key->heap, DYNAMIC_TYPE_ECC);
+
+    return ret;
+}
+
 /* Software-only import of private key, public part optional.
  * This internal helper avoids recursion when called from the SETKEY path. */
 static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
@@ -12247,6 +12312,12 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
     }
 #else
 
+#ifdef WOLFSSL_ECC_BLIND_K
+    /* Drop any blind left over from a previous use of this key: the new
+     * scalar is read in unblinded and ecc_blind_k_rng() below installs a
+     * fresh one. Matches the x963 and raw import paths. */
+    mp_forcezero(key->kb);
+#endif
     ret = mp_read_unsigned_bin(key->k, priv, privSz);
 #ifdef HAVE_WOLF_BIGINT
     if (ret == 0 && wc_bigint_from_unsigned_bin(&key->k->raw, priv,
@@ -12255,34 +12326,9 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
         ret = ASN_GETINT_E;
     }
 #endif /* HAVE_WOLF_BIGINT */
-#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if (ret == 0) {
-        WC_DECLARE_VAR(order, mp_int, 1, 0);
-
-        WC_ALLOC_VAR_EX(order, mp_int, 1, key->heap, DYNAMIC_TYPE_ECC,
-            ret=MEMORY_E);
-
-        if (ret == 0) {
-            ret = mp_init(order);
-        }
-        if (ret == 0) {
-            ret = mp_read_radix(order, key->dp->order, MP_RADIX_HEX);
-        }
-    #ifdef WOLFSSL_SM2
-        /* SM2 curve: private key must be less than order-1. */
-        if ((ret == 0) && (key->idx != ECC_CUSTOM_IDX) &&
-                (ecc_sets[key->idx].id == ECC_SM2P256V1)) {
-            ret = mp_sub_d(order, 1, order);
-        }
-    #endif
-        if ((ret == 0) && (mp_cmp(key->k, order) != MP_LT)) {
-            ret = ECC_PRIV_KEY_E;
-        }
-
-        mp_clear(order);
-        WC_FREE_VAR_EX(order, key->heap, DYNAMIC_TYPE_ECC);
+        ret = ecc_check_privkey_range(key);
     }
-#endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 #ifdef WOLFSSL_ECC_BLIND_K
     if (ret == 0) {
         ret = ecc_blind_k_rng(key, NULL);
@@ -12764,6 +12810,15 @@ static int _ecc_import_raw_private(ecc_key* key, const char* qx,
                     WOLFSSL_MSG("Invalid private key");
                     err = BAD_FUNC_ARG;
                 }
+            }
+        #if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+            /* A black key holds an encrypted blob, not a scalar. */
+            if ((err == MP_OKAY) && (key->blackKey == 0))
+        #else
+            if (err == MP_OKAY)
+        #endif
+            {
+                err = ecc_check_privkey_range(key);
             }
         } else {
             key->type = ECC_PUBLICKEY;

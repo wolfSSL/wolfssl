@@ -43613,54 +43613,61 @@ done:
 static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
 {
     wc_test_ret_t ret;
+    int        inited = 0;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key    *key2 = (ecc_key *)XMALLOC(sizeof *key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key    *key3 = (ecc_key *)XMALLOC(sizeof *key3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ecc_key    *key4 = (ecc_key *)XMALLOC(sizeof *key4, HEAP_HINT,
+                                          DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key    key2[1];
     ecc_key    key3[1];
+    ecc_key    key4[1];
 #endif
-#ifdef WOLFSSL_PUBLIC_MP
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_BLIND_K)
     mp_int*    priv;
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((key2 == NULL) || (key3 == NULL))
+    if ((key2 == NULL) || (key3 == NULL) || (key4 == NULL))
         ERROR_OUT(MEMORY_E, done);
 #endif
 
     wc_ecc_init_ex(key2, HEAP_HINT, devId);
     wc_ecc_init_ex(key3, HEAP_HINT, devId);
+    wc_ecc_init_ex(key4, HEAP_HINT, devId);
+    inited = 1;
 
-    /* TODO: Use test data, test with WOLFSSL_VALIDATE_ECC_IMPORT. */
-    /* Need base point (Gx,Gy) and parameter A - load them as the public and
-     * private key in key2.
+    /* key2 and key3 carry the base point and the result point; key4 carries
+     * the curve parameter A and the prime. Those two are curve constants
+     * rather than private keys, so they ride in as public coordinates - the
+     * private key import path rejects values outside [1, n-1].
      */
-    ret = wc_ecc_import_raw_ex(key2, key1->dp->Gx, key1->dp->Gy, key1->dp->Af,
+    ret = wc_ecc_import_raw_ex(key2, key1->dp->Gx, key1->dp->Gy, NULL,
+                               ECC_SECP256R1);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_import_raw_ex(key3, key1->dp->Gx, key1->dp->Gy, NULL,
+                               ECC_SECP256R1);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_import_raw_ex(key4, key1->dp->Af, key1->dp->prime, NULL,
                                ECC_SECP256R1);
     if (ret != 0)
         goto done;
 
-    /* Need a point (Gx,Gy) and prime - load them as the public and private key
-     * in key3.
-     */
-    ret = wc_ecc_import_raw_ex(key3, key1->dp->Gx, key1->dp->Gy,
-                               key1->dp->prime, ECC_SECP256R1);
-    if (ret != 0)
-        goto done;
-
     ret = wc_ecc_mulmod(wc_ecc_key_get_priv(key1), &key2->pubkey, &key3->pubkey,
-                        wc_ecc_key_get_priv(key2), wc_ecc_key_get_priv(key3),
-                        1);
+                        key4->pubkey.x, key4->pubkey.y, 1);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
-#ifdef WOLFSSL_PUBLIC_MP
+/* wc_ecc_key_get_priv() hands back a regenerated scratch value when the
+ * scalar is blinded, so zeroing through it would not clear the key. */
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_BLIND_K)
     priv = wc_ecc_key_get_priv(key1);
     mp_zero(priv);
     ret = wc_ecc_mulmod(wc_ecc_key_get_priv(key1), &key2->pubkey, &key3->pubkey,
-                        wc_ecc_key_get_priv(key2), wc_ecc_key_get_priv(key3),
-                        1);
+                        key4->pubkey.x, key4->pubkey.y, 1);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     if (!wc_ecc_point_is_at_infinity(&key3->pubkey)) {
@@ -43676,17 +43683,28 @@ static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
 done:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    /* An allocation failure jumps here before the keys are initialized. */
     if (key2 != NULL) {
-        wc_ecc_free(key2);
+        if (inited)
+            wc_ecc_free(key2);
         XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (key3 != NULL) {
-        wc_ecc_free(key3);
+        if (inited)
+            wc_ecc_free(key3);
         XFREE(key3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
+    if (key4 != NULL) {
+        if (inited)
+            wc_ecc_free(key4);
+        XFREE(key4, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #else
-    wc_ecc_free(key3);
-    wc_ecc_free(key2);
+    if (inited) {
+        wc_ecc_free(key4);
+        wc_ecc_free(key3);
+        wc_ecc_free(key2);
+    }
 #endif
 
     return ret;
