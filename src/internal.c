@@ -13120,7 +13120,14 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS_CID
-    if (rh->type == dtls12_cid && (cidSz = DtlsGetCidRxSize(ssl)) == 0)
+    if (rh->type == dtls12_cid) {
+        if ((cidSz = DtlsGetCidRxSize(ssl)) == 0)
+            return DTLS_CID_ERROR;
+    }
+    /* RFC 9146 Sec 4: with a receive CID every protected record must use the
+     * dtls12_cid type. The MAC covers the inner content type, not the wire
+     * type, so a record re-framed as application_data still authenticates. */
+    else if (ssl->keys.curEpoch != 0 && DtlsGetCidRxSize(ssl) != 0)
         return DTLS_CID_ERROR;
 #endif
 
