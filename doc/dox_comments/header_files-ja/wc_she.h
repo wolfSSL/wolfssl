@@ -265,15 +265,15 @@ int wc_SHE_ImportM1M2M3(wc_SHE* she,
     \brief SHEの鍵更新メッセージM1、M2、M3を生成し、呼び出し側が用意したバッファへ書き込みます。認可鍵からK1とK2を導出するためにMiyaguchi-Preneel AES-128 KDFを、新しい鍵の暗号化(M2)にAES-CBCを、認証(M3)にAES-CMACを使用します。
 
     \return 0 成功した場合に返されます
-    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、またはサイズが正しくない場合に返されます
+    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、サイズが正しくない場合、またはcounter、flags、authKeyId、targetKeyIdがパックされるフィールドの幅を超える場合に返されます
 
     \param she 初期化済みのSHEコンテキスト
     \param uid 15バイトのSHE UID(120ビットのECU/モジュール識別子)
     \param uidSz WC_SHE_UID_SZ(15)でなければなりません
-    \param authKeyId 認可鍵のスロットID(0〜14)
+    \param authKeyId 認可鍵の4ビットのスロットID
     \param authKey 認可鍵の16バイトの値
     \param authKeySz WC_SHE_KEY_SZ(16)でなければなりません
-    \param targetKeyId ロード対象の鍵のスロットID(1〜14)
+    \param targetKeyId ロード対象の鍵の4ビットのスロットID
     \param newKey ロードする新しい鍵の16バイトの値
     \param newKeySz WC_SHE_KEY_SZ(16)でなければなりません
     \param counter 28ビットの単調増加カウンタ値(対象スロットに格納されているカウンタより大きい値でなければなりません。同じ値は使用できません)
@@ -317,13 +317,13 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     \brief SHEの検証メッセージM4とM5を生成し、呼び出し側が用意したバッファへ書き込みます。新しい鍵からK3とK4を導出するためにMiyaguchi-Preneel AES-128 KDFを、M4のカウンタブロックにAES-ECBを、M5にAES-CMACを使用します。M1/M2/M3とは独立しており、別のコンテキストで呼び出すこともできます。
 
     \return 0 成功した場合に返されます
-    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、またはサイズが正しくない場合に返されます
+    \return BAD_FUNC_ARG 必要なポインタのいずれかがNULLの場合、サイズが正しくない場合、またはcounter、authKeyId、targetKeyIdがパックされるフィールドの幅を超える場合に返されます
 
     \param she 初期化済みのSHEコンテキスト
     \param uid 15バイトのSHE UID(M1で使用したものと同じUID)
     \param uidSz WC_SHE_UID_SZ(15)でなければなりません
-    \param authKeyId 認可鍵のスロットID(M1と同じ)
-    \param targetKeyId ロード対象の鍵のスロットID(M1と同じ)
+    \param authKeyId 認可鍵の4ビットのスロットID(M1と同じ)
+    \param targetKeyId ロード対象の鍵の4ビットのスロットID(M1と同じ)
     \param newKey 新しい鍵の16バイトの値
     \param newKeySz WC_SHE_KEY_SZ(16)でなければなりません
     \param counter 28ビットの単調増加カウンタ(M2と同じ値)
