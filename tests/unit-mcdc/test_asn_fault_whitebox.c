@@ -276,9 +276,21 @@ static void wb_get_key_oid_null_args(void)
     /* baseline: garbage key never decodes as any known key type, so
      * *algoID stays 0 and ret is 0 -- none of the internal decode attempts
      * succeed far enough to reach their own (different) BAD_FUNC_ARG. */
+    /* A real RSA private key: the guard's all-false row with a result that is
+     * actually distinguishable. Handing this call a garbage buffer also takes
+     * the false path, but one of the inner decoders then returns BAD_FUNC_ARG
+     * of its own, which says nothing about this guard. */
+#ifdef USE_CERT_BUFFERS_2048
+    ret = wc_GetKeyOID(client_key_der_2048, (word32)sizeof_client_key_der_2048,
+            &curveOID, &oidSz, &algoID, NULL);
+    /* wc_GetKeyOID() returns 1 when it identified the key type. */
+    WB_CHECK(ret >= 0 && algoID == RSAk, "baseline (both false)");
+#else
     ret = wc_GetKeyOID(dummyKey, sizeof(dummyKey), &curveOID, &oidSz, &algoID,
             NULL);
-    WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG), "baseline (both false)");
+    (void)ret;
+    WB_NOTE("no cert buffers; baseline result not asserted");
+#endif
 
     ret = wc_GetKeyOID(NULL, sizeof(dummyKey), &curveOID, &oidSz, &algoID,
             NULL);
@@ -674,22 +686,34 @@ static void wb_ecc_to_pkcs8_null_args(void)
     ret = eccToPKCS8(&key, NULL, &outLen, 1);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "key->dp==NULL");
 
-    /* baseline + outLen==NULL both need a real curve set on the key. */
-    if (wc_ecc_init(&key) == 0 &&
-            wc_ecc_set_curve(&key, 32, ECC_SECP256R1) == 0) {
-        outLen = 0;
-        ret = eccToPKCS8(&key, NULL, &outLen, 1);
-        WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG), "baseline (all false)");
+    /* baseline + outLen==NULL need a key with an actual private value, not
+     * just a curve: eccToPKCS8() sizes the encoding by exporting the key, so
+     * a curve-only key is rejected by the exporter with its own BAD_FUNC_ARG
+     * and says nothing about this guard. */
+#ifdef USE_CERT_BUFFERS_256
+    {
+        word32 kIdx = 0;
+        if ((wc_ecc_init(&key) == 0) &&
+                (wc_EccPrivateKeyDecode(ecc_key_der_256, &kIdx, &key,
+                     (word32)sizeof_ecc_key_der_256) == 0)) {
+            outLen = 0;
+            ret = eccToPKCS8(&key, NULL, &outLen, 1);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E) && outLen > 0,
+                    "baseline (all false)");
 
-        ret = eccToPKCS8(&key, NULL, NULL, 1);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "outLen==NULL");
+            ret = eccToPKCS8(&key, NULL, NULL, 1);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "outLen==NULL");
 
-        wc_ecc_free(&key);
+            wc_ecc_free(&key);
+        }
+        else {
+            WB_NOTE("ecc_key_der_256 decode failed; "
+                    "baseline/outLen==NULL cases skipped");
+        }
     }
-    else {
-        WB_NOTE("wc_ecc_set_curve(SECP256R1) unavailable; "
-                "baseline/outLen==NULL cases skipped");
-    }
+#else
+    WB_NOTE("no P-256 cert buffers; baseline/outLen==NULL cases skipped");
+#endif
 }
 #else
 static void wb_ecc_to_pkcs8_null_args(void) { WB_NOTE("HAVE_PKCS8/HAVE_ECC/HAVE_ECC_KEY_EXPORT off; skipped"); }
@@ -2344,6 +2368,112 @@ static void wb_parse_alloc_sweep(void)
 }
 #endif
 
+/* Read a whole file into a heap buffer. */
+static byte* wb_read_pem_file(const char* path, long* outLen)
+{
+    FILE* f = fopen(path, "rb");
+    byte* buf;
+    long sz;
+
+    if (f == NULL) {
+        return NULL;
+    }
+    if ((fseek(f, 0, SEEK_END) != 0) || ((sz = ftell(f)) <= 0) ||
+            (fseek(f, 0, SEEK_SET) != 0)) {
+        fclose(f);
+        return NULL;
+    }
+    buf = (byte*)XMALLOC((size_t)sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf != NULL) {
+        if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) {
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            buf = NULL;
+        }
+    }
+    fclose(f);
+    *outLen = sz;
+    return buf;
+}
+
+/* ------------------------------------------------------------------------- *
+ * Section 24b: ConfirmSignature() DSA signature-size dispatch (:17703).
+ *   if (sigSz != DSA_160_SIG_SIZE && sigSz != DSA_256_SIG_SIZE)
+ *       ret = DecodeDsaAsn1Sig(...);
+ *   else
+ *       XMEMCPY(sigCtx->sigCpy, sig, sigSz);
+ * A DSA-signed certificate carries an ASN.1 DSA-Sig-Value, so the raw-copy
+ * arm (a signature that is exactly 40 or 64 bytes) is never taken from a
+ * certificate parse. Calling ConfirmSignature() directly with a DSA public
+ * key and three signature lengths drives all three rows. The signature bytes
+ * themselves are irrelevant -- the call always ends in a verification
+ * failure; the point is which arm the size dispatch picks.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && !defined(NO_ASN_CRYPT)
+static void wb_confirm_signature_dsa_sigsz(void)
+{
+    static const word32 sizes[3] = { DSA_160_SIG_SIZE, DSA_256_SIG_SIZE, 50 };
+    static const char* names[3] = {
+        "sigSz == DSA_160_SIG_SIZE (1st operand false)",
+        "sigSz == DSA_256_SIG_SIZE (1st operand true, 2nd false)",
+        "sigSz neither (both operands true, ASN.1 decode path)"
+    };
+    byte* pem = NULL;
+    long pemSz = 0;
+    DerBuffer* der = NULL;
+    byte pubDer[1024];
+    byte sig[64];
+    byte tbs[32];
+    DsaKey key;
+    word32 idx = 0;
+    int pubSz;
+    int ret;
+    int i;
+
+    WB_NOTE("ConfirmSignature(): DSA signature-size dispatch [:17703]");
+
+    /* The corpus ships the DSA key pair; the public half is derived here so
+     * the fixture does not depend on a separate public-key file. */
+    pem = wb_read_pem_file("./certs/dsa2048.der", &pemSz);
+    if (pem == NULL) {
+        WB_NOTE("certs/dsa2048.der not found; DSA dispatch rows skipped");
+        return;
+    }
+    if (wc_InitDsaKey(&key) != 0) {
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return;
+    }
+    ret = wc_DsaPrivateKeyDecode(pem, &idx, &key, (word32)pemSz);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != 0) {
+        WB_NOTE("DSA private key decode failed; dispatch rows skipped");
+        wc_FreeDsaKey(&key);
+        return;
+    }
+    pubSz = wc_DsaKeyToPublicDer(&key, pubDer, (word32)sizeof(pubDer));
+    wc_FreeDsaKey(&key);
+    WB_CHECK(pubSz > 0, "DSA public key exported");
+    if (pubSz <= 0) {
+        return;
+    }
+
+    XMEMSET(sig, 0x5A, sizeof(sig));
+    XMEMSET(tbs, 0x11, sizeof(tbs));
+
+    for (i = 0; i < 3; i++) {
+        SignatureCtx sigCtx;
+        InitSignatureCtx(&sigCtx, NULL, INVALID_DEVID);
+        ret = ConfirmSignature(&sigCtx, tbs, (word32)sizeof(tbs), pubDer,
+                (word32)pubSz, DSAk, sig, sizes[i], CTC_SHAwDSA, NULL, 0,
+                NULL);
+        WB_CHECK(ret != 0, names[i]);
+        FreeSignatureCtx(&sigCtx);
+    }
+    (void)der;
+}
+#else
+static void wb_confirm_signature_dsa_sigsz(void) { WB_NOTE("NO_DSA/HAVE_SELFTEST; skipped"); }
+#endif
+
 /* ------------------------------------------------------------------------- *
  * Section 25: leading `ret == 0` operand of the encoders' "is the caller's
  * buffer big enough" guards.
@@ -2596,6 +2726,7 @@ int main(void)
     wb_encrypt_content_salt();
     wb_decode_cert_extensions_unknown_cb();
     wb_parse_alloc_sweep();
+    wb_confirm_signature_dsa_sigsz();
     wb_encoder_size_guards();
     wb_decode_dsa_asn1_sig_alloc();
 
