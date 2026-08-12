@@ -756,6 +756,42 @@ static word32 wb_wrap_signed(const byte* eblob, word32 eblobSz)
     return idx;
 }
 
+/* Same shell, but the caller supplies the WHOLE encapContentInfo element --
+ * header included -- so its length byte can be a definite zero or an
+ * indefinite 0x80, which is what the stage-2 encapContentInfo probes branch
+ * on. Returns the total message size. */
+static word32 wb_wrap_signed_eci(const byte* eci, word32 eciSz)
+{
+    word32 sdBody, a0OutSz, ciBody, idx = 0;
+
+    sdBody  = (word32)sizeof(wbVersion) + (word32)sizeof(wbDigestAlgs) +
+              eciSz + (word32)sizeof(wbNoSigners);
+    a0OutSz = wb_hdr_len(sdBody) + sdBody;
+    ciBody  = (word32)sizeof(wbSignedDataOid) + wb_hdr_len(a0OutSz) + a0OutSz;
+
+    if (wb_hdr_len(ciBody) + ciBody > WB_SD_BUF_SZ) {
+        return 0;
+    }
+
+    idx = wb_put_hdr(wbSdBuf, idx, ASN_SEQUENCE | ASN_CONSTRUCTED, ciBody);
+    XMEMCPY(wbSdBuf + idx, wbSignedDataOid, sizeof(wbSignedDataOid));
+    idx += (word32)sizeof(wbSignedDataOid);
+    idx = wb_put_hdr(wbSdBuf, idx,
+            ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0, a0OutSz);
+    idx = wb_put_hdr(wbSdBuf, idx, ASN_SEQUENCE | ASN_CONSTRUCTED, sdBody);
+    XMEMCPY(wbSdBuf + idx, wbVersion, sizeof(wbVersion));
+    idx += (word32)sizeof(wbVersion);
+    XMEMCPY(wbSdBuf + idx, wbDigestAlgs, sizeof(wbDigestAlgs));
+    idx += (word32)sizeof(wbDigestAlgs);
+    XMEMCPY(wbSdBuf + idx, eci, eciSz);
+    idx += eciSz;
+    wbSdBlobEnd = idx;
+    XMEMCPY(wbSdBuf + idx, wbNoSigners, sizeof(wbNoSigners));
+    idx += (word32)sizeof(wbNoSigners);
+
+    return idx;
+}
+
 /* two definite OCTET STRINGs inside a CONSTRUCTED OCTET STRING: multiPart */
 static const byte wbEcMulti[] = {
     0x24, 0x0C,
@@ -816,6 +852,158 @@ static int wb_verify_shell(word32 msgSz, byte* in2, word32 in2Sz,
             in2, in2Sz);
     wc_PKCS7_Free(p);
     return ret;
+}
+
+/* ---- stage-2 encapContentInfo shells [:7173, :7194, :7274, :7408] -------
+ * `wc_PKCS7_EncodeSignedData()` always writes a definite, non-zero
+ * encapContentInfo length and always writes an eContent, so the three probes
+ * that branch on a zero/indefinite length or on a missing eContent only ever
+ * see one side. GetSequence_ex() is called with NO_USER_CHECK at :7165, so a
+ * declared length of zero and an indefinite 0x80 are both accepted there and
+ * the shells below reach the probes. */
+
+/* definite length zero: encapContentInfoLen == 0 with a 0x00 length byte */
+static const byte wbEciZero[] = { 0x30, 0x00 };
+
+/* indefinite length, OID, then the two end-of-contents bytes */
+static const byte wbEciIndefEoc[] = {
+    0x30, 0x80,
+      0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+      0x00, 0x00,
+      0xA0, 0x04, 0x04, 0x02, 'A', 'A'
+};
+
+/* indefinite length, OID, then a byte that is not ASN_EOC */
+static const byte wbEciIndefNoEoc[] = {
+    0x30, 0x80,
+      0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+      0xA0, 0x04, 0x04, 0x02, 'A', 'A'
+};
+
+/* indefinite length, OID, then ASN_EOC followed by a non-zero byte */
+static const byte wbEciIndefHalfEoc[] = {
+    0x30, 0x80,
+      0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+      0x00, 0x01,
+      0xA0, 0x04, 0x04, 0x02, 'A', 'A'
+};
+
+/* definite length holding ONLY the contentType OID, so
+ * encapContentInfoLen - contentTypeSz == 0 and noContent is set at :7219 */
+static const byte wbEciNoContent[] = {
+    0x30, 0x0B,
+      0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01
+};
+
+/* definite length, OID, then an eContent [0] whose indefinite-length byte is
+ * the last byte of the message: the multi-part tag read at :7274 then has no
+ * input left, with ret still 0 */
+static const byte wbEciCutIndef[] = {
+    0x30, 0x0E,
+      0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+      0xA0, 0x80
+};
+
+/* definite length, OID, then an eContent [0] whose length is a long-form
+ * prefix with no length bytes behind it: :7249's GetLength_ex fails, so
+ * :7274 is reached with ret already non-zero */
+static const byte wbEciBadLen[] = {
+    0x30, 0x0F,
+      0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+      0xA0, 0x84, 0x01
+};
+
+/* Same shell verify, but with pkcs7->content set: :7396's detached-signature
+ * probe reads `pkcs7->content != NULL && pkcs7->contentSz != 0`, and no caller
+ * ever presents a content POINTER with a zero content SIZE. */
+static byte wbShellContent[8];
+
+static int wb_verify_shell_content(word32 msgSz, word32 contentSz)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    int ret;
+
+    if (p == NULL) {
+        return -1;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return -1;
+    }
+    XMEMSET(wbShellContent, 0x41, sizeof(wbShellContent));
+    p->content   = wbShellContent;
+    p->contentSz = contentSz;
+    ret = wc_PKCS7_VerifySignedData_ex(p, NULL, 0, wbSdBuf, msgSz, NULL, 0);
+    p->content   = NULL;
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_stage2_shells(void)
+{
+    word32 msgSz;
+
+    WB_NOTE("PKCS7_VerifySignedData(): encapContentInfo of definite length"
+            " zero [:7173 cond 1 false]");
+    msgSz = wb_wrap_signed_eci(wbEciZero, (word32)sizeof(wbEciZero));
+    WB_CHECK(msgSz > 0, "zero-length encapContentInfo shell built");
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): encapContentInfo of indefinite length,"
+            " end-of-contents present [:7173 cond 1 true, :7194 both true]");
+    msgSz = wb_wrap_signed_eci(wbEciIndefEoc, (word32)sizeof(wbEciIndefEoc));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): indefinite length, no end-of-contents"
+            " [:7194 cond 0 false]");
+    msgSz = wb_wrap_signed_eci(wbEciIndefNoEoc,
+            (word32)sizeof(wbEciIndefNoEoc));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): indefinite length, ASN_EOC followed by"
+            " a non-zero byte [:7194 cond 1 false]");
+    msgSz = wb_wrap_signed_eci(wbEciIndefHalfEoc,
+            (word32)sizeof(wbEciIndefHalfEoc));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): encapContentInfo holding only the"
+            " contentType, so eContent is genuinely absent [:7408 cond 2"
+            " true]");
+    msgSz = wb_wrap_signed_eci(wbEciNoContent,
+            (word32)sizeof(wbEciNoContent));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(msgSz, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): eContent indefinite-length byte at the"
+            " end of the message [:7274 cond 1 true]");
+    msgSz = wb_wrap_signed_eci(wbEciCutIndef, (word32)sizeof(wbEciCutIndef));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(wbSdBlobEnd, NULL, 0, NULL, 0);
+    }
+
+    WB_NOTE("PKCS7_VerifySignedData(): eContent length prefix with no length"
+            " bytes, so the multi-part tag read is reached with ret already"
+            " set [:7274 cond 0 false]");
+    msgSz = wb_wrap_signed_eci(wbEciBadLen, (word32)sizeof(wbEciBadLen));
+    if (msgSz > 0) {
+        (void)wb_verify_shell(wbSdBlobEnd, NULL, 0, NULL, 0);
+
+        WB_NOTE("PKCS7_VerifySignedData(): same shell with a content POINTER"
+                " and a zero content SIZE, then with both set [:7396 cond 2"
+                " false, then true]");
+        (void)wb_verify_shell_content(wbSdBlobEnd, 0);
+        (void)wb_verify_shell_content(wbSdBlobEnd,
+                (word32)sizeof(wbShellContent));
+    }
 }
 
 static void wb_multipart_walk(void)
@@ -1211,12 +1399,17 @@ static void wb_footer_hash_matrix(void)
     (void)wb_verify_head_foot_plain(wbFootNSz, wbDetHash, 0, 1);
     (void)wb_verify_head_foot_plain(wbFootNSz, NULL, 0, 1);
 
+#ifndef NO_PKCS7_STREAM
+    /* :8108 exists only in the streaming build, and so does the resume the
+     * chunked flow depends on -- NO_PKCS7_STREAM has no WC_PKCS7_WANT_READ_E
+     * path to answer with. */
     WB_NOTE("PKCS7_VerifySignedData(): chunked two-buffer verify, header then"
             " content, with a hash POINTER of zero size [:8108 cond 3 false]");
     WB_CHECK(wb_verify_head_foot_chunked(0) == 0,
             ":8108 cond 3 false, chunked verify completes");
     WB_CHECK(wb_verify_head_foot_chunked((word32)sizeof(wbDetHash)) == 0,
             ":8108 all operands true, chunked verify completes");
+#endif
 #endif
 }
 #else
@@ -1907,6 +2100,7 @@ int main(void)
     wb_kekri_optional_fields();
     wb_pwri_optional_params();
     wb_multipart_walk();
+    wb_stage2_shells();
     wb_footer_hash_matrix();
     wb_der_handoff();
     wb_key_oid_matrix();
