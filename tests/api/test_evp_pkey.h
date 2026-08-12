@@ -76,6 +76,7 @@ int test_wolfSSL_d2i_PrivateKey_mldsa(void);
 int test_wolfSSL_EVP_PKEY_x25519(void);
 int test_wolfSSL_EVP_PKEY_x448(void);
 int test_wolfSSL_EVP_PKEY_encoded_public_key(void);
+int test_wolfSSL_EVP_DigestSign_size_t_cnt(void);
 int test_wolfSSL_d2i_PrivateKey_reuse_resets_state(void);
 
 #define TEST_EVP_PKEY_DECLS                                                    \
@@ -132,6 +133,7 @@ int test_wolfSSL_d2i_PrivateKey_reuse_resets_state(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_x25519),                 \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_x448),                   \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_encoded_public_key),     \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_DigestSign_size_t_cnt),       \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_d2i_PrivateKey_reuse_resets_state)
 
 #endif /* WOLFCRYPT_TEST_EVP_PKEY_H */
