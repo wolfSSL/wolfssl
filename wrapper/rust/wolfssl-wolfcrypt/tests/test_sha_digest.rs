@@ -102,7 +102,7 @@ fn test_digest_sha512() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_224)]
 fn test_digest_sha3_224() {
     use wolfssl_wolfcrypt::sha::SHA3_224;
     common::setup();
@@ -114,7 +114,7 @@ fn test_digest_sha3_224() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_256)]
 fn test_digest_sha3_256() {
     use wolfssl_wolfcrypt::sha::SHA3_256;
     common::setup();
@@ -126,7 +126,7 @@ fn test_digest_sha3_256() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_384)]
 fn test_digest_sha3_384() {
     use wolfssl_wolfcrypt::sha::SHA3_384;
     common::setup();
@@ -138,7 +138,7 @@ fn test_digest_sha3_384() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_512)]
 fn test_digest_sha3_512() {
     use wolfssl_wolfcrypt::sha::SHA3_512;
     common::setup();

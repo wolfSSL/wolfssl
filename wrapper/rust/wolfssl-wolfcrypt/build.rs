@@ -520,7 +520,10 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitSha512", "sha512");
     check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_224", "sha512_224");
     check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_256", "sha512_256");
-    check_cfg(&binding, "wc_InitSha3_224", "sha3");
+    check_cfg(&binding, "wc_InitSha3_224", "sha3_224");
+    check_cfg(&binding, "wc_InitSha3_256", "sha3_256");
+    check_cfg(&binding, "wc_InitSha3_384", "sha3_384");
+    check_cfg(&binding, "wc_InitSha3_512", "sha3_512");
     check_cfg(&binding, "wc_InitShake128", "shake128");
     check_cfg(&binding, "wc_InitShake256", "shake256");
 

@@ -95,13 +95,13 @@ impl RSA {
     #[cfg(sha512)]
     pub const HASH_TYPE_SHA512     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA512;
     pub const HASH_TYPE_MD5_SHA    : u32 = sys::wc_HashType_WC_HASH_TYPE_MD5_SHA;
-    #[cfg(sha3)]
+    #[cfg(sha3_224)]
     pub const HASH_TYPE_SHA3_224   : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_224;
-    #[cfg(sha3)]
+    #[cfg(sha3_256)]
     pub const HASH_TYPE_SHA3_256   : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_256;
-    #[cfg(sha3)]
+    #[cfg(sha3_384)]
     pub const HASH_TYPE_SHA3_384   : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_384;
-    #[cfg(sha3)]
+    #[cfg(sha3_512)]
     pub const HASH_TYPE_SHA3_512   : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA3_512;
     pub const HASH_TYPE_BLAKE2B    : u32 = sys::wc_HashType_WC_HASH_TYPE_BLAKE2B;
     pub const HASH_TYPE_BLAKE2S    : u32 = sys::wc_HashType_WC_HASH_TYPE_BLAKE2S;

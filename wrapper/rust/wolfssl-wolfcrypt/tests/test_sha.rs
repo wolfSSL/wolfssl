@@ -119,7 +119,7 @@ fn test_sha512() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_224)]
 fn test_sha3_224() {
     let mut sha = SHA3_224::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_224, input: &[u8], expected_hash: &[u8]) {
@@ -142,7 +142,7 @@ fn test_sha3_224() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_256)]
 fn test_sha3_256() {
     let mut sha = SHA3_256::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_256, input: &[u8], expected_hash: &[u8]) {
@@ -165,7 +165,7 @@ fn test_sha3_256() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_384)]
 fn test_sha3_384() {
     let mut sha = SHA3_384::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_384, input: &[u8], expected_hash: &[u8]) {
@@ -192,7 +192,7 @@ fn test_sha3_384() {
 }
 
 #[test]
-#[cfg(sha3)]
+#[cfg(sha3_512)]
 fn test_sha3_512() {
     let mut sha = SHA3_512::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_512, input: &[u8], expected_hash: &[u8]) {
