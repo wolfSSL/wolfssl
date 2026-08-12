@@ -122,6 +122,7 @@ int test_wc_CryptoCb_AesCfb_EncryptDecrypt(void);
     !defined(WOLF_CRYPTO_CB_ONLY_AES)
 int test_wc_CryptoCb_AesOfb_EncryptDecrypt(void);
 #endif
+int test_wc_AesEcb_RetCodeChecked(void);
 
 /* These test functions always have a (possibly empty) definition in
  * test_aes.c so that callers can reference them unconditionally.  Declare
@@ -246,7 +247,8 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcm_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCcm_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCfb_MonteCarlo),    \
-    TEST_DECL_GROUP("aes", test_wc_AesOfb_MonteCarlo)     \
+    TEST_DECL_GROUP("aes", test_wc_AesOfb_MonteCarlo),    \
+    TEST_DECL_GROUP("aes", test_wc_AesEcb_RetCodeChecked) \
     TEST_CRYPTOCB_AES_SETKEY_DECL                         \
     TEST_CRYPTOCB_AES_KEYWRAP_DECL                        \
     TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL                     \
