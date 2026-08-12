@@ -71,6 +71,29 @@
 /* Hardware Acceleration */
 #if defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY)
 
+/* Push one DES block through CRYP. CRYP_DataIn/Out work in 32-bit words,
+ * so stage the caller's byte buffers through an aligned local. */
+#ifndef WOLFSSL_STM32_CUBEMX
+static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
+{
+    uint32_t tmp[DES_BLOCK_SIZE / sizeof(uint32_t)];
+
+    XMEMCPY(tmp, in, DES_BLOCK_SIZE);
+
+    CRYP_DataIn(tmp[0]);
+    CRYP_DataIn(tmp[1]);
+
+    /* wait until the complete message has been processed */
+    while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+    tmp[0] = CRYP_DataOut();
+    tmp[1] = CRYP_DataOut();
+
+    XMEMCPY(out, tmp, DES_BLOCK_SIZE);
+}
+#endif
+
+
     /*
      * STM32F2/F4 hardware DES/3DES support through the standard
      * peripheral library. (See note in README).
@@ -261,14 +284,7 @@
             /* if input and output same will overwrite input iv */
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-
-            /* wait until the complete message has been processed */
-            while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
+            wc_Stm32_CrypDesBlock(in, out);
 
             /* store iv for next call */
             XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
@@ -418,14 +434,7 @@
                 /* flush IN/OUT FIFOs */
                 CRYP_FIFOFlush();
 
-                CRYP_DataIn(*(uint32_t*)&in[0]);
-                CRYP_DataIn(*(uint32_t*)&in[4]);
-
-                /* wait until the complete message has been processed */
-                while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-                *(uint32_t*)&out[0]  = CRYP_DataOut();
-                *(uint32_t*)&out[4]  = CRYP_DataOut();
+                wc_Stm32_CrypDesBlock(in, out);
 
                 /* store iv for next call */
                 XMEMCPY(des->reg, out + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
