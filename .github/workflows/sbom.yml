@@ -516,15 +516,20 @@ jobs:
         # GitHub Security Advisories index is also pinned so an auditor
         # reading the SBOM has a single in-document link to the project's
         # disclosures.
+        # purl-spec lowercases the github namespace/name; wolfSSL tags are
+        # `vX.Y.Z-stable`, so the version is not digits-and-dots alone.
         run: |
           python3 - <<'PY'
           import glob, json, re
           with open(glob.glob('wolfssl-*.spdx.json')[0]) as f:
               d = json.load(f)
+          pkg = next(p for p in d['packages'] if p['name'] == 'wolfssl')
           refs = {r['referenceType']: r['referenceLocator']
-                  for r in d['packages'][0]['externalRefs']}
+                  for r in pkg['externalRefs']}
           assert re.match(r'cpe:2\.3:a:wolfssl:wolfssl:[\d.]+:', refs['cpe23Type']), refs
-          assert re.match(r'pkg:github/wolfSSL/wolfssl@v[\d.]+', refs['purl']), refs
+          assert re.match(
+              r'pkg:github/wolfssl/wolfssl@v[\d.]+(-stable)?$',
+              refs['purl']), refs
           assert refs['advisory'] == \
               'https://github.com/wolfSSL/wolfssl/security/advisories', refs
           print('identifiers ok:', refs)

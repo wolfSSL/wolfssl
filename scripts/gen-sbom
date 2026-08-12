@@ -25,6 +25,9 @@ from datetime import datetime, timezone
 # shapes because dropping --dep-liboqs did not bump it, leaving vendored
 # copies indistinguishable by the only identifier the SBOM records.
 #
+# 1.7  wolfBoot CPE is registered in the NVD Official CPE Dictionary
+#      (published 2026-08-10). PRODUCT_CPE status flips to registered so
+#      the main package emits `cpe` and the pending properties stop.
 # 1.6  A product whose CPE is only pending at NVD no longer emits a `cpe`
 #      field; the intended identifier moves to
 #      `wolfssl:sbom:cpe-requested` alongside
@@ -47,7 +50,7 @@ from datetime import datetime, timezone
 #      -only/-or-later distinction cannot be inferred.
 # 1.2  Dropped --dep-liboqs (unversioned; see above).
 GEN_SBOM_TOOL_NAME = 'wolfssl-sbom-gen'
-GEN_SBOM_VERSION = '1.6'
+GEN_SBOM_VERSION = '1.7'
 
 # Placeholder recorded in the component checksum fields when the operator
 # passes --no-artifact-hash: a build (ROM image, HSM firmware, binary-only
@@ -157,7 +160,7 @@ PRODUCT_CPE = {
     'wolfcrypt': {'vendor': 'wolfssl', 'product': 'wolfcrypt', 'status': 'registered'},
     'wolfmqtt':  {'vendor': 'wolfssl', 'product': 'wolfmqtt',  'status': 'registered'},
     'wolfssh':   {'vendor': 'wolfssh', 'product': 'wolfssh',   'status': 'registered'},
-    'wolfboot':  {'vendor': 'wolfssl', 'product': 'wolfboot',  'status': 'pending'},
+    'wolfboot':  {'vendor': 'wolfssl', 'product': 'wolfboot',  'status': 'registered'},
 }
 
 

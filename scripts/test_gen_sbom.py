@@ -2730,14 +2730,13 @@ class TestProductCpePolicy(unittest.TestCase):
             'cpe:2.3:a:wolfssl:wolfssl:5.9.1:*:*:*:*:*:*:*')
         self.assertEqual(gs.product_cpe_status('wolfssl'), 'registered')
 
-    def test_wolfboot_pending_cpe_is_not_published(self):
-        # Not in the NVD dictionary, so no `cpe` may be published: a scanner
-        # cannot tell an unlisted CPE from a listed one with no advisories.
-        self.assertEqual(gs.product_cpe_status('wolfboot'), 'pending')
-        self.assertIsNone(gs.product_cpe('wolfboot', '2.9.0'))
+    def test_wolfboot_registered_cpe_is_published(self):
+        # NVD published wolfssl:wolfboot on 2026-08-10.
+        self.assertEqual(gs.product_cpe_status('wolfboot'), 'registered')
         self.assertEqual(
-            gs.product_cpe_requested('wolfboot', '2.9.0'),
+            gs.product_cpe('wolfboot', '2.9.0'),
             'cpe:2.3:a:wolfssl:wolfboot:2.9.0:*:*:*:*:*:*:*')
+        self.assertIsNone(gs.product_cpe_requested('wolfboot', '2.9.0'))
 
     def test_wolfssh_uses_nvd_vendor_wolfssh(self):
         self.assertEqual(
@@ -2795,12 +2794,12 @@ class TestWolfbootCoatContract(unittest.TestCase):
             nested['wolfcrypt']['cpe'],
             'cpe:2.3:a:wolfssl:wolfcrypt:5.9.1:*:*:*:*:*:*:*')
 
-        self.assertNotIn('cpe', main)
+        self.assertEqual(
+            main['cpe'],
+            'cpe:2.3:a:wolfssl:wolfboot:2.9.0:*:*:*:*:*:*:*')
         props = {p['name']: p['value'] for p in main['properties']}
-        self.assertEqual(props.get('wolfssl:sbom:cpe-status'), 'pending')
-        self.assertEqual(props.get('wolfssl:sbom:cpe-requested'),
-                         'cpe:2.3:a:wolfssl:wolfboot:2.9.0:*:*:*:*:*:*:*')
-
+        self.assertNotIn('wolfssl:sbom:cpe-status', props)
+        self.assertNotIn('wolfssl:sbom:cpe-requested', props)
     def test_wolfssl_own_sbom_keeps_wolfcrypt_top_level(self):
         # No wolfssl dependency to nest into, so wolfcrypt must stay
         # top-level or components[] goes empty.
