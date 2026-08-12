@@ -1113,8 +1113,10 @@ out:
 }
 
 /* find_hole()/find_base()/add_entry() and fp_cache[] itself only exist
- * inside ecc.c's own #ifdef FP_ECC (+ !WOLFSSL_SP_MATH) block. */
-#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH)
+ * inside ecc.c's own #ifdef FP_ECC (+ !WOLFSSL_SP_MATH) block, and only when
+ * something consumes the cache (!ECC_TIMING_RESISTANT or ECC_SHAMIR). */
+#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && \
+    (!defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR))
 /* ------------------------------------------------------------------------- *
  * Class 17: FP_ECC fixed-point cache internals: find_base() (line ~13585),
  * find_hole() (line ~13548). Both are file-static and process-global
@@ -1196,9 +1198,103 @@ out:
 #else
 static void wb_fp_cache_internals(void)
 {
-    WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH); fp_cache internals skipped");
+    WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH, or timing-resistant without "
+            "Shamir); fp_cache internals skipped");
 }
-#endif /* FP_ECC && !WOLFSSL_SP_MATH */
+#endif /* FP_ECC && !WOLFSSL_SP_MATH &&
+        * (!ECC_TIMING_RESISTANT || ECC_SHAMIR) */
+
+#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && \
+    defined(ECC_TIMING_RESISTANT) && defined(ECC_SHAMIR)
+/* ------------------------------------------------------------------------- *
+ * Timing-resistant wc_ecc_mulmod_ex()/wc_ecc_mulmod_ex2() take secret
+ * scalars, and the FP-cache LUT is not constant-time, so they must never
+ * add, warm or consume a cache entry. Three calls each on one base point
+ * would have built a LUT (lru_count >= 2) on the cached path; the cache must
+ * still be empty afterwards.
+ * ------------------------------------------------------------------------- */
+static void wb_fp_cache_tr_bypass(void)
+{
+    int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    const ecc_set_type* cs;
+    ecc_point *G = NULL, *R = NULL;
+    mp_int k, a, prime, order;
+    unsigned x;
+    int i;
+    int touched = 0;
+
+    if (idx == ECC_CURVE_INVALID) {
+        wb_fail = 1;
+        return;
+    }
+    cs = wc_ecc_get_curve_params(idx);
+    if (cs == NULL) {
+        wb_fail = 1;
+        return;
+    }
+
+    wc_ecc_fp_free(); /* deterministic empty-cache start */
+
+    if (mp_init_multi(&k, &a, &prime, &order, NULL, NULL) != MP_OKAY) {
+        wb_fail = 1;
+        return;
+    }
+    G = wc_ecc_new_point();
+    R = wc_ecc_new_point();
+    if ((G == NULL) || (R == NULL) ||
+            (mp_read_radix(&a, cs->Af, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(&prime, cs->prime, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(&order, cs->order, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(G->x, cs->Gx, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(G->y, cs->Gy, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_set(G->z, 1) != MP_OKAY) ||
+            (mp_set(&k, 0x1234567) != MP_OKAY)) {
+        wb_fail = 1;
+        goto out;
+    }
+
+    for (i = 0; i < 3; i++) {
+        if (wc_ecc_mulmod_ex(&k, G, R, &a, &prime, 1, NULL) != MP_OKAY) {
+            WB_NOTE("timing-resistant wc_ecc_mulmod_ex failed");
+            wb_fail = 1;
+        }
+        if (wc_ecc_mulmod_ex2(&k, G, R, &a, &prime, &order, NULL, 1,
+                NULL) != MP_OKAY) {
+            WB_NOTE("timing-resistant wc_ecc_mulmod_ex2 failed");
+            wb_fail = 1;
+        }
+    }
+
+    if (find_base(G) != -1) {
+        touched = 1;
+    }
+    for (x = 0; x < FP_ENTRIES; x++) {
+        if (fp_cache[x].g != NULL) {
+            touched = 1;
+        }
+    }
+    if (touched) {
+        WB_NOTE("timing-resistant mulmod touched the fp_cache");
+        wb_fail = 1;
+    }
+    WB_NOTE("timing-resistant mulmod fp_cache bypass exercised");
+
+out:
+    wc_ecc_del_point(G);
+    wc_ecc_del_point(R);
+    mp_clear(&k);
+    mp_clear(&a);
+    mp_clear(&prime);
+    mp_clear(&order);
+    wc_ecc_fp_free();
+}
+#else
+static void wb_fp_cache_tr_bypass(void)
+{
+    WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH, or not timing-resistant with "
+            "Shamir); fp_cache bypass check skipped");
+}
+#endif /* FP_ECC && !WOLFSSL_SP_MATH && ECC_TIMING_RESISTANT && ECC_SHAMIR */
 
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ------------------------------------------------------------------------- *
@@ -3855,6 +3951,7 @@ int main(void)
     wb_mul2add_and_bufsize();
     wb_projective_safe_special_cases();
     wb_fp_cache_internals();
+    wb_fp_cache_tr_bypass();
     wb_export_point_der();
     wb_export_x963_internal();
     wb_idx_dp_guard_export_paths();
