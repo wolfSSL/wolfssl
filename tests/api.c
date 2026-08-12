@@ -28186,6 +28186,11 @@ static int test_wolfSSL_X509_CRL(void)
             crl = NULL;
         }
         ExpectNotNull(crl);
+#ifndef NO_ASN_TIME
+        /* Dates must have their actual length set, not MAX_DATE_SIZE. */
+        ExpectIntEQ(ASN1_TIME_check(X509_CRL_get0_lastUpdate(crl)), 1);
+        ExpectIntEQ(ASN1_TIME_check(X509_CRL_get0_nextUpdate(crl)), 1);
+#endif
         X509_CRL_free(crl);
         crl = NULL;
         if (fp != XBADFILE) {

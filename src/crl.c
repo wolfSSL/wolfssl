@@ -164,13 +164,13 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     crle->version = dcrl->version;
 
 #if defined(OPENSSL_EXTRA)
-    crle->lastDateAsn1.length = MAX_DATE_SIZE;
-    XMEMCPY (crle->lastDateAsn1.data, crle->lastDate,
-             (size_t)crle->lastDateAsn1.length);
+    /* Set the actual date length, not MAX_DATE_SIZE. The dates are
+     * NUL-terminated since DecodedCRL is zero-initialized. */
+    crle->lastDateAsn1.length = (int)XSTRLEN((const char*)crle->lastDate);
+    XMEMCPY (crle->lastDateAsn1.data, crle->lastDate, MAX_DATE_SIZE);
     crle->lastDateAsn1.type = crle->lastDateFormat;
-    crle->nextDateAsn1.length = MAX_DATE_SIZE;
-    XMEMCPY (crle->nextDateAsn1.data, crle->nextDate,
-             (size_t)crle->nextDateAsn1.length);
+    crle->nextDateAsn1.length = (int)XSTRLEN((const char*)crle->nextDate);
+    XMEMCPY (crle->nextDateAsn1.data, crle->nextDate, MAX_DATE_SIZE);
     crle->nextDateAsn1.type = crle->nextDateFormat;
 
     crle->issuer = NULL;
