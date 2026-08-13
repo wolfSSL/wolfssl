@@ -738,6 +738,17 @@ if(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
         list(APPEND WOLFSSL_DEFINITIONS
             "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
     endif()
+elseif("-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT" IN_LIST WOLFSSL_DEFINITIONS)
+    # A bundle (WOLFSSL_JNI) appends the define straight to the list. Sync the
+    # option with it, otherwise the conflict checks below - ECH - test a
+    # variable that is still "no" and leave both features enabled.
+    if(WOLFSSL_TLS13)
+        override_cache(WOLFSSL_TLS13_MIDDLEBOX_COMPAT "yes")
+    else()
+        message(WARNING "TLS 1.3 is disabled - disabling middlebox compatibility")
+        list(REMOVE_ITEM WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_TLS13_MIDDLEBOX_COMPAT")
+    endif()
 endif()
 
 # DTLS v1.3

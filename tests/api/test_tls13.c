@@ -5487,6 +5487,10 @@ int test_tls13_early_data_bad_record_mac(void)
         while (off + 5 <= test_ctx.s_len) {
             int recLen = ((int)test_ctx.s_buff[off + 3] << 8) |
                           (int)test_ctx.s_buff[off + 4];
+            /* A record whose length runs past the buffer means the scan has
+             * lost sync; stop rather than index out of bounds. */
+            if (recLen <= 0 || off + 5 + recLen > test_ctx.s_len)
+                break;
             if (test_ctx.s_buff[off] == 0x17) {
                 test_ctx.s_buff[off + 5] ^= 0x01;
                 corrupted = 1;
