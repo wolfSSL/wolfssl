@@ -13014,6 +13014,14 @@ static wc_test_ret_t des_key_wrap_test(void)
     {
         0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
     };
+#ifndef NO_PWDBASED
+    /* 16 hex characters -> PKCS5_SALT_SZ (8) byte salt once Base16-decoded */
+    WOLFSSL_SMALL_STACK_STATIC const byte hexIv[] =
+    {
+        '1','2','3','4','5','6','7','8',
+        '9','0','a','b','c','d','e','f'
+    };
+#endif
     byte cipher[24] = { 0 };
     EncryptedInfo info;
     wc_test_ret_t ret;
@@ -13039,7 +13047,21 @@ static wc_test_ret_t des_key_wrap_test(void)
     /* Test invalid hash type - only applies to wc_PBKDF1 call */
     ret = wc_BufferKeyEncrypt(&info, cipher, sizeof(cipher), key,
             sizeof(key), WC_HASH_TYPE_NONE);
-    if (ret == 0)
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Same test for wc_BufferKeyDecrypt.  It Base16-decodes info.iv in place
+     * to get the PBKDF salt, so the IV must hold hex characters to reach the
+     * wc_PBKDF1 call. */
+    XMEMSET(&info, 0, sizeof(EncryptedInfo));
+    XMEMCPY(info.iv, hexIv, sizeof(hexIv));
+    info.ivSz = sizeof(hexIv);
+    info.keySz = sizeof(key);
+    info.cipherType = WC_CIPHER_DES;
+
+    ret = wc_BufferKeyDecrypt(&info, cipher, sizeof(cipher), key,
+            sizeof(key), WC_HASH_TYPE_NONE);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
 #endif /* !NO_PWDBASED */
 
