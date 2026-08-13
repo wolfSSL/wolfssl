@@ -34,9 +34,6 @@
 /* Define to 1 if you have the <string.h> header file. */
 #cmakedefine HAVE_STRING_H @HAVE_STRING_H@
 
-/* Define to 1 if you have the <sys/time.h> header file. */
-#cmakedefine HAVE_SYS_TIME_H @HAVE_SYS_TIME_H@
-
 /* Define to 1 if you have the <Security/SecTrustSettings.h> header file. */
 #cmakedefine HAVE_SECURITY_SECTRUSTSETTINGS_H @HAVE_SECURITY_SECTRUSTSETTINGS_H@
 
