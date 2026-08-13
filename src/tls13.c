@@ -13123,6 +13123,32 @@ static int SendTls13Finished(WOLFSSL* ssl)
 }
 #endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 
+/* Whether this endpoint has already sent its Finished message.
+ *
+ * RFC 9846 Section 4.7.3 only allows a KeyUpdate to be sent once the sender
+ * has sent Finished.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 1 when Finished has been sent and 0 otherwise.
+ */
+static int Tls13SentFinished(const WOLFSSL* ssl)
+{
+    if (ssl->options.handShakeDone)
+        return 1;
+#ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        /* SendTls13Finished() advances serverState as soon as the server's
+         * Finished is written; the server's handShakeDone is only set later,
+         * when the client's Finished arrives. Sending in between is the
+         * 0.5-RTT case, which Section 4.7.3 permits. */
+        return ssl->options.serverState >= SERVER_FINISHED_COMPLETE;
+    }
+#endif
+    /* SendTls13Finished() sets handShakeDone for the client as soon as its
+     * Finished is written, so the check above covers the client. */
+    return 0;
+}
+
 /* handle generation TLS v1.3 key_update (24) */
 /* Send the TLS v1.3 KeyUpdate message.
  *
@@ -13140,6 +13166,17 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
 
     WOLFSSL_START(WC_FUNC_KEY_UPDATE_SEND);
     WOLFSSL_ENTER("SendTls13KeyUpdate");
+
+    /* RFC 9846 Section 4.7.3: a KeyUpdate may only be sent after this endpoint
+     * has sent its Finished message. This also implements the early-data rule
+     * of Section 5.5: the KeyUpdate mechanism is not available for early data,
+     * so a client that reaches the AEAD key usage limit while sending 0-RTT
+     * data must fail the write rather than update its traffic keys. */
+    if (!Tls13SentFinished(ssl)) {
+        WOLFSSL_MSG("Not sending KeyUpdate before Finished");
+        WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+        return OUT_OF_ORDER_E;
+    }
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
