@@ -63,28 +63,49 @@ for s in $SRCS; do
     fi
 done
 
+# random.c again with the entropy gate on: that turns WOLFSSL_NOISE_SRC on and
+# pulls in the generic SP800-90B noise-source layer, which is otherwise left
+# out of the sweep above.  Needs no C2000Ware - only the port .c touches
+# driverlib.
+printf 'CC  random.c (WOLFSSL_C2000_ENTROPY) ... '
+if "$CL" $CFLAGS $INCS --define=WOLFSSL_C2000_ENTROPY \
+        --compile_only --skip_assembler \
+        --asm_directory="$OUT" --obj_directory="$OUT" \
+        "$WOLFROOT/wolfcrypt/src/random.c" > "$OUT/random-noise.log" 2>&1; then
+    echo "ok"
+else
+    echo "FAIL"
+    cat "$OUT/random-noise.log"
+    rc=1
+fi
+
 # The AESA hardware-AES port needs C2000Ware driverlib headers, which CI does
 # not download, so it is an opt-in extra leg: set C2000WARE to a C2000Ware
 # install to include it.
 if [ -n "${C2000WARE:-}" ]; then
     DRV="$C2000WARE/driverlib/f28p55x/driverlib"
-    printf 'CC  port/ti/ti-c2000-aes.c ... '
-    if "$CL" $CFLAGS $INCS -I"$DRV" \
-            -I"$C2000WARE/device_support/f28p55x/common/include" \
-            -I"$C2000WARE/device_support/f28p55x/headers/include" \
-            --define=WOLF_CRYPTO_CB --define=WOLFSSL_C2000_AES \
-            --compile_only --skip_assembler \
-            --asm_directory="$OUT" --obj_directory="$OUT" \
-            "$WOLFROOT/wolfcrypt/src/port/ti/ti-c2000-aes.c" \
-            > "$OUT/ti-c2000-aes.log" 2>&1; then
-        echo "ok"
-    else
-        echo "FAIL"
-        cat "$OUT/ti-c2000-aes.log"
-        rc=1
-    fi
+    DRVINCS="-I$DRV \
+        -I$C2000WARE/device_support/f28p55x/common/include \
+        -I$C2000WARE/device_support/f28p55x/headers/include"
+    for p in "ti-c2000-aes:--define=WOLF_CRYPTO_CB --define=WOLFSSL_C2000_AES" \
+             "ti-c2000-entropy:--define=WOLFSSL_C2000_ENTROPY"; do
+        f=${p%%:*}
+        d=${p#*:}
+        printf 'CC  port/ti/%s.c ... ' "$f"
+        if "$CL" $CFLAGS $INCS $DRVINCS $d \
+                --compile_only --skip_assembler \
+                --asm_directory="$OUT" --obj_directory="$OUT" \
+                "$WOLFROOT/wolfcrypt/src/port/ti/$f.c" \
+                > "$OUT/$f.log" 2>&1; then
+            echo "ok"
+        else
+            echo "FAIL"
+            cat "$OUT/$f.log"
+            rc=1
+        fi
+    done
 else
-    echo "SKIP port/ti/ti-c2000-aes.c (set C2000WARE to include it)"
+    echo "SKIP port/ti/ti-c2000-*.c (set C2000WARE to include them)"
 fi
 
 if [ "$rc" -eq 0 ]; then

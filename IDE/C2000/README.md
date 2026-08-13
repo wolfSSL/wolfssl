@@ -98,14 +98,14 @@ Phase 1 covers ECB, CBC and CTR. GCM/CCM/CMAC remain software for now.
 
 | Operation | Software | AESA | Speedup |
 |---|---|---|---|
-| AES-128-ECB encrypt | 471 KiB/s | 2.37 MiB/s | 5.2x |
-| AES-256-ECB encrypt | 377 KiB/s | 2.32 MiB/s | 6.3x |
-| AES-128-CBC encrypt | 405 KiB/s | 2.36 MiB/s | 6.0x |
-| AES-128-CBC decrypt | 388 KiB/s | 2.34 MiB/s | 6.2x |
-| AES-256-CBC encrypt | 333 KiB/s | 2.31 MiB/s | 7.1x |
-| AES-256-CBC decrypt | 322 KiB/s | 2.29 MiB/s | 7.3x |
+| AES-128-ECB encrypt | 471 KiB/s | 2.39 MiB/s | 5.2x |
+| AES-256-ECB encrypt | 377 KiB/s | 2.34 MiB/s | 6.3x |
+| AES-128-CBC encrypt | 405 KiB/s | 2.37 MiB/s | 6.0x |
+| AES-128-CBC decrypt | 388 KiB/s | 2.36 MiB/s | 6.2x |
+| AES-256-CBC encrypt | 333 KiB/s | 2.32 MiB/s | 7.1x |
+| AES-256-CBC decrypt | 322 KiB/s | 2.31 MiB/s | 7.3x |
 | AES-128-CTR | 408 KiB/s | 1.45 MiB/s | 3.6x |
-| AES-256-CTR | 335 KiB/s | 1.44 MiB/s | 4.4x |
+| AES-256-CTR | 335 KiB/s | 1.45 MiB/s | 4.4x |
 
 Hardware throughput is essentially key-length independent, as expected for a
 pipelined block engine -- so the speedup grows with key size, where software
@@ -182,6 +182,160 @@ mode on every operation, so it is re-entrant across `Aes` contexts but **not**
 across preemption or an ISR. `ti-c2000.h` therefore `#error`s unless
 `SINGLE_THREADED` is defined, or `WOLFSSL_C2000_AES_NO_LOCK` asserts that an
 external lock provides the guarantee.
+
+## Entropy (no TRNG on this part)
+
+The F28P55x has **no hardware TRNG** -- there is no RNG peripheral anywhere in
+C2000Ware for this device, and the one "TRNG" string in `hw_asysctl.h`
+(`ASYSCTL_PMMCONFIGDFT_VREFTRNG1P225`) is a voltage-reference *trim range*
+field. What the part does have is three independent oscillators -- INTOSC1 and
+INTOSC2 (on-chip ~10 MHz RC) and the external crystal that SYSCLK/PLLRAWCLK
+derive from -- and two Dual-Clock Comparators that can count one against
+another.
+
+`wolfcrypt/src/port/ti/ti-c2000-entropy.c` (gate `WOLFSSL_C2000_ENTROPY`)
+turns that into an entropy source: a DCC counts PLLRAWCLK edges inside a
+window of INTOSC cycles, and the **LSB of that count** is one noise bit,
+carrying the relative phase drift of two physically distinct oscillators. Raw
+noise is oversampled far past its measured min-entropy, health-tested per
+SP800-90B 4.4, conditioned with SHA-256, and handed to the SP800-90A
+Hash-DRBG.
+
+The work is split in two. The port file owns only the hardware -- DCC setup,
+one measurement, and the noise bit. Everything above that is the generic
+`wc_NoiseSrc_*` layer described below, which is not C2000-specific.
+
+### Measured on hardware
+
+Captured with the reference example's `ENTROPY_PROBE=1` build (262144 raw bits
+per source, LSB extraction) and analyzed on a host with the example's
+`tools/entropy_analyze.py`, so these numbers are reproducible rather than
+asserted:
+
+| Source | Hmin/bit | bias | max \|acf\| lag 1..64 | chi-square p |
+|---|---|---|---|---|
+| INTOSC1 window / PLL counted (DCC1) | **0.932** | -0.0000 | 0.005 | 0.623 |
+| INTOSC2 window / PLL counted (DCC0) | 0.843 | -0.0027 | 0.005 | 0.000 |
+| ADC LSB, floating input | 0.834 | -0.0086 | 0.073 | 0.000 |
+
+Min-entropy is the SP800-90B 6.3.1 most-common-value estimate at the 99% upper
+confidence bound, taken over the 8-bit octet alphabet and divided by 8. The
+octet alphabet is used rather than the bit alphabet because it also catches
+structure across adjacent bits: on a stream with strong lag-1 correlation but
+no marginal bias, a per-bit estimate reports 0.99 and sees nothing while the
+octet estimate collapses. **This is an MCV estimate plus bias and correlation
+screening, not a full SP800-90B non-IID assessment** (`ea_non_iid` was not
+run); MCV assumes IID, so it is an upper bound, and the low measured
+correlation on the credited source is what makes it a reasonable one.
+
+Read 0.932 against the estimator's ceiling, not against 1.0: at this sample
+count a synthetic uniform stream estimates to 0.930 (`entropy_analyze.py
+--selftest` prints it), so the credited source is statistically
+indistinguishable from uniform here. These are single-run measurements of a
+physical source and move a little between runs -- an earlier capture gave
+0.924 / 0.775 / 0.865 for the three rows -- but the pass/fail conclusions have
+been identical in every run.
+
+Both DCC sources are gathered and hashed together, but **only INTOSC1 is
+credited** with entropy: INTOSC2 estimates lower and fails a chi-square
+uniformity check decisively (stat 1972 against 255 degrees of freedom), so it
+is defence-in-depth that the budget does not rely on. Hashing extra input can
+only add entropy, never remove it. The ADC source is not used by default -- it
+also fails chi-square, and it depends on a spare analog pin being left
+floating, which is a board property rather than a device one.
+
+The port then assumes **0.5 bits per raw bit** (`WOLFSSL_C2000_ENTROPY_HMIN`)
+and oversamples 2x on top of that (`WOLFSSL_C2000_ENTROPY_MARGIN`), i.e. 32
+raw bits gathered per output octet -- roughly a 4x cushion over the credited
+source's measured 0.924. At a 256-cycle window (~25.6 us per bit) a 32-octet
+conditioning chunk costs about 26 ms per source.
+
+### Build overrides
+
+Everything is `#ifndef`-guarded in `wolfssl/wolfcrypt/port/ti/ti-c2000-entropy.h`, so a project can retune it from its own `user_settings.h`:
+
+| Macro | Default | Purpose |
+|---|---|---|
+| `WOLFSSL_C2000_ENTROPY_NUM_SRC` | 2 | Set to 1 to use the credited source only and leave the second DCC free |
+| `WOLFSSL_C2000_ENTROPY_SRC0_DCC` / `_SRC1_DCC` | `DCC1_BASE` / `DCC0_BASE` | Which DCC instance each source uses |
+| `WOLFSSL_C2000_ENTROPY_SRC0_CLK` / `_SRC1_CLK` | `INTOSC1` / `INTOSC2` | Slow (window) clock per source |
+| `WOLFSSL_C2000_ENTROPY_REF_CLK` | `DCC_COUNT1SRC_PLL` | Fast clock being counted; `SYSCLK` works at coarser quantization |
+| `WOLFSSL_C2000_ENTROPY_NO_CLK_INIT` | off | Application manages the DCC peripheral clocks itself |
+| `WOLFSSL_C2000_ENTROPY_WINDOW` | 256 | Slow-clock cycles per noise bit |
+| `WOLFSSL_C2000_ENTROPY_HMIN` | 50 | Assumed min-entropy per raw bit, in 1/100 bits |
+| `WOLFSSL_C2000_ENTROPY_MARGIN` | 2 | Oversample factor on top of `HMIN` |
+| `WOLFSSL_C2000_ENTROPY_RCT_CUTOFF` | 9 | SP800-90B 4.4.1 cutoff |
+| `WOLFSSL_C2000_ENTROPY_APT_WINDOW` / `_APT_CUTOFF` | 512 / 71 | SP800-90B 4.4.2 window and cutoff |
+| `WOLFSSL_C2000_ENTROPY_STARTUP_OCTETS` | 1024 | SP800-90B 4.3 startup test size per source |
+| `WOLFSSL_C2000_ENTROPY_NO_LOCK` | off | Assert an external lock instead of requiring `SINGLE_THREADED` |
+
+The hardware-selection group is what to reach for if the board already uses a DCC for clock monitoring, or the part is not an F28P55x. If you change `HMIN`, recompute both health-test cutoffs for the new assumed entropy per octet -- a cutoff that does not match either never trips or trips constantly. A build-time check rejects a startup size smaller than one APT window.
+
+### The generic `wc_NoiseSrc_*` layer
+
+None of the SP800-90B machinery is C2000-specific, so it lives in
+`wolfcrypt/src/random.c` behind `WOLFSSL_NOISE_SRC` (declarations in
+`wolfssl/wolfcrypt/random.h`) and this port configures it. A port that has a
+raw noise source but no TRNG supplies one callback:
+
+```c
+int my_sample(void* ctx, int srcIdx, byte* octet);
+```
+
+fills a `wc_NoiseSrc` with the callback, a domain-separation tag, a
+caller-owned work buffer, the entropy budget (`hmin`, `margin`) and the
+health-test cutoffs, and gets back:
+
+| Call | Does |
+|---|---|
+| `wc_NoiseSrc_Init` | Validates the config, derives the gather size, runs the SP800-90B 4.3 startup test |
+| `wc_NoiseSrc_GenerateSeed` | Gathers, health-tests, SHA-256 conditions, wipes the output on any failure |
+| `wc_NoiseSrc_GetRaw` | Unconditioned noise for characterization only |
+| `wc_NoiseSrc_SelfTest` | Liveness: gathers must differ and must not be a constant octet |
+| `wc_NoiseSrc_Free` | Zeroes state and clears the latched failure |
+
+`WC_NOISE_RAW_PER_SRC(hmin, margin)` sizes the work buffer from the entropy
+budget so the port does not duplicate the formula. Source 0 is the credited
+one; any further source is hashed in as defence in depth and is not budgeted.
+The layer takes no locks -- the instance is caller-owned state, so a port that
+shares one across threads provides its own mutual exclusion.
+`WOLFSSL_C2000_ENTROPY` turns `WOLFSSL_NOISE_SRC` on implicitly.
+
+### Health tests
+
+SP800-90B 4.4.1 Repetition Count and 4.4.2 Adaptive Proportion run
+continuously over every octet drawn from each source, with a startup test over
+a full gather before anything is released. Cutoffs are derived for 4 bits of
+min-entropy per octet at alpha = 2^-30 and are overridable. A failure returns
+`ENTROPY_RT_E` / `ENTROPY_APT_E` and **no seed material is produced** -- the
+source fails closed rather than degrading silently, and the failure is latched
+until `wc_NoiseSrc_Free()`, because a source that trips and then passes is
+exactly what continuous testing exists to catch.
+
+Latching applies to the **credited** source only. Source 0 carries the entire
+entropy budget, so its failure denies output. Sources 1 and up are unaccounted
+extra hash input, and the cutoffs are derived for source 0's assumed
+min-entropy rather than theirs, so one of them tripping is not evidence the
+seed is weak: it is dropped for the life of the instance and stops
+contributing. Output stays fully seeded because the budget never counted it,
+and a source the budget ignores cannot deny service. On this part that means a
+failing INTOSC2 degrades the source to INTOSC1 alone -- exactly the
+`WOLFSSL_C2000_ENTROPY_NUM_SRC 1` configuration -- instead of killing the RNG.
+
+Because those paths only fire on genuinely broken hardware, `noisesrc_test()`
+in `wolfcrypt/test/test.c` drives them with synthetic sources -- stuck, biased,
+sampler-error, and periodic -- on the host:
+
+```sh
+./configure --enable-all CFLAGS="-DWOLFSSL_NOISE_SRC" && make check
+```
+
+Note `wolfentropy.c`'s `HAVE_ENTROPY_MEMUSE` is *not* a usable substitute
+here: its noise is memory-access timing jitter, which presumes a cache, and
+the C28x is in-order and cacheless with deterministic RAM timing. Its default
+state array is also ~256 KW on this target against ~100 KW of RAM. Its health
+tests are `static` and hardcoded to 1 bit of min-entropy per sample, so they
+are not reusable at this source's cutoffs either.
 
 ## Enabling on your build
 
