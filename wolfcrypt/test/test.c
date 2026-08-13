@@ -31782,6 +31782,74 @@ done:
 }
 #endif /* WOLFSSL_SE050 && WOLFSSL_SE050_ONLY_KEY_ID && !NO_MALLOC && ... */
 
+#if defined(WOLFSSL_SP_4096) && !defined(NO_ASN) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && \
+    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+
+#define RSA_4096_BYTES (4096 / 8)
+
+/* Build asked for 4096 bit RSA, so a 4096 bit key has to work here.
+ * The modulus is made up and only sets the size, no real secret is used. */
+static wc_test_ret_t rsa_4096_bits_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret;
+    int     encSz;
+    int     keyInit = 0;
+    static const byte e[] = { 0x01, 0x00, 0x01 };
+    static const byte msg[] = "wolfSSL RSA 4096 bit test";
+    WC_DECLARE_VAR(key, RsaKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(buf, byte, 2 * RSA_4096_BYTES, HEAP_HINT);
+
+    WC_ALLOC_VAR(key, RsaKey, 1, HEAP_HINT);
+    WC_ALLOC_VAR(buf, byte, 2 * RSA_4096_BYTES, HEAP_HINT);
+    if (!WC_VAR_OK(key) || !WC_VAR_OK(buf)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto done;
+    }
+
+    XMEMSET(buf, 0xff, RSA_4096_BYTES);
+    /* 65537 divides 2^4096-1, so an all ones modulus would share that factor
+     * with e. Step it down so the two are coprime. */
+    buf[RSA_4096_BYTES - 1] = 0xfd;
+
+    ret = wc_InitRsaKey_ex(key, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    keyInit = 1;
+
+    ret = wc_RsaPublicKeyDecodeRaw(buf, RSA_4096_BYTES, e, (word32)sizeof(e),
+                                   key);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    if (wc_RsaEncryptSize(key) != RSA_4096_BYTES) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+
+    encSz = wc_RsaPublicEncrypt(msg, (word32)sizeof(msg), buf + RSA_4096_BYTES,
+                                RSA_4096_BYTES, key, rng);
+    if (encSz != RSA_4096_BYTES) {
+        ret = (encSz < 0) ? WC_TEST_RET_ENC_EC(encSz)
+                          : WC_TEST_RET_ENC_I(encSz);
+        goto done;
+    }
+    ret = 0;
+
+done:
+    if (keyInit)
+        wc_FreeRsaKey(key);
+    WC_FREE_VAR(buf, HEAP_HINT);
+    WC_FREE_VAR(key, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WOLFSSL_SP_4096 && ... */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 {
     wc_test_ret_t ret;
@@ -31959,6 +32027,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#endif
+
+#if defined(WOLFSSL_SP_4096) && !defined(NO_ASN) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLF_CRYPTO_CB_ONLY_RSA) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && \
+    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
+    ret = rsa_4096_bits_test(&rng);
+    if (ret != 0)
+        ERROR_OUT(ret, exit_rsa);
 #endif
 
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_MICROCHIP_TA100)
