@@ -1343,7 +1343,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_import, random))]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
@@ -1358,7 +1358,7 @@ impl ECC {
     /// ecc.export(&mut qx, &mut qx_len, &mut qy, &mut qy_len, &mut d, &mut d_len).expect("Error with export()");
     /// }
     /// ```
-    #[cfg(ecc_import)]
+    #[cfg(ecc_export)]
     pub fn export(&mut self, qx: &mut [u8], qx_len: &mut u32,
             qy: &mut [u8], qy_len: &mut u32, d: &mut [u8], d_len: &mut u32) -> Result<(), i32> {
         *qx_len = crate::buffer_len_to_u32(qx.len())?;
@@ -1398,7 +1398,7 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ecc_import, random))]
+    /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
@@ -1413,7 +1413,7 @@ impl ECC {
     /// ecc.export_ex(&mut qx, &mut qx_len, &mut qy, &mut qy_len, &mut d, &mut d_len, false).expect("Error with export_ex()");
     /// }
     /// ```
-    #[cfg(ecc_import)]
+    #[cfg(ecc_export)]
     #[allow(clippy::too_many_arguments)]
     pub fn export_ex(&mut self, qx: &mut [u8], qx_len: &mut u32,
             qy: &mut [u8], qy_len: &mut u32, d: &mut [u8], d_len: &mut u32,

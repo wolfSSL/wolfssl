@@ -18,7 +18,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 /* Include generated FIPS symbol aliases. */
 include!(concat!(env!("OUT_DIR"), "/fips_aliases.rs"));
 
-#[cfg(not(rsa_setrng))]
+#[cfg(all(rsa,not(rsa_setrng)))]
 unsafe extern "C" {
     pub fn wc_RsaSetRNG(key: *mut RsaKey, rng: *mut WC_RNG) -> core::ffi::c_int;
 }
