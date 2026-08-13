@@ -230,6 +230,7 @@
 #include <tests/api/test_rc2.h>
 #include <tests/api/test_aes.h>
 #include <tests/api/test_ascon.h>
+#include <tests/api/test_argon2.h>
 #include <tests/api/test_sm4.h>
 #include <tests/api/test_wc_encrypt.h>
 #include <tests/api/test_coding.h>
@@ -39041,6 +39042,7 @@ TEST_CASE testCases[] = {
     TEST_GMAC_DECLS,
     /* Ascon */
     TEST_ASCON_DECLS,
+    TEST_ARGON2_DECLS,
     /* SM4 cipher */
     TEST_SM4_DECLS,
     /* wc_encrypt API */

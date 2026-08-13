@@ -369,6 +369,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef HAVE_ASCON
     #include <wolfssl/wolfcrypt/ascon.h>
 #endif
+#ifdef HAVE_ARGON2
+    #include <wolfssl/wolfcrypt/argon2.h>
+#endif
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -957,6 +960,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 #endif
 #if !defined(NO_PWDBASED) && defined(HAVE_SCRYPT)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
+#endif
+#ifdef HAVE_ARGON2
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
 #endif
 #ifdef HAVE_ECC
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_test(void);
@@ -3082,6 +3088,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("PWDBASED test failed!\n", ret);
     else
         TEST_PASS("PWDBASED test passed!\n");
+#endif
+
+#ifdef HAVE_ARGON2
+    if ( (ret = argon2_test()) != 0)
+        TEST_FAIL("ARGON2   test failed!\n", ret);
+    else
+        TEST_PASS("ARGON2   test passed!\n");
 #endif
 
 #if defined(USE_CERT_BUFFERS_2048) && \
@@ -36820,6 +36833,142 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_evpSig_test(void)
 }
 #endif /* OPENSSL_EXTRA */
 
+
+#ifdef HAVE_ARGON2
+/* Test vectors from RFC 9106 section 5, which uses the same inputs for all
+ * three variants: p=4, T=32, m=32, t=3, v=0x13, with a secret and associated
+ * data supplied. */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void)
+{
+    wc_test_ret_t ret;
+    byte   out[32];
+    byte   pwd[32];
+    byte   salt[16];
+    byte   secret[8];
+    byte   ad[12];
+    word32 i;
+
+    /* RFC 9106 section 5.1, Argon2d */
+    WOLFSSL_SMALL_STACK_STATIC const byte verifyD[] = {
+        0x51, 0x2b, 0x39, 0x1b, 0x6f, 0x11, 0x62, 0x97,
+        0x53, 0x71, 0xd3, 0x09, 0x19, 0x73, 0x42, 0x94,
+        0xf8, 0x68, 0xe3, 0xbe, 0x39, 0x84, 0xf3, 0xc1,
+        0xa1, 0x3a, 0x4d, 0xb9, 0xfa, 0xbe, 0x4a, 0xcb
+    };
+    /* RFC 9106 section 5.2, Argon2i */
+    WOLFSSL_SMALL_STACK_STATIC const byte verifyI[] = {
+        0xc8, 0x14, 0xd9, 0xd1, 0xdc, 0x7f, 0x37, 0xaa,
+        0x13, 0xf0, 0xd7, 0x7f, 0x24, 0x94, 0xbd, 0xa1,
+        0xc8, 0xde, 0x6b, 0x01, 0x6d, 0xd3, 0x88, 0xd2,
+        0x99, 0x52, 0xa4, 0xc4, 0x67, 0x2b, 0x6c, 0xe8
+    };
+    /* RFC 9106 section 5.3, Argon2id */
+    WOLFSSL_SMALL_STACK_STATIC const byte verifyID[] = {
+        0x0d, 0x64, 0x0d, 0xf5, 0x8d, 0x78, 0x76, 0x6c,
+        0x08, 0xc0, 0x37, 0xa3, 0x4a, 0x8b, 0x53, 0xc9,
+        0xd0, 0x1e, 0xf0, 0x45, 0x2d, 0x75, 0xb6, 0x5e,
+        0xb5, 0x25, 0x20, 0xe9, 0x6b, 0x01, 0xe6, 0x59
+    };
+    /* Argon2id with p=1, m=32, t=3, no secret or associated data, and a
+     * 100-byte tag, so the H' chain of RFC 9106 section 3.3 is covered as
+     * well. Generated with the reference implementation. */
+    WOLFSSL_SMALL_STACK_STATIC const byte verifyLong[] = {
+        0x69, 0xf7, 0xa0, 0x00, 0x44, 0xbd, 0x5e, 0x59,
+        0x19, 0x34, 0x78, 0xe4, 0xa3, 0x8f, 0xa0, 0x42,
+        0x55, 0x19, 0x12, 0x50, 0xf8, 0xc4, 0xb7, 0x3f,
+        0x27, 0xb7, 0x63, 0x8d, 0x53, 0xdd, 0x75, 0x2a,
+        0xd0, 0xd9, 0x57, 0x2e, 0xd6, 0x27, 0x77, 0x01,
+        0x0c, 0xf8, 0xf3, 0x53, 0xf2, 0xa0, 0x6a, 0x3e,
+        0xfd, 0xad, 0x28, 0x93, 0xf3, 0xd4, 0x71, 0x1c,
+        0x17, 0xc9, 0x8d, 0xba, 0xd8, 0xd0, 0x8d, 0x57,
+        0x26, 0x19, 0x34, 0x85, 0xae, 0x23, 0x0c, 0x1a,
+        0x01, 0x04, 0xe4, 0x38, 0x46, 0x26, 0x37, 0x99,
+        0x2f, 0xd2, 0x54, 0xdd, 0xd0, 0x9a, 0x5d, 0x61,
+        0x16, 0x1c, 0x3e, 0x2c, 0xe4, 0x1e, 0x50, 0xab,
+        0xf5, 0x9d, 0x3e, 0xd3
+    };
+    byte longOut[100];
+
+    WOLFSSL_ENTER("argon2_test");
+
+    XMEMSET(pwd,    0x01, sizeof(pwd));
+    XMEMSET(salt,   0x02, sizeof(salt));
+    XMEMSET(secret, 0x03, sizeof(secret));
+    XMEMSET(ad,     0x04, sizeof(ad));
+
+    for (i = 0; i < 3; i++) {
+        const byte* verify;
+        int type;
+
+        switch (i) {
+            case 0:
+                type = WC_ARGON2_D;
+                verify = verifyD;
+                break;
+            case 1:
+                type = WC_ARGON2_I;
+                verify = verifyI;
+                break;
+            default:
+                type = WC_ARGON2_ID;
+                verify = verifyID;
+                break;
+        }
+
+        XMEMSET(out, 0, sizeof(out));
+        ret = wc_Argon2_ex(type, out, sizeof(out), pwd, sizeof(pwd),
+                           salt, sizeof(salt), secret, sizeof(secret),
+                           ad, sizeof(ad), 4, 32, 3, HEAP_HINT);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(out, verify, sizeof(out)) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    /* Long tag, exercising H' beyond a single BLAKE2b digest. */
+    ret = wc_Argon2(WC_ARGON2_ID, longOut, (word32)sizeof(longOut),
+                    pwd, sizeof(pwd), salt, sizeof(salt), 1, 32, 3);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(longOut, verifyLong, sizeof(longOut)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* Rejected parameters: short salt, short tag, zero passes, unknown
+     * variant, and memory below the 8p floor. */
+    ret = wc_Argon2(WC_ARGON2_ID, out, sizeof(out), pwd, sizeof(pwd),
+                    salt, 7, 1, 8, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Argon2(WC_ARGON2_ID, out, 3, pwd, sizeof(pwd),
+                    salt, sizeof(salt), 1, 8, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_LENGTH_E))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Argon2(WC_ARGON2_ID, out, sizeof(out), pwd, sizeof(pwd),
+                    salt, sizeof(salt), 1, 8, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Argon2(3, out, sizeof(out), pwd, sizeof(pwd),
+                    salt, sizeof(salt), 1, 8, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* m must be at least 8p: p=4 needs 32 KiB. */
+    ret = wc_Argon2(WC_ARGON2_ID, out, sizeof(out), pwd, sizeof(pwd),
+                    salt, sizeof(salt), 4, 31, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Argon2(WC_ARGON2_ID, NULL, sizeof(out), pwd, sizeof(pwd),
+                    salt, sizeof(salt), 1, 8, 1);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    return 0;
+}
+#endif /* HAVE_ARGON2 */
 
 #ifndef NO_PWDBASED
 #ifdef HAVE_SCRYPT

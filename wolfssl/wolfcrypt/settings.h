@@ -5791,6 +5791,17 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef HAVE_BLAKE2
 #endif
 
+/* Argon2 is specified in terms of BLAKE2b (RFC 9106), and argon2.h embeds a
+ * Blake2b in its context, so a build that asks for Argon2 without BLAKE2b
+ * would fail on an unknown type inside a public header - in the application's
+ * build, not the library's. Imply it instead. Must follow the legacy gate
+ * above so that HAVE_BLAKE2 has already been normalized. */
+#ifdef HAVE_ARGON2
+    #ifndef HAVE_BLAKE2B
+        #define HAVE_BLAKE2B
+    #endif
+#endif
+
 /* QUIC Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_QUIC) && \
     !defined(WOLFSSL_TLS13)

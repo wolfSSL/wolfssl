@@ -390,6 +390,9 @@ function(generate_build_flags)
     if(WOLFSSL_ASCON OR WOLFSSL_USER_SETTINGS)
         set(BUILD_ASCON "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_ARGON2 OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_ARGON2 "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_SM2 OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SM2 "yes" PARENT_SCOPE)
     endif()
@@ -945,6 +948,10 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(BUILD_ASCON)
             list(APPEND LIB_SOURCES wolfcrypt/src/ascon.c)
+        endif()
+
+        if(BUILD_ARGON2)
+            list(APPEND LIB_SOURCES wolfcrypt/src/argon2.c)
         endif()
 
         # ShangMi SM2/SM3/SM4. The implementation files are provided by the

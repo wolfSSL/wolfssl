@@ -1705,6 +1705,13 @@ then
         # Scrypt is excluded from kernel module builds (unless explicitly
         # enabled) because of its excessive memory requirements.
         test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
+        # Argon2 is excluded for the same reason - its memory use is higher
+        # still, and a single contiguous allocation. It is also defined in
+        # terms of BLAKE2b, so only imply it when BLAKE2b has not been turned
+        # off: the user asked for the bundle, not for Argon2, and aborting the
+        # configure over an implied option would be wrong.
+        test "$enable_argon2" = "" && test "$enable_blake2b" != "no" && \
+            test "$enable_blake2" != "no" && enable_argon2=yes
     fi
 
     if test "x$FIPS_VERSION" != "xv1"
@@ -5176,6 +5183,56 @@ if test "$ENABLED_BLAKE2S" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_BLAKE2S"
 fi
+
+
+# ARGON2
+# Placed after BLAKE2 so the dependency below sees a resolved ENABLED_BLAKE2B.
+AC_ARG_ENABLE([argon2],
+    [AS_HELP_STRING([--enable-argon2],[Enable Argon2 password hashing, RFC 9106 (default: disabled)])],
+    [ ENABLED_ARGON2=$enableval ],
+    [ ENABLED_ARGON2=no ]
+    )
+
+if test "$ENABLED_ARGON2" = "yes"
+then
+    # Argon2 is specified in terms of BLAKE2b. Pull BLAKE2b in when the user
+    # simply did not ask for it, but do not silently undo an explicit
+    # --disable-blake2b: that combination cannot be built and saying so is
+    # more useful than quietly ignoring the request.
+    if test "$ENABLED_BLAKE2B" = "no"
+    then
+        if test "x$enable_blake2b" = "xno" || test "x$enable_blake2" = "xno"
+        then
+            AC_MSG_ERROR([cannot enable argon2 without blake2b.])
+        fi
+        ENABLED_BLAKE2B=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_BLAKE2B"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ARGON2"
+fi
+
+# ARGON2 threading
+# The segments of a slice are independent, so they can be filled in parallel.
+# Requires the wolfSSL threading wrappers, which a single-threaded build does
+# not provide.
+AC_ARG_ENABLE([argon2-threads],
+    [AS_HELP_STRING([--enable-argon2-threads],[Enable Argon2 lane parallelism using threads (default: disabled)])],
+    [ ENABLED_ARGON2_THREADS=$enableval ],
+    [ ENABLED_ARGON2_THREADS=no ]
+    )
+
+if test "$ENABLED_ARGON2_THREADS" = "yes"
+then
+    if test "$ENABLED_ARGON2" = "no"
+    then
+        AC_MSG_ERROR([cannot enable argon2-threads without argon2.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARGON2_THREADS"
+fi
+# The singlethreaded consistency check is deliberately NOT made here: some
+# application bundles turn single-threaded on much later (see the lighttpd
+# block), so a check at this point would miss them. It runs just before the
+# AM_CONDITIONALs instead, by which time ENABLED_SINGLETHREADED is final.
 
 
 # SHA256
@@ -13230,8 +13287,18 @@ AM_CONDITIONAL([BUILD_AFALG],[test "x$ENABLED_AFALG" = "xyes"])
 AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_DEVCRYPTO],[test "x$ENABLED_DEVCRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_CAMELLIA],[test "x$ENABLED_CAMELLIA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+# Argon2 threading needs the wolfSSL threading wrappers. Checked here rather
+# than where --enable-argon2-threads is parsed because application bundles can
+# still turn single-threaded on after that point.
+if test "$ENABLED_ARGON2_THREADS" = "yes" && \
+   test "$ENABLED_SINGLETHREADED" = "yes"
+then
+    AC_MSG_ERROR([cannot enable argon2-threads with singlethreaded.])
+fi
+
 AM_CONDITIONAL([BUILD_MD2],[test "x$ENABLED_MD2" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RIPEMD],[test "x$ENABLED_RIPEMD" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ARGON2],[test "x$ENABLED_ARGON2" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_BLAKE2B],[test "x$ENABLED_BLAKE2B" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_BLAKE2S],[test "x$ENABLED_BLAKE2S" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA512],[test "x$ENABLED_SHA512" = "xyes" || test "x$ENABLED_SHA384" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -13791,6 +13858,8 @@ echo "   * SHAKE256:                   $ENABLED_SHAKE256"
 echo "   * cSHAKE:                     $ENABLED_CSHAKE"
 echo "   * KMAC:                       $ENABLED_KMAC"
 echo "   * SM3:                        $ENABLED_SM3"
+echo "   * ARGON2:                     $ENABLED_ARGON2"
+echo "   * ARGON2 threads:             $ENABLED_ARGON2_THREADS"
 echo "   * BLAKE2B:                    $ENABLED_BLAKE2B"
 echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
 echo "   * SipHash:                    $ENABLED_SIPHASH"

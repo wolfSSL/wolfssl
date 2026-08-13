@@ -477,6 +477,10 @@ extern "C" {
 #cmakedefine WC_RC2
 #undef HAVE_ASCON
 #cmakedefine HAVE_ASCON
+#undef HAVE_ARGON2
+#cmakedefine HAVE_ARGON2
+#undef WOLFSSL_ARGON2_THREADS
+#cmakedefine WOLFSSL_ARGON2_THREADS
 #undef WOLFSSL_AES_EAX
 #cmakedefine WOLFSSL_AES_EAX
 #undef WOLFSSL_AES_CBC_LENGTH_CHECKS
