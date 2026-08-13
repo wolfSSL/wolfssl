@@ -13176,6 +13176,19 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             return BUFFER_E;
         ato32(input, &maxSz);
 
+#ifdef WOLFSSL_QUIC
+        /* RFC 9001 Section 4.6.1: "Servers MUST NOT send the early_data
+         * extension with a max_early_data_size field set to any value other
+         * than 0xffffffff. A client MUST treat receipt of a NewSessionTicket
+         * that contains an early_data extension with any other value as a
+         * connection error of type PROTOCOL_VIOLATION." */
+        if (WOLFSSL_IS_QUIC(ssl) && maxSz != WOLFSSL_MAX_32BIT) {
+            WOLFSSL_MSG("QUIC ticket early data size not 0xffffffff");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+#endif /* WOLFSSL_QUIC */
+
         ssl->session->maxEarlyDataSz = maxSz;
         return 0;
     }
