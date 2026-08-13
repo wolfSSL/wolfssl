@@ -18992,7 +18992,6 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
-                WOLFSSL_MSG("Skipping Supported Versions - already processed");
             #ifdef WOLFSSL_DEBUG_TLS
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
@@ -19001,6 +19000,18 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     msgType != hello_retry_request)
                     return EXT_NOT_ALLOWED;
 
+                /* RFC 8446 Section 4.2.1: "A server which negotiates a version
+                 * of TLS prior to TLS 1.3 MUST set ServerHello.version and MUST
+                 * NOT send the "supported_versions" extension."  If TLS version
+                 * is <1.3, supported_versions is invalid. */
+                if (msgType == server_hello &&
+                        !IsAtLeastTLSv1_3(ssl->version)) {
+                    WOLFSSL_MSG("Supported Versions in older ServerHello");
+                    WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+                    return VERSION_ERROR;
+                }
+
+                WOLFSSL_MSG("Skipping Supported Versions - already processed");
                 break;
 
             case TLSX_COOKIE:
