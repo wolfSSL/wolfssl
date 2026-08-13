@@ -5918,7 +5918,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 }
             }
             else if (*sslBytes > 0) {
-                if (real + *sslBytes - 1 > *seqLast) {
+                if ((sword32)(real + (word32)*sslBytes - 1 - *seqLast) > 0) {
                     /* fix segment overlap */
                 #ifdef DEBUG_SNIFFER
                     WOLFSSL* ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
@@ -5948,7 +5948,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                     session->sslServer->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
                     session->pendSeq != tcpInfo->sequence &&
                 #endif
-                    real + *sslBytes -1 <= *seqLast) {
+                    (sword32)(real + (word32)*sslBytes - 1 - *seqLast) <= 0) {
                     Trace(DUPLICATE_STR);
                     ret = 1;
                 }
@@ -6160,8 +6160,11 @@ static int CheckAck(TcpInfo* tcpInfo, SnifferSession* session)
 
         /* Relative sequence numbers wrap at 2^32; compare with signed
          * (RFC 1982) serial-number arithmetic to avoid a false positive at
-         * the wrap boundary. */
-        if ((sword32)(real - expected) > 0)
+         * the wrap boundary. Expected is still 0 when that side's SYN was
+         * never seen, leaving no base to be relative to, so any data being
+         * ACKed there is data we missed. */
+        if ((expected == 0) ? (real != 0) :
+                ((sword32)(real - expected) > 0))
             return WOLFSSL_FATAL_ERROR;  /* we missed a packet, ACKing data we never saw */
     }
     return 0;
@@ -6200,6 +6203,8 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* adjust potential ethernet trailer */
     actualLen = ipInfo->total - ipInfo->length - tcpInfo->length;
+    /* CheckHeaders already rejects this for the current callers; kept so the
+     * clamp below cannot be reached with a negative bound. */
     if (actualLen < 0) {
         SetError(PACKET_HDR_SHORT_STR, error, session, FATAL_ERROR_STATE);
         return WOLFSSL_FATAL_ERROR;
