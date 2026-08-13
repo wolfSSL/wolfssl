@@ -422,7 +422,7 @@ int wolfAsync_DevCtxInit(WC_ASYNC_DEV* asyncDev, word32 marker, void* heap,
     XMEMSET(asyncDev, 0, sizeof(WC_ASYNC_DEV));
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
-    asyncDev->cryptocb.devId = INVALID_DEVID;
+    asyncDev->cryptocbDevId = INVALID_DEVID;
 #endif
 
     /* negative device Id's are invalid */
@@ -461,7 +461,7 @@ int wolfAsync_DevCtxInit(WC_ASYNC_DEV* asyncDev, word32 marker, void* heap,
         !defined(WOLFSSL_ASYNC_CRYPT_SW)
         if (marker == WOLFSSL_ASYNC_MARKER_AES ||
             marker == WOLFSSL_ASYNC_MARKER_3DES) {
-            asyncDev->cryptocb.devId = devId;
+            asyncDev->cryptocbDevId = devId;
         }
     #endif
 #endif
@@ -612,9 +612,9 @@ int wolfAsync_EventPoll(WOLF_EVENT* event, WOLF_EVENT_FLAG flags)
         /* Re-enter the crypto callback to complete the job and fill the output
          * buffer, like the hardware polls above. Poll only while the event is
          * still pending so a completed result is not overwritten. */
-        if (asyncDev->cryptocb.devId != INVALID_DEVID &&
+        if (asyncDev->cryptocbDevId != INVALID_DEVID &&
             event->ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            event->ret = wc_CryptoCb_Poll(asyncDev->cryptocb.devId);
+            event->ret = wc_CryptoCb_Poll(asyncDev->cryptocbDevId);
         }
     #endif
 
@@ -775,27 +775,21 @@ int wolfAsync_EventQueuePoll(WOLF_EVENT_QUEUE* queue, void* context_filter,
                             event->ret = wolfAsync_DoSw(asyncDev);
                         }
                 #elif defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+                    /* Poll-completion ops re-enter the crypto callback here to
+                     * fill the output buffer, only while still pending so a
+                     * completed result is not overwritten. Everything else uses
+                     * the re-invoke model: crypto/PK callbacks manage their own
+                     * retry state, so event->ret stays WC_PENDING_E and
+                     * wolfSSL_AsyncPop removes the event for a fresh callback
+                     * invocation. */
                     #if defined(WOLFSSL_ASYNC_CRYPT) && \
                         defined(WOLF_CRYPTO_CB) && \
                         defined(WOLF_CRYPTO_CB_ASYNC_POLL)
-                    if (asyncDev->cryptocb.devId != INVALID_DEVID) {
-                        /* Re-enter the crypto callback to complete the job and
-                         * fill the output buffer. Poll only while still pending
-                         * so a completed result is not overwritten. */
-                        if (event->ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                            event->ret =
-                                wc_CryptoCb_Poll(asyncDev->cryptocb.devId);
-                        }
+                    if (asyncDev->cryptocbDevId != INVALID_DEVID &&
+                        event->ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                        event->ret = wc_CryptoCb_Poll(asyncDev->cryptocbDevId);
                     }
-                    else
                     #endif
-                    {
-                        /* Re-invoke model: crypto/PK callbacks manage their own
-                         * retry state. Leave event->ret as WC_PENDING_E so that
-                         * wolfSSL_AsyncPop can detect the pending state and
-                         * remove the event, allowing the operation to be
-                         * retried with a fresh callback invocation. */
-                    }
 
                 #else
                     #warning No async crypt device defined!

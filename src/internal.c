@@ -21583,11 +21583,11 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* If pending, then leave and return will resume below */
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            #if defined(WOLF_CRYPTO_CB) && \
-                !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
-                !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
-                !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
-                /* No completion path for a pending bulk cipher op. */
+            #ifdef WOLFSSL_NO_ASYNC_CIPHER_COMPLETION
+                /* No completion path for a pending bulk cipher op. Rewind the
+                 * state so a retry re-runs the cipher instead of resuming at
+                 * CIPHER_STATE_END over an unfilled output buffer. */
+                ssl->encrypt.state = CIPHER_STATE_BEGIN;
                 WOLFSSL_ERROR_VERBOSE(ASYNC_OP_E);
                 return ASYNC_OP_E;
             #else
@@ -22094,11 +22094,11 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* If pending, leave and return below */
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            #if defined(WOLF_CRYPTO_CB) && \
-                !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
-                !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
-                !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
-                /* No completion path for a pending bulk cipher op. */
+            #ifdef WOLFSSL_NO_ASYNC_CIPHER_COMPLETION
+                /* No completion path for a pending bulk cipher op. Rewind the
+                 * state so a retry re-runs the cipher instead of resuming at
+                 * CIPHER_STATE_END over an unfilled output buffer. */
+                ssl->decrypt.state = CIPHER_STATE_BEGIN;
                 WOLFSSL_ERROR_VERBOSE(ASYNC_OP_E);
                 return ASYNC_OP_E;
             #else
@@ -43948,7 +43948,7 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
         #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
             /* Poll-completed ops stay queued until the poll fills the
              * output buffer. */
-                 && asyncDev->cryptocb.devId == INVALID_DEVID
+                 && asyncDev->cryptocbDevId == INVALID_DEVID
         #endif
         ) {
             /* Allow the underlying crypto API to be called again to trigger the

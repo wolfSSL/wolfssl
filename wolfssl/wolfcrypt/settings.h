@@ -3961,6 +3961,15 @@
         #error WOLF_CRYPTO_CB_ASYNC_POLL requires bulk cipher async support
     #endif
 
+    /* Crypto callbacks are the only async backend and cannot finish a pending
+     * bulk cipher op: the record layer has already advanced past the crypto
+     * call, and without poll routing nothing refills the output buffer. */
+    #if defined(WOLF_CRYPTO_CB) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
+        !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
+        !defined(HAVE_CAVIUM)
+        #define WOLFSSL_NO_ASYNC_CIPHER_COMPLETION
+    #endif
+
     /* Make sure wolf events are enabled */
     #undef HAVE_WOLF_EVENT
     #define HAVE_WOLF_EVENT
