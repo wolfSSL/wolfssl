@@ -67,6 +67,13 @@
 #include "xasu_status.h"
 #include "xstatus.h"
 
+/* Effective PSS/OAEP offload switch. WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD forces
+ * padding to software even if WOLF_CRYPTO_CB_RSA_PAD is set from elsewhere. */
+#if defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+    !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD)
+    #define WC_ASU_RSA_PAD
+#endif
+
 /* Submit-thunk op selector. */
 #define WC_ASU_RSA_OP_PUB        0   /* XAsu_RsaEnc:       public  m^e mod n */
 #define WC_ASU_RSA_OP_PVT        1   /* XAsu_RsaDec:       private c^d mod n */
@@ -181,7 +188,7 @@ static int wc_AsuRsaPubComp(RsaKey* key, u32 keySize, XAsu_RsaPubKeyComp* pub)
     return 0;
 }
 
-#ifdef WOLF_CRYPTO_CB_RSA_PAD
+#ifdef WC_ASU_RSA_PAD
 /* Map a wolfSSL hash type to the ASU SHA type/mode and digest length; the ASU
  * uses one hash for message and MGF, so a mismatched MGF declines (else 0). */
 static int wc_AsuRsaShaMap(enum wc_HashType hash, int mgf, u8* shaType,
@@ -244,7 +251,7 @@ static int wc_AsuRsaShaMap(enum wc_HashType hash, int mgf, u8* shaType,
     }
     return 0;
 }
-#endif /* WOLF_CRYPTO_CB_RSA_PAD */
+#endif /* WC_ASU_RSA_PAD */
 
 /* Raw RSA math: public (m^e) or private (c^d) in one ASU operation. The input
  * is one full modulus-width block and the result is keySize bytes. */
@@ -388,7 +395,7 @@ static int wc_AsuRsaRawDispatch(wc_CryptoInfo* info)
     return wc_AsuRsaRaw(info, key, keySize, op);
 }
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && defined(WOLF_CRYPTO_CB_RSA_PAD)
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && defined(WC_ASU_RSA_PAD)
 /* Full-hardware RSA-PSS sign: wolfSSL passes the digest in info->pk.rsa.in
  * (hashed-input mode); ASU does the PSS encode and private RSA math to out. */
 static int wc_AsuRsaPssSign(wc_CryptoInfo* info)
@@ -515,9 +522,9 @@ out:
     XFREE(reqRaw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* !WOLFSSL_RSA_PUBLIC_ONLY && WOLF_CRYPTO_CB_RSA_PAD */
+#endif /* !WOLFSSL_RSA_PUBLIC_ONLY && WC_ASU_RSA_PAD */
 
-#ifdef WOLF_CRYPTO_CB_RSA_PAD
+#ifdef WC_ASU_RSA_PAD
 /* Firmware packs its error into an ASU status: bits 0-9 and 10-19 each hold a
  * code; bad-sig PSS verify reports 0xC4..0xCA (decode/compare); match both. */
 static int wc_AsuRsaPssIsReject(word32 status)
@@ -651,9 +658,9 @@ out:
     XFREE(reqRaw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* WOLF_CRYPTO_CB_RSA_PAD (PSS verify) */
+#endif /* WC_ASU_RSA_PAD (PSS verify) */
 
-#ifdef WOLF_CRYPTO_CB_RSA_PAD
+#ifdef WC_ASU_RSA_PAD
 /* Full-hardware RSA-OAEP encrypt (only); message in info->pk.rsa.in, OAEP
  * hash/MGF/label in .padding; ASU does the OAEP encode + public RSA math. */
 static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
@@ -770,10 +777,10 @@ out:
     XFREE(reqRaw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
-#endif /* WOLF_CRYPTO_CB_RSA_PAD (OAEP encrypt) */
+#endif /* WC_ASU_RSA_PAD (OAEP encrypt) */
 
 /* WC_ALGO_TYPE_PK entry: dispatch on RSA pk sub-type. Raw always offloaded;
- * PSS and OAEP encrypt need WOLF_CRYPTO_CB_RSA_PAD; decrypt/PKCS to SW. */
+ * PSS/OAEP encrypt need WC_ASU_RSA_PAD (off under opt-out); PKCS to SW. */
 int wc_AsuRsa(wc_CryptoInfo* info)
 {
     if (info == NULL) {
@@ -786,7 +793,7 @@ int wc_AsuRsa(wc_CryptoInfo* info)
     switch (info->pk.type) {
         case WC_PK_TYPE_RSA:
             return wc_AsuRsaRawDispatch(info);
-    #ifdef WOLF_CRYPTO_CB_RSA_PAD
+    #ifdef WC_ASU_RSA_PAD
         #ifndef WOLFSSL_RSA_PUBLIC_ONLY
         case WC_PK_TYPE_RSA_PSS:
             return wc_AsuRsaPssSign(info);
@@ -795,7 +802,7 @@ int wc_AsuRsa(wc_CryptoInfo* info)
             return wc_AsuRsaPssVerify(info);
         case WC_PK_TYPE_RSA_OAEP:
             return wc_AsuRsaOaepEnc(info);
-    #endif /* WOLF_CRYPTO_CB_RSA_PAD */
+    #endif /* WC_ASU_RSA_PAD */
         default:
             return CRYPTOCB_UNAVAILABLE;
     }
