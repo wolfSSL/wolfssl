@@ -16385,6 +16385,11 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
+    #define _AesEcbEncrypt(aes, out, in, sz) wc_AesEcbEncrypt(aes, out, in, sz)
+    #ifdef HAVE_AES_DECRYPT
+        #define _AesEcbDecrypt(aes, out, in, sz) \
+                                            wc_AesEcbDecrypt(aes, out, in, sz)
+    #endif
 
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
