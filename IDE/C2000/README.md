@@ -69,6 +69,120 @@ TI `cl2000` (C28x) miscompiles a couple of ML-DSA 32-bit reductions on this
 
 With both, ML-DSA builds at full `-O2` on the C28x with no per-file overrides.
 
+## Hardware AES (AESA)
+
+The F28P55x/F28P65x carry an "AESA" accelerator (a TI EIP-120t instance) at
+`0x00042000` supporting ECB/CBC/CTR/CFB/GCM/CCM with 128/192/256-bit keys.
+wolfCrypt drives it through the **crypto-callback** framework rather than by
+replacing `wolfcrypt/src/aes.c`:
+
+- `wolfcrypt/src/port/ti/ti-c2000-aes.c` + `wolfssl/wolfcrypt/port/ti/ti-c2000.h`,
+  gated on `WOLFSSL_C2000_AES` (which also needs `WOLF_CRYPTO_CB`).
+- `wc_C2000_Init(devId)` enables/resets the block and registers the callback.
+  It must be called **after `wolfCrypt_Init()`** -- that is what marks the
+  device table slots `INVALID_DEVID`, and registration claims one of those.
+- A context opts in with `wc_AesInit(&aes, NULL, WOLFSSL_C2000_DEVID)`; one
+  initialised with `INVALID_DEVID` stays pure software. Software AES remains
+  compiled in, so a single image can run identical vectors through both paths
+  and compare -- which is how this port is validated.
+- Anything the hardware cannot do returns `CRYPTOCB_UNAVAILABLE` and falls
+  through to software: non-block-multiple CBC (ciphertext stealing), key
+  lengths other than 16/24/32, and every mode outside ECB/CBC/CTR.
+
+Phase 1 covers ECB, CBC and CTR. GCM/CCM/CMAC remain software for now.
+
+### Measured throughput (LAUNCHXL-F28P55X at 150 MHz)
+
+`benchmark` with `WC_USE_DEVID` pointing at the AESA device, so it emits paired
+`SW`/`HW` rows:
+
+| Operation | Software | AESA | Speedup |
+|---|---|---|---|
+| AES-128-ECB encrypt | 471 KiB/s | 2.37 MiB/s | 5.2x |
+| AES-256-ECB encrypt | 377 KiB/s | 2.32 MiB/s | 6.3x |
+| AES-128-CBC encrypt | 405 KiB/s | 2.36 MiB/s | 6.0x |
+| AES-128-CBC decrypt | 388 KiB/s | 2.34 MiB/s | 6.2x |
+| AES-256-CBC encrypt | 333 KiB/s | 2.31 MiB/s | 7.1x |
+| AES-256-CBC decrypt | 322 KiB/s | 2.29 MiB/s | 7.3x |
+| AES-128-CTR | 408 KiB/s | 1.45 MiB/s | 3.6x |
+| AES-256-CTR | 335 KiB/s | 1.44 MiB/s | 4.4x |
+
+Hardware throughput is essentially key-length independent, as expected for a
+pipelined block engine -- so the speedup grows with key size, where software
+pays for more rounds. CTR lands lower than ECB/CBC because the port does the
+counter increment and the keystream XOR in software (see above); it is still
+the mode that gains least in relative terms but it is unambiguously worth
+offloading. AES-GCM moves only from ~32 to ~34 KiB/s: only its internal ECB
+calls reach the accelerator, and the `GCM_SMALL` byte-wise GHASH dominates.
+Doing GCM properly means using the block's own GCM mode, which is phase 2.
+
+### Build overrides
+
+All `#ifndef`-guarded in `wolfssl/wolfcrypt/port/ti/ti-c2000.h`:
+
+| Macro | Default | Purpose |
+|---|---|---|
+| `WOLFSSL_C2000_DEVID` | `0x2000` | devId passed to `wc_AesInit()` and `wc_CryptoCb_RegisterDevice()` |
+| `WOLFSSL_C2000_AES_BASE` | `0x00042000` | AESA register base (`AESA_BASE`) |
+| `WOLFSSL_C2000_AES_SS_BASE` | `0x00042C00` | AESA wrapper base (`AESA_SS_BASE`) |
+| `WOLFSSL_C2000_AES_NO_LOCK` | off | Assert an external lock instead of requiring `SINGLE_THREADED` |
+
+The two base addresses are defaulted in the port rather than taken from a
+device header, so the same source builds against any C2000 part that places
+the block elsewhere.
+
+### Two things the 16-bit byte forces
+
+**Octet packing.** C2000Ware's AES API is `uint32_t*`-based. On the C28x a
+`byte` buffer holds one octet per 16-bit cell and `sizeof(word32)` is 2, so the
+`(uint32_t*)in` cast the TivaWare port (`ti-aes.c`) uses is wrong here. Every
+transfer is staged through a local `uint32_t` block using the packing driverlib
+actually expects, confirmed against its own vectors
+(`driverlib/f28p55x/examples/aes/aes_ex1_ecb_encrypt.c` writes the FIPS-197 key
+`2b7e1516...` as `{0x16157e2b, ...}`):
+
+```
+word[i] = b[4i] | (b[4i+1] << 8) | (b[4i+2] << 16) | (b[4i+3] << 24)
+```
+
+little-endian octets within each word, words in natural order. The
+word-index reversal inside `AES_writeDataBlocking()` is internal to driverlib
+and must not be compensated for. The port packs and unpacks locally
+(`c2000_WordsFromOctets()` / `c2000_OctetsFromWords()`), staging through
+`uint32_t` rather than wolfSSL's `word32`: `word32` is only 32-bit under
+`WC_16BIT_CPU`, while driverlib writes `uint32_t` either way, so a `word32`
+staging array would be half the size the hardware fills.
+
+**The hardware CTR counter does not match wolfCrypt's.** Measured on a
+LAUNCHXL-F28P55X: with `AES_OPMODE_CTR` + `AES_CTR_WIDTH_128BIT` the first
+block matches NIST SP800-38A F.5.1, but later blocks diverge from software as
+soon as an increment carries across an octet boundary (the F.5 counter starts
+at `...fe ff`, so block 2 already does). The block's 128-bit counter increment
+therefore disagrees with `IncrementAesCounter()`, which carries through all 16
+octets. The port instead runs the accelerator in **ECB** mode and keeps the
+counter in software: identical hardware block-operation count, correct by
+construction.
+
+Both traps are silent -- the first block is right either way, which is exactly
+why the KAT harness checks multi-block, split-call and in-place cases.
+
+### Chaining state
+
+`aes->reg` is updated in software (last ciphertext block on encrypt, a copy of
+the last input block saved *before* processing on decrypt, so in-place calls
+work). `AES_readInitializationVector()` is deliberately not used: the
+`IV_IN_OUT` registers only hold the saved context when `CTRL.SAVE_CONTEXT` is
+set, which `AES_configureModule()` does not set, and driverlib's reader does
+not poll `CTRL.SVCTXTRDY` the way `AES_readTag()` does.
+
+### Threading
+
+The AESA block is a single shared resource and the port reloads key, IV and
+mode on every operation, so it is re-entrant across `Aes` contexts but **not**
+across preemption or an ISR. `ti-c2000.h` therefore `#error`s unless
+`SINGLE_THREADED` is defined, or `WOLFSSL_C2000_AES_NO_LOCK` asserts that an
+external lock provides the guarantee.
+
 ## Enabling on your build
 
 Define a user-settings header (see `IDE/C2000/user_settings.h` for a
