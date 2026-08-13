@@ -2810,8 +2810,10 @@ void wolfSSL_DES_ncbc_encrypt(const unsigned char* input, unsigned char* output,
  *
  * @param [in]      input     Data to encipher.
  * @param [out]     output    Enciphered data.
- * @param [in]      length    Length of data to encipher.
- * @param [in]      schedule  Key schedule.
+ * @param [in]      sz        Length of data to encipher.
+ * @param [in]      ks1       First key schedule.
+ * @param [in]      ks2       Second key schedule.
+ * @param [in]      ks3       Third key schedule.
  * @param [in, out] ivec      IV for CBC operation.
  * @param [in]      enc       Whether to encrypt.
  */
