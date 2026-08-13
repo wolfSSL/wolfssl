@@ -811,16 +811,6 @@ WOLFSSL_LOCAL void mlkem_add3_reduce(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_rsub_reduce(sword16* r, const sword16* a);
 WOLFSSL_LOCAL void mlkem_to_mont(sword16* p);
 WOLFSSL_LOCAL void mlkem_to_mont_sqrdmlsh(sword16* p);
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_neon(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed);
-#ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_crypto(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-#endif
 WOLFSSL_LOCAL unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len,
     const byte* r, unsigned int rLen);
 WOLFSSL_LOCAL int mlkem_cmp_neon(const byte* a, const byte* b, int sz);

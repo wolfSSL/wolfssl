@@ -14934,6 +14934,9 @@ _AES_GCM_encrypt_AARCH64_EOR3:
 	stp	d10, d11, [x29, #96]
 	stp	d12, d13, [x29, #112]
 	stp	d14, d15, [x29, #128]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ldr	w8, [x29, #144]
 	ldr	x9, [x29, #152]
 	ldr	x10, [x29, #160]
@@ -19628,6 +19631,9 @@ _AES_GCM_decrypt_AARCH64_EOR3:
 	stp	d10, d11, [x29, #96]
 	stp	d12, d13, [x29, #112]
 	stp	d14, d15, [x29, #128]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ldr	w8, [x29, #144]
 	ldr	x9, [x29, #152]
 	ldr	x10, [x29, #160]
@@ -32824,6 +32830,9 @@ _AES_GCM_init_AARCH64_EOR3:
 	add	x29, sp, #0
 	stp	d8, d9, [x29, #16]
 	stp	d10, d11, [x29, #32]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	movi	v6.16b, #0x87
 	ld1	{v5.2d}, [x4]
 	ushr	v6.2d, v6.2d, #56
@@ -33000,6 +33009,9 @@ _AES_GCM_ghash_block_AARCH64_EOR3:
 	stp	x29, x30, [sp, #-32]!
 	add	x29, sp, #0
 	stp	d8, d9, [x29, #16]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ld1	{v6.2d}, [x1]
 	movi	v7.16b, #0x87
 	ld1	{v5.2d}, [x2]
@@ -33049,6 +33061,9 @@ _AES_GCM_aad_update_AARCH64_EOR3:
 	stp	d10, d11, [x29, #32]
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ld1	{v20.2d}, [x2]
 	movi	v21.16b, #0x87
 	ld1	{v12.2d}, [x3]
@@ -33381,6 +33396,9 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_block_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_encrypt_block_AARCH64_EOR3:
 #endif /* __APPLE__ */
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ld1	{v5.2d}, [x4]
 	ld1	{v4.2d}, [x3]
 	mov	w5, v5.s[3]
@@ -33455,6 +33473,9 @@ _AES_GCM_encrypt_update_AARCH64_EOR3:
 	stp	d10, d11, [x29, #48]
 	stp	d12, d13, [x29, #64]
 	stp	d14, d15, [x29, #80]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ld1	{v13.2d}, [x7]
 	movi	v27.16b, #0x87
 	ld1	{v26.2d}, [x5]
@@ -37176,6 +37197,9 @@ WC_ASM_ATT_HIDDEN(_AES_GCM_encrypt_final_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_encrypt_final_AARCH64_EOR3:
 #endif /* __APPLE__ */
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ld1	{v5.2d}, [x0]
 	movi	v6.16b, #0x87
 	ld1	{v4.2d}, [x5]
@@ -37260,6 +37284,9 @@ _AES_GCM_decrypt_update_AARCH64_EOR3:
 	stp	d10, d11, [x29, #48]
 	stp	d12, d13, [x29, #64]
 	stp	d14, d15, [x29, #80]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 	ld1	{v13.2d}, [x7]
 	movi	v27.16b, #0x87
 	ld1	{v26.2d}, [x5]
@@ -40981,6 +41008,9 @@ AES_GCM_decrypt_final_AARCH64_EOR3:
 WC_ASM_ATT_HIDDEN(_AES_GCM_decrypt_final_AARCH64_EOR3)
 .p2align	2
 _AES_GCM_decrypt_final_AARCH64_EOR3:
+#endif /* __APPLE__ */
+#ifdef __APPLE__
+.arch_extension sha3
 #endif /* __APPLE__ */
 	ld1	{v5.2d}, [x0]
 	movi	v6.16b, #0x87

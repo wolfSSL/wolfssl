@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential bubblewrap crossbuild-essential-arm64 crossbuild-essential-armhf
+          packages: autoconf automake libtool build-essential bubblewrap crossbuild-essential-arm64 crossbuild-essential-armhf qemu-user
           ghcr-debs-tag: ubuntu-24.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
