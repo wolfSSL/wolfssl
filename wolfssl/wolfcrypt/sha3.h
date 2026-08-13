@@ -195,33 +195,41 @@ struct wc_Sha3 {
     #endif
 #endif
 
+#ifndef WOLFSSL_NOSHA3_224
 WOLFSSL_API int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId);
 WOLFSSL_API int wc_Sha3_224_Update(wc_Sha3* sha3, const byte* data, word32 len);
 WOLFSSL_API int wc_Sha3_224_Final(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API void wc_Sha3_224_Free(wc_Sha3* sha3);
 WOLFSSL_API int wc_Sha3_224_GetHash(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API int wc_Sha3_224_Copy(wc_Sha3* src, wc_Sha3* dst);
+#endif
 
+#ifndef WOLFSSL_NOSHA3_256
 WOLFSSL_API int wc_InitSha3_256(wc_Sha3* sha3, void* heap, int devId);
 WOLFSSL_API int wc_Sha3_256_Update(wc_Sha3* sha3, const byte* data, word32 len);
 WOLFSSL_API int wc_Sha3_256_Final(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API void wc_Sha3_256_Free(wc_Sha3* sha3);
 WOLFSSL_API int wc_Sha3_256_GetHash(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API int wc_Sha3_256_Copy(wc_Sha3* src, wc_Sha3* dst);
+#endif
 
+#ifndef WOLFSSL_NOSHA3_384
 WOLFSSL_API int wc_InitSha3_384(wc_Sha3* sha3, void* heap, int devId);
 WOLFSSL_API int wc_Sha3_384_Update(wc_Sha3* sha3, const byte* data, word32 len);
 WOLFSSL_API int wc_Sha3_384_Final(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API void wc_Sha3_384_Free(wc_Sha3* sha3);
 WOLFSSL_API int wc_Sha3_384_GetHash(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst);
+#endif
 
+#ifndef WOLFSSL_NOSHA3_512
 WOLFSSL_API int wc_InitSha3_512(wc_Sha3* sha3, void* heap, int devId);
 WOLFSSL_API int wc_Sha3_512_Update(wc_Sha3* sha3, const byte* data, word32 len);
 WOLFSSL_API int wc_Sha3_512_Final(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API void wc_Sha3_512_Free(wc_Sha3* sha3);
 WOLFSSL_API int wc_Sha3_512_GetHash(wc_Sha3* sha3, byte* hash);
 WOLFSSL_API int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst);
+#endif
 
 #ifdef WOLFSSL_SHAKE128
 WOLFSSL_API int wc_InitShake128(wc_Shake* shake, void* heap, int devId);
