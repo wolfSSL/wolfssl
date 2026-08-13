@@ -16822,6 +16822,29 @@ static int IsPostSigParseErr(int ret)
 }
 #endif
 
+#if defined(HAVE_RPK)
+/* Certificate type negotiated for the peer's certificate: the server cert type
+ * received (client side) or the client cert type selected (server side). When
+ * no type was negotiated the default is X.509 (RFC 7250 Section 4.1).
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  the negotiated WOLFSSL_CERT_TYPE_* value.
+ */
+static int GetPeerCertType(const WOLFSSL* ssl)
+{
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        if (ssl->options.rpkState.received_ServerCertTypeCnt == 1)
+            return ssl->options.rpkState.received_ServerCertTypes[0];
+    }
+    else if (ssl->options.side == WOLFSSL_SERVER_END) {
+        if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1)
+            return ssl->options.rpkState.sending_ClientCertTypes[0];
+    }
+
+    return WOLFSSL_CERT_TYPE_X509;
+}
+#endif /* HAVE_RPK */
+
 static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int certType, int verify, byte** pSubjectHash, int* pAlreadySigner)
 {
@@ -16880,15 +16903,7 @@ PRAGMA_GCC_DIAG_POP
     /* The certificate type negotiated with the peer: the received server cert
      * type (client) or the selected client cert type (server). When no type
      * was negotiated the default is X.509 (RFC 7250/8446). */
-    cType = WOLFSSL_CERT_TYPE_X509;
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        if (ssl->options.rpkState.received_ServerCertTypeCnt == 1)
-            cType = ssl->options.rpkState.received_ServerCertTypes[0];
-    }
-    else if (ssl->options.side == WOLFSSL_SERVER_END) {
-        if (ssl->options.rpkState.sending_ClientCertTypeCnt == 1)
-            cType = ssl->options.rpkState.sending_ClientCertTypes[0];
-    }
+    cType = GetPeerCertType(ssl);
 
     /* A raw public key (RFC 7250) has no chain, so ParseCertRelative() rejects
      * it under any verifying mode: it cannot be verified against the
@@ -18422,6 +18437,22 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             args->count = args->totalCerts;
             args->certIdx = 0; /* select peer cert (first one) */
+
+        #if defined(HAVE_RPK) && defined(WOLFSSL_TLS13)
+            /* RFC 8446 Section 4.4.2: "If the RawPublicKey certificate type was
+             * negotiated, then the certificate_list MUST contain no more than
+             * one CertificateEntry". Only TLS 1.3 needs the check: a TLS 1.2
+             * Certificate carries the bare SubjectPublicKeyInfo, which the
+             * length handling above already limits to a single entry. */
+            if (ssl->options.tls1_3 && args->count > 1 &&
+                    GetPeerCertType(ssl) == WOLFSSL_CERT_TYPE_RPK) {
+                WOLFSSL_MSG("Multiple certs with raw public key negotiated");
+                ret = UNSUPPORTED_CERTIFICATE;
+                WOLFSSL_ERROR_VERBOSE(ret);
+                DoCertFatalAlert(ssl, ret);
+                goto exit_ppc;
+            }
+        #endif /* HAVE_RPK && WOLFSSL_TLS13 */
 
             if (args->count == 0) {
                 /* Empty certificate message. */
