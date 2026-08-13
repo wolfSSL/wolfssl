@@ -34,9 +34,15 @@
  *       WOLFSSL_VERSAL_GEN2_ASU_HMAC
  *       WOLFSSL_VERSAL_GEN2_ASU_CIPHER
  *       WOLFSSL_VERSAL_GEN2_ASU_CMAC
- *       WOLFSSL_VERSAL_GEN2_ASU_RSA
+ *       WOLFSSL_VERSAL_GEN2_ASU_RSA (not auto-enabled under NO_RSA; enabling it
+ *           implicitly defines WOLF_CRYPTO_CB_RSA_PAD so the ASU performs the
+ *           full padded PSS/OAEP operation, not just the modexp)
  *       WOLFSSL_VERSAL_GEN2_ASU_ECC
  *   An engine macro on its own does not enable the port.
+ *
+ * Opt-out (keep the RSA engine, drop the padding path back to software):
+ *       WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD - RSA on, all padding in software
+ *           (the raw modexp still offloads)
  */
 
 #ifndef WOLFSSL_VERSAL_GEN2_ASU_SETTINGS_H
@@ -63,14 +69,24 @@
     #define WOLFSSL_VERSAL_GEN2_ASU_HMAC
     #define WOLFSSL_VERSAL_GEN2_ASU_CIPHER
     #define WOLFSSL_VERSAL_GEN2_ASU_CMAC
-    #define WOLFSSL_VERSAL_GEN2_ASU_RSA
+    /* Do not auto-enable RSA under NO_RSA. asu_rsa.c also compiles to nothing
+     * on a late NO_RSA, so this is a clean default, not the sole guard. */
+    #ifndef NO_RSA
+        #define WOLFSSL_VERSAL_GEN2_ASU_RSA
+    #endif
     #define WOLFSSL_VERSAL_GEN2_ASU_ECC
 #endif
 
-/* Device id used to register and route to the ASU crypto callback. Override by
- * defining WOLFSSL_VERSAL_GEN2_ASU_DEVID (or WC_USE_DEVID) in user_settings.h
- * before settings.h. Any int other than INVALID_DEVID (-2) is valid; this is an
- * identifier, not an address or index. */
+/* WOLF_CRYPTO_CB_RSA_PAD on with RSA. WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD opts
+ * out; it changes wc_CryptoInfo layout, set identically in lib and app. */
+#if defined(WOLFSSL_VERSAL_GEN2_ASU_RSA) && \
+    !defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+    !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD)
+    #define WOLF_CRYPTO_CB_RSA_PAD
+#endif
+
+/* Device id for the ASU crypto callback; set WOLFSSL_VERSAL_GEN2_ASU_DEVID (or
+ * WC_USE_DEVID) to any int but INVALID_DEVID (-2), an id not an address. */
 #ifndef WOLFSSL_VERSAL_GEN2_ASU_DEVID
     #define WOLFSSL_VERSAL_GEN2_ASU_DEVID 0x4153 /* 'AS' for ASU */
 #endif
@@ -89,19 +105,24 @@
     #endif
 #endif
 
-/* Mirror the application data cache switch into a port owned macro so the port
- * translation units do not depend on the application macro name. When
- * XASU_DISABLE_CACHE is set globally the data cache is off, so the port skips
- * buffer maintenance; otherwise it cleans inputs and invalidates outputs. */
+/* Mirror XASU_DISABLE_CACHE into the port macro WC_ASU_DISABLE_CACHE. When set,
+ * the cache is off, port skips buffer maintenance, else cleans/invalidates. */
 #ifdef XASU_DISABLE_CACHE
     #ifndef WC_ASU_DISABLE_CACHE
         #define WC_ASU_DISABLE_CACHE
     #endif
 #endif
 
-/* Threading. The ticketing concurrency that lets several threads keep the ASU
- * queue busy is compiled out for a single threaded build, which instead uses
- * the wolfSSL crypto hardware mutex. Derived from SINGLE_THREADED. */
+/* ALIGN64 is a no-op without WOLFSSL_USE_ALIGN, so define it here, but only
+ * when the data cache is on (WC_ASU_DISABLE_CACHE off). */
+#ifndef WC_ASU_DISABLE_CACHE
+    #ifndef WOLFSSL_USE_ALIGN
+        #define WOLFSSL_USE_ALIGN
+    #endif
+#endif
+
+/* Threading. Ticketing concurrency that keeps the ASU queue busy is compiled
+ * out for a SINGLE_THREADED build, which uses the wolfSSL crypto HW mutex. */
 #ifdef SINGLE_THREADED
     #undef  WOLFSSL_VERSAL_GEN2_ASU_SINGLE_THREADED
     #define WOLFSSL_VERSAL_GEN2_ASU_SINGLE_THREADED
