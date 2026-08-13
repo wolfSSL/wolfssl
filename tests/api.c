@@ -20921,7 +20921,7 @@ static int test_wolfSSL_i2d_PUBKEY_bio(void)
     EVP_PKEY* pkey2 = NULL;
 
     /* NULL parameter tests */
-    ExpectIntEQ(wolfSSL_i2d_PUBKEY_bio(NULL, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(i2d_PUBKEY_bio(NULL, NULL), WOLFSSL_FAILURE);
 
 #if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
     {

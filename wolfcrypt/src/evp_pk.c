@@ -2570,7 +2570,10 @@ int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio, const WOLFSSL_EVP_PKEY* key)
         goto cleanup;
     }
 
+    /* A short write is reported as failure but is not rolled back: whatever
+     * reached the BIO stays there, like OpenSSL's i2d_PUBKEY_bio. */
     if (wolfSSL_BIO_write(bio, der, derSz) != derSz) {
+        WOLFSSL_MSG("wolfSSL_BIO_write failed; partial data may remain in BIO");
         goto cleanup;
     }
 
