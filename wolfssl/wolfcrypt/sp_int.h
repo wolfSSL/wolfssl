@@ -478,8 +478,14 @@ typedef struct sp_dh_ctx {
                 #elif !defined(NO_DH) && defined(HAVE_FFDHE_4096)
                     #define SP_INT_BITS     4096
                 #else
-                    /* Default to max 3072 for general RSA and DH. */
-                    #define SP_INT_BITS     3072
+                    /* No FFDHE parameters that big, but WOLFSSL_SP_4096 is
+                     * set when 4096 bit RSA/DH is wanted. */
+                    #ifdef WOLFSSL_SP_4096
+                        #define SP_INT_BITS 4096
+                    #else
+                        /* Default to max 3072 for general RSA and DH. */
+                        #define SP_INT_BITS 3072
+                    #endif
                 #endif
             #elif defined(WOLFCRYPT_HAVE_SAKKE)
                 #define SP_INT_BITS     1024
