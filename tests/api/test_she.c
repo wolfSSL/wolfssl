@@ -227,6 +227,15 @@ int test_wc_SHE_GenerateM1M2M3(void)
                     m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ), 0);
     ExpectIntEQ(XMEMCMP(m1, sheTestExpM1, WC_SHE_M1_SZ), 0);
 
+    /* Largest encodable counter, flags and key IDs are still accepted */
+    ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_KEY_ID_MAX, sheTestAuthKey, sizeof(sheTestAuthKey),
+                    WC_SHE_KEY_ID_MAX, sheTestNewKey, sizeof(sheTestNewKey),
+                    WC_SHE_COUNTER_MAX, WC_SHE_FLAGS_MAX,
+                    m1, WC_SHE_M1_SZ, m2, WC_SHE_M2_SZ, m3, WC_SHE_M3_SZ), 0);
+    ExpectIntEQ(m1[WC_SHE_M1_KID_OFFSET], 0xFF);
+
     /* Bad args */
     ExpectIntEQ(wc_SHE_GenerateM1M2M3(NULL,
                     sheTestUid, sizeof(sheTestUid),
@@ -259,6 +268,14 @@ int test_wc_SHE_GenerateM4M5(void)
                     m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ), 0);
     ExpectIntEQ(XMEMCMP(m4, sheTestExpM4, WC_SHE_M4_SZ), 0);
     ExpectIntEQ(XMEMCMP(m5, sheTestExpM5, WC_SHE_M5_SZ), 0);
+
+    /* Largest encodable counter and key IDs are still accepted */
+    ExpectIntEQ(wc_SHE_GenerateM4M5(&she,
+                    sheTestUid, sizeof(sheTestUid),
+                    WC_SHE_KEY_ID_MAX, WC_SHE_KEY_ID_MAX,
+                    sheTestNewKey, sizeof(sheTestNewKey), WC_SHE_COUNTER_MAX,
+                    m4, WC_SHE_M4_SZ, m5, WC_SHE_M5_SZ), 0);
+    ExpectIntEQ(m4[WC_SHE_M4_KID_OFFSET], 0xFF);
 
     /* Bad args */
     ExpectIntEQ(wc_SHE_GenerateM4M5(NULL,
@@ -837,6 +854,25 @@ int test_wc_SHE_DecisionCoverage(void)
             WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
             sizeof(m2), m3, WC_SHE_M3_SZ - 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+        /* wc_SHE_GenerateM1M2M3: packed field widths, one invalid per call.
+         * Each of these silently wrapped or bled into a neighbouring field. */
+        ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+            WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, WC_SHE_COUNTER_MAX + 1, 0,
+            m1, sizeof(m1), m2, sizeof(m2), m3, sizeof(m3)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+            WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, WC_SHE_FLAGS_MAX + 1,
+            m1, sizeof(m1), m2, sizeof(m2), m3, sizeof(m3)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ,
+            WC_SHE_KEY_ID_MAX + 1, key,
+            WC_SHE_KEY_SZ, 2, key, WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+            sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_GenerateM1M2M3(&she, uid, WC_SHE_UID_SZ, 1, key,
+            WC_SHE_KEY_SZ, WC_SHE_KEY_ID_MAX + 1, key,
+            WC_SHE_KEY_SZ, 1, 0, m1, sizeof(m1), m2,
+            sizeof(m2), m3, sizeof(m3)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
         /* wc_SHE_GenerateM4M5: 8 operands, one invalid per call. */
         ExpectIntEQ(wc_SHE_GenerateM4M5(&she, NULL, WC_SHE_UID_SZ, 1, 2, key,
             WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, sizeof(m5)),
@@ -861,6 +897,19 @@ int test_wc_SHE_DecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, key,
             WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, WC_SHE_M5_SZ - 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* wc_SHE_GenerateM4M5: packed field widths, one invalid per call. */
+        ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1, 2, key,
+            WC_SHE_KEY_SZ, WC_SHE_COUNTER_MAX + 1, m4, sizeof(m4), m5,
+            sizeof(m5)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ,
+            WC_SHE_KEY_ID_MAX + 1, 2, key,
+            WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, sizeof(m5)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_SHE_GenerateM4M5(&she, uid, WC_SHE_UID_SZ, 1,
+            WC_SHE_KEY_ID_MAX + 1, key,
+            WC_SHE_KEY_SZ, 1, m4, sizeof(m4), m5, sizeof(m5)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 

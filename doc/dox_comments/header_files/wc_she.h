@@ -294,16 +294,17 @@ int wc_SHE_ImportM1M2M3(wc_SHE* she,
     new key (M2), and AES-CMAC for authentication (M3).
 
     \return 0 on success
-    \return BAD_FUNC_ARG if any required pointer is NULL or sizes are
-    incorrect
+    \return BAD_FUNC_ARG if any required pointer is NULL, sizes are
+    incorrect, or counter, flags, authKeyId or targetKeyId is wider than
+    its packed field
 
     \param she initialized SHE context
     \param uid 15-byte SHE UID (120-bit ECU/module identifier)
     \param uidSz must be WC_SHE_UID_SZ (15)
-    \param authKeyId slot ID of the authorizing key (0-14)
+    \param authKeyId 4-bit slot ID of the authorizing key
     \param authKey 16-byte value of the authorizing key
     \param authKeySz must be WC_SHE_KEY_SZ (16)
-    \param targetKeyId slot ID of the key being loaded (1-14)
+    \param targetKeyId 4-bit slot ID of the key being loaded
     \param newKey 16-byte value of the new key to load
     \param newKeySz must be WC_SHE_KEY_SZ (16)
     \param counter 28-bit monotonic counter value (must be strictly greater
@@ -352,14 +353,15 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     separate context.
 
     \return 0 on success
-    \return BAD_FUNC_ARG if any required pointer is NULL or sizes are
-    incorrect
+    \return BAD_FUNC_ARG if any required pointer is NULL, sizes are
+    incorrect, or counter, authKeyId or targetKeyId is wider than its
+    packed field
 
     \param she initialized SHE context
     \param uid 15-byte SHE UID (same UID used for M1)
     \param uidSz must be WC_SHE_UID_SZ (15)
-    \param authKeyId slot ID of the authorizing key (same as in M1)
-    \param targetKeyId slot ID of the key being loaded (same as in M1)
+    \param authKeyId 4-bit slot ID of the authorizing key (same as in M1)
+    \param targetKeyId 4-bit slot ID of the key being loaded (same as in M1)
     \param newKey 16-byte value of the new key
     \param newKeySz must be WC_SHE_KEY_SZ (16)
     \param counter 28-bit monotonic counter (same value as in M2)

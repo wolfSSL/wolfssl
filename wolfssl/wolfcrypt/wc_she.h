@@ -73,6 +73,11 @@ enum wc_SheType {
 #define WC_SHE_M4_COUNT_SHIFT   4
 #define WC_SHE_M4_COUNT_PAD     0x8
 
+/* largest value each packed field can hold */
+#define WC_SHE_COUNTER_MAX  0x0FFFFFFFU
+#define WC_SHE_FLAGS_MAX    0x0F
+#define WC_SHE_KEY_ID_MAX   0x0F
+
 /* SHE KDF constants (Miyaguchi-Preneel input) */
 #define WC_SHE_KEY_UPDATE_ENC_C { \
     0x01, 0x01, 0x53, 0x48, \
@@ -240,12 +245,12 @@ WOLFSSL_API int wc_SHE_ImportM1M2M3(wc_SHE* she,
  *   she        - initialized SHE context
  *   uid        - 15-byte SHE UID (120-bit ECU/module identifier)
  *   uidSz      - must be WC_SHE_UID_SZ (15)
- *   authKeyId  - slot ID of the authorizing key (0-14, e.g.
+ *   authKeyId  - 4-bit slot ID of the authorizing key (e.g.
  *                MASTER_ECU_KEY=1, KEY_1..KEY_10=4..13)
  *   authKey    - 16-byte value of the authorizing key. Used to derive
  *                K1 (encryption) and K2 (MAC).
  *   authKeySz  - must be WC_SHE_KEY_SZ (16)
- *   targetKeyId - slot ID of the key being loaded (1-14)
+ *   targetKeyId - 4-bit slot ID of the key being loaded
  *   newKey     - 16-byte value of the new key to load. Placed in M2
  *                cleartext and used to derive K3/K4 for M4/M5.
  *   newKeySz   - must be WC_SHE_KEY_SZ (16)
