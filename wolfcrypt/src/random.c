@@ -190,6 +190,8 @@ This library contains implementation for the random number generator.
     #include "wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h"
 #elif defined(WOLFSSL_RPIPICO)
     #include "wolfssl/wolfcrypt/port/rpi_pico/pico.h"
+#elif defined(WOLFSSL_C2000_ENTROPY)
+    #include "wolfssl/wolfcrypt/port/ti/ti-c2000-entropy.h"
 #elif defined(NO_DEV_RANDOM)
 #elif defined(CUSTOM_RAND_GENERATE)
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -1757,9 +1759,11 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
     #endif
         XMEMSET(byteCounts, 0, MAX_ENTROPY_BITS * sizeof(word16));
 
-        /* Initialize counts for first window */
+        /* Indices are WC_OCTET-masked: byteCounts has 256 entries, but a
+         * byte cell can exceed 255 where CHAR_BIT != 8, so an unmasked seed
+         * value would index out of bounds. */
         for (i = 0; i < windowSize; i++) {
-            byteCounts[seed[i]]++;
+            byteCounts[WC_OCTET(seed[i])]++;
         }
 
         /* Check first window - scan all 256 counts */
@@ -1770,15 +1774,16 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         /* Slide window through remaining seed data */
         while ((windowStart + windowSize) < seedSz) {
             /* Remove byte leaving the window */
-            byteCounts[seed[windowStart]]--;
+            byteCounts[WC_OCTET(seed[windowStart])]--;
             windowStart++;
 
             /* Add byte entering the window */
             newIdx = windowStart + windowSize - 1;
-            byteCounts[seed[newIdx]]++;
+            byteCounts[WC_OCTET(seed[newIdx])]++;
 
             /* Accumulate failure flag for new byte's count */
-            aptFailed |= (byteCounts[seed[newIdx]] >= WC_RNG_SEED_APT_CUTOFF);
+            aptFailed |= (byteCounts[WC_OCTET(seed[newIdx])] >=
+                          WC_RNG_SEED_APT_CUTOFF);
         }
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
@@ -4036,6 +4041,470 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #endif /* HAVE_INTEL_RDRAND || HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
 
+#ifdef WOLFSSL_NOISE_SRC
+
+/* Generic SP800-90B noise source.  Configuration struct and API:
+ * wolfssl/wolfcrypt/random.h.
+ *
+ * Entropy model.  A port supplies raw, unconditioned octets through one
+ * callback.  Each raw bit is credited hmin/100 bits of min-entropy, so a
+ * full-entropy output octet needs 8 / (hmin/100) raw bits, and margin
+ * oversamples on top of that; WC_NOISE_RAW_PER_SRC() turns the two into the
+ * raw octets gathered per conditioner chunk.  Only source 0 is budgeted - any
+ * further source is hashed in as defence in depth, and extra hash input can
+ * never subtract entropy.
+ *
+ * Every gathered octet passes the 4.4.1 Repetition Count Test and the 4.4.2
+ * Adaptive Proportion Test before reaching the conditioner, and _Init() runs
+ * the 4.3 startup test over startupOctets per source first.  A failure is
+ * latched: 4.3/4.4 want a persistent failure state, not a transparent retry,
+ * because a source that trips and then passes is exactly what continuous
+ * testing exists to catch.  Only _Free() clears it.
+ *
+ * Only test verdicts latch - the health tests and the _SelfTest() liveness
+ * checks.  An error from the sample callback propagates unlatched and stays
+ * retryable: it says the hardware did not answer, not that the noise is bad.
+ * Either way no output is produced.
+ *
+ * Latching is also limited to the credited source.  Source 0 carries the whole
+ * budget, so its failure fails closed.  Sources 1.. are unaccounted extra hash
+ * input, and the cutoffs are derived for source 0's assumed min-entropy rather
+ * than theirs, so one of them tripping is not evidence the seed is weak - it is
+ * dropped for the life of the instance (recorded in src->degraded) and stops
+ * contributing.  Output stays fully seeded because the budget never counted
+ * it, and a source the budget ignores cannot deny service.
+ *
+ * Cutoffs belong to the caller and must match the assumed hmin, or they either
+ * never trip or trip constantly.  For H bits of min-entropy per octet at
+ * alpha = 2^-30: RCT C = 1 + ceil(30/H), APT C = 1 + CRITBINOM(W, 2^-H,
+ * 1-alpha).
+ *
+ * No locking.  The instance is caller-owned state, so a port sharing one
+ * across threads provides its own mutual exclusion. */
+
+#ifdef NO_SHA256
+    #error "WOLFSSL_NOISE_SRC conditions with SHA-256; do not set NO_SHA256"
+#endif
+#if WC_NOISE_CHUNK_SZ != WC_SHA256_DIGEST_SIZE
+    #error "WC_NOISE_CHUNK_SZ must match WC_SHA256_DIGEST_SIZE"
+#endif
+
+/* len raw octets from one source.  No health testing - callers that keep the
+ * data run NoiseSrc_HealthTest() over it. */
+static int NoiseSrc_Gather(wc_NoiseSrc* src, byte* out, word32 len, int srcIdx)
+{
+    word32 i;
+    int ret;
+
+    for (i = 0; i < len; i++) {
+        ret = src->sampleCb(src->ctx, srcIdx, &out[i]);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+/* SP800-90B 4.4.1 RCT and 4.4.2 APT over every octet drawn from a source.
+ * Returns at the offending sample so the rest of the buffer cannot scrub the
+ * state that detected it, and latches the failure. */
+static int NoiseSrc_HealthTest(wc_NoiseSrc* src, const byte* buf, word32 len,
+                               int srcIdx)
+{
+    wc_NoiseHealth* st;
+    word32 i;
+    word16 s;
+
+    if (srcIdx < 0 || srcIdx >= (int)src->numSrc) {
+        return BAD_FUNC_ARG;
+    }
+    st = &src->health[srcIdx];
+
+    for (i = 0; i < len; i++) {
+        s = (word16)WC_OCTET(buf[i]);
+
+        if (!st->started) {
+            st->started  = 1;
+            st->rctLast  = s;
+            st->rctCount = 1;
+            st->aptRef   = s;
+            st->aptCount = 1;
+            st->aptPos   = 1;
+            continue;
+        }
+
+        if (s == st->rctLast) {
+            st->rctCount++;
+            if (st->rctCount >= src->rctCutoff) {
+                if (srcIdx == 0) {
+                    src->failed = ENTROPY_RT_E;
+                }
+                return ENTROPY_RT_E;
+            }
+        }
+        else {
+            st->rctLast  = s;
+            st->rctCount = 1;
+        }
+
+        if (st->aptPos >= src->aptWindow) {
+            st->aptRef   = s;
+            st->aptCount = 1;
+            st->aptPos   = 1;
+        }
+        else {
+            if (s == st->aptRef) {
+                st->aptCount++;
+                if (st->aptCount >= src->aptCutoff) {
+                    if (srcIdx == 0) {
+                        src->failed = ENTROPY_APT_E;
+                    }
+                    return ENTROPY_APT_E;
+                }
+            }
+            st->aptPos++;
+        }
+    }
+
+    return 0;
+}
+
+int wc_NoiseSrc_Init(wc_NoiseSrc* src)
+{
+    word32 done;
+    word32 take;
+    word32 need;
+    int i;
+    int ret;
+
+    if (src == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (src->failed != 0) {
+        return src->failed;
+    }
+    if (src->inited) {
+        return 0;
+    }
+
+    if (src->sampleCb == NULL || src->tag == NULL || src->work == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (src->numSrc < 1 || src->numSrc > WC_NOISE_SRC_MAX) {
+        return BAD_FUNC_ARG;
+    }
+    if (src->hmin < 1 || src->hmin > 100 || src->margin < 1) {
+        return BAD_FUNC_ARG;
+    }
+    if (src->rctCutoff < 2 || src->aptCutoff < 2 || src->aptWindow < 2) {
+        return BAD_FUNC_ARG;
+    }
+    /* Below one APT window the startup pass never exercises that test. */
+    if (src->startupOctets < (word32)src->aptWindow) {
+        return BAD_FUNC_ARG;
+    }
+
+    src->rawPerSrc = WC_NOISE_RAW_PER_SRC(src->hmin, src->margin);
+    need = src->rawPerSrc * (word32)src->numSrc;
+    if (src->rawPerSrc == 0 || src->workSz < need) {
+        return BUFFER_E;
+    }
+
+    XMEMSET(src->health, 0, sizeof(src->health));
+    src->chunkCtr = 0;
+    src->degraded = 0;
+
+    /* SP800-90B 4.3: push startupOctets per source through the continuous
+     * tests - more than one APT window - before releasing anything. */
+    for (i = 0; i < (int)src->numSrc; i++) {
+        for (done = 0; done < src->startupOctets; done += take) {
+            take = src->startupOctets - done;
+            if (take > src->rawPerSrc) {
+                take = src->rawPerSrc;
+            }
+            /* Sampler errors and test verdicts are handled differently, so
+             * keep them apart: a callback error means the hardware did not
+             * answer and stays retryable for every source, while only a test
+             * verdict drops or latches. */
+            ret = NoiseSrc_Gather(src, src->work, take, i);
+            if (ret != 0) {
+                ForceZero(src->work, src->workSz);
+                return ret;
+            }
+            ret = NoiseSrc_HealthTest(src, src->work, take, i);
+            if (ret != 0) {
+                if (i == 0) {
+                    ForceZero(src->work, src->workSz);
+                    return ret;   /* credited source: fail closed */
+                }
+                /* Uncredited: drop it and keep going - see the latch policy
+                 * note at the top of this module. */
+                src->degraded |= (word16)(1U << i);
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+    ForceZero(src->work, src->workSz);
+    src->inited = 1;
+    return 0;
+}
+
+void wc_NoiseSrc_Free(wc_NoiseSrc* src)
+{
+    if (src == NULL) {
+        return;
+    }
+
+    if (src->work != NULL && src->workSz > 0) {
+        ForceZero(src->work, src->workSz);
+    }
+    XMEMSET(src->health, 0, sizeof(src->health));
+    src->chunkCtr = 0;
+    src->failed   = 0;
+    src->degraded = 0;
+    src->inited   = 0;
+}
+
+int wc_NoiseSrc_GetRaw(wc_NoiseSrc* src, byte* output, word32 len, int srcIdx)
+{
+    int ret;
+
+    if (src == NULL || output == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    /* Before _Init(): numSrc is caller configuration, so a bad index need not
+     * pay for the startup test or burn hardware entropy first. */
+    if (srcIdx < 0 || srcIdx >= (int)src->numSrc) {
+        return BAD_FUNC_ARG;
+    }
+    if (src->failed != 0) {
+        return src->failed;
+    }
+
+    ret = wc_NoiseSrc_Init(src);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = NoiseSrc_Gather(src, output, len, srcIdx);
+    if (ret != 0) {
+        ForceZero(output, len);
+    }
+    return ret;
+}
+
+int wc_NoiseSrc_GenerateSeed(wc_NoiseSrc* src, byte* output, word32 sz)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    wc_Sha256* sha = NULL;
+#else
+    wc_Sha256 sha[1];
+#endif
+    byte digest[WC_NOISE_CHUNK_SZ];
+    byte ctrBuf[4];
+    byte* raw;
+    byte* outStart;
+    word32 outLen;
+    word32 take;
+    word16 contributed;
+    int i;
+    int ret;
+
+    if (src == NULL || output == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0) {
+        return 0;
+    }
+    if (src->failed != 0) {
+        return src->failed;
+    }
+
+    /* Kept so a mid-way failure can wipe what already landed: no caller
+     * should ever see a partially-filled seed buffer. */
+    outStart = output;
+    outLen   = sz;
+
+    XMEMSET(digest, 0, sizeof(digest));
+
+    ret = wc_NoiseSrc_Init(src);
+    if (ret != 0) {
+        return ret;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    sha = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    while (sz > 0) {
+        contributed = 0;
+        for (i = 0; i < (int)src->numSrc; i++) {
+            if ((src->degraded & (word16)(1U << i)) != 0) {
+                continue;   /* uncredited source already dropped */
+            }
+            raw = src->work + ((word32)i * src->rawPerSrc);
+
+            /* A sampler error propagates for any source and is retryable;
+             * only a health-test verdict drops or latches. */
+            ret = NoiseSrc_Gather(src, raw, src->rawPerSrc, i);
+            if (ret != 0) {
+                goto out;
+            }
+            ret = NoiseSrc_HealthTest(src, raw, src->rawPerSrc, i);
+            if (ret != 0) {
+                if (i == 0) {
+                    goto out;  /* fail closed; HealthTest latched src->failed */
+                }
+                src->degraded |= (word16)(1U << i);
+                ret = 0;
+                continue;
+            }
+            contributed |= (word16)(1U << i);
+        }
+
+        ret = wc_InitSha256(sha);
+        if (ret != 0) {
+            ForceZero(sha, sizeof(*sha));
+            goto out;
+        }
+
+        src->chunkCtr++;
+        ctrBuf[0] = WC_OCTET(src->chunkCtr >> 24);
+        ctrBuf[1] = WC_OCTET(src->chunkCtr >> 16);
+        ctrBuf[2] = WC_OCTET(src->chunkCtr >> 8);
+        ctrBuf[3] = WC_OCTET(src->chunkCtr);
+
+        ret = wc_Sha256Update(sha, (const byte*)src->tag,
+                              (word32)XSTRLEN(src->tag));
+        if (ret == 0) {
+            ret = wc_Sha256Update(sha, ctrBuf, (word32)sizeof(ctrBuf));
+        }
+        for (i = 0; (ret == 0) && (i < (int)src->numSrc); i++) {
+            if ((contributed & (word16)(1U << i)) == 0) {
+                continue;   /* not gathered this chunk - never hash stale data */
+            }
+            raw = src->work + ((word32)i * src->rawPerSrc);
+            ret = wc_Sha256Update(sha, raw, src->rawPerSrc);
+        }
+        if (ret == 0) {
+            ret = wc_Sha256Final(sha, digest);
+        }
+        wc_Sha256Free(sha);
+        ForceZero(sha, sizeof(*sha));
+        if (ret != 0) {
+            goto out;
+        }
+
+        take = (sz < (word32)WC_NOISE_CHUNK_SZ) ? sz
+                                                : (word32)WC_NOISE_CHUNK_SZ;
+        XMEMCPY(output, digest, take);
+        output += take;
+        sz -= take;
+    }
+
+out:
+    if (ret != 0) {
+        ForceZero(outStart, outLen);
+    }
+    ForceZero(digest, sizeof(digest));
+    ForceZero(src->work, src->workSz);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
+}
+
+int wc_NoiseSrc_SelfTest(wc_NoiseSrc* src)
+{
+    /* Tests RAW noise, not conditioned seeds: the hashed chunk counter makes
+     * two GenerateSeed() outputs differ even with every source dead. */
+    byte* a;
+    byte* b;
+    word32 len;
+    word32 i;
+    byte diff;
+    int s;
+    int ret;
+
+    if (src == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_NoiseSrc_Init(src);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Two gathers side by side in the work buffer. */
+    len = src->workSz / 2U;
+    if (len > 64U) {
+        len = 64U;
+    }
+    if (len == 0U) {
+        return BUFFER_E;
+    }
+    a = src->work;
+    b = src->work + len;
+
+    for (s = 0; s < (int)src->numSrc; s++) {
+        if ((src->degraded & (word16)(1U << s)) != 0) {
+            continue;   /* already dropped - no point re-testing it */
+        }
+        ret = NoiseSrc_Gather(src, a, len, s);
+        if (ret == 0) {
+            ret = NoiseSrc_Gather(src, b, len, s);
+        }
+        if (ret != 0) {
+            break;
+        }
+
+        /* A source stuck at any constant - including one whose clock was
+         * never enabled - produces identical gathers. */
+        /* ConstantCompare, not XMEMCMP: raw pre-conditioning samples. */
+        if (ConstantCompare(a, b, (int)len) == 0) {
+            ret = ENTROPY_RT_E;
+            if (s == 0) {
+                src->failed = ret;
+                break;
+            }
+            src->degraded |= (word16)(1U << s);
+            ret = 0;
+            continue;
+        }
+
+        /* Constant-octet check, accumulated rather than early-exit. */
+        diff = 0;
+        for (i = 1; i < len; i++) {
+            diff |= (byte)(a[i] ^ a[0]);
+        }
+        if (diff == 0) {
+            ret = ENTROPY_RT_E;
+            if (s == 0) {
+                src->failed = ret;
+                break;
+            }
+            src->degraded |= (word16)(1U << s);
+            ret = 0;
+            continue;
+        }
+    }
+
+    /* A gather error above is deliberately not latched - see the policy note
+     * at the top of this module. */
+    ForceZero(src->work, src->workSz);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_NOISE_SRC */
+
+
 /* Begin wc_GenerateSeed Implementations */
 #if defined(CUSTOM_RAND_GENERATE_SEED)
 
@@ -5801,6 +6270,38 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(WOLFSSL_C2000_ENTROPY)
+    /* TI C2000 (C28x) oscillator-jitter entropy source.  The part has no
+     * TRNG; the noise bit is the LSB of a Dual-Clock Comparator measurement,
+     * oversampled past its measured min-entropy, health-tested per SP800-90B
+     * 4.4 and SHA-256 conditioned before feeding the Hash-DRBG.
+     *
+     * Build: define WOLFSSL_C2000_ENTROPY and add
+     * wolfcrypt/src/port/ti/ti-c2000-entropy.c with the C2000Ware driverlib
+     * headers on the include path.  Tuning macros, hardware overrides and the
+     * characterization: wolfssl/wolfcrypt/port/ti/ti-c2000-entropy.h and
+     * IDE/C2000/README.md.
+     *
+     * Blocking by design: ~26 ms per 32-octet chunk per source at the default
+     * window, ~100 ms for a typical seed, ~420 ms for the one-time startup
+     * test.  Fine at boot, not for a control loop. */
+    #if !defined(HAVE_HASHDRBG)
+        #error "WOLFSSL_C2000_ENTROPY expects HAVE_HASHDRBG to expand the seed"
+    #endif
+
+    #include <wolfssl/wolfcrypt/port/ti/ti-c2000-entropy.h>
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        return wc_c2000_GenerateSeed(output, sz);
+    }
+
 #elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -6138,8 +6639,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         word32 i;
+        /* WC_OCTET, not (byte): the cast does not truncate where
+         * CHAR_BIT != 8, so sz > 256 would emit values above 0xFF. */
         for (i = 0; i < sz; i++ )
-            output[i] = (byte)i;
+            output[i] = WC_OCTET(i);
 
         (void)os;
 
