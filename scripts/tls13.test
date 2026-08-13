@@ -2,9 +2,19 @@
 
 # timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
 # command unbounded (the flaky hang this guards against is Linux-only CI).
-if ! command -v timeout >/dev/null 2>&1; then
-    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
 fi
+
+# timeout(1) exits 124, or 128+signal when it must signal the child (137 for
+# the SIGKILL used here). A hang must be told apart from a genuine non-zero
+# exit, or it is misread as a feature-not-available skip.
+timed_out() { [ "$1" -eq 124 ] || [ "$1" -eq 137 ]; }
 
 
 # tls13.test
@@ -126,10 +136,10 @@ fi
 # Usual TLS v1.3 server / TLS v1.3 client.
 echo -e "\n\nTLS v1.3 server with TLS v1.3 client"
 port=0
-timeout -s KILL 2m ./examples/server/server -v 4 -R "$ready_file" -p $port &
+$TIMEOUT_KILL_2M ./examples/server/server -v 4 -R "$ready_file" -p $port &
 server_pid=$!
 create_port
-timeout -s KILL 2m ./examples/client/client -v 4 -p $port | tee "$client_file"
+$TIMEOUT_KILL_2M ./examples/client/client -v 4 -p $port | tee "$client_file"
 RESULT=${PIPESTATUS[0]}
 remove_ready_file
 if [ $RESULT -ne 0 ]; then
@@ -142,10 +152,10 @@ echo ""
 # TLS 1.3 cipher suites server / client.
 echo -e "\n\nTLS v1.3 cipher suite mismatch"
 port=0
-timeout -s KILL 2m ./examples/server/server -v 4 -R "$ready_file" -p $port -l TLS13-AES128-GCM-SHA256 &
+$TIMEOUT_KILL_2M ./examples/server/server -v 4 -R "$ready_file" -p $port -l TLS13-AES128-GCM-SHA256 &
 server_pid=$!
 create_port
-timeout -s KILL 2m ./examples/client/client -v 4 -p $port -l TLS13-AES256-GCM-SHA384
+$TIMEOUT_KILL_2M ./examples/client/client -v 4 -p $port -l TLS13-AES256-GCM-SHA384
 RESULT=$?
 remove_ready_file
 if [ $RESULT -eq 0 ]; then
@@ -164,10 +174,10 @@ if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
     # TLS 1.3 mutual auth required but client doesn't send certificates.
     echo -e "\n\nTLS v1.3 mutual auth fail"
     port=0
-    timeout -s KILL 2m ./examples/server/server -v 4 -F -R "$ready_file" -p $port &
+    $TIMEOUT_KILL_2M ./examples/server/server -v 4 -F -R "$ready_file" -p $port &
     server_pid=$!
     create_port
-    timeout -s KILL 2m ./examples/client/client -v 4 -x -p $port
+    $TIMEOUT_KILL_2M ./examples/client/client -v 4 -x -p $port
     RESULT=$?
     remove_ready_file
     if [ $RESULT -eq 0 ]; then
@@ -180,9 +190,9 @@ if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
 fi
 
 # Check for TLS 1.2 support
-timeout -s KILL 2m ./examples/client/client -v 3 2>&1 | grep -F -e 'Bad SSL version'
+$TIMEOUT_KILL_2M ./examples/client/client -v 3 2>&1 | grep -F -e 'Bad SSL version'
 pipe_rc=("${PIPESTATUS[@]}")
-if [ "${pipe_rc[0]}" -ge 124 ]; then
+if timed_out "${pipe_rc[0]}"; then
     echo -e "\n\nTLS v1.2 support probe timed out"
     exit 1
 fi
@@ -190,10 +200,10 @@ if [ "${pipe_rc[1]}" -ne 0 ]; then
     # TLS 1.3 server / TLS 1.2 client.
     echo -e "\n\nTLS v1.3 server downgrading to TLS v1.2"
     port=0
-    timeout -s KILL 2m ./examples/server/server -v 4 -R "$ready_file" -p $port &
+    $TIMEOUT_KILL_2M ./examples/server/server -v 4 -R "$ready_file" -p $port &
     server_pid=$!
     create_port
-    timeout -s KILL 2m ./examples/client/client -v 3 -p $port
+    $TIMEOUT_KILL_2M ./examples/client/client -v 3 -p $port
     RESULT=$?
     remove_ready_file
     if [ $RESULT -eq 0 ]; then
@@ -207,10 +217,10 @@ if [ "${pipe_rc[1]}" -ne 0 ]; then
     # TLS 1.2 server / TLS 1.3 client.
     echo -e "\n\nTLS v1.3 client upgrading server to TLS v1.3"
     port=0
-    timeout -s KILL 2m ./examples/server/server -v 3 -R "$ready_file" -p $port &
+    $TIMEOUT_KILL_2M ./examples/server/server -v 3 -R "$ready_file" -p $port &
     server_pid=$!
     create_port
-    timeout -s KILL 2m ./examples/client/client -v 4 -p $port
+    $TIMEOUT_KILL_2M ./examples/client/client -v 4 -p $port
     RESULT=$?
     remove_ready_file
     if [ $RESULT -eq 0 ]; then
@@ -238,10 +248,10 @@ if [ "${pipe_rc[1]}" -ne 0 ]; then
         port=0
         SERVER_CS="TLS13-AES256-GCM-SHA384:$TLS12_CS"
         CLIENT_CS="TLS13-AES128-GCM-SHA256:$TLS12_CS"
-        timeout -s KILL 2m ./examples/server/server -v d -l $SERVER_CS -R "$ready_file" -p $port &
+        $TIMEOUT_KILL_2M ./examples/server/server -v d -l $SERVER_CS -R "$ready_file" -p $port &
         server_pid=$!
         create_port
-        timeout -s KILL 2m ./examples/client/client -v d -l $CLIENT_CS -p $port
+        $TIMEOUT_KILL_2M ./examples/client/client -v d -l $CLIENT_CS -p $port
         RESULT=$?
         remove_ready_file
         if [ $RESULT -eq 0 ]; then
@@ -273,7 +283,7 @@ if [ "$early_data" = "yes" ]; then
 
         echo -e "\n\nTLS v1.3 Early Data - session ticket"
         port=0
-        (timeout -s KILL 2m ./examples/server/server -v 4 -r -0 -R "$ready_file" -p $port 2>&1 | \
+        ($TIMEOUT_KILL_2M ./examples/server/server -v 4 -r -0 -R "$ready_file" -p $port 2>&1 | \
              tee "$server_out_file") &
         server_pid=$!
         create_port
@@ -321,7 +331,7 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     early_data_try_num=1
     while :; do
 
-        (timeout -s KILL 2m ./examples/server/server -v 4 -s -0 -R "$ready_file" -p $port 2>&1 | \
+        ($TIMEOUT_KILL_2M ./examples/server/server -v 4 -s -0 -R "$ready_file" -p $port 2>&1 | \
              tee "$server_out_file") &
         server_pid=$!
         create_port

@@ -4,8 +4,13 @@
 
 # timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
 # command unbounded (the flaky hang this guards against is Linux-only CI).
-if ! command -v timeout >/dev/null 2>&1; then
-    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
 fi
 
 # if we can, isolate the network namespace to eliminate port collisions.
@@ -117,7 +122,7 @@ if [ $1 -eq 1 ]
 then
     echo "Starting example client to benchmark connection average time"
     # start client to benchmark average time for each connection using port
-    timeout -s KILL 2m ./examples/client/client -b $2 -p $bench_port $3
+    $TIMEOUT_KILL_2M ./examples/client/client -b $2 -p $bench_port $3
     client_result=$?
 fi
 
@@ -126,7 +131,7 @@ if [ $1 -eq 2 ]
 then
     echo "Starting example client to benchmark throughput"
     # start client in non-blocking mode, benchmark throughput using port
-    timeout -s KILL 2m ./examples/client/client -N -B $2 -p $bench_port $3
+    $TIMEOUT_KILL_2M ./examples/client/client -N -B $2 -p $bench_port $3
     client_result=$?
 fi
 

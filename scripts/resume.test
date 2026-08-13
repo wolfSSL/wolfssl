@@ -2,8 +2,13 @@
 
 # timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
 # command unbounded (the flaky hang this guards against is Linux-only CI).
-if ! command -v timeout >/dev/null 2>&1; then
-    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
 fi
 
 
@@ -84,7 +89,7 @@ do_test() {
 
     remove_ready_file
     echo "./examples/server/server -r -R \"$ready_file\" -p $resume_port"
-    timeout -s KILL 2m ./examples/server/server -r -R "$ready_file" -p $resume_port &
+    $TIMEOUT_KILL_2M ./examples/server/server -r -R "$ready_file" -p $resume_port &
     server_pid=$!
 
     counter=0

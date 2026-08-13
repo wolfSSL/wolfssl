@@ -5,8 +5,13 @@
 
 # timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
 # command unbounded (the flaky hang this guards against is Linux-only CI).
-if ! command -v timeout >/dev/null 2>&1; then
-    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
 fi
 
 set -e
@@ -157,7 +162,7 @@ start_wolfssl_client() {
     fi
 
     client_output_file=/tmp/wolfssl_srtp_out
-    timeout -s KILL 2m ${WOLFSSL_CLIENT} -u\
+    $TIMEOUT_KILL_2M ${WOLFSSL_CLIENT} -u\
                       -x \
                       -v${dtls_version} \
                       --srtp "${srtp_profile}" \

@@ -2,8 +2,13 @@
 
 # timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
 # command unbounded (the flaky hang this guards against is Linux-only CI).
-if ! command -v timeout >/dev/null 2>&1; then
-    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_1M="timeout -s KILL 1m"
+else
+    TIMEOUT_KILL_1M=""
 fi
 
 # This script can be run with several environment variables set dictating its
@@ -100,7 +105,7 @@ run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "
     stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT $UDP_PROXY_EXTRA_ARGS $2 2>&1 | prepend "[udp-proxy] " &
     sleep 0.2
     # Wrap this command in a timeout so that a deadlock won't bring down the entire test
-    timeout -s KILL 1m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
+    $TIMEOUT_KILL_1M stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
         echo "***Test failed***"
         ((NUM_TESTS_FAILED++))
