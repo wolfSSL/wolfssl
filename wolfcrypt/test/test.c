@@ -12527,14 +12527,42 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_hash256_test(void)
         wc_AsconHash256_Clear(&asconHash);
     }
 
+    /* Test context reuse. Final re-initializes the context, so Init is
+     * called only once for the whole loop below. */
+    err = wc_AsconHash256_Init(&asconHash);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    for (i = 0; i < XELEM_CNT(hash_output); i++) {
+        XMEMSET(mdOut, 0, sizeof(mdOut));
+        err = wc_AsconHash256_Update(&asconHash, msg, i);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconHash256_Final(&asconHash, mdOut);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        if (XMEMCMP(mdOut, hash_output[i], ASCON_HASH256_SZ) != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+    wc_AsconHash256_Clear(&asconHash);
+
     return 0;
 }
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
 {
     word32 i;
+    word32 k;
+    word32 m;
     wc_AsconAEAD128 asconAEAD;
     int err;
+    byte rkey[ASCON_AEAD128_KEY_SZ];
+    byte rnonce[ASCON_AEAD128_NONCE_SZ];
+    byte rad[32];
+    word32 radSz;
+    byte rct[48];
+    byte rtag[ASCON_AEAD128_TAG_SZ];
+    byte rbadtag[ASCON_AEAD128_TAG_SZ];
+    byte rbuf[1]; /* non-NULL placeholder for the 0-length plaintext */
 
     /* KATs taken from https://github.com/ascon/ascon-c.
      * Testing only a subset of KATs here. The rest are tested in
@@ -12707,6 +12735,114 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
             wc_AsconAEAD128_Clear(&asconAEAD);
         }
     }
+
+    /* Test context reuse. Both Final calls re-initialize the context, so Init
+     * is called only once for the whole loop below. Every vector in the table
+     * has an empty plaintext, so the ciphertext is the tag alone. */
+    err = wc_AsconAEAD128_Init(&asconAEAD);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    for (k = 0; k < XELEM_CNT(aead_kat); k++) {
+        XMEMSET(rkey, 0, sizeof(rkey));
+        XMEMSET(rnonce, 0, sizeof(rnonce));
+        XMEMSET(rad, 0, sizeof(rad));
+        XMEMSET(rct, 0, sizeof(rct));
+        XMEMSET(rtag, 0, sizeof(rtag));
+        rbuf[0] = 0;
+
+        for (m = 0; aead_kat[k][0][m] != '\0'; m += 2) {
+            rkey[m/2] = HexCharToByte(aead_kat[k][0][m]) << 4 |
+                        HexCharToByte(aead_kat[k][0][m+1]);
+        }
+        for (m = 0; aead_kat[k][1][m] != '\0'; m += 2) {
+            rnonce[m/2] = HexCharToByte(aead_kat[k][1][m]) << 4 |
+                          HexCharToByte(aead_kat[k][1][m+1]);
+        }
+        for (m = 0; aead_kat[k][3][m] != '\0'; m += 2) {
+            rad[m/2] = HexCharToByte(aead_kat[k][3][m]) << 4 |
+                       HexCharToByte(aead_kat[k][3][m+1]);
+        }
+        radSz = m/2;
+        for (m = 0; aead_kat[k][4][m] != '\0'; m += 2) {
+            rct[m/2] = HexCharToByte(aead_kat[k][4][m]) << 4 |
+                       HexCharToByte(aead_kat[k][4][m+1]);
+        }
+
+        err = wc_AsconAEAD128_SetKey(&asconAEAD, rkey);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetNonce(&asconAEAD, rnonce);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetAD(&asconAEAD, rad, radSz);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_EncryptUpdate(&asconAEAD, rbuf, rbuf, 0);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_EncryptFinal(&asconAEAD, rtag);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        if (XMEMCMP(rtag, rct, ASCON_AEAD128_TAG_SZ) != 0)
+            return WC_TEST_RET_ENC_NC;
+
+        /* Decrypt on the context EncryptFinal just reset */
+        err = wc_AsconAEAD128_SetKey(&asconAEAD, rkey);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetNonce(&asconAEAD, rnonce);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetAD(&asconAEAD, rad, radSz);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, rbuf, rbuf, 0);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptFinal(&asconAEAD, rct);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+
+        /* A rejected tag must still leave the context ready for reuse. The
+         * next loop iteration verifies that recovery. */
+        XMEMCPY(rbadtag, rct, ASCON_AEAD128_TAG_SZ);
+        rbadtag[0] ^= 0xFF;
+        err = wc_AsconAEAD128_SetKey(&asconAEAD, rkey);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetNonce(&asconAEAD, rnonce);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_SetAD(&asconAEAD, rad, radSz);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, rbuf, rbuf, 0);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconAEAD128_DecryptFinal(&asconAEAD, rbadtag);
+        if (err != WC_NO_ERR_TRACE(ASCON_AUTH_E))
+            return WC_TEST_RET_ENC_EC(err);
+    }
+
+    /* Final pass proves the context recovered from the last rejected tag */
+    err = wc_AsconAEAD128_SetKey(&asconAEAD, rkey);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconAEAD128_SetNonce(&asconAEAD, rnonce);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconAEAD128_SetAD(&asconAEAD, rad, radSz);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconAEAD128_EncryptUpdate(&asconAEAD, rbuf, rbuf, 0);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconAEAD128_EncryptFinal(&asconAEAD, rtag);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    if (XMEMCMP(rtag, rct, ASCON_AEAD128_TAG_SZ) != 0)
+        return WC_TEST_RET_ENC_NC;
+    wc_AsconAEAD128_Clear(&asconAEAD);
 
     /* Negative test: corrupted tag must be rejected with ASCON_AUTH_E. */
     {

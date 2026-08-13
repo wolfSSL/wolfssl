@@ -61,6 +61,7 @@ int wc_AsconHash256_Update(wc_AsconHash256* a, const byte* data, word32 dataSz);
 /*!
     \ingroup ASCON
     \brief This function finalizes the ASCON hash and produces the output.
+           Resets state of the ASCON hash context.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if the context or output pointer is NULL.
@@ -321,7 +322,8 @@ int wc_AsconAEAD128_EncryptUpdate(wc_AsconAEAD128* a, byte* out, const byte* in,
 /*!
     \ingroup ASCON
     \brief This function finalizes the encryption process using Ascon AEAD and
-           produces the authentication tag.
+           produces the authentication tag. Resets state of the Ascon AEAD
+           context.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if the context or output pointer is NULL or the input
@@ -421,7 +423,8 @@ int wc_AsconAEAD128_DecryptUpdate(wc_AsconAEAD128* a, byte* out, const byte* in,
 /*!
     \ingroup ASCON
     \brief This function finalizes the decryption process using Ascon AEAD and
-           verifies the authentication tag.
+           verifies the authentication tag. Resets state of the Ascon AEAD
+           context.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if the context or tag pointer is NULL.
