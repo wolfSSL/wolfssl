@@ -26,6 +26,7 @@
 
 int test_wc_AesSetKey(void);
 int test_wc_AesSetIV(void);
+int test_wc_AesSetIV_RestartsStream(void);
 int test_wc_AesEncryptDecryptDirect(void);
 int test_wc_AesEcbEncryptDecrypt(void);
 int test_wc_AesCbcEncryptDecrypt(void);
@@ -186,6 +187,7 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
 #define TEST_AES_DECLS                                          \
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
+    TEST_DECL_GROUP("aes", test_wc_AesSetIV_RestartsStream),    \
     TEST_DECL_GROUP("aes", test_wc_AesEncryptDecryptDirect),    \
     TEST_DECL_GROUP("aes", test_wc_AesEcbEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesCbcEncryptDecrypt),                  \

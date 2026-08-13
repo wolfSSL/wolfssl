@@ -6123,6 +6123,27 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     aes->left = 0;
 #endif
 
+#ifdef WOLFSSL_KCAPI_AES
+    /* The kernel keeps the chaining state and takes the IV at stream setup
+     * time only, so tear the stream down for the new IV to take effect. It is
+     * set up again, from aes->reg, on the next cipher operation. */
+    if (aes->init != 0) {
+        kcapi_cipher_destroy(aes->handle);
+        aes->handle = NULL;
+        aes->init = 0;
+    }
+#endif
+
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    {
+        /* PSA takes the IV at operation setup time only, so an operation
+         * already in progress must be aborted for the new IV to take effect. */
+        int ret = wc_psa_aes_reset_ctx(aes);
+        if (ret != 0)
+            return ret;
+    }
+#endif
+
     return 0;
 }
 

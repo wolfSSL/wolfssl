@@ -226,6 +226,68 @@ int test_wc_AesSetIV(void)
     return EXPECT_RESULT();
 } /* test_wc_AesSetIV */
 
+/*
+ * wc_AesSetIV() must restart the cipher stream, not just record a new IV:
+ * encrypting the same data twice from the same IV has to yield the same
+ * ciphertext both times.
+ */
+int test_wc_AesSetIV_RestartsStream(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    (defined(HAVE_AES_CBC) || (defined(WOLFSSL_AES_COUNTER) && \
+     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+     !defined(WOLFSSL_KCAPI)))
+    Aes  aes;
+    byte key16[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte iv[]    = "1234567890abcdef";
+    byte plain[2 * WC_AES_BLOCK_SIZE];
+    byte first[sizeof(plain)];
+    byte second[sizeof(plain)];
+
+    XMEMSET(plain, 0x5a, sizeof(plain));
+
+#ifdef HAVE_AES_CBC
+    XMEMSET(first, 0, sizeof(first));
+    XMEMSET(second, 0, sizeof(second));
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&aes, key16, (word32)sizeof(key16), iv,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, first, plain, sizeof(plain)), 0);
+    /* Rewind to the original IV - the second run must be independent of the
+     * first one, not chained onto it. */
+    ExpectIntEQ(wc_AesSetIV(&aes, iv), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&aes, second, plain, sizeof(plain)), 0);
+    ExpectBufEQ(second, first, sizeof(first));
+    wc_AesFree(&aes);
+#endif
+
+#if defined(WOLFSSL_AES_COUNTER) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
+    XMEMSET(first, 0, sizeof(first));
+    XMEMSET(second, 0, sizeof(second));
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKeyDirect(&aes, key16, (word32)sizeof(key16), iv,
+        AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, first, plain, sizeof(plain)), 0);
+    /* Rewind the counter block. */
+    ExpectIntEQ(wc_AesSetIV(&aes, iv), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&aes, second, plain, sizeof(plain)), 0);
+    ExpectBufEQ(second, first, sizeof(first));
+    wc_AesFree(&aes);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* test_wc_AesSetIV_RestartsStream */
+
 
 /*******************************************************************************
  * AES Direct
