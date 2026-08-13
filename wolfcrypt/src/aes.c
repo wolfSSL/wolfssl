@@ -7902,7 +7902,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* in network byte order so start at end and work back */
             int i;
             for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
-                if (++inOutCtr[i])  /* we're done unless we overflow */
+                /* WC_OCTET, not a bare ++: where CHAR_BIT != 8 a byte cell
+                 * holds 0x100 and never wraps, so the carry is lost. */
+                inOutCtr[i] = WC_OCTET(inOutCtr[i] + 1);
+                if (inOutCtr[i] != 0)  /* we're done unless we overflow */
                     return;
             }
         }
@@ -8247,7 +8250,9 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
     for (i = (int)ctrSz - 1; i >= 0; i--) {
-        if (++ctr[i])
+        /* See IncrementAesCounter() on why this masks to an octet. */
+        ctr[i] = WC_OCTET(ctr[i] + 1);
+        if (ctr[i] != 0)
             break;
     }
 }
@@ -8353,7 +8358,9 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 
     /* in network byte order so start at end and work back */
     for (i = WC_AES_BLOCK_SIZE - 1; i >= WC_AES_BLOCK_SIZE - CTR_SZ; i--) {
-        if (++inOutCtr[i])  /* we're done unless we overflow */
+        /* See IncrementAesCounter() on why this masks to an octet. */
+        inOutCtr[i] = WC_OCTET(inOutCtr[i] + 1);
+        if (inOutCtr[i] != 0)  /* we're done unless we overflow */
             return;
     }
 }
@@ -8377,19 +8384,21 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 
 static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
 {
-    /* Multiply the sz by 8 */
-    word32 szHi = (sz >> (8*sizeof(sz) - 3));
+    /* Multiply the sz by 8.  CHAR_BIT * sizeof, not 8 * sizeof: sizeof counts
+     * cells, so the latter is a 16-bit width where CHAR_BIT == 16. */
+    word32 szHi = (sz >> (CHAR_BIT * sizeof(sz) - 3));
     sz <<= 3;
 
-    /* copy over the words of the sz into the destination buffer */
-    buf[0] = (byte)(szHi >> 24);
-    buf[1] = (byte)(szHi >> 16);
-    buf[2] = (byte)(szHi >>  8);
-    buf[3] = (byte)szHi;
-    buf[4] = (byte)(sz >> 24);
-    buf[5] = (byte)(sz >> 16);
-    buf[6] = (byte)(sz >>  8);
-    buf[7] = (byte)sz;
+    /* WC_OCTET, not (byte): the cast keeps the full cell where CHAR_BIT != 8,
+     * so a 60-octet ciphertext (480 bits) would store 0x1E0 in buf[7]. */
+    buf[0] = WC_OCTET(szHi >> 24);
+    buf[1] = WC_OCTET(szHi >> 16);
+    buf[2] = WC_OCTET(szHi >>  8);
+    buf[3] = WC_OCTET(szHi);
+    buf[4] = WC_OCTET(sz >> 24);
+    buf[5] = WC_OCTET(sz >> 16);
+    buf[6] = WC_OCTET(sz >>  8);
+    buf[7] = WC_OCTET(sz);
 }
 
 
@@ -10418,9 +10427,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         word32 len[4];
 
         /* Lengths are in bytes. Convert to bits. */
-        len[0] = (aSz >> (8*sizeof(aSz) - 3));
+        len[0] = (aSz >> (CHAR_BIT*sizeof(aSz) - 3));
         len[1] = aSz << 3;
-        len[2] = (cSz >> (8*sizeof(cSz) - 3));
+        len[2] = (cSz >> (CHAR_BIT*sizeof(cSz) - 3));
         len[3] = cSz << 3;
 
         x[0] ^= len[0];
@@ -10479,9 +10488,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         word32 len[4];                                      \
         word32* x = (word32*)AES_TAG(aes);                  \
         word32* h = (word32*)aes->gcm.H;                    \
-        len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
+        len[0] = (aes->aSz >> (CHAR_BIT*sizeof(aes->aSz) - 3));    \
         len[1] = aes->aSz << 3;                             \
-        len[2] = (aes->cSz >> (8*sizeof(aes->cSz) - 3));    \
+        len[2] = (aes->cSz >> (CHAR_BIT*sizeof(aes->cSz) - 3));    \
         len[3] = aes->cSz << 3;                             \
         x[0] ^= len[0];                                     \
         x[1] ^= len[1];                                     \
@@ -10528,9 +10537,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         word32 len[4];                                      \
         word32* x = (word32*)AES_TAG(aes);                  \
         word32* h = (word32*)aes->gcm.H;                    \
-        len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
+        len[0] = (aes->aSz >> (CHAR_BIT*sizeof(aes->aSz) - 3));    \
         len[1] = aes->aSz << 3;                             \
-        len[2] = (aes->cSz >> (8*sizeof(aes->cSz) - 3));    \
+        len[2] = (aes->cSz >> (CHAR_BIT*sizeof(aes->cSz) - 3));    \
         len[3] = aes->cSz << 3;                             \
         x[0] ^= len[0];                                     \
         x[1] ^= len[1];                                     \
@@ -15290,20 +15299,22 @@ static WARN_UNUSED_RESULT int roll_auth(
     word32 remainder;
     int ret;
 
-    /* encode the length in */
+    /* encode the length in.  WC_OCTET, not (byte): the cast keeps the whole
+     * cell where CHAR_BIT != 8, so any length above 0xFF would XOR stray bits
+     * into the CBC-MAC input block. */
     if (inSz <= 0xFEFF) {
         authLenSz = 2;
-        out[0] ^= (byte)(inSz >> 8);
-        out[1] ^= (byte)inSz;
+        out[0] ^= WC_OCTET(inSz >> 8);
+        out[1] ^= WC_OCTET(inSz);
     }
     else {
         authLenSz = 6;
         out[0] ^= 0xFF;
         out[1] ^= 0xFE;
-        out[2] ^= (byte)(inSz >> 24);
-        out[3] ^= (byte)(inSz >> 16);
-        out[4] ^= (byte)(inSz >>  8);
-        out[5] ^= (byte)inSz;
+        out[2] ^= WC_OCTET(inSz >> 24);
+        out[3] ^= WC_OCTET(inSz >> 16);
+        out[4] ^= WC_OCTET(inSz >>  8);
+        out[5] ^= WC_OCTET(inSz);
     }
     /* Note, the protocol handles auth data up to 2^64, but we are
      * using 32-bit sizes right now, so the bigger data isn't handled
@@ -15342,7 +15353,11 @@ static WC_INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
     word32 i;
 
     for (i = 0; i < lenSz; i++) {
-        if (++B[WC_AES_BLOCK_SIZE - 1 - i] != 0) return;
+        /* See IncrementAesCounter(): a bare ++byte leaves 0x100 in the cell
+         * and never carries. */
+        B[WC_AES_BLOCK_SIZE - 1 - i] =
+            WC_OCTET(B[WC_AES_BLOCK_SIZE - 1 - i] + 1);
+        if (B[WC_AES_BLOCK_SIZE - 1 - i] != 0) return;
     }
 }
 
@@ -16834,13 +16849,15 @@ static void shiftLeftArray(byte* ary, byte shift)
         ary[i] = 0;
     }
     else {
-        /* shifting over by 7 or less bits */
+        /* shifting over by 7 or less bits.  WC_OCTET on the stores: a (byte)
+         * cast does not drop bits shifted past bit 7 where CHAR_BIT != 8, so
+         * cells would exceed 0xFF and corrupt the feedback register. */
         for (i = 0; i < WC_AES_BLOCK_SIZE - 1; i++) {
             byte carry = (byte)(ary[i+1] & (0XFF << (WOLFSSL_BIT_SIZE - shift)));
             carry = (byte)(carry >> (WOLFSSL_BIT_SIZE - shift));
-            ary[i] = (byte)((ary[i] << shift) + carry);
+            ary[i] = WC_OCTET((ary[i] << shift) + carry);
         }
-        ary[i] = (byte)(ary[i] << shift);
+        ary[i] = WC_OCTET(ary[i] << shift);
     }
 }
 
@@ -17208,7 +17225,9 @@ static WC_INLINE void IncrementKeyWrapCounter(byte* inOutCtr)
 
     /* in network byte order so start at end and work back */
     for (i = KEYWRAP_BLOCK_SIZE - 1; i >= 0; i--) {
-        if (++inOutCtr[i])  /* we're done unless we overflow */
+        /* See IncrementAesCounter() on why this masks to an octet. */
+        inOutCtr[i] = WC_OCTET(inOutCtr[i] + 1);
+        if (inOutCtr[i] != 0)  /* we're done unless we overflow */
             return;
     }
 }
@@ -17219,7 +17238,10 @@ static WC_INLINE void DecrementKeyWrapCounter(byte* inOutCtr)
     int i;
 
     for (i = KEYWRAP_BLOCK_SIZE - 1; i >= 0; i--) {
-        if (--inOutCtr[i] != 0xFF)  /* we're done unless we underflow */
+        /* Where CHAR_BIT != 8 a bare --byte underflows 0x00 to 0xFFFF, not
+         * 0xFF, so the borrow is lost. */
+        inOutCtr[i] = WC_OCTET(inOutCtr[i] - 1);
+        if (inOutCtr[i] != 0xFF)  /* we're done unless we underflow */
             return;
     }
 }
