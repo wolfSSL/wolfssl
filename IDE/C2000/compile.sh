@@ -30,7 +30,10 @@ fi
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 
-INCS="-I$CGT_ROOT/include -I$WOLFROOT -I$SELF_DIR"
+# $SELF_DIR before $WOLFROOT: wolfSSL's documented user_settings.h workflow
+# puts one at the repo root, and if $WOLFROOT came first that copy would shadow
+# this guard's config and silently compile a different build.
+INCS="-I$CGT_ROOT/include -I$SELF_DIR -I$WOLFROOT"
 CFLAGS="-v28 --abi=eabi --float_support=fpu32 --tmu_support=tmu1 -O2 \
   --define=WOLFSSL_USER_SETTINGS --display_error_number --diag_warning=225"
 
@@ -42,7 +45,7 @@ CFLAGS="-v28 --abi=eabi --float_support=fpu32 --tmu_support=tmu1 -O2 \
 # covered by the on-target example build, not by this minimal guard.
 SRCS="error wc_port memory logging misc coding \
   sha sha256 sha512 sha3 wc_mldsa random ecc sp_int sp_c32 \
-  aes cmac chacha poly1305 \
+  aes cmac chacha poly1305 cryptocb \
   curve25519 ed25519 fe_operations ge_operations \
   curve448 ed448 fe_448 ge_448"
 
@@ -59,6 +62,30 @@ for s in $SRCS; do
         rc=1
     fi
 done
+
+# The AESA hardware-AES port needs C2000Ware driverlib headers, which CI does
+# not download, so it is an opt-in extra leg: set C2000WARE to a C2000Ware
+# install to include it.
+if [ -n "${C2000WARE:-}" ]; then
+    DRV="$C2000WARE/driverlib/f28p55x/driverlib"
+    printf 'CC  port/ti/ti-c2000-aes.c ... '
+    if "$CL" $CFLAGS $INCS -I"$DRV" \
+            -I"$C2000WARE/device_support/f28p55x/common/include" \
+            -I"$C2000WARE/device_support/f28p55x/headers/include" \
+            --define=WOLF_CRYPTO_CB --define=WOLFSSL_C2000_AES \
+            --compile_only --skip_assembler \
+            --asm_directory="$OUT" --obj_directory="$OUT" \
+            "$WOLFROOT/wolfcrypt/src/port/ti/ti-c2000-aes.c" \
+            > "$OUT/ti-c2000-aes.log" 2>&1; then
+        echo "ok"
+    else
+        echo "FAIL"
+        cat "$OUT/ti-c2000-aes.log"
+        rc=1
+    fi
+else
+    echo "SKIP port/ti/ti-c2000-aes.c (set C2000WARE to include it)"
+fi
 
 if [ "$rc" -eq 0 ]; then
     echo "TI C2000 compile-only guard: PASS"

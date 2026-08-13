@@ -17,6 +17,13 @@
 #define WOLFSSL_NO_ASM
 #define NO_INLINE
 #define SINGLE_THREADED
+
+/* C28x has a 16-bit int.  Without this word32 is `unsigned int` (16 bits) and
+ * every 32-bit crypto value silently truncates.  long is 32-bit and long long
+ * 64-bit on this toolchain. */
+#define WC_16BIT_CPU
+#define SIZEOF_LONG       4
+#define SIZEOF_LONG_LONG  8
 #define NO_FILESYSTEM
 #define NO_WOLFSSL_DIR
 #define NO_MAIN_DRIVER
@@ -47,6 +54,15 @@
 #define WOLFSSL_AES_SIV
 #define WOLFSSL_AES_EAX
 #define WOLFSSL_AES_DIRECT
+#define HAVE_AES_ECB
+
+/* Crypto callbacks, so cryptocb.c is compile-guarded here too.  This is what
+ * the AESA hardware-AES port (WOLFSSL_C2000_AES, wolfcrypt/src/port/ti/
+ * ti-c2000-aes.c) plugs into.  WOLFSSL_C2000_AES itself is deliberately NOT
+ * set: it needs C2000Ware driverlib headers, which this hardware-free guard
+ * does not have.  compile.sh builds that file as a separate opt-in leg when
+ * C2000WARE is set in the environment. */
+#define WOLF_CRYPTO_CB
 
 /* ChaCha20-Poly1305 (chunk size, keystream and Poly1305 length octet I/O) */
 #define HAVE_CHACHA
