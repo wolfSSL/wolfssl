@@ -10759,7 +10759,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->sigLen = (word32)fSigSz;
             }
         #endif /* HAVE_FALCON */
-        #if defined(WOLFSSL_HAVE_MLDSA)
+        #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN)
             if (ssl->hsType == DYNAMIC_TYPE_MLDSA) {
                 int mSigSz = wc_MlDsaKey_SigSize((wc_MlDsaKey*)ssl->hsKey);
                 if (mSigSz <= 0) {
@@ -10767,7 +10767,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 }
                 args->sigLen = (word32)mSigSz;
             }
-        #endif /* WOLFSSL_HAVE_MLDSA */
+        #endif /* WOLFSSL_HAVE_MLDSA && !WOLFSSL_MLDSA_NO_SIGN */
         #if defined(WOLFSSL_HAVE_SLHDSA)
             if (ssl->hsType == DYNAMIC_TYPE_SLHDSA) {
                 int slhSigSz = wc_SlhDsaKey_SigSize((SlhDsaKey*)ssl->hsKey);

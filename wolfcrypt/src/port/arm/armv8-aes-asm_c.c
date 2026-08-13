@@ -10133,7 +10133,7 @@ void AES_GCM_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
     );
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
     const byte* nonce, word32 nonceSz, const byte* tag, word32 tagSz,
     const byte* aad, word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg,
@@ -15061,7 +15061,7 @@ int AES_GCM_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
     return (word32)(size_t)in;
 }
 
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     const byte* nonce, word32 nonceSz, byte* tag, word32 tagSz, const byte* aad,
@@ -19830,7 +19830,7 @@ void AES_GCM_encrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     );
 }
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     const byte* nonce, word32 nonceSz, const byte* tag, word32 tagSz,
     const byte* aad, word32 aadSz, byte* key, byte* gcm_h, byte* tmp, byte* reg,
@@ -24649,7 +24649,7 @@ int AES_GCM_decrypt_AARCH64_EOR3(const byte* in, byte* out, word32 sz,
     return (word32)(size_t)in;
 }
 
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #ifdef WOLFSSL_AESGCM_STREAM
 void AES_GCM_init_AARCH64(byte* key, int nr, const byte* nonce, word32 nonceSz,
@@ -29175,6 +29175,7 @@ void AES_GCM_encrypt_final_AARCH64(byte* tag, byte* authTag, word32 tbytes,
     );
 }
 
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 void AES_GCM_decrypt_update_AARCH64(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
@@ -33108,6 +33109,7 @@ void AES_GCM_decrypt_final_AARCH64(byte* tag, const byte* authTag,
     );
 }
 
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 void AES_GCM_init_AARCH64_EOR3(byte* key, int nr, const byte* nonce,
     word32 nonceSz, byte* gcm_h, byte* counter, byte* initCtr)
@@ -37525,6 +37527,7 @@ void AES_GCM_encrypt_final_AARCH64_EOR3(byte* tag, byte* authTag, word32 tbytes,
     );
 }
 
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 void AES_GCM_decrypt_update_AARCH64_EOR3(const byte* key, int nr, byte* out,
     const byte* in, word32 nbytes, byte* tag, byte* h, byte* counter)
 {
@@ -41374,6 +41377,7 @@ void AES_GCM_decrypt_final_AARCH64_EOR3(byte* tag, const byte* authTag,
     );
 }
 
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_AESGCM */
