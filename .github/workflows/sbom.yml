@@ -5,6 +5,7 @@ on:
   push:
     branches: [ 'master', 'main', 'release/**' ]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '**' ]
 
 # Defence-in-depth: the workflow does no API writes (no `gh pr`, no
@@ -28,7 +29,7 @@ jobs:
   # cheapest gate for licence/UUID/timestamp logic regressions.
   unit:
     name: gen-sbom unit tests
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -64,7 +65,7 @@ jobs:
   # --srcs, or --dep-version handling would silently land.
   standalone:
     name: SBOM standalone (no autotools)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     needs: unit
     timeout-minutes: 10
@@ -423,7 +424,7 @@ jobs:
   # everything an external auditor or vulnerability scanner relies on.
   integration:
     name: SBOM integration (linux)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     needs: unit
     timeout-minutes: 20
@@ -758,7 +759,7 @@ jobs:
   # macOS runner minutes go to portability coverage, not duplicated checks.
   integration-macos:
     name: SBOM integration (macos)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     needs: unit
     timeout-minutes: 20
@@ -818,7 +819,7 @@ jobs:
   # exercised by hand; a regression in either would silently land.
   bomsh:
     name: bomsh integration (linux)
-    if: github.repository_owner == 'wolfssl'
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     needs: unit
     timeout-minutes: 30
