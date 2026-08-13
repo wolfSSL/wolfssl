@@ -3313,6 +3313,38 @@ if(WOLFSSL_BLAKE2)
     set(WOLFSSL_BLAKE2B "yes")
 endif()
 
+add_option("WOLFSSL_ARGON2"
+    "Enable Argon2 password hashing, RFC 9106 (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_ARGON2)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_ARGON2"
+        )
+    # Argon2 is specified in terms of BLAKE2b, so pull it in.
+    if(NOT WOLFSSL_BLAKE2)
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DHAVE_BLAKE2B"
+            )
+    endif()
+    set(WOLFSSL_BLAKE2B "yes")
+endif()
+
+add_option("WOLFSSL_ARGON2_THREADS"
+    "Enable Argon2 lane parallelism using threads (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_ARGON2_THREADS)
+    if(NOT WOLFSSL_ARGON2)
+        message(FATAL_ERROR "WOLFSSL_ARGON2_THREADS requires WOLFSSL_ARGON2")
+    endif()
+    if(WOLFSSL_SINGLE_THREADED)
+        message(FATAL_ERROR
+            "WOLFSSL_ARGON2_THREADS requires a multi-threaded build")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_ARGON2_THREADS"
+        )
+endif()
+
 add_option("WOLFSSL_BLAKE2S"
     "Enable wolfSSL BLAKE2s support (default: disabled)"
     "no" "yes;no")
@@ -4524,6 +4556,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_rc2.c
         tests/api/test_aes.c
         tests/api/test_ascon.c
+        tests/api/test_argon2.c
         tests/api/test_sm4.c
         tests/api/test_wc_encrypt.c
         tests/api/test_coding.c
