@@ -4816,6 +4816,10 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
         return WOLFSSL_FAILURE;
     }
 
+    /* Clear up front: the per-curve export failures below return early, and a
+     * caller reusing one variable across calls must not see a stale pointer. */
+    *pkey = NULL;
+
 #ifdef HAVE_ECC
     if (ssl->peerEccKey != NULL) {
         unsigned char* der;
