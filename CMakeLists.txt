@@ -101,6 +101,7 @@ check_include_file("time.h" HAVE_TIME_H)
 check_include_file("sys/ioctl.h" HAVE_SYS_IOCTL_H)
 check_include_file("sys/socket.h" HAVE_SYS_SOCKET_H)
 check_include_file("sys/time.h" HAVE_SYS_TIME_H)
+check_include_file("sys/un.h" HAVE_SYS_UN_H)
 check_include_file("errno.h" HAVE_ERRNO_H)
 check_include_file("dlfcn.h" HAVE_DLFCN_H)
 check_include_file("inttypes.h" HAVE_INTTYPES_H)
@@ -113,12 +114,20 @@ check_include_file("sys/stat.h" HAVE_SYS_STAT_H)
 check_include_file("sys/types.h" HAVE_SYS_TYPES_H)
 check_include_file("unistd.h" HAVE_UNISTD_H)
 
-# types.h depends on HAVE_LIMITS_H, and it is defined in options.h (rather than
-# config.h) so that applications consuming wolfSSL headers see it. The in-tree
-# build, however, is configured through config.h/compile definitions and does
-# not include options.h, so define it here as well.
+# types.h depends on HAVE_LIMITS_H, and callbacks.h sizes WOLFSSL_TIMEVAL with
+# HAVE_SYS_TIME_H. Both are defined in options.h (rather than config.h) so that
+# applications consuming wolfSSL headers see the same value the library was
+# built with. The in-tree build, however, is configured through
+# config.h/compile definitions and does not include options.h, so define them
+# here as well.
 if(HAVE_LIMITS_H)
     add_definitions("-DHAVE_LIMITS_H")
+endif()
+if(HAVE_SYS_TIME_H)
+    add_definitions("-DHAVE_SYS_TIME_H")
+endif()
+if(HAVE_SYS_UN_H)
+    add_definitions("-DHAVE_SYS_UN_H")
 endif()
 
 include(CheckFunctionExists)

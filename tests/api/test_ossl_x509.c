@@ -422,6 +422,20 @@ int test_wolfSSL_X509_check_host(void)
     ExpectIntEQ(wolfSSL_X509_check_host(x509, altName, XSTRLEN(altName),
         WOLFSSL_MULTI_LABEL_WILDCARDS, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
+    /* chk of exactly chklen bytes with no terminator - every consumer must
+     * stay within the caller's declared length. */
+    {
+        char* bounded = (char*)XMALLOC(XSTRLEN(altName), NULL,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(bounded);
+        if (bounded != NULL) {
+            XMEMCPY(bounded, altName, XSTRLEN(altName));
+            ExpectIntEQ(X509_check_host(x509, bounded, XSTRLEN(altName), 0,
+                    NULL), WOLFSSL_SUCCESS);
+            XFREE(bounded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+
     X509_free(x509);
 
     ExpectIntEQ(X509_check_host(NULL, altName, XSTRLEN(altName), 0, NULL),
