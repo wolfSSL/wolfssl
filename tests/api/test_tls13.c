@@ -4351,6 +4351,79 @@ int test_tls13_rpk_unoffered_cert_type(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.4.2: "If the RawPublicKey certificate type was negotiated,
+ * then the certificate_list MUST contain no more than one CertificateEntry,
+ * which contains an ASN1_subjectPublicKeyInfo value as defined in [RFC7250],
+ * Section 3." Make the server send a second raw public key and check that the
+ * client rejects the Certificate message. */
+int test_tls13_rpk_multiple_certs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && !defined(NO_TLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA256) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    byte* spki = NULL;
+    size_t spkiSz = 0;
+    DerBuffer* chain = NULL;
+    char certType[] = { WOLFSSL_CERT_TYPE_RPK, WOLFSSL_CERT_TYPE_X509 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    ExpectIntEQ(
+        test_rpk_memio_setup(
+            &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
+            svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
+        , 0);
+
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_c, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl_s, certType,
+        (int)sizeof(certType)), WOLFSSL_SUCCESS);
+
+    /* Append a second entry to the server's certificate_list: the same raw
+     * public key again, in the length-prefixed form the chain is sent in. */
+    ExpectIntEQ(load_file(svrRpkCertFile, &spki, &spkiSz), 0);
+    ExpectIntEQ(AllocDer(&chain, (word32)spkiSz + CERT_HEADER_SZ,
+        CERT_TYPE, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        chain->buffer[0] = (byte)(spkiSz >> 16);
+        chain->buffer[1] = (byte)(spkiSz >> 8);
+        chain->buffer[2] = (byte)spkiSz;
+        XMEMCPY(chain->buffer + CERT_HEADER_SZ, spki, spkiSz);
+        ssl_s->buffers.certChain = chain;
+        ssl_s->buffers.certChainCnt = 1;
+        ssl_s->buffers.weOwnCertChain = 1;
+        chain = NULL; /* owned by ssl_s now */
+    }
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(UNSUPPORTED_CERTIFICATE));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, unsupported_certificate);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    FreeDer(&chain);
+    XFREE(spki, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* HAVE_RPK && WOLFSSL_TLS13 && memio && !NO_SHA256 && client+server */
+    return EXPECT_RESULT();
+}
+
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
