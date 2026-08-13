@@ -500,12 +500,14 @@ int test_tls13_apis(void)
     ExpectIntEQ(wolfSSL_update_keys(clientTls12Ssl),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
+    /* No handshake performed, so Finished has not been sent: RFC 9846
+     * Section 4.7.3 does not allow a KeyUpdate yet. */
     ExpectIntEQ(wolfSSL_update_keys(clientSsl),
-        WC_NO_ERR_TRACE(BUILD_MSG_ERROR));
+        WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
 #endif
 #ifndef NO_WOLFSSL_SERVER
     ExpectIntEQ(wolfSSL_update_keys(serverSsl),
-        WC_NO_ERR_TRACE(BUILD_MSG_ERROR));
+        WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
 #endif
 
     ExpectIntEQ(wolfSSL_key_update_response(NULL, NULL),
@@ -5125,6 +5127,128 @@ int test_tls13_0rtt_default_off(void)
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "test", 4, &written),
                 WOLFSSL_FATAL_ERROR);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify that reaching the AEAD key usage limit while sending 0-RTT early
+ * data fails the write instead of performing a KeyUpdate. RFC 9846
+ * Section 4.7.3 only allows a KeyUpdate after the sender has sent Finished,
+ * and Section 5.5 therefore requires that the key usage limits not be
+ * exceeded when sending early data. Fails without the Tls13SentFinished()
+ * guard in SendTls13KeyUpdate(): the write at the limit used to emit a
+ * KeyUpdate record before Finished, ratchet the early traffic secret and
+ * report success. */
+int test_tls13_0rtt_aead_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+    int written = 0;
+    int lenBefore;
+    int msgsBefore;
+    w64wrapper limit;
+    word32 limitLo;
+
+    limit = AEAD_AES_LIMIT;
+    limitLo = w64GetLow32(limit);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* Pin an AES-GCM suite so the limit checked below is AEAD_AES_LIMIT. */
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+
+    /* Step 1: full handshake offering 0-RTT, then keep the ticket. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    /* Success is 0 in the native API, WOLFSSL_SUCCESS under OpenSSL
+     * compatibility. */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ExpectIntEQ(wolfSSL_set_max_early_data(ssl_s, 128), WOLFSSL_SUCCESS);
+#else
+    ExpectIntEQ(wolfSSL_set_max_early_data(ssl_s, 128), 0);
+#endif
+    ExpectIntEQ(wolfSSL_get_max_early_data(ssl_s), 128);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Consume NewSessionTicket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: resume. The first call sends the ClientHello and the early data
+     * record; the server is never driven, so the client stays in the early
+     * data phase with its own Finished still unsent. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "a", 1, &written), 1);
+    ExpectIntEQ(written, 1);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.handShakeState, CLIENT_HELLO_COMPLETE);
+        ExpectIntEQ(ssl_c->specs.bulk_cipher_algorithm, wolfssl_aes_gcm);
+
+        /* Two records short of the limit: this write stays below it. */
+        ssl_c->keys.sequence_number_hi = 0;
+        ssl_c->keys.sequence_number_lo = limitLo - 2;
+        ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "a", 1, &written), 1);
+        ExpectIntEQ(written, 1);
+        ExpectIntEQ(ssl_c->keys.sequence_number_lo, limitLo - 1);
+        ExpectTrue(w64IsZero(ssl_c->keys.keyUpdateCount));
+
+        /* This record still goes out, at seq = limit-1, and takes the
+         * counter to the limit. As in the post-handshake case the trailing
+         * limit check inside SendData's loop then asks for a KeyUpdate, but
+         * before Finished there is none to be had, so the write reports
+         * failure instead of ratcheting the early traffic keys. Exactly one
+         * record reaches the wire: the application data one, no KeyUpdate. */
+        msgsBefore = test_ctx.s_msg_count;
+        ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "a", 1, &written),
+                    WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                    WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+        ExpectIntEQ(test_ctx.s_msg_count - msgsBefore, 1);
+        ExpectIntEQ(ssl_c->keys.sequence_number_lo, limitLo);
+        ExpectTrue(w64IsZero(ssl_c->keys.keyUpdateCount));
+
+        /* Sitting on the limit, nothing more may be sent at all: the write
+         * is refused before any record is built. */
+        lenBefore = test_ctx.s_len;
+        written = 0;
+        ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "a", 1, &written),
+                    WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                    WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+        ExpectIntEQ(written, 0);
+        ExpectIntEQ(test_ctx.s_len, lenBefore);
+        ExpectIntEQ(ssl_c->keys.sequence_number_lo, limitLo);
+        ExpectTrue(w64IsZero(ssl_c->keys.keyUpdateCount));
+
+        /* Explicitly asking for a key update in the early data phase is
+         * refused for the same reason. */
+        ExpectIntEQ(wolfSSL_update_keys(ssl_c),
+                    WC_NO_ERR_TRACE(OUT_OF_ORDER_E));
+        ExpectTrue(w64IsZero(ssl_c->keys.keyUpdateCount));
+    }
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_free(ssl_c);
