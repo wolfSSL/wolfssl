@@ -565,7 +565,8 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian);
 
     \return 0 Returned on successfully exporting the public key from the
     curve448_key structure.
-    \return ECC_BAD_ARG_E Returned if outLen is less than CURVE448_PUB_KEY_SIZE.
+    \return ECC_BAD_ARG_E Returned if outLen is less than CURVE448_PUB_KEY_SIZE,
+    or if neither the public nor the private key has been set.
     \return BAD_FUNC_ARG Returned if any of the input parameters are NULL.
 
     \param [in] key Pointer to the curve448_key structure in from which to
@@ -605,7 +606,8 @@ int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen);
 
     \return 0 Returned on successfully exporting the public key from the
     curve448_key structure.
-    \return ECC_BAD_ARG_E Returned if outLen is less than CURVE448_PUB_KEY_SIZE.
+    \return ECC_BAD_ARG_E Returned if outLen is less than CURVE448_PUB_KEY_SIZE,
+    or if neither the public nor the private key has been set.
     \return BAD_FUNC_ARG Returned if any of the input parameters are NULL.
 
     \param [in] key Pointer to the curve448_key structure in from which to

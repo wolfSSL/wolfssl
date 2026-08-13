@@ -509,7 +509,8 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian);
     \brief この関数は、与えられた鍵構造体から公開鍵をエクスポートし、結果をoutバッファに格納します。ビッグエンディアンのみ。
 
     \return 0 curve448_key構造体から公開鍵のエクスポートに成功した場合に返されます。
-    \return ECC_BAD_ARG_E outLenがCURVE448_PUB_KEY_SIZEより小さい場合に返されます。
+    \return ECC_BAD_ARG_E outLenがCURVE448_PUB_KEY_SIZEより小さい場合、
+    または公開鍵と秘密鍵のどちらも設定されていない場合に返されます。
     \return BAD_FUNC_ARG 入力パラメータのいずれかがNULLの場合に返されます。
 
     \param [in] key 鍵をエクスポートするcurve448_key構造体へのポインタ。
@@ -546,7 +547,8 @@ int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen);
     \brief この関数は、与えられた鍵構造体から公開鍵をエクスポートし、結果をoutバッファに格納します。ビッグエンディアンとリトルエンディアンの両方をサポートします。
 
     \return 0 curve448_key構造体から公開鍵のエクスポートに成功した場合に返されます。
-    \return ECC_BAD_ARG_E outLenがCURVE448_PUB_KEY_SIZEより小さい場合に返されます。
+    \return ECC_BAD_ARG_E outLenがCURVE448_PUB_KEY_SIZEより小さい場合、
+    または公開鍵と秘密鍵のどちらも設定されていない場合に返されます。
     \return BAD_FUNC_ARG 入力パラメータのいずれかがNULLの場合に返されます。
 
     \param [in] key 鍵をエクスポートするcurve448_key構造体へのポインタ。
