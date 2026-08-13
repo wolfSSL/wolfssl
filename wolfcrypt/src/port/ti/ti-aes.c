@@ -51,8 +51,14 @@
 #include "driverlib/rom.h"
 
 #define AES_CFG_MODE_CTR_NOCTR (AES_CFG_MODE_CTR + 100)
-#define IS_ALIGN16(p) (((unsigned int)(p) & 0xf) == 0)
-#define ROUNDUP_16(n) ((n+15) & 0xfffffff0)
+/* IS_ALIGN16 tests an address, IS_MULT16 tests a length. Do not confuse the
+ * two: the ROM AES engine needs both a 16 byte aligned buffer and a whole
+ * number of 16 byte blocks. ALIGN16_SLACK is the extra room needed to
+ * hand-align an allocation up to a block boundary. */
+#define ALIGN16_SLACK (WC_AES_BLOCK_SIZE - 1)
+#define IS_ALIGN16(p) ((((wc_ptr_t)(p)) & (wc_ptr_t)ALIGN16_SLACK) == 0)
+#define IS_MULT16(n)  (((n) & (word32)ALIGN16_SLACK) == 0)
+#define ROUNDUP_16(n) (((n) + ALIGN16_SLACK) & ~(word32)ALIGN16_SLACK)
 #ifndef TI_BUFFSIZE
 #define TI_BUFFSIZE 1024
 #endif
@@ -479,6 +485,41 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
     }
 }
 
+/* Allocates a 16 byte aligned, whole block sized temporary for sz bytes and,
+ * when src is not NULL, copies src into it. XMALLOC only guarantees alignment
+ * for fundamental types, which can be as little as 4 bytes, so over-allocate
+ * and align by hand. *save receives the pointer to free, *aligned the pointer
+ * to hand to the ROM engine. */
+static int AesAuthBounce(const byte* src, word32 sz, void* heap, byte** save,
+    byte** aligned)
+{
+    byte* p;
+
+    /* ROUNDUP_16 wraps within a block of the word32 maximum, which would
+     * under-allocate. Unreachable with any real buffer, but the size
+     * arithmetic below must not be able to wrap. */
+    if (sz > (0xFFFFFFFFU - (2U * (word32)ALIGN16_SLACK))) {
+        return BAD_FUNC_ARG;
+    }
+
+    p = (byte*)XMALLOC(ROUNDUP_16(sz) + ALIGN16_SLACK, heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL) {
+        return MEMORY_E;
+    }
+
+    *save = p;
+    *aligned = (byte*)(((wc_ptr_t)p + ALIGN16_SLACK) &
+        ~(wc_ptr_t)ALIGN16_SLACK);
+
+    XMEMSET(*aligned, 0, ROUNDUP_16(sz));
+    if (src != NULL) {
+        XMEMCPY(*aligned, src, sz);
+    }
+
+    return 0;
+}
+
 static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                               const byte* nonce, word32 nonceSz,
                               byte* authTag, word32 authTagSz,
@@ -516,33 +557,31 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return 0;
     }
 
-    /* Make sure all pointers are 16 byte aligned */
-    if (IS_ALIGN16(inSz)) {
-        in_save = NULL; in_a = (byte*)in;
-        out_save = NULL; out_a = out;
+    /* Bounce each buffer that is not 16 byte aligned, and each buffer whose
+     * length is not a whole number of blocks. The alignment of in, out and
+     * authIn is independent, so each gets its own temporary. */
+    if (inSz > 0 && (!IS_ALIGN16(in) || !IS_MULT16(inSz))) {
+        ret = AesAuthBounce(in, inSz, aes->heap, &in_save, &in_a);
+        if (ret != 0) { goto exit; }
     }
     else {
-        in_save = XMALLOC(ROUNDUP_16(inSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (in_save == NULL) { ret = MEMORY_E; goto exit; }
-        in_a = in_save;
-        XMEMSET(in_a, 0, ROUNDUP_16(inSz));
-        XMEMCPY(in_a, in, inSz);
-
-        out_save = XMALLOC(ROUNDUP_16(inSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (out_save == NULL) { ret = MEMORY_E; goto exit; }
-        out_a = out_save;
+        in_a = (byte*)in;
     }
 
-    if (IS_ALIGN16(authInSz)) {
-        authIn_save = NULL; authIn_a = (byte*)authIn;
+    if (inSz > 0 && (!IS_ALIGN16(out) || !IS_MULT16(inSz))) {
+        ret = AesAuthBounce(NULL, inSz, aes->heap, &out_save, &out_a);
+        if (ret != 0) { goto exit; }
     }
     else {
-        authIn_save = XMALLOC(ROUNDUP_16(authInSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (authIn_save == NULL) { ret = MEMORY_E; goto exit; }
+        out_a = out;
+    }
 
-        authIn_a = authIn_save;
-        XMEMSET(authIn_a, 0, ROUNDUP_16(authInSz));
-        XMEMCPY(authIn_a, authIn, authInSz);
+    if (authInSz > 0 && (!IS_ALIGN16(authIn) || !IS_MULT16(authInSz))) {
+        ret = AesAuthBounce(authIn, authInSz, aes->heap, &authIn_save, &authIn_a);
+        if (ret != 0) { goto exit; }
+    }
+    else {
+        authIn_a = (byte*)authIn;
     }
 
     /* Do AES-CCM/GCM Cipher with Auth */
@@ -565,20 +604,31 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     wolfSSL_TI_unlockCCM();
 
     if (ret == false) {
-        XMEMSET(out, 0, inSz);
-        XMEMSET(authTag, 0, authTagSz);
+        /* out is NULL for the GMAC case, where inSz is zero. */
+        if (out != NULL)
+            ForceZero(out, inSz);
+        ForceZero(authTag, authTagSz);
         ret = AES_GCM_AUTH_E;
     }
     else {
-        XMEMCPY(out, out_a, inSz);
+        if (out_save != NULL)
+            XMEMCPY(out, out_a, inSz);
         XMEMCPY(authTag, tmpTag, authTagSz);
         ret = 0;
     }
 
 exit:
-    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Whichever of the two data bounce buffers holds plaintext depends on
+     * direction, so both are wiped. On the tag failure path the caller's out
+     * has been cleared but out_save has not. authIn_save is exempt because
+     * AAD is not secret. */
+    if (in_save != NULL)
+        ForceZero(in_save, ROUNDUP_16(inSz) + ALIGN16_SLACK);
+    if (out_save != NULL)
+        ForceZero(out_save, ROUNDUP_16(inSz) + ALIGN16_SLACK);
+    XFREE(in_save, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out_save, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(authIn_save, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -622,33 +672,31 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return ret;
     }
 
-    /* Make sure all pointers are 16 byte aligned */
-    if (IS_ALIGN16(inSz)) {
-        in_save = NULL; in_a = (byte*)in;
-        out_save = NULL; out_a = out;
+    /* Bounce each buffer that is not 16 byte aligned, and each buffer whose
+     * length is not a whole number of blocks. The alignment of in, out and
+     * authIn is independent, so each gets its own temporary. */
+    if (inSz > 0 && (!IS_ALIGN16(in) || !IS_MULT16(inSz))) {
+        ret = AesAuthBounce(in, inSz, aes->heap, &in_save, &in_a);
+        if (ret != 0) { goto exit; }
     }
     else {
-        in_save = XMALLOC(ROUNDUP_16(inSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (in_save == NULL) { ret = MEMORY_E; goto exit; }
-        in_a = in_save;
-        XMEMSET(in_a, 0, ROUNDUP_16(inSz));
-        XMEMCPY(in_a, in, inSz);
-
-        out_save = XMALLOC(ROUNDUP_16(inSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (out_save == NULL) { ret = MEMORY_E; goto exit; }
-        out_a = out_save;
+        in_a = (byte*)in;
     }
 
-    if (IS_ALIGN16(authInSz)) {
-        authIn_save = NULL; authIn_a = (byte*)authIn;
+    if (inSz > 0 && (!IS_ALIGN16(out) || !IS_MULT16(inSz))) {
+        ret = AesAuthBounce(NULL, inSz, aes->heap, &out_save, &out_a);
+        if (ret != 0) { goto exit; }
     }
     else {
-        authIn_save = XMALLOC(ROUNDUP_16(authInSz), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (authIn_save == NULL) { ret = MEMORY_E; goto exit; }
+        out_a = out;
+    }
 
-        authIn_a = authIn_save;
-        XMEMSET(authIn_a, 0, ROUNDUP_16(authInSz));
-        XMEMCPY(authIn_a, authIn, authInSz);
+    if (authInSz > 0 && (!IS_ALIGN16(authIn) || !IS_MULT16(authInSz))) {
+        ret = AesAuthBounce(authIn, authInSz, aes->heap, &authIn_save, &authIn_a);
+        if (ret != 0) { goto exit; }
+    }
+    else {
+        authIn_a = (byte*)authIn;
     }
 
     /* Do AES-CCM/GCM Cipher with Auth */
@@ -670,18 +718,29 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     wolfSSL_TI_unlockCCM();
 
     if ((ret == false) || (ConstantCompare(authTag, tmpTag, authTagSz) != 0)) {
-        XMEMSET(out, 0, inSz);
+        /* out is NULL for the GMAC case, where inSz is zero. */
+        if (out != NULL)
+            ForceZero(out, inSz);
         ret = AES_GCM_AUTH_E;
     }
     else {
-        XMEMCPY(out, out_a, inSz);
+        if (out_save != NULL)
+            XMEMCPY(out, out_a, inSz);
         ret = 0;
     }
 
 exit:
-    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Whichever of the two data bounce buffers holds plaintext depends on
+     * direction, so both are wiped. On the tag failure path the caller's out
+     * has been cleared but out_save has not. authIn_save is exempt because
+     * AAD is not secret. */
+    if (in_save != NULL)
+        ForceZero(in_save, ROUNDUP_16(inSz) + ALIGN16_SLACK);
+    if (out_save != NULL)
+        ForceZero(out_save, ROUNDUP_16(inSz) + ALIGN16_SLACK);
+    XFREE(in_save, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out_save, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(authIn_save, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
