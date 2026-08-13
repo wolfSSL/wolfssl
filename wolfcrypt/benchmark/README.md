@@ -21,6 +21,15 @@ To set the output to always be CSV:
 
 `-DWOLFSSL_BENCHMARK_FIXED_CSV`
 
+To add an extra RSA padding sweep (raw / PKCS#1 v1.5 / PSS / OAEP across every
+enabled 2048/3072/4096 key size, software then hardware), compile with:
+
+`-DWOLFSSL_BENCH_RSA_PAD`
+
+It requires `WC_RSA_PSS`, one of `WC_RSA_DIRECT`/`WC_RSA_NO_PADDING`/`OPENSSL_EXTRA`,
+OAEP support, and at least one `USE_CERT_BUFFERS_2048/3072/4096`; if any is absent
+the sweep silently produces no rows.
+
 To track per-algorithm heap and stack usage in the output, configure wolfSSL with:
 
 ```
