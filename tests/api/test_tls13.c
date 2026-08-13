@@ -8252,6 +8252,82 @@ int test_tls13_downgrade_sentinel(void)
     return EXPECT_RESULT();
 }
 
+/* Test that a client does not treat a ServerHello carrying supported_versions
+ * as an older-version ServerHello because of its legacy_version. RFC 8446
+ * Section 4.2.1: "A server which negotiates a version of TLS prior to TLS 1.3
+ * MUST set ServerHello.version and MUST NOT send the "supported_versions"
+ * extension", and a client "MUST ignore the ServerHello.legacy_version value
+ * and MUST use only the "supported_versions" extension to determine the
+ * selected version". A server selecting TLS 1.3 must set legacy_version to
+ * 0x0303 (Section 4.1.3). */
+int test_tls13_serverhello_legacy_version(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    /* legacy_version follows the record (5) and handshake (4) headers. */
+    int verOff = 9;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
+    /* Client allows downgrading, so the legacy dispatch is reachable. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLS_client_method, wolfTLSv1_3_server_method), 0);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Claim TLS 1.0 in legacy_version. supported_versions still selects
+     * TLS 1.3. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(test_ctx.c_len, verOff + 1);
+        test_ctx.c_buff[verOff + 0] = SSLv3_MAJOR;
+        test_ctx.c_buff[verOff + 1] = TLSv1_MINOR;
+    }
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(VERSION_ERROR));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, wolfssl_alert_protocol_version);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    /* A ServerHello that really is older still downgrades: no
+     * supported_versions extension to contradict its legacy_version. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ctx_c = NULL;
+    ctx_s = NULL;
+    ssl_c = NULL;
+    ssl_s = NULL;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLS_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_2_VERSION);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that a TLS 1.3 client rejects ServerHello cipher suites that are not
  * TLS 1.3 suites or were not offered by the client. */
 int test_tls13_serverhello_bad_cipher_suites(void)
