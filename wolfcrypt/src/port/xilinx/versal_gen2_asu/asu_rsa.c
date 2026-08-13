@@ -89,10 +89,10 @@ typedef struct {
     XAsu_RsaPaddingParams     pad;
     XAsu_RsaOaepPaddingParams oaep;                    /* OAEP encrypt params */
     XAsu_RsaPvtKeyComp        key;
-    /* ALIGN64 so an invalidate range never shares a cache line with CPU-owned
-     * data and stamps stale bytes over the DMA result (see asu_cmac.c). */
-    ALIGN64 byte          out[XRSA_4096_KEY_SIZE];  /* DMA result, copied out */
-    ALIGN64 byte          scratch[XRSA_4096_KEY_SIZE]; /* PSS sig/OAEP label */
+    /* 64-byte aligned so an invalidate range never shares a cache line with
+     * CPU-owned data and stamps stale bytes over the DMA result. */
+    WC_ASU_ALIGN64 byte   out[XRSA_4096_KEY_SIZE];  /* DMA result, copied out */
+    WC_ASU_ALIGN64 byte   scratch[XRSA_4096_KEY_SIZE]; /* PSS sig/OAEP label */
     int                   op;
 } AsuRsaReq;
 

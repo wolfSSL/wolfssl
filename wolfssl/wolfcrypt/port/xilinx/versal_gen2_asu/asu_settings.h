@@ -113,12 +113,13 @@
     #endif
 #endif
 
-/* ALIGN64 is a no-op without WOLFSSL_USE_ALIGN, so define it here, but only
- * when the data cache is on (WC_ASU_DISABLE_CACHE off). */
-#ifndef WC_ASU_DISABLE_CACHE
-    #ifndef WOLFSSL_USE_ALIGN
-        #define WOLFSSL_USE_ALIGN
-    #endif
+/* 64-byte align the port's DMA buffers, but only with the cache on. With the
+ * cache off there is no cache line to keep to itself, so this becomes nothing.
+ * XALIGNED is a plain compiler attribute, so it has no library-wide effects. */
+#ifdef WC_ASU_DISABLE_CACHE
+    #define WC_ASU_ALIGN64
+#else
+    #define WC_ASU_ALIGN64 XALIGNED(64)
 #endif
 
 /* Threading. Ticketing concurrency that keeps the ASU queue busy is compiled
