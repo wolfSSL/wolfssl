@@ -1323,6 +1323,16 @@ int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (cidSz + OPAQUE8_LEN > length)
         return BUFFER_ERROR;
 
+#if DTLS_CID_MAX_SIZE < 255
+    /* The peer's CID becomes our TX CID. RFC 9146 allows up to 255 bytes, our
+     * send buffers are sized for DTLS_CID_MAX_SIZE. */
+    if (cidSz > DTLS_CID_MAX_SIZE) {
+        WOLFSSL_MSG("Peer CID larger than DTLS_CID_MAX_SIZE");
+        WOLFSSL_ERROR_VERBOSE(DTLS_CID_ERROR);
+        return DTLS_CID_ERROR;
+    }
+#endif
+
     info = DtlsCidGetInfo(ssl);
     if (info == NULL)
         return BAD_STATE_E;

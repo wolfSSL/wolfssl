@@ -737,10 +737,14 @@ static int test_dtls13_build_post_hs_msg(WOLFSSL* ssl_c, WOLFSSL* ssl_s,
         byte hsType, const byte* body, word16 bodyLen, byte* rec, int* recSz)
 {
     EXPECT_DECLS;
-    byte msg[64];
+    /* largest body a caller builds: a cid_immediate with an oversized CID */
+    byte msg[DTLS_HANDSHAKE_HEADER_SZ + 2 + 1 + (DTLS_CID_MAX_SIZE + 1) + 1];
     size_t idx = 0;
 
-    ExpectIntLE(DTLS_HANDSHAKE_HEADER_SZ + bodyLen, sizeof(msg));
+    if (DTLS_HANDSHAKE_HEADER_SZ + bodyLen > (int)sizeof(msg)) {
+        ExpectFail();
+        return EXPECT_RESULT();
+    }
 
     msg[idx++] = hsType;
     c32to24(bodyLen, msg + idx);
@@ -992,6 +996,53 @@ int test_dtls13_request_connection_id(void)
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Parse a connection_id extension of the given CID length as a ServerHello. */
+#if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && \
+    DTLS_CID_MAX_SIZE < 255
+static int test_dtls_cid_negotiate_sz(byte cidSz, int expected)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte ext[4 + 1 + 255];
+    word16 extSz = 0;
+    word16 i;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl), 1);
+
+    c16toa((word16)TLSX_CONNECTION_ID, ext + extSz);
+    extSz += OPAQUE16_LEN;
+    c16toa((word16)(cidSz + 1), ext + extSz);
+    extSz += OPAQUE16_LEN;
+    ext[extSz++] = cidSz;
+    for (i = 0; i < cidSz; i++)
+        ext[extSz++] = 0x5A;
+
+    ExpectIntEQ(TLSX_Parse(ssl, ext, extSz, server_hello, NULL), expected);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_dtls_cid_negotiate_oversize(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && \
+    DTLS_CID_MAX_SIZE < 255
+    /* send paths size their buffers for at most DTLS_CID_MAX_SIZE */
+    ExpectIntEQ(test_dtls_cid_negotiate_sz(DTLS_CID_MAX_SIZE + 1,
+            WC_NO_ERR_TRACE(DTLS_CID_ERROR)), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_cid_negotiate_sz(DTLS_CID_MAX_SIZE, 0),
+            TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }

@@ -30,6 +30,7 @@ int test_dtls13_new_connection_id(void);
 int test_dtls13_new_connection_id_not_negotiated(void);
 int test_dtls13_request_connection_id(void);
 int test_dtls13_cid_msg_malformed(void);
+int test_dtls_cid_negotiate_oversize(void);
 int test_dtls_version_checking(void);
 int test_dtls_drop_invalid_record_during_handshake(void);
 int test_dtls_short_ciphertext(void);
@@ -121,6 +122,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id_not_negotiated), \
         TEST_DECL_GROUP("dtls", test_dtls13_request_connection_id),            \
         TEST_DECL_GROUP("dtls", test_dtls13_cid_msg_malformed),                \
+        TEST_DECL_GROUP("dtls", test_dtls_cid_negotiate_oversize),             \
         TEST_DECL_GROUP("dtls", test_dtls_version_checking),                   \
         TEST_DECL_GROUP("dtls",                                                \
             test_dtls_drop_invalid_record_during_handshake),                   \
