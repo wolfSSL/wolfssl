@@ -63,16 +63,61 @@
     enum linux_errcodes {
         my_EINVAL = EINVAL,
         my_ENOMEM = ENOMEM,
-        my_EBADMSG = EBADMSG
+        my_EBADMSG = EBADMSG,
+        my_ENOKEY = ENOKEY,
+        my_EFAULT = EFAULT,
+        my_EAFNOSUPPORT = EAFNOSUPPORT,
+        my_EOVERFLOW = EOVERFLOW,
+        my_EOPNOTSUPP = EOPNOTSUPP,
+        my_EDEADLK = EDEADLK,
+        my_EAGAIN = EAGAIN,
+        my_EBUSY = EBUSY,
+        my_ECANCELED = ECANCELED,
+        my_EINTR = EINTR,
+        my_ELIBBAD = ELIBBAD,
+        my_ENODATA = ENODATA,
+        my_ENODEV = ENODEV,
+        my_EPERM = EPERM,
+        my_EFBIG = EFBIG
     };
 
     #undef EINVAL
     #undef ENOMEM
     #undef EBADMSG
+    #undef ENOKEY
+    #undef EFAULT
+    #undef EAFNOSUPPORT
+    #undef EOVERFLOW
+    #undef EOPNOTSUPP
+    #undef EDEADLK
+    #undef EAGAIN
+    #undef EBUSY
+    #undef ECANCELED
+    #undef EINTR
+    #undef ELIBBAD
+    #undef ENODATA
+    #undef ENODEV
+    #undef EPERM
+    #undef EFBIG
 
     #define EINVAL WC_ERR_TRACE(my_EINVAL)
     #define ENOMEM WC_ERR_TRACE(my_ENOMEM)
     #define EBADMSG WC_ERR_TRACE(my_EBADMSG)
+    #define ENOKEY WC_ERR_TRACE(my_ENOKEY)
+    #define EFAULT WC_ERR_TRACE(my_EFAULT)
+    #define EAFNOSUPPORT WC_ERR_TRACE(my_EAFNOSUPPORT)
+    #define EOVERFLOW WC_ERR_TRACE(my_EOVERFLOW)
+    #define EOPNOTSUPP WC_ERR_TRACE(my_EOPNOTSUPP)
+    #define EDEADLK WC_ERR_TRACE(my_EDEADLK)
+    #define EAGAIN WC_ERR_TRACE(my_EAGAIN)
+    #define EBUSY WC_ERR_TRACE(my_EBUSY)
+    #define ECANCELED WC_ERR_TRACE(my_ECANCELED)
+    #define EINTR WC_ERR_TRACE(my_EINTR)
+    #define ELIBBAD WC_ERR_TRACE(my_ELIBBAD)
+    #define ENODATA WC_ERR_TRACE(my_ENODATA)
+    #define ENODEV WC_ERR_TRACE(my_ENODEV)
+    #define EPERM WC_ERR_TRACE(my_EPERM)
+    #define EFBIG WC_ERR_TRACE(my_EFBIG)
 #endif
 
 static int libwolfssl_cleanup(void) {
@@ -845,6 +890,14 @@ static int wolfssl_init(void)
         reloc_counts.other = 0;
 #endif
 
+    /* In asm builds, we run the FIPS self-test twice, once via fipsEntry() checking
+     * afterwards that no C fallbacks occurred, and a second time via
+     * wolfCrypt_IntegrityTest_fips() with asm disabled.
+     */
+
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+    wc_svr_disallowed_count_reset();
+#endif
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
         fipsEntry();
         (void)WC_SIG_IGNORE_END();
@@ -874,6 +927,44 @@ static int wolfssl_init(void)
         }
         return -ECANCELED;
     }
+
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+    {
+        long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
+        if (svr_disallowed_count > 0) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after fipsEntry().\n", svr_disallowed_count);
+            return -ECANCELED;
+        }
+
+        ret = DISABLE_VECTOR_REGISTERS();
+        if (ret != 0) {
+            pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wolfCrypt_IntegrityTest_fips() returned %d.\n", ret);
+            return -ECANCELED;
+        }
+
+        ret = wolfCrypt_IntegrityTest_fips();
+
+        REENABLE_VECTOR_REGISTERS();
+
+        svr_disallowed_count = wc_svr_disallowed_count_current();
+        if (svr_disallowed_count == 0) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after DISABLE_VECTOR_REGISTERS().\n", svr_disallowed_count);
+            return -ECANCELED;
+        }
+
+        if (ret != 0) {
+            pr_err("ERROR: wolfCrypt_IntegrityTest_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            return -ECANCELED;
+        }
+
+        ret = wolfCrypt_GetStatus_fips();
+        if (ret != 0) {
+            pr_err("ERROR: wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+            return -ECANCELED;
+        }
+    }
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK */
+
 #endif /* HAVE_FIPS */
 
 #ifdef WC_RNG_SEED_CB
@@ -911,6 +1002,10 @@ static int wolfssl_init(void)
         wc_linuxkm_stack_hwm_prepare(0xee);
     #endif
 
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+    wc_svr_disallowed_count_reset();
+#endif
+
     ret = wc_RunAllCast_fips();
 
 #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
@@ -925,6 +1020,58 @@ static int wolfssl_init(void)
         pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
         return -ECANCELED;
     }
+
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+    {
+        long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
+        if (svr_disallowed_count > 0) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after wc_RunAllCast_fips().\n", svr_disallowed_count);
+            return -ECANCELED;
+        }
+
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+    {
+        unsigned long stack_usage;
+        wc_linuxkm_stack_hwm_prepare(0xee);
+    #endif
+
+        ret = DISABLE_VECTOR_REGISTERS();
+        if (ret != 0) {
+            pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wc_RunAllCast_fips() returned %d.\n", ret);
+            return -ECANCELED;
+        }
+
+        ret = wc_RunAllCast_fips();
+
+        REENABLE_VECTOR_REGISTERS();
+
+    #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
+        stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
+        pr_info("STACK INFO: rel usage by wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS(): %lu\n", stack_usage);
+        /* shush up false stack HWM reading by kernel: */
+        wc_linuxkm_stack_hwm_prepare(0);
+    }
+    #endif
+
+        svr_disallowed_count = wc_svr_disallowed_count_current();
+        if (svr_disallowed_count == 0) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after DISABLE_VECTOR_REGISTERS().\n", svr_disallowed_count);
+            return -ECANCELED;
+        }
+
+        if (ret != 0) {
+            pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            return -ECANCELED;
+        }
+
+        ret = wolfCrypt_GetStatus_fips();
+        if (ret != 0) {
+            pr_err("ERROR: wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+            return -ECANCELED;
+        }
+    }
+
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK */
 
     pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
             "self-test succeeded.\n",
@@ -951,6 +1098,7 @@ static int wolfssl_init(void)
             ""
 #endif
         );
+
 #endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifdef FIPS_OPTEST
@@ -1522,9 +1670,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
-    wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_allocate_svr_states = wc_linuxkm_allocate_svr_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
-    wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_free_svr_states = wc_linuxkm_free_svr_states;
     wolfssl_linuxkm_pie_redirect_table.wc_restore_vector_registers_x86 = wc_restore_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.wc_save_vector_registers_x86 = wc_save_vector_registers_x86;
 #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
@@ -2036,6 +2184,29 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
         return -EINVAL;
     }
+
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+    /* Note that wc_svr_disallowed_count*() can't be checked in
+     * FIPS_rerun_self_test_handler() -- we're already multiuser at this point
+     * and other threads can and will increment wc_svr_disallowed_count outside
+     * our control.
+     */
+
+    ret = DISABLE_VECTOR_REGISTERS();
+    if (ret != 0) {
+        pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for wc_RunAllCast_fips() returned %d.\n", ret);
+        return -EINVAL;
+    }
+
+    ret = wc_RunAllCast_fips();
+
+    REENABLE_VECTOR_REGISTERS();
+
+    if (ret != 0) {
+        pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+        return -EINVAL;
+    }
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK */
 
     pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
 
