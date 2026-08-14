@@ -2122,16 +2122,31 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 /* Return a new type index for a custom BIO, starting at
  * WOLFSSL_BIO_TYPE_START like OpenSSL's BIO_get_new_index().
  * Thread-safe when atomic operations are available; otherwise falls
- * back to a plain counter. */
+ * back to a plain counter.
+ *
+ * Both branches stop at INT_MAX and return WOLFSSL_FATAL_ERROR rather than
+ * incrementing past it: signed overflow is undefined and would hand out
+ * negative type numbers. Like OpenSSL, exhaustion is reported as -1. */
 int wolfSSL_BIO_get_new_index(void)
 {
 #if !defined(SINGLE_THREADED) && defined(WOLFSSL_ATOMIC_OPS) && \
     defined(WOLFSSL_ATOMIC_INITIALIZER)
     static wolfSSL_Atomic_Int bio_idx =
         WOLFSSL_ATOMIC_INITIALIZER(WOLFSSL_BIO_TYPE_START);
-    return (int)wolfSSL_Atomic_Int_FetchAdd(&bio_idx, 1);
+    WC_ATOMIC_INT_ARG cur = wolfSSL_Atomic_Int_FetchAdd(&bio_idx, 0);
+
+    /* Claim the slot with compare-exchange so the counter saturates instead
+     * of being bumped past INT_MAX by a racing caller. */
+    do {
+        if (cur == INT_MAX)
+            return WOLFSSL_FATAL_ERROR;
+    } while (!wolfSSL_Atomic_Int_CompareExchange(&bio_idx, &cur, cur + 1));
+
+    return (int)cur;
 #else
     static int bio_idx = WOLFSSL_BIO_TYPE_START;
+    if (bio_idx == INT_MAX)
+        return WOLFSSL_FATAL_ERROR;
     return bio_idx++;
 #endif
 }
