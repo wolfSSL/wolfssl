@@ -524,6 +524,64 @@ int test_tls_get_negotiated_group(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_SHA256)
+static int test_alert_cb_where[2];
+static int test_alert_cb_ret[2];
+
+static void test_alert_info_cb(const WOLFSSL* ssl, int where, int ret)
+{
+    int idx = (wolfSSL_is_server((WOLFSSL*)ssl) != 0);
+
+    if (where & WOLFSSL_CB_ALERT) {
+        test_alert_cb_where[idx] = where;
+        test_alert_cb_ret[idx] = ret;
+    }
+}
+#endif
+
+/* An alert has to reach the info callback whichever way it travelled. */
+int test_tls_alert_info_cb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(test_alert_cb_where, 0, sizeof(test_alert_cb_where));
+    XMEMSET(test_alert_cb_ret, 0, sizeof(test_alert_cb_ret));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_info_callback(ssl_c, test_alert_info_cb);
+    wolfSSL_set_info_callback(ssl_s, test_alert_info_cb);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Client sends close_notify, server reads it. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    ExpectIntLE(wolfSSL_read(ssl_s, buf, sizeof(buf)), 0);
+
+    /* Both directions report, and the alert is packed the way OpenSSL packs
+     * it: (level << 8) | description. */
+    ExpectIntEQ(test_alert_cb_where[0], WOLFSSL_CB_WRITE_ALERT);
+    ExpectIntEQ(test_alert_cb_ret[0], (alert_warning << 8) | close_notify);
+    ExpectIntEQ(test_alert_cb_where[1], WOLFSSL_CB_READ_ALERT);
+    ExpectIntEQ(test_alert_cb_ret[1], (alert_warning << 8) | close_notify);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls12_curve_intersection(void) {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
