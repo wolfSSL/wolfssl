@@ -11688,6 +11688,13 @@ static const word16 preferredGroup[] = {
     ((sizeof(preferredGroup)/sizeof(*preferredGroup)) - 1)
                                             /* -1 for the invalid group */
 
+/* One past the worst rank TLSX_KeyShare_GroupRank() can return. It ranks
+ * against ssl->group[] when the user set a list and against preferredGroup[]
+ * otherwise, so the sentinel has to cover the longer of the two. */
+#define WOLFSSL_WORST_GROUP_RANK \
+    ((int)(((size_t)WOLFSSL_MAX_GROUP_COUNT > PREFERRED_GROUP_SZ) ? \
+        (size_t)WOLFSSL_MAX_GROUP_COUNT : PREFERRED_GROUP_SZ))
+
 /* WOLFSSL_KEY_SHARE_DEFAULT_GROUP - group used for the speculative key share
  * in ClientHello messages when the application has not selected one via
  * wolfSSL_CTX_set_groups() / wolfSSL_set_groups() or wolfSSL_UseKeyShare().
@@ -11805,7 +11812,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     SupportedCurve* preferredCurve = NULL;
     word16          name = WOLFSSL_NAMED_GROUP_INVALID;
     KeyShareEntry*  kse = NULL;
-    int             preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+    int             preferredRank = WOLFSSL_WORST_GROUP_RANK;
     int             rank;
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
@@ -11832,7 +11839,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     if (curve == NULL) {
         byte i;
         /* Fallback to user selected group */
-        preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+        preferredRank = WOLFSSL_WORST_GROUP_RANK;
         for (i = 0; i < ssl->numGroups; i++) {
             rank = TLSX_KeyShare_GroupRank(ssl, ssl->group[i]);
             if (rank == -1)
@@ -12026,7 +12033,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
     KeyShareEntry* clientKSE = NULL;
     KeyShareEntry* list = NULL;
     KeyShareEntry* preferredKSE = NULL;
-    int preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+    int preferredRank = WOLFSSL_WORST_GROUP_RANK;
     int rank;
 
     (void)cipherSuite0;
