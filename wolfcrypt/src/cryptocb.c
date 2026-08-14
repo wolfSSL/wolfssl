@@ -439,14 +439,22 @@ void wc_CryptoCb_Init(void)
     }
 }
 
-void wc_CryptoCb_Cleanup(void)
+int wc_CryptoCb_Cleanup(void)
 {
     int i;
-    for (i = 0; i < MAX_CRYPTO_DEVID_CALLBACKS; i++) {
+    int ret;
+
+    /* Tear down in reverse registration order. Stop at the first busy device
+     * so dependencies registered before it remain available for live objects. */
+    for (i = MAX_CRYPTO_DEVID_CALLBACKS - 1; i >= 0; i--) {
         if(gCryptoDev[i].devId != INVALID_DEVID) {
-            wc_CryptoCb_UnRegisterDevice(gCryptoDev[i].devId);
+            ret = wc_CryptoCb_UnRegisterDeviceEx(gCryptoDev[i].devId);
+            if (ret != 0) {
+                return ret;
+            }
         }
     }
+    return 0;
 }
 
 int wc_CryptoCb_GetDevIdAtIndex(int startIdx)
@@ -521,18 +529,21 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
     return rc;
 }
 
-void wc_CryptoCb_UnRegisterDevice(int devId)
+int wc_CryptoCb_UnRegisterDeviceEx(int devId)
 {
     CryptoCb* dev = NULL;
+#ifdef WOLF_CRYPTO_CB_CMD
+    int ret = 0;
+#endif
 
     /* Can't unregister the invalid device */
     if (devId == INVALID_DEVID)
-        return;
+        return 0;
 
     /* Find the matching dev */
     dev = wc_CryptoCb_GetDevice(devId);
     if (dev == NULL)
-        return;
+        return 0;
 
 #ifdef WOLF_CRYPTO_CB_CMD
     if (dev->cb != NULL) {
@@ -543,11 +554,20 @@ void wc_CryptoCb_UnRegisterDevice(int devId)
         info.cmd.type  = WC_CRYPTOCB_CMD_TYPE_UNREGISTER;
         info.cmd.ctx   = NULL;  /* Not used */
 
-        /* Ignore errors here */
-        dev->cb(devId, &info, dev->ctx);
+        ret = dev->cb(devId, &info, dev->ctx);
+        /* A callback with live device-owned objects must remain registered so
+         * their free callbacks can release sensitive state and device slots. */
+        if (ret == WC_NO_ERR_TRACE(BUSY_E))
+            return ret;
     }
 #endif
     wc_CryptoCb_ClearDev(dev);
+    return 0;
+}
+
+void wc_CryptoCb_UnRegisterDevice(int devId)
+{
+    (void)wc_CryptoCb_UnRegisterDeviceEx(devId);
 }
 
 #ifndef NO_RSA
