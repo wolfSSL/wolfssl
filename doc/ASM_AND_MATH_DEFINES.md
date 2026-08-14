@@ -60,11 +60,11 @@ enable, so it is worth reading before you pick your defines:
   have no specialised implementation. Available for many CPUs. Sets the
   internal `SP_INT_ASM_AVAILABLE`.
 * **`WOLFSSL_SP_<arch>_ASM`** — the *specialised* fixed-size implementations in
-  `sp_<arch>.c`. Only x86_64 adds a separate `sp_x86_64_asm.S`; the ARM files
-  carry their assembly inline (§ 5). Much faster, but
+  `sp_<arch>.c`. Only x86_64 adds a separate `sp_x86_64_asm.S`; the ARM and
+  RISC-V files carry their assembly inline (§ 5). Much faster, but
   only for the specific key sizes and curves compiled in (RSA/DH 2048/3072/4096,
   P-256/P-384/P-521, SM2, SAKKE). Only available for x86_64, Aarch64, ARM32,
-  ARM Thumb and Cortex-M.
+  ARM Thumb, Cortex-M and RISC-V 64.
 
 Defining any `WOLFSSL_SP_<arch>_ASM` implies `WOLFSSL_SP_ASM`. You will normally
 want both tiers together, which is what the per-CPU table in the next section
@@ -97,7 +97,7 @@ back end.
 | ARM32 (Cortex-A, Cortex-R, ARM11 and earlier) | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_ARM32`, `WOLFSSL_SP_ARM32_ASM`, `WOLFSSL_ARMASM`, `WOLFSSL_ARM_ARCH=<n>` |
 | ARM Thumb (Cortex-M0/M0+/M1) | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_ARM_THUMB`, `WOLFSSL_SP_ARM_THUMB_ASM` |
 | Cortex-M3/M4/M7/M33 (Thumb-2) | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_ARM_CORTEX_M`, `WOLFSSL_SP_ARM_CORTEX_M_ASM`, `WOLFSSL_ARMASM`, `WOLFSSL_ARMASM_THUMB2`, `WOLFSSL_ARM_ARCH=7` |
-| RISC-V 64 | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_RISCV64`, `WOLFSSL_RISCV_ASM` (+ extension defines) |
+| RISC-V 64 | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_RISCV64`, `WOLFSSL_SP_RISCV64_ASM`, `WOLFSSL_RISCV_ASM` (+ extension defines) |
 | RISC-V 32 | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_RISCV32` (inline SP only) |
 | PowerPC 64 | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_PPC64`, `WOLFSSL_PPC64_ASM` |
 | PowerPC 32 | `WOLFSSL_SP_MATH_ALL` | add `WOLFSSL_SP_PPC`, `WOLFSSL_PPC32_ASM` |
@@ -364,13 +364,15 @@ SHA-384 and P-521 with SHA-512, and the wolfCrypt test suite reports
 | `WOLFSSL_SP_ARM32_ASM` | ARM32 | `sp_arm32.c` |
 | `WOLFSSL_SP_ARM_THUMB_ASM` | ARM Thumb | `sp_armthumb.c` |
 | `WOLFSSL_SP_ARM_CORTEX_M_ASM` | Cortex-M | `sp_cortexm.c` |
+| `WOLFSSL_SP_RISCV64_ASM` | RISC-V 64 | `sp_riscv64.c` |
 
 Any of these implies `WOLFSSL_SP_ASM`. Without one of them, `sp_c32.c` or
 `sp_c64.c` is compiled instead, chosen by `SP_WORD_SIZE`.
 
-Only x86_64 needs a separate assembly file. The ARM `sp_*.c` files carry their
-assembly inline, so an ARM project adds a single `.c` file and no `.S` — useful
-if your toolchain or coding standard makes separate assembly files awkward.
+Only x86_64 needs a separate assembly file. The ARM and RISC-V `sp_*.c` files
+carry their assembly inline, so those projects add a single `.c` file and no
+`.S` — useful if your toolchain or coding standard makes separate assembly
+files awkward.
 
 `RSA_LOW_MEM` implies `SP_RSA_PRIVATE_EXP_D` and `WOLFSSL_SP_SMALL`. It performs
 RSA private key operations with the plain private exponent instead of the
@@ -538,8 +540,12 @@ The rest of the table does gate real code.
 Take care to enable only the extensions your hardware actually has. Unlike the
 Intel options, there is no run-time check: an extension that is not present
 produces an illegal-instruction trap at run time rather than a build error.
-RISC-V has no specialised SP assembly, so use `WOLFSSL_SP_RISCV64` for the
-inline tier.
+RISC-V 64 has a specialised SP implementation: add `WOLFSSL_SP_RISCV64_ASM`
+alongside `WOLFSSL_SP_RISCV64` (autotools: `--enable-sp-asm`). It is inline
+assembly in `sp_riscv64.c`, so there is no separate `.S` file, and it needs
+only the base integer ISA plus M — it is independent of the vector and crypto
+extensions that `WOLFSSL_RISCV_ASM` selects. RISC-V 32 has no specialised
+implementation; use `WOLFSSL_SP_RISCV32` for the inline tier.
 
 ### PowerPC
 

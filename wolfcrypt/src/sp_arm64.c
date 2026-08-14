@@ -24024,7 +24024,7 @@ static int sp_256_proj_point_dbl_4_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         /* Y = Y - T2 */
         sp_256_mont_sub_4(ctx->y, ctx->y, ctx->t2, p256_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -44890,7 +44890,7 @@ static int sp_384_proj_point_dbl_6_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         /* Y = Y - T2 */
         sp_384_mont_sub_6(ctx->y, ctx->y, ctx->t2, p384_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -73123,7 +73123,7 @@ static int sp_521_proj_point_dbl_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         /* Y = Y - T2 */
         sp_521_mont_sub_9(ctx->y, ctx->y, ctx->t2, p521_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;
@@ -117057,7 +117057,7 @@ static int sp_1024_proj_point_dbl_16_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         /* Y = Y - T2 */
         sp_1024_mont_sub_16(ctx->y, ctx->y, ctx->t2, p1024_mod);
         ctx->state = 19;
-        /* fall-through */
+        FALL_THROUGH;
     case 19:
         err = MP_OKAY;
         break;

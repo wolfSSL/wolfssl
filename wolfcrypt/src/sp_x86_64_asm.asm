@@ -4116,17 +4116,23 @@ sp_2048_mul_32 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         lea	rcx, QWORD PTR [rsp+256]
         add	r8, 128
         add	rdx, 128
+        sub	rsp, 32
         call	sp_2048_mul_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         mov	rcx, QWORD PTR [rsp+768]
+        sub	rsp, 32
         call	sp_2048_mul_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
@@ -4822,17 +4828,23 @@ sp_2048_mul_avx2_32 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_avx2_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         lea	rcx, QWORD PTR [rsp+256]
         add	r8, 128
         add	rdx, 128
+        sub	rsp, 32
         call	sp_2048_mul_avx2_16
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
         mov	rcx, QWORD PTR [rsp+768]
+        sub	rsp, 32
         call	sp_2048_mul_avx2_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+784]
         mov	rdx, QWORD PTR [rsp+776]
@@ -7641,15 +7653,21 @@ sp_2048_sqr_32 PROC
         mov	QWORD PTR [r10+120], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
         add	rdx, 128
         add	rcx, 256
+        sub	rsp, 32
         call	sp_2048_sqr_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
+        sub	rsp, 32
         call	sp_2048_sqr_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
@@ -8159,15 +8177,21 @@ sp_2048_sqr_avx2_32 PROC
         mov	QWORD PTR [r10+120], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
         add	rdx, 128
         add	rcx, 256
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_16
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_16
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+264]
         mov	rcx, QWORD PTR [rsp+256]
@@ -9182,9 +9206,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 128
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_2048_cond_sub_16
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -11199,9 +11223,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 256
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_2048_cond_sub_32
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -17600,17 +17624,23 @@ sp_3072_mul_24 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         lea	rcx, QWORD PTR [rsp+192]
         add	r8, 96
         add	rdx, 96
+        sub	rsp, 32
         call	sp_3072_mul_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         mov	rcx, QWORD PTR [rsp+576]
+        sub	rsp, 32
         call	sp_3072_mul_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
@@ -18150,17 +18180,23 @@ sp_3072_mul_avx2_24 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_avx2_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         lea	rcx, QWORD PTR [rsp+192]
         add	r8, 96
         add	rdx, 96
+        sub	rsp, 32
         call	sp_3072_mul_avx2_12
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
         mov	rcx, QWORD PTR [rsp+576]
+        sub	rsp, 32
         call	sp_3072_mul_avx2_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+592]
         mov	rdx, QWORD PTR [rsp+584]
@@ -19049,17 +19085,23 @@ sp_3072_mul_48 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         lea	rcx, QWORD PTR [rsp+384]
         add	r8, 192
         add	rdx, 192
+        sub	rsp, 32
         call	sp_3072_mul_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         mov	rcx, QWORD PTR [rsp+1152]
+        sub	rsp, 32
         call	sp_3072_mul_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
@@ -20067,17 +20109,23 @@ sp_3072_mul_avx2_48 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_mul_avx2_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         lea	rcx, QWORD PTR [rsp+384]
         add	r8, 192
         add	rdx, 192
+        sub	rsp, 32
         call	sp_3072_mul_avx2_24
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
         mov	rcx, QWORD PTR [rsp+1152]
+        sub	rsp, 32
         call	sp_3072_mul_avx2_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1168]
         mov	rdx, QWORD PTR [rsp+1160]
@@ -22263,15 +22311,21 @@ sp_3072_sqr_24 PROC
         mov	QWORD PTR [r10+88], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
         add	rdx, 96
         add	rcx, 192
+        sub	rsp, 32
         call	sp_3072_sqr_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
+        sub	rsp, 32
         call	sp_3072_sqr_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
@@ -22665,15 +22719,21 @@ sp_3072_sqr_avx2_24 PROC
         mov	QWORD PTR [r10+88], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
         add	rdx, 96
         add	rcx, 192
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_12
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_12
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+200]
         mov	rcx, QWORD PTR [rsp+192]
@@ -23163,15 +23223,21 @@ sp_3072_sqr_48 PROC
         mov	QWORD PTR [r10+184], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
         add	rdx, 192
         add	rcx, 384
+        sub	rsp, 32
         call	sp_3072_sqr_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
+        sub	rsp, 32
         call	sp_3072_sqr_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
@@ -23913,15 +23979,21 @@ sp_3072_sqr_avx2_48 PROC
         mov	QWORD PTR [r10+184], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
         add	rdx, 192
         add	rcx, 384
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_24
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
+        sub	rsp, 32
         call	sp_3072_sqr_avx2_24
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+392]
         mov	rcx, QWORD PTR [rsp+384]
@@ -25309,9 +25381,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 192
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_3072_cond_sub_24
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -28161,9 +28233,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 384
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_3072_cond_sub_48
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -32405,17 +32477,23 @@ sp_4096_mul_64 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         lea	rcx, QWORD PTR [rsp+512]
         add	r8, 256
         add	rdx, 256
+        sub	rsp, 32
         call	sp_2048_mul_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         mov	rcx, QWORD PTR [rsp+1536]
+        sub	rsp, 32
         call	sp_2048_mul_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
@@ -33735,17 +33813,23 @@ sp_4096_mul_avx2_64 PROC
         mov	r8, r13
         mov	rdx, r12
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_mul_avx2_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         lea	rcx, QWORD PTR [rsp+512]
         add	r8, 256
         add	rdx, 256
+        sub	rsp, 32
         call	sp_2048_mul_avx2_32
+        add	rsp, 32
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
         mov	rcx, QWORD PTR [rsp+1536]
+        sub	rsp, 32
         call	sp_2048_mul_avx2_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	r8, QWORD PTR [rsp+1552]
         mov	rdx, QWORD PTR [rsp+1544]
@@ -35020,15 +35104,21 @@ sp_4096_sqr_64 PROC
         mov	QWORD PTR [r10+248], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
         add	rdx, 256
         add	rcx, 512
+        sub	rsp, 32
         call	sp_2048_sqr_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
+        sub	rsp, 32
         call	sp_2048_sqr_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
@@ -36002,15 +36092,21 @@ sp_4096_sqr_avx2_64 PROC
         mov	QWORD PTR [r10+248], r8
         mov	rdx, r10
         mov	rcx, rsp
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
         add	rdx, 256
         add	rcx, 512
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_32
+        add	rsp, 32
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
+        sub	rsp, 32
         call	sp_2048_sqr_avx2_32
+        add	rsp, 32
 IFDEF _WIN64
         mov	rdx, QWORD PTR [rsp+520]
         mov	rcx, QWORD PTR [rsp+512]
@@ -38374,9 +38470,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 512
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_4096_cond_sub_64
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -43757,7 +43853,7 @@ sp_256_mont_tpl_4 PROC
         mov	r12, 18446744069414584321
         adc	r9, QWORD PTR [rdx+16]
         adc	r10, QWORD PTR [rdx+24]
-        sbb	r13, r13
+        sbb	r13, 0
         mov	r11d, r13d
         and	r12, r13
         sub	rax, r13
@@ -43909,7 +44005,7 @@ sp_256_mont_rsb_sub_dbl_4 PROC
         mov	rsi, 18446744069414584321
         sbb	r10, r14
         sbb	r11, r15
-        sbb	rdx, rdx
+        sbb	rdx, 0
         mov	edi, edx
         and	rsi, rdx
         add	rax, rdx
@@ -47564,9 +47660,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 48
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_384_cond_sub_6
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -52987,9 +53083,9 @@ ELSE
         mov	r8, r9
 ENDIF
         mov	rdx, rcx
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_521_cond_sub_9
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15
@@ -62874,9 +62970,9 @@ ELSE
 ENDIF
         mov	rdx, rcx
         sub	rcx, 128
-        sub	rsp, 8
+        sub	rsp, 40
         call	sp_1024_cond_sub_16
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         pop	rdi
         pop	r15

@@ -45182,7 +45182,7 @@ _sp_256_mont_tpl_4:
         movq	$0xffffffff00000001, %r10
         adcq	16(%rsi), %rcx
         adcq	24(%rsi), %r8
-        sbbq	%r11, %r11
+        sbbq	$0x00, %r11
         movl	%r11d, %r9d
         andq	%r11, %r10
         subq	%r11, %rdx
@@ -45361,7 +45361,7 @@ _sp_256_mont_rsb_sub_dbl_4:
         movq	$0xffffffff00000001, %r15
         sbbq	%r12, %r8
         sbbq	%r13, %r9
-        sbbq	%rsi, %rsi
+        sbbq	$0x00, %rsi
         movl	%esi, %r14d
         andq	%rsi, %r15
         addq	%rsi, %rax

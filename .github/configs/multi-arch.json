@@ -20,7 +20,7 @@
  "configure": ["--host=riscv64-linux-gnu", "--enable-all",
   "--disable-examples",
   "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFCRYPT_TEST_LINT",
-  "--enable-riscv-asm", "CFLAGS=-O0"],
+  "--enable-riscv-asm", "--enable-sp-asm", "CFLAGS=-O0"],
  "check": false,
  "run": [["env", "QEMU_LD_PREFIX=/usr/riscv64-linux-gnu", "./wolfcrypt/test/testwolfcrypt"]]},
 {"name": "armel-o0", "minutes": 4,

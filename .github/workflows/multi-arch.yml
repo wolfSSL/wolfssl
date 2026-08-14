@@ -63,6 +63,12 @@ jobs:
       # run testwolfcrypt transparently under qemu-user (binfmt) with the
       # matching QEMU_LD_PREFIX.
       #
+      # Because --enable-riscv-asm does not imply it, riscv64-o0 passes
+      # --enable-sp-asm explicitly: it is the only job that compiles
+      # sp_riscv64.c at all. -O0 is the one to carry it, since that is where
+      # the frame pointer is always live and so where an asm operand or
+      # clobber that names s0 is rejected.
+      #
       # The list is kept out of this file on purpose: GitHub caps a single
       # `run:` step at 21000 characters, and an inlined heredoc is what
       # silently pushed os-check.yml past that cap - the whole file then

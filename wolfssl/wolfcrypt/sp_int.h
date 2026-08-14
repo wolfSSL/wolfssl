@@ -204,7 +204,8 @@ extern "C" {
 #if !defined(WOLFSSL_SP_ASM) && ( \
       defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
       defined(WOLFSSL_SP_ARM64_ASM)  || defined(WOLFSSL_SP_ARM_THUMB_ASM) || \
-      defined(WOLFSSL_SP_ARM_CORTEX_M_ASM))
+      defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) || \
+      defined(WOLFSSL_SP_RISCV64_ASM))
     #define WOLFSSL_SP_ASM
 #endif
 
@@ -250,7 +251,7 @@ extern "C" {
     #define SP_WORD_SIZE 64
 #elif defined(WOLFSSL_SP_RISCV32)
     #define SP_WORD_SIZE 32
-#elif defined(WOLFSSL_SP_RISCV64)
+#elif defined(WOLFSSL_SP_RISCV64_ASM) || defined(WOLFSSL_SP_RISCV64)
     #define SP_WORD_SIZE 64
 #elif defined(WOLFSSL_SP_S390X)
     #define SP_WORD_SIZE 64

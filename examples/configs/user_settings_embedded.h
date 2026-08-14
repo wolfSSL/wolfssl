@@ -849,6 +849,12 @@ extern "C" {
     #if WC_CFG_ASM_SP
         #define WOLFSSL_SP_RISCV64
     #endif
+    /* Specialised SP assembly, inline in sp_riscv64.c. Needs only the base
+     * integer ISA plus M, so it is selected by WC_CFG_ASM_SP alone and is
+     * independent of the extensions WC_CFG_ASM_CRYPTO switches on below. */
+    #if WC_CFG_ASM_SP
+        #define WOLFSSL_SP_RISCV64_ASM
+    #endif
     #if WC_CFG_ASM_CRYPTO
         #define WOLFSSL_RISCV_ASM
         #if WC_CFG_RISCV_BITMANIP
