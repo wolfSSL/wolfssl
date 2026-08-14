@@ -280,6 +280,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set_ecdh_auto           wolfSSL_CTX_set_ecdh_auto
 
 #define i2d_PUBKEY                      wolfSSL_i2d_PUBKEY
+#define i2d_PUBKEY_bio                  wolfSSL_i2d_PUBKEY_bio
 #define i2d_X509_PUBKEY                 wolfSSL_i2d_X509_PUBKEY
 #define d2i_PUBKEY                      wolfSSL_d2i_PUBKEY
 #define d2i_PUBKEY_bio                  wolfSSL_d2i_PUBKEY_bio
@@ -1898,11 +1899,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define X509_OBJECT_new                 wolfSSL_X509_OBJECT_new
 #define X509_OBJECT_free                wolfSSL_X509_OBJECT_free
 #define X509_OBJECT_get_type            wolfSSL_X509_OBJECT_get_type
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define OpenSSL_version(x)              wolfSSL_OpenSSL_version(x)
-#else
-#define OpenSSL_version(x)              wolfSSL_OpenSSL_version()
-#endif
 
 #define X509_OBJECT_retrieve_by_subject wolfSSL_X509_OBJECT_retrieve_by_subject
 

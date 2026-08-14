@@ -2512,6 +2512,8 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,
         const unsigned char** in, long inSz);
 WOLFSSL_API int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der);
+WOLFSSL_API int wolfSSL_i2d_PUBKEY_bio(WOLFSSL_BIO* bio,
+        const WOLFSSL_EVP_PKEY* key);
 WOLFSSL_API int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
                                         unsigned char** der);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** pkey,
@@ -3556,11 +3558,7 @@ WOLFSSL_API void   wolfSSL_set_security_level(WOLFSSL * ssl, int level);
 
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-WOLFSSL_API const char* wolfSSL_OpenSSL_version(int a);
-#else
-WOLFSSL_API const char* wolfSSL_OpenSSL_version(void);
-#endif
+WOLFSSL_API const char* wolfSSL_OpenSSL_version(int type);
 /* which library version do we have in hex */
 WOLFSSL_API word32 wolfSSL_lib_version_hex(void);
 
