@@ -3503,7 +3503,11 @@ int test_tls12_aesgcm_record_nonce_unique(void)
 
     /* The records are still valid: the peer authenticates and decrypts each. */
     for (i = 0; i < TEST_TLS12_NONCE_RECS && EXPECT_SUCCESS(); i++) {
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* Clear any pending state left by the previous record so the first
+         * pass reads rather than polls. */
         err = 0;
+    #endif
         do {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
