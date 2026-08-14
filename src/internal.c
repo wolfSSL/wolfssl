@@ -24051,6 +24051,11 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
                 code != close_notify && code != user_canceled) {
             ssl->options.isClosed = 1;
         }
+#ifdef OPENSSL_EXTRA
+        if (ssl->CBIS != NULL) {
+            ssl->CBIS(ssl, WOLFSSL_CB_READ_ALERT, (level << 8) | code);
+        }
+#endif
     }
 
     if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
@@ -29409,7 +29414,9 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
 
    #ifdef OPENSSL_EXTRA
         if (ssl->CBIS != NULL) {
-            ssl->CBIS(ssl, WOLFSSL_CB_ALERT, type);
+            /* OpenSSL flags the direction and packs the alert as
+             * (level << 8) | description. */
+            ssl->CBIS(ssl, WOLFSSL_CB_WRITE_ALERT, (severity << 8) | type);
         }
    #endif
    #ifdef WOLFSSL_DTLS
