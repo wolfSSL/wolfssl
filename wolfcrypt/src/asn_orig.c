@@ -3897,7 +3897,9 @@ int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage)
 
     *extKeyUsage = (word16)(input[idx]);
     if (length == 2)
-        *extKeyUsage |= (word16)(input[idx+1] << 8);
+        /* Cast first: a 0x80 byte overflows the shift where int is
+         * 16-bit. */
+        *extKeyUsage |= (word16)((word32)input[idx+1] << 8);
 
     return 0;
 }

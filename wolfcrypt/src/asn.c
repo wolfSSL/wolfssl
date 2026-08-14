@@ -814,6 +814,23 @@ static word32 SizeASN_Num(word32 n, int bits, byte tag)
     return len;
 }
 
+/* Size of a DER BIT STRING holding a 16-bit word.
+ *
+ * KeyUsage layout: bit 0 is the top bit of the LOW byte, so the low byte is
+ * the first content byte and a set bit 8 needs a second. Opposite word
+ * layout to SizeASN_BitString32().
+ *
+ * @param [in] n  16-bit word to be encoded.
+ * @return  Number of bytes of the ASN.1 item.
+ */
+static word32 SizeASN_BitString16(word16 n)
+{
+    word32 len = ((n >> 8) != 0) ? 2 : 1;
+
+    /* Tag, length, unused bits byte and data. */
+    return 1 + 1 + 1 + len;
+}
+
 #ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
 /* Calculate the size of a DER encoded BIT STRING of a 32-bit word.
  *
@@ -916,7 +933,13 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count,
                 len = SizeASN_Num(data[i].data.u8, 8, asn[i].tag);
                 break;
             case ASN_DATA_TYPE_WORD16:
-                len = SizeASN_Num(data[i].data.u16, 16, asn[i].tag);
+                /* BIT_STRING is a named bit string in a 16-bit word. */
+                if (asn[i].tag == ASN_BIT_STRING) {
+                    len = SizeASN_BitString16(data[i].data.u16);
+                }
+                else {
+                    len = SizeASN_Num(data[i].data.u16, 16, asn[i].tag);
+                }
                 break;
         #ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
             case ASN_DATA_TYPE_WORD32:
@@ -1094,6 +1117,45 @@ static void SetASN_Num(word32 n, int bits, byte* out, byte tag)
         out[idx++] = (byte)(n >> j);
 }
 
+/* DER encode a BIT STRING from a 16-bit word.
+ *
+ * KeyUsage layout: the low byte goes out first, the high byte only when it
+ * carries a set bit, and the unused-bit count belongs to the last byte
+ * written. Mirrors SetBitString16Bit() on the non-template path.
+ *
+ * Assumes that the out buffer is large enough for encoding.
+ *
+ * @param [in]  n    16-bit word to be encoded.
+ * @param [out] out  Buffer holding the item. The caller has already written
+ *                   the tag at out[0]; the length, unused-bit count and data
+ *                   are written from out[1] on.
+ */
+static void SetASN_BitString16(word16 n, byte* out)
+{
+    byte len = 1;
+    byte lastByte = (byte)n;
+    byte unusedBits = 0;
+    word32 idx = 3;
+
+    if ((n >> 8) != 0) {
+        len = 2;
+        lastByte = (byte)(n >> 8);
+    }
+
+    if (lastByte != 0) {
+        /* Count trailing zero bits of the last byte written. */
+        while (((lastByte >> unusedBits) & 0x01) == 0x00)
+            unusedBits++;
+    }
+
+    /* Length includes unused bits byte. */
+    out[1] = (byte)(1 + len);
+    out[2] = unusedBits;
+    out[idx++] = (byte)n;
+    if (len > 1)
+        out[idx] = (byte)(n >> 8);
+}
+
 #ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
 /* Create the DER encoding of a BIT STRING from a 32-bit word.
  *
@@ -1190,7 +1252,13 @@ int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
                 SetASN_Num(data[i].data.u8, 8, out, asn[i].tag);
                 break;
             case ASN_DATA_TYPE_WORD16:
-                SetASN_Num(data[i].data.u16, 16, out, asn[i].tag);
+                /* BIT_STRING is a named bit string in a 16-bit word. */
+                if (asn[i].tag == ASN_BIT_STRING) {
+                    SetASN_BitString16(data[i].data.u16, out);
+                }
+                else {
+                    SetASN_Num(data[i].data.u16, 16, out, asn[i].tag);
+                }
                 break;
         #ifdef WOLFSSL_ASN_TEMPLATE_NEED_SET_INT32
             case ASN_DATA_TYPE_WORD32:
@@ -14790,7 +14858,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     int nid         = 0;
 #endif
-    int tmpSize     = MAX_OID_SZ;
+    word32 tmpSize  = MAX_OID_SZ;
     word32 oid      = 0;
     word32 idx      = 0;
     word16 tmpName[MAX_OID_SZ];
@@ -14820,17 +14888,17 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         {
             /* Decode OBJECT_ID into dotted form array. */
             ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
-                    tmpName, (word32*)&tmpSize);
+                    tmpName, &tmpSize);
 
             if (ret == 0) {
                 j = 0;
                 /* Append each number of dotted form. */
-                for (i = 0; i < tmpSize; i++) {
+                for (i = 0; (word32)i < tmpSize; i++) {
                     if (j >= MAX_OID_SZ) {
                         return BUFFER_E;
                     }
 
-                    if (i < tmpSize - 1) {
+                    if ((word32)i < tmpSize - 1) {
                         ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
                             "%d.", tmpName[i]);
                     }
@@ -20750,7 +20818,9 @@ int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage)
         /* Decode the bit string number as LE */
         *extKeyUsage = (word16)(keyUsage[0]);
         if (keyUsageSz == 2)
-            *extKeyUsage |= (word16)(keyUsage[1] << 8);
+            /* Cast first: a 0x80 byte overflows the shift where int is
+             * 16-bit. */
+            *extKeyUsage |= (word16)((word32)keyUsage[1] << 8);
     }
     return ret;
 }
@@ -23959,6 +24029,7 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     word32      startIdx;
     word32      idx;
     word32      length;
+    int         seqLen;
     int         badDate;
 
     if (certDer == NULL || certDerSz == 0 || pubKeyDerSz == NULL) {
@@ -23969,6 +24040,7 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
         return MEMORY_E);
 
     length = 0;
+    seqLen = 0;
     badDate = 0;
 
     wc_InitDecodedCert(cert, certDer, certDerSz, NULL);
@@ -23981,8 +24053,9 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
 
         /* Get the length of the SubjectPublicKeyInfo sequence */
         idx = startIdx;
-        ret = GetSequence(certDer, &idx, (int*)&length, certDerSz);
+        ret = GetSequence(certDer, &idx, &seqLen, certDerSz);
         if (ret >= 0) {
+            length = (word32)seqLen;
             /* Calculate total length including sequence header */
             length += (idx - startIdx);
 
@@ -24178,7 +24251,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 #endif
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
-    int    idx = 0;
+    word32 idx = 0;
 #endif
     byte*  sce_tsip_encRsaKeyIdx;
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -24752,7 +24825,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
     /* prepare for TSIP TLS cert verification API use */
     if (cert->keyOID == RSAk) {
         /* to call TSIP API, it needs keys position info in bytes */
-        if ((ret = RsaPublicKeyDecodeRawIndex(cert->publicKey, (word32*)&idx,
+        if ((ret = RsaPublicKeyDecodeRawIndex(cert->publicKey, &idx,
                                    cert->pubKeySize,
                                    &cert->sigCtx.CertAtt.pubkey_n_start,
                                    &cert->sigCtx.CertAtt.pubkey_n_len,
@@ -26055,6 +26128,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     int i;
     int err;
     int outLen;   /* return length or error */
+    word32 outLenSz;  /* Base64_Encode in/out length */
 
     (void)cipher_info;
 
@@ -26103,12 +26177,13 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     if (!output && outSz == 0) {
         WC_FREE_VAR_EX(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         WC_FREE_VAR_EX(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        outLen = 0;
-        if ((err = Base64_Encode(der, derSz, NULL, (word32*)&outLen))
+        outLenSz = 0;
+        if ((err = Base64_Encode(der, derSz, NULL, &outLenSz))
                 != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             WOLFSSL_ERROR_VERBOSE(err);
             return err;
         }
+        outLen = (int)outLenSz;
         return (int)headerLen + (int)footerLen + outLen;
     }
 
@@ -26131,13 +26206,16 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     WC_FREE_VAR_EX(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* body */
-    outLen = (int)outSz - (int)(headerLen + footerLen);  /* input to Base64_Encode */
-    if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0) {
+    /* body - capacity for Base64_Encode. Kept in word32: the size guard above
+     * already established outSz >= headerLen + footerLen + derSz, and going
+     * via int would truncate where int is 16-bit. */
+    outLenSz = outSz - ((word32)headerLen + (word32)footerLen);
+    if ( (err = Base64_Encode(der, derSz, output + i, &outLenSz)) < 0) {
         WC_FREE_VAR_EX(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_ERROR_VERBOSE(err);
         return err;
     }
+    outLen = (int)outLenSz;
     i += outLen;
 
     /* footer */
