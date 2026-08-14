@@ -557,7 +557,13 @@ static int wc_SrpGenPrivate(Srp* srp, byte* priv, word32 size)
     WC_RNG rng;
     int r;
 
-    r = wc_InitRng_ex(&rng, srp->heap, INVALID_DEVID);
+#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
+    r = wc_InitRng_BankRef(NULL /* bank */, &rng);
+    if (r != 0)
+#endif
+    {
+        r = wc_InitRng_ex(&rng, srp->heap, INVALID_DEVID);
+    }
     if (r == 0) {
         r = wc_RNG_GenerateBlock(&rng, priv, size);
         if (r == 0) {
