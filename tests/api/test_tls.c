@@ -388,9 +388,26 @@ int test_tls_peer_name_mismatch_verify_cb(void)
     return EXPECT_RESULT();
 }
 
+/* One macro per group test_tls_get_peer_tmp_key() can exercise, so that the
+ * helper below is never compiled without a caller. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_RSA) && !defined(NO_CERTS)
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_SHA256)
+    #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+        (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+        #define TEST_PEER_TMP_KEY_ECC
+    #endif
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE25519) && !defined(HAVE_FIPS)
+        #define TEST_PEER_TMP_KEY_X25519
+    #endif
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE448) && !defined(HAVE_FIPS)
+        #define TEST_PEER_TMP_KEY_X448
+    #endif
+#endif
+
+#if defined(TEST_PEER_TMP_KEY_ECC) || defined(TEST_PEER_TMP_KEY_X25519) || \
+    defined(TEST_PEER_TMP_KEY_X448)
 static int test_peer_tmp_key_group(int group, int tls13)
 {
     EXPECT_DECLS;
@@ -446,11 +463,7 @@ static int test_peer_tmp_key_group(int group, int tls13)
 int test_tls_get_peer_tmp_key(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_SHA256)
-#if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
-    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+#ifdef TEST_PEER_TMP_KEY_ECC
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 0),
         TEST_SUCCESS);
@@ -459,13 +472,12 @@ int test_tls_get_peer_tmp_key(void)
     ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 1),
         TEST_SUCCESS);
 #endif
-#endif /* HAVE_ECC */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE25519) && !defined(HAVE_FIPS)
+#endif
+#ifdef TEST_PEER_TMP_KEY_X25519
     ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X25519, 1), TEST_SUCCESS);
 #endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE448) && !defined(HAVE_FIPS)
+#ifdef TEST_PEER_TMP_KEY_X448
     ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X448, 1), TEST_SUCCESS);
-#endif
 #endif
     return EXPECT_RESULT();
 }
