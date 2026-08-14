@@ -954,15 +954,18 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         certs = certs->next;
     }
 
-    /* certs are now incorporated into pkcs7; take ownership (earlier failures leave ownership with the caller). */
-    p7->certs = certHead;
-
     if (wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID) != 0) {
         WOLFSSL_MSG("wc_PKCS7_SetSignerIdentifierType error");
         return WOLFSSL_FAILURE;
     }
 
     ret = wolfSSL_i2d_PKCS7_bio(out, pkcs7);
+
+    /* Transfer stack ownership only on full success; every failure path leaves
+     * p7->certs NULL so the caller still owns certs and cannot double-free. */
+    if (ret == WOLFSSL_SUCCESS) {
+        p7->certs = certHead;
+    }
 
     return ret;
 }
