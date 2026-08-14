@@ -804,7 +804,7 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
-        /* Hand the encrypt the nonce out of ivOut rather than aes->reg -
+        /* Pass the encrypt its nonce out of ivOut rather than aes->reg -
          * AesAuthSetIv() leaves the GHASH result in aes->reg for a nonce that
          * is not 96 bits, so aes->reg does not survive the call. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);

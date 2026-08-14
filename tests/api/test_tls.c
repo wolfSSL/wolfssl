@@ -3384,6 +3384,14 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
 /* Payload size - above WC_ASYNC_THRESH_AES_GCM for every async backend so an
  * async build actually offloads the record encryption. */
 #define TEST_TLS12_NONCE_PAYLOAD 256
+/* Drive the record cipher through the software async simulator where the build
+ * has one. Non-blocking math livelocks the async re-drive - see
+ * test_tls13_pqc_hybrid_async_server() - so those builds run the test on the
+ * synchronous path, where it pins the same invariant. */
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ECC_NONBLOCK) && \
+    !defined(WOLFSSL_SP_NONBLOCK)
+    #define TEST_TLS12_NONCE_ASYNC
+#endif
 
 /*
  * A TLS 1.2 AES-GCM sender must never reuse a nonce under one traffic key
@@ -3431,7 +3439,7 @@ int test_tls12_aesgcm_record_nonce_unique(void)
     XMEMSET(payload, 0x5a, sizeof(payload));
     test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#ifdef TEST_TLS12_NONCE_ASYNC
     /* Offload the record cipher so the WC_PENDING_E path is taken. A hardware
      * device returns its devId, so any non-negative value is a good open. */
     ExpectIntGE(wolfAsync_DevOpen(&devId), 0);
@@ -3439,7 +3447,7 @@ int test_tls12_aesgcm_record_nonce_unique(void)
 
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-#ifdef WOLFSSL_ASYNC_CRYPT
+#ifdef TEST_TLS12_NONCE_ASYNC
     ExpectIntEQ(wolfSSL_SetDevId(ssl_c, devId), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_SetDevId(ssl_s, devId), WOLFSSL_SUCCESS);
 #endif
@@ -3516,7 +3524,7 @@ int test_tls12_aesgcm_record_nonce_unique(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-#ifdef WOLFSSL_ASYNC_CRYPT
+#ifdef TEST_TLS12_NONCE_ASYNC
     wolfAsync_DevClose(&devId);
 #endif
     (void)devId;

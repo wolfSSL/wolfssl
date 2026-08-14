@@ -14917,7 +14917,7 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
-        /* Hand the encrypt the nonce out of ivOut rather than aes->reg. Some
+        /* Pass the encrypt its nonce out of ivOut rather than aes->reg. Some
          * backends use aes->reg as scratch space, and an asynchronous backend
          * keeps the pointer until the operation completes, so aes->reg is not
          * a stable place to hold the nonce being consumed. */
