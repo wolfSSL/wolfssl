@@ -71,6 +71,11 @@
  * WOLFSSL_TICKET_HAVE_ID:   Session tickets include ID            default: off
  *                            Forced on when WOLFSSL_EARLY_DATA is set.
  * WOLFSSL_TICKET_NONCE_MALLOC: Dynamically allocate ticket nonce  default: off
+ * WOLFSSL_TLS13_TICKET_NO_PSK_MODES: Send NewSessionTicket even   default: off
+ *                            when the ClientHello advertised no usable
+ *                            psk_key_exchange_modes. Restores the pre-check
+ *                            behaviour; RFC 9846 Sections 4.3.9 and 4.7.1 say
+ *                            the server should not send such a ticket.
  *
  * TLS 1.3 Key Exchange:
  * HAVE_KEYING_MATERIAL:     Export keying material (RFC 8446 7.5) default: off
@@ -13811,6 +13816,48 @@ restore:
 }
 #endif
 
+/* Check the client advertised a PSK key exchange mode a resumption ticket can
+ * be used with.
+ *
+ * RFC 9846 Section 4.3.9: psk_key_exchange_modes restricts both the PSKs
+ * offered in the ClientHello and those the server might supply through
+ * NewSessionTicket, and servers should not send tickets that are incompatible
+ * with the advertised modes. RFC 9846 Section 4.7.1 makes sending a ticket
+ * conditional on the client's hello carrying a suitable extension.
+ *
+ * ssl  The SSL/TLS object.
+ * returns 0 when a ticket may be sent, MISSING_HANDSHAKE_DATA when the
+ *         extension was not received and PSK_KEY_ERROR when none of the
+ *         advertised modes is usable.
+ */
+static int CheckTls13TicketPskModes(WOLFSSL* ssl)
+{
+#ifndef WOLFSSL_TLS13_TICKET_NO_PSK_MODES
+    if (!ssl->options.pskKeModesRecvd) {
+        WOLFSSL_MSG("No psk_key_exchange_modes in ClientHello");
+        return MISSING_HANDSHAKE_DATA;
+    }
+
+    if ((ssl->options.pskKeModes & (1 << PSK_KE)) != 0
+    #ifdef HAVE_SUPPORTED_CURVES
+        && !ssl->options.onlyPskDheKe
+    #endif
+        ) {
+        return 0;
+    }
+    if ((ssl->options.pskKeModes & (1 << PSK_DHE_KE)) != 0 &&
+            !ssl->options.noPskDheKe) {
+        return 0;
+    }
+
+    WOLFSSL_MSG("No usable psk_key_exchange_modes advertised by client");
+    return PSK_KEY_ERROR;
+#else
+    (void)ssl;
+    return 0;
+#endif
+}
+
 /* Send New Session Ticket handshake message.
  * Message contains the information required to perform resumption.
  *
@@ -13831,6 +13878,12 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     if (DefTicketHintTooLarge(ssl)) {
         WOLFSSL_MSG("Ticket hint exceeds half the ticket key lifetime; "
+                    "skipping ticket");
+        return 0;
+    }
+
+    if (CheckTls13TicketPskModes(ssl) != 0) {
+        WOLFSSL_MSG("Client advertised no usable PSK key exchange mode; "
                     "skipping ticket");
         return 0;
     }
@@ -17045,17 +17098,27 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
  * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
  *         SIDE_ERROR when not a server,
  *         NOT_READY_ERROR when handshake not complete,
+ *         MISSING_HANDSHAKE_DATA when the ClientHello had no
+ *         psk_key_exchange_modes extension,
+ *         PSK_KEY_ERROR when no advertised PSK key exchange mode is usable,
  *         WOLFSSL_FATAL_ERROR when creating or sending message fails, and
  *         WOLFSSL_SUCCESS on success.
  */
 int wolfSSL_send_SessionTicket(WOLFSSL* ssl)
 {
+    int ret;
+
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;
     if (ssl->options.handShakeState != HANDSHAKE_DONE)
         return NOT_READY_ERROR;
+    ret = CheckTls13TicketPskModes(ssl);
+    if (ret != 0) {
+        WOLFSSL_ERROR_VERBOSE(ret);
+        return ret;
+    }
 
     if ((ssl->error = SendTls13NewSessionTicket(ssl)) != 0) {
         WOLFSSL_ERROR(ssl->error);
