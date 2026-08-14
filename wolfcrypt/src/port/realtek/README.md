@@ -41,8 +41,11 @@ RTL8735B / AmebaPro2 security blocks used by this port (from the
 
 ```c
 #define WOLFSSL_RTL8735B_HUK   /* enable the AmebaPro2 HUK device */
-#define WOLF_CRYPTO_CB        /* required -- HUK routes through crypto callbacks */
+#define WOLFSSL_RTL8735B_AES   /* optional: also enable the plaintext-key AES device */
+#define WOLF_CRYPTO_CB        /* required -- routes through crypto callbacks */
 ```
+
+`WOLFSSL_RTL8735B_AES` is optional and independent: it adds a second crypto-callback device that runs a caller-supplied AES key directly on the HW engine (no HUK binding). Enable it alongside `WOLFSSL_RTL8735B_HUK` to have both, or on its own for plaintext HW AES without the HUK ladder. `--enable-rtl8735b` enables both for the host compile-test. See [Plaintext-key AES device](#plaintext-key-aes-device) below.
 
 Set these in `user_settings.h`. The application/board CMake must add
 the AmebaPro2 HAL include directory (e.g.
@@ -64,7 +67,8 @@ Configurable (override in `user_settings.h` before including wolfSSL):
 
 | Macro                          | Default | Meaning                              |
 |--------------------------------|---------|--------------------------------------|
-| `WC_HUK_DEVID`                 | 810     | CryptoCb device id (STM32 uses 807-809) |
+| `WC_HUK_DEVID`                 | 810     | HUK-seed CryptoCb device id (STM32 uses 807-809) |
+| `WC_RTL8735B_AES_DEVID`       | 811     | Plaintext-key AES CryptoCb device id (`WOLFSSL_RTL8735B_AES`) |
 | `WC_RTL8735B_HUK_SK_IDX`      | 0xC     | Key-storage slot holding the HUK (KEY_STG_HUK1) |
 | `WC_RTL8735B_HKDF_PRK_IDX`    | 3       | Intermediate HKDF PRK slot           |
 | `WC_RTL8735B_DERIVED_WB_IDX`  | 4       | Derived working-key slot (AES uses it) |
@@ -160,11 +164,77 @@ OTP-resident key (scalar never in software) set `hk.otpPrkSel` to `1`/`2`
 (`ECDSA_OTP_PRK_1/2`) and leave `seed`/`wrapped` unused (that OTP path is
 implemented but unexercised -- it needs an OTP key provisioned).
 
+## Plaintext-key AES device
+
+The HUK device above always treats the AES key bytes as a derivation *seed*, never as a literal key. When you instead need to run an ordinary plaintext AES key on the HW engine -- and still keep HUK binding available for other keys -- enable `WOLFSSL_RTL8735B_AES`. It registers a *second*, independent crypto-callback device (`WC_RTL8735B_AES_DEVID`, default 811) that loads the caller's key directly via the raw-key HAL init (`hal_crypto_aes_gcm_init` / `hal_crypto_aes_ecb_init`) -- no HKDF ladder, no secure key slot. Both devices can be registered at once; an application selects per `Aes` which one to use by the `devId` it passes to `wc_AesInit`. Unlike the HUK device (256-bit seed only), the plaintext device accepts 128/192/256-bit keys.
+
+```c
+#include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
+
+/* Register both devices once. */
+wc_Rtl8735b_HukRegister(WC_HUK_DEVID);            /* 810: key used as HUK seed */
+wc_Rtl8735b_AesRegister(WC_RTL8735B_AES_DEVID);   /* 811: key used verbatim   */
+
+/* Plaintext AES-GCM on the HW engine (key is the real AES key, not a seed). */
+Aes aes;
+byte key[32];
+wc_AesInit(&aes, NULL, WC_RTL8735B_AES_DEVID);
+wc_AesGcmSetKey(&aes, key, sizeof(key));
+wc_AesGcmEncrypt(&aes, ct, pt, ptSz, iv, 12, tag, tagSz, aad, aadSz);
+wc_AesFree(&aes);
+
+wc_Rtl8735b_AesUnRegister(WC_RTL8735B_AES_DEVID);
+```
+
+The device services AES-GCM and AES-ECB (ECB is needed so `wc_AesGcmSetKey` can derive the GHASH subkey H through the callback under `WOLF_CRYPTO_CB_ONLY_AES`); other modes return `CRYPTOCB_UNAVAILABLE` so wolfCrypt falls back to software with the same plaintext key. GCM correctness is validated on RTL8735B hardware; the host compile-test (`--enable-rtl8735b`) exercises the dispatch through HAL stubs only.
+
+## Bringing the crypto engine up outside the FreeRTOS SDK (Zephyr and friends)
+
+`hal_crypto_engine_init()` returning 0 is **not** enough on its own. It ends by calling `hal_crypto_irq_enable()`, which registers the crypto ISR through the **ROM's** `hal_irq_set_vector()`. The ROM writes into whatever RAM vector table it was told about by `hal_vector_table_init()`. The FreeRTOS SDK's `ram_start()` calls that during startup; a Zephyr (or any non-SDK) image does not, and points `SCB->VTOR` at its own table instead. The registration therefore lands in a table nothing is using, `IRQ 44` (`SCrypto_IRQn`, or 35 `Crypto_IRQn` on a non-secure build) never reaches the handler, and because `hal_crypto_engine_init()` also sets `isIntMode = 1`, every operation blocks in `g_crypto_wait_done()` until its ~10M-iteration spin expires and returns `FAIL` (-1). wolfSSL surfaces that as `WC_HW_E` (-248) from the first `wc_AesGcmEncrypt`/`Decrypt`, with registration having succeeded.
+
+Steps for a non-SDK image:
+
+1. Call `hal_crypto_engine_init()` once (it is idempotent; `hal_crypto_engine_chk_init()` reports whether it ran). Clocks, function-enable and the IPsec reset are handled inside it by the ROM on B-cut silicon -- you do **not** need `hal_sys_peripheral_en(CRYPTO_SYS, ...)`.
+2. **Immediately after it, point the crypto IRQ at the HAL handler through your RTOS.** Under Zephyr with `CONFIG_DYNAMIC_INTERRUPTS=y`:
+
+   ```c
+   extern void crypto_handler(void);   /* hal_crypto.c */
+
+   hal_crypto_engine_init();
+   irq_disable(44);
+   irq_connect_dynamic(44, 9 /* SCrypto_IRQPri */,
+                       (void (*)(const void *))crypto_handler, NULL, 0);
+   irq_enable(44);
+   ```
+
+   Alternatively call `hal_vector_table_init(__get_MSP(), (int_vector_t *)SCB->VTOR)` early in your SoC init so *every* Realtek HAL `hal_irq_set_vector()` lands in the live table -- that also fixes the same latent problem for the SPI/I2C/I2S/Ethernet drivers. A third option is to install a polling `wait_done_func` on the adapter.
+
+   Do **not** simply clear `isIntMode`: `g_crypto_wait_done()` then returns success immediately and the caller reads the destination buffer before the DMA has finished.
+3. Call `hal_otp_init()` if you use the HUK / secure-key-slot paths (`WOLFSSL_RTL8735B_HUK`). Plaintext-key AES does not need it.
+4. Keep key / IV / AAD buffers **32-byte aligned** (this port already bounces unaligned ones); message and output buffers have no alignment requirement.
+5. Do **not** add your own `DCache_Clean`/`DCache_Invalidate` around the calls -- `hal_crypto_engine_init()` installs the ROM's cache callbacks, and the 32-byte requirement exists precisely because the ROM does line-granular maintenance.
+6. Keep DMA buffers out of PSRAM (`0x60000000`-`0x60400000`) and out of flash-XIP. SRAM and DDR are both fine.
+
+If an operation still fails, build with `WOLFSSL_DEBUG` (or `DEBUG_WOLFSSL`): every HAL failure now logs its raw vendor return code, which pins the cause exactly -- `-1` IRQ never arrived (this section), `-4` NULL pointer, `-5` engine not initialised or initialised against the other security state's adapter, `-6` key/IV/AAD not 32-byte aligned, `-10` AAD over the 496-byte FIFO, `-12` an operation without its matching `*_init`, `-14` payload not a multiple of 16, `-19` cache handling.
+
 ## Notes / limitations
 
-- The HAL GCM path assumes a 96-bit (12-byte) IV (standard J0). A non-12-byte
-  IV returns a hard error (not a software fallback, which would key off the seed
-  rather than the device-bound key).
+- The HAL GCM engine assumes a 96-bit (12-byte) IV (standard J0), and only
+  accepts a payload that is a non-zero multiple of 16 bytes with AAD of at most
+  496 bytes. An empty payload (GMAC) is additionally unusable because the HAL
+  reports success *without* computing a tag, so letting it through would emit
+  an all-zero tag.
+- **How those shapes are handled differs by device, and the difference is a
+  security property, not a style choice.** On the **HUK device** the `Aes` key
+  bytes are an HKDF *seed*, not a key: falling back to software would encrypt
+  and authenticate under the seed sitting in application RAM instead of the
+  device-bound slot key that never leaves hardware, so every unsupported shape
+  is a hard `BAD_FUNC_ARG`. In practice that means the HUK device serves whole
+  16-byte-multiple records only -- a partial-block record (most real TLS
+  traffic) is rejected, not silently downgraded. On the **plaintext-key
+  device** (`wc_Rtl8735b_AesRegister`) the software fallback uses the very same
+  literal key, so unsupported shapes return `CRYPTOCB_UNAVAILABLE` and
+  wolfCrypt's software GCM completes them transparently.
 - AES-CBC and AES-CTR chain in software over single-block
   `hal_crypto_aes_ecb_sk_*` calls because the HAL exposes no CBC/CTR secure-key
   variant; the key still stays in hardware. CTR maintains the wolfCrypt counter

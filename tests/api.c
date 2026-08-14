@@ -24191,6 +24191,92 @@ static int test_wc_EncryptPKCS8Key_rc4NoPad(void)
     return EXPECT_RESULT();
 }
 
+/* Negative: PKCS5v2 with a valid encryption algorithm but an hmacOid that maps
+ * to no OID must return a clean ALGO_ID_E, not dereference a NULL OidFromId()
+ * result. Exercises the NULL guards added in wc_EncryptPKCS8Key_ex. */
+static int test_wc_EncryptPKCS8Key_ex_badHmac(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
+ && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_ASN_CRYPT)
+    WC_RNG rng;
+    word32 outSz = 0;
+    /* At least HMAC_FIPS_MIN_KEY (14) bytes: a FIPS module older than v6.0.0
+     * rejects a shorter PBKDF2 password with HMAC_MIN_KEYLEN_E. */
+    const char password[] = "Lorem ipsum dolor sit amet";
+    byte plain[48];
+
+    XMEMSET(plain, 0, sizeof(plain));
+    plain[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    plain[1] = (byte)(sizeof(plain) - 2);
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    PRIVATE_KEY_UNLOCK();
+    /* out == NULL would normally return LENGTH_ONLY_E, but the hmacOid guard
+     * runs first, so a bogus hmacOid yields ALGO_ID_E cleanly (no crash). */
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(plain, (word32)sizeof(plain), NULL, &outSz,
+        password, (int)XSTRLEN(password), PKCS5, PBES2, AES256CBCb, NULL, 0,
+        WC_PKCS12_ITT_DEFAULT, 99999 /* hmacOid with no OID */, &rng, NULL),
+        WC_NO_ERR_TRACE(ALGO_ID_E));
+    PRIVATE_KEY_LOCK();
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Positive control for the guard above. The same call with a valid hmacOid
+ * must get past the hmacOid check and reach the normal length-query path
+ * (LENGTH_ONLY_E for out == NULL), proving the negative case really was
+ * rejected by the hmacOid guard and not by something earlier; then a full
+ * encrypt + wc_DecryptPKCS8Key round-trip recovers the input. */
+static int test_wc_EncryptPKCS8Key_ex_goodHmac(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS8) && !defined(NO_ASN) && !defined(NO_PWDBASED) \
+ && defined(WOLFSSL_AES_256) && !defined(NO_AES_CBC) && !defined(NO_ASN_CRYPT) \
+ && !defined(NO_SHA256) && !defined(NO_HMAC)
+    WC_RNG rng;
+    word32 outSz = 0;
+    word32 encSz = 0;
+    /* At least HMAC_FIPS_MIN_KEY (14) bytes: a FIPS module older than v6.0.0
+     * rejects a shorter PBKDF2 password with HMAC_MIN_KEYLEN_E. */
+    const char password[] = "Lorem ipsum dolor sit amet";
+    byte plain[48];
+    byte* enc = NULL;
+
+    XMEMSET(plain, 0, sizeof(plain));
+    plain[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    plain[1] = (byte)(sizeof(plain) - 2);
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    PRIVATE_KEY_UNLOCK();
+    /* Length query: a valid hmacOid must pass the guard and report a size. */
+    ExpectIntEQ(wc_EncryptPKCS8Key_ex(plain, (word32)sizeof(plain), NULL,
+        &outSz, password, (int)XSTRLEN(password), PKCS5, PBES2, AES256CBCb,
+        NULL, 0, WC_PKCS12_ITT_DEFAULT, HMAC_SHA256_OID, &rng, NULL),
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT(outSz, 0);
+
+    ExpectNotNull(enc = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (enc != NULL) {
+        encSz = outSz;
+        ExpectIntGT(encSz = (word32)wc_EncryptPKCS8Key_ex(plain,
+            (word32)sizeof(plain), enc, &encSz, password,
+            (int)XSTRLEN(password), PKCS5, PBES2, AES256CBCb, NULL, 0,
+            WC_PKCS12_ITT_DEFAULT, HMAC_SHA256_OID, &rng, NULL), 0);
+        /* Round-trip: decrypt in place and recover the original DER. */
+        ExpectIntGE(wc_DecryptPKCS8Key(enc, encSz, password,
+            (int)XSTRLEN(password)), (int)sizeof(plain));
+        ExpectBufEQ(enc, plain, sizeof(plain));
+        XFREE(enc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    PRIVATE_KEY_LOCK();
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wc_DecryptedPKCS8Key(void)
 {
     EXPECT_DECLS;
@@ -39117,6 +39203,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_EncryptPKCS8Key_blockAligned),
     TEST_DECL(test_wc_EncryptPKCS8Key_pbes1BlockAligned),
     TEST_DECL(test_wc_EncryptPKCS8Key_rc4NoPad),
+    TEST_DECL(test_wc_EncryptPKCS8Key_ex_badHmac),
+    TEST_DECL(test_wc_EncryptPKCS8Key_ex_goodHmac),
     TEST_DECL(test_wc_DecryptedPKCS8Key),
     TEST_DECL(test_wc_GetPkcs8TraditionalOffset),
 

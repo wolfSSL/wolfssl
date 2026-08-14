@@ -75,10 +75,53 @@ void wc_Stm32_DhukUnRegister(int devId);
     \param iv optional 16-byte iv; NULL selects ECB, non-NULL selects CBC.
     \param ivSz length of iv in bytes when iv is non-NULL; must be 16.
 
+    \sa wc_Stm32_Aes_Wrap_ex
     \sa wc_Stm32_DhukRegister
 */
 int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
     word32* outSz, const byte* iv, int ivSz);
+
+/*!
+    \ingroup STM32
+
+    \brief This function is wc_Stm32_Aes_Wrap() with the blob word order given
+    explicitly. The two build paths have historically produced different word
+    orders, so wc_Stm32_Aes_Wrap() keeps each path's established default and
+    this entry point lets a caller choose. Available on STM32 builds with
+    WOLFSSL_DHUK and a DHUK-capable SAES.
+
+    Pass WC_STM32_WRAP_ORDER_RAW for new provisioning: it is one format that
+    both the CubeMX/HAL and bare-metal builds agree on, and the same format
+    wc_Stm32_Aes_DhukOp_ex() and the DHUK crypto-callback derive path consume,
+    so a blob wrapped on one build is usable on the other. Pass
+    WC_STM32_WRAP_ORDER_LEGACY to read or regenerate blobs provisioned by the
+    CubeMX HAL_CRYPEx_WrapKey implementation shipped in wolfSSL 5.9.0 - 5.9.2,
+    which byte-reversed its input and output.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned if a required pointer is NULL, if inSz is not a
+    supported block size, if the iv is non-NULL with ivSz != 16, or (software-key
+    path) if the wrapping key length is not 16 or 32.
+    \return <0 A negative error code may be returned on a hardware error.
+
+    \param aes pointer to an initialized Aes; aes->devId selects the wrap key.
+    \param in pointer to the input key bytes to wrap.
+    \param inSz length of in in bytes.
+    \param out pointer to the output buffer for the wrapped key.
+    \param outSz on input the size of out; on output the bytes written.
+    \param iv optional 16-byte iv; NULL selects ECB, non-NULL selects CBC.
+    \param ivSz length of iv in bytes when iv is non-NULL; must be 16.
+    \param rawOrder WC_STM32_WRAP_ORDER_RAW (1) for the shared blob format, or
+    WC_STM32_WRAP_ORDER_LEGACY (0) for the byte-reversed CubeMX format. Define
+    WC_STM32_WRAP_DEFAULT_RAW_ORDER before including the header to change what
+    plain wc_Stm32_Aes_Wrap() passes here.
+
+    \sa wc_Stm32_Aes_Wrap
+    \sa wc_Stm32_Aes_DhukOp_ex
+    \sa wc_Stm32_DhukRegister
+*/
+int wc_Stm32_Aes_Wrap_ex(struct Aes* aes, const byte* in, word32 inSz,
+    byte* out, word32* outSz, const byte* iv, int ivSz, int rawOrder);
 
 /*!
     \ingroup STM32
