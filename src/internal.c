@@ -10306,6 +10306,30 @@ static WC_INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
         }
     }
 }
+
+#ifndef WOLFSSL_NO_TLS12
+/* Is the send sequence number at its last legal value? DtlsSEQIncrement()
+ * would wrap the word16 high half to 0 and reuse sequence numbers. */
+static WC_INLINE int DtlsSEQAtMax(WOLFSSL* ssl, int order)
+{
+#ifdef HAVE_SECURE_RENEGOTIATION
+    order = DtlsCheckOrder(ssl, order);
+#endif
+
+    if (order == PREV_ORDER) {
+        return ssl->keys.dtls_prev_sequence_number_hi == 0xFFFF &&
+               ssl->keys.dtls_prev_sequence_number_lo == 0xFFFFFFFFU;
+    }
+    else if (order == PEER_ORDER) {
+        /* the peer's sequence number is taken from the record */
+        return 0;
+    }
+    else {
+        return ssl->keys.dtls_sequence_number_hi == 0xFFFF &&
+               ssl->keys.dtls_sequence_number_lo == 0xFFFFFFFFU;
+    }
+}
+#endif /* !WOLFSSL_NO_TLS12 */
 #endif /* WOLFSSL_DTLS */
 
 #if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
@@ -26338,7 +26362,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
      * increments, so refuse at hi == lo == 0xFFFFFFFF (2^64-1): that last legal
      * value is deliberately sacrificed to avoid wrapping to 0 and reusing
      * sequence number 0. The caller must renegotiate or close. DTLS sequence
-     * numbers are epoch-scoped and handled elsewhere. */
+     * numbers are epoch-scoped and checked just below. */
     if (!sizeOnly && !ssl->options.dtls &&
             ssl->keys.sequence_number_hi == 0xFFFFFFFFU &&
             ssl->keys.sequence_number_lo == 0xFFFFFFFFU) {
@@ -26346,6 +26370,17 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
         return SEQUENCE_NUMBER_E;
     }
+
+#ifdef WOLFSSL_DTLS
+    /* RFC 6347 Sec 4.1: don't wrap the sequence number. Only protected records
+     * reach here, so the epoch 0 counter SendHelloVerifyRequest() copies from
+     * the peer is unaffected. */
+    if (!sizeOnly && ssl->options.dtls && DtlsSEQAtMax(ssl, epochOrder)) {
+        WOLFSSL_MSG("DTLS write sequence number would wrap");
+        WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+        return SEQUENCE_NUMBER_E;
+    }
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;

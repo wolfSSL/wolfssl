@@ -6110,6 +6110,51 @@ int test_dtls_old_seq_number(void)
     return EXPECT_RESULT();
 }
 
+int test_dtls12_seq_num_wrap(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "wrap";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* one below the last legal 48 bit sequence number */
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ssl_c->keys.dtls_sequence_number_hi = 0xFFFF;
+        ssl_c->keys.dtls_sequence_number_lo = 0xFFFFFFFEU;
+    }
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectIntEQ((int)ssl_c->keys.dtls_sequence_number_hi, 0xFFFF);
+        ExpectIntEQ(ssl_c->keys.dtls_sequence_number_lo, 0xFFFFFFFFU);
+    }
+
+    /* the next record would wrap the counter back to 0 */
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntLT(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectIntEQ((int)ssl_c->keys.dtls_sequence_number_hi, 0xFFFF);
+        ExpectIntEQ(ssl_c->keys.dtls_sequence_number_lo, 0xFFFFFFFFU);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*-- dtls12_missing_finished (api.c lines 32007,32068) ---*/
 int test_dtls12_missing_finished(void)
 {
