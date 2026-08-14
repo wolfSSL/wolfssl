@@ -802,6 +802,8 @@ int test_wolfSSL_shutdown_quic_alert_refused(void)
         WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
+        /* The peer's close_notify arrived, so the connection was established. */
+        ssl->options.handShakeDone = 1;
         ssl->options.closeNotify = 1;
         ExpectIntEQ(wolfSSL_shutdown(ssl), WOLFSSL_SUCCESS);
         /* The exchange really did complete. */
@@ -950,6 +952,7 @@ int test_wolfSSL_shutdown_no_notify(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         /* The connection went away before a close_notify could be sent. */
+        ssl->options.handShakeDone = 1;
         ssl->options.isClosed = 1;
         ssl->options.sentNotify = 0;
         ssl->error = WOLFSSL_ERROR_NONE;
@@ -971,6 +974,7 @@ int test_wolfSSL_shutdown_no_notify(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
+        ssl->options.handShakeDone = 1;
         ssl->options.connReset = 1;
         ssl->options.sentNotify = 0;
         ssl->error = WC_NO_ERR_TRACE(SOCKET_ERROR_E);
