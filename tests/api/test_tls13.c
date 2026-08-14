@@ -11616,7 +11616,7 @@ int test_tls13_cryptocb_async(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(WOLFSSL_TLS13_TICKET_NO_PSK_MODES) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 /* Drive a TLS 1.3 handshake up to, but not including, the server's final
  * wolfSSL_accept() - the call that runs the NewSessionTicket loop. */
@@ -11648,7 +11648,7 @@ int test_tls13_ticket_psk_modes(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(WOLFSSL_TLS13_TICKET_NO_PSK_MODES) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX* ctx_c = NULL;
     WOLFSSL_CTX* ctx_s = NULL;
@@ -11703,7 +11703,7 @@ int test_tls13_send_session_ticket_psk_modes(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    !defined(WOLFSSL_TLS13_TICKET_NO_PSK_MODES) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX* ctx_c = NULL;
     WOLFSSL_CTX* ctx_s = NULL;
