@@ -352,9 +352,106 @@ int test_tls_ems_server_disable(void)
 }
 
 
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE)
 /* A server that disables EMS declines resumption of a session that used EMS
- * from an EMS-offering client: full handshake instead of a fatal alert. */
+ * from an EMS-offering client: full handshake instead of a fatal alert.
+ * useTicket selects session-ticket resumption instead of session-ID
+ * resumption. */
+static int test_tls_ems_server_disable_resumption_ex(int useTicket)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *session = NULL;
+
+#ifndef HAVE_SESSION_TICKET
+    (void)useTicket;
+#endif
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Establish a session that uses EMS. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#ifdef HAVE_SESSION_TICKET
+    if (useTicket)
+        ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(session = wolfSSL_get1_session(ssl_c));
+    ExpectTrue(session->haveEMS);
+#ifdef HAVE_SESSION_TICKET
+    if (useTicket)
+        ExpectIntGT(session->ticketLen, 0);
+#endif
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_s), WOLFSSL_SUCCESS);
+    /* Verify the peer so the fallback's client auth cannot be satisfied by
+     * anything but the full handshake itself. */
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+
+    /* ClientHello */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server flight declining the resumption: the declined session or ticket
+     * must not count as peer auth for the full handshake. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_s->options.resuming, 0);
+    ExpectIntEQ(ssl_s->options.peerAuthGood, 0);
+
+    /* The handshake completes as a full handshake without EMS. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.haveEMS, 0);
+    ExpectIntEQ(ssl_s->options.haveEMS, 0);
+
+    wolfSSL_SESSION_free(session);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Server-side EMS disable declines EMS-session resumption gracefully, on
+ * both session-ID and session-ticket resumption. */
 int test_tls_ems_server_disable_resumption(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+        defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+        !defined(NO_SESSION_CACHE)
+    ExpectIntEQ(test_tls_ems_server_disable_resumption_ex(0), TEST_SUCCESS);
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    ExpectIntEQ(test_tls_ems_server_disable_resumption_ex(1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* A client that disables EMS must not offer an EMS-bound session: the session
+ * is declined at wolfSSL_set_session and a full handshake is done instead of
+ * an offer the server is required to reject (RFC 7627 5.3). */
+int test_tls_ems_client_disable_resumption(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_EXTENDED_MASTER) && \
@@ -386,10 +483,12 @@ int test_tls_ems_server_disable_resumption(void)
 
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, session), WOLFSSL_SUCCESS);
+    /* The EMS session is declined rather than offered without EMS. */
+    ExpectIntEQ(ssl_c->options.resuming, 0);
 
-    /* The handshake must complete as a full handshake without EMS. */
+    /* The handshake completes as a full handshake without EMS. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_s->options.resuming, 0);
     ExpectIntEQ(ssl_c->options.haveEMS, 0);
