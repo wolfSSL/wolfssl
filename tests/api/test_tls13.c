@@ -9432,3 +9432,142 @@ int test_tls13_send_session_ticket_psk_modes(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Build a NewSessionTicket handshake message carrying the given extensions
+ * block verbatim.  Returns the message length, including the handshake
+ * header, or -1 when it does not fit. */
+static int test_tls13_make_nst(byte* out, int outSz, const byte* exts,
+    int extsSz)
+{
+    static const byte body[] = {
+        0x00, 0x00, 0x0e, 0x10,             /* ticket_lifetime: 3600 */
+        0x01, 0x02, 0x03, 0x04,             /* ticket_age_add */
+        0x01, 0x00,                         /* ticket_nonce<1> */
+        0x00, 0x04, 0xde, 0xad, 0xbe, 0xef  /* ticket<4> */
+    };
+    int len = (int)sizeof(body) + OPAQUE16_LEN + extsSz;
+
+    if (outSz < HANDSHAKE_HEADER_SZ + len)
+        return -1;
+
+    out[0] = session_ticket;
+    out[1] = (byte)(len >> 16);
+    out[2] = (byte)(len >> 8);
+    out[3] = (byte)len;
+    XMEMCPY(out + HANDSHAKE_HEADER_SZ, body, sizeof(body));
+    c16toa((word16)extsSz, out + HANDSHAKE_HEADER_SZ + sizeof(body));
+    if (extsSz > 0) {
+        XMEMCPY(out + HANDSHAKE_HEADER_SZ + sizeof(body) + OPAQUE16_LEN, exts,
+            (size_t)extsSz);
+    }
+
+    return HANDSHAKE_HEADER_SZ + len;
+}
+
+/* Encrypt a post-handshake message with the server's keys and hand it to the
+ * client.  Returns 0 on success. */
+static int test_tls13_send_post_hs(struct test_memio_ctx* test_ctx,
+    WOLFSSL* ssl_s, const byte* msg, int msgSz)
+{
+    EXPECT_DECLS;
+    byte rec[256];
+    int recSz;
+
+    recSz = BuildTls13Message(ssl_s, rec, (int)sizeof(rec), msg, msgSz,
+        handshake, 0, 0, 0);
+    ExpectIntGT(recSz, 0);
+    ExpectIntLE(recSz, (int)sizeof(rec));
+    ExpectIntEQ(test_memio_inject_message(test_ctx, 1, (const char*)rec, recSz),
+        0);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 9846 Section 4.7.1 defines NewSessionTicket.extensions as a list of
+ * Section 4.3 Extension TLVs, and Section 6 requires a decode_error alert for
+ * a message that cannot be parsed.  The framing has to be checked whether or
+ * not early data - the only extension wolfSSL acts on there - is compiled in.
+ */
+int test_tls13_new_session_ticket_ext_framing(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    /* Well formed extension of an unknown type - must be ignored. */
+    static const byte extOk[] = { 0x12, 0x34, 0x00, 0x02, 0xaa, 0xbb };
+    /* Vector too short to hold an Extension header. */
+    static const byte extShort[] = { 0x00, 0x2a, 0x00 };
+    /* extension_data length runs past the end of the vector. */
+    static const byte extTrunc[] = { 0x12, 0x34, 0x00, 0x04, 0xaa, 0xbb };
+    struct {
+        const byte* exts;
+        int         extsSz;
+        int         expectErr;
+    } cases[] = {
+        { extOk,    (int)sizeof(extOk),    0             },
+        { extShort, (int)sizeof(extShort), BUFFER_ERROR  },
+        { extTrunc, (int)sizeof(extTrunc), BUFFER_ERROR  },
+    };
+    size_t i;
+    char buf[64];
+
+    for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_ALERT_HISTORY h;
+        byte msg[64];
+        int msgSz;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* Consume the server's own NewSessionTicket. */
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        msgSz = -1;
+        if (EXPECT_SUCCESS()) {
+            msgSz = test_tls13_make_nst(msg, (int)sizeof(msg), cases[i].exts,
+                cases[i].extsSz);
+        }
+        ExpectIntGT(msgSz, 0);
+        ExpectIntEQ(test_tls13_send_post_hs(&test_ctx, ssl_s, msg, msgSz),
+            TEST_SUCCESS);
+
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        if (cases[i].expectErr == 0) {
+            /* Accepted: no application data follows the ticket. */
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                cases[i].expectErr);
+            ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_tx.code, decode_error);
+            ExpectIntEQ(h.last_tx.level, alert_fatal);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
