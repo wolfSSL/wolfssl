@@ -3191,6 +3191,28 @@ if (WOLFSSL_CAAM)
    list(APPEND WOLFSSL_DEFINITIONS  "-DWOLFSSL_CAAM")
 endif()
 
+# NXP QorIQ SEC (the PowerPC T-series security engine). The value selects
+# the environment backend, mirroring --enable-sec-qoriq: "yes"/"baremetal"
+# for a flat physically addressed target, "linux" for user space on a
+# running kernel, "sim" for the host-runnable simulated backend the in-tree
+# tests use.
+add_option("WOLFSSL_SEC_QORIQ"
+    "Enable NXP QorIQ SEC engine, T1040/T2080 (default: disabled)"
+    "no" "yes;no;baremetal;linux;sim")
+if (WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ")
+    if (WOLFSSL_SEC_QORIQ STREQUAL "linux")
+        set(WOLFSSL_SEC_QORIQ_LINUX "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_LINUX")
+    elseif (WOLFSSL_SEC_QORIQ STREQUAL "sim")
+        set(WOLFSSL_SEC_QORIQ_SIM "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_SIM")
+    else()
+        set(WOLFSSL_SEC_QORIQ_BAREMETAL "yes")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEC_QORIQ_BAREMETAL")
+    endif()
+endif()
+
 if (WOLFSSL_ARIA)
    list(APPEND WOLFSSL_DEFINITIONS  "-DHAVE_ARIA")
 endif()

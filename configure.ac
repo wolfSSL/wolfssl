@@ -4716,6 +4716,8 @@ fi
 # NXP QorIQ SEC (the PowerPC T-series security engine, a CAAM derivative).
 # Takes a comma separated list selecting the environment backend, e.g.
 #   --enable-sec-qoriq=baremetal
+# "sim" selects the host-runnable simulated backend used by the in-tree
+# tests; it needs no hardware and runs on any architecture.
 AC_ARG_ENABLE([sec-qoriq],
     [AS_HELP_STRING([--enable-sec-qoriq],[Enable wolfSSL support for the NXP QorIQ SEC engine, T1040/T2080 (default: disabled)])],
     [ ENABLED_SEC_QORIQ=$enableval ],
@@ -4735,8 +4737,11 @@ then
         linux)
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_LINUX"
             ;;
+        sim)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEC_QORIQ_SIM"
+            ;;
         *)
-            AC_MSG_ERROR([Invalid choice for --enable-sec-qoriq: $v (want baremetal or linux)])
+            AC_MSG_ERROR([Invalid choice for --enable-sec-qoriq: $v (want baremetal, linux or sim)])
             ;;
       esac
     done

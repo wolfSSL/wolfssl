@@ -359,7 +359,10 @@ function(generate_build_flags)
     set(BUILD_MCAPI ${WOLFSSL_MCAPI} PARENT_SCOPE)
     set(BUILD_ASYNCCRYPT ${WOLFSSL_ASYNCCRYPT} PARENT_SCOPE)
     set(BUILD_WOLFEVENT ${WOLFSSL_ASYNCCRYPT} PARENT_SCOPE)
-    if(WOLFSSL_CRYPTOCB OR WOLFSSL_USER_SETTINGS)
+    if(WOLFSSL_CRYPTOCB OR WOLFSSL_USER_SETTINGS OR
+       (WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no"))
+        # settings.h forces WOLF_CRYPTO_CB on for the QorIQ SEC port, so the
+        # dispatcher source has to come along too.
         set(BUILD_CRYPTOCB "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_VAULTIC)
@@ -399,6 +402,9 @@ function(generate_build_flags)
     endif()
     if(WOLFSSL_CAAM)
         set(BUILD_CAAM "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no")
+        set(BUILD_SEC_QORIQ "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_HPKE OR WOLFSSL_USER_SETTINGS)
         set(BUILD_HPKE "yes" PARENT_SCOPE)
@@ -1322,6 +1328,19 @@ function(generate_lib_src_list LIB_SOURCES)
 
     if(BUILD_VAULTIC)
         list(APPEND LIB_SOURCES wolfcrypt/src/port/sealsq/vaultic.c)
+    endif()
+
+    if(BUILD_SEC_QORIQ)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/nxp/sec_qoriq.c
+            wolfcrypt/src/port/nxp/sec_qoriq_cb.c
+            wolfcrypt/src/port/nxp/sec_qoriq_hash.c
+            wolfcrypt/src/port/nxp/sec_qoriq_aes.c
+            wolfcrypt/src/port/nxp/sec_qoriq_rng.c
+            wolfcrypt/src/port/nxp/sec_qoriq_pkha.c
+            wolfcrypt/src/port/nxp/sec_qoriq_baremetal.c
+            wolfcrypt/src/port/nxp/sec_qoriq_linux.c
+            wolfcrypt/src/port/nxp/sec_qoriq_sim.c)
     endif()
 
     if(BUILD_CAAM)

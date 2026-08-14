@@ -466,6 +466,10 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
+
+#if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
+    #include <wolfssl/wolfcrypt/port/nxp/sec_qoriq.h>
+#endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
     #ifdef HAVE_INTEL_QA_SYNC
@@ -1127,6 +1131,9 @@ WOLFSSL_TEST_SUBROUTINE int ariagcm_test(MC_ALGID);
 
 #if defined(WOLF_CRYPTO_CB) && !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void);
+#endif
+#if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sec_qoriq_test(void);
 #endif
 #ifdef WOLFSSL_CERT_PIV
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void);
@@ -3490,6 +3497,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("crypto callback test failed!\n", ret);
     else
         TEST_PASS("crypto callback test passed!\n");
+#endif
+
+#if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
+    if ( (ret = sec_qoriq_test()) != 0)
+        TEST_FAIL("QorIQ SEC sim test failed!\n", ret);
+    else
+        TEST_PASS("QorIQ SEC sim test passed!\n");
 #endif
 
 #if defined(WOLFSSL_RTL8735B_HUK) && defined(WOLFSSL_RTL8735B_HOST_TEST)
@@ -79674,6 +79688,11 @@ typedef struct {
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
 #endif
+#ifndef NO_DH
+    int dhAgreeCount;      /* DH agree callback invocations */
+    int dhAgreeUnavail;    /* when set, DH agree declines the op so the
+                            * CRYPTOCB_UNAVAILABLE software fallback runs */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -80795,6 +80814,33 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         WOLFSSL_MSG_EX("CryptoDevCb: Pk Type %d\n", info->pk.type);
     #endif
 
+    #ifndef NO_DH
+        if (info->pk.type == WC_PK_TYPE_DH) {
+            DhKey* dhKey = info->pk.dh.key;
+            int    dhSaveDevId;
+
+            if (dhKey == NULL)
+                return BAD_FUNC_ARG;
+
+            /* Decline without counting so wc_DhAgree_Sync's software
+             * fallback path can be exercised. */
+            if (myCtx->dhAgreeUnavail)
+                return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+            myCtx->dhAgreeCount++;
+
+            /* Perform the agreement in software, with the device detached so
+             * wc_DhAgree() does not dispatch straight back here. */
+            dhSaveDevId = dhKey->devId;
+            dhKey->devId = INVALID_DEVID;
+            ret = wc_DhAgree(dhKey, info->pk.dh.agree, info->pk.dh.agreeSz,
+                info->pk.dh.priv, info->pk.dh.privSz,
+                info->pk.dh.otherPub, info->pk.dh.pubSz);
+            dhKey->devId = dhSaveDevId;
+
+            return ret;
+        }
+    #endif /* !NO_DH */
     #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
         !defined(WOLF_CRYPTO_CB_ONLY_RSA)
         if (info->pk.type == WC_PK_TYPE_RSA_PSS_VERIFY) {
@@ -83601,6 +83647,225 @@ static wc_test_ret_t shake_cb_copy_free_test(myCryptoDevCtx* myCtx,
 #endif /* WOLFSSL_SHA3 && SHAKE && (CB_COPY || CB_FREE) */
 
 #if !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048) && !defined(WC_NO_RNG)
+/* Own buffer size rather than DH_TEST_BUF_SIZE: that macro is defined inside
+ * the HAVE_FFDHE/WC_NO_RNG nest above and is not visible in every config that
+ * reaches here. FFDHE-2048 values are 256 bytes. */
+#define DH_CB_TEST_BUF_SIZE 256
+
+/* One FFDHE-2048 agreement bound to the device, to prove WC_PK_TYPE_DH
+ * reaches the callback. Uses a named group so nothing depends on parsing a
+ * key file, and generates only the ephemeral key pair, not the group. */
+static wc_test_ret_t dh_cryptocb_test(int cbDevId, myCryptoDevCtx* ctx)
+{
+    wc_test_ret_t ret;
+    word32 privSz = DH_CB_TEST_BUF_SIZE;
+    word32 pubSz  = DH_CB_TEST_BUF_SIZE;
+    word32 agreeSz = DH_CB_TEST_BUF_SIZE;
+    word32 agree2Sz = DH_CB_TEST_BUF_SIZE;
+    word32 i;
+    int    cbCnt;
+    int    saveDevId;
+    int    keyInit = 0, rngInit = 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    /* A DhKey holds several mp_int, which are large enough with SP math to
+     * blow a kernel module's 4 KB frame budget on their own. */
+    DhKey* key = (DhKey*)XMALLOC(sizeof *key, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    WC_RNG* rng = (WC_RNG*)XMALLOC(sizeof *rng, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    byte* priv = (byte*)XMALLOC(DH_CB_TEST_BUF_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    byte* pub = (byte*)XMALLOC(DH_CB_TEST_BUF_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    byte* agree = (byte*)XMALLOC(DH_CB_TEST_BUF_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    byte* agree2 = (byte*)XMALLOC(DH_CB_TEST_BUF_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (key == NULL || rng == NULL || priv == NULL || pub == NULL ||
+            agree == NULL || agree2 == NULL) {
+        ret = WC_TEST_RET_ENC_ERRNO;
+        goto exit_dh_cb;
+    }
+#else
+    DhKey  key[1];
+    WC_RNG rng[1];
+    byte   priv[DH_CB_TEST_BUF_SIZE];
+    byte   pub[DH_CB_TEST_BUF_SIZE];
+    byte   agree[DH_CB_TEST_BUF_SIZE];
+    byte   agree2[DH_CB_TEST_BUF_SIZE];
+#endif
+
+    /* INVALID_DEVID, not cbDevId: cryptocb_test()'s seed callback fakes
+     * entropy with an incrementing word32, so a device-bound RNG draws its
+     * seed from that counter and advances it. That shifts which values land
+     * in the next device-bound seed, and the SP 800-90B adaptive proportion
+     * test then rejects the repeated high bytes -- failing an unrelated later
+     * key generation. Only the DhKey below needs the device; the RNG just
+     * supplies the ephemeral private value. */
+    ret = wc_InitRng_ex(rng, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+    rngInit = 1;
+
+    ret = wc_InitDhKey_ex(key, HEAP_HINT, cbDevId);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+    keyInit = 1;
+
+    ret = wc_DhSetNamedKey(key, WC_FFDHE_2048);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+
+    ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+
+    /* Agree with our own public value through the device. The counter
+     * confirms the operation crossed the callback boundary rather than
+     * quietly staying in software. */
+    ret = wc_DhAgree(key, agree, &agreeSz, priv, privSz, pub, pubSz);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+    if (ctx->dhAgreeCount == 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_dh_cb;
+    }
+
+    /* Same agreement in software with the device detached: a mis-wired
+     * callback dispatch (an argument bound to the wrong wc_CryptoInfo
+     * field) shows up as a mismatched size or secret. */
+    saveDevId = key->devId;
+    key->devId = INVALID_DEVID;
+    ret = wc_DhAgree(key, agree2, &agree2Sz, priv, privSz, pub, pubSz);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    key->devId = saveDevId;
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+    if ((agree2Sz != agreeSz) || (XMEMCMP(agree, agree2, agreeSz) != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_dh_cb;
+    }
+
+    /* wc_DhAgree_ct promises constant time, which a callback cannot, so
+     * it must stay in software: no new callback invocation and the same
+     * secret, left-padded with zeros to the fixed prime size. */
+    cbCnt = ctx->dhAgreeCount;
+    agree2Sz = DH_CB_TEST_BUF_SIZE;
+    ret = wc_DhAgree_ct(key, agree2, &agree2Sz, priv, privSz, pub, pubSz);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+    if (ctx->dhAgreeCount != cbCnt) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_dh_cb;
+    }
+    if ((agree2Sz < agreeSz) ||
+            (XMEMCMP(agree2 + (agree2Sz - agreeSz), agree, agreeSz) != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_dh_cb;
+    }
+    for (i = 0; i < agree2Sz - agreeSz; i++) {
+        if (agree2[i] != 0) {
+            ret = WC_TEST_RET_ENC_NC;
+            goto exit_dh_cb;
+        }
+    }
+
+    /* A callback that returns CRYPTOCB_UNAVAILABLE must fall back to
+     * software and still produce the same secret. */
+    ctx->dhAgreeUnavail = 1;
+    agree2Sz = DH_CB_TEST_BUF_SIZE;
+    ret = wc_DhAgree(key, agree2, &agree2Sz, priv, privSz, pub, pubSz);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ctx->dhAgreeUnavail = 0;
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto exit_dh_cb;
+    }
+    if (ctx->dhAgreeCount != cbCnt) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_dh_cb;
+    }
+    if ((agree2Sz != agreeSz) || (XMEMCMP(agree, agree2, agreeSz) != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto exit_dh_cb;
+    }
+
+    /* The SP 800-56A peer-key check must run on every agreement, even
+     * right after callback-backed successes on the same DhKey: a peer value
+     * of 1 is outside [2, p-2] and must be rejected before any dispatch,
+     * so the callback counter must not move either. */
+    {
+        byte badPub = 1;
+
+        agree2Sz = DH_CB_TEST_BUF_SIZE;
+        ret = wc_DhAgree(key, agree2, &agree2Sz, priv, privSz, &badPub, 1);
+        if (ret != WC_NO_ERR_TRACE(DH_CHECK_PUB_E)) {
+            ret = WC_TEST_RET_ENC_NC;
+            goto exit_dh_cb;
+        }
+        ret = 0;
+        if (ctx->dhAgreeCount != cbCnt) {
+            ret = WC_TEST_RET_ENC_NC;
+            goto exit_dh_cb;
+        }
+    }
+
+exit_dh_cb:
+    if (keyInit)
+        wc_FreeDhKey(key);
+    if (rngInit)
+        wc_FreeRng(rng);
+    /* priv is the DH private exponent and agree the shared secret; clear
+     * both before they go back to the heap or out of scope. */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (priv != NULL)
+        ForceZero(priv, DH_CB_TEST_BUF_SIZE);
+    if (agree != NULL)
+        ForceZero(agree, DH_CB_TEST_BUF_SIZE);
+    if (agree2 != NULL)
+        ForceZero(agree2, DH_CB_TEST_BUF_SIZE);
+    XFREE(agree2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(agree, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rng, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ForceZero(priv, DH_CB_TEST_BUF_SIZE);
+    ForceZero(agree, DH_CB_TEST_BUF_SIZE);
+    ForceZero(agree2, DH_CB_TEST_BUF_SIZE);
+#endif
+
+    return ret;
+}
+#endif /* !NO_DH && HAVE_FFDHE_2048 && !WC_NO_RNG */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -83633,6 +83898,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     myCtx.rsaPssVerifyCount = 0;
 #endif
+#ifndef NO_DH
+    myCtx.dhAgreeCount = 0;
+    myCtx.dhAgreeUnavail = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -83659,6 +83928,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         ret = rsa_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
 #endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048) && !defined(WC_NO_RNG)
+    /* Agree once through the device on a fixed group. The counter confirms
+     * the agreement really crossed the callback boundary rather than quietly
+     * staying in software.
+     *
+     * Deliberately not dh_test(): the callback contract needs one agreement,
+     * not dh_generate_test()'s 2056 bit domain-parameter search, which is one
+     * of the slowest operations in the suite and is already covered by the
+     * standalone DH test. */
+    if (ret == 0)
+        ret = dh_cryptocb_test(devId, &myCtx);
+#endif /* !NO_DH && HAVE_FFDHE_2048 && !WC_NO_RNG */
 #if defined(HAVE_ECC)
     PRIVATE_KEY_UNLOCK();
     if (ret == 0)
@@ -84346,6 +84627,609 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 }
 #endif /* ! WC_TEST_NO_CRYPTOCB_SW_TEST */
 #endif /* WOLF_CRYPTO_CB */
+
+#if defined(WOLFSSL_SEC_QORIQ) && defined(WOLFSSL_SEC_QORIQ_SIM)
+/* QorIQ SEC driver against the simulated backend: job ring mechanics,
+ * status decoding, timeout and reset escalation, and known answers for the
+ * offloaded algorithms cross-checked against wolfCrypt's software
+ * implementations, with fault injection for the paths real hardware cannot
+ * be asked to take on demand.
+ *
+ * The reset-escalation cases run last: the final one deliberately leaves
+ * the device poisoned (a quiesce failure), after which re-initialisation
+ * is refused by design and the rings stay leaked. */
+
+/* One 64-byte AES-CBC encrypt through the driver; used by several cases. */
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#define SEC_QORIQ_TEST_AES_SZ 64
+
+static int sec_qoriq_aes_op(byte* out)
+{
+    byte key[16];
+    byte iv[16];
+    byte pt[SEC_QORIQ_TEST_AES_SZ];
+    word32 i;
+
+    for (i = 0; i < sizeof(key); i++)
+        key[i] = (byte)i;
+    for (i = 0; i < sizeof(iv); i++)
+        iv[i] = (byte)(0xA0 + i);
+    for (i = 0; i < sizeof(pt); i++)
+        pt[i] = (byte)(i * 3);
+
+    return wc_SecQoriqAesCbcEncrypt(key, sizeof(key), iv, pt, sizeof(pt),
+        out);
+}
+
+static wc_test_ret_t sec_qoriq_aes_test(void)
+{
+    Aes    aes;
+    byte   key[16];
+    byte   iv[16];
+    byte   ivHw[16];
+    byte   pt[SEC_QORIQ_TEST_AES_SZ];
+    byte   sw[SEC_QORIQ_TEST_AES_SZ];
+    byte   hw[SEC_QORIQ_TEST_AES_SZ];
+    word32 jobs;
+    word32 i;
+    int    ret;
+    SecQoriqDev* dev = wc_SecQoriqGetDev();
+
+    if (dev == NULL)
+        return WC_TEST_RET_ENC_NC;
+
+    for (i = 0; i < sizeof(key); i++)
+        key[i] = (byte)i;
+    for (i = 0; i < sizeof(iv); i++)
+        iv[i] = (byte)(0xA0 + i);
+    for (i = 0; i < sizeof(pt); i++)
+        pt[i] = (byte)(i * 3);
+
+    /* software reference */
+    ret = wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_AesSetKey(&aes, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&aes, sw, pt, sizeof(pt));
+    wc_AesFree(&aes);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* engine, out of place; one job must reach the ring */
+    jobs = dev->jobCount;
+    XMEMCPY(ivHw, iv, sizeof(iv));
+    ret = wc_SecQoriqAesCbcEncrypt(key, sizeof(key), ivHw, pt, sizeof(pt),
+        hw);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(hw, sw, sizeof(sw)) != 0)
+        return WC_TEST_RET_ENC_NC;
+    /* chained IV comes back as the last ciphertext block */
+    if (XMEMCMP(ivHw, sw + sizeof(sw) - 16, 16) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (dev->jobCount != jobs + 1)
+        return WC_TEST_RET_ENC_NC;
+
+    /* engine, in place */
+    XMEMCPY(hw, pt, sizeof(pt));
+    XMEMCPY(ivHw, iv, sizeof(iv));
+    ret = wc_SecQoriqAesCbcEncrypt(key, sizeof(key), ivHw, hw, sizeof(hw),
+        hw);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(hw, sw, sizeof(sw)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* engine decrypt, in place, back to the plaintext */
+    XMEMCPY(ivHw, iv, sizeof(iv));
+    ret = wc_SecQoriqAesCbcDecrypt(key, sizeof(key), ivHw, hw, sizeof(hw),
+        hw);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(hw, pt, sizeof(pt)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* a rejected argument must not count as a submitted job */
+    jobs = dev->jobCount;
+    ret = wc_SecQoriqAesCbcEncrypt(key, 20, ivHw, pt, sizeof(pt), hw);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    if (dev->jobCount != jobs)
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif /* !NO_AES && HAVE_AES_CBC */
+
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+static wc_test_ret_t sec_qoriq_gcm_test(void)
+{
+    Aes    aes;
+    byte   key[16];
+    byte   iv[SEC_QORIQ_GCM_IV_SZ];
+    byte   aad[16];
+    byte   pt[48];
+    byte   swCt[48];
+    byte   swTag[SEC_QORIQ_GCM_TAG_SZ];
+    byte   hwOut[48];
+    byte   hwTag[SEC_QORIQ_GCM_TAG_SZ];
+    byte   badTag[SEC_QORIQ_GCM_TAG_SZ];
+    byte   acc;
+    word32 i;
+    int    ret;
+
+    for (i = 0; i < sizeof(key); i++)
+        key[i] = (byte)(0x40 + i);
+    for (i = 0; i < sizeof(iv); i++)
+        iv[i] = (byte)(0x90 + i);
+    for (i = 0; i < sizeof(aad); i++)
+        aad[i] = (byte)(0x10 + i);
+    for (i = 0; i < sizeof(pt); i++)
+        pt[i] = (byte)(i * 7);
+
+    /* software reference */
+    ret = wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_AesGcmSetKey(&aes, key, sizeof(key));
+    if (ret == 0) {
+        ret = wc_AesGcmEncrypt(&aes, swCt, pt, sizeof(pt), iv, sizeof(iv),
+            swTag, sizeof(swTag), aad, sizeof(aad));
+    }
+    wc_AesFree(&aes);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* engine encrypt */
+    ret = wc_SecQoriqAesGcmEncrypt(key, sizeof(key), iv, sizeof(iv), aad,
+        sizeof(aad), pt, sizeof(pt), hwOut, hwTag, sizeof(hwTag));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(hwOut, swCt, sizeof(swCt)) != 0 ||
+            XMEMCMP(hwTag, swTag, sizeof(swTag)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* engine decrypt with the good tag */
+    ret = wc_SecQoriqAesGcmDecrypt(key, sizeof(key), iv, sizeof(iv), aad,
+        sizeof(aad), swCt, sizeof(swCt), hwOut, swTag, sizeof(swTag));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(hwOut, pt, sizeof(pt)) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* corrupted tag: authentication failure, and the unauthenticated
+     * plaintext the engine wrote must have been destroyed */
+    XMEMCPY(badTag, swTag, sizeof(badTag));
+    badTag[0] ^= 0x01;
+    ret = wc_SecQoriqAesGcmDecrypt(key, sizeof(key), iv, sizeof(iv), aad,
+        sizeof(aad), swCt, sizeof(swCt), hwOut, badTag, sizeof(badTag));
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_AUTH_E))
+        return WC_TEST_RET_ENC_NC;
+    acc = 0;
+    for (i = 0; i < sizeof(hwOut); i++)
+        acc |= hwOut[i];
+    if (acc != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* a truncated tag is refused at the driver boundary */
+    ret = wc_SecQoriqAesGcmDecrypt(key, sizeof(key), iv, sizeof(iv), aad,
+        sizeof(aad), swCt, sizeof(swCt), hwOut, swTag, 12);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+    ret = wc_SecQoriqAesGcmEncrypt(key, sizeof(key), iv, sizeof(iv), aad,
+        sizeof(aad), pt, sizeof(pt), hwOut, hwTag, 12);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif /* !NO_AES && HAVE_AESGCM */
+
+#ifndef NO_SHA256
+/* Big enough that the driver must split the message into several FIFO
+ * loads (the per-command cap is 64 KB). */
+#define SEC_QORIQ_TEST_HASH_SZ (150 * 1024)
+
+static wc_test_ret_t sec_qoriq_hash_test(void)
+{
+    byte*  msg;
+    byte   sw[WC_SHA256_DIGEST_SIZE];
+    byte   hw[WC_SHA256_DIGEST_SIZE];
+    word32 i;
+    int    ret;
+
+    msg = (byte*)XMALLOC(SEC_QORIQ_TEST_HASH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (msg == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+    for (i = 0; i < SEC_QORIQ_TEST_HASH_SZ; i++)
+        msg[i] = (byte)(i ^ (i >> 8));
+
+    ret = wc_Sha256Hash(msg, SEC_QORIQ_TEST_HASH_SZ, sw);
+    if (ret == 0)
+        ret = wc_SecQoriqSha256(msg, SEC_QORIQ_TEST_HASH_SZ, hw);
+    if (ret == 0 && XMEMCMP(sw, hw, sizeof(sw)) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+
+    /* over the documented single-shot limit: refused up front, before any
+     * buffer is touched (only the length is inspected) */
+    if (ret == 0) {
+        if (wc_SecQoriqSha256(msg, 0x200000, hw) !=
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* !NO_SHA256 */
+
+#ifndef WC_NO_RNG
+static wc_test_ret_t sec_qoriq_rng_test(void)
+{
+    SecQoriqDev* dev;
+    byte   out[32];
+    byte   acc;
+    word32 i;
+    int    ret;
+
+    /* the block draws from the handle wc_SecQoriqInit() instantiated */
+    XMEMSET(out, 0, sizeof(out));
+    ret = wc_SecQoriqRandomBlock(out, sizeof(out));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    acc = 0;
+    for (i = 0; i < sizeof(out); i++)
+        acc |= out[i];
+    if (acc == 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* entropy retry: three rejected instantiations must step the sample
+     * delay three times before the fourth succeeds */
+    (void)wc_SecQoriqFree();
+    wc_SecQoriqSimReset();
+    wc_SecQoriqSimRngFailNext(3);
+    ret = wc_SecQoriqInit();
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    dev = wc_SecQoriqGetDev();
+    if (dev == NULL || dev->rngReady != 1)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqSimRngEntDelay() != SEC_QORIQ_RTSDCTL_ENT_DLY_MIN +
+            3 * SEC_QORIQ_RTSDCTL_ENT_DLY_STEP)
+        return WC_TEST_RET_ENC_NC;
+
+    /* exhaustion: every attempt fails, the loop must have tried the
+     * documented maximum delay itself before giving up, and the device
+     * still comes up with hardware seeding recorded unavailable */
+    (void)wc_SecQoriqFree();
+    wc_SecQoriqSimReset();
+    wc_SecQoriqSimRngFailNext(1000000);
+    ret = wc_SecQoriqInit();
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    dev = wc_SecQoriqGetDev();
+    if (dev == NULL || dev->rngReady != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqSimRngEntDelay() != SEC_QORIQ_RTSDCTL_ENT_DLY_MAX)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqRandomBlock(out, sizeof(out)) == 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* restore a healthy device for the cases that follow */
+    (void)wc_SecQoriqFree();
+    wc_SecQoriqSimReset();
+    ret = wc_SecQoriqInit();
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    return 0;
+}
+#endif /* !WC_NO_RNG */
+
+#if !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC)
+static wc_test_ret_t sec_qoriq_cb_test(void)
+{
+    SecQoriqDev* dev = wc_SecQoriqGetDev();
+    Aes    hwAes;
+    Aes    swAes;
+    byte   key[16];
+    byte   iv[16];
+    byte*  pt = NULL;
+    byte*  sw = NULL;
+    byte*  hw = NULL;
+    word32 offloads;
+    word32 i;
+    int    ret = 0;
+    int    hwInit = 0;
+    int    swInit = 0;
+
+    if (dev == NULL)
+        return WC_TEST_RET_ENC_NC;
+
+    pt = (byte*)XMALLOC(256 * 3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pt == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+    sw = pt + 256;
+    hw = pt + 512;
+
+    for (i = 0; i < sizeof(key); i++)
+        key[i] = (byte)(0x77 - i);
+    for (i = 0; i < sizeof(iv); i++)
+        iv[i] = (byte)(0x30 + i);
+    for (i = 0; i < 256; i++)
+        pt[i] = (byte)(255 - i);
+
+    /* software reference */
+    ret = wc_AesInit(&swAes, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0)
+        swInit = 1;
+    if (ret == 0)
+        ret = wc_AesSetKey(&swAes, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&swAes, sw, pt, 256);
+
+    /* device-bound context: a 256 byte buffer clears the offload
+     * threshold, so the counter must show the engine really served it */
+    if (ret == 0)
+        ret = wc_AesInit(&hwAes, HEAP_HINT, WOLFSSL_SEC_QORIQ_DEVID);
+    if (ret == 0)
+        hwInit = 1;
+    if (ret == 0)
+        ret = wc_AesSetKey(&hwAes, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret == 0) {
+        offloads = dev->cbCipherOffload;
+        ret = wc_AesCbcEncrypt(&hwAes, hw, pt, 256);
+        if (ret == 0 && XMEMCMP(hw, sw, 256) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && dev->cbCipherOffload != offloads + 1)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* below the offload threshold the router declines and software still
+     * produces the right answer through the same call */
+    if (ret == 0)
+        ret = wc_AesSetKey(&swAes, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(&swAes, sw, pt, 64);
+    if (ret == 0)
+        ret = wc_AesSetKey(&hwAes, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret == 0) {
+        offloads = dev->cbCipherOffload;
+        ret = wc_AesCbcEncrypt(&hwAes, hw, pt, 64);
+        if (ret == 0 && XMEMCMP(hw, sw, 64) != 0)
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0 && dev->cbCipherOffload != offloads)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* a job the engine ran and faulted is a hard error for the call in
+     * flight, never a silent software retry over possibly-mutated state */
+    if (ret == 0)
+        ret = wc_AesSetKey(&hwAes, key, sizeof(key), iv, AES_ENCRYPTION);
+    if (ret == 0) {
+        wc_SecQoriqSimNextStatus(
+            ((word32)SEC_QORIQ_SSRC_DECO << SEC_QORIQ_SSRC_SHIFT) | 0x42);
+        if (wc_AesCbcEncrypt(&hwAes, hw, pt, 256) !=
+                WC_NO_ERR_TRACE(WC_HW_E)) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    if (hwInit)
+        wc_AesFree(&hwAes);
+    if (swInit)
+        wc_AesFree(&swAes);
+    XFREE(pt, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* !WOLFSSL_SEC_QORIQ_NO_CRYPTOCB && !NO_AES && HAVE_AES_CBC */
+
+#if !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB) && !defined(NO_DH) && \
+    defined(HAVE_FFDHE_2048) && defined(WOLFSSL_SEC_QORIQ_RSA) && \
+    !defined(WC_NO_RNG)
+/* One FFDHE-2048 agreement through the device (the sim executes the RSA/
+ * modexp protocol descriptor with real big-number math), cross-checked
+ * against the software path over the same keys. */
+static wc_test_ret_t sec_qoriq_dh_test(void)
+{
+    SecQoriqDev* dev = wc_SecQoriqGetDev();
+    DhKey  key;
+    WC_RNG rng;
+    byte*  buf;
+    byte*  priv;
+    byte*  pub;
+    byte*  hwAgree;
+    byte*  swAgree;
+    word32 privSz = 256;
+    word32 pubSz = 256;
+    word32 hwSz = 256;
+    word32 swSz = 256;
+    word32 offloads;
+    int    saveDevId;
+    int    keyInit = 0;
+    int    rngInit = 0;
+    int    ret;
+
+    if (dev == NULL)
+        return WC_TEST_RET_ENC_NC;
+
+    buf = (byte*)XMALLOC(256 * 4, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        return WC_TEST_RET_ENC_ERRNO;
+    priv    = buf;
+    pub     = buf + 256;
+    hwAgree = buf + 512;
+    swAgree = buf + 768;
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0)
+        rngInit = 1;
+    if (ret == 0)
+        ret = wc_InitDhKey_ex(&key, HEAP_HINT, WOLFSSL_SEC_QORIQ_DEVID);
+    if (ret == 0)
+        keyInit = 1;
+    if (ret == 0)
+        ret = wc_DhSetNamedKey(&key, WC_FFDHE_2048);
+    if (ret == 0)
+        ret = wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz);
+
+    if (ret == 0) {
+        offloads = dev->cbPkOffload;
+        ret = wc_DhAgree(&key, hwAgree, &hwSz, priv, privSz, pub, pubSz);
+        if (ret == 0 && dev->cbPkOffload != offloads + 1)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        saveDevId = key.devId;
+        key.devId = INVALID_DEVID;
+        ret = wc_DhAgree(&key, swAgree, &swSz, priv, privSz, pub, pubSz);
+        key.devId = saveDevId;
+    }
+    if (ret == 0 &&
+            (hwSz != swSz || XMEMCMP(hwAgree, swAgree, hwSz) != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+
+    if (keyInit)
+        wc_FreeDhKey(&key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+    ForceZero(buf, 256 * 4);
+    XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* cb && !NO_DH && HAVE_FFDHE_2048 && RSA && !WC_NO_RNG */
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+/* Timeout and reset escalation. Runs last: the final case leaves the
+ * device deliberately poisoned. */
+static wc_test_ret_t sec_qoriq_reset_test(void)
+{
+    byte out[SEC_QORIQ_TEST_AES_SZ];
+    int  ret;
+
+    /* 1: timeout, ring reset succeeds, device survives */
+    wc_SecQoriqSimTimeoutNext();
+    ret = sec_qoriq_aes_op(out);
+    if (ret != WC_NO_ERR_TRACE(WC_HW_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqGetDev() == NULL)
+        return WC_TEST_RET_ENC_NC;
+    ret = sec_qoriq_aes_op(out);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* 2: timeout and the ring reset sticks; the controller DMA reset
+     * still quiesces, so the device dies but stays reclaimable */
+    wc_SecQoriqSimTimeoutNext();
+    wc_SecQoriqSimStickJrReset(1);
+    ret = sec_qoriq_aes_op(out);
+    if (ret != WC_NO_ERR_TRACE(WC_HW_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqGetDev() != NULL)
+        return WC_TEST_RET_ENC_NC;
+    wc_SecQoriqSimStickJrReset(0);
+    if (wc_SecQoriqFree() != 0)
+        return WC_TEST_RET_ENC_NC;
+    wc_SecQoriqSimReset();
+    ret = wc_SecQoriqInit();
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = sec_qoriq_aes_op(out);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* 3: nothing quiesces. The device is poisoned and teardown must leak
+     * the rings by design. While the engine stays wedged, re-init must
+     * probe it and fail cleanly; once it recovers (a power cycle, modelled
+     * by resetting the sim), a fresh bring-up succeeds on fresh storage. */
+    wc_SecQoriqSimTimeoutNext();
+    wc_SecQoriqSimStickJrReset(1);
+    wc_SecQoriqSimStickDmaReset(1);
+    ret = sec_qoriq_aes_op(out);
+    if (ret != WC_NO_ERR_TRACE(WC_HW_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqGetDev() != NULL)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqFree() != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqInit() != WC_NO_ERR_TRACE(WC_HW_E))
+        return WC_TEST_RET_ENC_NC;
+    wc_SecQoriqSimStickJrReset(0);
+    wc_SecQoriqSimStickDmaReset(0);
+    wc_SecQoriqSimReset();
+    ret = wc_SecQoriqInit();
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = sec_qoriq_aes_op(out);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    return 0;
+}
+#endif /* !NO_AES && HAVE_AES_CBC */
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sec_qoriq_test(void)
+{
+    wc_test_ret_t ret = 0;
+
+    if (wc_SecQoriqGetDev() == NULL)
+        return WC_TEST_RET_ENC_NC;
+
+    /* status decoding, no hardware interaction */
+    if (wc_SecQoriqParseError(0) != 0)
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqParseError(
+            ((word32)SEC_QORIQ_SSRC_CCB << SEC_QORIQ_SSRC_SHIFT) |
+            SEC_QORIQ_CCBERR_ERRID_ICV) !=
+                WC_NO_ERR_TRACE(AES_GCM_AUTH_E))
+        return WC_TEST_RET_ENC_NC;
+    if (wc_SecQoriqParseError(
+            ((word32)SEC_QORIQ_SSRC_DECO << SEC_QORIQ_SSRC_SHIFT) | 0x82) !=
+                WC_NO_ERR_TRACE(WC_HW_E))
+        return WC_TEST_RET_ENC_NC;
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    if (ret == 0)
+        ret = sec_qoriq_aes_test();
+#endif
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    if (ret == 0)
+        ret = sec_qoriq_gcm_test();
+#endif
+#ifndef NO_SHA256
+    if (ret == 0)
+        ret = sec_qoriq_hash_test();
+#endif
+#ifndef WC_NO_RNG
+    if (ret == 0)
+        ret = sec_qoriq_rng_test();
+#endif
+#if !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC)
+    if (ret == 0)
+        ret = sec_qoriq_cb_test();
+#endif
+#if !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB) && !defined(NO_DH) && \
+    defined(HAVE_FFDHE_2048) && defined(WOLFSSL_SEC_QORIQ_RSA) && \
+    !defined(WC_NO_RNG)
+    if (ret == 0)
+        ret = sec_qoriq_dh_test();
+#endif
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    if (ret == 0)
+        ret = sec_qoriq_reset_test();
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_SEC_QORIQ && WOLFSSL_SEC_QORIQ_SIM */
 
 #ifdef WOLFSSL_CERT_PIV
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void)
