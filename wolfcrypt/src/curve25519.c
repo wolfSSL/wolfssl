@@ -237,7 +237,13 @@ static int curve25519_make_pub_ex(int public_size, byte* pub, int private_size,
     {
         WC_RNG rng;
 
-        ret = wc_InitRng(&rng);
+#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
+        ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
+        if (ret != 0)
+#endif
+        {
+            ret = wc_InitRng(&rng);
+        }
         if (ret == 0) {
             ret = curve25519_make_pub_blind_sw(public_size, pub, priv, &rng);
 
@@ -557,7 +563,13 @@ int wc_curve25519_generic(int public_size, byte* pub,
     {
         WC_RNG rng;
 
-        ret = wc_InitRng(&rng);
+#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
+        ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
+        if (ret != 0)
+#endif
+        {
+            ret = wc_InitRng(&rng);
+        }
         if (ret == 0) {
             ret = curve25519_generic_blind_sw(pub, priv, basepoint, &rng);
 
