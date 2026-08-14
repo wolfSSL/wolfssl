@@ -6936,12 +6936,14 @@ int test_tls13_sha1_cert_chain(void)
 {
     EXPECT_DECLS;
 /* The SHA-1 fixtures below are only shipped as PEM, so this needs a build that
- * can convert PEM to DER. */
+ * can convert PEM to DER. WOLFSSL_ALLOW_TLS_SHA1 puts SHA-1 back in the
+ * advertised signature algorithms, which is exactly what the rule under test
+ * defers to, so there is nothing left to check in that build. */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_SHA) && \
     !defined(WOLFSSL_NO_SIGALG) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
-    defined(WOLFSSL_PEM_TO_DER)
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_ALLOW_TLS_SHA1)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
