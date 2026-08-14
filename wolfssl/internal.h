@@ -5424,7 +5424,8 @@ struct Options {
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
     unsigned int      maxTicketTls13;  /* maximum number of tickets to send */
     unsigned int      ticketsSent;     /* keep track of the total sent */
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
     byte              pskKeModes;      /* modes client advertised in CH */
 #endif
 #endif
@@ -5509,7 +5510,8 @@ struct Options {
 #ifdef WOLFSSL_EARLY_DATA
     word16            ticketPredatesCtx:1; /* PSK ticket minted before ctx */
 #endif
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
     word16            pskKeModesRecvd:1;  /* CH had psk_key_exchange_modes */
 #endif
 #endif
