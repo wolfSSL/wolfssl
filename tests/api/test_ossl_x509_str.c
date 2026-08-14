@@ -1504,6 +1504,8 @@ int test_wolfSSL_X509_STORE_CTX_ex(void)
  * two-intermediate chains that genuinely reach the trusted root must still
  * verify.  Certificates live in certs/intermediate/untrusted_anchor/.
  */
+#define UA_CERT_DIR "./certs/intermediate/untrusted_anchor/"
+
 static X509* untrusted_inter_load(const char* file)
 {
     return X509_load_certificate_file(file, SSL_FILETYPE_PEM);
@@ -2005,9 +2007,8 @@ static int test_untrusted_inter_no_temp_ca_residue(X509* leaf, X509* inter,
  * intermediate and never the rejected sibling.  Certs are compared by content
  * (X509_cmp) since the chain need not hold the caller's pointers.
  * NOTE: this exercises the retry/failedCerts machinery via the untrusted
- * stack; it does not drive the terminal-anchor failedCerts guard (x509_str.c),
- * which additionally needs a same-subject rejected *anchor* in the trusted
- * terminal set - no such fixture exists yet. */
+ * stack.  The terminal-anchor failedCerts guard is covered separately by
+ * test_untrusted_inter_terminal_anchor_rejected(). */
 static int test_untrusted_inter_chain_excludes_rejected(X509* leaf, X509* inter,
     X509* tamperedInter, X509* root)
 {
@@ -2048,6 +2049,64 @@ static int test_untrusted_inter_chain_excludes_rejected(X509* leaf, X509* inter,
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
     sk_X509_free(mixed);
+    return EXPECT_RESULT();
+}
+
+/* Terminal-anchor variant of the above: drive the failedCerts guard on the
+ * issuer looked up after the CertManager verification succeeds.
+ *
+ * The anchors live in the CertManager (loaded from file) rather than on
+ * store->certs, so the terminal lookup consults set0_trusted_stack.  That
+ * stack holds only the tampered intermediate, which is a same-subject sibling
+ * of the genuine one: the verifier tries it as the leaf's issuer, fails to
+ * verify it against the root, and moves it to failedCerts.  The leaf then
+ * verifies directly against the CertManager copy of int-ca, and the terminal
+ * X509StoreGetIssuerEx() finds the tampered cert again by name+AKID.  Without
+ * the guard it would be pushed onto the reported chain. */
+static int test_untrusted_inter_terminal_anchor_rejected(X509* leaf,
+    X509* inter, X509* tamperedInter, X509* root)
+{
+    EXPECT_DECLS;
+    SSL_CTX* sslCtx = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i;
+    int foundTampered = 0;
+
+    /* SSL_CTX_set_cert_store() pushes store->certs into the CertManager and
+     * detaches the stack, so int-ca becomes a CM anchor and the terminal
+     * lookup has to fall back to the caller's trusted stack. */
+    ExpectNotNull(sslCtx = SSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, inter), 1);
+    if (store != NULL && sslCtx != NULL) {
+        SSL_CTX_set_cert_store(sslCtx, store);
+    }
+
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(trusted, tamperedInter), 0);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    ExpectNotNull(chain = X509_STORE_CTX_get0_chain(ctx));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        X509* c = sk_X509_value(chain, i);
+        if (c != NULL && X509_cmp(c, tamperedInter) == 0)
+            foundTampered = 1;
+    }
+    ExpectIntEQ(foundTampered, 0);
+
+    X509_STORE_CTX_free(ctx);
+    sk_X509_free(trusted);
+    /* store ownership passed to sslCtx */
+    SSL_CTX_free(sslCtx);
     return EXPECT_RESULT();
 }
 
@@ -2111,7 +2170,6 @@ int test_X509_verify_cert_untrusted_inter(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_FILESYSTEM)
-#define UA_CERT_DIR "./certs/intermediate/untrusted_anchor/"
     X509* leaf = NULL;
     X509* leafDeep = NULL;
     X509* inter = NULL;
@@ -2132,6 +2190,7 @@ int test_X509_verify_cert_untrusted_inter(void)
     int retryRes = 0;
     int noTempCaResidueRes = 0;
     int chainExcludesRes = 0;
+    int terminalAnchorRes = 0;
     int storeStackRes = 0;
 
     ExpectNotNull(leaf = untrusted_inter_load(UA_CERT_DIR "leaf-cert.pem"));
@@ -2174,6 +2233,8 @@ int test_X509_verify_cert_untrusted_inter(void)
                             inter, root);
         chainExcludesRes = test_untrusted_inter_chain_excludes_rejected(leaf,
                             inter, tamperedInter, root);
+        terminalAnchorRes = test_untrusted_inter_terminal_anchor_rejected(leaf,
+                            inter, tamperedInter, root);
         storeStackRes = test_untrusted_inter_store_stack_unchanged(leaf, inter,
                             tamperedInter, inter2, root);
         ExpectIntEQ(sanityRes, 1);
@@ -2189,6 +2250,7 @@ int test_X509_verify_cert_untrusted_inter(void)
         ExpectIntEQ(retryRes, 1);
         ExpectIntEQ(noTempCaResidueRes, 1);
         ExpectIntEQ(chainExcludesRes, 1);
+        ExpectIntEQ(terminalAnchorRes, 1);
         ExpectIntEQ(storeStackRes, 1);
     }
 
