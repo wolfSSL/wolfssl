@@ -41158,6 +41158,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                     WOLFSSL_MSG("EMS disabled locally, declining resumption "
                                 "of an EMS session. Do full handshake.");
                     ssl->options.resuming = 0;
+                    /* A declined ticket must not satisfy client auth. */
+                    ssl->options.peerAuthGood = 0;
                 }
                 else
 #endif
