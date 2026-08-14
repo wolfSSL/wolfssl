@@ -2807,7 +2807,14 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
 
     WOLFSSL_ENTER("wc_PKCS12_create");
 
-    if (wc_InitRng_ex(&rng, heap, INVALID_DEVID) != 0) {
+#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
+    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
+    if (ret != 0)
+#endif
+    {
+        ret = wc_InitRng_ex(&rng, heap, INVALID_DEVID);
+    }
+    if (ret != 0) {
         return NULL;
     }
 

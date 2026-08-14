@@ -348,9 +348,11 @@ enum wolfCrypt_ErrorCodes {
     FIPS_BAD_VALUE_E    = -1027, /* Supplied value was rejected by FIPS policy */
     FIPS_UNAPPROVED_E   = -1028, /* Requested operation succeeded, but supplied */
                                  /* parameters are unapproved for FIPS */
+    NO_DEFAULT_FOUND_E  = -1029, /* No default object registered for request
+                                  * type */
 
-    WC_SPAN2_LAST_E     = -1028, /* Update to indicate last used error code */
-    WC_LAST_E           = -1028, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1029, /* Update to indicate last used error code */
+    WC_LAST_E           = -1029, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
@@ -380,6 +382,7 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
 #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
         (defined(BUILDING_WOLFSSL) || \
          defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
+    #include <wolfssl/wolfcrypt/logging.h>
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
@@ -393,9 +396,9 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
             #define WC_ERR_TRACE(label) __extension__                     \
                 ({ if (wc_debug_trace_error_codes_enabled()) {            \
                     (void)WOLFSSL_DEBUG_PRINTF_FN(                        \
-                                          WOLFSSL_DEBUG_PRINTF_FIRST_ARGS \
-                                          "ERR TRACE: %s L %d %s (%d)\n", \
-                                      __FILE__, __LINE__, #label, label); \
+                            WOLFSSL_DEBUG_PRINTF_FIRST_ARGS               \
+                            "ERR TRACE: %s %s() L %d %s (%d)\n",          \
+                            __FILE__, __func__, __LINE__, #label, label); \
                     (void)WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE; }        \
                   (label);                                                \
                 })
