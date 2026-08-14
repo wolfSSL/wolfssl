@@ -817,6 +817,39 @@ int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize)
 }
 #endif /* !NO_RSA */
 
+#ifndef NO_DH
+int wc_CryptoCb_Dh(DhKey* key, const byte* priv, word32 privSz,
+    const byte* otherPub, word32 pubSz, byte* agree, word32* agreeSz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_DH;
+        cryptoInfo.pk.dh.key = key;
+        cryptoInfo.pk.dh.priv = priv;
+        cryptoInfo.pk.dh.privSz = privSz;
+        cryptoInfo.pk.dh.otherPub = otherPub;
+        cryptoInfo.pk.dh.pubSz = pubSz;
+        cryptoInfo.pk.dh.agree = agree;
+        cryptoInfo.pk.dh.agreeSz = agreeSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* !NO_DH */
+
+
 #ifdef HAVE_ECC
 #ifdef HAVE_ECC_DHE
 int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)

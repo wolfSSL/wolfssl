@@ -36,6 +36,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #include <wolfssl/wolfcrypt/sp.h>
@@ -973,6 +976,9 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 
     key->heap = heap; /* for XMALLOC/XFREE in future */
     key->trustedGroup = 0;
+#ifdef WOLF_CRYPTO_CB
+    key->devId = devId;
+#endif
 
 #ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
     if (! wc_dh_enabled)
@@ -990,7 +996,9 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
     /* handle as async */
     ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_DH,
         key->heap, devId);
-#else
+#endif
+#if !defined(WOLF_CRYPTO_CB) && \
+    !(defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH))
     (void)devId;
 #endif
 
@@ -2137,6 +2145,55 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
     }
 
+#ifdef WOLF_CRYPTO_CB
+    /* Dispatched here, after the checks above, so a device gets validated
+     * inputs and the SP 800-56A guarantees do not depend on each driver
+     * reimplementing them. Placing it here rather than at the top of
+     * wc_DhAgree() also means the validation runs once, not twice, when a
+     * callback declines and software takes over.
+     *
+     * Never on the ct path: wc_DhAgree_ct() exists to give the caller a
+     * constant-time agreement, and a callback makes no such promise. Offload
+     * there would silently drop the guarantee the caller asked for, so that
+     * entry point stays in software. */
+    if (ct == 0)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Dh(key, priv, privSz, otherPub, pubSz, agree,
+                             agreeSz);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        #ifdef WC_DH_NONBLOCK
+            /* The device completes the op in one call, so the cached
+             * validation is single-use. Clear it so the next agree on
+             * this DhNb re-runs the SP 800-56A peer-key check. */
+            if (key->nb != NULL) {
+                key->nb->pubKeyValidated = 0;
+            }
+        #endif
+            /* The shared secret must not be 1 (SP 800-56A 5.7.1.1). The
+             * software path below checks the mp_int; the device has already
+             * produced bytes, so check those. */
+            if (ret == 0) {
+                word32 i;
+                byte acc = 0;
+
+                for (i = 0; (i + 1) < *agreeSz; i++) {
+                    acc |= agree[i];
+                }
+                if ((acc == 0) && (*agreeSz > 0) &&
+                        (agree[*agreeSz - 1] == 1)) {
+                    WOLFSSL_MSG("wc_DhAgree shared secret is one");
+                    return MP_VAL;
+                }
+            }
+            return ret;
+        }
+        ret = 0; /* fall through to software */
+    }
+#endif
+
 #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_HAVE_SP_DH) && \
     defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
     !defined(WOLFSSL_SP_FAST_MODEXP)
@@ -2436,6 +2493,7 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
     if (! wc_dh_enabled)
         return FIPS_NOT_ALLOWED_E;
 #endif
+
 
 #ifdef WOLFSSL_KCAPI_DH
     (void)priv;
