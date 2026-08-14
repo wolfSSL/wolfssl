@@ -421,7 +421,14 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_set1_groups_list            wolfSSL_set1_groups_list
 
 #define SSL_get_negotiated_group        wolfSSL_get_negotiated_group
+/* nginx defines its own SSL_group_to_name() fallback unconditionally in
+ * ngx_event_openssl.h, after this header, so the alias would be a macro
+ * redefinition and nginx builds with -Werror. Skip it there; the alias is the
+ * only thing dropped, wolfSSL_group_to_name() stays available. Note that
+ * --enable-all defines WOLFSSL_NGINX too. */
+#ifndef WOLFSSL_NGINX
 #define SSL_group_to_name               wolfSSL_group_to_name
+#endif
 
 #define SSL_set_ex_data                 wolfSSL_set_ex_data
 #define SSL_get_shutdown                wolfSSL_get_shutdown
