@@ -173,6 +173,9 @@ Threading/Mutex options:
 #if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
+#if defined(WOLFSSL_SEC_QORIQ)
+    #include <wolfssl/wolfcrypt/port/nxp/sec_qoriq.h>
+#endif
 #if defined(HAVE_ARIA)
     #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
 #endif
@@ -739,6 +742,19 @@ int wolfCrypt_Init(void)
         }
 #endif
 
+#if defined(WOLFSSL_SEC_QORIQ) && !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB)
+        /* A part without the security engine is not an error: the SEC is
+         * only fitted on the "E" orderable variants, and everything simply
+         * stays in software there. */
+        ret = wc_SecQoriqInit();
+        if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+            ret = 0;
+        }
+        else if (ret != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+#endif
+
 #if defined(HAVE_ARIA)
         if ((ret = wc_AriaInit()) != 0) {
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
@@ -868,6 +884,9 @@ int wolfCrypt_Cleanup(void)
 
     #if defined(WOLFSSL_CAAM)
         wc_caamFree();
+    #endif
+    #if defined(WOLFSSL_SEC_QORIQ) && !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB)
+        wc_SecQoriqFree();
     #endif
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
