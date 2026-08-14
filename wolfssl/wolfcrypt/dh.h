@@ -250,7 +250,11 @@ WOLFSSL_API int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv,
         word32 privSz, const byte* prime, word32 primeSz);
 WOLFSSL_API int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
                         const byte* priv, word32 privSz);
-#ifdef WOLFSSL_KEY_GEN
+/* Domain parameter generation is a separate, expensive facility from key
+ * generation: it searches for a safe prime. Protocols in practice use the
+ * fixed groups (FFDHE, RFC 3526), so a build can keep DH key generation and
+ * drop parameter generation with WOLFSSL_NO_DH_GEN_PARAMS. */
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DH_GEN_PARAMS)
 WOLFSSL_API int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh);
 #endif
 WOLFSSL_API int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,

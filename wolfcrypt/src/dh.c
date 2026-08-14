@@ -3219,7 +3219,7 @@ int wc_DhCopyNamedKey(int name,
 }
 
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DH_GEN_PARAMS)
 
 /* modulus_size in bits */
 int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)

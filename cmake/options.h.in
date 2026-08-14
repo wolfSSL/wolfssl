@@ -341,6 +341,9 @@ extern "C" {
 #cmakedefine WOLFSSL_IP_ALT_NAME
 #undef WOLFSSL_KEY_GEN
 #cmakedefine WOLFSSL_KEY_GEN
+
+#undef  WOLFSSL_NO_DH_GEN_PARAMS
+#cmakedefine WOLFSSL_NO_DH_GEN_PARAMS
 #undef WOLFSSL_NO_ASM
 #cmakedefine WOLFSSL_NO_ASM
 #undef WOLFSSL_NO_SHAKE128

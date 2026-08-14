@@ -724,6 +724,7 @@ static void test_agree_nonblock(void)
  * subgroup) that cannot be produced deterministically without a working
  * fault-injection hook into the prime.c/sp_int.c backends this campaign's
  * allocator hook does not reach - left as residuals (see report). */
+#ifndef WOLFSSL_NO_DH_GEN_PARAMS
 static void test_generate_params(void)
 {
     WC_RNG rng;
@@ -745,6 +746,7 @@ static void test_generate_params(void)
 
     wc_FreeRng(&rng);
 }
+#endif /* !WOLFSSL_NO_DH_GEN_PARAMS */
 
 int main(void)
 {
@@ -774,7 +776,12 @@ int main(void)
     WB_NOTE("WC_DH_NONBLOCK not built; nb cache decisions "
             "(2070/2085/2098/2116) skipped");
 #endif
+#ifndef WOLFSSL_NO_DH_GEN_PARAMS
     test_generate_params();
+#else
+    WB_NOTE("WOLFSSL_NO_DH_GEN_PARAMS built; parameter generation decisions "
+            "(3293/3299) skipped");
+#endif
 
     printf("done (%s)\n", wb_fail ? "FAILURES" : "ok");
     return 0;

@@ -4695,11 +4695,16 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
         }
     }
     if (ret == 1) {
+    #ifndef WOLFSSL_NO_DH_GEN_PARAMS
         /* Generate parameters into internal DH key. */
         if (wc_DhGenerateParams(rng, prime_len, key) != 0) {
             WOLFSSL_ERROR_MSG("wc_DhGenerateParams error");
             ret = 0;
         }
+    #else
+        WOLFSSL_ERROR_MSG("DH parameter generation disabled in this build");
+        ret = 0;
+    #endif
     }
 
     /* Free local random number generator if created. */
