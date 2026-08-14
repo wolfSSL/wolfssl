@@ -37,7 +37,9 @@
 #endif
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
-    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define wc_ecc_key_get_priv(key)  (&((key)->k))
+    #define ecc_get_k_raw(key)        (&((key)->k))
+    #define ecc_blind_k_rng(key, rng) 0
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
 
@@ -3161,9 +3163,15 @@ static int wolfssl_ec_key_int_copy(ecc_key* dst, const ecc_key* src)
     }
 
     if (ret == 0) {
-        /* Copy private key. */
-        ret = mp_copy(wc_ecc_key_get_priv((ecc_key*)src),
-            wc_ecc_key_get_priv(dst));
+        /* Copy the stored private scalar, and its blind where the build
+         * keeps one. The wc_ecc_key_get_priv() accessor cannot be used
+         * here: it is read-only, and reading needs dst->dp, not set yet. */
+        ret = mp_copy(ecc_get_k_raw((ecc_key*)src), ecc_get_k_raw(dst));
+    #ifdef WOLFSSL_ECC_BLIND_K
+        if (ret == MP_OKAY) {
+            ret = mp_copy(((ecc_key*)src)->kb, dst->kb);
+        }
+    #endif
         if (ret != MP_OKAY) {
             WOLFSSL_MSG("mp_copy error");
         }
@@ -4446,9 +4454,15 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
 
         /* set privkey */
         if ((ret == 1) && (eckey->priv_key != NULL)) {
+            /* Write the stored scalar, then install a fresh blind so any
+             * blind left from a previous use of this key is replaced. */
             if (wolfssl_bn_get_value(eckey->priv_key,
-                    wc_ecc_key_get_priv(key)) != 1) {
+                    ecc_get_k_raw(key)) != 1) {
                 WOLFSSL_MSG("ec key priv error");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            if ((ret == 1) && (ecc_blind_k_rng(key, NULL) != 0)) {
+                WOLFSSL_MSG("ec key priv blind error");
                 ret = WOLFSSL_FATAL_ERROR;
             }
             /* private key */
