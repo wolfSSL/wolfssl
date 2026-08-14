@@ -57,12 +57,15 @@ typedef int (*wc_affinity_lock_fn_t)(void *arg);
 typedef int (*wc_affinity_get_id_fn_t)(void *arg, int *id);
 typedef int (*wc_affinity_unlock_fn_t)(void *arg);
 
+struct wc_rng_bank;
+
 struct wc_rng_bank_inst {
 #ifdef WOLFSSL_NO_ATOMICS
     int lock;
 #else
     wolfSSL_Atomic_Int lock;
 #endif
+    struct wc_rng_bank *bank;
     WC_RNG rng;
 };
 
@@ -147,6 +150,9 @@ WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
 
 WOLFSSL_API int wc_rng_bank_checkin(
     struct wc_rng_bank *bank,
+    struct wc_rng_bank_inst **rng_inst);
+
+WOLFSSL_API int wc_rng_bank_inst_checkin(
     struct wc_rng_bank_inst **rng_inst);
 
 WOLFSSL_API int wc_rng_bank_inst_reinit(
