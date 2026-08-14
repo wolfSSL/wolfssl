@@ -71,11 +71,12 @@
  * WOLFSSL_TICKET_HAVE_ID:   Session tickets include ID            default: off
  *                            Forced on when WOLFSSL_EARLY_DATA is set.
  * WOLFSSL_TICKET_NONCE_MALLOC: Dynamically allocate ticket nonce  default: off
- * WOLFSSL_TLS13_TICKET_NO_PSK_MODES: Send NewSessionTicket even   default: off
+ * WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES: Withhold NewSessionTicket default: off
  *                            when the ClientHello advertised no usable
- *                            psk_key_exchange_modes. Restores the pre-check
- *                            behaviour; RFC 9846 Sections 4.3.9 and 4.7.1 say
- *                            the server should not send such a ticket.
+ *                            psk_key_exchange_modes, as RFC 9846 Sections
+ *                            4.3.9 and 4.7.1 require. Off by default: a peer
+ *                            that omits the extension but expects a ticket
+ *                            stops getting one.
  *
  * TLS 1.3 Key Exchange:
  * HAVE_KEYING_MATERIAL:     Export keying material (RFC 8446 7.5) default: off
@@ -13832,7 +13833,7 @@ restore:
  */
 static int CheckTls13TicketPskModes(WOLFSSL* ssl)
 {
-#ifndef WOLFSSL_TLS13_TICKET_NO_PSK_MODES
+#ifdef WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES
     if (!ssl->options.pskKeModesRecvd) {
         WOLFSSL_MSG("No psk_key_exchange_modes in ClientHello");
         return MISSING_HANDSHAKE_DATA;
@@ -17099,8 +17100,10 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
  *         SIDE_ERROR when not a server,
  *         NOT_READY_ERROR when handshake not complete,
  *         MISSING_HANDSHAKE_DATA when the ClientHello had no
- *         psk_key_exchange_modes extension,
- *         PSK_KEY_ERROR when no advertised PSK key exchange mode is usable,
+ *         psk_key_exchange_modes extension and
+ *         WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES is defined,
+ *         PSK_KEY_ERROR when no advertised PSK key exchange mode is usable and
+ *         WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES is defined,
  *         WOLFSSL_FATAL_ERROR when creating or sending message fails, and
  *         WOLFSSL_SUCCESS on success.
  */
