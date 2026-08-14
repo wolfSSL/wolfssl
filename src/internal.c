@@ -10717,10 +10717,10 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                 }
                 prev->m.m.next =
                         DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
-                if (prev->m.m.next != NULL) {
-                    msg->bytesReceived += fragSz;
-                    msg->fragBucketListCount++;
-                }
+                if (prev->m.m.next == NULL)
+                    return MEMORY_ERROR;
+                msg->bytesReceived += fragSz;
+                msg->fragBucketListCount++;
             }
             else if (fragOffsetEnd < cur->m.m.offset) {
                     /* Fragment is entirely before cur with a gap */
@@ -10741,6 +10741,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                     else {
                         /* reset on error */
                         *prev_next = cur;
+                        return MEMORY_ERROR;
                     }
             }
             else {
@@ -10754,8 +10755,11 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                 /* We can combine the buckets */
                 *prev_next = DtlsMsgCombineFragBuckets(msg, cur, next,
                         fragOffset, data, fragSz, heap);
-                if (*prev_next == NULL) /* reset on error */
+                if (*prev_next == NULL) {
+                    /* reset on error */
                     *prev_next = cur;
+                    return MEMORY_ERROR;
+                }
             }
         }
     }
@@ -10777,7 +10781,8 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
 }
 
 
-void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
+/* Returns 0 when the fragment was stored, negative when it was dropped. */
+int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
     /* See if seq exists in the list. If it isn't in the list, make
@@ -10799,6 +10804,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
 
     DtlsMsg* head = ssl->dtls_rx_msg_list;
     byte encrypted = ssl->keys.decryptedCur == 1;
+    int ret = 0;
     WOLFSSL_ENTER("DtlsMsgStore");
 
     if (head != NULL) {
@@ -10807,11 +10813,13 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
             cur = DtlsMsgNew(dataSz, 0, heap);
             if (cur == NULL) {
                 WOLFSSL_MSG("DtlsMsgNew allocation failed");
-                ssl->error = MEMORY_E;
+                ret = MEMORY_E;
+                ssl->error = ret;
             }
             else {
-                if (DtlsMsgSet(cur, seq, epoch, data, type,
-                             fragOffset, fragSz, heap, dataSz, encrypted) < 0) {
+                ret = DtlsMsgSet(cur, seq, epoch, data, type,
+                             fragOffset, fragSz, heap, dataSz, encrypted);
+                if (ret < 0) {
                     DtlsMsgDelete(cur, heap);
                 }
                 else {
@@ -10822,7 +10830,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         }
         else {
             /* If this fails, the data is just dropped. */
-            DtlsMsgSet(cur, seq, epoch, data, type, fragOffset,
+            ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset,
                     fragSz, heap, dataSz, encrypted);
         }
     }
@@ -10830,10 +10838,11 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         head = DtlsMsgNew(dataSz, 0, heap);
         if (head == NULL) {
             WOLFSSL_MSG("DtlsMsgNew allocation failed");
-            ssl->error = MEMORY_E;
+            ret = MEMORY_E;
+            ssl->error = ret;
         }
-        else if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
-                    fragSz, heap, dataSz, encrypted) < 0) {
+        else if ((ret = DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
+                    fragSz, heap, dataSz, encrypted)) < 0) {
             DtlsMsgDelete(head, heap);
             head = NULL;
         }
@@ -10843,6 +10852,8 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
     }
 
     ssl->dtls_rx_msg_list = head;
+
+    return ret;
 }
 
 
