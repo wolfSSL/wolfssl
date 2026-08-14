@@ -135,6 +135,7 @@ int test_tls13_is_init_finished_want_write(void);
 int test_tls13_cryptocb_async(void);
 int test_tls13_ticket_psk_modes(void);
 int test_tls13_send_session_ticket_psk_modes(void);
+int test_tls13_new_session_ticket_ext_framing(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -247,6 +248,7 @@ int test_tls13_send_session_ticket_psk_modes(void);
     TEST_DECL_GROUP("tls13", test_tls13_is_init_finished_want_write), \
     TEST_DECL_GROUP("tls13", test_tls13_cryptocb_async), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_psk_modes), \
-    TEST_DECL_GROUP("tls13", test_tls13_send_session_ticket_psk_modes)
+    TEST_DECL_GROUP("tls13", test_tls13_send_session_ticket_psk_modes), \
+    TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_ext_framing)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
