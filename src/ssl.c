@@ -3132,10 +3132,16 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         * simulate set_ciphersuites() compatibility layer API
         */
         tls13Only = 1;
-        if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version)) ||
-                (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version))) {
-            /* Silently ignore TLS 1.3 ciphers if we don't support it. */
-            return WOLFSSL_SUCCESS;
+        if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version) &&
+                !ctx->method->downgrade) ||
+                (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version) &&
+                !ssl->options.downgrade)) {
+            /* Fail only for methods that can never reach TLS 1.3 (downgrade
+             * disabled). A version merely capped via set_max_proto_version()
+             * still silently ignores the list, matching OpenSSL. */
+            WOLFSSL_MSG("Cipher list has only TLS 1.3 suites but TLS 1.3 "
+                        "is not negotiable");
+            return WOLFSSL_FAILURE;
         }
     }
 

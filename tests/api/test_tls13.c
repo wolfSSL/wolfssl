@@ -2476,6 +2476,83 @@ int test_tls13_cipher_suites(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256) && defined(HAVE_ECC) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+/* Suites has a bitfield member (setSuites:1) trailed by compiler padding
+ * whose value is indeterminate, so a whole-struct XMEMCMP is unreliable.
+ * Compare the meaningful members individually instead. */
+static int test_tls13_suites_eq(const Suites* a, const Suites* b)
+{
+    return a->suiteSz == b->suiteSz &&
+           a->hashSigAlgoSz == b->hashSigAlgoSz &&
+           a->setSuites == b->setSuites &&
+           XMEMCMP(a->suites, b->suites, sizeof(a->suites)) == 0 &&
+           XMEMCMP(a->hashSigAlgo, b->hashSigAlgo, sizeof(a->hashSigAlgo))
+               == 0;
+}
+#endif
+
+int test_tls13_cipher_list_no_tls13_ctx(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256) && defined(HAVE_ECC) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    const char* tls12Suite = "ECDHE-RSA-AES128-GCM-SHA256";
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites suitesBefore;
+
+    /* ctx->method caps the connection at TLS 1.2, so a cipher list that
+     * names only TLS 1.3 suites can never take effect on it. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+
+    /* Configure a real <= TLS 1.2 suite first so the "unchanged" checks
+     * below compare against a known, non-empty suite list instead of
+     * two empty ones. */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, tls12Suite),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull((ctx != NULL) ? ctx->suites : NULL);
+    if (ctx != NULL && ctx->suites != NULL) {
+        ExpectIntGT(ctx->suites->suiteSz, 0);
+        XMEMCPY(&suitesBefore, ctx->suites, sizeof(Suites));
+    }
+
+    /* A TLS 1.3-only list is unusable on this ctx: the call must fail and
+     * must not mutate the previously configured suites. */
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES128-GCM-SHA256"),
+        WOLFSSL_FAILURE);
+    if (ctx != NULL && ctx->suites != NULL) {
+        ExpectIntEQ(test_tls13_suites_eq(ctx->suites, &suitesBefore), 1);
+    }
+
+    /* ssl->version inherits the same TLS 1.2 cap from ctx->method, so
+     * wolfSSL_set_cipher_list() must behave the same as the ctx call
+     * above. This exercises the ssl->version branch of the condition,
+     * not just the ctx->method->version branch. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, tls12Suite), WOLFSSL_SUCCESS);
+    ExpectNotNull((ssl != NULL) ? ssl->suites : NULL);
+    if (ssl != NULL && ssl->suites != NULL) {
+        ExpectIntGT(ssl->suites->suiteSz, 0);
+        XMEMCPY(&suitesBefore, ssl->suites, sizeof(Suites));
+    }
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
+        WOLFSSL_FAILURE);
+    if (ssl != NULL && ssl->suites != NULL) {
+        ExpectIntEQ(test_tls13_suites_eq(ssl->suites, &suitesBefore), 1);
+    }
+    wolfSSL_free(ssl);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)\
     && !defined(NO_PSK)
