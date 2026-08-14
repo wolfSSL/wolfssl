@@ -9502,16 +9502,22 @@ int test_tls13_new_session_ticket_ext_framing(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     /* Well formed extension of an unknown type - must be ignored. */
     static const byte extOk[] = { 0x12, 0x34, 0x00, 0x02, 0xaa, 0xbb };
+    /* Two unknown types, the second with empty extension_data. */
+    static const byte extTwo[] = { 0x12, 0x34, 0x00, 0x02, 0xaa, 0xbb,
+                                   0x56, 0x78, 0x00, 0x00 };
     /* Vector too short to hold an Extension header. */
     static const byte extShort[] = { 0x00, 0x2a, 0x00 };
     /* extension_data length runs past the end of the vector. */
     static const byte extTrunc[] = { 0x12, 0x34, 0x00, 0x04, 0xaa, 0xbb };
+    static const char appData[] = "still talking";
     struct {
         const byte* exts;
         int         extsSz;
         int         expectErr;
     } cases[] = {
+        { NULL,     0,                     0             },
         { extOk,    (int)sizeof(extOk),    0             },
+        { extTwo,   (int)sizeof(extTwo),   0             },
         { extShort, (int)sizeof(extShort), BUFFER_ERROR  },
         { extTrunc, (int)sizeof(extTrunc), BUFFER_ERROR  },
     };
@@ -9551,9 +9557,24 @@ int test_tls13_new_session_ticket_ext_framing(void)
         ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
             WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
         if (cases[i].expectErr == 0) {
-            /* Accepted: no application data follows the ticket. */
+            /* Accepted: no application data follows the ticket, and the
+             * client raised no alert. */
             ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
                 WOLFSSL_ERROR_WANT_READ);
+            ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_tx.code, -1);
+            ExpectIntEQ(h.last_tx.level, -1);
+            /* The connection carries on: data still flows both ways. */
+            ExpectIntEQ(wolfSSL_write(ssl_s, appData, (int)sizeof(appData) - 1),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
+            ExpectIntEQ(wolfSSL_write(ssl_c, appData, (int)sizeof(appData) - 1),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
         }
         else {
             ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
