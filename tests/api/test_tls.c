@@ -399,13 +399,31 @@ static int test_peer_tmp_key_group(int group, int tls13)
     struct test_memio_ctx test_ctx;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     int groups[1];
+    method_provider method_c = NULL, method_s = NULL;
 
     groups[0] = group;
+    (void)tls13;
+
+    /* Only one of the two versions may be compiled in, so the methods cannot
+     * be picked with a plain conditional expression. */
+#ifdef WOLFSSL_TLS13
+    if (tls13) {
+        method_c = wolfTLSv1_3_client_method;
+        method_s = wolfTLSv1_3_server_method;
+    }
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    if (!tls13) {
+        method_c = wolfTLSv1_2_client_method;
+        method_s = wolfTLSv1_2_server_method;
+    }
+#endif
+    if ((method_c == NULL) || (method_s == NULL))
+        return TEST_SKIPPED;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        tls13 ? wolfTLSv1_3_client_method : wolfTLSv1_2_client_method,
-        tls13 ? wolfTLSv1_3_server_method : wolfTLSv1_2_server_method), 0);
+        method_c, method_s), 0);
     ExpectIntEQ(wolfSSL_KeepHandshakeResources(ssl_c), 0);
     ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
