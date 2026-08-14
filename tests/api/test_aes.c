@@ -3976,6 +3976,211 @@ int test_wc_AesGcmSivEncryptDecrypt(void)
     return EXPECT_RESULT();
 }
 
+/* The self-test module does not build wc_AesGcmSetExtIV(), wc_AesCcmSetNonce()
+ * or the _ex() encrypts these tests drive, and GCM_NONCE_MID_SZ /
+ * CCM_NONCE_MIN_SZ are undeclared in the older FIPS module (aes.h gates them
+ * on HAVE_FIPS_VERSION >= 2). */
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
+    (defined(HAVE_AESGCM) || defined(HAVE_AESCCM))
+
+/* Number of records encrypted while checking nonce uniqueness. */
+#define TEST_AES_NONCE_RECS 4
+/* Payload size - above WC_ASYNC_THRESH_AES_GCM for every async backend so the
+ * asynchronous submission path is taken when one is built in. */
+#define TEST_AES_NONCE_SZ   256
+
+/* Big-endian increment of a nonce, mirroring IncCtr() in aes.c. */
+static void test_aes_nonce_inc(byte* nonce, int nonceSz)
+{
+    int i;
+
+    for (i = nonceSz - 1; i >= 0; i--) {
+        if (++nonce[i] != 0)
+            break;
+    }
+}
+
+#endif /* !NO_AES && WOLFSSL_AES_128 && !WC_NO_RNG && !HAVE_SELFTEST &&
+        * modern FIPS && (HAVE_AESGCM || HAVE_AESCCM) */
+
+/*
+ * wc_AesGcmEncrypt_ex() owns the record nonce counter for TLS 1.2 and
+ * DTLS 1.2 AES-GCM suites: it reports the nonce it consumed through ivOut and
+ * must advance aes->reg so that no two records are ever encrypted under the
+ * same key/nonce pair (NIST SP 800-38D section 8.3, RFC 5288 section 3).
+ * Reusing a nonce leaks the GHASH subkey H and allows arbitrary record
+ * forgery.
+ *
+ * The counter used to advance only when wc_AesGcmEncrypt() returned a literal
+ * 0. An asynchronous backend reports a *successful submission* with
+ * WC_PENDING_E, so the counter was never advanced and every record encrypted
+ * through the async path reused one nonce. The TLS state machine compounds
+ * this by advancing to CIPHER_STATE_END before returning the pending status,
+ * so wc_AesGcmEncrypt_ex() is not re-entered on completion.
+ *
+ * Checks, for both the synchronous and the asynchronous path:
+ *  1. Every reported nonce is distinct from all earlier ones.
+ *  2. Each nonce is the previous one incremented by one.
+ *  3. The reported nonce is the nonce actually used, proven by decrypting
+ *     with it on a separate Aes.
+ *  4. The counter carries correctly across an all-0xFF low-order boundary.
+ */
+int test_wc_AesGcmEncrypt_ex_NonceUnique(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    WC_RNG rng;
+    byte   key[AES_128_KEY_SIZE];
+    byte   tag[WC_AES_BLOCK_SIZE];
+    byte   ivOut[TEST_AES_NONCE_RECS][GCM_NONCE_MID_SZ];
+    byte   carryIv[2][GCM_NONCE_MID_SZ];
+    byte   expected[GCM_NONCE_MID_SZ];
+    byte   extIv[GCM_NONCE_MID_SZ];
+    int    devId = INVALID_DEVID;
+    int    ret;
+    int    i;
+    int    j;
+    WC_DECLARE_VAR(aes, Aes, 1, NULL);
+    WC_DECLARE_VAR(plain, byte, TEST_AES_NONCE_SZ, NULL);
+    WC_DECLARE_VAR(cipher, byte, TEST_AES_NONCE_SZ, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_DECLARE_VAR(dec, Aes, 1, NULL);
+    WC_DECLARE_VAR(plainOut, byte, TEST_AES_NONCE_SZ, NULL);
+#endif
+
+    WC_ALLOC_VAR(aes, Aes, 1, NULL);
+    WC_ALLOC_VAR(plain, byte, TEST_AES_NONCE_SZ, NULL);
+    WC_ALLOC_VAR(cipher, byte, TEST_AES_NONCE_SZ, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_ALLOC_VAR(dec, Aes, 1, NULL);
+    WC_ALLOC_VAR(plainOut, byte, TEST_AES_NONCE_SZ, NULL);
+#endif
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(aes);
+    ExpectNotNull(plain);
+    ExpectNotNull(cipher);
+#ifdef HAVE_AES_DECRYPT
+    ExpectNotNull(dec);
+    ExpectNotNull(plainOut);
+#endif
+    if (!EXPECT_SUCCESS())
+        goto out;
+#endif
+
+    XMEMSET(aes, 0, sizeof(Aes));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(ivOut, 0, sizeof(ivOut));
+    XMEMSET(key, 0x2b, sizeof(key));
+    XMEMSET(plain, 0x41, TEST_AES_NONCE_SZ);
+#ifdef HAVE_AES_DECRYPT
+    XMEMSET(dec, 0, sizeof(Aes));
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Take the asynchronous submission path, which reports success with
+     * WC_PENDING_E rather than 0. A hardware device returns its devId here,
+     * so any non-negative value is a successful open. */
+    ExpectIntGE(wolfAsync_DevOpen(&devId), 0);
+#endif
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_AesInit(aes, NULL, devId), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(aes, GCM_NONCE_MID_SZ, NULL, 0, &rng), 0);
+
+#ifdef HAVE_AES_DECRYPT
+    /* Decrypt on its own Aes - some backends use aes->reg as scratch space,
+     * so sharing one Aes would perturb the counter under test. */
+    ExpectIntEQ(wc_AesInit(dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(dec, key, sizeof(key)), 0);
+#endif
+
+    for (i = 0; i < TEST_AES_NONCE_RECS; i++) {
+        ret = wc_AesGcmEncrypt_ex(aes, cipher, plain, TEST_AES_NONCE_SZ,
+            ivOut[i], GCM_NONCE_MID_SZ, tag, sizeof(tag), NULL, 0);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        ExpectIntEQ(ret, 0);
+
+        /* The reported nonce must differ from every earlier one. */
+        for (j = 0; j < i; j++) {
+            ExpectIntNE(XMEMCMP(ivOut[i], ivOut[j], GCM_NONCE_MID_SZ), 0);
+        }
+
+        /* ...and must be exactly one past the previous nonce. */
+        if (i > 0) {
+            XMEMCPY(expected, ivOut[i - 1], GCM_NONCE_MID_SZ);
+            test_aes_nonce_inc(expected, GCM_NONCE_MID_SZ);
+            ExpectIntEQ(XMEMCMP(ivOut[i], expected, GCM_NONCE_MID_SZ), 0);
+        }
+
+    #ifdef HAVE_AES_DECRYPT
+        /* The reported nonce is the one the ciphertext was produced with. */
+        XMEMSET(plainOut, 0, TEST_AES_NONCE_SZ);
+        ExpectIntEQ(wc_AesGcmDecrypt(dec, plainOut, cipher,
+            TEST_AES_NONCE_SZ, ivOut[i], GCM_NONCE_MID_SZ, tag,
+            sizeof(tag), NULL, 0), 0);
+        ExpectIntEQ(XMEMCMP(plainOut, plain, TEST_AES_NONCE_SZ), 0);
+    #endif
+    }
+
+    /* Carry across the low-order boundary: 0x...FFFF must roll into the next
+     * higher byte rather than wrapping back onto a used nonce. */
+    XMEMSET(extIv, 0x00, sizeof(extIv));
+    extIv[GCM_NONCE_MID_SZ - 2] = 0xFF;
+    extIv[GCM_NONCE_MID_SZ - 1] = 0xFF;
+    ExpectIntEQ(wc_AesGcmSetExtIV(aes, extIv, sizeof(extIv)), 0);
+
+    ret = wc_AesGcmEncrypt_ex(aes, cipher, plain, TEST_AES_NONCE_SZ,
+        carryIv[0], GCM_NONCE_MID_SZ, tag, sizeof(tag), NULL, 0);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(XMEMCMP(carryIv[0], extIv, GCM_NONCE_MID_SZ), 0);
+
+    ret = wc_AesGcmEncrypt_ex(aes, cipher, plain, TEST_AES_NONCE_SZ,
+        carryIv[1], GCM_NONCE_MID_SZ, tag, sizeof(tag), NULL, 0);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    XMEMCPY(expected, extIv, GCM_NONCE_MID_SZ);
+    test_aes_nonce_inc(expected, GCM_NONCE_MID_SZ);
+    ExpectIntEQ(XMEMCMP(carryIv[1], expected, GCM_NONCE_MID_SZ), 0);
+    ExpectIntNE(XMEMCMP(carryIv[1], carryIv[0], GCM_NONCE_MID_SZ), 0);
+
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(dec);
+#endif
+    wc_AesFree(aes);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+out:
+#endif
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
+    WC_FREE_VAR(aes, NULL);
+#ifdef HAVE_AES_DECRYPT
+    WC_FREE_VAR(plainOut, NULL);
+    WC_FREE_VAR(dec, NULL);
+#endif
+#endif /* !NO_AES && HAVE_AESGCM && WOLFSSL_AES_128 && !WC_NO_RNG */
+    return EXPECT_RESULT();
+}
+
 /*
  * Non-standard (non-96-bit) nonce tests for AES-GCM.
  *
@@ -5338,6 +5543,92 @@ int test_wc_AesCcmAeadEdgeCases(void)
 #endif /* HAVE_AESCCM && WOLFSSL_AES_128 */
     return EXPECT_RESULT();
 } /* END test_wc_AesCcmAeadEdgeCases */
+
+/*
+ * wc_AesCcmEncrypt_ex() carries the same nonce-counter contract as
+ * wc_AesGcmEncrypt_ex(): the nonce reported through ivOut must be the one the
+ * ciphertext was produced with, and the counter must advance so no two records
+ * share a nonce. No CCM backend defers work today, but the counter is advanced
+ * on a deferred submission as well so that adding one cannot silently
+ * reintroduce nonce reuse.
+ */
+int test_wc_AesCcmEncrypt_ex_NonceUnique(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    Aes    aes;
+    byte   key[AES_128_KEY_SIZE];
+    byte   nonce[CCM_NONCE_MIN_SZ];
+    byte   plain[32];
+    byte   cipher[32];
+    byte   tag[WC_AES_BLOCK_SIZE];
+    byte   ivOut[TEST_AES_NONCE_RECS][CCM_NONCE_MIN_SZ];
+    byte   expected[CCM_NONCE_MIN_SZ];
+    int    i;
+    int    j;
+#ifdef HAVE_AES_DECRYPT
+    Aes    dec;
+    byte   plainOut[32];
+
+    XMEMSET(&dec, 0, sizeof(dec));
+#endif
+
+    XMEMSET(&aes, 0, sizeof(aes));
+    XMEMSET(ivOut, 0, sizeof(ivOut));
+    XMEMSET(key, 0x2b, sizeof(key));
+    XMEMSET(plain, 0x41, sizeof(plain));
+    /* Start two below a low-order boundary so the loop crosses a carry. */
+    XMEMSET(nonce, 0x00, sizeof(nonce));
+    nonce[sizeof(nonce) - 2] = 0xFF;
+    nonce[sizeof(nonce) - 1] = 0xFE;
+
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesCcmSetKey(&aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesCcmSetNonce(&aes, nonce, sizeof(nonce)), 0);
+
+#ifdef HAVE_AES_DECRYPT
+    ExpectIntEQ(wc_AesInit(&dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesCcmSetKey(&dec, key, sizeof(key)), 0);
+#endif
+
+    for (i = 0; i < TEST_AES_NONCE_RECS; i++) {
+        ExpectIntEQ(wc_AesCcmEncrypt_ex(&aes, cipher, plain,
+            (word32)sizeof(plain), ivOut[i], sizeof(nonce), tag, sizeof(tag),
+            NULL, 0), 0);
+
+        for (j = 0; j < i; j++) {
+            ExpectIntNE(XMEMCMP(ivOut[i], ivOut[j], sizeof(nonce)), 0);
+        }
+
+        if (i == 0) {
+            ExpectIntEQ(XMEMCMP(ivOut[i], nonce, sizeof(nonce)), 0);
+        }
+        else {
+            XMEMCPY(expected, ivOut[i - 1], sizeof(nonce));
+            test_aes_nonce_inc(expected, (int)sizeof(nonce));
+            ExpectIntEQ(XMEMCMP(ivOut[i], expected, sizeof(nonce)), 0);
+        }
+
+    #ifdef HAVE_AES_DECRYPT
+        XMEMSET(plainOut, 0, sizeof(plainOut));
+        ExpectIntEQ(wc_AesCcmDecrypt(&dec, plainOut, cipher,
+            (word32)sizeof(cipher), ivOut[i], sizeof(nonce), tag, sizeof(tag),
+            NULL, 0), 0);
+        ExpectIntEQ(XMEMCMP(plainOut, plain, sizeof(plain)), 0);
+    #endif
+    }
+
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(&dec);
+#endif
+    wc_AesFree(&aes);
+#endif /* !NO_AES && HAVE_AESCCM && WOLFSSL_AES_128 && !WC_NO_RNG &&
+        * !HAVE_SELFTEST && modern FIPS */
+    return EXPECT_RESULT();
+} /* END test_wc_AesCcmEncrypt_ex_NonceUnique */
 
 /*******************************************************************************
  * AES-XTS

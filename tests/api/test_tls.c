@@ -3378,3 +3378,148 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Number of application records written while checking nonce uniqueness. */
+#define TEST_TLS12_NONCE_RECS 4
+/* Payload size - above WC_ASYNC_THRESH_AES_GCM for every async backend so an
+ * async build actually offloads the record encryption. */
+#define TEST_TLS12_NONCE_PAYLOAD 256
+
+/*
+ * A TLS 1.2 AES-GCM sender must never reuse a nonce under one traffic key
+ * (RFC 5288 section 3, NIST SP 800-38D section 8.3). The 8-byte explicit part
+ * of the nonce is carried in the clear at the front of each record, so a
+ * repeat is directly observable on the wire - and a repeat hands an on-path
+ * attacker the GHASH subkey H and with it the ability to forge records.
+ *
+ * The explicit nonce comes from ssl->encrypt.nonce, which wc_AesGcmEncrypt_ex()
+ * fills from its internal counter. That counter used to advance only when the
+ * cipher returned a literal 0, so an asynchronous backend - which reports a
+ * successful submission with WC_PENDING_E - left it parked and every record
+ * went out under the same nonce.
+ *
+ * Writes several records, then reads the explicit nonces straight out of the
+ * memio wire buffer and requires them to be pairwise distinct. Runs in
+ * synchronous builds too, where it pins the same invariant end to end.
+ */
+int test_tls12_aesgcm_record_nonce_unique(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(BUILD_AESGCM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ECC) && !defined(NO_RSA) && defined(WOLFSSL_AES_128) && \
+    !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    byte payload[TEST_TLS12_NONCE_PAYLOAD];
+    byte readBuf[TEST_TLS12_NONCE_PAYLOAD];
+    byte nonces[TEST_TLS12_NONCE_RECS][AESGCM_EXP_IV_SZ];
+    int devId = INVALID_DEVID;
+    int off = 0;
+    int recLen = 0;
+    int ret = 0;
+    int err = 0;
+    int i;
+    int j;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(nonces, 0, sizeof(nonces));
+    XMEMSET(payload, 0x5a, sizeof(payload));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "ECDHE-RSA-AES128-GCM-SHA256";
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Offload the record cipher so the WC_PENDING_E path is taken. A hardware
+     * device returns its devId, so any non-negative value is a good open. */
+    ExpectIntGE(wolfAsync_DevOpen(&devId), 0);
+#endif
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_c, devId), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetDevId(ssl_s, devId), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectStrEQ(wolfSSL_get_cipher_name(ssl_c), "ECDHE-RSA-AES128-GCM-SHA256");
+
+    /* Drop the handshake traffic so the buffer holds only application data.
+     * The client writes into s_buff - the buffer the server reads from. */
+    if (EXPECT_SUCCESS()) {
+        test_memio_clear_buffer(&test_ctx, 0);
+    }
+
+    for (i = 0; i < TEST_TLS12_NONCE_RECS && EXPECT_SUCCESS(); i++) {
+        do {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                ret = wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0)
+                    break;
+            }
+        #endif
+            ret = wolfSSL_write(ssl_c, payload, (int)sizeof(payload));
+            err = (ret > 0) ? 0 : wolfSSL_get_error(ssl_c, ret);
+        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        ExpectIntEQ(ret, (int)sizeof(payload));
+    }
+
+    /* Walk the wire buffer record by record and lift the explicit nonce out
+     * of each one: [type][version][length][8-byte explicit nonce][...]. */
+    for (i = 0; i < TEST_TLS12_NONCE_RECS && EXPECT_SUCCESS(); i++) {
+        ExpectIntGE(test_ctx.s_len - off,
+            RECORD_HEADER_SZ + AESGCM_EXP_IV_SZ);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(test_ctx.s_buff[off], application_data);
+            recLen = (test_ctx.s_buff[off + 3] << 8) |
+                      test_ctx.s_buff[off + 4];
+            ExpectIntGE(recLen, AESGCM_EXP_IV_SZ);
+        }
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(nonces[i], test_ctx.s_buff + off + RECORD_HEADER_SZ,
+                AESGCM_EXP_IV_SZ);
+            off += RECORD_HEADER_SZ + recLen;
+        }
+    }
+    ExpectIntEQ(off, test_ctx.s_len);
+
+    /* No explicit nonce may repeat under this traffic key. */
+    for (i = 1; i < TEST_TLS12_NONCE_RECS; i++) {
+        for (j = 0; j < i; j++) {
+            ExpectIntNE(XMEMCMP(nonces[i], nonces[j], AESGCM_EXP_IV_SZ), 0);
+        }
+    }
+
+    /* The records are still valid: the peer authenticates and decrypts each. */
+    for (i = 0; i < TEST_TLS12_NONCE_RECS && EXPECT_SUCCESS(); i++) {
+        err = 0;
+        do {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                ret = wolfSSL_AsyncPoll(ssl_s, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0)
+                    break;
+            }
+        #endif
+            XMEMSET(readBuf, 0, sizeof(readBuf));
+            ret = wolfSSL_read(ssl_s, readBuf, (int)sizeof(readBuf));
+            err = (ret > 0) ? 0 : wolfSSL_get_error(ssl_s, ret);
+        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        ExpectIntEQ(ret, (int)sizeof(payload));
+        ExpectIntEQ(XMEMCMP(readBuf, payload, sizeof(payload)), 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+    (void)devId;
+#endif
+    return EXPECT_RESULT();
+}
