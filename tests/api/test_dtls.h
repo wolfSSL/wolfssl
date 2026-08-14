@@ -88,6 +88,7 @@ int test_dtls_dropped_ccs(void);
 int test_dtls_seq_num_downgrade(void);
 int test_dtls_old_seq_number(void);
 int test_dtls12_seq_num_wrap(void);
+int test_dtls12_scr_epoch_wrap(void);
 int test_dtls12_missing_finished(void);
 int test_wolfSSL_dtls_export(void);
 int test_wolfSSL_dtls_export_peers(void);
@@ -174,6 +175,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_seq_num_downgrade),                  \
         TEST_DECL_GROUP("dtls", test_dtls_old_seq_number),                     \
         TEST_DECL_GROUP("dtls", test_dtls12_seq_num_wrap),                     \
+        TEST_DECL_GROUP("dtls", test_dtls12_scr_epoch_wrap),                   \
         TEST_DECL_GROUP("dtls", test_dtls12_missing_finished),                 \
         TEST_DECL_GROUP("dtls", test_dtls12_export_import_etm),                \
         TEST_DECL_GROUP("dtls", test_dtls13_min_rtx_interval),                 \

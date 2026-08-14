@@ -6110,6 +6110,74 @@ int test_dtls_old_seq_number(void)
     return EXPECT_RESULT();
 }
 
+/* Renegotiate at the given server epoch and report whether it was allowed. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+static int test_dtls12_scr_epoch_wrap_at(word16 epoch, int expectAccept)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    char readBuf[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Only the server's send epoch. Moving the receive epochs would drop the
+     * ClientHello, and moving the client's would trip _Rehandshake(). */
+    if (EXPECT_SUCCESS() && ssl_s != NULL)
+        ssl_s->keys.dtls_epoch = epoch;
+
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+
+    ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_s),
+            expectAccept ? 1 : 0);
+    if (!expectAccept) {
+        /* refused with a warning alert, epoch untouched */
+        XMEMSET(&h, 0, sizeof(h));
+        ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &h), WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_tx.level, alert_warning);
+        ExpectIntEQ(h.last_tx.code, no_renegotiation);
+        if (EXPECT_SUCCESS() && ssl_s != NULL)
+            ExpectIntEQ((int)ssl_s->keys.dtls_epoch, (int)epoch);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_dtls12_scr_epoch_wrap(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    ExpectIntEQ(test_dtls12_scr_epoch_wrap_at(0xFFFF, 0), TEST_SUCCESS);
+    /* one below the boundary still renegotiates */
+    ExpectIntEQ(test_dtls12_scr_epoch_wrap_at(0xFFFE, 1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls12_seq_num_wrap(void)
 {
     EXPECT_DECLS;

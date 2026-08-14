@@ -20110,6 +20110,17 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             *inOutIdx = expectedIdx;
             return SendAlert(ssl, alert_warning, no_renegotiation);
         }
+#ifdef WOLFSSL_DTLS
+        /* RFC 6347 Sec 4.1: the epoch must not wrap. Both directions are
+         * checked because a second ClientHello can arrive between the peer's
+         * CCS and our own. */
+        if (ssl->options.dtls && (ssl->keys.dtls_epoch == 0xFFFF ||
+                ssl->keys.peerSeq[0].nextEpoch == 0xFFFF)) {
+            WOLFSSL_MSG("Refusing renegotiation. Epoch would wrap");
+            *inOutIdx = expectedIdx;
+            return SendAlert(ssl, alert_warning, no_renegotiation);
+        }
+#endif
         ret = ResetHandshakeStateForReneg(ssl);
         if (ret != 0)
             return ret;
