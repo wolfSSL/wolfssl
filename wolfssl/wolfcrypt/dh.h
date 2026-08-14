@@ -112,6 +112,7 @@ struct DhKey {
 #ifdef WC_DH_NONBLOCK
     DhNb* nb; /* non-blocking context, NULL when not in non-block mode */
 #endif
+    int devId;
 };
 
 #ifndef WC_DH_TYPE_DEFINED
