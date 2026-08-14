@@ -14025,12 +14025,12 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     *inOutIdx += EXTS_SZ;
     if ((*inOutIdx - begin) + length != size)
         return BUFFER_ERROR;
-    #ifdef WOLFSSL_EARLY_DATA
-    ret = TLSX_Parse(ssl, (byte *)input + (*inOutIdx), length, session_ticket,
-                     NULL);
+    /* RFC 9846 Section 4.7.1: the extensions are Section 4.3 Extension TLVs.
+     * Malformed framing is a syntax error even when no extension in the list
+     * is one we act on. */
+    ret = TLSX_Parse(ssl, input + *inOutIdx, length, session_ticket, NULL);
     if (ret != 0)
         return ret;
-    #endif
     *inOutIdx += length;
 
     SetupSession(ssl);
