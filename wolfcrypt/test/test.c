@@ -33267,7 +33267,7 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
     }
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DH_GEN_PARAMS)
     wc_FreeDhKey(key);
     ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
     if (ret != 0)
@@ -33286,7 +33286,7 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && !WOLFSSL_NO_DH_GEN_PARAMS */
 #endif /* HAVE_SELFTEST */
 
     ret = 0;
@@ -33365,7 +33365,8 @@ static wc_test_ret_t dh_generate_test(WC_RNG *rng)
     ret = 0;
 #endif
 
-#if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186)
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186) && \
+    !defined(WOLFSSL_NO_DH_GEN_PARAMS)
     {
         byte   priv[260];
         byte   pub[260];

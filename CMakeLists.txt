@@ -1638,6 +1638,10 @@ add_option("WOLFSSL_KEYGEN"
     "Enable key generation (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_DH_GEN_PARAMS"
+    "Enable DH domain parameter generation with key generation -- protocols use the fixed FFDHE groups (default: enabled)"
+    "yes" "yes;no")
+
 add_option("WOLFSSL_CERTGEN"
     "Enable cert generation (default: disabled)"
     "no" "yes;no")
@@ -3104,6 +3108,9 @@ endif()
 
 if(WOLFSSL_KEYGEN)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_KEY_GEN")
+    if(NOT WOLFSSL_DH_GEN_PARAMS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_DH_GEN_PARAMS")
+    endif()
 endif()
 if(WOLFSSL_CERTGEN)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN")
