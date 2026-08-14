@@ -5086,8 +5086,15 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
                 WC_SETKEY_AES, aes, (void*)userKey, keylen,
                 (void*)iv,
                 (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
-            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (cbRet == 0) {
+                    /* Callback succeeded - the device owns the key, so mark it
+                     * installed like the AES_SETKEY path above. */
+                    aes->keylen = (int)keylen;
+                    aes->keyInstalled = 1;
+                }
                 return cbRet;
+            }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
             /* Standard CryptoCB path - copy key to devKey for encrypt/decrypt offload */
@@ -5660,8 +5667,15 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 WC_SETKEY_AES, aes, (void*)userKey, keylen,
                 (void*)iv,
                 (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
-            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (cbRet == 0) {
+                    /* Callback succeeded - the device owns the key, so mark it
+                     * installed like the AES_SETKEY path above. */
+                    aes->keylen = (int)keylen;
+                    aes->keyInstalled = 1;
+                }
                 return cbRet;
+            }
             /* CRYPTOCB_UNAVAILABLE: fall through to software setup */
         #endif /* WOLF_CRYPTO_CB_SETKEY */
             /* Standard CryptoCB path - copy key to devKey */
@@ -16164,6 +16178,8 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
         XMEMCPY(aes->id, id, (size_t)len);
         aes->idLen = len;
         aes->labelLen = 0;
+        /* keyInstalled stays 0: the key lives on the device, not in the
+         * software schedule. See the field comment in aes.h. */
     }
 
     return ret;
@@ -16188,6 +16204,7 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
         XMEMCPY(aes->label, label, labelLen);
         aes->labelLen = (int)labelLen;
         aes->idLen = 0;
+        /* keyInstalled stays 0: see wc_AesInit_Id() above. */
     }
 
     return ret;

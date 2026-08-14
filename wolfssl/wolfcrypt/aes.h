@@ -523,11 +523,19 @@ struct Aes {
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
     /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
-     * GcmSetKey). Checked by the mode APIs so they fail instead of running
-     * with the all-zero key schedule left by wc_AesInit. Distinct from the
-     * Cavium-only keySet field. Appended at the end of the struct so existing
-     * member offsets are unchanged. Always maintained, so the layout does not
-     * depend on WOLFSSL_AES_REQUIRE_KEY_SET. */
+     * GcmSetKey), including when a crypto callback takes ownership of it.
+     * Checked by the mode APIs so they fail instead of running with the
+     * all-zero key schedule left by wc_AesInit. Distinct from the Cavium-only
+     * keySet field. Appended at the end of the struct so existing member
+     * offsets are unchanged. Always maintained, so the layout does not depend
+     * on WOLFSSL_AES_REQUIRE_KEY_SET.
+     *
+     * Deliberately NOT set by wc_AesInit_Id()/wc_AesInit_Label(): those name a
+     * key held by the device and leave the software key schedule empty. The
+     * guard sits after every offload dispatch, so such a context still reaches
+     * its crypto callback; it only fails if it falls through to a software
+     * path, which is exactly the case that would otherwise encrypt with an
+     * all-zero key. */
     WC_BITFIELD keyInstalled:1;
 };
 
