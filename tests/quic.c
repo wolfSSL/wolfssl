@@ -2191,7 +2191,8 @@ static int test_quic_ticket_max_early_data(int verbose) {
     ExpectNotNull(tclient.ssl);
     ExpectTrue(tclient.ssl->session->maxEarlyDataSz == WOLFSSL_MAX_32BIT);
 
-    /* Any other size must fail the connection. */
+    /* Any other size is a connection error of type PROTOCOL_VIOLATION, handed
+     * to the QUIC stack through send_alert. */
     ticket[edOff + 0] = 0x00;
     ticket[edOff + 1] = 0x00;
     ticket[edOff + 2] = 0x40;
@@ -2201,7 +2202,7 @@ static int test_quic_ticket_max_early_data(int verbose) {
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_process_quic_post_handshake(tclient.ssl),
         WC_NO_ERR_TRACE(INVALID_PARAMETER));
-    ExpectIntEQ(tclient.alert, illegal_parameter);
+    ExpectIntEQ(tclient.alert, WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
