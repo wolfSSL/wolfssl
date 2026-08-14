@@ -9820,7 +9820,7 @@ leave:
  */
 int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
 {
-    word16 group;
+    word16 group = 0;
     const WOLF_EC_NIST_NAME* nist_name;
 
     WOLFSSL_ENTER("wolfSSL_get_negotiated_group");
@@ -9828,7 +9828,9 @@ int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
     if (ssl == NULL)
         return 0;
 
+#if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
     group = ssl->namedGroup;
+#endif
 
 #ifdef HAVE_CURVE25519
     if ((group == 0) && (ssl->ecdhCurveOID == ECC_X25519_OID))
