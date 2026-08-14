@@ -530,9 +530,9 @@ int wolfCrypt_Init(void)
     #endif
 
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WOLFSSL_LINUXKM)
-        ret = allocate_wolfcrypt_linuxkm_fpu_states();
+        ret = wc_linuxkm_allocate_svr_states();
         if (ret != 0) {
-            WOLFSSL_MSG("allocate_wolfcrypt_linuxkm_fpu_states failed");
+            WOLFSSL_MSG("wc_linuxkm_allocate_svr_states failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
@@ -893,7 +893,7 @@ int wolfCrypt_Cleanup(void)
         wolfSSL_CleanupHandle();
     #endif
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WOLFSSL_LINUXKM)
-        free_wolfcrypt_linuxkm_fpu_states();
+        wc_linuxkm_free_svr_states();
     #endif
 
     #ifdef HAVE_ENTROPY_MEMUSE
