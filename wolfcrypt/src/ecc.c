@@ -11637,10 +11637,10 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
             else
                 inLen = inLen*2 + 1;  /* used uncompressed len */
         }
+        if (err == MP_OKAY)
     #endif
-
         /* determine key size */
-        if (err == MP_OKAY) {
+        {
             keysize = (int)(inLen>>1);
             /* NOTE: FIPS v6.0.0 or greater, no restriction on imported keys,
              *       only on created keys or signatures */
