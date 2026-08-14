@@ -1611,8 +1611,13 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     /* A user EMS override takes precedence over the session's EMS state. */
     if (ssl->options.requireEMS && ssl->options.side == WOLFSSL_CLIENT_END)
         ssl->options.haveEMS = 1;
-    else if (ssl->options.disableEMS)
+    else if (ssl->options.disableEMS) {
         ssl->options.haveEMS = 0;
+        /* An EMS session cannot be offered without the extension
+         * (RFC 7627 5.3): decline it and do a full handshake. */
+        if (ssl->session->haveEMS)
+            ssl->options.resuming = 0;
+    }
     else
 #endif
     {
