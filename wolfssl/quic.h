@@ -50,6 +50,26 @@ typedef struct wolfssl_quic_method_t WOLFSSL_QUIC_METHOD;
 
 #include <wolfssl/ssl.h>
 
+/* QUIC transport error codes (RFC 9000 Section 20.1). */
+#define WOLFSSL_QUIC_ERR_NO_ERROR                  0x00
+#define WOLFSSL_QUIC_ERR_INTERNAL_ERROR            0x01
+#define WOLFSSL_QUIC_ERR_CONNECTION_REFUSED        0x02
+#define WOLFSSL_QUIC_ERR_FLOW_CONTROL_ERROR        0x03
+#define WOLFSSL_QUIC_ERR_STREAM_LIMIT_ERROR        0x04
+#define WOLFSSL_QUIC_ERR_STREAM_STATE_ERROR        0x05
+#define WOLFSSL_QUIC_ERR_FINAL_SIZE_ERROR          0x06
+#define WOLFSSL_QUIC_ERR_FRAME_ENCODING_ERROR      0x07
+#define WOLFSSL_QUIC_ERR_TRANSPORT_PARAMETER_ERROR 0x08
+#define WOLFSSL_QUIC_ERR_CONNECTION_ID_LIMIT_ERROR 0x09
+#define WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION        0x0a
+#define WOLFSSL_QUIC_ERR_INVALID_TOKEN             0x0b
+#define WOLFSSL_QUIC_ERR_APPLICATION_ERROR         0x0c
+#define WOLFSSL_QUIC_ERR_CRYPTO_BUFFER_EXCEEDED    0x0d
+#define WOLFSSL_QUIC_ERR_KEY_UPDATE_ERROR          0x0e
+#define WOLFSSL_QUIC_ERR_AEAD_LIMIT_REACHED        0x0f
+#define WOLFSSL_QUIC_ERR_NO_VIABLE_PATH            0x10
+/* 0x0100-0x01ff carry a TLS alert in the low byte. */
+#define WOLFSSL_QUIC_ERR_CRYPTO_ERROR              0x0100
 
 /* All QUIC related callbacks to the application. */
 struct wolfssl_quic_method_t {
