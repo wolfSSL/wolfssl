@@ -594,7 +594,7 @@ static int fillBuff(WOLFSSL_EVP_CIPHER_CTX *ctx, const unsigned char *in, int sz
     if (sz > 0) {
         int fill;
 
-        if ((sz+ctx->bufUsed) > ctx->block_size) {
+        if (sz > ctx->block_size - ctx->bufUsed) {
             fill = ctx->block_size - ctx->bufUsed;
         } else {
             fill = sz;
