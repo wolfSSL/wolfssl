@@ -4673,7 +4673,8 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_OID_DECODING
-    decOidSz = (word32)sizeof(decOid);
+    /* in elements, not bytes */
+    decOidSz = (word32)(sizeof(decOid) / sizeof(decOid[0]));
     ret = DecodeObjectId(oid, len, decOid, &decOidSz);
     if (ret != 0) {
         return ret;
