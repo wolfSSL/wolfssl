@@ -1485,6 +1485,7 @@ static WARN_UNUSED_RESULT int Hash_gen(DRBG_internal* drbg, byte* out,
     XMEMCPY(data, V, DRBG_SEED_LEN);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("Hash_gen data", data, DRBG_SEED_LEN);
+    wc_MemZero_Add("Hash_gen digest", digest, WC_SHA256_DIGEST_SIZE);
 #endif
     for (i = 0; i < len; i++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
@@ -1525,9 +1526,11 @@ static WARN_UNUSED_RESULT int Hash_gen(DRBG_internal* drbg, byte* out,
         }
     }
     ForceZero(data, DRBG_SEED_LEN);
+    ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 #if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SEED_LEN);
+    wc_MemZero_Check(digest, WC_SHA256_DIGEST_SIZE);
 #endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
@@ -2152,6 +2155,7 @@ static WARN_UNUSED_RESULT int Hash512_gen(DRBG_SHA512_internal* drbg,
     XMEMCPY(data, V, DRBG_SHA512_SEED_LEN);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("Hash512_gen data", data, DRBG_SHA512_SEED_LEN);
+    wc_MemZero_Add("Hash512_gen digest", digest, WC_SHA512_DIGEST_SIZE);
 #endif
     for (i = 0; i < len; i++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
@@ -2191,9 +2195,11 @@ static WARN_UNUSED_RESULT int Hash512_gen(DRBG_SHA512_internal* drbg,
         }
     }
     ForceZero(data, DRBG_SHA512_SEED_LEN);
+    ForceZero(digest, WC_SHA512_DIGEST_SIZE);
 #if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SHA512_SEED_LEN);
+    wc_MemZero_Check(digest, WC_SHA512_DIGEST_SIZE);
 #endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
