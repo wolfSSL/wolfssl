@@ -34620,6 +34620,14 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
 
     if (!r) r = wc_SrpVerifyPeersProof(cli, serverProof, serverProofSz);
 
+    /* Regression: a second wc_SrpSetUsername()/wc_SrpComputeKey() must release
+     * (and, for the key, zeroise) the buffer from the first call rather than
+     * leaking it. The exchange above is already verified; these repeat calls
+     * exercise the overwrite path so ASan flags a leak if it regresses. */
+    if (!r) r = wc_SrpSetUsername(cli, username, usernameSz);
+    if (!r) r = wc_SrpComputeKey(cli, clientPubKey, clientPubKeySz,
+                                       serverPubKey, serverPubKeySz);
+
     /* Negative test: corrupted proof must be rejected with SRP_VERIFY_E. */
     if (!r) {
         int rNeg;
