@@ -4498,6 +4498,93 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     }
 #endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 && HAVE_AES_KEYWRAP */
 
+#if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_256) && defined(ASN_BER_TO_DER) && \
+    !defined(NO_PKCS7_STREAM)
+    /* A BER EnvelopedData whose encryptedContent is a multi-segment
+     * indefinite-length OCTET STRING must never report more plaintext than it
+     * placed in the caller's buffer. Encode >1 segment (content > the 4096-byte
+     * streaming chunk), then decode with a full and an undersized output buffer.
+     * Run under ASan. */
+    {
+        /* 6000 spans two 4096-byte streaming segments (4096 + 1904) without
+         * being an exact multiple of the chunk size. */
+        const word32 bigSz  = 6000;
+        const word32 halfSz = 4096; /* one segment: smaller than the total */
+        byte*  bigContent = NULL;
+        byte*  berOut     = NULL;
+        byte*  plainFull  = NULL;
+        byte*  plainSmall = NULL;
+        int    berSz = 0;
+        int    dSz;
+        word32 j;
+
+        bigContent = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        berOut     = (byte*)XMALLOC(bigSz + FOURK_BUF, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        plainFull  = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        /* exact-size small buffer so any over-write faults under ASan */
+        plainSmall = (byte*)XMALLOC(halfSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(bigContent);
+        ExpectNotNull(berOut);
+        ExpectNotNull(plainFull);
+        ExpectNotNull(plainSmall);
+        if (bigContent != NULL) {
+            for (j = 0; j < bigSz; j++)
+                bigContent[j] = (byte)j;
+        }
+
+        /* encode as BER (streaming) so encryptedContent is fragmented */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = bigContent;
+            pkcs7->contentSz    = bigSz;
+            pkcs7->contentOID   = DATA;
+            pkcs7->encryptOID   = AES256CBCb;
+            pkcs7->privateKey   = rsaPrivKey;
+            pkcs7->privateKeySz = rsaPrivKeySz;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntGT((berSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, berOut,
+                        bigSz + FOURK_BUF)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* full-size output buffer: all segments returned and content matches */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->privateKey   = rsaPrivKey;
+            pkcs7->privateKeySz = rsaPrivKeySz;
+        }
+        dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
+                                           plainFull, bigSz);
+        ExpectIntEQ(dSz, (int)bigSz);
+        ExpectIntEQ(XMEMCMP(plainFull, bigContent, bigSz), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* undersized output buffer: must fail, not report a length past it */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->privateKey   = rsaPrivKey;
+            pkcs7->privateKeySz = rsaPrivKeySz;
+        }
+        dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
+                                           plainSmall, halfSz);
+        ExpectIntLT(dSz, 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XFREE(bigContent, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(berOut, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plainFull, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plainSmall, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* multi-segment BER bounds regression */
+
 #ifndef NO_RSA
     XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
