@@ -2766,6 +2766,25 @@ int test_wc_ecc_get_curve_id_from_oid(void)
     ExpectIntEQ(wc_ecc_get_curve_id_from_oid(oid, 0), ECC_CURVE_INVALID);
     /* Good Case */
     ExpectIntEQ(wc_ecc_get_curve_id_from_oid(oid, len), ECC_SECP256R1);
+
+#ifdef HAVE_OID_DECODING
+    {
+        /* An OID with more sub-identifiers than the internal decode array can
+         * hold must be rejected, not decoded past the end of that array. The
+         * first byte decodes to two arcs and every following byte to one, so
+         * MAX_OID_SZ bytes yield well over the MAX_OID_SZ/2 element capacity.
+         * Run under ASan to catch a regression. */
+        byte   longOid[MAX_OID_SZ];
+        word32 i;
+
+        longOid[0] = 0x2A;
+        for (i = 1; i < (word32)sizeof(longOid); i++)
+            longOid[i] = 0x01;
+
+        ExpectIntEQ(wc_ecc_get_curve_id_from_oid(longOid, sizeof(longOid)),
+            WC_NO_ERR_TRACE(BUFFER_E));
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_get_curve_id_from_oid */
