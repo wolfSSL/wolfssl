@@ -6156,14 +6156,15 @@ void wolfSSL_EVP_init(void)
         WOLFSSL_ENTER("EVP_CIPHER_MD_CTX_copy_ex");
         wolfSSL_EVP_MD_CTX_cleanup(out);
         XMEMCPY(out, in, sizeof(WOLFSSL_EVP_MD_CTX));
+        /* Zero hash context after shallow copy to prevent shared sub-pointers
+         * with src, even if the pctx allocation below fails. The hash Copy
+         * function will perform the proper deep copy. */
+        XMEMSET(&out->hash, 0, sizeof(out->hash));
         if (in->pctx != NULL) {
             out->pctx = wolfSSL_EVP_PKEY_CTX_new(in->pctx->pkey, NULL);
             if (out->pctx == NULL)
                 return WOLFSSL_FAILURE;
         }
-        /* Zero hash context after shallow copy to prevent shared sub-pointers
-         * with src. The hash Copy function will perform the proper deep copy. */
-        XMEMSET(&out->hash, 0, sizeof(out->hash));
         return wolfSSL_EVP_MD_Copy_Hasher(out, (WOLFSSL_EVP_MD_CTX*)in);
     }
     #ifndef NO_AES
