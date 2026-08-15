@@ -1963,6 +1963,79 @@ int test_wc_ecc_encryptDecrypt(void)
 } /* END test_wc_ecc_encryptDecrypt */
 
 /*
+ * In the default ECIES message format the sender's ephemeral public key is
+ * carried in the message, so wc_ecc_decrypt() must not free or overwrite a
+ * caller-supplied pubKey object. Confirm the object is byte-for-byte preserved
+ * across a decrypt.
+ */
+int test_wc_ecc_decrypt_pubkey_preserved(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_ECIES_OLD) && defined(HAVE_ECC_KEY_EXPORT) && \
+    defined(HAVE_ECC_KEY_IMPORT) && \
+    (defined(HAVE_AES_CBC) || \
+     (defined(HAVE_AESGCM) && (defined(WOLFSSL_ECIES_GEN_IV) || \
+        defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)))) && defined(WOLFSSL_AES_128)
+    ecc_key     cliKey;
+    ecc_key     srvKey;
+    ecc_key     pubKey;
+    WC_RNG      rng;
+    const char* msg   = "EccBlock Size 16";
+    word32      msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    byte        out[KEY20 * 2 + 1 + (sizeof("EccBlock Size 16") - 1) +
+                    WC_SHA256_DIGEST_SIZE];
+    word32      outSz = (word32)sizeof(out);
+    byte        plain[sizeof("EccBlock Size 16")];
+    word32      plainSz = (word32)sizeof(plain);
+    byte        before[ECC_BUFSIZE];
+    byte        after[ECC_BUFSIZE];
+    word32      beforeSz = (word32)sizeof(before);
+    word32      afterSz  = (word32)sizeof(after);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY20, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY20, &srvKey), 0);
+    ExpectIntEQ(wc_ecc_init(&pubKey), 0);
+    /* Load a public key distinct from the sender's ephemeral (embedded in the
+     * message) so that overwriting pubKey would be detectable. */
+    ExpectIntEQ(wc_ecc_export_x963(&srvKey, before, &beforeSz), 0);
+    ExpectIntEQ(wc_ecc_import_x963(before, beforeSz, &pubKey), 0);
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
+#endif
+
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, (byte*)msg, msgSz, out,
+        &outSz, NULL), 0);
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, &pubKey, out, outSz, plain, &plainSz,
+        NULL), 0);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
+    /* the caller's pubKey object must be unchanged after the decrypt */
+    ExpectIntEQ(wc_ecc_export_x963(&pubKey, after, &afterSz), 0);
+    ExpectIntEQ(afterSz, beforeSz);
+    ExpectIntEQ(XMEMCMP(before, after, beforeSz), 0);
+
+    wc_ecc_free(&pubKey);
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_decrypt_pubkey_preserved */
+
+/*
  * Testing ECIES with the AES-256-GCM DEM. Exercises, each with its own
  * single-use client/server ctx pair:
  *   tc 0: round-trip succeeds and matches
