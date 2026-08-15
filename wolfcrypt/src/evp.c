@@ -4896,22 +4896,6 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
     return WOLFSSL_SUCCESS;
 }
 
-/* Update an EVP_DigestSign/Verify operation.
- * Update a digest for RSA and ECC keys, or HMAC for HMAC key.
- */
-static int wolfssl_evp_digest_pk_update(WOLFSSL_EVP_MD_CTX *ctx,
-                                        const void *d, unsigned int cnt)
-{
-    if (ctx->isHMAC) {
-        if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, cnt) != 0)
-            return WOLFSSL_FAILURE;
-
-        return WOLFSSL_SUCCESS;
-    }
-    else
-        return wolfSSL_EVP_DigestUpdate(ctx, d, cnt);
-}
-
 /* Finalize an EVP_DigestSign/Verify operation - common part only.
  * Finalize a digest for RSA and ECC keys, or HMAC for HMAC key.
  * Copies the digest so that you can keep updating.
@@ -5054,14 +5038,14 @@ int wolfSSL_EVP_DigestSignInit(WOLFSSL_EVP_MD_CTX *ctx,
 
 
 int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *d,
-                                 unsigned int cnt)
+                                 size_t cnt)
 {
     WOLFSSL_ENTER("EVP_DigestSignUpdate");
 
     if (ctx == NULL || d == NULL)
         return WOLFSSL_FAILURE;
 
-    return wolfssl_evp_digest_pk_update(ctx, d, cnt);
+    return wolfSSL_EVP_DigestUpdate(ctx, d, cnt);
 }
 
 int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
@@ -5180,7 +5164,7 @@ int wolfSSL_EVP_DigestSign(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     if (sigret != NULL) {
         if (tbs == NULL)
             return WOLFSSL_FAILURE;
-        if (wolfSSL_EVP_DigestSignUpdate(ctx, tbs, (unsigned int)tbslen)
+        if (wolfSSL_EVP_DigestSignUpdate(ctx, tbs, tbslen)
                 != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
     }
@@ -5210,7 +5194,7 @@ int wolfSSL_EVP_DigestVerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *d,
     if (ctx == NULL || d == NULL)
         return WOLFSSL_FAILURE;
 
-    return wolfssl_evp_digest_pk_update(ctx, d, (unsigned int)cnt);
+    return wolfSSL_EVP_DigestUpdate(ctx, d, cnt);
 }
 
 
@@ -11711,14 +11695,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         return ret;
     }
 
-    /* WOLFSSL_SUCCESS on ok, WOLFSSL_FAILURE on failure */
-    int wolfSSL_EVP_DigestUpdate(WOLFSSL_EVP_MD_CTX* ctx, const void* data,
-                                size_t sz)
+    /* Update the digest with at most a word32 of data.
+     * WOLFSSL_SUCCESS on ok, WOLFSSL_FAILURE on failure */
+    static int wolfssl_evp_digest_update_chunk(WOLFSSL_EVP_MD_CTX* ctx,
+                                const void* data, word32 sz)
     {
         int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
         enum wc_HashType macType;
-
-        WOLFSSL_ENTER("EVP_DigestUpdate");
 
         macType = EvpMd2MacType(wolfSSL_EVP_MD_CTX_md(ctx));
         switch (macType) {
@@ -11876,6 +11859,49 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
 
         return ret;
+    }
+
+    /* WOLFSSL_SUCCESS on ok, WOLFSSL_FAILURE on failure */
+    int wolfSSL_EVP_DigestUpdate(WOLFSSL_EVP_MD_CTX* ctx, const void* data,
+                                size_t sz)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("EVP_DigestUpdate");
+
+        if (ctx == NULL)
+            return WOLFSSL_FAILURE;
+
+        /* The underlying update functions take a word32 length. Feed the data
+         * in chunks so the whole of sz is hashed instead of sz mod 2^32.
+         * Detect the narrowing by round-tripping rather than comparing against
+         * a constant, so this holds for any width of size_t. */
+        do {
+            word32 chunk = (word32)sz;
+            if ((size_t)chunk != sz)
+                chunk = WC_MAX_UINT_OF(word32);
+
+        #ifndef NO_HMAC
+            if (ctx->isHMAC) {
+                if (wc_HmacUpdate(&ctx->hash.hmac, (const byte*)data,
+                        chunk) != 0) {
+                    return WOLFSSL_FAILURE;
+                }
+            }
+            else
+        #endif
+            {
+                /* pass the sub-call's code through, e.g. NOT_COMPILED_IN */
+                ret = wolfssl_evp_digest_update_chunk(ctx, data, chunk);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
+            }
+
+            data = (const byte*)data + chunk;
+            sz -= chunk;
+        } while (sz > 0);
+
+        return WOLFSSL_SUCCESS;
     }
 
     /* WOLFSSL_SUCCESS on ok */
