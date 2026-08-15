@@ -1795,16 +1795,18 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
                                             PKCS7Attrib* attribs, int attribsSz)
 {
     int i;
-    int maxSz;
     word32 allAttribsSz = 0;
 
     if (eaSz < 0 || attribsSz < 0) {
         return BAD_FUNC_ARG;
     }
 
-    maxSz = (int)min((word32)eaSz, (word32)attribsSz);
+    /* every attribute must fit in the output array; do not silently drop */
+    if (attribsSz > eaSz) {
+        return BUFFER_E;
+    }
 
-    for (i = 0; i < maxSz; i++)
+    for (i = 0; i < attribsSz; i++)
     {
         word32 attribSz = 0;
         word32 boundSz = 0;
