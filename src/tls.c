@@ -10145,6 +10145,11 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
             WOLFSSL_MSG("GenPqcKey memory error");
             ret = MEMORY_E;
         }
+        else {
+            /* Zero so an unconditional wc_MlKemKey_Free is safe even if Init is
+             * skipped on an id2type failure. */
+            XMEMSET(kem, 0, sizeof(MlKemKey));
+        }
         if (ret == 0) {
             ret = mlkem_id2type(keyShareEntry->group, &type);
         }
@@ -12210,6 +12215,10 @@ static void TLSX_PreSharedKey_FreeAll(PreSharedKey* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
+        /* identity may hold an in-place decrypted ticket whose bytes are the
+         * resumption master secret; wipe before returning it to the heap. */
+        if (current->identity != NULL)
+            ForceZero(current->identity, current->identityLen);
         XFREE(current->identity, heap, DYNAMIC_TYPE_TLSX);
         XFREE(current, heap, DYNAMIC_TYPE_TLSX);
     }
@@ -14687,6 +14696,17 @@ static int TLSX_ECH_ExpandOuterExtensions(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     return ret;
 }
 
+/* Header bytes reserved before the ECH inner ClientHello (DTLS uses a larger handshake header than TLS). */
+static word32 TLSX_EchInnerHeaderSz(const WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_DTLS13
+    return ssl->options.dtls ? DTLS13_HANDSHAKE_HEADER_SZ : HANDSHAKE_HEADER_SZ;
+#else
+    (void)ssl;
+    return HANDSHAKE_HEADER_SZ;
+#endif
+}
+
 /* return status after attempting to open the hpke encrypted ech extension, if
  * successful the inner client hello will be stored in
  * ech->innerClientHelloLen */
@@ -14774,7 +14794,7 @@ static int TLSX_ExtractEch(WOLFSSL* ssl, WOLFSSL_ECH* ech,
     if (ret == 0) {
         ret = wc_HpkeContextOpenBase(ech->hpke, ech->hpkeContext, aad, aadLen,
             ech->outerClientPayload, ech->innerClientHelloLen,
-            ech->innerClientHello + HANDSHAKE_HEADER_SZ);
+            ech->innerClientHello + TLSX_EchInnerHeaderSz(ssl));
     }
 
 #ifdef HAVE_SECRET_CALLBACK
@@ -14992,7 +15012,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
             XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         /* allocate the inner payload buffer */
         ech->innerClientHello =
-            (byte*)XMALLOC(ech->innerClientHelloLen + HANDSHAKE_HEADER_SZ,
+            (byte*)XMALLOC(ech->innerClientHelloLen + TLSX_EchInnerHeaderSz(ssl),
             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (ech->innerClientHello == NULL) {
             XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);

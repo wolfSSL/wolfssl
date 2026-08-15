@@ -4512,6 +4512,10 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
     }
 #endif
 
+    if (OPAQUE24_LEN > *sslBytes) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     ato24(input, &certChainSz);
     *sslBytes -= CERT_HEADER_SZ;
     input += CERT_HEADER_SZ;
@@ -4521,6 +4525,10 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         return WOLFSSL_FATAL_ERROR;
     }
 
+    if (OPAQUE24_LEN > *sslBytes) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     ato24(input, &certSz);
     input += OPAQUE24_LEN;
     if (*sslBytes < (int)certSz) {
