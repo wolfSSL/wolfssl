@@ -14849,8 +14849,12 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     localIdx += (word32)encryptedContentSz;
 
                     /* keep track of total encrypted content size */
-                    pkcs7->totalEncryptedContentSz +=
-                        (word32)encryptedContentSz;
+                    if (!WC_SAFE_SUM_WORD32(pkcs7->totalEncryptedContentSz,
+                            (word32)encryptedContentSz,
+                            pkcs7->totalEncryptedContentSz)) {
+                        ret = BUFFER_E;
+                        break;
+                    }
 
                     if (localIdx + ASN_INDEF_END_SZ <= pkiMsgSz) {
                         if (pkiMsg[localIdx] == ASN_EOC &&
@@ -14880,17 +14884,34 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
                 #endif
 
-                    /* save last decrypted string to handle padding (this output
-                     * flush happens outside of the while loop in the case that
-                     * the indef end was found) */
+                    /* flush this decrypted segment (the last segment is
+                     * flushed outside of the while loop, once the indef end
+                     * has been found and padding stripped) */
                     if (ret == 0) {
                     #ifdef ASN_BER_TO_DER
                         if (pkcs7->streamOutCb) {
                             ret = pkcs7->streamOutCb(pkcs7,
                                 pkcs7->cachedEncryptedContent,
                                 (word32)encryptedContentSz, pkcs7->streamCtx);
+                            if (ret != 0)
+                                break;
                         }
+                        else
                     #endif /* ASN_BER_TO_DER */
+                        {
+                            /* copy segment to output; the return value counts
+                             * every segment so each one must be written out */
+                            word32 outIdx = pkcs7->totalEncryptedContentSz -
+                                (word32)encryptedContentSz;
+                            if (output == NULL ||
+                                    pkcs7->totalEncryptedContentSz > outputSz) {
+                                ret = BUFFER_E;
+                                break;
+                            }
+                            XMEMCPY(output + outIdx,
+                                pkcs7->cachedEncryptedContent,
+                                (word32)encryptedContentSz);
+                        }
                     }
 
                     idx = localIdx;
@@ -14977,12 +14998,17 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             else
         #endif /* ASN_BER_TO_DER */
             {
-                if (output == NULL || (word32)(encryptedContentSz - padLen) >
+                /* the return value counts every segment minus padding, so it
+                 * must be bounded by outputSz */
+                word32 outIdx = pkcs7->totalEncryptedContentSz -
+                    (word32)encryptedContentSz;
+                if (output == NULL ||
+                        (pkcs7->totalEncryptedContentSz - (word32)padLen) >
                         outputSz) {
                     ret = BUFFER_E;
                     break;
                 }
-                XMEMCPY(output, encryptedContent,
+                XMEMCPY(output + outIdx, encryptedContent,
                                            (word32)encryptedContentSz - padLen);
             }
 
