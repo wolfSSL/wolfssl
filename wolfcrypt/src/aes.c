@@ -17267,7 +17267,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
  * out buffer to hold result of encryption (must be at least as large as input
  *     buffer)
  * in  buffer to encrypt (packed to left, i.e. 101 is 0x90)
- * sz  size of input buffer in bits (0x1 would be size of 1 and 0xFF size of 8)
+ * sz  number of bits to process, e.g. 1 processes one bit and 8 one byte;
+ *     in and out must hold at least (sz + 7) / 8 bytes
  *
  * returns 0 on success and negative values on failure
  */
@@ -17298,8 +17299,9 @@ int wc_AesCfb8Encrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  * aes structure holding key to use for encryption
  * out buffer to hold result of encryption (must be at least as large as input
  *     buffer)
- * in  buffer to encrypt
- * sz  size of input buffer in bits (0x1 would be size of 1 and 0xFF size of 8)
+ * in  buffer to decrypt (packed to left, i.e. 101 is 0x90)
+ * sz  number of bits to process, e.g. 1 processes one bit and 8 one byte;
+ *     in and out must hold at least (sz + 7) / 8 bytes
  *
  * returns 0 on success and negative values on failure
  */
