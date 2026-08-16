@@ -469,7 +469,7 @@ ssize_t wc_reloc_normalize_segment(
         case WC_R_ARM_THM_JUMP24:
         case WC_R_ARM_THM_MOVT_ABS:
         case WC_R_ARM_THM_MOVW_ABS_NC:
-            /* REBUTTAL to the comment above: zeroing is not required for a
+            /* This used to zero, but zeroing is not required for a
              * stable hash, it is merely the cheapest way to get one.  x86
              * normalizes by COMPUTING a load-address-independent value and so
              * keeps the target in the digest; zeroing discards the target and
@@ -578,7 +578,7 @@ ssize_t wc_reloc_normalize_segment(
         case WC_R_AARCH64_LDST8_ABS_LO12_NC:
         case WC_R_AARCH64_PREL32:
 
-            /* REBUTTAL to the comment above: zeroing is not required for a
+            /* This used to zero, but zeroing is not required for a
              * stable hash, it is merely the cheapest way to get one.  x86
              * normalizes by COMPUTING a load-address-independent value and so
              * keeps the target in the digest; zeroing discards the target and
