@@ -682,7 +682,9 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
 
 ecdh_shared_secret_end:
     if (shared_secret) {
-        ForceZero(shared_secret, shared_secret_len);
+        /* zeroize the allocation, not the length wc_ecc_shared_secret()
+         * reported: it takes shared_secret_len by pointer and may shorten it. */
+        ForceZero(shared_secret, ctx->curve_len);
         free(shared_secret);
         shared_secret = NULL;
     }
