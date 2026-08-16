@@ -3183,6 +3183,80 @@ the resolved context, the Arm and PPC lanes were not — in a configuration
 
 ---
 
+## 13.6 The in-core integrity hash now covers ARM relocation targets
+
+ISO/IEC 19790:2012 §7.10.2 requires the pre-operational software integrity test
+to cover the module's executable code. On ARM and AArch64 it did not cover the
+target of any relocated branch or data reference.
+
+### 13.6.1 What was wrong
+
+`wc_reloc_normalize_segment()` (`linuxkm/linuxkm_memory.c`) canonicalises
+relocated fields so the digest is reproducible across load addresses. x86
+normalized by **computing** a load-address-independent value; ARM and AArch64
+normalized by **erasing** the field:
+
+```c
+case WC_R_AARCH64_CALL26:   /* and 20 others */
+    /* Don't attempt to reconstruct ARM destination addresses -- just
+     * normalize to zero. ... but it's very fidgety. */
+    reloc_buf = 0;
+```
+
+The write-back stored the whole word, so the instruction opcode was discarded
+along with the target. The comment recorded this as a necessity. It was not one:
+x86 achieves a stable hash without discarding anything, in the same function.
+
+Worse, most ARM branch relocations are **PC-relative**, so their encoded value is
+already load-address-invariant. Erasing them bought no stability at all.
+
+### 13.6.2 The fix
+
+All ARM and AArch64 relocations now take the same normalization x86 takes,
+yielding the same canonical value: the target's offset within its destination
+segment. Three additions ARM requires:
+
+* **mask-based gather/scatter** — ARM scatters some immediates across
+  non-contiguous instruction bits (`ADR_PREL_PG_HI21` splits a 21-bit page
+  offset across bits 30:29 and 23:5), so fields are extracted and reinserted
+  under `layout->mask` rather than by shifting.
+* **scaling** — branch displacements are word-scaled, `ADRP` is page-scaled, and
+  the `LDST*_ABS_LO12_NC` immediates are scaled by access size. Relative fields
+  are unscaled to bytes for the arithmetic; absolute fields stay in their own
+  units and the segment base is scaled to match.
+* **opcode preservation** — bits outside the mask are carried through, so the
+  instruction itself stays in the digest.
+
+### 13.6.3 Verification
+
+Two properties are in tension and both are required: **stability** (the same
+module at two load addresses must hash identically) and **coverage** (two
+different relocation targets must hash differently). A harness drives the real
+`wc_reloc_normalize_segment()` on the runtime path (`text_is_live = 1`, as
+`module_hooks.c` sets it):
+
+| relocation | stable | covers |
+| :--- | :--- | :--- |
+| `R_X86_64_PC32` *(control)* | yes | yes |
+| `R_AARCH64_CALL26` | yes | yes |
+| `R_AARCH64_JUMP26` | yes | yes |
+| `R_AARCH64_ABS32` | yes | yes |
+| `R_AARCH64_ADR_PREL_PG_HI21` | yes | yes |
+| `R_AARCH64_ADD_ABS_LO12_NC` | yes | yes |
+| `R_AARCH64_LDST64_ABS_LO12_NC` | yes | yes |
+| `R_ARM_CALL` | yes | yes |
+| `R_ARM_ABS32` | yes | yes |
+
+Before the fix, every ARM row read `stable / blind`. With the erasure removed but
+no reconstruction, the absolute rows read `unstable / covers` — which is what
+makes the zeroing look necessary if you stop there.
+
+x86_64 normalized output is byte-identical to its pre-change baseline; the x86
+case labels are untouched. The module builds clean and the in-core hash step
+reports `Relocation table is stable.`
+
+---
+
 ## 14. Limitations — where the wording is stronger than the evidence
 
 Held to the same standard as the rest of the document.

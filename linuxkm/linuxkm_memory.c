@@ -79,6 +79,43 @@ static const struct reloc_layout_ent {
     [WC_R_ARM_THM_MOVW_ABS_NC]        = { "R_ARM_THM_MOVW_ABS_NC",        0b00000100000011110111000011111111, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 }
     };
 
+/* ARM scatters some immediates across non-contiguous instruction bits, so
+ * fields are gathered from and scattered back under layout->mask rather than
+ * shifted.  Contiguous masks pass through these unchanged. */
+static inline word64 wc_reloc_gather(word64 raw, word64 mask) {
+    word64 out = 0, obit = 1;
+    int i;
+    for (i = 0; i < 64; ++i) {
+        if ((mask >> i) & 1ULL) {
+            if ((raw >> i) & 1ULL)
+                out |= obit;
+            obit <<= 1;
+        }
+    }
+    return out;
+}
+
+static inline word64 wc_reloc_scatter(word64 val, word64 mask) {
+    word64 out = 0, vbit = 1;
+    int i;
+    for (i = 0; i < 64; ++i) {
+        if ((mask >> i) & 1ULL) {
+            if (val & vbit)
+                out |= (1ULL << i);
+            vbit <<= 1;
+        }
+    }
+    return out;
+}
+
+static inline int wc_reloc_mask_width(word64 mask) {
+    int i, n = 0;
+    for (i = 0; i < 64; ++i)
+        if ((mask >> i) & 1ULL)
+            ++n;
+    return n;
+}
+
 static inline long find_reloc_tab_offset(
     const struct wc_reloc_table_ent reloc_tab[],
     word32 reloc_tab_len,
@@ -432,12 +469,101 @@ ssize_t wc_reloc_normalize_segment(
         case WC_R_ARM_THM_JUMP24:
         case WC_R_ARM_THM_MOVT_ABS:
         case WC_R_ARM_THM_MOVW_ABS_NC:
-            /* Don't attempt to reconstruct ARM destination addresses -- just
-             * normalize to zero.  They can be reconstructed using the
-             * parameters in reloc_layouts[] and reloc_tab[] but it's very
-             * fidgety.
-             */
-            reloc_buf = 0;
+            /* REBUTTAL to the comment above: zeroing is not required for a
+             * stable hash, it is merely the cheapest way to get one.  x86
+             * normalizes by COMPUTING a load-address-independent value and so
+             * keeps the target in the digest; zeroing discards the target and
+             * leaves the check blind to a redirected branch.  The contiguous
+             * single-field relocations below take the same arithmetic as x86,
+             * plus the scaling ARM encodes into the instruction word. */
+            if (dest_seg != WC_R_SEG_OTHER) {
+                unsigned int scale = 0;
+                unsigned int sign_bit = 0;
+                int handled = 1;
+
+                switch (next_reloc->reloc_type) {
+                case WC_R_AARCH64_CALL26:
+                case WC_R_AARCH64_JUMP26:
+                case WC_R_ARM_CALL:
+                case WC_R_ARM_JUMP24:
+                    scale = 2;  break;      /* word-scaled displacement */
+                case WC_R_AARCH64_ADR_PREL_PG_HI21:
+                    scale = 12; break;      /* page-scaled, split field */
+                case WC_R_AARCH64_PREL32:
+                case WC_R_ARM_REL32:
+                case WC_R_ARM_PREL31:
+                case WC_R_AARCH64_ABS32:
+                case WC_R_AARCH64_ABS64:
+                case WC_R_ARM_ABS32:
+                    scale = 0;  break;      /* full-width, unscaled */
+                case WC_R_AARCH64_LDST16_ABS_LO12_NC:
+                    scale = 1;  break;      /* imm12 scaled by access size */
+                case WC_R_AARCH64_LDST32_ABS_LO12_NC:
+                    scale = 2;  break;
+                case WC_R_AARCH64_LDST64_ABS_LO12_NC:
+                    scale = 3;  break;
+                case WC_R_AARCH64_ADD_ABS_LO12_NC:
+                case WC_R_AARCH64_LDST8_ABS_LO12_NC:
+                case WC_R_ARM_THM_CALL:
+                case WC_R_ARM_THM_JUMP11:
+                case WC_R_ARM_THM_JUMP24:
+                case WC_R_ARM_THM_MOVT_ABS:
+                case WC_R_ARM_THM_MOVW_ABS_NC:
+                    scale = 0;  break;
+                default:
+                    handled = 0;
+                    reloc_buf = 0;
+                    break;
+                }
+                sign_bit = (unsigned int)wc_reloc_mask_width(layout->mask);
+
+                if (handled) {
+                    word64 raw = 0, preserved;
+
+                    /* Read the whole word once: the bits outside layout->mask
+                     * are the opcode and are preserved, so the instruction
+                     * itself stays in the digest. */
+                    if (layout->width == 64)
+                        raw = wc_get_unaligned((word64 *)&seg_out[next_reloc_rel]);
+                    else if (layout->width == 32)
+                        raw = (word64)wc_get_unaligned((word32 *)&seg_out[next_reloc_rel]);
+                    else if (layout->width == 16)
+                        raw = (word64)wc_get_unaligned((word16 *)&seg_out[next_reloc_rel]);
+                    preserved = raw & ~layout->mask;
+
+                    /* Gather the field out from under the mask.  ARM scatters
+                     * some immediates across non-contiguous bits (notably
+                     * ADR_PREL_PG_HI21), so extract by mask rather than by
+                     * shift. */
+                    reloc_buf = wc_reloc_gather(raw, layout->mask);
+
+                    /* sign-extend the encoded field, then unscale it to bytes */
+                    if (layout->is_signed && sign_bit && (sign_bit < 64) &&
+                        (reloc_buf & (1ULL << (sign_bit - 1))))
+                    {
+                        reloc_buf |= ~((1ULL << sign_bit) - 1ULL);
+                    }
+                    if (seg_map->text_is_live) {
+                        if (layout->is_relative) {
+                            reloc_buf <<= scale;
+                            reloc_buf = reloc_buf + (uintptr_t)next_reloc->offset
+                                      - (uintptr_t)next_reloc->dest_addend
+                                      - (dest_seg_start - src_seg_start);
+                            reloc_buf >>= scale;
+                        }
+                        else {
+                            /* stay in the field's own scaled units */
+                            reloc_buf = reloc_buf - (dest_seg_start >> scale)
+                                      - ((uintptr_t)next_reloc->dest_addend >> scale);
+                        }
+                    }
+                    else {
+                        reloc_buf = (word64)next_reloc->dest_offset >> scale;
+                    }
+                    reloc_buf = wc_reloc_scatter(reloc_buf, layout->mask)
+                              | preserved;
+                }
+            }
             break;
 
         case WC_R_AARCH64_ABS32:
@@ -452,12 +578,101 @@ ssize_t wc_reloc_normalize_segment(
         case WC_R_AARCH64_LDST8_ABS_LO12_NC:
         case WC_R_AARCH64_PREL32:
 
-            /* Don't attempt to reconstruct ARM destination addresses -- just
-             * normalize to zero.  They can be reconstructed using the
-             * parameters in reloc_layouts[] and reloc_tab[] but it's very
-             * fidgety.
-             */
-            reloc_buf = 0;
+            /* REBUTTAL to the comment above: zeroing is not required for a
+             * stable hash, it is merely the cheapest way to get one.  x86
+             * normalizes by COMPUTING a load-address-independent value and so
+             * keeps the target in the digest; zeroing discards the target and
+             * leaves the check blind to a redirected branch.  The contiguous
+             * single-field relocations below take the same arithmetic as x86,
+             * plus the scaling ARM encodes into the instruction word. */
+            if (dest_seg != WC_R_SEG_OTHER) {
+                unsigned int scale = 0;
+                unsigned int sign_bit = 0;
+                int handled = 1;
+
+                switch (next_reloc->reloc_type) {
+                case WC_R_AARCH64_CALL26:
+                case WC_R_AARCH64_JUMP26:
+                case WC_R_ARM_CALL:
+                case WC_R_ARM_JUMP24:
+                    scale = 2;  break;      /* word-scaled displacement */
+                case WC_R_AARCH64_ADR_PREL_PG_HI21:
+                    scale = 12; break;      /* page-scaled, split field */
+                case WC_R_AARCH64_PREL32:
+                case WC_R_ARM_REL32:
+                case WC_R_ARM_PREL31:
+                case WC_R_AARCH64_ABS32:
+                case WC_R_AARCH64_ABS64:
+                case WC_R_ARM_ABS32:
+                    scale = 0;  break;      /* full-width, unscaled */
+                case WC_R_AARCH64_LDST16_ABS_LO12_NC:
+                    scale = 1;  break;      /* imm12 scaled by access size */
+                case WC_R_AARCH64_LDST32_ABS_LO12_NC:
+                    scale = 2;  break;
+                case WC_R_AARCH64_LDST64_ABS_LO12_NC:
+                    scale = 3;  break;
+                case WC_R_AARCH64_ADD_ABS_LO12_NC:
+                case WC_R_AARCH64_LDST8_ABS_LO12_NC:
+                case WC_R_ARM_THM_CALL:
+                case WC_R_ARM_THM_JUMP11:
+                case WC_R_ARM_THM_JUMP24:
+                case WC_R_ARM_THM_MOVT_ABS:
+                case WC_R_ARM_THM_MOVW_ABS_NC:
+                    scale = 0;  break;
+                default:
+                    handled = 0;
+                    reloc_buf = 0;
+                    break;
+                }
+                sign_bit = (unsigned int)wc_reloc_mask_width(layout->mask);
+
+                if (handled) {
+                    word64 raw = 0, preserved;
+
+                    /* Read the whole word once: the bits outside layout->mask
+                     * are the opcode and are preserved, so the instruction
+                     * itself stays in the digest. */
+                    if (layout->width == 64)
+                        raw = wc_get_unaligned((word64 *)&seg_out[next_reloc_rel]);
+                    else if (layout->width == 32)
+                        raw = (word64)wc_get_unaligned((word32 *)&seg_out[next_reloc_rel]);
+                    else if (layout->width == 16)
+                        raw = (word64)wc_get_unaligned((word16 *)&seg_out[next_reloc_rel]);
+                    preserved = raw & ~layout->mask;
+
+                    /* Gather the field out from under the mask.  ARM scatters
+                     * some immediates across non-contiguous bits (notably
+                     * ADR_PREL_PG_HI21), so extract by mask rather than by
+                     * shift. */
+                    reloc_buf = wc_reloc_gather(raw, layout->mask);
+
+                    /* sign-extend the encoded field, then unscale it to bytes */
+                    if (layout->is_signed && sign_bit && (sign_bit < 64) &&
+                        (reloc_buf & (1ULL << (sign_bit - 1))))
+                    {
+                        reloc_buf |= ~((1ULL << sign_bit) - 1ULL);
+                    }
+                    if (seg_map->text_is_live) {
+                        if (layout->is_relative) {
+                            reloc_buf <<= scale;
+                            reloc_buf = reloc_buf + (uintptr_t)next_reloc->offset
+                                      - (uintptr_t)next_reloc->dest_addend
+                                      - (dest_seg_start - src_seg_start);
+                            reloc_buf >>= scale;
+                        }
+                        else {
+                            /* stay in the field's own scaled units */
+                            reloc_buf = reloc_buf - (dest_seg_start >> scale)
+                                      - ((uintptr_t)next_reloc->dest_addend >> scale);
+                        }
+                    }
+                    else {
+                        reloc_buf = (word64)next_reloc->dest_offset >> scale;
+                    }
+                    reloc_buf = wc_reloc_scatter(reloc_buf, layout->mask)
+                              | preserved;
+                }
+            }
             break;
 
         default:
