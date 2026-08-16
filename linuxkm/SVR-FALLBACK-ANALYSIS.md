@@ -2810,8 +2810,8 @@ see the last row.** Nine constant-time table-selection routines carry no `avx2`
 in their symbol and still use `%xmm`: `_sp_{256,384,521}_get_entry_64_*`,
 `_get_entry_65_*` and `_get_point_33_*`. They are reached from the **non-AVX2**
 lane -- `sp_256_ecc_mulmod_win_add_sub_4` calls `sp_256_get_point_33_4`,
-`sp_256_ecc_mulmod_add_only_4` calls `sp_256_get_entry_65_4` -- and neither
-enclosing function takes a bracket.
+`sp_256_ecc_mulmod_add_only_4` calls `sp_256_get_entry_65_4`. That lane is now
+bracketed too; see 13.5.6.
 
 The 56 include all the heavy field arithmetic — `mont_mul`, `mont_sqr`, `mul`,
 `sqr`, `mont_reduce_order`, `cond_sub`, `mont_div2`. These need no bracket at
@@ -2961,20 +2961,29 @@ bracket, because a `wolfSSL_Mutex` is `spin_lock_bh()` and sleeping locks cannot
 nest inside spinning ones (Documentation/locking/locktypes.rst). That arm is
 untouched.
 
-**Correction: the non-AVX2 lane is not C.** An earlier revision of this section
-said it was, and used that as the reason for leaving it alone. It calls the nine
-vector-assembly routines listed in 13.5.2 with no bracket in the chain.
+**The non-AVX2 lane is not C, and it is now bracketed as well.** An earlier
+revision of this section said it was C, and used that as the reason to leave it
+alone. It reaches the nine vector-assembly routines listed in 13.5.2.
 
-That path is **not reachable on any validated x86_64 operating environment**: it
-is selected only when `IS_INTEL_AVX2(cpuid_flags)` is false, and K2 and K3 both
-run on AVX2-capable parts, while K1 is i386 and does not compile
-`sp_x86_64_asm.S` at all. It is also pre-existing upstream rather than introduced
-by this work. Bracketing it is a generator change and is outstanding.
+**C. Bracket the base lane too** (`sp/ecc_mul.rb`). The bracket was previously
+emitted only for the accelerated lane. It is now emitted for the base lane on
+x86_64 as well, which is where those nine routines exist. The guard is keyed on
+the generator class (`SinglePrecisionX86_64`) rather than on method presence:
+`sp/ecc_mul.rb` `require_relative`s `x86_64/ecc_mul.rb` unconditionally, so a
+`respond_to?` test is true for every target and would have bracketed the
+integer-only ARM lanes as well. `sp_arm64.c` regenerates byte-identically, which
+is the check that the guard holds.
 
-Note that `ASSERT_SAVED_VECTOR_REGISTERS()` could never have caught this: the
-assert needs a C body to live in, which is the same reason P-256 and P-521 stayed
-silent in 13.5.4. A run reporting zero assert failures says nothing about these
-nine sites on any CPU.
+This mattered even though `IS_INTEL_AVX2(cpuid_flags)` is true on every x86_64
+operating environment validated so far: an operating environment without AVX2
+selects the base lane, and unbracketed kernel SIMD silently corrupts the
+interrupted task's vector state (13.5.1). It is fixed rather than deferred on
+that basis.
+
+`ASSERT_SAVED_VECTOR_REGISTERS()` could never have caught this: the assert needs
+a C body to live in, the same reason P-256 and P-521 stayed silent in 13.5.4. A
+run reporting zero assert failures said nothing about these nine sites on any
+CPU.
 
 ### 13.5.7 Result
 

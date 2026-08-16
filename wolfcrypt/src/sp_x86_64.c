@@ -11037,7 +11037,15 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 5);
     sp_cache_256_t* cache;
@@ -11083,6 +11091,8 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_256(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
 
@@ -11092,6 +11102,8 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
         else {
             err = sp_256_ecc_mulmod_stripe_4(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_256_lock);
@@ -30263,7 +30275,15 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 7);
     sp_cache_384_t* cache;
@@ -30309,6 +30329,8 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_384(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
 
@@ -30318,6 +30340,8 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
         else {
             err = sp_384_ecc_mulmod_stripe_6(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_384_lock);
@@ -55213,7 +55237,15 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
     sp_cache_521_t* cache;
@@ -55259,6 +55291,8 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_521(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
 
@@ -55268,6 +55302,8 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
         else {
             err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_521_lock);
@@ -96487,7 +96523,15 @@ static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_1024_ecc_mulmod_win_add_sub_16(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_1024_ecc_mulmod_win_add_sub_16(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 16 * 38);
     sp_cache_1024_t* cache;
@@ -96533,6 +96577,8 @@ static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_1024(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_1024_gen_stripe_table_16(g, cache->table, tmp, heap);
 
@@ -96542,6 +96588,8 @@ static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
         else {
             err = sp_1024_ecc_mulmod_stripe_16(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_1024_lock);
