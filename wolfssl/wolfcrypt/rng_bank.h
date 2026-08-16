@@ -44,14 +44,22 @@
 #define WC_RNG_BANK_FLAG_INITED               (1<<0)
 #define WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST   (1<<1)
 #define WC_RNG_BANK_FLAG_CAN_WAIT             (1<<2)
-#define WC_RNG_BANK_FLAG_NO_VECTOR_OPS        (1<<3)
+/* (1<<3) RETIRED, was WC_RNG_BANK_FLAG_NO_VECTOR_OPS.  It set
+ * WC_FPU_INHIBITED_FLAG across the checkout window so the DRBG's SHA would
+ * refuse vector registers and demote to the C implementation.  That only ever
+ * made sense with a C twin to demote to; its own test asserted
+ * sha_method == SHA*_C and was compiled out under HAVE_FIPS.  Vector registers
+ * are usable in every context this DRBG is legitimately entered from, and the
+ * ones where they are not (hardirq/NMI) are already refused at the top of
+ * wc_save_vector_registers_x86().  Bit not reused.
+ * See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
 #define WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST (1<<4)
 #define WC_RNG_BANK_FLAG_AFFINITY_LOCK        (1<<5)
 
 #define WC_RNG_BANK_INST_LOCK_FREE                0
 #define WC_RNG_BANK_INST_LOCK_HELD            (1<<0)
 #define WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED (1<<1)
-#define WC_RNG_BANK_INST_LOCK_VEC_OPS_INH     (1<<2)
+/* (1<<2) RETIRED, was WC_RNG_BANK_INST_LOCK_VEC_OPS_INH.  Not reused. */
 
 typedef int (*wc_affinity_lock_fn_t)(void *arg);
 typedef int (*wc_affinity_get_id_fn_t)(void *arg, int *id);
