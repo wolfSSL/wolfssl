@@ -3312,7 +3312,10 @@ int test_mldsa_oneasymkey_version(void)
 int test_mldsa_make_key_from_seed(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+    /* Uses caller-supplied keygen seeds (known-answer): in the FIPS module
+     * seed-input keygen is a CAVP/POST-only service (FIPS 204 sec 5.4), so this
+     * KAT runs only in non-FIPS or --enable-fipscavpseed builds. */
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     wc_MlDsaKey* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -12596,7 +12599,7 @@ int test_mldsa_sig_kats(void)
 int test_mldsa_sign_ctx_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN)
     wc_MlDsaKey* key;
     word32 sigLen;
@@ -24621,7 +24624,7 @@ int test_mldsa_verify_kats(void)
 int test_mldsa_sign_mu_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     wc_MlDsaKey* key = NULL;
     word32 sigLen;
@@ -30077,8 +30080,8 @@ int test_mldsa_encode_w1_large_values(void)
 
             XMEMSET(enc_a, 0, sizeof(enc_a));
             XMEMSET(enc_b, 0, sizeof(enc_b));
-            wc_mldsa_encode_w1_88(w1, enc_a);
-            wc_mldsa_encode_w1_88(w1, enc_b);
+            ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_a), 0);
+            ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_b), 0);
 
             /* Determinism: same input must produce same output */
             ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
@@ -30090,8 +30093,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_88(w1, enc_a);
-        wc_mldsa_encode_w1_88(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
 
         /* Ascending pattern: each element differs */
@@ -30100,8 +30103,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_88(w1, enc_a);
-        wc_mldsa_encode_w1_88(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_88(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
     }
 #endif /* !WOLFSSL_NO_ML_DSA_44 */
@@ -30120,8 +30123,8 @@ int test_mldsa_encode_w1_large_values(void)
 
             XMEMSET(enc_a, 0, sizeof(enc_a));
             XMEMSET(enc_b, 0, sizeof(enc_b));
-            wc_mldsa_encode_w1_32(w1, enc_a);
-            wc_mldsa_encode_w1_32(w1, enc_b);
+            ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_a), 0);
+            ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_b), 0);
 
             ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
         }
@@ -30132,8 +30135,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_32(w1, enc_a);
-        wc_mldsa_encode_w1_32(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
 
         /* Ascending pattern */
@@ -30142,8 +30145,8 @@ int test_mldsa_encode_w1_large_values(void)
         }
         XMEMSET(enc_a, 0, sizeof(enc_a));
         XMEMSET(enc_b, 0, sizeof(enc_b));
-        wc_mldsa_encode_w1_32(w1, enc_a);
-        wc_mldsa_encode_w1_32(w1, enc_b);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_a), 0);
+        ExpectIntEQ(wc_mldsa_encode_w1_32(w1, enc_b), 0);
         ExpectIntEQ(XMEMCMP(enc_a, enc_b, sizeof(enc_a)), 0);
     }
 #endif /* !WOLFSSL_NO_ML_DSA_65 || !WOLFSSL_NO_ML_DSA_87 */
@@ -30913,9 +30916,9 @@ int test_wc_MldsaDecisionCoverage2(void)
 
         XMEMSET(seed, 0, sizeof(seed));
         ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(NULL, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(&key, NULL),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
     }
 #endif
 
@@ -30971,17 +30974,17 @@ int test_wc_MldsaDecisionCoverage2(void)
          * + ctx/ctxLen. */
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(NULL, NULL, 0, sig, &sigLen,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, NULL, &sigLen,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, NULL,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
-            NULL, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            NULL, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
-            msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), NULL), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 1, sig, &sigLen,
-            msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            msg, (word32)sizeof(msg), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
 
 #ifdef WOLFSSL_MLDSA_NO_CTX
         /* wc_MlDsaKey_SignWithSeed: five-way NULL OR (incl. seed). */
@@ -31003,38 +31006,38 @@ int test_wc_MldsaDecisionCoverage2(void)
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(NULL, NULL, 0, sig,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, NULL,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
             NULL, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
             &sigLen, NULL, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 0, sig,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, NULL),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxHashWithSeed(&key, NULL, 1, sig,
             &sigLen, hash, sizeof(hash), WC_HASH_TYPE_SHA3_512, seed),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            SEED_ARG_ERR(BAD_FUNC_ARG));
 
         /* wc_MlDsaKey_SignMuWithSeed: five-way NULL OR + muLen!=MU_SZ. */
         sigLen = (word32)sizeof(sig);
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(NULL, sig, &sigLen, mu,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, NULL, &sigLen, mu,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, NULL, mu,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, NULL,
-            sizeof(mu), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), seed), SEED_ARG_ERR(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
-            sizeof(mu), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu), NULL), SEED_ARG_ERR(BAD_FUNC_ARG));
         /* All five non-NULL, muLen != MLDSA_MU_SZ -> BAD_FUNC_ARG. */
         ExpectIntEQ(wc_MlDsaKey_SignMuWithSeed(&key, sig, &sigLen, mu,
-            sizeof(mu) - 1, seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            sizeof(mu) - 1, seed), SEED_ARG_ERR(BAD_FUNC_ARG));
 
         /* Sign entry points on a key with the level set but no private
          * key generated or imported -> BAD_FUNC_ARG. All other operands
@@ -31399,5 +31402,44 @@ int test_wc_MldsaDerDecisionCoverage(void)
 
     wc_MlDsaKey_Free(&key);
 #endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_NO_ASN1 && ... */
+    return EXPECT_RESULT();
+}
+
+/* The seed-input service indicator, asserted on a SUCCESSFUL call.
+ *
+ * SEED_ARG_ERR() covers the argument-validation half of the contract: the
+ * *_with_seed / *_from_seed services are NOT hard-gated in a FIPS build, so
+ * they still reach their normal argument checks.  Nothing asserted the other
+ * half, that a call which succeeds reports WC_FIPS_NOT_APPROVED, the
+ * positive service indicator that is what makes these services acceptable in
+ * an approved module at all (lab-confirmed 2026-07-24; FIPS 204 sec 5.4 says
+ * the module shall generate its own keygen randomness).
+ *
+ * Without this, a wrapper changed to return the indicator BEFORE validating
+ * its arguments would keep every existing SEED_ARG_ERR() assertion green while
+ * silently changing the service contract.  SEED_OK is WC_FIPS_NOT_APPROVED in
+ * a FIPS v7+ build and 0 elsewhere, so the same assertion states the intended
+ * behavior for both.
+ */
+int test_wc_MlDsaKey_seed_service_indicator(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_ONLY)
+    wc_MlDsaKey key;
+    byte seed[MLDSA_SEED_SZ];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(seed, 0x5a, sizeof(seed));
+
+    ExpectIntEQ(wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&key, WC_ML_DSA_44), 0);
+
+    /* Valid key, valid seed: the operation is performed, and in an approved
+     * build it is reported non-approved rather than refused. */
+    ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(&key, seed), SEED_OK);
+
+    wc_MlDsaKey_Free(&key);
+#endif
     return EXPECT_RESULT();
 }

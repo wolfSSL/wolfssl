@@ -99,7 +99,19 @@
  * WC_HW_WAIT_E - waited too long for HW, fall back to SW
  */
 
-/* Exit codes only used in Espressif port: */
+/* Exit codes only used in Espressif port.
+ *
+ * These are DERIVED from WC_LAST_E, so their numeric values move whenever a
+ * wolfCrypt error code is added or retired.  WC_LAST_E is currently -1029,
+ * held there so the RESERVED -1028 and -1029 are never reissued.  That is safe
+ * by construction, not by luck: they sit below the last allocated code, so no
+ * addition to error-crypt.h can ever collide with them, and they stay well
+ * inside WC_SPAN2_MIN_CODE_E.  Unlike the retired FIPS codes documented in
+ * error-crypt.h, these two are transient in-memory status values within a
+ * single build, never persisted, logged as a bare number, or put on a wire --
+ * so a value that differs between wolfSSL versions has nothing to be misread
+ * against.  Do not convert them to absolute numbers to "stabilise" them: that
+ * would put them in the path of the next code allocation. */
 enum {
     ESP_MP_HW_FALLBACK          = (WC_LAST_E - 2),
     ESP_MP_HW_VALIDATION_ACTIVE = (WC_LAST_E - 3)

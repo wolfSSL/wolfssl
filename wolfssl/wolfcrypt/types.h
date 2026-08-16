@@ -1813,6 +1813,22 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 /* invalid device id */
 #define INVALID_DEVID    (-2)
 
+/* Calling convention of the assembly entry points XASM_LINK names.
+ *
+ * The 32-bit x86 assembly takes every argument on the stack; aes_asm.S states
+ * it per routine ("parameter 1: stack[4] => %edi").  Linux kernel builds
+ * compile C with -mregparm=3 (arch/x86/Makefile), which passes the first three
+ * arguments in registers, so the C call site and the assembly disagree about
+ * where the arguments are.  regparm(0) declares the convention the assembly
+ * implements.  Where the default is already regparm(0), every 32-bit x86
+ * userspace build, it changes nothing.
+ */
+#if defined(__GNUC__) && defined(__i386__) && !defined(__x86_64__)
+    #define XASM_ABI __attribute__((regparm(0)))
+#else
+    #define XASM_ABI /* null expansion */
+#endif
+
 #if defined(HAVE_FIPS) && FIPS_VERSION_LT(5,3)
     #ifdef XASM_LINK
         #error User-supplied XASM_LINK is not compatible with this FIPS version.
@@ -1826,12 +1842,12 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #elif defined(_MSC_VER)
     #define XASM_LINK(f) /* null expansion */
 #elif defined(__APPLE__)
-    #define XASM_LINK(f) asm("_" f)
+    #define XASM_LINK(f) asm("_" f) XASM_ABI
 #elif defined(__GNUC__)
     /* use alternate keyword for compatibility with -std=c99 */
-    #define XASM_LINK(f) __asm__(f)
+    #define XASM_LINK(f) __asm__(f) XASM_ABI
 #else
-    #define XASM_LINK(f) asm(f)
+    #define XASM_LINK(f) asm(f) XASM_ABI
 #endif
 
 /* AESNI requires alignment and ARMASM gains some performance from it.

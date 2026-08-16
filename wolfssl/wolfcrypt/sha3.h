@@ -163,7 +163,18 @@ struct wc_Sha3 {
     int    hashType;
 #endif
 
-#ifdef WC_C_DYNAMIC_FALLBACK
+/* One implementation per algorithm, fixed at compile time, PAA or software,
+ * never both.  FIPS 140-3 IG 10.3.A GeneralNote1: each implementation in the
+ * module is self-tested separately, and no CAST covers a per-call choice.
+ * See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
+#if defined(WC_C_DYNAMIC_FALLBACK) && \
+    (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
+     defined(WOLFSSL_FIPS_DEV)) && \
+    !defined(WC_FIPS_UNCERTIFIED_BUILD)
+    #error "WC_C_DYNAMIC_FALLBACK: second SHA-3 in the wc_Sha3 struct."
+#endif
+
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     void (*sha3_block)(word64 *s);
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
         word64 c);
@@ -389,6 +400,18 @@ WOLFSSL_API int wc_Cshake256(const byte* name, word32 nameLen,
 #endif /* WOLFSSL_KMAC || WOLFSSL_CSHAKE */
 
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
+
+/* The single Keccak-f[1600] this build carries; see the definitions in sha3.c.
+ * Both return 0, or a vector-register save error, never a fallback.
+ * wc_Sha3PermuteN() absorbs n blocks of c bytes, permuting after each.
+ *
+ * ML-KEM (wc_mlkem_poly.c) and SLH-DSA (wc_slhdsa.c) reach their single-state
+ * Keccak through these.  ML-DSA (wc_mldsa.c) still has its own CPUID ladder at
+ * the four single-block sites and the two multi-block sites, see the
+ * WC_MLDSA_IMPL_COUNT comment there. */
+WOLFSSL_LOCAL int wc_Sha3Permute(word64 *s);
+WOLFSSL_LOCAL int wc_Sha3PermuteN(word64 *s, const byte* data, word32 n,
+    word64 c);
 
 #ifdef WC_SHA3_NO_ASM
     /* asm speedups disabled */

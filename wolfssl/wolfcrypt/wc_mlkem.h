@@ -456,6 +456,12 @@ WOLFSSL_API int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 
 WOLFSSL_API int wc_MlKemKey_DecodePrivateKey(MlKemKey* key,
     const unsigned char* in, word32 len);
+/* Importing a public key that does not match a private key already held in
+ * this object is REFUSED with MLKEM_PUB_HASH_E and the object is left
+ * completely unchanged, the held private key is never destroyed as a side
+ * effect of a failed import.  To reuse a key object for an unrelated key,
+ * call wc_MlKemKey_Free()/wc_MlKemKey_Init() first.  Importing into an object
+ * that holds no private key is unaffected and returns 0. */
 WOLFSSL_API int wc_MlKemKey_DecodePublicKey(MlKemKey* key,
     const unsigned char* in, word32 len);
 
@@ -496,7 +502,7 @@ void mlkem_init(void);
 
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 WOLFSSL_LOCAL
-void mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
+int mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     int kp);
 #else
 WOLFSSL_LOCAL
@@ -505,7 +511,7 @@ int mlkem_keygen_seeds(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
 #endif
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
-void mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
+int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
     const sword16* m, int kp);
 #else
@@ -515,7 +521,7 @@ int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* bp,
     byte* coins);
 #endif
 WOLFSSL_LOCAL
-void mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
+int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
     const sword16* v, int kp);
 
 WOLFSSL_LOCAL
@@ -552,58 +558,95 @@ WOLFSSL_LOCAL
 void mlkem_prf_free(MLKEM_PRF_T* prf);
 
 WOLFSSL_LOCAL
-int mlkem_cmp(const byte* a, const byte* b, int sz);
+/* Constant-time ciphertext comparison for FIPS 203 implicit rejection.
+ * The result is a MASK, not a status: 0 when equal, -1 (all bits) when not,
+ * and the caller XOR-selects with it.  An error must therefore never be
+ * returned through it, it goes in the return value, the mask in *fail. */
+int mlkem_cmp(const byte* a, const byte* b, int sz, int* fail);
 
 WOLFSSL_LOCAL
-void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
+int mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_compress_11(byte* r, sword16* v);
+int mlkem_vec_compress_11(byte* r, sword16* v);
 WOLFSSL_LOCAL
-void mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
+int mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_decompress_11(sword16* v, const unsigned char* b);
+int mlkem_vec_decompress_11(sword16* v, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void mlkem_compress_4(byte* b, sword16* p);
+int mlkem_compress_4(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_compress_5(byte* b, sword16* p);
+int mlkem_compress_5(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_decompress_4(sword16* p, const unsigned char* b);
+int mlkem_decompress_4(sword16* p, const unsigned char* b);
 WOLFSSL_LOCAL
-void mlkem_decompress_5(sword16* p, const unsigned char* b);
+int mlkem_decompress_5(sword16* p, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void mlkem_from_msg(sword16* p, const byte* msg);
+int mlkem_from_msg(sword16* p, const byte* msg);
 WOLFSSL_LOCAL
-void mlkem_to_msg(byte* msg, sword16* p);
+int mlkem_to_msg(byte* msg, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_from_bytes(sword16* p, const byte* b, int k);
+int mlkem_from_bytes(sword16* p, const byte* b, int k);
 WOLFSSL_LOCAL
-void mlkem_to_bytes(byte* b, sword16* p, int k);
+int mlkem_to_bytes(byte* b, sword16* p, int k);
 WOLFSSL_LOCAL
 int mlkem_check_reduced(const sword16* p, int k);
 
 #ifdef USE_INTEL_SPEEDUP
 /* AVX512 assembly for ML-KEM is built (and dispatched at runtime on capable
  * CPUs) whenever the Intel speedups are enabled and AVX512 is not opted out.
- * Matches the HAVE_INTEL_AVX512 guard around the generated assembly. */
-#ifndef NO_AVX512_SUPPORT
+ * Matches the HAVE_INTEL_AVX512 guard around the generated assembly.
+ *
+ * A pin that names no AVX512 sub-lane means this operating environment runs the
+ * AVX2 lane, so the AVX512 lane is not built: leaving it in would put a second
+ * ML-KEM implementation in the boundary, selected from CPUID, which IG 10.3.A
+ * GeneralNote1 requires to be self-tested separately.  Every AVX512 arm in
+ * wc_mlkem_poly.c is already inside this guard, so dropping the macro drops the
+ * whole lane.  See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
+#if !defined(NO_AVX512_SUPPORT) && \
+    (!defined(WC_MLKEM_PINNED) || defined(WC_MLKEM_USE_AVX512_ANY))
     #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512
     /* AVX512VBMI (vpermb) functions are built and dispatched at runtime when
      * CPUID reports VBMI. Opt out with NO_AVX512_VBMI_SUPPORT if the assembler
      * cannot emit the vpermb-based *_vbmi routines. VBMI2 (vpcompressw) is a
-     * separate opt-out (NO_AVX512_VBMI2_SUPPORT), handled below. */
-    #ifndef NO_AVX512_VBMI_SUPPORT
+     * separate opt-out (NO_AVX512_VBMI2_SUPPORT), handled below.
+     *
+     * Under a pin these follow the named sub-lane, not CPUID.  A plain AVX512
+     * pin leaves both undefined, which removes the VBMI and VBMI2 arm of every
+     * ladder: those arms are the second implementation the pin exists to
+     * remove, and the pinned lane is the portable AVX512F/BW one that runs on
+     * every part in the family. */
+    #if !defined(NO_AVX512_VBMI_SUPPORT) && \
+        (!defined(WC_MLKEM_PINNED) || defined(WC_MLKEM_USE_AVX512_VBMI) || \
+         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2))
         #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
     #endif
     /* AVX512VBMI2 (vpcompressw) is used only by the rejection samplers; every
      * other AVX512 routine is plain AVX512F/BW or VBMI. Opt out with
      * NO_AVX512_VBMI2_SUPPORT when the assembler cannot emit VBMI2 - the
      * AVX512F/BW rej variants (vpcompressd) are then used instead. */
-    #ifndef NO_AVX512_VBMI2_SUPPORT
+    #if !defined(NO_AVX512_VBMI2_SUPPORT) && \
+        (!defined(WC_MLKEM_PINNED) || defined(WC_MLKEM_USE_AVX512_VBMI2) || \
+         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2))
         #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
     #endif
+    /* A pin naming a sub-lane the assembler cannot emit is refused rather than
+     * quietly served by the plain AVX512 routines, which would be a different
+     * lane from the one the operating environment was validated on. */
+    #if (defined(WC_MLKEM_USE_AVX512_VBMI) || \
+         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2)) && \
+        !defined(WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI)
+        #error "WC_MLKEM_IMPL names a VBMI sub-lane; VBMI is not built."
+    #endif
+    #if (defined(WC_MLKEM_USE_AVX512_VBMI2) || \
+         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2)) && \
+        !defined(WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2)
+        #error "WC_MLKEM_IMPL names a VBMI2 sub-lane; VBMI2 is not built."
+    #endif
+#elif defined(WC_MLKEM_USE_AVX512_ANY)
+    #error "WC_MLKEM_IMPL names an AVX512 lane; AVX512 is not built."
 #endif
 WOLFSSL_LOCAL
 void mlkem_keygen_avx2(sword16* priv, sword16* pub, sword16* e,

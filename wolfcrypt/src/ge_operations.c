@@ -9899,13 +9899,21 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
    * in fe_init(). */
   cpuid_flags = cpuid_get_flags();
   if (IS_INTEL_AVX512(cpuid_flags) && IS_INTEL_AVX512_IFMA(cpuid_flags) &&
-          IS_INTEL_AVX512_VL(cpuid_flags) &&
-          (SAVE_VECTOR_REGISTERS2() == 0)) {
+          IS_INTEL_AVX512_VL(cpuid_flags)) {
   #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
       byte buf[GE_DSM_IFMA_TMP_SIZE];
   #else
-      byte *buf = (byte *)XMALLOC(GE_DSM_IFMA_TMP_SIZE, NULL,
-                                  DYNAMIC_TYPE_TMP_BUFFER);
+      byte *buf;
+  #endif
+
+      /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
+      ret = SAVE_VECTOR_REGISTERS2();
+      if (ret != 0)
+          return ret;
+
+  #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+      buf = (byte *)XMALLOC(GE_DSM_IFMA_TMP_SIZE, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
       if (buf == NULL) {
           RESTORE_VECTOR_REGISTERS();
           return MEMORY_E;
@@ -10288,9 +10296,11 @@ void ge_tobytes_nct(unsigned char *s,const ge_p2 *h)
 /* if HAVE_ED25519 but not HAVE_CURVE25519, and an asm implementation is built,
  * then curve25519() won't get its WOLFSSL_LOCAL attribute unless we dummy-call
  * it here.
- */
+ * The 32-bit ARM asm port gates curve25519() on HAVE_CURVE25519, so the
+ * dummy-call would be an undefined symbol there, exclude arm32 armasm. */
 #if defined(CURVED25519_ASM) && defined(WOLFSSL_API_PREFIX_MAP) && \
-    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC)
+    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC) && \
+    (!defined(WOLFSSL_ARMASM) || defined(__aarch64__))
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void);
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void) {
     (void)curve25519((byte *)0, (byte *)0, (const byte *)0);

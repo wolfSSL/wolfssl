@@ -1063,10 +1063,14 @@ int wc_FreeDhKey(DhKey* key)
 
 static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
        const byte* prime, word32 primeSz, int partial);
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
+/* Declared unconditionally, like _ffc_validate_public_key above it: the
+ * definition below is unconditional and wc_DhCheckKeyPair() always calls it.
+ * This guard used to read "FIPS_VERSION_GE(5,0) || WOLFSSL_VALIDATE_DH_KEYGEN"
+ * while the call sites in the KeyGen path had grown a third arm,
+ * HAVE_DH_PCT_TEST.  A non-FIPS build with HAVE_DH_PCT_TEST therefore reached
+ * the calls with no declaration in scope and no definition yet seen. */
 static int _ffc_pairwise_consistency_test(DhKey* key,
         const byte* pub, word32 pubSz, const byte* priv, word32 privSz);
-#endif
 
 #ifndef WOLFSSL_KCAPI_DH
 
@@ -1484,9 +1488,33 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
     if (ret == 0)
         ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
-    if (ret == 0)
-        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, privSz);
     #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
+
+    #if FIPS_VERSION3_GE(5,0,0) || defined(HAVE_DH_PCT_TEST) || \
+        defined(WOLFSSL_VALIDATE_DH_KEYGEN)
+    if (ret == 0) {
+        /* FFC key-pair PCT per SP 800-56A r3 sec 5.6.2.1.4, required after
+         * KeyGen by FIPS 140-3 IG 10.3.B.  Non-FIPS builds keep it under
+         * WOLFSSL_VALIDATE_DH_KEYGEN or HAVE_DH_PCT_TEST.
+         *
+         * v7 dropped classic finite-field DH from the module boundary, so no
+         * v7 OE compiles this at all.  It is still compiled here rather than
+         * gated off, because "out of the boundary" is a statement about what we
+         * ship, not a licence for the code to skip the test when it is shipped:
+         * a v7 build that re-enabled DH would otherwise generate FFC key pairs
+         * with no pairwise consistency test.
+         *
+         * The DH_PCT_E remap stays pre-v7 only: it exists so DEGRADE_STATE has
+         * FIPS_CAST_DH_PRIMITIVE_Z to move, and v7 retired that CAST.  From v7
+         * the PCT's own status is returned unchanged. */
+        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv,
+                                             privSz);
+        #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+        if (ret != 0)
+            ret = DH_PCT_E;
+        #endif
+    }
+    #endif /* FIPS 5+ || HAVE_DH_PCT_TEST || WOLFSSL_VALIDATE_DH_KEYGEN */
 
     return ret;
 }
@@ -1508,9 +1536,22 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
 #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
     if (ret == 0)
         ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
-    if (ret == 0)
-        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
 #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
+
+#if FIPS_VERSION3_GE(5,0,0) || defined(HAVE_DH_PCT_TEST) || \
+    defined(WOLFSSL_VALIDATE_DH_KEYGEN)
+    if (ret == 0) {
+        /* Same PCT as wc_DhGeneratePublic() above, see the comment there.
+         * HAVE_DH_PCT_TEST in the guard above is defined nowhere in the tree;
+         * it is an opt-in hook for a non-FIPS caller, not a live arm. */
+        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv,
+                                             *privSz);
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+        if (ret != 0)
+            ret = DH_PCT_E;
+    #endif
+    }
+#endif /* FIPS 5+ || HAVE_DH_PCT_TEST || WOLFSSL_VALIDATE_DH_KEYGEN */
 
     return ret;
 }

@@ -77,8 +77,12 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 /* encode positive integer */
 #define WC_TEST_RET_ENC_I(i) WC_TEST_RET_ENC(WC_TEST_RET_LN, i, WC_TEST_RET_TAG_I)
 
-/* encode error code (negative integer) */
-#define WC_TEST_RET_ENC_EC(ec) WC_TEST_RET_ENC(WC_TEST_RET_LN, -(ec), WC_TEST_RET_TAG_EC)
+/* encode error code (negative integer).  Negate in unsigned width: many call
+ * sites pass a word32 length (pkSz, sigSz, pub_len), and unary minus on an
+ * unsigned operand is MSVC C4146.  WC_TEST_RET_ENC casts to word32 and masks
+ * to 0x7ff regardless, so 0U - (word32)ec is the same bit pattern as -(ec) for
+ * both signed and unsigned ec, this changes no encoded value. */
+#define WC_TEST_RET_ENC_EC(ec) WC_TEST_RET_ENC(WC_TEST_RET_LN, (0U - (word32)(ec)), WC_TEST_RET_TAG_EC)
 
 /* encode system/libc error code */
 #if defined(HAVE_ERRNO_H) && !defined(NO_FILESYSTEM) && \

@@ -138,7 +138,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
                 esp_start_heap = esp_this_heap;                              \
             }                                                                \
             ESP_LOGI(ESPIDF_TAG, "%s #%d; Heap free: %d",                    \
-                                ((b) ? (b) : ""),  /* breadcumb string */    \
+                                ((b) ? (b) : ""),  /* breadcrumb string */    \
                                 ((i) ? (i) : 0),   /* index */               \
                                  esp_this_heap);
 
@@ -4229,6 +4229,24 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
         int last;
     } missing[] = {
         { WC_SPAN1_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
+        /* -1021 CMAC_KAT_FIPS_E, -1022 SHAKE_KAT_FIPS_E and -1024
+         * AES_KW_KAT_FIPS_E were deleted from error-crypt.h in the v7 lab-prep
+         * pass, together with the vendor-elected CASTs whose failures they
+         * reported.  The numbers are RESERVED rather than reallocated, so they
+         * are genuinely "no longer error codes", exactly what this table is
+         * for.  -1023 DH_PCT_E is NOT removed: error-crypt.h is shared source
+         * rather than a frozen file, and the v5/v6 modules still need that
+         * symbol.  So this is two gaps, not one -1021..-1024 range. */
+        { -1021, -1022 },
+        { -1024, -1024 },
+        /* -1028 was FIPS_UNAPPROVED_E, removed because a service that ran but
+         * was not approved is not a failure, it is reported through the
+         * positive WC_FIPS_NOT_APPROVED indicator instead.  -1029 was
+         * WC_IMPL_PIN_E, removed with the per-algorithm implementation pin on
+         * 12 August 2026 (linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0).  Both are
+         * RESERVED on the same rule as the three above, so this is one
+         * two-wide gap rather than two separate ones. */
+        { -1028, -1029 },
         { WC_SPAN2_LAST_E - 1, WC_SPAN2_MIN_CODE_E }
     };
 
@@ -7390,7 +7408,14 @@ exit:
 
     /* this is a software only variant of SHA3 not supported by external
      * hardware devices */
-#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT)
+    /* Legacy Keccak-256 (0x01 pad) is NOT an approved algorithm and is excluded
+     * from the v7 module, Sha3Final() only applies the Keccak pad when
+     * !FIPS_VERSION3_GE(7,0,0) (see wolfcrypt/src/sha3.c, FIPS 202 6.1).  An
+     * approved build therefore emits the FIPS 202 0x06 pad and this vector will
+     * not match, so gate the test on the SAME condition as the module rather
+     * than relaxing the module to satisfy the test. */
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !FIPS_VERSION3_GE(7,0,0)
     {
         /* test vector with hash of empty string */
         static const char* Keccak256EmptyOut =
@@ -15177,7 +15202,8 @@ static wc_test_ret_t aes_ctr_vector_test(const AesCtrTestVec *testVec,
     return ret;
 }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static wc_test_ret_t aes_ctr_debug_fallback_test(const AesCtrTestVec *testVec,
     int testVecLen, Aes *enc, Aes *dec, byte *cipher, byte *plain,
     const byte *ctrPlain)
@@ -15869,7 +15895,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
     if (ret != 0)
         ERROR_OUT(ret, out);
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     ret = aes_ctr_debug_fallback_test(testVec, AES_CTR_TEST_LEN, enc, dec,
         cipher, plain, ctrPlain);
     if (ret != 0)
@@ -16296,7 +16323,8 @@ static wc_test_ret_t aes_cbc_large_msg_test(Aes* enc, Aes* dec)
             break;
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     /* Iterate from one WC_AES_BLOCK_SIZE of bigMsg through the whole
      * message by WC_AES_BLOCK_SIZE for each size of AES key. */
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
@@ -17249,7 +17277,7 @@ static wc_test_ret_t aes_xts_partial_test_common(XtsAes *aes,
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(cipher, 0, sizeof(cipher));
     ret = wc_AesXtsEncrypt(aes, cipher, pp, ppSz, i1, i1Sz);
@@ -17302,7 +17330,7 @@ static wc_test_ret_t aes_xts_partial_test_common(XtsAes *aes,
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, cipher, ppSz, i1, i1Sz);
@@ -17355,7 +17383,7 @@ static wc_test_ret_t aes_xts_partial_test_common(XtsAes *aes,
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, c1, c1Sz, i1, i1Sz);
@@ -17624,7 +17652,7 @@ static wc_test_ret_t aes_xts_128_vector_test(XtsAes *aes)
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -17678,7 +17706,7 @@ static wc_test_ret_t aes_xts_128_vector_test(XtsAes *aes)
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -17988,7 +18016,7 @@ static wc_test_ret_t aes_xts_192_vector_test(XtsAes *aes)
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -18042,7 +18070,7 @@ static wc_test_ret_t aes_xts_192_vector_test(XtsAes *aes)
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -19328,7 +19356,8 @@ static wc_test_ret_t aes256_cbc_vector_test(Aes* enc, Aes* dec, byte* cipher,
     return 0;
 }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static wc_test_ret_t aes256_cbc_debug_vector_test(Aes* enc, Aes* dec,
                                                   byte* cipher, byte* plain)
 {
@@ -19495,7 +19524,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
     if (ret != 0)
         goto out;
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     ret = aes256_cbc_debug_vector_test(enc, WC_TEST_AES_DEC(dec), cipher,
         WC_TEST_AES_DEC(plain));
     if (ret != 0)
@@ -19589,7 +19619,8 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
     if (XMEMCMP(tag, resultT, (unsigned long)tagSz))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesGcmEncrypt(enc, resultC, plain, plainSz, iv, ivSz,
                                      resultT, tagSz, aad, aadSz);
@@ -19624,7 +19655,8 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesGcmDecrypt(dec, resultP, resultC, cipherSz,
                    iv, ivSz, resultT, tagSz, aad, aadSz);
@@ -19881,7 +19913,7 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
      * limited to the C path, which is forced here by disabling AES-NI for
      * this one call. */
     {
-    #ifdef WOLFSSL_AESNI
+    #if defined(WOLFSSL_AESNI)
         int saved_use_aesni = dec->use_aesni;
         dec->use_aesni = 0;
     #endif
@@ -19893,7 +19925,7 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
         ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
         resultT[0] ^= 0xB5;
-    #ifdef WOLFSSL_AESNI
+    #if defined(WOLFSSL_AESNI)
         dec->use_aesni = saved_use_aesni;
     #endif
         if (ret != WC_NO_ERR_TRACE(AES_GCM_AUTH_E))
@@ -27061,9 +27093,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif
 
     ret = wc_rng_bank_init(bank, WC_RNG_BANK_STATIC_SIZE,
-#ifndef DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON
-                           WC_RNG_BANK_FLAG_NO_VECTOR_OPS |
-#endif
                            WC_RNG_BANK_FLAG_CAN_WAIT,
                            10, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
@@ -27092,31 +27121,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (rng_bank_affinity_lock_lock != bank_arg + 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    /* If we can, confirm that WC_RNG_BANK_FLAG_NO_VECTOR_OPS worked.  Only
-     * applicable to old FIPS.
+    /* The former check here asserted the DRBG's SHA had landed on the C
+     * implementation, i.e. it defined "the vector-op inhibit worked" as "the
+     * C twin got selected".  Both the inhibit and the twin are gone; there is
+     * one implementation and it is the one that runs.
      */
-#if defined(USE_INTEL_SPEEDUP) &&   \
-    defined(WOLFSSL_KERNEL_MODE) &&       \
-    defined(WOLFSSL_SMALL_STACK_CACHE) && \
-    defined(WC_C_DYNAMIC_FALLBACK) &&     \
-    defined(HAVE_HASHDRBG) &&             \
-    defined(WC_NO_INTERNAL_FUNCTION_POINTERS) && \
-    defined(HAVE_FIPS) && \
-    FIPS_VERSION3_LT(7,0,0) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
-
-#ifdef WOLFSSL_DRBG_SHA512
-    if (rng_inst->rng.drbgType == WC_DRBG_SHA512) {
-        if (((struct DRBG_SHA512_internal *)rng_inst->rng.drbg512)->sha512.sha_method != 5 /* SHA512_C */)
-            ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_SHA512_internal *)rng_inst->rng.drbg512)->sha512.sha_method), out);
-    }
-    else
-#endif /* WOLFSSL_DRBG_SHA512 */
-    {
-        if (((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method != 7 /* SHA256_C */)
-            ERROR_OUT(WC_TEST_RET_ENC_I(((struct DRBG_internal *)rng_inst->rng.drbg)->sha256.sha_method), out);
-    }
-#endif /* USE_INTEL_SPEEDUP && ... && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
 
     ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf1, sizeof(outbuf1));
     if (ret != 0)
@@ -27127,6 +27136,42 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ret = wc_rng_bank_checkin(bank, &bogus_inst);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
+    /* Checking in an instance that is not checked out must be refused, and
+     * must not touch the bank refcount.  Accepting it would free a lock some
+     * other caller holds, and wc_rng_bank_checkout() would then hand the same
+     * DRBG to two callers at once.  rng_inst (instance 2) is held here, so
+     * instance 0 is a known-free one.
+     */
+    {
+        struct wc_rng_bank_inst *free_inst = &bank->rngs[0];
+        int refcount_before = wolfSSL_RefCur(bank->refcount);
+        ret = wc_rng_bank_checkin(bank, &free_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (wolfSSL_RefCur(bank->refcount) != refcount_before)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
+    /* The entry points that take an instance must refuse a bank that is not
+     * INITED, before they read ->rngs.
+     */
+    {
+        word32 saved_flags = bank->flags;
+        struct wc_rng_bank_inst *uninited_inst = &bank->rngs[0];
+        int checkin_ret, reinit_ret;
+
+        bank->flags = WC_RNG_BANK_FLAG_NONE;
+        checkin_ret = wc_rng_bank_checkin(bank, &uninited_inst);
+        reinit_ret = wc_rng_bank_inst_reinit(bank, &bank->rngs[0], 0,
+                                             WC_RNG_BANK_FLAG_NONE);
+        bank->flags = saved_flags;
+
+        if (checkin_ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(checkin_ret), out);
+        if (reinit_ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(reinit_ret), out);
     }
 
     ret = wc_rng_bank_checkin(bank, &rng_inst);
@@ -27186,6 +27231,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* A bankref WC_RNG holds no DRBG: ->bankref shares the union with ->drbg
+     * and drbgType reads 0, so an unguarded reseed here would write DRBG
+     * state over the wc_rng_bank.  It must be refused, and the bank must be
+     * untouched afterward.
+     */
+    {
+        word32 bank_flags_before = bank->flags;
+        int bank_n_rngs_before = bank->n_rngs;
+
+        ret = wc_RNG_DRBG_Reseed(rng, (const byte *)bank_arg,
+                                 (word32)sizeof(bank_arg));
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if ((bank->flags != bank_flags_before) ||
+            (bank->n_rngs != bank_n_rngs_before))
+        {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        }
+    }
 #endif
 
     ret = wc_rng_bank_reseed(NULL, 10, WC_RNG_BANK_FLAG_NONE);
@@ -30117,7 +30182,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     enum wc_HashType hash[]  = { WC_HASH_TYPE_SHA256 };
 #else
     int              mgf[]   = {
-#ifndef NO_SHA
+/* FIPS 186-5 sec 5.4 disallows SHA-1 for RSA signature generation; the module
+ * rejects it at the RSA-PSS signing service. */
+#if !defined(NO_SHA) && !FIPS_VERSION3_GE(7,0,0)
                                  WC_MGF1SHA1,
 #endif
 #ifdef WOLFSSL_SHA224
@@ -30134,7 +30201,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
                                };
     enum wc_HashType hash[]  = {
-#ifndef NO_SHA
+#if !defined(NO_SHA) && !FIPS_VERSION3_GE(7,0,0)
                                  WC_HASH_TYPE_SHA,
 #endif
 #ifdef WOLFSSL_SHA224
@@ -49449,6 +49516,29 @@ static wc_test_ret_t ed25519ctx_test(void)
 
     ret = wc_ed25519_import_private_key(sKeyCtx, ED25519_KEY_SIZE, pKeyCtx,
                                       sizeof(pKeyCtx), &key);
+#ifdef WC_FIPS_ED25519CTX_NOT_APPROVED
+    /* Ed25519ctx (dom2(0,context)) is not an Approved EdDSA instance in the
+     * FIPS module (FIPS 186-5 sec 7.6/7.8); the service must reject it with
+     * SIG_TYPE_E rather than produce a signature.
+     * Gated on the module's own capability macro (fips.h), NOT on
+     * FIPS_VERSION3_GE(7,0,0): an earlier v7.0.0 module reports the same
+     * version but still signs, so the version predicate would assert a
+     * behavior that module does not have.  When the macro is absent the #else
+     * branch below runs the ordinary RFC 8032 Ed25519ctx test instead. */
+    if (ret == 0) {
+        ret = wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
+                               contextCtx, sizeof(contextCtx));
+        if (ret == WC_NO_ERR_TRACE(SIG_TYPE_E))
+            ret = 0;
+        else if (ret == 0)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    (void)sigCtx1;
+    (void)sigCtx2;
+#ifdef HAVE_ED25519_VERIFY
+    (void)verify;
+#endif
+#else
     if (ret == 0)
         ret = wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
                                contextCtx, sizeof(contextCtx));
@@ -49479,6 +49569,7 @@ static wc_test_ret_t ed25519ctx_test(void)
     if (ret == 0 && verify != 1)
         ret = WC_TEST_RET_ENC_NC;
 #endif
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
     wc_ed25519_free(&key);
 
@@ -52368,8 +52459,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 }
 #endif /* HAVE_ED448 */
 
+/* Seed-injecting PQC KATs drive ML-KEM and SLH-DSA keygen/sign from fixed NIST
+ * seeds.  FIPS 203 sec 3.3, 204 sec 5.4 and 205 sec 10.2 require the module to
+ * generate that randomness itself, so the public *_with_seed/_with_random
+ * service returns WC_FIPS_NOT_APPROVED in a FIPS build; run in non-FIPS only. */
+#if !defined(HAVE_FIPS)
+    #define WOLFSSL_TEST_PQC_SEED_KAT
+#endif
+
 #ifdef WOLFSSL_HAVE_MLKEM
-#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
+#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 static wc_test_ret_t mlkem512_kat(void)
 {
     wc_test_ret_t ret;
@@ -53463,7 +53562,7 @@ out:
 }
 #endif /* !WOLFSSL_NO_KYBER512 && !WOLFSSL_NO_ML_KEM_512 */
 
-#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768)
+#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 static wc_test_ret_t mlkem768_kat(void)
 {
     wc_test_ret_t ret;
@@ -54903,7 +55002,7 @@ out:
 }
 #endif /* !WOLFSSL_NO_KYBER768 && !WOLFSSL_NO_ML_KEM_768 */
 
-#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024)
+#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 static wc_test_ret_t mlkem1024_kat(void)
 {
     wc_test_ret_t ret;
@@ -57003,17 +57102,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
     }
 
-#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512)
+#if !defined(WOLFSSL_NO_KYBER512) && !defined(WOLFSSL_NO_ML_KEM_512) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = mlkem512_kat();
     if (ret != 0)
         goto out;
 #endif
-#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768)
+#if !defined(WOLFSSL_NO_KYBER768) && !defined(WOLFSSL_NO_ML_KEM_768) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = mlkem768_kat();
     if (ret != 0)
         goto out;
 #endif
-#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024)
+#if !defined(WOLFSSL_NO_KYBER1024) && !defined(WOLFSSL_NO_ML_KEM_1024) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = mlkem1024_kat();
     if (ret != 0)
         goto out;
@@ -60545,6 +60644,126 @@ out:
 #endif
     return ret;
 }
+
+#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+/* Negative test: HashML-DSA must reject a pre-hash whose collision resistance
+ * is below the parameter set's claimed security strength (FIPS 204 sec. 5.4,
+ * Table 4: approved PH per level).  Asserts sigGen and sigVer both reject. */
+static wc_test_ret_t mldsa_hash_paramset_rejection_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    int           i;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    dilithium_key* key = NULL;
+    byte*          sig = NULL;
+#else
+    dilithium_key  key[1];
+    byte           sig[DILITHIUM_MAX_SIG_SIZE];
+#endif
+    word32         sigLen;
+    int            verified;
+
+    /* Fixed-content digests; sizes match each digest length so the length
+     * check does not short-circuit before the hash-vs-paramSet gate. */
+    static const byte hash32[32] = {  /* SHA-256 digest size */
+        0xBA,0x78,0x16,0xBF,0x8F,0x01,0xCF,0xEA,
+        0x41,0x41,0x40,0xDE,0x5D,0xAE,0x22,0x23,
+        0xB0,0x03,0x61,0xA3,0x96,0x17,0x7A,0x9C,
+        0xB4,0x10,0xFF,0x61,0xF2,0x00,0x15,0xAD
+    };
+    static const byte hash48[48] = {  /* SHA-384 digest size */
+        0xCB,0x00,0x75,0x3F,0x45,0xA3,0x5E,0x8B,
+        0xB5,0xA0,0x3D,0x69,0x9A,0xC6,0x50,0x07,
+        0x27,0x2C,0x32,0xAB,0x0E,0xDE,0xD1,0x63,
+        0x1A,0x8B,0x60,0x5A,0x43,0xFF,0x5B,0xED,
+        0x80,0x86,0x07,0x2B,0xA1,0xE7,0xCC,0x23,
+        0x58,0xBA,0xEC,0xA1,0x34,0xC8,0x25,0xA7
+    };
+
+    struct {
+        int         level;
+        int         hashAlg;
+        const byte* hash;
+        word32      hashLen;
+    } forbidden[] = {
+        /* ML-DSA-65 needs >=192-bit collision strength; SHA-256 = 128-bit. */
+        { WC_ML_DSA_65, WC_HASH_TYPE_SHA256, hash32, 32 },
+        /* ML-DSA-87 needs >=256-bit collision strength; SHA-384 = 192-bit. */
+        { WC_ML_DSA_87, WC_HASH_TYPE_SHA384, hash48, 48 }
+    };
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if ((key == NULL) || (sig == NULL)) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, neg_out);
+    }
+#endif
+    XMEMSET(sig, 0, DILITHIUM_MAX_SIG_SIZE);
+
+    for (i = 0; i < (int)(sizeof(forbidden) / sizeof(forbidden[0])); i++) {
+    #ifdef WOLFSSL_NO_ML_DSA_65
+        if (forbidden[i].level == WC_ML_DSA_65) continue;
+    #endif
+    #ifdef WOLFSSL_NO_ML_DSA_87
+        if (forbidden[i].level == WC_ML_DSA_87) continue;
+    #endif
+
+        ret = wc_dilithium_init_ex(key, NULL, devId);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), neg_out);
+        }
+        ret = wc_dilithium_set_level(key, (byte)forbidden[i].level);
+        if (ret != 0) {
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), neg_out);
+        }
+        ret = wc_dilithium_make_key(key, rng);
+        if (ret != 0) {
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), neg_out);
+        }
+
+        sigLen = (word32)wc_dilithium_sig_size(key);
+
+        /* sigGen with disallowed PH must be REJECTED. */
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_dilithium_sign_ctx_hash(NULL, 0, forbidden[i].hashAlg,
+            forbidden[i].hash, forbidden[i].hashLen, sig, &sigLen, key, rng);
+        PRIVATE_KEY_LOCK();
+        if (ret == 0) {
+            /* Module accepted a disallowed pre-hash. */
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_NC, neg_out);
+        }
+
+        /* sigVer with disallowed PH must ALSO be REJECTED. */
+        verified = -1;
+        sigLen = (word32)wc_dilithium_sig_size(key);
+        ret = wc_dilithium_verify_ctx_hash(sig, sigLen, NULL, 0,
+            forbidden[i].hashAlg, forbidden[i].hash, forbidden[i].hashLen,
+            &verified, key);
+        if (ret == 0) {
+            wc_dilithium_free(key);
+            ERROR_OUT(WC_TEST_RET_ENC_NC, neg_out);
+        }
+
+        wc_dilithium_free(key);
+        ret = 0;
+    }
+
+neg_out:
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (sig != NULL) XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key != NULL) XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
+}
+#endif /* !WOLFSSL_DILITHIUM_NO_SIGN && !WOLFSSL_DILITHIUM_NO_VERIFY */
+
 #endif
 
 #if defined(WC_MLDSA_CACHE_MATRIX_A) && \
@@ -61651,6 +61870,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_test(void)
     }
 #endif /* (WOLFSSL_MLDSA_PUBLIC_KEY && !WOLFSSL_MLDSA_NO_VERIFY) ||
         * (WOLFSSL_MLDSA_PRIVATE_KEY && !WOLFSSL_MLDSA_NO_SIGN) */
+
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    (!defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87))
+    /* FIPS 204 sec. 5.4, HashML-DSA must reject pre-hashes weaker than
+     * the parameter set's security level. */
+    ret = mldsa_hash_paramset_rejection_test(&rng);
+    if (ret != 0) {
+        ERROR_OUT(ret, out);
+    }
+#endif
 
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
@@ -62953,7 +63184,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     #define WOLFSSL_SLHDSA_VERIFY_ONLY
 #endif
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 /* KeyGen KAT: deterministic key generation cross-validated against NIST CAVP
  * vectors. Verifies that MakeKeyWithRandom produces the expected sk and pk
  * for a given parameter set. */
@@ -63097,29 +63328,16 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    /* HashSLH-DSA takes the caller's pre-hashed digest as input. */
+    /* HashSLH-DSA takes the caller's pre-hashed digest as input.  SHAKE-256 is
+     * approved for all SLH-DSA-{128,192,256} variants (FIPS 205 sec. 10.2.2),
+     * so use it unconditionally for the positive round-trip. */
     {
-#ifdef WOLFSSL_SLHDSA_SHA2
-        enum wc_HashType phType = SLHDSA_IS_SHA2(param) ?
-            WC_HASH_TYPE_SHA256 : WC_HASH_TYPE_SHAKE256;
-#else
         enum wc_HashType phType = WC_HASH_TYPE_SHAKE256;
-#endif
         byte digest[WC_SHA3_512_DIGEST_SIZE];
-        word32 digestLen;
+        word32 digestLen = WC_SHA3_512_DIGEST_SIZE;
 
-#ifdef WOLFSSL_SLHDSA_SHA2
-        if (phType == WC_HASH_TYPE_SHA256) {
-            ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
-            digestLen = WC_SHA256_DIGEST_SIZE;
-        }
-        else
-#endif
-        {
-            ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
-                WC_SHA3_512_DIGEST_SIZE);
-            digestLen = WC_SHA3_512_DIGEST_SIZE;
-        }
+        ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
+            WC_SHA3_512_DIGEST_SIZE);
         if (ret != 0) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
@@ -63138,9 +63356,11 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-    /* Additional pre-hash test: SHA-384 exercises a different OID path */
+    /* Additional pre-hash test: SHA-384 exercises a different OID path.  Skip
+     * for SLH-DSA-256, SHA-384 (192-bit collision) is below its 256-bit
+     * security level (FIPS 205 sec. 10.2.2 with sec. 11). */
 #ifdef WOLFSSL_SHA384
-    {
+    if (key->params->n != WC_SLHDSA_N_256) {
         byte digest384[WC_SHA384_DIGEST_SIZE];
 
         ret = wc_Sha384Hash(msg, (word32)sizeof(msg), digest384);
@@ -63199,6 +63419,110 @@ out:
     WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
+}
+
+/* Negative test: HashSLH-DSA must reject a pre-hash whose collision resistance
+ * is below the parameter set's claimed security strength (FIPS 205 sec.
+ * 10.2.2 with sec. 11).  Asserts sigGen and sigVer both
+ * reject. */
+static wc_test_ret_t slhdsa_hash_paramset_rejection_test(enum SlhDsaParam param)
+{
+    int    ret = 0;
+    wc_test_ret_t testRet = 0;
+    WC_RNG rng;
+    SlhDsaKey key[1];
+    /* WC_SLHDSA_MAX_SIG_LEN is ~49KB, far past a small or kernel stack, so
+     * route it to the heap like mldsa_hash_paramset_rejection_test(). */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte*  sig = NULL;
+#else
+    byte   sig[WC_SLHDSA_MAX_SIG_LEN];
+#endif
+    word32 sigLen;
+    static const byte msg[] = {
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
+        0x72,0x6c,0x64,0x21
+    };
+    byte   ctx[1];
+    /* SHA-256 (128-bit collision) is approved only for 128-bit paramSets, so
+     * any 192/256-bit paramSet must reject it. */
+    enum wc_HashType badHash = WC_HASH_TYPE_SHA256;
+    int    rngInited = 0;
+    int    keyInited = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    sig = (byte*)XMALLOC(WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (sig == NULL) {
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+#endif
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0) {
+        testRet = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    rngInited = 1;
+
+    ret = wc_SlhDsaKey_Init(key, param, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        testRet = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    keyInited = 1;
+
+    ret = wc_SlhDsaKey_MakeKey(key, &rng);
+    if (ret != 0) {
+        testRet = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+
+    /* Only enforce on paramSets above 128-bit security; SHA-256 is approved
+     * for 128-bit so wouldn't be a rejection target there. */
+    if (key->params->n == WC_SLHDSA_N_128) {
+        goto out;
+    }
+
+    /* sigGen with too-weak PH must be REJECTED. */
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_SlhDsaKey_SignHash(key, ctx, 0, msg, (word32)sizeof(msg),
+        badHash, sig, &sigLen, &rng);
+    PRIVATE_KEY_LOCK();
+    if (ret == 0) {
+        /* Module accepted a disallowed pre-hash. */
+        testRet = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+
+    /* sigVer with too-weak PH must ALSO be REJECTED. */
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    XMEMSET(sig, 0, sigLen);
+    ret = wc_SlhDsaKey_VerifyHash(key, ctx, 0, msg, (word32)sizeof(msg),
+        badHash, sig, sigLen);
+    if (ret == 0) {
+        testRet = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
+
+out:
+    if (keyInited) {
+        wc_SlhDsaKey_Free(key);
+    }
+    if (rngInited) {
+        wc_FreeRng(&rng);
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return testRet;
 }
 #endif
 
@@ -63386,7 +63710,7 @@ wc_test_ret_t slhdsa_test(void)
     int ret = 0;
 #ifdef WOLFSSL_SLHDSA_PARAM_128S
     WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
     static const byte sk_seed_shake128s[] = {
         0x17, 0x3D, 0x04, 0xC9, 0x38, 0xC1, 0xC3, 0x6B,
@@ -63417,7 +63741,7 @@ wc_test_ret_t slhdsa_test(void)
         0x82, 0x6e, 0x97, 0xbc, 0xb0, 0x1b, 0x78, 0x7b,
         0xc6, 0xb5, 0xa7, 0xbb, 0xe3, 0x7e, 0xb4, 0xa8
     };
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_DECLARE_VAR(sk, byte, WC_SLHDSA_MAX_PRIV_LEN, HEAP_HINT);
     WC_DECLARE_VAR(pk, byte, WC_SLHDSA_MAX_PUB_LEN, HEAP_HINT);
     word32 outLen;
@@ -64411,14 +64735,14 @@ wc_test_ret_t slhdsa_test(void)
         0xc0, 0x48, 0xd0, 0x63, 0x82, 0x20, 0x2b, 0x06,
         0xe8, 0x21, 0xf8, 0xcd, 0x56, 0xc5, 0xc7, 0x31,
     };
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_DECLARE_VAR(sig, byte, sizeof(sig_shake128s), HEAP_HINT);
 #endif
 
     WC_ALLOC_VAR_EX(key_vfy, SlhDsaKey, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(key_vfy, 0, sizeof(*key_vfy));
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     WC_ALLOC_VAR_EX(key, SlhDsaKey, 1, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER, ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
     XMEMSET(key, 0, sizeof(*key));
@@ -64432,7 +64756,7 @@ wc_test_ret_t slhdsa_test(void)
     /* // NOLINTEND(bugprone-sizeof-expression) */
 #endif
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     ret = wc_SlhDsaKey_Init(key, SLHDSA_SHAKE128S, NULL, devId);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -64492,7 +64816,7 @@ wc_test_ret_t slhdsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
     outLen = (word32)sizeof(sig_shake128s);
     PRIVATE_KEY_UNLOCK();
     ret = wc_SlhDsaKey_SignWithRandom(key, ctx, 0, msg, (word32)sizeof(msg),
@@ -64518,7 +64842,7 @@ wc_test_ret_t slhdsa_test(void)
      * These verify that deterministic key generation produces the exact pk/sk
      * that NIST expects. Covers both SHA-256 (cat 1, n=16) and SHA-512
      * (cat 3 n=24, cat 5 n=32) code paths. */
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 #ifdef WOLFSSL_SLHDSA_PARAM_SHA2_128S
     {
         /* NIST CAVP SLH-DSA-SHA2-128s keyGen vector (tgId=1, tcId=1).
@@ -65193,6 +65517,39 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
+    /* FIPS 205 sec. 10.2.2, HashSLH-DSA must reject pre-hashes below the
+     * paramSet's security level.  Use any available 192/256-bit paramSet;
+     * 128-bit paramSets allow SHA-256 so are not useful targets here. */
+#ifdef WOLFSSL_SLHDSA_PARAM_192S
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHAKE192S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHAKE192S (hash-paramset reject)",
+            0);
+        goto out;
+    }
+#elif defined(WOLFSSL_SLHDSA_PARAM_256S)
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHAKE256S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHAKE256S (hash-paramset reject)",
+            0);
+        goto out;
+    }
+#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHA2_192S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHA2_192S (hash-paramset reject)",
+            0);
+        goto out;
+    }
+#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHA2_256S);
+    if (ret != 0) {
+        wc_test_render_error_message("SLHDSA_SHA2_256S (hash-paramset reject)",
+            0);
+        goto out;
+    }
+#endif
+
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #if defined(WOLF_PRIVATE_KEY_ID) && \
@@ -65226,7 +65583,7 @@ out:
     /* key, sig, sk, pk are declared inside #ifdef WOLFSSL_SLHDSA_PARAM_128S
      * (alongside the SHAKE-128s test data) so they only exist when 128S is
      * built. Their cleanup must match. */
-#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+#if !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && defined(WOLFSSL_TEST_PQC_SEED_KAT)
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key)
 #endif

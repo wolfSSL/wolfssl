@@ -388,6 +388,15 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_ED25519 */
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ED25519
+    /* az holds the clamped secret scalar; zeroize before return
+     * (ISO/IEC 19790:2012 7.9).  This covers every path that populates az.
+     * The crypto-callback success path above returns earlier, but az is still
+     * uninitialized there, the clamping below the callback is what fills it --
+     * so no key material escapes unzeroized.  Any future change that writes az
+     * before the callback dispatch must zeroize on that path too. */
+    ForceZero(az, sizeof(az));
+#endif
     return ret;
 }
 
@@ -442,6 +451,14 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     ret = wc_ed25519_check_key(key);
     if (ret == 0) {
         ret = ed25519_pairwise_consistency_test(key, rng);
+    }
+    if (ret != 0) {
+        /* Do not hand back a key that failed its check or PCT still marked
+         * usable; same handling as the make_public failure above. */
+        key->privKeySet = 0;
+        key->pubKeySet = 0;
+        ForceZero(key->k, ED25519_PRV_KEY_SIZE);
+        ForceZero(key->p, ED25519_PUB_KEY_SIZE);
     }
 #endif
 

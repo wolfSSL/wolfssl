@@ -306,6 +306,9 @@ static wc_RngSeed_Cb seedCb = wc_GenerateSeed;
 static wc_RngSeed_Cb seedCb = NULL;
 #endif
 
+/* Install the global entropy-seed callback.  Set ONCE at startup, before any
+ * RNG use or threads: seedCb is a shared global, so changing it concurrently
+ * with wc_InitRng()/reseed is a data race.  Use one entropy source at a time. */
 int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 {
     seedCb = cb;
@@ -351,6 +354,12 @@ enum {
 /* Verify max gen block len */
 #if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
     #error RNG_MAX_BLOCK_LEN is larger than NIST DBRG max request length
+#endif
+
+/* SP 800-90A Rev1: FIPS output must come from the validated Hash_DRBG; RDRAND
+ * as preferred source bypasses it (CUSTOM_RAND_GENERATE_BLOCK: see fips.h). */
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_INTEL_RDRAND)
+    #error "FIPS v7: HAVE_INTEL_RDRAND bypasses the validated Hash_DRBG (SP 800-90A)"
 #endif
 
 enum {
@@ -406,32 +415,49 @@ static int sha512DrbgDisabled = 0;
 static wolfSSL_Mutex drbgStateMutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(drbgStateMutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-enum {
-    WC_DRBG_MUTEX_UNINITED,
-    WC_DRBG_MUTEX_INITED
-};
-/* Ports with no static mutex initializer must create drbgStateMutex at run
- * time, so its readiness is tracked here.
- *
- * wc_DrbgState_MutexInit and wc_DrbgState_MutexFree are called only from
- * wolfCrypt_Init() and wolfCrypt_Cleanup(), inside the span serialized by the
- * init-state machine, so this flag is not otherwise synchronized. */
-static int drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
-#endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
-#endif /* !defined(SINGLE_THREADED) */
-
+/* 0 = uninitialized, 1 = initializing, 2 = ready.  Atomic so on-demand init
+ * from LockDrbgState() cannot double-init the mutex.  When WOLFSSL_NO_ATOMICS
+ * is defined the compare-exchange is not truly atomic (see wc_port.h), so such
+ * a platform must complete the first DRBG init single-threaded, e.g. via
+ * wolfCrypt_Init(). */
+#ifdef WOLFSSL_NO_ATOMICS
+static int drbgStateMutex_inited = 0;
+#else
+static wolfSSL_Atomic_Int drbgStateMutex_inited = WOLFSSL_ATOMIC_INITIALIZER(0);
+#endif
+#endif
+#endif /* !SINGLE_THREADED */
 
 int wc_DrbgState_MutexInit(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (drbgStateMutex_inited == WC_DRBG_MUTEX_UNINITED) {
+    /* LockDrbgState() calls this on demand, so two threads reaching the DRBG
+     * before wolfCrypt_Init() completes can race here.  A plain
+     * check-then-act would let both call wc_InitMutex() on the same mutex,
+     * which is undefined for CRITICAL_SECTION and pthread_mutex_t.  Elect one
+     * initializer with an atomic CAS; others wait.  Mirrors
+     * Entropy_InitMutexOnce() in wolfentropy.c.
+     * States: 0 = uninitialized, 1 = initializing, 2 = ready. */
+    int expected = 0;
+
+    if (wolfSSL_Atomic_Int_CompareExchange(&drbgStateMutex_inited,
+            &expected, 1)) {
         int ret = wc_InitMutex(&drbgStateMutex);
-        if (ret != 0) {
-            /* flag left unchanged because mutex was not inited */
+        /* Publish ready (2), or reset to 0 so a later call retries. */
+        WOLFSSL_ATOMIC_STORE(drbgStateMutex_inited, (ret == 0) ? 2 : 0);
+        if (ret != 0)
             return ret;
+    }
+    else {
+        int st;
+        while ((st = (int)WOLFSSL_ATOMIC_LOAD(drbgStateMutex_inited)) == 1) {
+            WC_RELAX_LONG_LOOP();
         }
-        drbgStateMutex_inited = WC_DRBG_MUTEX_INITED;
+        if (st != 2) {
+            /* The electing thread's wc_InitMutex() failed. */
+            return BAD_MUTEX_E;
+        }
     }
 
 #endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
@@ -443,13 +469,12 @@ int wc_DrbgState_MutexFree(void)
 {
 #ifndef SINGLE_THREADED
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (drbgStateMutex_inited == WC_DRBG_MUTEX_INITED) {
+    /* Only 2 means the mutex was actually initialized (1 = another thread is
+     * mid-init, which is a caller-contract violation during teardown). */
+    if ((int)WOLFSSL_ATOMIC_LOAD(drbgStateMutex_inited) == 2) {
         int ret = wc_FreeMutex(&drbgStateMutex);
-        if (ret != 0) {
-            /* flag left unchanged because mutex was not freed */
-            return ret;
-        }
-        drbgStateMutex_inited = WC_DRBG_MUTEX_UNINITED;
+        WOLFSSL_ATOMIC_STORE(drbgStateMutex_inited, 0);
+        return ret;
     }
 
 #endif /* !defined(WOLFSSL_MUTEX_INITIALIZER) */
@@ -460,6 +485,16 @@ int wc_DrbgState_MutexFree(void)
 static int LockDrbgState(void)
 {
 #ifndef SINGLE_THREADED
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* No static mutex initializer (e.g. Windows CRITICAL_SECTION): the FIPS
+     * pre-operational self-test locks this from a load-time constructor that
+     * runs before wolfCrypt_Init(), so init on demand here. */
+    {
+        int initRet = wc_DrbgState_MutexInit();
+        if (initRet != 0)
+            return initRet;
+    }
+#endif
     return wc_LockMutex(&drbgStateMutex);
 #else
     return 0;
@@ -476,6 +511,49 @@ static int UnlockDrbgState(void)
 }
 
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
+
+#ifdef WC_RNG_HAVE_INST_EXCL
+/* Per-instance DRBG exclusion.  Covers the generate and reseed critical
+ * section of one WC_RNG (V, C and reseedCtr), so concurrent callers cannot
+ * read the same V, tear an array_add() of V, or drop a reseedCtr increment.
+ *
+ * Nothing here disables interrupts or takes a lock of any kind, so it is legal
+ * in every context the kernel DRBG runs in, including inside
+ * SAVE_VECTOR_REGISTERS().  Contention waits with WC_RELAX_LONG_LOOP(), which
+ * is cpu_relax()/cond_resched() in linuxkm and a plain spin elsewhere, the
+ * same wait wc_rng_bank_checkout() uses.
+ *
+ * wolfSSL_Atomic_Int_CompareExchange() writes the observed value back through
+ * expected_i when it fails (both the WOLFSSL_ATOMIC_OPS and the fallback
+ * implementation in wc_port.h do this), so expected is reset before each
+ * retry rather than being left holding a stale value.
+ *
+ * Returns 1 when this call took the flag and the caller must release it, 0
+ * when the instance's exclusivity comes from its owner instead. */
+static int RngExclEnter(WC_RNG* rng)
+{
+    WC_ATOMIC_INT_ARG expected = WC_RNG_EXCL_FREE;
+
+    if (WOLFSSL_ATOMIC_LOAD(rng->excl) == WC_RNG_EXCL_OWNER) {
+        return 0;
+    }
+
+    while (! wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected,
+                                                WC_RNG_EXCL_HELD))
+    {
+        expected = WC_RNG_EXCL_FREE;
+        WC_RELAX_LONG_LOOP();
+    }
+
+    return 1;
+}
+
+/* Only ever called by the thread that got 1 from RngExclEnter(). */
+static void RngExclExit(WC_RNG* rng)
+{
+    WOLFSSL_ATOMIC_STORE(rng->excl, WC_RNG_EXCL_FREE);
+}
+#endif /* WC_RNG_HAVE_INST_EXCL */
 
 static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
                                   int devId);
@@ -688,12 +766,14 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
         *              remain available to SHA-512-only builds */
 
 /* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
-int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
+/* Reseed the DRBG from a caller-supplied buffer.  Unlike the internal reseed
+ * path (PollAndReSeed), which runs wc_RNG_TestSeed() over the entropy it
+ * gathers, the Module does NOT health-test this buffer: caller-supplied reseed
+ * entropy SHALL come from an SP 800-90B compliant source with its own health
+ * tests and a suitable ESV, per the seed-source obligation in the Security
+ * Policy. */
+static int _RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
-    if (rng == NULL || seed == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
 #ifndef NO_SHA256
     if (rng->drbgType == WC_DRBG_SHA256) {
         if (rng->drbg == NULL) {
@@ -733,6 +813,46 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 #endif
 
     return BAD_FUNC_ARG;
+}
+
+int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
+{
+    int ret;
+#ifdef WC_RNG_HAVE_INST_EXCL
+    int excl;
+#endif
+
+    if (rng == NULL || seed == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WC_RNG_BANK_SUPPORT
+    /* A bankref WC_RNG carries no DRBG state of its own: rng->bankref shares
+     * the union with rng->drbg, and drbgType reads 0 (WC_DRBG_SHA256) because
+     * wc_InitRng_BankRef() never sets it.  Without this the reseed below
+     * would take the bank pointer for a DRBG_internal and write DRBG state
+     * over the wc_rng_bank object.  Reseed the bank's instances with
+     * wc_rng_bank_seed() instead.
+     */
+    if (rng->status == WC_DRBG_BANKREF)
+        return BAD_FUNC_ARG;
+#endif
+
+#ifdef WC_RNG_HAVE_INST_EXCL
+    /* Reseed rewrites V, C and reseedCtr; serialize it against Generate on
+     * the same instance. */
+    excl = RngExclEnter(rng);
+#endif
+
+    ret = _RNG_DRBG_Reseed(rng, seed, seedSz);
+
+#ifdef WC_RNG_HAVE_INST_EXCL
+    if (excl) {
+        RngExclExit(rng);
+    }
+#endif
+
+    return ret;
 }
 
 /* Generic byte-array helper -- shared by both SHA-256 and SHA-512 DRBG
@@ -836,6 +956,12 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #if (!defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SEED_LEN);
+#endif
+#if FIPS_VERSION3_GE(7,0,0)
+    /* digest held the final Hashgen output block; zeroize it before free/return
+     * (ISO 19790 sec 7.9).  Hash_df and Hash_DRBG_Generate already do this;
+     * Hash_gen was the outlier.  v7.0.0+ only. */
+    ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 #endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
@@ -1436,6 +1562,10 @@ static int Hash512_gen(DRBG_SHA512_internal* drbg, byte* out, word32 outSz,
     defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(data, DRBG_SHA512_SEED_LEN);
 #endif
+#if FIPS_VERSION3_GE(7,0,0)
+    /* As Hash_gen above: zeroize the final output block held in digest. */
+    ForceZero(digest, WC_SHA512_DIGEST_SIZE);
+#endif
 
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
@@ -1694,6 +1824,37 @@ static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg)
     #define WC_RNG_SEED_APT_CUTOFF 325
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+/* The calibrated (window, cutoff) pair must satisfy FIPS 140-3 IG D.K
+ * Resolution 16 (C <= W) at the full window. */
+wc_static_assert(WC_RNG_SEED_APT_CUTOFF <= WC_RNG_SEED_APT_WINDOW);
+
+/* wc_RNG_TestSeed's byteCounts[] is indexed by seed byte value [0,255], so the
+ * array (sized MAX_ENTROPY_BITS) must hold at least 256 entries. */
+wc_static_assert(MAX_ENTROPY_BITS >= 256);
+
+/* Integer square root (floor).  Used to recompute the APT cutoff for a window
+ * shorter than WC_RNG_SEED_APT_WINDOW (see wc_RNG_TestSeed). */
+static word32 wc_rng_apt_isqrt(word32 n)
+{
+    word32 root = 0;
+    word32 bit  = (word32)1 << 30;
+    while (bit > n)
+        bit >>= 2;
+    while (bit != 0) {
+        if (n >= root + bit) {
+            n   -= root + bit;
+            root = (root >> 1) + bit;
+        }
+        else {
+            root >>= 1;
+        }
+        bit >>= 2;
+    }
+    return root;
+}
+#endif
+
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 {
     int ret = 0;
@@ -1749,6 +1910,32 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
         word32 windowSize = min(seedSz, (word32)WC_RNG_SEED_APT_WINDOW);
         word32 windowStart = 0;
         word32 newIdx;
+#if FIPS_VERSION3_GE(7,0,0)
+        /* FIPS 140-3 IG D.K Resolution 16 (IG 2026-04-16): the APT cutoff C
+         * shall be no larger than the window W.  A seed shorter than
+         * WC_RNG_SEED_APT_WINDOW clamps the window to seedSz, so the cutoff
+         * calibrated for W=512 would exceed W and the test could never fire
+         * (a 132-byte window can never reach a count of 325).  Recompute C for
+         * the actual window on the same H=1, alpha=2^-30 basis used for the
+         * calibrated value: for Binomial(W,1/2) the (1-alpha) tail is about
+         * W/2 + 3*sqrt(W).  The full-window case keeps the calibrated constant
+         * unchanged, so validated behavior is untouched */
+        /* The W/2 + 3*sqrt(W) tail exceeds W itself for W below about 40 (at
+         * W=8 it gives 11), which would put the cutoff out of reach and make
+         * the test inert, the opposite of the C <= W bound above.  Clamp to
+         * W so the test can still fire on a tiny window.  The shipped v7 seed
+         * is SEED_SZ + SEED_BLOCK_SZ >= 128, where the formula yields 98 and
+         * the clamp never engages, so validated behavior is untouched. */
+        word32 aptCutoff = (windowSize >= (word32)WC_RNG_SEED_APT_WINDOW)
+                         ? (word32)WC_RNG_SEED_APT_CUTOFF
+                         : (1 + windowSize / 2 + 3 * wc_rng_apt_isqrt(windowSize));
+        if ((windowSize < (word32)WC_RNG_SEED_APT_WINDOW) &&
+                (aptCutoff > windowSize)) {
+            aptCutoff = windowSize;
+        }
+#else
+        word32 aptCutoff = (word32)WC_RNG_SEED_APT_CUTOFF;
+#endif
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
         byteCounts = (word16*)XMALLOC(MAX_ENTROPY_BITS * sizeof(word16), NULL,
@@ -1765,7 +1952,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 
         /* Check first window - scan all 256 counts */
         for (i = 0; i < MAX_ENTROPY_BITS; i++) {
-            aptFailed |= (byteCounts[i] >= WC_RNG_SEED_APT_CUTOFF);
+            aptFailed |= (byteCounts[i] >= aptCutoff);
         }
 
         /* Slide window through remaining seed data */
@@ -1779,7 +1966,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
             byteCounts[seed[newIdx]]++;
 
             /* Accumulate failure flag for new byte's count */
-            aptFailed |= (byteCounts[seed[newIdx]] >= WC_RNG_SEED_APT_CUTOFF);
+            aptFailed |= (byteCounts[seed[newIdx]] >= aptCutoff);
         }
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
@@ -1914,6 +2101,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     if (nonce == NULL && nonceSz != 0)
         return BAD_FUNC_ARG;
 
+    /* Also leaves rng->excl == WC_RNG_EXCL_FREE where WC_RNG_HAVE_INST_EXCL
+     * applies: the exclusion flag needs no constructor and cannot fail. */
     XMEMSET(rng, 0, sizeof(*rng));
 
 #ifdef WOLFSSL_HEAP_TEST
@@ -2002,7 +2191,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
 
 #ifdef HAVE_INTEL_RDRAND
-    /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
+    /* if CPU supports RDRAND, use it directly and bypass DRBG init */
     if (IS_INTEL_RDRAND(intel_flags)) {
     #ifdef HAVE_HASHDRBG
         rng->status = DRBG_OK;
@@ -2053,6 +2242,23 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #else
         rng->drbg = (struct DRBG*)&rng->drbg_data;
     #endif /* WOLFSSL_NO_MALLOC or WOLFSSL_STATIC_MEMORY */
+
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* Zero the freshly-allocated DRBG state so that a non-NULL rng->drbg is
+         * always safe to Hash_DRBG_Uninstantiate (which frees the SHA-256
+         * context) on the error-cleanup path below, even when instantiation is
+         * never reached */
+        if (rng->drbg != NULL) {
+            XMEMSET(rng->drbg, 0, sizeof(DRBG_internal));
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && defined(WOLF_CRYPTO_CB)
+            /* Zeroing leaves sha256.devId == 0, which a registered
+             * crypto callback would claim if the error path calls
+             * Uninstantiate before instantiation ever ran.  Mark it
+             * invalid so wc_Sha256Free() skips the callback. */
+            (((DRBG_internal*)rng->drbg)->sha256).devId = INVALID_DEVID;
+#endif
+        }
+    #endif
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         if (ret == 0) {
@@ -2105,6 +2311,21 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         }
     #else
         rng->drbg512 = (struct DRBG_SHA512*)&rng->drbg512_data;
+    #endif
+
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* As above for the SHA-512 DRBG: zero freshly-allocated state so the
+         * error-cleanup path can safely uninstantiate it. */
+        if (rng->drbg512 != NULL) {
+            XMEMSET(rng->drbg512, 0, sizeof(DRBG_SHA512_internal));
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && defined(WOLF_CRYPTO_CB)
+            /* Zeroing leaves sha512.devId == 0, which a registered
+             * crypto callback would claim if the error path calls
+             * Uninstantiate before instantiation ever ran.  Mark it
+             * invalid so wc_Sha512Free() skips the callback. */
+            (((DRBG_SHA512_internal*)rng->drbg512)->sha512).devId = INVALID_DEVID;
+#endif
+        }
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -2206,7 +2427,15 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     "ERROR: wc_GenerateSeed() in _InitRng() failed with err %d",
                     ret);
     #endif
+#if FIPS_VERSION3_GE(7,0,0)
+                /* Keep the seed source's own SP 800-90B code, as
+                 * wc_RNG_GenerateBlock() already does on the generate path. */
+                if ((ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
+                    (ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+                    ret = DRBG_FAILURE;
+#else
                 ret = DRBG_FAILURE;
+#endif
                 rng->status = DRBG_FAILED;
             }
 
@@ -2264,6 +2493,15 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     if (ret != DRBG_SUCCESS) {
     #ifndef NO_SHA256
         if (rng->drbgType == WC_DRBG_SHA256) {
+        #if FIPS_VERSION3_GE(7,0,0)
+            /* SP 800-90A sec 9.4 / ISO 19790 sec 7.9: the DRBG internal state
+             * (V, C) is a CSP.  Zeroize it (as wc_FreeRng does) before freeing
+             * the allocation on this error path; previously only the self-test
+             * scratch (7.9.7-exempt) was uninstantiated here.  v7.0.0+ only. */
+            if (rng->drbg != NULL) {
+                (void)Hash_DRBG_Uninstantiate((DRBG_internal*)rng->drbg);
+            }
+        #endif
         #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
             XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
         #endif
@@ -2282,6 +2520,13 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_DRBG_SHA512
         if (rng->drbgType == WC_DRBG_SHA512) {
+        #if FIPS_VERSION3_GE(7,0,0)
+            /* As above: zeroize the SHA-512 DRBG state (V, C) before free. */
+            if (rng->drbg512 != NULL) {
+                (void)Hash512_DRBG_Uninstantiate(
+                    (DRBG_SHA512_internal*)rng->drbg512);
+            }
+        #endif
         #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
             XFREE(rng->drbg512, rng->heap, DYNAMIC_TYPE_RNG);
         #endif
@@ -2515,6 +2760,37 @@ static int PollAndReSeed(WC_RNG* rng)
 
     return ret;
 }
+
+/* Map a failed generate or reseed onto the value wc_RNG_GenerateBlock() returns
+ * and the matching rng->status.  Every failure site in the generate path routes
+ * through here, so the same underlying fault cannot be reported two ways
+ * depending on which site observed it.
+ *
+ * PollAndReSeed() returns DRBG_CONT_FAILURE when wc_RNG_HealthTestLocal() fails
+ * (SP 800-90A sec 11.3), and that has to reach the caller as DRBG_CONT_FIPS_E:
+ * wc_RNG_GenerateBlock_fips() keys SetConTestFailure(), the transition to
+ * FIPS_MODE_FAILED, off that one code. */
+static int RngGenerateFailure(WC_RNG* rng, int ret)
+{
+    if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
+        rng->status = DRBG_CONT_FAILED;
+        return DRBG_CONT_FIPS_E;
+    }
+
+    rng->status = DRBG_FAILED;
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Preserve the specific SP 800-90B code (ENTROPY_RT_E/ENTROPY_APT_E) from a
+     * failed reseed rather than flattening it to RNG_FAILURE_E, as the
+     * instantiate path does. */
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+#endif
+
+    return RNG_FAILURE_E;
+}
 #endif
 
 /* place a generated block in output */
@@ -2526,6 +2802,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif
 {
     int ret;
+#ifdef WC_RNG_HAVE_INST_EXCL
+    int excl = 0;
+#endif
 
     if (rng == NULL || output == NULL)
         return BAD_FUNC_ARG;
@@ -2584,13 +2863,37 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
+#ifdef WC_RNG_HAVE_INST_EXCL
+    /* Serialize from here to the end of the DRBG core: V, C and reseedCtr are
+     * read, hashed and written back as one unit (SP 800-90A sec 10.1.1.4), so
+     * the next state cannot be reserved without hashing.  Everything above --
+     * crypto callback, RDRAND, async, touches no DRBG state and stays
+     * outside.  Returns 0 for a bank instance, which is already exclusive. */
+    excl = RngExclEnter(rng);
+
+    /* Another thread may have failed the instance while we waited. */
+    if (rng->status != DRBG_OK) {
+        if (excl) {
+            RngExclExit(rng);
+        }
+        return RNG_FAILURE_E;
+    }
+#endif
+
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     if (rng->pid != getpid()) {
         rng->pid = getpid();
         ret = PollAndReSeed(rng);
         if (ret != DRBG_SUCCESS) {
-            rng->status = DRBG_FAILED;
-            return RNG_FAILURE_E;
+            /* Nothing has been written to output yet, so there is nothing to
+             * zeroize here, only the status and return code to set. */
+            ret = RngGenerateFailure(rng, ret);
+        #ifdef WC_RNG_HAVE_INST_EXCL
+            if (excl) {
+                RngExclExit(rng);
+            }
+        #endif
+            return ret;
         }
     }
 #endif
@@ -2629,14 +2932,22 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (ret == DRBG_SUCCESS) {
         ret = 0;
     }
-    else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
-        ret = DRBG_CONT_FIPS_E;
-        rng->status = DRBG_CONT_FAILED;
-    }
     else {
-        ret = RNG_FAILURE_E;
-        rng->status = DRBG_FAILED;
+    #if FIPS_VERSION3_GE(7,0,0)
+        /* SP 800-90A sec 9.3.1: "If any status other than SUCCESS is returned, a
+         * Null string shall be returned as the pseudorandom bits."  A generate
+         * failure after Hashgen wrote to output would otherwise leave DRBG bits
+         * in the caller's buffer */
+        ForceZero(output, sz);
+    #endif
+        ret = RngGenerateFailure(rng, ret);
     }
+
+#ifdef WC_RNG_HAVE_INST_EXCL
+    if (excl) {
+        RngExclExit(rng);
+    }
+#endif
 #else
 
     /* if we get here then there is an RNG configuration error */
@@ -2652,13 +2963,23 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 WOLFSSL_ABI
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
+    int ret;
+
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
     if (rng->status == WC_DRBG_BANKREF) {
-        int ret;
         struct wc_rng_bank_inst *bank_inst = NULL;
 
+        /* A bankref WC_RNG holds no DRBG state of its own, so there is nothing
+         * here to serialize.  The checkout below both selects an instance and
+         * makes it exclusive.  The selected instance's own WC_RNG carries
+         * WC_RNG_EXCL_OWNER (stored by wc_rng_bank_inst_instantiate()), so the
+         * generate below takes no second flag, note that path is also
+         * reached directly, without this function, whenever a caller holding a
+         * checkout passes WC_RNG_BANK_INST_TO_RNG() to the public API, as
+         * wc_rng_bank_seed(), wc_rng_bank_reseed() and the linuxkm DRBG glue
+         * in lkcapi_sha_glue.c all do. */
         ret = wc_local_rng_bank_checkout_for_bankref(rng->bankref, &bank_inst);
         if (ret != 0)
             return ret;
@@ -2680,10 +3001,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         }
         return ret;
     }
-    else
-        return wc_local_RNG_GenerateBlock(rng, output, sz);
+
+    return wc_local_RNG_GenerateBlock(rng, output, sz);
 }
-#endif
+#endif /* WC_RNG_BANK_SUPPORT */
 
 int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
@@ -2790,6 +3111,14 @@ int wc_FreeRng(WC_RNG* rng)
         rng->seed.fd = XBADFD;
         rng->seed.seedFdOpen = 0;
     }
+#endif
+
+#ifdef WC_RNG_HAVE_INST_EXCL
+    /* Last: the DRBG state it guarded is already gone.  Nothing to destroy --
+     * just return the flag to FREE so a WC_RNG re-instantiated in place (as
+     * wc_rng_bank_inst_reinit() does) does not start out marked.  Reached only
+     * for a non-bankref RNG; the WC_DRBG_BANKREF case returned above. */
+    WOLFSSL_ATOMIC_STORE(rng->excl, WC_RNG_EXCL_FREE);
 #endif
 
     return ret;
@@ -2924,6 +3253,10 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
 #endif /* !NO_SHA256 - wc_RNG_HealthTest{,_ex,_ex_internal} */
 
 
+/* Source: NIST CAVP Hash_DRBG.rsp, [SHA-256], PredictionResistance=False,
+ * EntropyInputLen=256, NonceLen=128, PersonalizationStringLen=0,
+ * AdditionalInputLen=0, ReturnedBitsLen=1024.  seedA/reseedSeedA/outputA are the
+ * reseed-section vectors; seedB/outputB are the no-reseed set. */
 const FLASH_QUALIFIER byte seedA_data[] = {
     0x63, 0x36, 0x33, 0x77, 0xe4, 0x1e, 0x86, 0x46, 0x8d, 0xeb, 0x0a, 0xb4,
     0xa8, 0xed, 0x68, 0x3f, 0x6a, 0x13, 0x4e, 0x47, 0xe0, 0x14, 0xc7, 0x00,
@@ -3082,7 +3415,14 @@ static const byte sha512_outputB_data[] = {
 static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
                                   int devId)
 {
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Fail closed: if no KAT path runs (e.g. an unexpected drbgType under an
+     * atypical build) the health test must report failure, not success.
+     * SP 800-90A sec 11.3 / ISO 19790 sec 7.9. */
+    int ret = WC_NO_ERR_TRACE(RNG_FAILURE_E);
+#else
     int ret = 0;
+#endif
 
 #ifdef WOLFSSL_DRBG_SHA512
     /* SHA-512 DRBG health test path */
@@ -3809,23 +4149,60 @@ int wc_FreeNetRandom(void)
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
     defined(HAVE_AMD_RDSEED)
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    /* need more retries if multiple cores */
-    #define INTELRD_RETRY (32 * 8)
-#else
-    #define INTELRD_RETRY 32
+/* Bounds the RDRAND/RDSEED retry loop below: RDSEED sets CF=0 until on-chip
+ * entropy replenishes, so Intel DRNG guidance requires a retry. */
+#ifndef INTELRD_RETRY
+    #if defined(WOLFSSL_LINUXKM) || FIPS_VERSION3_GE(7,0,0)
+        /* Boot-time FIPS CASTs poll RDSEED while it is still warming up and
+         * contended, and the v7 module's SP 800-90A over-seeding
+         * (ENTROPY_SCALE_FACTOR, e.g. 512 for the RDSEED ESV) draws thousands of
+         * 64-bit samples per instantiate/reseed, 32 retries give up long
+         * before the on-chip conditioner replenishes, spuriously failing the
+         * ESV/CAST with -199.  Raise the ceiling in userspace FIPS v7 too (not
+         * just LINUXKM).  A ceiling, not a fixed cost, most samples return on
+         * the first RDSEED. */
+        #define INTELRD_RETRY 100000
+    #elif defined(WOLFSSL_ASYNC_CRYPT)
+        /* need more retries if multiple cores */
+        #define INTELRD_RETRY (32 * 8)
+    #else
+        #define INTELRD_RETRY 32
+    #endif
 #endif
 
 #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
 
+/* Vendor tag for the FIPS_CODE_REVIEW evidence prints below. */
+#if defined(HAVE_AMD_RDSEED)
+#define WC_RDSEED_VENDOR "AMD"
+#else
+#define WC_RDSEED_VENDOR "Intel"
+#endif
+
 #ifndef USE_INTEL_INTRINSICS
 
-    /* return 0 on success */
+    /* return 0 on success.  Per the E27 PUD (CMVP entropy disclosure), each
+     * RDSEED is checked via the x86 Carry Flag: CF=1 -> *seed holds 64 bits
+     * of conditioned entropy; CF=0 -> unusable, caller must retry. */
     static WC_INLINE int IntelRDseed64(word64* seed)
     {
         unsigned char ok;
 
         __asm__ volatile("rdseed %0; setc %1":"=r"(*seed), "=qm"(ok));
+#ifdef FIPS_CODE_REVIEW
+        /* One-shot tracer: RDSEED fires per 64-bit chunk, so per-chunk
+         * prints would flood the sanity-log. */
+        {
+            static int printed_asm = 0;
+            if (!printed_asm) {
+                printed_asm = 1;
+                printf("FIPS_CODE_REVIEW IntelRDseed64 [asm path, %s] "
+                       "(one-shot): delivered %u bits, CF=%u\n",
+                       WC_RDSEED_VENDOR, (unsigned)(sizeof(word64) * 8u),
+                       (unsigned)ok);
+            }
+        }
+#endif
         return (ok) ? 0 : -1;
     }
 
@@ -3833,7 +4210,9 @@ int wc_FreeNetRandom(void)
     /* The compiler Visual Studio uses does not allow inline assembly.
      * It does allow for Intel intrinsic functions. */
 
-    /* return 0 on success */
+    /* return 0 on success.  Intrinsic front-end for the same RDSEED as the
+     * asm path above: returns 1 when CF was set, else *seed MUST NOT be
+     * consumed and the caller must retry. */
 # ifdef __GNUC__
     __attribute__((target("rdseed")))
 # endif
@@ -3842,6 +4221,19 @@ int wc_FreeNetRandom(void)
         int ok;
 
         ok = _rdseed64_step((unsigned long long*) seed);
+#ifdef FIPS_CODE_REVIEW
+        /* One-shot tracer; see asm-path comment above for rationale. */
+        {
+            static int printed_intrinsic = 0;
+            if (!printed_intrinsic) {
+                printed_intrinsic = 1;
+                printf("FIPS_CODE_REVIEW IntelRDseed64 [intrinsic path, %s] "
+                       "(one-shot): delivered %u bits, "
+                       "intrinsic_ret=%d (== CF)\n",
+                       WC_RDSEED_VENDOR, (unsigned)(sizeof(word64) * 8u), ok);
+            }
+        }
+#endif
         return (ok) ? 0 : -1;
     }
 
@@ -3854,6 +4246,9 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
     for (i = 0; i < INTELRD_RETRY; i++) {
         if (IntelRDseed64(rnd) == 0)
             return 0;
+        /* Let the entropy source replenish between attempts; a no-op where
+         * blocking is unsafe. */
+        WC_RELAX_LONG_LOOP();
     }
     return -1;
 }
@@ -3868,11 +4263,26 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     (void)os;
 
+#ifdef FIPS_CODE_REVIEW
+    /* Evidence trace: sz bytes requested -> ceil(sz/8) 64-bit RDSEED
+     * samples expected. */
+    printf("FIPS_CODE_REVIEW wc_GenerateSeed_IntelRD [%s]: "
+           "requested %u bytes = %u bits "
+           "(expect %u RDSEED 64-bit samples)\n",
+           WC_RDSEED_VENDOR, (unsigned)sz, (unsigned)(sz * 8u),
+           (unsigned)((sz + sizeof(word64) - 1u) / sizeof(word64)));
+#endif
+
     if (!IS_INTEL_RDSEED(intel_flags))
         return -1;
 
     /* Note, access to rdseed_sanity_status is benignly racey on multithreaded
      * targets.
+     *
+     * This is a one-shot startup sanity check, the status latches and is not
+     * re-evaluated.  It is NOT the continuous health test: the SP 800-90B sec
+     * 4.4 RCT/APT in wc_RNG_TestSeed() run on every seed (instantiate and
+     * reseed) and are what would catch RDSEED degrading at run time.
      */
     if (rdseed_sanity_status == 0) {
         word64 sanity_word1 = 0, sanity_word2 = 0;
@@ -4197,6 +4607,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 
 #elif defined(HAVE_RTP_SYS) || defined(EBSNET)
+/* SP 800-90B: rtp_rand() is not an approved FIPS entropy source. */
+#if FIPS_VERSION3_GE(7,0,0)
+    #error "FIPS v7 forbids the RTP/EBSNET rtp_rand() seed (SP 800-90B)"
+#endif
+
 
 #include "rtprand.h"   /* rtp_rand () */
 
@@ -4313,6 +4728,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
     #else  /* WOLFSSL_PIC32MZ_RNG */
+        /* SP 800-90B: rand() fallback is not an approved FIPS entropy source. */
+        #if FIPS_VERSION3_GE(7,0,0)
+            #error "FIPS v7 forbids the PIC32 rand() seed fallback (SP 800-90B)"
+        #endif
+
         /* uses the core timer, in nanoseconds to seed srand */
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
@@ -4827,6 +5247,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* WOLFSSL_STM32_CUBEMX */
 
 #elif defined(WOLFSSL_TIRTOS)
+/* SP 800-90B: rand() is not an approved FIPS entropy source. */
+#if FIPS_VERSION3_GE(7,0,0)
+    #error "FIPS v7 forbids the TI-RTOS rand() seed (SP 800-90B)"
+#endif
+
     #warning "potential for not enough entropy, currently being used for testing"
     #include <xdc/runtime/Timestamp.h>
     #include <stdlib.h>
@@ -4859,6 +5284,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_NUCLEUS)
+/* SP 800-90B: rand() is not an approved FIPS entropy source. */
+#if FIPS_VERSION3_GE(7,0,0)
+    #error "FIPS v7 forbids the Nucleus rand() seed (SP 800-90B)"
+#endif
 #include "nucleus.h"
 #include "kernel/plus_common.h"
 
@@ -5183,6 +5612,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_APACHE_MYNEWT)
+/* SP 800-90B: rand() is not an approved FIPS entropy source. */
+#if FIPS_VERSION3_GE(7,0,0)
+    #error "FIPS v7 forbids the Apache Mynewt rand() seed (SP 800-90B)"
+#endif
+
 
     #include <stdlib.h>
     #include "os/os_time.h"
@@ -5485,6 +5919,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      */
 
 #elif defined(__MICROBLAZE__)
+/* SP 800-90B: rand() is not an approved FIPS entropy source. */
+#if FIPS_VERSION3_GE(7,0,0)
+    #error "FIPS v7 forbids the MicroBlaze rand() seed (SP 800-90B)"
+#endif
+
     #warning weak source of entropy
     #define LPD_SCNTR_BASE_ADDRESS 0xFF250000
 
@@ -5590,6 +6029,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_TELIT_M2MB)
+/* SP 800-90B: rand() is not an approved FIPS entropy source. */
+#if FIPS_VERSION3_GE(7,0,0)
+    #error "FIPS v7 forbids the Telit M2MB rand() seed (SP 800-90B)"
+#endif
 
         #include "stdlib.h"
         static long get_timestamp(void) {
@@ -5799,6 +6242,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)
+/* SP 800-90B: rand() is not an approved FIPS entropy source. */
+#if FIPS_VERSION3_GE(7,0,0)
+    #error "FIPS v7 forbids the Dolphin/NDS rand() seed (SP 800-90B)"
+#endif
+
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
@@ -5938,6 +6386,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return BAD_FUNC_ARG;
         }
 
+        /* One-time acknowledgement gate: defining ALLOW_ENTROPY_FALLBACK under
+         * FIPS v7 re-enables the non-approved /dev/urandom fallback in every
+         * entropy-source branch below (SP 800-90B MemUse, RDSEED, getrandom),
+         * taking the module out of the approved mode of operation. */
+#if defined(ALLOW_ENTROPY_FALLBACK) && FIPS_VERSION3_GE(7,0,0)
+        #error "ALLOW_ENTROPY_FALLBACK enables the non-approved /dev/urandom entropy fallback; delete this line to acknowledge the module is no longer operating in the approved mode of operation."
+#endif
+
     #ifdef WOLF_CRYPTO_CB
         #ifndef WOLF_CRYPTO_CB_FIND
         if (os->devId != INVALID_DEVID)
@@ -5960,6 +6416,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #ifdef ENTROPY_MEMUSE_FORCE_FAILURE
         /* Don't fall back to /dev/urandom. */
         return ret;
+    #elif FIPS_VERSION3_GE(7,0,0) && !defined(ALLOW_ENTROPY_FALLBACK)
+        /* FIPS 140-3 v7 fail-closed: the SP 800-90B MemUse source is validated;
+         * do not fall back to the non-approved /dev/urandom (see the
+         * ALLOW_ENTROPY_FALLBACK gate at the top of this function). */
+        return ret;
     #else
         /* Reset error and fall back to using /dev/urandom. */
         ret = 0;
@@ -5977,6 +6438,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
              }
         #ifdef FORCE_FAILURE_RDSEED
              /* Don't fall back to /dev/urandom. */
+             return ret;
+        #elif FIPS_VERSION3_GE(7,0,0) && !defined(ALLOW_ENTROPY_FALLBACK)
+             /* FIPS 140-3 v7 fail-closed: RDSEED is the validated (ESV) entropy
+              * source; do not fall back to the non-approved /dev/urandom (see the
+              * ALLOW_ENTROPY_FALLBACK gate at the top of this function). */
              return ret;
         #else
              /* Reset error and fall back to using /dev/urandom. */
@@ -6022,6 +6488,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 return ret;
         #ifdef FORCE_FAILURE_GETRANDOM
             /* don't fall back to /dev/urandom */
+            return ret;
+        #elif FIPS_VERSION3_GE(7,0,0) && !defined(ALLOW_ENTROPY_FALLBACK)
+            /* FIPS 140-3 v7 fail-closed: getrandom() is the module's validated
+             * (ESV) entropy source.  Do NOT silently seed from the non-approved
+             * /dev/urandom on a getrandom() failure, return the error instead.
+             * Define ALLOW_ENTROPY_FALLBACK to permit the fallback (see the
+             * acknowledgement #error at the top of this function). */
             return ret;
         #elif !defined(NO_FILESYSTEM)
             /* reset error and fall back to using /dev/urandom if filesystem
@@ -6127,6 +6600,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
 
 #ifdef USE_TEST_GENSEED
+    /* SP 800-90B: USE_TEST_GENSEED emits a predictable counter, not entropy. */
+    #if FIPS_VERSION3_GE(7,0,0)
+        #error "FIPS v7 forbids USE_TEST_GENSEED, a predictable test seed (SP 800-90B)"
+    #endif
+
     #if !defined(_MSC_VER) && !defined(__TASKING__)
         #warning "write a real random seed!!!!, just for testing now"
     #else

@@ -5078,6 +5078,20 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             /* Use constant time map if compiled in */
             err = ecc_map_ex(result, curve->prime, mp, 1);
         }
+#if FIPS_VERSION3_GE(7,0,0)
+        /* Unconditional, so it overrides the WOLFSSL_SE050 keyIdSet case that
+         * clears checkInf: SE050 ECDH by key id is not usable in approved mode. */
+        (void)checkInf;
+        if (err == MP_OKAY) {
+            /* SP 800-56A Rev 3 sec 5.7.1.2 step 2: the shared point shall not
+             * be the identity (point at infinity).  ecc_map_ex maps the
+             * identity to (0,0) and returns success, so without this check an
+             * all-zero Z would be output with no error indicator */
+            if (wc_ecc_point_is_at_infinity(result)) {
+                err = ECC_INF_E;
+            }
+        }
+#else
         if (err == MP_OKAY) {
             /* SP 800-56Ar3 5.7.1.2: the shared secret must not be the point at
              * infinity. ecc_map_ex reports that case as x, y of zero with a
@@ -5086,6 +5100,7 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
                 err = ECC_INF_E;
             }
         }
+#endif
         if (err == MP_OKAY) {
             x = mp_unsigned_bin_size(curve->prime);
             if (*outlen < (word32)x || x < mp_unsigned_bin_size(result->x)) {
@@ -5265,6 +5280,28 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         return ECC_BAD_ARG_E;
     }
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A Rev 2 sec 5 Table 5: EC key agreement with len(n) < 224
+     * provides < 112 bits of security strength and is Disallowed (there is no
+     * legacy-use provision for key agreement, unlike signature verification) */
+    if (private_key->dp->size < WC_ECC_FIPS_GEN_MIN) {
+        WOLFSSL_MSG("ECC curve too small for FIPS key agreement");
+        return ECC_CURVE_OID_E;
+    }
+    /* SP 800-56A Rev 3 sec 5.6.2.2.1 / 5.6.2.3.3, FIPS 140-3 IG D.F Scenario 2:
+     * assure the validity of the peer's public key before computing the shared
+     * secret.  wc_ecc_point_is_on_curve enforces the [0, p-1] range and the
+     * curve equation; the identity is rejected in the gen_sync path and the
+     * approved curves have prime order (cofactor 1) so n*Q = O for every valid
+     * Q.  Without this an off-curve peer point yields a real shared secret
+     * (invalid-curve attack). */
+    err = wc_ecc_point_is_on_curve(point, private_key->idx);
+    if (err != MP_OKAY) {
+        WOLFSSL_MSG("ECC peer public key failed validation");
+        return err;
+    }
+#endif
+
     switch (private_key->state) {
         case ECC_STATE_NONE:
         case ECC_STATE_SHARED_SEC_GEN:
@@ -5438,7 +5475,7 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     }
 
     /* generate 8 extra bytes to mitigate bias from the modulo operation below */
-    /* see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)' */
+    /* see section A.2.1 and A.4.1 in FIPS 186-5 (extra random bits) */
     size += 8;
 
     /* make up random string */
@@ -5817,6 +5854,16 @@ int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng)
     if (err == MP_OKAY) {
         err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
     }
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-56A Rev3 sec 5.6.1.2.2: the private key d used to derive Q = dG
+     * shall satisfy 1 <= d <= n-1 */
+    if (err == MP_OKAY) {
+        if (mp_iszero(ecc_get_k(key)) || mp_isneg(ecc_get_k(key)) ||
+            mp_cmp(ecc_get_k(key), curve->order) != MP_LT) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+#endif
     if (err == MP_OKAY) {
         err = ecc_make_pub_ex(key, curve, pubOut, rng);
     }
@@ -5892,6 +5939,13 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     #if FIPS_VERSION3_GE(6,0,0)
     } /* end FIPS specific check */
     #endif
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-131A: the FIPS curve-size floor set err but wc_ecc_set_curve was
+     * skipped, so key->dp is still unset, return now, before the crypto-cb/HW
+     * backends below clobber err or dereference the unset key->dp. */
+    if (err != 0)
+        return err;
+#endif
     key->flags = (byte)flags;
 
 #if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC_DHE)
@@ -9350,6 +9404,15 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
     if (mp_iszero(r) || mp_iszero(s)) {
         err = MP_ZERO_E;
     }
+#if FIPS_VERSION3_GE(7,0,0)
+    /* FIPS 186-5 sec 6.4.2 step 1: r and s shall be in [1, n-1].  Under
+     * WOLFSSL_SP_INT_NEGATIVE a negative s passes the sign-aware upper-bound
+     * compare below, so (r, s-n) would verify as a valid signature; reject a
+     * negative value explicitly */
+    if ((err == 0) && (mp_isneg(r) || mp_isneg(s))) {
+        err = MP_VAL;
+    }
+#endif
     if ((err == 0) && (mp_cmp(r, curve->order) != MP_LT)) {
         err = MP_VAL;
     }
@@ -11020,8 +11083,10 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 #endif /* FIPS_VERSION_GE(5,0) || WOLFSSL_VALIDATE_ECC_KEYGEN ||
         * (!WOLFSSL_SP_MATH && WOLFSSL_VALIDATE_ECC_IMPORT) */
 
+/* The PCT (IG 10.3.A) uses base-point mul + ECDSA sign/verify, not ECDH, so this
+ * must match the decl/call guards (no HAVE_ECC_DHE) or -DNO_ECC_DHE fails to link. */
 #if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
-    !defined(WOLFSSL_KCAPI_ECC) && defined(HAVE_ECC_DHE)
+    !defined(WOLFSSL_KCAPI_ECC)
 
 /* check privkey generator helper, creates prime needed */
 static int ecc_check_privkey_gen_helper(ecc_key* key)
@@ -11063,6 +11128,20 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 
     return err;
 }
+
+#if FIPS_VERSION3_GE(7,0,0)
+/* SP 800-90A Rev 1 sec 11.4.2 and SP 800-90B sec 4.3: a DRBG or entropy source
+ * failure shall report its own error indicator, not a caller's generic one. */
+static int ecc_err_is_rng_indicator(int err)
+{
+    return (err == WC_NO_ERR_TRACE(RNG_FAILURE_E)) ||
+           (err == WC_NO_ERR_TRACE(DRBG_KAT_FIPS_E)) ||
+           (err == WC_NO_ERR_TRACE(DRBG_CONT_FIPS_E)) ||
+           (err == WC_NO_ERR_TRACE(DRBG_SHA512_KAT_FIPS_E)) ||
+           (err == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+           (err == WC_NO_ERR_TRACE(ENTROPY_APT_E));
+}
+#endif
 
 /* Performs a Pairwise Consistency Test on an ECC key pair. */
 static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
@@ -11114,7 +11193,9 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
             err = wc_ecc_verify_hash(sig, sigLen,
                     digest, WC_SHA256_DIGEST_SIZE, &res, key);
 
-        if (res == 0)
+        /* Only a completed sign/verify that disagreed is a PCT failure.  An
+         * operational error keeps its own code as far as the remap below. */
+        if ((err == 0) && (res == 0))
             err = ECC_PCT_E;
 
         if (dynRng) {
@@ -11125,13 +11206,19 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
     }
     (void)rng;
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Let a DRBG/entropy indicator through so the FSM sees the real cause. */
+    if ((err != 0) && (! ecc_err_is_rng_indicator(err)))
+        err = ECC_PCT_E;
+#else
     if (err != 0)
         err = ECC_PCT_E;
+#endif
 
     return err;
 }
 #endif /* (FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN) && \
-          !WOLFSSL_KCAPI_ECC && HAVE_ECC_DHE */
+          !WOLFSSL_KCAPI_ECC */
 
 #ifndef WOLFSSL_SP_MATH
 /* validate order * pubkey = point at infinity, 0 on success */
@@ -15851,7 +15938,14 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         #endif
                 break;
             }
-        #if !defined(NO_AES) && defined(HAVE_AESGCM)
+        /* SP 800-38D 8.2 / IG C.H: the module must construct the GCM IV, but the
+         * ECIES DEM passes a KDF-derived one.  Gate on upstream's own condition
+         * so an approved build simply does not offer the encrypt DEM
+         * (ecAES_*_GCM then falls to default: BAD_FUNC_ARG) rather than relaxing
+         * the control.  LOCAL to Part3 pending upstream's own fix. */
+        #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
+            (!defined(HAVE_FIPS) || \
+             defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED))
             case ecAES_128_GCM:
             case ecAES_256_GCM:
             {

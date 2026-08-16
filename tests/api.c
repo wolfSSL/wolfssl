@@ -29036,7 +29036,21 @@ static int test_wolfSSL_d2i_X509_REQ(void)
         /*
          * Verify the signature in the CSR
          */
+#ifdef WC_FIPS_RSA_VERIFY_MIN_2048
+        /* certs/csr.ext.der carries a 1024-bit RSA key.  CMVP IG C.F
+         * ("Signature verification"): "For the FIPS 186-5 signature
+         * verification, the modulus size shall be at least 2048."  A 1024-bit
+         * modulus is only verifiable under a FIPS 186-4 legacy SigVer claim,
+         * which this module does not make, so the approved service rejects it
+         * and verification fails by design.
+         * Gated on the module's capability macro (fips.h) rather than
+         * FIPS_VERSION3_GE(7,0,0): an earlier module reports a version that
+         * satisfies that predicate but enforces the floor on key generation
+         * only, so it still verifies the 1024-bit signature. */
+        ExpectIntEQ(X509_REQ_verify(req, pub_key), 0);
+#else
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 1);
+#endif
 
 #ifdef OPENSSL_ALL
         ExpectNotNull(exts = (STACK_OF(X509_EXTENSION)*)X509_REQ_get_extensions(
@@ -31981,6 +31995,25 @@ static int error_test(void)
         { -358, -358 },
         { -384, -384 },
         { -466, -499 },
+        /* -1021 CMAC_KAT_FIPS_E, -1022 SHAKE_KAT_FIPS_E and -1024
+         * AES_KW_KAT_FIPS_E were deleted from error-crypt.h in the v7 lab-prep
+         * pass together with the vendor-elected CASTs whose failures they
+         * reported; the numbers stay reserved rather than reallocated, so they
+         * are genuinely "no longer error codes".  -1023 DH_PCT_E is still live
+         * and must keep being checked, which is why this is two gaps and not
+         * one -1021..-1024 range.  Keep in step with the identical table in
+         * wolfcrypt/test/test.c: they encode the same contract, and updating
+         * one alone leaves unit.test failing while testwolfcrypt passes. */
+        { -1021, -1022 },
+        { -1024, -1024 },
+        /* -1028 was FIPS_UNAPPROVED_E, removed because a service that ran but
+         * was not approved is not a failure, it is reported through the
+         * positive WC_FIPS_NOT_APPROVED indicator instead.  -1029 was
+         * WC_IMPL_PIN_E, removed with the per-algorithm implementation pin on
+         * 12 August 2026 (linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0).  Both are
+         * RESERVED on the same rule as the three above, so this is one
+         * two-wide gap rather than two separate ones. */
+        { -1028, -1029 },
         { WOLFSSL_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
         { WC_SPAN2_LAST_E - 1, MIN_CODE_E }
     };
