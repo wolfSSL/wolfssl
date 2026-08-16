@@ -3216,77 +3216,52 @@ the resolved context, the Arm and PPC lanes were not — in a configuration
 
 ---
 
-## 13.6 The in-core integrity hash now covers ARM relocation targets
+## 13.6 ARM relocation targets are not covered by the in-core hash
 
-ISO/IEC 19790:2012 §7.10.2 requires the pre-operational software integrity test
-to cover the module's executable code. On ARM and AArch64 it did not cover the
-target of any relocated branch or data reference.
+**Status: open. A fix was attempted, measured against a real module, and
+reverted.**
 
-### 13.6.1 What was wrong
+`wc_reloc_normalize_segment()` canonicalises relocated fields so the digest is
+reproducible across load addresses. x86 does this by **computing** a
+load-address-independent value, so the relocation target still contributes to
+the digest. ARM and AArch64 do it by **erasing** the field, so the target
+contributes nothing: a branch redirected to another address in the same segment,
+with the same relocation type, does not change the digest. On x86 it does.
 
-`wc_reloc_normalize_segment()` (`linuxkm/linuxkm_memory.c`) canonicalises
-relocated fields so the digest is reproducible across load addresses. x86
-normalized by **computing** a load-address-independent value; ARM and AArch64
-normalized by **erasing** the field:
+### 13.6.1 The attempted fix, and why it was reverted
 
-```c
-case WC_R_AARCH64_CALL26:   /* and 20 others */
-    /* Don't attempt to reconstruct ARM destination addresses -- just
-     * normalize to zero. ... but it's very fidgety. */
-    reloc_buf = 0;
+The ARM cases were converted to the x86 arithmetic, with mask-based
+gather/scatter for the split encodings and per-type scaling. A userspace harness
+driving the real normalizer reported all ten relocation types both stable and
+target-covering.
+
+**The harness was wrong.** Built into a real aarch64 module and booted twice from
+one binary (md5 identical), the computed hash differed between boots:
+
+```
+boot 1  FIPS_HASH=05A837C3249F3AB80F58B985F2F3A7386F18313471806D24...
+boot 2  FIPS_HASH=4AE4DA38425DDBA36C0E1C13FD9441EF67B200F4...
 ```
 
-The write-back stored the whole word, so the instruction opcode was discarded
-along with the target. The comment recorded this as a necessity. It was not one:
-x86 achieves a stable hash without discarding anything, in the same function.
+That is the one property the normalizer exists to provide, so the change broke
+the integrity check it was meant to strengthen, and it was reverted.
 
-Worse, most ARM branch relocations are **PC-relative**, so their encoded value is
-already load-address-invariant. Erasing them bought no stability at all.
+The harness constructed its own relocation records and instruction words rather
+than using a linked module's. It therefore validated the arithmetic against a
+model of the encodings, and the model did not reproduce whatever the real module
+contains -- candidates include cross-segment relocations, where
+`dest_seg_start - src_seg_start` varies per load because the loader allocates
+segments independently, and the page-scaled `ADR_PREL_PG_HI21` round trip, where
+shifting by 12 either side of byte-granular arithmetic discards low bits that
+vary with the load address.
 
-### 13.6.2 The fix
+### 13.6.2 What a correct fix requires
 
-All ARM and AArch64 relocations now take the same normalization x86 takes,
-yielding the same canonical value: the target's offset within its destination
-segment. Three additions ARM requires:
-
-* **mask-based gather/scatter** — ARM scatters some immediates across
-  non-contiguous instruction bits (`ADR_PREL_PG_HI21` splits a 21-bit page
-  offset across bits 30:29 and 23:5), so fields are extracted and reinserted
-  under `layout->mask` rather than by shifting.
-* **scaling** — branch displacements are word-scaled, `ADRP` is page-scaled, and
-  the `LDST*_ABS_LO12_NC` immediates are scaled by access size. Relative fields
-  are unscaled to bytes for the arithmetic; absolute fields stay in their own
-  units and the segment base is scaled to match.
-* **opcode preservation** — bits outside the mask are carried through, so the
-  instruction itself stays in the digest.
-
-### 13.6.3 Verification
-
-Two properties are in tension and both are required: **stability** (the same
-module at two load addresses must hash identically) and **coverage** (two
-different relocation targets must hash differently). A harness drives the real
-`wc_reloc_normalize_segment()` on the runtime path (`text_is_live = 1`, as
-`module_hooks.c` sets it):
-
-| relocation | stable | covers |
-| :--- | :--- | :--- |
-| `R_X86_64_PC32` *(control)* | yes | yes |
-| `R_AARCH64_CALL26` | yes | yes |
-| `R_AARCH64_JUMP26` | yes | yes |
-| `R_AARCH64_ABS32` | yes | yes |
-| `R_AARCH64_ADR_PREL_PG_HI21` | yes | yes |
-| `R_AARCH64_ADD_ABS_LO12_NC` | yes | yes |
-| `R_AARCH64_LDST64_ABS_LO12_NC` | yes | yes |
-| `R_ARM_CALL` | yes | yes |
-| `R_ARM_ABS32` | yes | yes |
-
-Before the fix, every ARM row read `stable / blind`. With the erasure removed but
-no reconstruction, the absolute rows read `unstable / covers` — which is what
-makes the zeroing look necessary if you stop there.
-
-x86_64 normalized output is byte-identical to its pre-change baseline; the x86
-case labels are untouched. The module builds clean and the in-core hash step
-reports `Relocation table is stable.`
+A test that boots a real module twice and compares the computed hash, before any
+claim that the normalization is stable. That test exists now
+(`matrix/shares/oe9-k5`, two boots of one `.ko`), and it is the gate any future
+attempt must pass. The synthetic harness is not sufficient on its own and should
+not be cited as evidence again.
 
 ---
 
