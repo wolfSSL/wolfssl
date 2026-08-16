@@ -465,6 +465,10 @@ function(generate_lib_src_list LIB_SOURCES)
 
             if(BUILD_AESNI)
                 list(APPEND LIB_SOURCES wolfcrypt/src/aes_asm.S)
+                # 32-bit x86 AES-XTS. The file guards its own contents on
+                # WOLFSSL_AES_XTS and WOLFSSL_X86_BUILD, so it compiles to
+                # nothing on any other target or without XTS.
+                list(APPEND LIB_SOURCES wolfcrypt/src/aes_xts_x86_asm.S)
 
                 if(BUILD_INTELASM)
                     list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_asm.S)
@@ -909,9 +913,13 @@ function(generate_lib_src_list LIB_SOURCES)
         endif()
 
         if(NOT BUILD_FIPS_V2 AND BUILD_AESNI)
+            # aes_xts_x86_asm.S guards its own contents on WOLFSSL_AES_XTS and
+            # WOLFSSL_X86_BUILD, so it compiles to nothing on any other target
+            # or without XTS.
             list(APPEND LIB_SOURCES
                 wolfcrypt/src/aes_asm.S
-                wolfcrypt/src/aes_gcm_asm.S)
+                wolfcrypt/src/aes_gcm_asm.S
+                wolfcrypt/src/aes_xts_x86_asm.S)
         endif()
 
         if(BUILD_CAMELLIA)

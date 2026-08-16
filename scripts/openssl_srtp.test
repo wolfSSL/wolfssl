@@ -71,10 +71,15 @@ generate_port() {
 
         # Also check if the port is already bound on this system
         if [ "$collision" -eq 0 ]; then
+            # TCP and UDP, established as well as listening, matched on the
+            # local port. -lnt saw only TCP listeners, so it was blind to the
+            # UDP sockets the DTLS cases here bind and to a port held by an
+            # unrelated outbound connection - both of which still block bind.
+            # A false positive only costs another iteration of this loop.
             if command -v ss &>/dev/null; then
-                ss -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+                [ -n "$(ss -Hantu "sport = :${p}" 2>/dev/null)" ] && collision=1
             elif command -v netstat &>/dev/null; then
-                netstat -lnt 2>/dev/null | grep -q ":${p}[[:space:]]" && collision=1
+                netstat -an 2>/dev/null | grep -q "[:.]${p}[[:space:]]" && collision=1
             fi
         fi
 

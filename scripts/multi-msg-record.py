@@ -193,22 +193,19 @@ def _parse_hs_types(data):
     return msgs
 
 
-def _get_free_port():
-    """Get an available TCP port."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
 def _listen_socket():
-    """Bind a listening TCP socket on localhost with the standard test timeout."""
-    port = _get_free_port()
+    """Bind a listening TCP socket on localhost with the standard test timeout.
+
+    The port is read back from the socket that keeps it, rather than from a
+    throwaway one that is closed first: closing it leaves a window in which
+    anything else on the machine can take the port before the real bind.
+    """
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind(("127.0.0.1", port))
+    srv.bind(("127.0.0.1", 0))
     srv.listen(1)
     srv.settimeout(15)
-    return srv, port
+    return srv, srv.getsockname()[1]
 
 
 def _run_wolf_client(port, version, cipher, extra=()):

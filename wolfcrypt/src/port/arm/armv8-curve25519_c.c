@@ -732,7 +732,7 @@ void fe_invert_nct(fe r, const fe a)
     );
 }
 
-void fe_mul(fe r, const fe a, const fe b)
+WC_KEEP_FOR_ASM void fe_mul(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         /* Multiply */
@@ -869,7 +869,7 @@ void fe_mul(fe r, const fe a, const fe b)
     );
 }
 
-void fe_sq(fe r, const fe a)
+WC_KEEP_FOR_ASM void fe_sq(fe r, const fe a)
 {
     __asm__ __volatile__ (
         /* Square */

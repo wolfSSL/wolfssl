@@ -1896,8 +1896,35 @@ static WC_INLINE int udp_read_connect(SOCKET_T sockfd)
 }
 #endif
 
+/* Write the port the server bound to the ready file named by -R, so a script
+ * driving the server can wait for the file and learn which port an ephemeral
+ * (-p 0) bind landed on. Shared by the TCP and UDP accept paths - a DTLS server
+ * needs it just as much as a TLS one. */
+static WC_INLINE void write_ready_file(func_args* args, word16 port)
+{
+#if (!defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)) && !defined(NETOS)
+    tcp_ready* ready = NULL;
+
+    if (args)
+        ready = args->signal;
+
+    if (ready && ready->srfName) {
+        XFILE srf = XFOPEN(ready->srfName, "w");
+
+        if (srf) {
+            LIBCALL_CHECK_RET(fprintf(srf, "%d\n", (int)port));
+            fclose(srf);
+        }
+    }
+#else
+    (void)args;
+    (void)port;
+#endif
+}
+
 static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
-                              int useAnyAddr, word16 port, func_args* args)
+                              int useAnyAddr, word16 port, func_args* args,
+                              int ready_file)
 {
     SOCKADDR_IN_T addr;
 
@@ -1964,6 +1991,10 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         fprintf(stderr, "args or args->signal was NULL. Not setting ready info.");
     }
 
+    if (ready_file) {
+        write_ready_file(args, port);
+    }
+
     *clientfd = *sockfd;
 }
 
@@ -1977,7 +2008,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     (void) ready; /* Account for case when "ready" is not used */
 
     if (udp) {
-        udp_accept(sockfd, clientfd, useAnyAddr, port, args);
+        udp_accept(sockfd, clientfd, useAnyAddr, port, args, ready_file);
         return;
     }
 
@@ -2002,26 +2033,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 #endif /* !SINGLE_THREADED */
 
         if (ready_file) {
-        #if (!defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)) && \
-            !defined(NETOS)
-            XFILE srf = (XFILE)NULL;
-            if (args)
-                ready = args->signal;
-
-            if (ready) {
-                srf = XFOPEN(ready->srfName, "w");
-
-                if (srf) {
-                    /* let's write port sever is listening on to ready file
-                       external monitor can then do ephemeral ports by passing
-                       -p 0 to server on supported platforms with -R ready_file
-                       client can then wait for existence of ready_file and see
-                       which port the server is listening on. */
-                    LIBCALL_CHECK_RET(fprintf(srf, "%d\n", (int)port));
-                    fclose(srf);
-                }
-            }
-        #endif
+            write_ready_file(args, port);
         }
     }
 

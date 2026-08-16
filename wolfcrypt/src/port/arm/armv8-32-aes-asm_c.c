@@ -946,11 +946,11 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
 void AES_encrypt_block(const word32* te_p, int nr_p, int len_p,
     const word32* ks_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te_p, int nr_p,
-    int len_p, const word32* ks_p)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te_p,
+    int nr_p, int len_p, const word32* ks_p)
 #else
-WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te, int nr, int len,
-    const word32* ks)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te,
+    int nr, int len, const word32* ks)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -8237,11 +8237,11 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 #ifndef WOLFSSL_ARMASM_AES_BLOCK_INLINE
 void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td_p, int nr_p,
-    const byte* td4_p)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td_p,
+    int nr_p, const byte* td4_p)
 #else
-WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td, int nr,
-    const byte* td4)
+WC_KEEP_FOR_ASM WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td,
+    int nr, const byte* td4)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

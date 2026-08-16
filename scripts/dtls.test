@@ -22,6 +22,9 @@ DO_EXTENDED_SERVER_PERMUTATION_TEST=${DO_EXTENDED_SERVER_PERMUTATION_TEST:-0}
 DO_DELAY_TEST=${DO_DELAY_TEST:-0}
 
 # An example use would be: DTLS_VERSION=-v3 scripts/dtls.test
+# Prerequisites, each of which makes the script skip (exit 77) when missing:
+# the udp_proxy helper, python3, and a server build that can report an
+# ephemeral port through -p 0 with -R.
 # Note the output also consists of a single PCAP file which has a set of
 # three packets (1-byte, strlen()-byte, 1-byte payload) deliniating each test.
 
@@ -37,6 +40,23 @@ fi
 
 if ./examples/server/server -? 2>&1 | grep "Server not compiled in!" ; then
     echo 'skipping dtls.test because server not compiled in.' 1>&2
+    exit 77
+fi
+
+# Every test runs through the udp_proxy helper. Without it each one fails at the
+# client, so skip the script rather than report a wall of failures.
+# command -v matches how the proxy is actually launched below: it searches
+# $PATH for a bare name and tests executability for a path with a slash. An
+# extra -x test would accept a ./udp_proxy that the launch could never find.
+if ! command -v "$UDP_PROXY_BIN" >/dev/null 2>&1; then
+    echo "skipping dtls.test because $UDP_PROXY_BIN was not found." 1>&2
+    exit 77
+fi
+
+# python3 picks the proxy port for every test, on top of generating the
+# permutation and delay lists, so it is a hard requirement of the whole script.
+if ! command -v python3 >/dev/null 2>&1; then
+    echo 'skipping dtls.test because python3 was not found.' 1>&2
     exit 77
 fi
 
@@ -73,19 +93,116 @@ cleanup () {
         sleep 1
         kill $TCPDUMP_PID
     fi
+
+    rm -f "$READY_FILE"
 }
 
 trap cleanup err exit
 
-PROXY_PORT=1234
-SERVER_PORT=4321
+# Nothing ever binds the marker port - the three datagrams sent to it only tag
+# the capture - so a fixed number is safe here. The server and proxy ports are
+# chosen per test below.
+MARKER_PORT=4321
 KEY_UPDATE_SIZE=35
 NUM_TESTS_FAILED=0
 NUM_TESTS_RUN=0
+# The server writes the port it bound to this file. The pid keeps concurrent
+# runs from sharing one.
+READY_FILE="$WOLFSSL_ROOT/wolfssl_dtls_ready$$"
+
+HAVE_SS=no
+command -v ss >/dev/null 2>&1 && HAVE_SS=yes
+
+# A free UDP port for the proxy. udp_proxy has no equivalent of the server's -R
+# ready file, so the port is picked here and the proxy polled below until it is
+# actually bound.
+free_udp_port() {
+    python3 -c 'import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.bind(("127.0.0.1", 0))
+print(s.getsockname()[1])
+s.close()'
+}
+
+# A usable port is a non-zero decimal below 65536. Worth checking rather than
+# assuming: a SINGLE_THREADED build never resolves the ephemeral port in
+# udp_accept(), so the ready file legitimately contains 0 there, and pointing
+# the proxy at port 0 would report every test as a DTLS failure instead.
+valid_port() {
+    case "$1" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    [ "$1" -gt 0 ] && [ "$1" -lt 65536 ]
+}
+
+# Wait for $1 to be bound for UDP. Where ss is not available to be asked this
+# cannot be checked, so say so rather than let a blind sleep pass for a check.
+wait_udp_bound() {
+    local counter=0
+
+    if [ "$HAVE_SS" != "yes" ]; then
+        echo "[warning] ss not available - cannot confirm the proxy bound $1"
+        sleep 0.5
+        return 0
+    fi
+
+    while [ "$counter" -lt 50 ]; do
+        # Match on the local port specifically - a bare grep for the number can
+        # be satisfied by the peer column or an unrelated socket.
+        if [ -n "$(ss -lunH "sport = :$1" 2>/dev/null)" ]; then
+            return 0
+        fi
+        sleep 0.1
+        counter=$((counter + 1))
+    done
+    return 1
+}
 
 if [ "$DTLS_VERSION" = "-v4" ]; then
     UDP_PROXY_EXTRA_ARGS="-u"
 fi
+
+# Everything below depends on the server being able to report the port it bound.
+# A SINGLE_THREADED or WOLFSSL_TIRTOS build never resolves an ephemeral port in
+# udp_accept(), and a NO_FILESYSTEM or NETOS build compiles write_ready_file()
+# to a no-op, so probe the capability once here rather than rediscovering it on
+# every one of the tests below.
+check_ready_file_support() {
+    local probe_pid counter port
+
+    rm -f "$READY_FILE"
+    $WOLFSSL_ROOT/examples/server/server -u -p 0 -R "$READY_FILE" $DTLS_VERSION \
+        >/dev/null 2>&1 &
+    probe_pid=$!
+
+    counter=0
+    while [ ! -s "$READY_FILE" -a "$counter" -lt 50 ]; do
+        if ! kill -0 "$probe_pid" 2>&- && [ ! -s "$READY_FILE" ]; then
+            break
+        fi
+        sleep 0.1
+        counter=$((counter + 1))
+    done
+
+    port=""
+    if [ -s "$READY_FILE" ]; then
+        sleep 0.1
+        port=$(cat "$READY_FILE")
+    fi
+
+    kill -9 "$probe_pid" 2>&-
+    wait "$probe_pid" 2>&-
+    rm -f "$READY_FILE"
+
+    valid_port "$port"
+}
+
+if ! check_ready_file_support; then
+    echo 'skipping dtls.test because the server cannot report an ephemeral port' 1>&2
+    echo 'with -p 0 -R (needs threads and a filesystem in the build).' 1>&2
+    exit 77
+fi
+
 
 # $WOLFSSL_ROOT/tests/unit.test tests/test-dtls13.conf
 
@@ -94,21 +211,72 @@ prepend() { # Usage: cmd 2>&1 | prepend "sometext "
     while read line; do echo "${1}${line}"; done
 }
 
+# Record a failed test. Plain assignment rather than ((n++)) so the count is
+# not also the command's exit status.
+fail_test() {
+    echo "***Test failed***${1:+ $1}"
+    NUM_TESTS_FAILED=$((NUM_TESTS_FAILED + 1))
+}
+
 run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "<client args>"
     ((NUM_TESTS_RUN++))
-    echo "" | nc -u -w 1 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
-    echo "$1" | nc -u -w 1 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
-    echo "" | nc -u -w 1 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
+    echo "" | nc -u -w 1 127.0.0.1 $MARKER_PORT # This is a marker for the PCAP file
+    echo "$1" | nc -u -w 1 127.0.0.1 $MARKER_PORT # This is a marker for the PCAP file
+    echo "" | nc -u -w 1 127.0.0.1 $MARKER_PORT # This is a marker for the PCAP file
     echo -e "\n${1}\n"
-    stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $DTLS_VERSION $3 2>&1 | prepend "[server] " &
-    sleep 0.2
+
+    # Bind an ephemeral port and wait for the server to report it, rather than
+    # taking a fixed port and assuming a fixed sleep covers the bind.
+    rm -f "$READY_FILE"
+    stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p 0 -R "$READY_FILE" $DTLS_VERSION $3 2>&1 | prepend "[server] " &
+    # The pid is prepend's, but it exits on EOF when the server dies, so it
+    # still tells us whether the server is alive - and saves the full poll when
+    # it is not, which matters at 5040 tests with the extended permutations.
+    SERVER_JOB_PID=$!
+
+    counter=0
+    while [ ! -s "$READY_FILE" -a "$counter" -lt 50 ]; do
+        if ! kill -0 "$SERVER_JOB_PID" 2>&- && [ ! -s "$READY_FILE" ]; then
+            fail_test "server exited before creating the ready file"
+            kill_server
+            return
+        fi
+        sleep 0.1
+        counter=$((counter + 1))
+    done
+    if [ ! -s "$READY_FILE" ]; then
+        fail_test "server did not become ready"
+        kill_server
+        return
+    fi
+
+    # sleep for an additional 0.1 to mitigate race on write/read of $READY_FILE:
+    sleep 0.1
+
+    SERVER_PORT=$(cat "$READY_FILE")
+    if ! valid_port "$SERVER_PORT"; then
+        fail_test "server reported unusable port '$SERVER_PORT'"
+        kill_server
+        return
+    fi
+
+    PROXY_PORT=$(free_udp_port)
+    if ! valid_port "$PROXY_PORT"; then
+        fail_test "could not obtain a free UDP port for the proxy"
+        kill_server
+        return
+    fi
     stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT $UDP_PROXY_EXTRA_ARGS $2 2>&1 | prepend "[udp-proxy] " &
-    sleep 0.2
+    if ! wait_udp_bound $PROXY_PORT; then
+        fail_test "udp-proxy did not bind port $PROXY_PORT"
+        kill_server
+        return
+    fi
+
     # Wrap this command in a timeout so that a deadlock won't bring down the entire test
     $TIMEOUT_KILL_1M stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
     if [ $? != 0 ]; then
-        echo "***Test failed***"
-        ((NUM_TESTS_FAILED++))
+        fail_test
     fi
     kill_server
 }
@@ -167,7 +335,9 @@ EOF
 }
 
 echo "Starting capture"
-tcpdump -i lo -n port ${SERVER_PORT} -w ${PCAP_FILENAME} -U &
+# The server port is ephemeral and changes per test, so capture by protocol and
+# address rather than one fixed port.
+tcpdump -i lo -n udp and host 127.0.0.1 -w ${PCAP_FILENAME} -U &
 TCPDUMP_PID=$!
 sleep 0.5
 
