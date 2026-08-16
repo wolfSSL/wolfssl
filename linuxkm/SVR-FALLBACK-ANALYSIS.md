@@ -2803,6 +2803,15 @@ of `sp_x86_64_asm.S`, counting `%xmm`/`%ymm` operands per routine:
 | :--- | ---: | ---: |
 | avx2-named asm routines | 79 | **23** |
 | pure BMI2/ADX integer, no vector registers | | **56** |
+| **non-avx2-named routines that also use vector registers** | | **9** |
+
+**The first census was scoped to avx2-*named* routines and therefore could not
+see the last row.** Nine constant-time table-selection routines carry no `avx2`
+in their symbol and still use `%xmm`: `_sp_{256,384,521}_get_entry_64_*`,
+`_get_entry_65_*` and `_get_point_33_*`. They are reached from the **non-AVX2**
+lane -- `sp_256_ecc_mulmod_win_add_sub_4` calls `sp_256_get_point_33_4`,
+`sp_256_ecc_mulmod_add_only_4` calls `sp_256_get_entry_65_4` -- and neither
+enclosing function takes a bracket.
 
 The 56 include all the heavy field arithmetic — `mont_mul`, `mont_sqr`, `mul`,
 `sqr`, `mont_reduce_order`, `cond_sub`, `mont_div2`. These need no bracket at
@@ -2950,7 +2959,22 @@ Bracketing in the callee also respects the lock ordering the generator already
 documents: the `#else` (FP_ECC) arm must take the point-cache lock *before* the
 bracket, because a `wolfSSL_Mutex` is `spin_lock_bh()` and sleeping locks cannot
 nest inside spinning ones (Documentation/locking/locktypes.rst). That arm is
-untouched. The non-AVX2 lane is C and emits no bracket.
+untouched.
+
+**Correction: the non-AVX2 lane is not C.** An earlier revision of this section
+said it was, and used that as the reason for leaving it alone. It calls the nine
+vector-assembly routines listed in 13.5.2 with no bracket in the chain.
+
+That path is **not reachable on any validated x86_64 operating environment**: it
+is selected only when `IS_INTEL_AVX2(cpuid_flags)` is false, and K2 and K3 both
+run on AVX2-capable parts, while K1 is i386 and does not compile
+`sp_x86_64_asm.S` at all. It is also pre-existing upstream rather than introduced
+by this work. Bracketing it is a generator change and is outstanding.
+
+Note that `ASSERT_SAVED_VECTOR_REGISTERS()` could never have caught this: the
+assert needs a C body to live in, which is the same reason P-256 and P-521 stayed
+silent in 13.5.4. A run reporting zero assert failures says nothing about these
+nine sites on any CPU.
 
 ### 13.5.7 Result
 
