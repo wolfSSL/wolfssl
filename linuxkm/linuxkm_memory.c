@@ -437,11 +437,20 @@ ssize_t wc_reloc_normalize_segment(
              * parameters in reloc_layouts[] and reloc_tab[] but it's very
              * fidgety.
              *
-             * Reconstructing them the way x86 does was TRIED AND REVERTED: it
-             * made the digest load-address DEPENDENT on a real aarch64 module,
-             * two boots of one binary giving two hashes.  A userspace harness
-             * had reported it correct, so read SVR-FALLBACK-ANALYSIS.md 13.6
-             * and reproduce with two real boots before retrying.
+             * TRIED AND FAILED, do not repeat without new evidence.
+             * Reconstructing these the way the x86 arm does was implemented,
+             * mask gather/scatter for the split encodings plus per-type
+             * scaling, and a userspace harness driving this very function
+             * reported all ten relocation types stable and target-covering.
+             * The harness was wrong, because it built its own relocation
+             * records rather than using a linked module's.  On a real aarch64
+             * module, two boots of ONE binary computed
+             * FIPS_HASH=05A837C3249F3AB8... and FIPS_HASH=4AE4DA38425DDBA3...,
+             * so the digest was load-address DEPENDENT and the module could
+             * never pass POST.  Reverted.  Zeroing is blind to the relocation
+             * target, and that is the known cost of a digest that verifies.
+             * Any retry must pass two real boots of one binary FIRST,
+             * see SVR-FALLBACK-ANALYSIS.md 13.6.
              */
             reloc_buf = 0;
             break;
@@ -463,11 +472,20 @@ ssize_t wc_reloc_normalize_segment(
              * parameters in reloc_layouts[] and reloc_tab[] but it's very
              * fidgety.
              *
-             * Reconstructing them the way x86 does was TRIED AND REVERTED: it
-             * made the digest load-address DEPENDENT on a real aarch64 module,
-             * two boots of one binary giving two hashes.  A userspace harness
-             * had reported it correct, so read SVR-FALLBACK-ANALYSIS.md 13.6
-             * and reproduce with two real boots before retrying.
+             * TRIED AND FAILED, do not repeat without new evidence.
+             * Reconstructing these the way the x86 arm does was implemented,
+             * mask gather/scatter for the split encodings plus per-type
+             * scaling, and a userspace harness driving this very function
+             * reported all ten relocation types stable and target-covering.
+             * The harness was wrong, because it built its own relocation
+             * records rather than using a linked module's.  On a real aarch64
+             * module, two boots of ONE binary computed
+             * FIPS_HASH=05A837C3249F3AB8... and FIPS_HASH=4AE4DA38425DDBA3...,
+             * so the digest was load-address DEPENDENT and the module could
+             * never pass POST.  Reverted.  Zeroing is blind to the relocation
+             * target, and that is the known cost of a digest that verifies.
+             * Any retry must pass two real boots of one binary FIRST,
+             * see SVR-FALLBACK-ANALYSIS.md 13.6.
              */
             reloc_buf = 0;
             break;
