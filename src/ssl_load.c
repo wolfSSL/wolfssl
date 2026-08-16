@@ -568,9 +568,11 @@ static int ProcessBufferTryDecodeEcc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     /* Initialize ECC key. */
     if (wc_ecc_init_ex(key, heap, devId) == 0) {
-        /* Decode as an ECC private key. */
+        /* Decode as an ECC private key. Skip the best-effort public point
+         * derivation - this only probes for the key format and size, and the
+         * key is freed below. */
         idx = 0;
-        ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key, der->length);
+        ret = EccPrivateKeyDecodeEx(der->buffer, &idx, key, der->length, 0);
     #ifdef WOLF_PRIVATE_KEY_ID
         /* If that didn't work then maybe a public key if device ID or callback.
          */

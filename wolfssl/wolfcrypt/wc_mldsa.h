@@ -702,6 +702,10 @@ WOLFSSL_API
 int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
+#if !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+WOLFSSL_API
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+#endif
 
 /* Legacy sign API without context parameter (pre-FIPS 204).
  * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
@@ -803,7 +807,14 @@ WOLFSSL_API
 int wc_MlDsaKey_SigSize(wc_MlDsaKey* key);
 #endif
 
-#ifdef WOLFSSL_MLDSA_CHECK_KEY
+/* Mirrors WC_MLDSA_HAVE_CHECK_KEY in wc_mldsa.c (kept separate since that
+ * macro is internal and not visible to this public header) - including that
+ * the small-mem exclusion applies only to the second, implicit-use arm; see
+ * the comment there for why the first arm must stay reachable on its own. */
+#if defined(WOLFSSL_MLDSA_CHECK_KEY) || \
+    (!defined(WOLFSSL_MLDSA_NO_CHECK_KEY) && \
+     !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+     defined(WC_MLDSA_FAULT_HARDEN) && !defined(WOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM))
 WOLFSSL_API
 int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key);
 #endif

@@ -7598,9 +7598,20 @@ int DecodeECC_DSA_Sig_Ex(const byte* sig, word32 sigLen, mp_int* r, mp_int* s,
 
 #endif
 #ifdef HAVE_ECC
-WOLFSSL_ABI
-int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
-                        word32 inSz)
+
+/* EccDerivePubBestEffort() and WOLFSSL_ECC_DERIVE_PUB_BEST_EFFORT are
+ * defined once in asn.c, ahead of the point where this file is
+ * #included into it. */
+
+/* Read ECC private key.
+ *
+ * SEC.1 Ver 2.0, C.4 - Syntax for Elliptic Curve Private Keys
+ *
+ * return 0 on success
+ */
+/* Implements the WOLFSSL_LOCAL declaration in asn.h. */
+int EccPrivateKeyDecodeEx(const byte* input, word32* inOutIdx,
+    ecc_key* key, word32 inSz, int derivePub)
 {
     word32 oidSum;
     int    version, length;
@@ -7720,10 +7731,25 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             (word32)pubSz, key, curve_id);
     }
 
+#ifdef WOLFSSL_ECC_DERIVE_PUB_BEST_EFFORT
+    if ((ret == 0) && derivePub) {
+        EccDerivePubBestEffort(key);
+    }
+#else
+    (void)derivePub;
+#endif
+
     WC_FREE_VAR_EX(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     WC_FREE_VAR_EX(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
+}
+
+WOLFSSL_ABI
+int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
+                        word32 inSz)
+{
+    return EccPrivateKeyDecodeEx(input, inOutIdx, key, inSz, 1);
 }
 
 #ifdef WOLFSSL_CUSTOM_CURVES

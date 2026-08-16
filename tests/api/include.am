@@ -217,6 +217,7 @@ EXTRA_DIST += tests/api/test_tls.h
 EXTRA_DIST += tests/api/test_session.h
 EXTRA_DIST += tests/api/test_x509.h
 EXTRA_DIST += tests/api/test_asn.h
+EXTRA_DIST += tests/api/test_oom.h
 EXTRA_DIST += tests/api/test_tsp.h
 EXTRA_DIST += tests/api/test_pkcs7.h
 EXTRA_DIST += tests/api/test_pkcs12.h

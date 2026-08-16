@@ -2147,8 +2147,35 @@ static int wc_PKCS7_ImportECC(wc_PKCS7* pkcs7, ecc_key* privKey)
     if (ret == 0) {
         if (pkcs7->privateKey != NULL && pkcs7->privateKeySz > 0) {
             idx = 0;
+            /* Deliberately left deriving the public point (rather than
+             * EccPrivateKeyDecodeEx(..., 0) like the other sign-only decode
+             * sites): the wc_ecc_check_key() call right below needs it -
+             * on a private-only key it would otherwise fail with
+             * ECC_INF_E. This is a long-lived signer key reused across every
+             * SignedData this pkcs7 object produces, so attach the RNG first
+             * to get projective-coordinate blinding on derivation's
+             * base-point multiply under ECC_TIMING_RESISTANT. Excludes the
+             * FIPS v2/selftest boundary, same as wc_PKCS7_KariGenerateKEK()
+             * below - that boundary's validated ECC implementation doesn't
+             * take an externally-supplied blinding RNG. Note the best-effort
+             * derivation itself (EccDerivePubBestEffort() in asn.c, reached
+             * from wc_EccPrivateKeyDecode() below) is gated on plain
+             * !defined(HAVE_FIPS), so it's compiled out for every HAVE_FIPS
+             * variant, not just v2 - attaching the RNG here only buys
+             * blinding on non-FIPS builds even though the ECC_TIMING_RESISTANT
+             * condition itself excludes only the v2/selftest boundary. */
+        #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+            (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+            !defined(HAVE_SELFTEST)
+            ret = wc_ecc_set_rng(privKey, pkcs7->rng);
+            if (ret == 0) {
+                ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
+                                             pkcs7->privateKeySz);
+            }
+        #else
             ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
                                          pkcs7->privateKeySz);
+        #endif
             /* verify imported private key is a valid key before using it */
             if (ret == 0) {
                 ret = wc_ecc_check_key(privKey);
@@ -8734,7 +8761,10 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
     else if (kari->direction == WC_PKCS7_DECODE) {
         if (key != NULL && keySz > 0) {
             idx = 0;
-            ret = wc_EccPrivateKeyDecode(key, &idx, kari->recipKey, keySz);
+            /* Skip the best-effort public point derivation done on decode:
+             * the recipient key is only used for the ECDH shared secret,
+             * which accepts an ECC_PRIVATEKEY_ONLY key. */
+            ret = EccPrivateKeyDecodeEx(key, &idx, kari->recipKey, keySz, 0);
         }
         else if (kari->devId == INVALID_DEVID) {
             ret = BAD_FUNC_ARG;

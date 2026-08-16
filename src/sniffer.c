@@ -2836,8 +2836,12 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         #endif
             if (ret == 0) {
                 idx = 0;
-                ret = wc_EccPrivateKeyDecode(args->keyBuf->buffer, &idx,
-                    &args->key->priv.ecc, args->keyBuf->length);
+                /* Skip the best-effort public point derivation done on
+                 * decode: this key only ever feeds wc_ecc_shared_secret(),
+                 * which accepts an ECC_PRIVATEKEY_ONLY key, and this runs
+                 * once per sniffed session. */
+                ret = EccPrivateKeyDecodeEx(args->keyBuf->buffer, &idx,
+                    &args->key->priv.ecc, args->keyBuf->length, 0);
                 if (ret != 0) {
                     SetError(ECC_DECODE_STR, error, session, FATAL_ERROR_STATE);
                 }
