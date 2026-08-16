@@ -7,8 +7,10 @@
 # wrapper and orphan the server it was meant to kill.
 if command -v timeout >/dev/null 2>&1; then
     TIMEOUT_KILL_2M="timeout -s KILL 2m"
+    TIMEOUT_KILL_1M="timeout -s KILL 1m"
 else
     TIMEOUT_KILL_2M=""
+    TIMEOUT_KILL_1M=""
 fi
 
 
@@ -52,6 +54,7 @@ cleanup () {
         echo "Killing server $SERVER_PID"
         kill $SERVER_PID
     fi
+    rm -f "$READY_FILE"
 }
 
 trap cleanup err exit
@@ -61,19 +64,133 @@ SCID="BB"
 HEXCID=$(printf $CCID | od -An -tx1 | tr -d ' \n')
 HEXSCID=$(printf $SCID | od -An -tx1 | tr -d ' \n')
 WOLFSSL_ROOT=$(pwd)
+# The server reports the port it bound in this file. The pid keeps concurrent
+# runs - a second "make check" in another source tree, say - from sharing one.
+READY_FILE="$WOLFSSL_ROOT/wolfssl_dtlscid_ready$$"
+
+# A usable port is a non-zero decimal below 65536. Worth checking rather than
+# assuming: a SINGLE_THREADED or WOLFSSL_TIRTOS build never resolves the
+# ephemeral port in udp_accept(), so the ready file legitimately contains 0.
+valid_port() {
+    case "$1" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    [ "$1" -gt 0 ] && [ "$1" -lt 65536 ]
+}
+
+# The test below depends on the server being able to report the port it bound.
+# Besides the SINGLE_THREADED/WOLFSSL_TIRTOS case above, a NO_FILESYSTEM or
+# NETOS build compiles write_ready_file() to a no-op and never creates the file
+# at all. Probe the capability once and skip, rather than report a build-wide
+# limitation as a CID test failure.
+check_ready_file_support() {
+    local probe_pid counter port
+
+    rm -f "$READY_FILE"
+    $WOLFSSL_ROOT/examples/server/server -v4 -u -p 0 -R "$READY_FILE" \
+        >/dev/null 2>&1 &
+    probe_pid=$!
+
+    counter=0
+    while [ ! -s "$READY_FILE" -a "$counter" -lt 50 ]; do
+        if ! kill -0 "$probe_pid" 2>&- && [ ! -s "$READY_FILE" ]; then
+            break
+        fi
+        sleep 0.1
+        counter=$((counter + 1))
+    done
+
+    port=""
+    if [ -s "$READY_FILE" ]; then
+        sleep 0.1
+        port=$(cat "$READY_FILE")
+    fi
+
+    kill -9 "$probe_pid" 2>&-
+    wait "$probe_pid" 2>&-
+    rm -f "$READY_FILE"
+
+    valid_port "$port"
+}
+
+if ! check_ready_file_support; then
+    echo 'skipping dtlscid.test because the server cannot report an ephemeral' 1>&2
+    echo 'port with -p 0 -R (needs threads and a filesystem in the build).' 1>&2
+    exit 77
+fi
+
+# Report a failed check, with the output of both sides, and stop the test.
+fail () {
+    echo "$1"
+    echo "--- server output ---"
+    cat "$SERVER_FILE"
+    echo "--- client output ---"
+    cat "$CLIENT_FILE"
+    rm -f "$SERVER_FILE" "$CLIENT_FILE"
+    exit 1
+}
 
 test_cid () {
     echo "Running test_cid"
     SERVER_FILE=$(mktemp)
     CLIENT_FILE=$(mktemp)
-    $TIMEOUT_KILL_2M $WOLFSSL_ROOT/examples/server/server -v4 -u --cid $SCID 1> $SERVER_FILE &
+    rm -f "$READY_FILE"
+
+    # Bind an ephemeral port (-p 0) and wait for the server to report it, rather
+    # than taking the default port and assuming a fixed sleep is long enough for
+    # the bind. The default port also collides with any other test using it when
+    # the network namespace could not be unshared above.
+    $TIMEOUT_KILL_2M $WOLFSSL_ROOT/examples/server/server -v4 -u \
+        --cid $SCID -p 0 -R "$READY_FILE" 1> $SERVER_FILE &
     SERVER_PID=$!
-    sleep 0.2
-    $TIMEOUT_KILL_2M $WOLFSSL_ROOT/examples/client/client -v4 -u --cid $CCID 1> $CLIENT_FILE
+
+    counter=0
+    while [ ! -s "$READY_FILE" -a "$counter" -lt 50 ]; do
+        sleep 0.1
+        counter=$((counter + 1))
+    done
+    if [ ! -s "$READY_FILE" ]; then
+        fail "server did not become ready"
+    fi
+
+    # sleep for an additional 0.1 to mitigate race on write/read of $READY_FILE:
+    sleep 0.1
+
+    PORT=$(cat "$READY_FILE")
+    if ! valid_port "$PORT"; then
+        fail "server reported unusable port '$PORT'"
+    fi
+    echo "Server listening on port $PORT"
+
+    # Bound below the server's timeout: a DTLS client with nothing to talk to
+    # retransmits for over two minutes, so without this the server would be
+    # killed first and the client left running against nothing.
+    $TIMEOUT_KILL_1M $WOLFSSL_ROOT/examples/client/client -v4 -u \
+        --cid $CCID -p $PORT 1> $CLIENT_FILE
+    CLIENT_RESULT=$?
+    if [ $CLIENT_RESULT != 0 ]; then
+        fail "client failed with $CLIENT_RESULT"
+    fi
+
     wait $SERVER_PID
+    SERVER_RESULT=$?
     SERVER_PID=
-    grep "Sending CID is ${HEXSCID}" $CLIENT_FILE > /dev/null
-    grep "Sending CID is ${HEXCID}" $SERVER_FILE > /dev/null
+    if [ $SERVER_RESULT != 0 ]; then
+        fail "server failed with $SERVER_RESULT"
+    fi
+
+    # Each side reports the CID it sends, which is the one its peer chose. These
+    # checks are the point of the test, so a mismatch has to fail the script -
+    # as the last commands in the function their status was previously
+    # discarded by the echo below.
+    if ! grep -q "Sending CID is ${HEXSCID}" $CLIENT_FILE; then
+        fail "client did not report sending CID ${HEXSCID}"
+    fi
+    if ! grep -q "Sending CID is ${HEXCID}" $SERVER_FILE; then
+        fail "server did not report sending CID ${HEXCID}"
+    fi
+
+    rm -f "$SERVER_FILE" "$CLIENT_FILE"
     echo "test_cid has passed"
 }
 

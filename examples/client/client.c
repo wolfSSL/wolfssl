@@ -89,6 +89,9 @@ static const char *wolfsentry_config_path = NULL;
 #ifndef MAX_NON_BLOCK_SEC
 #define MAX_NON_BLOCK_SEC   10
 #endif
+/* How long a single wait for the socket blocks before the loop re-checks its
+ * overall budget. Short enough that the budget is still honoured closely. */
+#define NON_BLOCK_POLL_SEC  1
 
 #define OCSP_STAPLING 1
 #define OCSP_STAPLINGV2 2
@@ -1124,12 +1127,28 @@ static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str
     return err;
 }
 
-static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
-                      const char* str, int exitWithRet)
+/* Read a reply. On a non-blocking socket a WANT_READ only means the reply has
+ * not arrived yet, so wait for it rather than returning on the first poll -
+ * returning early lets the caller shut the connection down while the peer is
+ * still writing, which the peer then reports as a transport error.
+ *
+ * replyRequired says whether a missing reply is a failure, not whether one is
+ * worth waiting for: it selects the wait budget and controls whether giving up
+ * is reported as an error. */
+static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen,
+                      int replyRequired, const char* str, int exitWithRet)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
     double start = current_time(1), elapsed;
+    /* A required reply gets the full non-blocking budget, an optional one the
+     * shorter of the two - MAX_NON_BLOCK_SEC is overridable and may be set
+     * below DEFAULT_TIMEOUT_SEC, which would otherwise invert the two. */
+    double maxWait = MAX_NON_BLOCK_SEC;
+
+    if (!replyRequired && DEFAULT_TIMEOUT_SEC < MAX_NON_BLOCK_SEC) {
+        maxWait = DEFAULT_TIMEOUT_SEC;
+    }
 
     do {
         err = 0; /* reset error */
@@ -1158,17 +1177,49 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             }
         }
 
-        if (mustRead &&
-            (err == WOLFSSL_ERROR_WANT_READ
-             || err == WOLFSSL_ERROR_WANT_WRITE)) {
+        if (err == WOLFSSL_ERROR_WANT_READ
+             || err == WOLFSSL_ERROR_WANT_WRITE) {
+            int selectRet;
+
             elapsed = current_time(0) - start;
-            if (elapsed > MAX_NON_BLOCK_SEC) {
-                LOG_ERROR("Nonblocking read timeout\n");
+            if (elapsed > maxWait) {
+                if (replyRequired) {
+                    LOG_ERROR("Nonblocking read timeout\n");
+                }
+                ret = WOLFSSL_FATAL_ERROR;
+                break;
+            }
+
+            /* Wait for the socket instead of spinning on it. */
+            if (err == WOLFSSL_ERROR_WANT_WRITE) {
+                selectRet = tcp_select_tx(wolfSSL_get_fd(ssl),
+                                          NON_BLOCK_POLL_SEC);
+            }
+            else {
+                selectRet = tcp_select(wolfSSL_get_fd(ssl),
+                                       NON_BLOCK_POLL_SEC);
+            }
+
+        #ifdef WOLFSSL_DTLS
+            /* A DTLS timeout means the peer's datagram was lost - let the
+             * library retransmit rather than waiting for something that is
+             * never coming (see NonBlockingSSL_Connect). */
+            if (selectRet == TEST_TIMEOUT && wolfSSL_dtls(ssl)) {
+                if (wolfSSL_dtls_got_timeout(ssl) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR);
+                    break;
+                }
+            }
+            else
+        #endif
+            /* select() itself failed - retrying would spin, not wait. */
+            if (selectRet == TEST_SELECT_FAIL) {
+                LOG_ERROR("%s tcp_select error\n", str);
                 ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
         }
-    } while ((mustRead && err == WOLFSSL_ERROR_WANT_READ)
+    } while (err == WOLFSSL_ERROR_WANT_READ
         || err == WOLFSSL_ERROR_WANT_WRITE
     #ifdef WOLFSSL_ASYNC_CRYPT
         || err == WC_NO_ERR_TRACE(WC_PENDING_E)
@@ -1183,11 +1234,15 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
     return err;
 }
 
+/* replyRequired: whether a missing reply fails the exchange. See ClientRead. */
 static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
-        char* reply, int replyLen, int mustRead,
+        char* reply, int replyLen, int replyRequired,
         const char* str, int exitWithRet)
 {
     int ret = 0;
+    /* Which half of the exchange the error below came from - the message used
+     * to say SSL_write for a failure returned by ClientRead. */
+    const char* stage = "SSL_write";
 
     do {
         ret = ClientWrite(ssl, msg, msgSz, str, exitWithRet);
@@ -1207,6 +1262,7 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
             }
             else {
                 LOG_ERROR("%s tcp_select error\n", str);
+                stage = "tcp_select";
                 if (!exitWithRet)
                     err_sys("tcp_select failed");
                 else
@@ -1214,8 +1270,9 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
                 break;
             }
         }
-        ret = ClientRead(ssl, reply, replyLen, mustRead, str, exitWithRet);
-        if (mustRead && ret != 0) {
+        stage = "SSL_read";
+        ret = ClientRead(ssl, reply, replyLen, replyRequired, str, exitWithRet);
+        if (replyRequired && ret != 0) {
             if (!exitWithRet)
                 err_sys("ClientRead failed");
             else
@@ -1224,9 +1281,11 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
         break;
     } while (1);
 
-    if (ret != 0) {
+    /* A failed optional read is not an error - the caller asked for the reply
+     * only if one turned up - so do not log one. */
+    if (ret != 0 && (replyRequired || XSTRCMP(stage, "SSL_read") != 0)) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
-        LOG_ERROR("SSL_write%s msg error %d, %s\n", str, ret,
+        LOG_ERROR("%s%s msg error %d, %s\n", stage, str, ret,
                                         wolfSSL_ERR_error_string((unsigned long)ret, buffer));
     }
 
