@@ -69,6 +69,7 @@ EXTRA_DIST+= IDE/zephyr
 # enumerated file-by-file rather than shipped wholesale.
 include IDE/apple-universal/include.am
 include IDE/MPLABX16/include.am
+include IDE/WIN-PQ-FIPSv7/include.am
 include IDE/MPLABX16/wolfcrypt_test.X/nbproject/include.am
 include IDE/MPLABX16/wolfssl.X/nbproject/include.am
 include IDE/Renesas/cs+/Projects/include.am

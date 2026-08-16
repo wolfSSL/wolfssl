@@ -78,7 +78,7 @@ static int wb_fail = 0;
 
 #if !defined(NO_SHA512) && defined(WOLFSSL_SHA512) && \
     defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
-    !defined(WC_C_DYNAMIC_FALLBACK) && \
+    (!defined(WC_C_DYNAMIC_FALLBACK) || defined(HAVE_FIPS)) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
 static void wb_intel_dispatch(void)

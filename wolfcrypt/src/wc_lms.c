@@ -26,6 +26,14 @@
 
 #if defined(WOLFSSL_HAVE_LMS)
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep LMS inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name, between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nc")
+        #pragma const_seg(".fipsB$nc")
+    #endif
+#endif
 #include <wolfssl/wolfcrypt/wc_lms.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
@@ -1423,7 +1431,9 @@ int wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len)
  *
  * The one-time key at the current leaf is consumed before the advanced private
  * key is written to storage. If either step fails then the key state is left
- * bad and no further signatures can be created with this key.
+ * bad and no further signatures can be created with this key.  SP 800-208
+ * sec 6: a stateful HBS one-time key must never sign twice, so a sign whose
+ * advanced state did not reach NV storage must not be followed by another.
  *
  * @param [in, out] key    LMS key to sign with.
  * @param [out]     sig    Signature data. Buffer must be big enough to hold

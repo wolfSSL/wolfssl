@@ -52,6 +52,7 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 
 #ifdef WOLFSSL_SHA3
+#ifndef WC_SHA3_NO_PPC64_BASE_BLOCK
 static const word64 L_SHA3_transform_base_r[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
@@ -316,6 +317,7 @@ void BlockSha3_base(word64* state)
     );
 }
 
+#endif /* WC_SHA3_NO_PPC64_BASE_BLOCK */
 #ifdef WOLFSSL_PPC64_ASM_POWER8
 static const word64 L_SHA3_transform_power8_r[] = {
     0x0000000000000001UL, 0x0000000000008082UL,

@@ -9926,7 +9926,7 @@ L_aes_gcm_encrypt_arm64_crypto_done
 	ldp	x29, x30, [sp], #0x90
 	ret
 	ENDP
-	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
+	IF :DEF:HAVE_AES_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_AARCH64
@@ -19449,7 +19449,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_done
 	ldp	x29, x30, [sp], #0x90
 	ret
 	ENDP
-	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
+	IF :DEF:HAVE_AES_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_AARCH64_EOR3
@@ -28650,7 +28650,6 @@ L_aes_gcm_encrypt_final_arm64_crypto_tag_end_bytes
 L_aes_gcm_encrypt_final_arm64_crypto_done
 	ret
 	ENDP
-	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_update_AARCH64
@@ -32542,7 +32541,6 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded
 	str	w8, [x7]
 	ret
 	ENDP
-	ENDIF
 	IF :DEF:WOLFSSL_ARMASM_CRYPTO_SHA3
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
@@ -36904,7 +36902,6 @@ L_aes_gcm_encrypt_final_arm64_crypto_eor3_tag_end_bytes
 L_aes_gcm_encrypt_final_arm64_crypto_eor3_done
 	ret
 	ENDP
-	IF :DEF:HAVE_AES_DECRYPT :LOR: :DEF:HAVE_AESGCM_DECRYPT
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	AES_GCM_decrypt_update_AARCH64_EOR3
@@ -40711,7 +40708,6 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded
 	str	w8, [x7]
 	ret
 	ENDP
-	ENDIF
 	ENDIF
 	ENDIF
 	ENDIF

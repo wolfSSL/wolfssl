@@ -385,8 +385,8 @@
       !defined(WOLFSSL_NO_OPTIONS_H) && !defined(WOLFSSL_CUSTOM_CONFIG)
     /* This warning indicates that wolfSSL features may not have been properly
      * configured before other wolfSSL headers were included. If you are using
-     * an alternative configuration method -- e.g. custom header, or CFLAGS in
-     * an application build -- then your application can avoid this warning by
+     * an alternative configuration method, e.g. custom header, or CFLAGS in
+     * an application build, then your application can avoid this warning by
      * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
      */
     #if !defined(_MSC_VER) && !defined(__TASKING__)
@@ -507,12 +507,140 @@
 /*------------------------------------------------------------*/
 #if (defined(WOLFSSL_FIPS_READY) || defined(WOLFSSL_FIPS_DEV)) && \
     !defined(HAVE_FIPS_VERSION)
-    #define HAVE_FIPS_VERSION_MAJOR 7 /* always one more than major version */
+    #define HAVE_FIPS_VERSION_MAJOR 8 /* always one more than major version */
                                       /* of most recent FIPS submission */
     #define HAVE_FIPS_VERSION HAVE_FIPS_VERSION_MAJOR
     #define HAVE_FIPS_VERSION_MINOR 0 /* always 0 */
     #define HAVE_FIPS_VERSION_PATCH 0 /* always 0 */
 #endif
+
+/* A certified flavor and a development macro cannot both be true.
+ *
+ * WC_FIPS_UNCERTIFIED_BUILD relaxes every boundary rule below, and it is
+ * derived from WOLFSSL_FIPS_DEV, an ordinary macro any caller can define.
+ * Without this check, CFLAGS=-DWOLFSSL_FIPS_DEV ./configure --enable-fips=v7,
+ * or one line in an operating environment's user_settings.h, would disarm the
+ * WC_C_DYNAMIC_FALLBACK #error, the WC_RNG_BANK_SUPPORT #error and the
+ * one-implementation requirement, in a build that still reports HAVE_FIPS_VERSION
+ * 7.  WC_FIPS_CERTIFIABLE_BUILD is emitted by configure ONLY for v5, v6, v7,
+ * ready and their lean variants, so the two together mean the development macro
+ * was forced into a certified build.  Fail closed and say which one to drop.
+ *
+ * A user_settings.h build sets neither macro from configure, so it is
+ * unaffected: it can still ask for a development build with WOLFSSL_FIPS_DEV. */
+#if defined(WC_FIPS_CERTIFIABLE_BUILD) && \
+    (defined(WOLFSSL_FIPS_DEV) || defined(WOLFSSL_FIPS_DEV_NO_POST))
+    #error "WOLFSSL_FIPS_DEV in a certified FIPS build: use --enable-fips=dev or --enable-fips=dev-no-post, do not define the macro."
+#endif
+
+/* WC_FIPS_UNCERTIFIED_BUILD, this is a FIPS build that is NOT a candidate
+ * for validation, so the boundary rules below are relaxed for it.  Only the
+ * in-development flavors qualify (--enable-fips=dev, v7-dev, dev-no-post,
+ * lean-aesgcm-dev): they build no certified module.  --enable-fips=ready is
+ * deliberately NOT included, "FIPS Ready" means "this is what we would
+ * submit", so it is held to the same rules as a certified version. */
+#if defined(WOLFSSL_FIPS_DEV) || defined(WOLFSSL_FIPS_DEV_NO_POST)
+    #define WC_FIPS_UNCERTIFIED_BUILD
+#endif
+
+/* WC_RNG_BANK_SUPPORT puts the per-core DRBG bank inside the module boundary:
+ * one DRBG instance per core plus a checkout/checkin protocol, affinity
+ * callbacks, per-instance reinit, and failover to a sibling instance when one
+ * fails.  It is not permitted in a validation-targeted build.
+ *
+ * It is not needed for correctness, a single shared WC_RNG is already
+ * exclusive across threads, and on the workload the kernel's stdrng actually
+ * serves, shared and banked are 0.16% apart.  Against that it costs up to
+ * 1.92 s of instantiation and 28x the raw entropy draw per crypto_alloc_rng()
+ * tfm, an ABI-visible struct in a public header, and a failure-recovery path
+ * that answers a DRBG failure by routing to another instance of the thing that
+ * just failed.  Upstream Linux serializes the same consumers behind one
+ * sleeping mutex; we support the operating environment rather than redesign it.
+ *
+ * The uncertified development flavors keep it: they build no certified module,
+ * and the throughput gain is real on a synthetic draw loop.
+ * See linuxkm/SVR-FALLBACK-ANALYSIS.md */
+#if defined(WC_RNG_BANK_SUPPORT) && \
+    (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
+     defined(WOLFSSL_FIPS_DEV)) && \
+    !defined(WC_FIPS_UNCERTIFIED_BUILD)
+    #error "WC_RNG_BANK_SUPPORT is not permitted in a certified FIPS build."
+#endif
+
+/* WC_ALLOW_RUNTIME_IMPL_SELECT, gate for any code that carries a second,
+ * run-time-selectable implementation of an algorithm: the
+ * WC_C_DYNAMIC_FALLBACK C twins.  A validation-targeted FIPS build compiles
+ * exactly ONE implementation per algorithm, so this is undefined there and
+ * every such block drops out.  The WC_C_DYNAMIC_FALLBACK #error BELOW is the
+ * primary control; these guards are the second line, so the condition here has
+ * to match it.  Testing HAVE_FIPS alone did not: a user_settings.h build sets
+ * no macro from configure, so one that defines WOLFSSL_FIPS_READY without
+ * HAVE_FIPS got this defined while every other gate in this file treated it as
+ * certified.
+ *
+ * NOT the 32-bit Arm base/NEON/crypto dispatch: WOLFSSL_ARM32_AES_DISPATCH
+ * (aes.c) and SHA256_ARM32_DISPATCH (sha256.c) never test this macro.  They
+ * are suppressed by WOLFSSL_ARMASM_NO_BASE_IMPL, set by the Arm block below.
+ * Do not delete that block on the strength of this one. */
+#if (!defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_READY) && \
+     !defined(WOLFSSL_FIPS_DEV)) || defined(WC_FIPS_UNCERTIFIED_BUILD)
+    #define WC_ALLOW_RUNTIME_IMPL_SELECT
+#endif
+
+/* WC_C_DYNAMIC_FALLBACK ships a C twin of AES/SHA-2/SHA-3
+ * (aes->key_C_fallback) beside the accelerated one and picks between them per
+ * call.  FIPS 140-3 IG 10.3.A GeneralNote1 requires each implementation of an
+ * algorithm in the module to be self-tested separately, and no CAST covers a
+ * per-call choice.  --enable-fips=dev if you need it; no override for a
+ * validation-targeted version.  See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
+#if defined(WC_C_DYNAMIC_FALLBACK) && \
+    (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
+     defined(WOLFSSL_FIPS_DEV)) && \
+    !defined(WC_FIPS_UNCERTIFIED_BUILD)
+    #error "WC_C_DYNAMIC_FALLBACK is not permitted in a certified FIPS build."
+#endif
+
+/* Same rule, 32-bit Arm: a NEON armasm build otherwise compiles the base
+ * (table/C) AES and SHA-256 beside the Armv8 crypto-extension ones and picks
+ * at run time (WOLFSSL_ARM32_AES_DISPATCH, SHA256_ARM32_DISPATCH).  Drop the
+ * base/NEON implementations rather than #error, since that is what a 32-bit
+ * Arm FIPS build compiled before the dispatch existed.  A CPU without the
+ * crypto extension uses WOLFSSL_ARMASM_NO_HW_CRYPTO and never reaches here. */
+#if (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
+     defined(WOLFSSL_FIPS_DEV)) && \
+    !defined(WC_FIPS_UNCERTIFIED_BUILD) && \
+    defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    #ifndef WOLFSSL_ARMASM_NO_BASE_IMPL
+        #define WOLFSSL_ARMASM_NO_BASE_IMPL
+    #endif
+    #ifndef WOLFSSL_ARMASM_NO_NEON_IMPL
+        #define WOLFSSL_ARMASM_NO_NEON_IMPL
+    #endif
+#endif
+
+/* PER-ALGORITHM IMPLEMENTATION PIN, REMOVED 12 August 2026.
+ *
+ * The WC_<ALG>_IMPL token menus, their WC_<ALG>_USE_<lane> expansion, the
+ * WC_<ALG>_PINNED / WC_<ALG>_ACCEL_PINNED flags, the lane-drop guards
+ * (WC_SP_NO_*_BLOCK, WC_SHA3_NO_*_BASE_BLOCK, WC_AES_NO_C_IMPL) and
+ * WC_FIPS_ONE_IMPL_REQUIRED all lived here, together with the
+ * --with-fips-<alg>-impl surface in configure.ac.  All of it is gone.
+ *
+ * Per linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0, v7 ships what v5.2.1, v5.2.4 and
+ * v6.0.0 shipped.  Configured with PAA, an algorithm steps between its
+ * implementations on CPU CAPABILITY ALONE, a write-once CPUID latch set at
+ * first use and never revised.  Configured without PAA, no accelerated lane
+ * is compiled.  Several lanes contained with exactly one reachable per OE is
+ * the construct those three modules were validated carrying, so a certified
+ * build no longer has to narrow to one implementation at compile time.
+ *
+ * WHAT WAS DELETED IS THE FALLBACK, NOT THE STEPPING.  A vector-register save
+ * failure returns an error to the caller; it must never be answered by
+ * quietly running a different implementation and reporting success.  That
+ * prohibition did NOT come out with the pin, it is the #error on
+ * WC_C_DYNAMIC_FALLBACK, WC_ALLOW_RUNTIME_IMPL_SELECT staying undefined in a
+ * certified build, and scripts/fips-no-svr-fallback-check.sh. */
 
 #define WOLFSSL_MAKE_FIPS_VERSION3(major, minor, patch) \
                                 (((major) * 65536) + ((minor) * 256) + (patch))
@@ -575,7 +703,11 @@
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)
         #define WC_FIPS_186_4
-    #elif FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_READY)
+    #elif FIPS_VERSION3_GE(7,0,0)
+        /* FIPS 186-5 governs the v7+ module, including fips-ready/fips-dev
+         * builds that track the in-development v7 source.  Its sec 6.1.1
+         * signature-digest floor (SHA-224 and larger for ECDSA/DSA signing)
+         * must apply to all of them, so do not exclude WOLFSSL_FIPS_READY. */
         #define WC_FIPS_186_5
     #else
         #define WC_FIPS_186_4
@@ -590,6 +722,56 @@
 #endif
 #if defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_5_PLUS)
     #define WC_FIPS_186_5_PLUS
+#endif
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-56A Rev3 sec 5.6.2.2: an ECC public key used for key agreement
+     * shall be validated on import.  configure enables this for FIPS builds;
+     * force it for v7+ so user_settings.h OEs (kernel/Windows) validate too. */
+    #ifndef WOLFSSL_VALIDATE_ECC_IMPORT
+        #define WOLFSSL_VALIDATE_ECC_IMPORT
+    #endif
+
+    /* SP 800-56B Rev 2 sec 6.4.1.4.3: the RSA key-pair validation in
+     * wc_CheckRsaKey() compiles only under WOLFSSL_KEY_GEN.  configure forces
+     * that for v7 already; force it here too so a user_settings.h OE cannot
+     * drop the check silently.  Skipped where RSA private keys cannot exist,
+     * there is nothing to validate and nothing to gain from the keygen code. */
+    #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+        #ifndef WOLFSSL_KEY_GEN
+            #define WOLFSSL_KEY_GEN
+        #endif
+    #endif
+
+    /* WOLFSSL_X86_64_BUILD means "this translation unit is being compiled for
+     * x86_64".  Nothing derived it from the compiler: it came only from the
+     * build system, which is guessing at the target from outside, and both
+     * guesses are wrong in a way that has shipped.
+     *
+     *   - configure takes it from autoconf's host_cpu (config.guess).  In a
+     *     32-bit container on an x86_64 kernel, uname reports x86_64, so a
+     *     genuinely 32-bit build defined it and pulled in 64-bit assembly.
+     *   - IDE/WIN-PQ-FIPSv7 never defines it at all, and the other Visual
+     *     Studio projects define it only when WolfSSLIntelAsm is on.  So the
+     *     x86_64 Windows OE compiled every x86_64 block off while
+     *     WOLFSSL_AESNI was on, no WC_AESNI_GCM (aes.c), no WC_AES_V wide
+     *     lanes, and AesCbcEncryptBlocks bypassed, a different AES
+     *     configuration from the Linux x86_64 OEs built from the same flags.
+     *
+     * The compiler already knows the answer, so take it from there and leave
+     * the build system only able to agree.  Both directions are set, because
+     * being wrongly defined is the half that reached a 32-bit build; a target
+     * that is not x86_64 must not carry it however it arrived.
+     *
+     * v7+ only: v5 and v6 are frozen at what they were validated with and must
+     * keep deriving this exactly as they did then. */
+    #if defined(__x86_64__) || defined(_M_X64)
+        #ifndef WOLFSSL_X86_64_BUILD
+            #define WOLFSSL_X86_64_BUILD
+        #endif
+    #else
+        #undef WOLFSSL_X86_64_BUILD
+    #endif
 #endif
 
 /*------------------------------------------------------------*/
@@ -610,6 +792,14 @@
     #endif
     /* blinding adds API not available yet in FIPS mode */
     #undef WC_RSA_BLINDING
+
+    /* NIST SP 800-38A sec 6.2: CBC plaintext must be a multiple of the block
+     * size, and the cipher does not pad.  Force the block-alignment check so
+     * an unaligned length returns BAD_LENGTH_E rather than silently
+     * truncating to the largest aligned prefix. */
+    #ifndef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        #define WOLFSSL_AES_CBC_LENGTH_CHECKS
+    #endif
 #endif
 
 /* old FIPS has only AES_BLOCK_SIZE. */
@@ -5848,6 +6038,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
  * WOLF_CRYPTO_CB_ONLY_* assumes no hardware crypto port is compiled in for
  * the selected algorithm. Crypto Callback is expected to be the only provider.
  */
+/* Crypto callbacks put crypto outside the module boundary.  fips.c already
+ * forces devId to FIPS_INVALID_DEVID at run time; this blocks the build. */
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_FIPS)
+    #error "WOLF_CRYPTO_CB not allowed with FIPS (crypto outside boundary)"
+#endif
+
 #if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_RSA requires WOLF_CRYPTO_CB"
 #endif

@@ -6443,7 +6443,9 @@ Transform_Sha512_AVX2_Len PROC
         vmovups	YMMWORD PTR [rdi+96], ymm1
         vmovups	YMMWORD PTR [rdi+128], ymm2
         vmovups	YMMWORD PTR [rdi+160], ymm3
+        sub	rsp, 32
         call	Transform_Sha512_AVX2
+        add	rsp, 32
         add	QWORD PTR [rdi+224], 128
         sub	ebp, 128
         jz	L_sha512_len_avx2_done
@@ -9241,9 +9243,9 @@ Transform_Sha512_AVX2_RORX_Len PROC
         vmovups	YMMWORD PTR [rdi+96], ymm1
         vmovups	YMMWORD PTR [rdi+128], ymm2
         vmovups	YMMWORD PTR [rdi+160], ymm3
-        sub	rsp, 8
+        sub	rsp, 40
         call	Transform_Sha512_AVX2_RORX
-        add	rsp, 8
+        add	rsp, 40
         pop	rsi
         add	QWORD PTR [rdi+224], 128
         sub	esi, 128

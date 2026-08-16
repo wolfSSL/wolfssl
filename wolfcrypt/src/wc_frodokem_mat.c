@@ -1730,14 +1730,7 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
     if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
-        /* The AES-NI/VAES row kernels below consume aes->key directly, which
-         * holds a valid AES-NI-layout key schedule only when the
-         * wc_AesSetKeyDirect() above ran with vector registers available
-         * (aes->use_aesni nonzero).  Under WC_C_DYNAMIC_FALLBACK a failed
-         * SAVE_VECTOR_REGISTERS2() inside SetKey returns success having keyed
-         * only the C-fallback schedule (aes->key_C_fallback) - re-key under
-         * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
-         * succeeds, so aes->key is valid for the kernels. */
+        /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
         if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
             ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
                 AES_ENCRYPTION);
@@ -2052,14 +2045,7 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
 #ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
     if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
             (SAVE_VECTOR_REGISTERS2() == 0)) {
-        /* The AES-NI/VAES row kernels below consume aes->key directly, which
-         * holds a valid AES-NI-layout key schedule only when the
-         * wc_AesSetKeyDirect() above ran with vector registers available
-         * (aes->use_aesni nonzero).  Under WC_C_DYNAMIC_FALLBACK a failed
-         * SAVE_VECTOR_REGISTERS2() inside SetKey returns success having keyed
-         * only the C-fallback schedule (aes->key_C_fallback) - re-key under
-         * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
-         * succeeds, so aes->key is valid for the kernels. */
+        /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
         if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
             ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
                 AES_ENCRYPTION);

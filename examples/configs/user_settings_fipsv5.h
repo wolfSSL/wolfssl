@@ -25,6 +25,10 @@
  * XXX-fips-test\wolfssl\options.h
  * ./configure --enable-fips=v5-dev
  *
+ * NOTE: --enable-fips=v5-dev was retired in 2026-08 (see configure.ac's
+ * retired-options list).  The two lines above record how this file was
+ * originally generated; they are not a command to run today.
+ *
  * Cleaned up by David Garske
  */
 

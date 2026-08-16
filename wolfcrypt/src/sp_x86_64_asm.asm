@@ -44080,7 +44080,7 @@ sp_256_get_point_33_4 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
         add	rdx, 200
         movd	xmm15, eax
         mov	rax, 32
@@ -48107,7 +48107,7 @@ sp_384_get_point_33_6 PROC
         movdqu	OWORD PTR [rsp+136], xmm14
         movdqu	OWORD PTR [rsp+152], xmm15
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
         add	rdx, 296
         movd	xmm15, eax
         mov	rax, 32
@@ -48153,7 +48153,7 @@ L_384_get_point_33_6_start_1:
         movdqu	OWORD PTR [rcx+112], xmm4
         movdqu	OWORD PTR [rcx+128], xmm5
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
         sub	rdx, 9472
         movd	xmm15, eax
         mov	rax, 32
@@ -53437,7 +53437,7 @@ sp_521_get_point_33_9 PROC
         movdqu	OWORD PTR [rsp+144], xmm15
         mov	r14, 1
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         add	rdx, 440
 ELSE
@@ -53503,7 +53503,7 @@ ENDIF
         movdqu	OWORD PTR [rcx+160], xmm5
         mov	r14, 1
         mov	rax, 1
-        vmovd	xmm13, r8d
+        movd	xmm13, r8d
 IFNDEF SP_ALIGN_16
         sub	rdx, 14080
 ELSE

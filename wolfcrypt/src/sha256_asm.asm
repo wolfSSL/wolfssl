@@ -12952,7 +12952,9 @@ Transform_Sha256_AVX2_Len PROC
         vmovdqu	ymm1, YMMWORD PTR [rsi+32]
         vmovups	YMMWORD PTR [rdi+32], ymm0
         vmovups	YMMWORD PTR [rdi+64], ymm1
+        sub	rsp, 32
         call	Transform_Sha256_AVX2
+        add	rsp, 32
         add	rsi, 64
         sub	DWORD PTR [rsp+512], 64
         jz	L_sha256_len_avx2_done
@@ -19521,7 +19523,9 @@ Transform_Sha256_AVX2_RORX_Len PROC
         vmovdqu	ymm1, YMMWORD PTR [rsi+32]
         vmovups	YMMWORD PTR [rdi+32], ymm0
         vmovups	YMMWORD PTR [rdi+64], ymm1
+        sub	rsp, 32
         call	Transform_Sha256_AVX2_RORX
+        add	rsp, 32
         add	rsi, 64
         sub	DWORD PTR [rsp+512], 64
         jz	L_sha256_len_avx2_rorx_done

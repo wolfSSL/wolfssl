@@ -321,6 +321,24 @@ int wc_local_InitUpDone(wc_init_state_t *s)
     return 0;
 }
 
+int wc_local_InitUpFailed(wc_init_state_t *s)
+{
+    union wc_init_state_bitfields cur_wc_init_state;
+    cur_wc_init_state.u = WOLFSSL_ATOMIC_LOAD(*s);
+    if (cur_wc_init_state.c.state != WC_INIT_STATE_INITING)
+        return BAD_FUNC_ARG;
+    /* .count is necessarily 1 here: wc_local_InitUp() cannot increment it while
+     * _STATE_INITING is held, and _STATE_UNINITED requires .count == 0.
+     */
+    cur_wc_init_state.c.state = WC_INIT_STATE_UNINITED;
+    cur_wc_init_state.c.count = 0;
+    /* As in wc_local_InitUpDone(), _STATE_INITING functions as a mutex on the
+     * module state, so a plain _STORE() releases the object.
+     */
+    WOLFSSL_ATOMIC_STORE(*s, cur_wc_init_state.u);
+    return 0;
+}
+
 int wc_local_InitDown(wc_init_state_t *s)
 {
     union wc_init_state_bitfields exp_wc_init_state, new_wc_init_state;

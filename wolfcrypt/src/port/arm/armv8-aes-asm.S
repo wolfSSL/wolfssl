@@ -10056,7 +10056,7 @@ L_aes_gcm_encrypt_arm64_crypto_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_AARCH64,.-AES_GCM_encrypt_AARCH64
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+#ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_AARCH64
@@ -14908,7 +14908,7 @@ L_aes_gcm_decrypt_arm64_crypto_done:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_AARCH64,.-AES_GCM_decrypt_AARCH64
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* HAVE_AES_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text
@@ -19603,7 +19603,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_AARCH64_EOR3,.-AES_GCM_encrypt_AARCH64_EOR3
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+#ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_AARCH64_EOR3
@@ -24346,7 +24346,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_AARCH64_EOR3,.-AES_GCM_decrypt_AARCH64_EOR3
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* HAVE_AES_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #ifdef WOLFSSL_AESGCM_STREAM
 #ifndef __APPLE__
@@ -28888,7 +28888,6 @@ L_aes_gcm_encrypt_final_arm64_crypto_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_final_AARCH64,.-AES_GCM_encrypt_final_AARCH64
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_AARCH64
@@ -32804,7 +32803,6 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_final_AARCH64,.-AES_GCM_decrypt_final_AARCH64
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text
@@ -37238,7 +37236,6 @@ L_aes_gcm_encrypt_final_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_final_AARCH64_EOR3,.-AES_GCM_encrypt_final_AARCH64_EOR3
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_AARCH64_EOR3
@@ -41069,7 +41066,6 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_final_AARCH64_EOR3,.-AES_GCM_decrypt_final_AARCH64_EOR3
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_AESGCM */

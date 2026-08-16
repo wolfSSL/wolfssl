@@ -1094,6 +1094,13 @@ union wc_init_state_bitfields {
 WOLFSSL_LOCAL int wc_local_InitUp(wc_init_state_t *s);
 /* wc_local_InitUpDone() closes the critical span of an init sequence. */
 WOLFSSL_LOCAL int wc_local_InitUpDone(wc_init_state_t *s);
+/* wc_local_InitUpFailed() aborts the critical span of an init sequence,
+ * returning the object to _UNINITED so a later caller can retry.  For modules
+ * that can fully undo a partial init; WC_INIT_STATE_RAISE_BAD_STATE() above is
+ * for those that cannot and must force a restart.  Like that macro, this may
+ * only be called while _STATE_INITING, which serializes the store.
+ */
+WOLFSSL_LOCAL int wc_local_InitUpFailed(wc_init_state_t *s);
 /* wc_local_InitDown() opens the critical span of a cleanup sequence. */
 WOLFSSL_LOCAL int wc_local_InitDown(wc_init_state_t *s);
 /* wc_local_InitDownDone() closes the critical span of a cleanup sequence. */

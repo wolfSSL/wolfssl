@@ -33,6 +33,7 @@
 #ifdef WOLFSSL_PPC64_ASM
 #ifndef WOLFSSL_PPC64_ASM_INLINE
 #ifdef WOLFSSL_SHA3
+#ifndef WC_SHA3_NO_PPC64_BASE_BLOCK
 #ifndef __APPLE__
 	.text
 	.type	L_SHA3_transform_base_r, %object
@@ -356,6 +357,7 @@ L_SHA3_transform_base_begin:
 	.size	.L.BlockSha3_base,.-.L.BlockSha3_base
 #endif /* _CALL_ELF == 2 */
 #endif /* __APPLE__ */
+#endif /* WC_SHA3_NO_PPC64_BASE_BLOCK */
 #ifdef WOLFSSL_PPC64_ASM_POWER8
 #ifndef __APPLE__
 	.text

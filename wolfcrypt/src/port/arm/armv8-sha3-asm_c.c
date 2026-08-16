@@ -169,6 +169,7 @@ void BlockSha3_crypto(word64* state)
 }
 
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
+#ifndef WC_SHA3_NO_ARM_BASE_BLOCK
 XALIGNED(16) static const word64 L_SHA3_transform_base_r[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
@@ -368,6 +369,7 @@ void BlockSha3_base(word64* state)
     );
 }
 
+#endif /* WC_SHA3_NO_ARM_BASE_BLOCK */
 #endif /* WOLFSSL_SHA3 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */

@@ -1020,12 +1020,21 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
 
     /* Ed25519ctx round trip: type==Ed25519ctx true side, real context. */
     sigLen = sizeof(sig);
+#ifdef WC_FIPS_ED25519CTX_NOT_APPROVED
+    /* Ed25519ctx is not an Approved EdDSA instance in the FIPS module
+     * (FIPS 186-5 sec 7.6/7.8); the sign service must reject it.  Gated on the
+     * module's capability macro (fips.h) rather than FIPS_VERSION3_GE(7,0,0):
+     * an earlier v7.0.0 module reports the same version but still signs. */
+    ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
+        ctx, sizeof(ctx)), WC_NO_ERR_TRACE(SIG_TYPE_E));
+#else
     ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
         ctx, sizeof(ctx)), 0);
     verify_ok = 0;
     ExpectIntEQ(wc_ed25519ctx_verify_msg(sig, sigLen, msg, sizeof(msg),
         &verify_ok, &key, ctx, sizeof(ctx)), 0);
     ExpectIntEQ(verify_ok, 1);
+#endif
 
     /* Ed25519ph round trip via hash and via full message, type==Ed25519ph
      * true side, WC_SHA512_DIGEST_SIZE length check false side (equal). */

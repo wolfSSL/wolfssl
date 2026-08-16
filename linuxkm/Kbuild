@@ -122,13 +122,22 @@ ifeq "$(FIPS_OPTEST)" "1"
     # $(HAVE_FIPS_VERSION_MAJOR) when $(intcmp) is available; supply it on the
     # make command line otherwise.
     ifndef FIPS_OPTEST_NO_DH
+        ifeq "$(HAVE_FIPS_VERSION_MAJOR)" ""
+            $(error $$HAVE_FIPS_VERSION_MAJOR is unset.)
+        endif
         ifeq "$(HAVE_INTCMP)" "yes"
-            ifeq "$(HAVE_FIPS_VERSION_MAJOR)" ""
-                $(error $$HAVE_FIPS_VERSION_MAJOR is unset.)
-            endif
             FIPS_OPTEST_NO_DH := $(intcmp $(HAVE_FIPS_VERSION_MAJOR),7,0,1,1)
         else
-            $(error $$FIPS_OPTEST_NO_DH is unset -- supply FIPS_OPTEST_NO_DH=1 for FIPS v7 or later, or FIPS_OPTEST_NO_DH=0 for earlier.)
+            # GNU make < 4.4 has no $(intcmp), and requiring the caller to
+            # supply this by hand made every optest kernel build fail on such a
+            # host -- make 4.3 is what Ubuntu 24.04 ships, so that is the common
+            # case, not the exotic one.  The major version is a small integer,
+            # so an exact enumeration of the pre-v7 values is portable back to
+            # make 3.81 and needs no arithmetic: 0..6 -> 0 (optest DH),
+            # anything else (7 and later) -> 1 (no DH).  Same mapping as the
+            # $(intcmp) form above, which yields 0 below 7 and 1 at or above it.
+            FIPS_OPTEST_NO_DH := \
+                $(if $(filter 0 1 2 3 4 5 6,$(HAVE_FIPS_VERSION_MAJOR)),0,1)
         endif
     endif
     ifeq "$(FIPS_OPTEST_NO_DH)" "1"
@@ -136,6 +145,9 @@ ifeq "$(FIPS_OPTEST)" "1"
         # FIPS wrappers for its APIs.
         linuxkm/optest-140-3/linuxkm_optest_wrapper.o: ccflags-y += -DNO_DH
     endif
+    # The optest wrapper's AES invalid-input tests exceed the i386 2048-byte
+    # frame warning; relax it for the wrapper only (outside the FIPS boundary).
+    $(obj)/linuxkm/optest-140-3/linuxkm_optest_wrapper.o: ccflags-y += -Wframe-larger-than=4096
 endif
 
 WOLFSSL_CFLAGS_NO_VECTOR_INSNS := $(CFLAGS_SIMD_DISABLE) $(CFLAGS_FPU_DISABLE)
@@ -154,22 +166,49 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
     ifndef NO_PIE_FLAG
       ifeq ($(KERNEL_ARCH),arm)
-        ifneq "$(HAVE_INTCMP)" "yes"
-            $(error $$NO_PIE_FLAG is unset -- supply NO_PIE_FLAG=1 for target kernel <5.11, else supply NO_PIE_FLAG=0.)
+        ifeq "$(VERSION)" ""
+            $(error $$VERSION is unset -- cannot tell whether the target kernel predates 5.11.)
         endif
-        ifeq ($(intcmp $(VERSION),5,1,0,0),1)
-          NO_PIE_FLAG := 1
-          $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
-        else
-          ifeq ($(intcmp $(VERSION),5,0,1,0)-$(intcmp $(PATCHLEVEL),11,1,0,0),1-1)
+        ifeq "$(HAVE_INTCMP)" "yes"
+          ifeq ($(intcmp $(VERSION),5,1,0,0),1)
             NO_PIE_FLAG := 1
             $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+          else
+            ifeq ($(intcmp $(VERSION),5,0,1,0)-$(intcmp $(PATCHLEVEL),11,1,0,0),1-1)
+              NO_PIE_FLAG := 1
+              $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+            else
+              NO_PIE_FLAG := 0
+            endif
+          endif
+        else
+          # GNU make < 4.4 has no $(intcmp) -- make 4.3 is what Ubuntu 24.04
+          # ships, so demanding NO_PIE_FLAG by hand made every arm32 kernel
+          # build fail there, and nothing in the tree supplies it.  Kernel
+          # VERSION and PATCHLEVEL are small integers, so enumerating the
+          # pre-5.11 values is exact and portable back to make 3.81: major 0-4
+          # is unconditionally older, major 5 needs minor 0-10, and 6 and later
+          # are newer.  Same result as the $(intcmp) form above.
+          ifneq ($(filter 0 1 2 3 4,$(VERSION)),)
+            NO_PIE_FLAG := 1
+            $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+          else ifeq "$(VERSION)" "5"
+            ifneq ($(filter 0 1 2 3 4 5 6 7 8 9 10,$(PATCHLEVEL)),)
+              NO_PIE_FLAG := 1
+              $(info Note: disabling -fPIE to avoid R_ARM_REL32 on pre-5.11 target kernel.)
+            else
+              NO_PIE_FLAG := 0
+            endif
           else
             NO_PIE_FLAG := 0
           endif
         endif
       else
         NO_PIE_FLAG := 0
+      endif
+      ifeq ($(KERNEL_ARCH),i386)
+        NO_PIE_FLAG := 1
+        $(info Note: disabling -fPIE on 32-bit x86 -- i386 -fPIE routes every local symbol through the GOT (R_386_GOTOFF), which the wolfCrypt PIE containerization forbids.)
       endif
     endif
 
@@ -243,6 +282,10 @@ $(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FP
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/aes_xts_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_xts_asm.o: OBJECT_FILES_NON_STANDARD := y
+# 32-bit x86 counterpart of aes_xts_asm.o; only one of the two is ever in the
+# object list, chosen by BUILD_X86_ASM in src/include.am.
+$(obj)/wolfcrypt/src/aes_xts_x86_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_xts_x86_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/aes_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/sp_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
@@ -263,6 +306,18 @@ $(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_F
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_falcon_fpr_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
+
+# The kernel forces its own baseline -march, which rejects the port/arm/*.S
+# crypto+NEON instructions.  Supply the right -march per kernel arch.
+ifeq ($(CONFIG_ARM64),y)
+    WOLFSSL_ARM_ASM_MARCH := -march=armv8-a+crypto
+else ifeq ($(CONFIG_ARM),y)
+    WOLFSSL_ARM_ASM_MARCH := -march=armv8-a -mfpu=crypto-neon-fp-armv8
+endif
+ifdef WOLFSSL_ARM_ASM_MARCH
+$(obj)/wolfcrypt/src/port/arm/%.o: asflags-y := $(WOLFSSL_ASFLAGS) $(WOLFSSL_ARM_ASM_MARCH)
+$(obj)/wolfcrypt/src/port/arm/%.o: OBJECT_FILES_NON_STANDARD := y
+endif
 
 ifndef READELF
     READELF := readelf
@@ -372,7 +427,7 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 			next;						\
 		    }							\
 		    else if ($$4 == "OBJECT") {				\
-			if (! ($$7 in wolfcrypt_data_sections)) {	\
+			if (! ($$7 in wolfcrypt_data_sections) && ! ($$7 in wolfcrypt_text_sections)) {	\
 			    if ((other_sections[$$7] == ".printk_index") || \
 				(($$8 ~ /^_entry\.[0-9]+$$|^kernel_read_file_str$$/) &&		\
 				 (other_sections[$$7] == ".data.rel.ro.local"))) \
