@@ -436,6 +436,12 @@ ssize_t wc_reloc_normalize_segment(
              * normalize to zero.  They can be reconstructed using the
              * parameters in reloc_layouts[] and reloc_tab[] but it's very
              * fidgety.
+             *
+             * Reconstructing them the way x86 does was TRIED AND REVERTED: it
+             * made the digest load-address DEPENDENT on a real aarch64 module,
+             * two boots of one binary giving two hashes.  A userspace harness
+             * had reported it correct, so read SVR-FALLBACK-ANALYSIS.md 13.6
+             * and reproduce with two real boots before retrying.
              */
             reloc_buf = 0;
             break;
@@ -456,6 +462,12 @@ ssize_t wc_reloc_normalize_segment(
              * normalize to zero.  They can be reconstructed using the
              * parameters in reloc_layouts[] and reloc_tab[] but it's very
              * fidgety.
+             *
+             * Reconstructing them the way x86 does was TRIED AND REVERTED: it
+             * made the digest load-address DEPENDENT on a real aarch64 module,
+             * two boots of one binary giving two hashes.  A userspace harness
+             * had reported it correct, so read SVR-FALLBACK-ANALYSIS.md 13.6
+             * and reproduce with two real boots before retrying.
              */
             reloc_buf = 0;
             break;
