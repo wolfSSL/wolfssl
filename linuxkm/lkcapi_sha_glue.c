@@ -473,6 +473,9 @@ struct km_sha3_state {
 /* struct wc_Sha3 won't fit in HASH_MAX_DESCSIZE. */
 struct km_sha3_state_by_pointer {
     struct km_sha3_state *sha3_state;
+    /* Latched by a failed ->update().  Needed as well as the NULL test because
+     * km_sha3_free_tstate() leaves sha3_state intact if the lock is refused. */
+    int failed;
 };
 
 wc_static_assert(sizeof(struct km_sha3_state_by_pointer) <= HASH_MAX_DESCSIZE);
@@ -534,6 +537,10 @@ WC_MAYBE_UNUSED static int km_sha3_alloc_tstate(struct shash_desc *desc) {
     struct km_Sha3TfmCtx *t_ctx =
         (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
     struct km_sha3_state_by_pointer *s_ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
+
+    /* Fresh desc: clear any latch left by a previous use of this descsize. */
+    s_ctx->failed = 0;
+
     s_ctx->sha3_state = (struct km_sha3_state *)malloc(sizeof(struct km_sha3_state));
     if (! s_ctx->sha3_state)
         return -ENOMEM;
@@ -615,7 +622,9 @@ WC_MAYBE_UNUSED static int km_sha3_export(struct shash_desc *desc, void *out)
     struct km_sha3_export_state *blob = (struct km_sha3_export_state *)out;
     const struct wc_Sha3 *sha3;
 
-    if (ctx->sha3_state == NULL)
+    /* A spent desc has no state worth serializing.  The export blob carries
+     * only the sponge, so refusing here is what keeps ->import() honest. */
+    if (ctx->failed || (ctx->sha3_state == NULL))
         return -EINVAL;
     sha3 = &ctx->sha3_state->sha3_state;
 
@@ -775,13 +784,49 @@ out:
                                   free_f, test_routine)                    \
                                                                            \
                                                                            \
-wc_static_assert(sizeof(struct s_name) <= HASH_MAX_DESCSIZE);              \
-wc_static_assert(sizeof(struct s_name) <= HASH_MAX_STATESIZE);             \
+/* PER-DESC FAILURE LATCH.                                                 \
+ *                                                                         \
+ * Without it, a caller that ignores the error from ->update() and calls   \
+ * ->final() anyway gets a digest of the PARTIAL message, with a success   \
+ * status.  A wrong digest with no indicator is the worst answer a hash    \
+ * service can give, and it is not something free_f() prevents: measured on\
+ * this build, wc_ShaFree()/wc_Sha256Free()/wc_Sha512Free() do NOT zeroize \
+ * the message state.  They release the .W cache, which the glue already \
+ * owns and has already set to NULL via WC_LINUXKM_SHA2_POP_W(), and then\
+ * nothing else compiles here (no crypto-cb, no async, no ESP32).  So the  \
+ * free_f(ctx) on the error path was doing nothing at all, and the context \
+ * it left behind was a perfectly usable partial state.                    \
+ *                                                                         \
+ * The shash API has no way to mark a desc unusable, so the latch lives in \
+ * the desc: the ctx is wrapped and .descsize covers the wrapper.  Note that\
+ * with no ->export, the kernel sets statesize = descsize and export/import\
+ * become a memcpy of the whole wrapper (crypto/shash.c shash_prepare_alg),\
+ * so the latch survives an export/import cycle, which is what you want, \
+ * importing a failed state must not resurrect it as a good one.           \
+ *                                                                         \
+ * Why this branch and not before: with a C fallback absorbing every       \
+ * vector-register refusal, ->update() effectively could not fail.  It can \
+ * now, from an irqs-disabled caller, so the sequence is reachable.        \
+ */                                                                        \
+struct km_ ## name ## _shash_ctx {                                         \
+    struct s_name inner;                                                   \
+    int failed;                                                            \
+};                                                                         \
+                                                                           \
+wc_static_assert(sizeof(struct km_ ## name ## _shash_ctx)                  \
+                 <= HASH_MAX_DESCSIZE);                                    \
+wc_static_assert(sizeof(struct km_ ## name ## _shash_ctx)                  \
+                 <= HASH_MAX_STATESIZE);                                   \
                                                                            \
 static int km_ ## name ## _init(struct shash_desc *desc) {                 \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
                                                                            \
-    int ret = init_f(ctx);                                                 \
+    int ret;                                                               \
+                                                                           \
+    wrap->failed = 0;                                                      \
+    ret = init_f(ctx);                                                     \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
@@ -791,24 +836,48 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len)                        \
 {                                                                          \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
                                                                            \
     int ret = update_f(ctx, data, len);                                    \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
+        wrap->failed = 1;                                                  \
         free_f(ctx);                                                       \
+        /* Wipe the message state, but NOT the latch: ForceZero(wrap)      \
+         * would clear ->failed.  ISO/IEC 19790:2012 7.9. */               \
+        ForceZero(ctx, sizeof(*ctx));                                      \
         return -EINVAL;                                                    \
     }                                                                      \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
+                                                                           \
+    /* A failed ->update() latched here.  Returning a digest now would be a\
+     * digest of the partial message, reported as success. */              \
+    if (wrap->failed) {                                                    \
+        free_f(ctx);                                                       \
+        /* free_f() does not zeroize the message state (see above), so the \
+         * partial-message residue, last block, chaining variables and   \
+         * length, would outlive the desc.  Harmless for a plain hash,   \
+         * not for a desc backing HMAC/HKDF/PBKDF2 over sensitive input.   \
+         * ISO/IEC 19790:2012 7.9. */                                      \
+        ForceZero(wrap, sizeof(*wrap));                                    \
+        return -EINVAL;                                                    \
+    }                                                                      \
                                                                            \
     int ret = final_f(ctx, out);                                           \
                                                                            \
     free_f(ctx);                                                           \
+    /* Digest emitted; the message state is spent.  free_f() leaves it in  \
+     * place, so clear it here too. */                                     \
+    ForceZero(wrap, sizeof(*wrap));                                        \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -819,12 +888,31 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                  unsigned int len, u8 *out)                \
 {                                                                          \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
+                                                                           \
+    /* A failed ->update() latched here.  Returning a digest now would be a\
+     * digest of the partial message, reported as success. */              \
+    if (wrap->failed) {                                                    \
+        free_f(ctx);                                                       \
+        /* free_f() does not zeroize the message state (see above), so the \
+         * partial-message residue, last block, chaining variables and   \
+         * length, would outlive the desc.  Harmless for a plain hash,   \
+         * not for a desc backing HMAC/HKDF/PBKDF2 over sensitive input.   \
+         * ISO/IEC 19790:2012 7.9. */                                      \
+        ForceZero(wrap, sizeof(*wrap));                                    \
+        return -EINVAL;                                                    \
+    }                                                                      \
                                                                            \
     int ret = update_f(ctx, data, len);                                    \
                                                                            \
     if (ret != 0) {                                                        \
+        wrap->failed = 1;                                                  \
         free_f(ctx);                                                       \
+        /* Wipe the message state, but NOT the latch: ForceZero(wrap)      \
+         * would clear ->failed.  ISO/IEC 19790:2012 7.9. */               \
+        ForceZero(ctx, sizeof(*ctx));                                      \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
@@ -849,7 +937,7 @@ static struct shash_alg name ## _alg =                                     \
     .final          =       km_ ## name ## _final,                         \
     .finup          =       km_ ## name ## _finup,                         \
     .digest         =       km_ ## name ## _digest,                        \
-    .descsize       =       sizeof(struct s_name),                         \
+    .descsize       =       sizeof(struct km_ ## name ## _shash_ctx),      \
     .base           =       {                                              \
         .cra_name        =      (this_cra_name),                           \
         .cra_driver_name =      (this_cra_driver_name),                    \
@@ -916,13 +1004,49 @@ struct wc_swallow_the_semicolon
                                   free_f, test_routine)                    \
                                                                            \
                                                                            \
-wc_static_assert(sizeof(struct s_name) <= HASH_MAX_DESCSIZE);              \
-wc_static_assert(sizeof(struct s_name) <= HASH_MAX_STATESIZE);             \
+/* PER-DESC FAILURE LATCH.                                                 \
+ *                                                                         \
+ * Without it, a caller that ignores the error from ->update() and calls   \
+ * ->final() anyway gets a digest of the PARTIAL message, with a success   \
+ * status.  A wrong digest with no indicator is the worst answer a hash    \
+ * service can give, and it is not something free_f() prevents: measured on\
+ * this build, wc_ShaFree()/wc_Sha256Free()/wc_Sha512Free() do NOT zeroize \
+ * the message state.  They release the .W cache, which the glue already \
+ * owns and has already set to NULL via WC_LINUXKM_SHA2_POP_W(), and then\
+ * nothing else compiles here (no crypto-cb, no async, no ESP32).  So the  \
+ * free_f(ctx) on the error path was doing nothing at all, and the context \
+ * it left behind was a perfectly usable partial state.                    \
+ *                                                                         \
+ * The shash API has no way to mark a desc unusable, so the latch lives in \
+ * the desc: the ctx is wrapped and .descsize covers the wrapper.  Note that\
+ * with no ->export, the kernel sets statesize = descsize and export/import\
+ * become a memcpy of the whole wrapper (crypto/shash.c shash_prepare_alg),\
+ * so the latch survives an export/import cycle, which is what you want, \
+ * importing a failed state must not resurrect it as a good one.           \
+ *                                                                         \
+ * Why this branch and not before: with a C fallback absorbing every       \
+ * vector-register refusal, ->update() effectively could not fail.  It can \
+ * now, from an irqs-disabled caller, so the sequence is reachable.        \
+ */                                                                        \
+struct km_ ## name ## _shash_ctx {                                         \
+    struct s_name inner;                                                   \
+    int failed;                                                            \
+};                                                                         \
+                                                                           \
+wc_static_assert(sizeof(struct km_ ## name ## _shash_ctx)                  \
+                 <= HASH_MAX_DESCSIZE);                                    \
+wc_static_assert(sizeof(struct km_ ## name ## _shash_ctx)                  \
+                 <= HASH_MAX_STATESIZE);                                   \
                                                                            \
 static int km_ ## name ## _init(struct shash_desc *desc) {                 \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
                                                                            \
-    int ret = init_f(ctx);                                                 \
+    int ret;                                                               \
+                                                                           \
+    wrap->failed = 0;                                                      \
+    ret = init_f(ctx);                                                     \
     if (ret == 0) {                                                        \
         WC_LINUXKM_SHA2_FREE_W(ctx);                                       \
         return 0;                                                          \
@@ -934,7 +1058,9 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len)                        \
 {                                                                          \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
     int ret;                                                               \
     WC_LINUXKM_SHA2_DECL_W(ctx, W_size);                                   \
                                                                            \
@@ -945,21 +1071,43 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
+        wrap->failed = 1;                                                  \
         free_f(ctx);                                                       \
+        /* Wipe the message state, but NOT the latch: ForceZero(wrap)      \
+         * would clear ->failed.  ISO/IEC 19790:2012 7.9. */               \
+        ForceZero(ctx, sizeof(*ctx));                                      \
         return -EINVAL;                                                    \
     }                                                                      \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
     int ret;                                                               \
     WC_LINUXKM_SHA2_DECL_W(ctx, W_size);                                   \
+                                                                           \
+    /* A failed ->update() latched here.  Returning a digest now would be a\
+     * digest of the partial message, reported as success. */              \
+    if (wrap->failed) {                                                    \
+        free_f(ctx);                                                       \
+        /* free_f() does not zeroize the message state (see above), so the \
+         * partial-message residue, last block, chaining variables and   \
+         * length, would outlive the desc.  Harmless for a plain hash,   \
+         * not for a desc backing HMAC/HKDF/PBKDF2 over sensitive input.   \
+         * ISO/IEC 19790:2012 7.9. */                                      \
+        ForceZero(wrap, sizeof(*wrap));                                    \
+        return -EINVAL;                                                    \
+    }                                                                      \
                                                                            \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
     ret = final_f(ctx, out);                                               \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
                                                                            \
     free_f(ctx);                                                           \
+    /* Digest emitted; the message state is spent.  free_f() leaves it in  \
+     * place, so clear it here too. */                                     \
+    ForceZero(wrap, sizeof(*wrap));                                        \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -970,16 +1118,35 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                  unsigned int len, u8 *out)                \
 {                                                                          \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
     int ret;                                                               \
     WC_LINUXKM_SHA2_DECL_W(ctx, W_size);                                   \
+                                                                           \
+    /* A failed ->update() latched here.  Returning a digest now would be a\
+     * digest of the partial message, reported as success. */              \
+    if (wrap->failed) {                                                    \
+        free_f(ctx);                                                       \
+        /* free_f() does not zeroize the message state (see above), so the \
+         * partial-message residue, last block, chaining variables and   \
+         * length, would outlive the desc.  Harmless for a plain hash,   \
+         * not for a desc backing HMAC/HKDF/PBKDF2 over sensitive input.   \
+         * ISO/IEC 19790:2012 7.9. */                                      \
+        ForceZero(wrap, sizeof(*wrap));                                    \
+        return -EINVAL;                                                    \
+    }                                                                      \
                                                                            \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
     ret = update_f(ctx, data, len);                                        \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
                                                                            \
     if (ret != 0) {                                                        \
+        wrap->failed = 1;                                                  \
         free_f(ctx);                                                       \
+        /* Wipe the message state, but NOT the latch: ForceZero(wrap)      \
+         * would clear ->failed.  ISO/IEC 19790:2012 7.9. */               \
+        ForceZero(ctx, sizeof(*ctx));                                      \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
@@ -988,6 +1155,9 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
                                                                            \
     free_f(ctx);                                                           \
+    /* Digest emitted; the message state is spent.  free_f() leaves it in  \
+     * place, so clear it here too. */                                     \
+    ForceZero(wrap, sizeof(*wrap));                                        \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -998,12 +1168,17 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
 static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len, u8 *out)               \
 {                                                                          \
-    struct s_name *ctx = (struct s_name *)shash_desc_ctx(desc);            \
+    struct km_ ## name ## _shash_ctx *wrap =                               \
+        (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
+    struct s_name *ctx = &wrap->inner;                                     \
     int ret;                                                               \
                                                                            \
+    wrap->failed = 0;                                                      \
     ret = init_f(ctx);                                                     \
-    if (ret != 0)                                                          \
+    if (ret != 0) {                                                        \
+        wrap->failed = 1;                                                  \
         return -EINVAL;                                                    \
+    }                                                                      \
                                                                            \
     ret = update_f(ctx, data, len);                                        \
                                                                            \
@@ -1011,6 +1186,9 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
         ret = final_f(ctx, out);                                           \
                                                                            \
     free_f(ctx);                                                           \
+    /* One-shot: digest emitted, desc spent.  free_f() leaves the          \
+     * message state in place.  ISO/IEC 19790:2012 7.9. */                 \
+    ForceZero(wrap, sizeof(*wrap));                                        \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -1027,7 +1205,7 @@ static struct shash_alg name ## _alg =                                     \
     .final          =       km_ ## name ## _final,                         \
     .finup          =       km_ ## name ## _finup,                         \
     .digest         =       km_ ## name ## _digest,                        \
-    .descsize       =       sizeof(struct s_name),                         \
+    .descsize       =       sizeof(struct km_ ## name ## _shash_ctx),      \
     .base           =       {                                              \
         .cra_name        =      (this_cra_name),                           \
         .cra_driver_name =      (this_cra_driver_name),                    \
@@ -1070,6 +1248,7 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
+        ctx->failed = 1;                                                   \
         km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
@@ -1081,11 +1260,18 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
     struct km_sha3_state_by_pointer *ctx =                                 \
         (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
+    /* Spent by an earlier failed ->update().  The latch is not            \
+     * redundant with the NULL test: a refused desc_list_lock makes        \
+     * km_sha3_free_tstate() leave sha3_state intact and partial. */       \
+    if (ctx->failed || (ctx->sha3_state == NULL))                          \
+        return -EINVAL;                                                    \
+                                                                           \
     int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
+        ctx->failed = 1;                                                   \
         km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
@@ -1094,6 +1280,12 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     struct km_sha3_state_by_pointer *ctx =                                 \
         (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
+                                                                           \
+    /* Spent by an earlier failed ->update().  The latch is not            \
+     * redundant with the NULL test: a refused desc_list_lock makes        \
+     * km_sha3_free_tstate() leave sha3_state intact and partial. */       \
+    if (ctx->failed || (ctx->sha3_state == NULL))                          \
+        return -EINVAL;                                                    \
                                                                            \
     int ret = final_f(&ctx->sha3_state-> name ## _state, out);             \
                                                                            \
@@ -1110,9 +1302,16 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
     struct km_sha3_state_by_pointer *ctx =                                 \
         (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);           \
                                                                            \
+    /* Spent by an earlier failed ->update().  The latch is not            \
+     * redundant with the NULL test: a refused desc_list_lock makes        \
+     * km_sha3_free_tstate() leave sha3_state intact and partial. */       \
+    if (ctx->failed || (ctx->sha3_state == NULL))                          \
+        return -EINVAL;                                                    \
+                                                                           \
     int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
                                                                            \
     if (ret != 0) {                                                        \
+        ctx->failed = 1;                                                   \
         km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
@@ -1160,6 +1359,7 @@ static int km_ ## name ## _import(struct shash_desc *desc,                 \
     sha3 = &ctx->sha3_state-> name ## _state;                              \
     ret = init_f(sha3, NULL, INVALID_DEVID);                               \
     if (ret != 0) {                                                        \
+        ctx->failed = 1;                                                   \
         km_sha3_free_tstate(desc);                                         \
         return -EINVAL;                                                    \
     }                                                                      \
@@ -1298,6 +1498,9 @@ struct km_sha_hmac_state {
      * Hmac lives in a heap node hung off the desc and tracked on the tfm
      * cleanup list for garbage collection at .exit_tfm. */
     struct km_sha_hmac_node *node;
+    /* Latched by a failed ->update().  Needed as well as the NULL test because
+     * km_hmac_free_tstate() leaves node intact if the lock is refused. */
+    int failed;
 };
 struct km_sha_hmac_pstate {
     /* keyed, pristine Hmac, deep-copied into each desc's node at .init */
@@ -1388,6 +1591,10 @@ WC_MAYBE_UNUSED static int km_hmac_alloc_tstate(struct shash_desc *desc) {
     struct km_sha_hmac_pstate *p_ctx =
         (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
     struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+
+    /* Fresh desc: clear any latch left by a previous use of this descsize. */
+    s_ctx->failed = 0;
+
     s_ctx->node = (struct km_sha_hmac_node *)malloc(sizeof(struct km_sha_hmac_node));
     if (! s_ctx->node)
         return -ENOMEM;
@@ -1494,6 +1701,7 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
 
     ret = wc_HmacCopy(&p_ctx->wc_hmac, &s_ctx->node->wc_hmac);
     if (ret != 0) {
+        s_ctx->failed = 1;
         km_hmac_free_tstate(desc);
         return -EINVAL;
     }
@@ -1506,11 +1714,16 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
 {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
+    /* Spent by an earlier failed ->update(); see km_hmac_final(). */
+    if (ctx->failed || (ctx->node == NULL))
+        return -EINVAL;
+
     int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
 
     if (ret == 0)
         return 0;
     else {
+        ctx->failed = 1;
         km_hmac_free_tstate(desc);
         return -EINVAL;
     }
@@ -1518,6 +1731,15 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
 
 WC_MAYBE_UNUSED static int km_hmac_final(struct shash_desc *desc, u8 *out) {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+
+    /* A failed ->update() freed the node and NULLed it, which is this path's
+     * equivalent of the SHA-2 wrappers' failure latch: the desc is spent.  A
+     * caller that ignores the -EINVAL and finalizes anyway must not be allowed
+     * to dereference it.  wc_HmacUpdate() can genuinely fail here (a
+     * vector-register save refusal from an irqs-disabled caller), so this is a
+     * reachable sequence, not a theoretical one. */
+    if (ctx->failed || (ctx->node == NULL))
+        return -EINVAL;
 
     int ret = wc_HmacFinal(&ctx->node->wc_hmac, out);
 
@@ -1534,9 +1756,14 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 {
     struct km_sha_hmac_state *ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
+    /* Spent by an earlier failed ->update(); see km_hmac_final(). */
+    if (ctx->failed || (ctx->node == NULL))
+        return -EINVAL;
+
     int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
 
     if (ret != 0) {
+        ctx->failed = 1;
         km_hmac_free_tstate(desc);
         return -EINVAL;
     }
@@ -1594,7 +1821,9 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
     int ret;
     typeof(snapshot->desc_id) snapshot_desc_id;
 
-    if (s_ctx->node == NULL)
+    /* A spent desc has nothing worth snapshotting; refusing here keeps a
+     * failed state from being handed back as a live import handle. */
+    if (s_ctx->failed || (s_ctx->node == NULL))
         return -EINVAL;
 
     /* Snapshot the live state into a fresh node.  Allocate and deep-copy
@@ -1719,6 +1948,9 @@ WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *i
     newnode->desc_id = p_ctx->cur_desc_id++;
     list_add(&newnode->desc_ent, &p_ctx->desc_list);
     s_ctx->node = newnode;
+    /* This path does not go through km_hmac_alloc_tstate(), so clear the latch
+     * explicitly: a successful import is a live state, whatever the desc held. */
+    s_ctx->failed = 0;
     (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
 
     return 0;
@@ -2055,9 +2287,41 @@ struct wc_swallow_the_semicolon
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
-#ifndef WC_RNG_BANK_DEFAULT_SUPPORT
-    #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG requires WC_RNG_BANK_DEFAULT_SUPPORT.
+/* Registering wolfCrypt's DRBG as the kernel stdrng does NOT require the
+ * per-core bank.  The bank supplies one DRBG instance per core behind a
+ * checkout protocol; a single WC_RNG per tfm serves the same interface, and it
+ * is what the certifiable flavors carry, since WC_RNG_BANK_SUPPORT is compiled
+ * out of them (settings.h).  Requiring the bank here made stdrng registration
+ * impossible in exactly the builds that ship.
+ *
+ * Cross-CPU exclusion for the shared instance comes from WC_RNG_HAVE_INST_EXCL,
+ * the per-instance compare-and-swap taken inside wc_RNG_GenerateBlock():
+ * 0 duplicate blocks over 960,000 blocks at 2/8/16/24/48 threads, against
+ * 26,490 with the exclusion removed as a negative control.  Without that macro
+ * there is no exclusion at all, so refuse rather than race.
+ *
+ * The _DEFAULT variant is a different feature and still needs the bank: it
+ * installs a process-wide default that wolfCrypt's own callers reach through
+ * wc_InitRng_BankRef(), which is a bank reference by construction.
+ * See linuxkm/SVR-FALLBACK-ANALYSIS.md sec 11. */
+#if !defined(WC_RNG_BANK_DEFAULT_SUPPORT) && !defined(WC_RNG_HAVE_INST_EXCL)
+    #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG without the RNG bank requires WC_RNG_HAVE_INST_EXCL.
 #endif
+#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+    !defined(WC_RNG_BANK_DEFAULT_SUPPORT)
+    #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT requires WC_RNG_BANK_DEFAULT_SUPPORT.
+#endif
+
+/* The tfm context: the bank itself where there is one, otherwise a single
+ * generator.  Both spellings carry the same interface, so the crypto_rng
+ * callbacks below are shared. */
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    typedef struct wc_rng_bank wc_linuxkm_drbg_ctx;
+#else
+    typedef struct { WC_RNG rng; } wc_linuxkm_drbg_ctx;
+#endif
+
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
 
 static volatile int wc_linuxkm_rng_initing_default_bank_flag = 0;
 
@@ -2123,13 +2387,6 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
     int ret;
     word32 flags = WC_RNG_BANK_FLAG_CAN_WAIT;
 
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
-    /* before v7, the SHA-2 implementations couldn't dynamically switch between
-     * C and asm in a given wc_Sha256 instance.
-     */
-    if (wc_linuxkm_rng_initing_default_bank_flag)
-        flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
-#endif
 
     ret = wc_rng_bank_init(
         ctx, nr_cpu_ids + 4, flags, WC_LINUXKM_INITRNG_TIMEOUT_SEC,
@@ -2175,12 +2432,12 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
 
 static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
-    return wc_linuxkm_rng_bank_init((struct wc_rng_bank *)crypto_tfm_ctx(tfm));
+    return wc_linuxkm_rng_bank_init((wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm));
 }
 
 static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
 {
-    struct wc_rng_bank *ctx = (struct wc_rng_bank *)crypto_tfm_ctx(tfm);
+    wc_linuxkm_drbg_ctx *ctx = (wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
     int ret;
 
     ret = wc_rng_bank_default_clear(ctx);
@@ -2195,9 +2452,47 @@ static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
     return;
 }
 
-static int wc_linuxkm_drbg_default_instance_registered = 0;
+#else /* !WC_RNG_BANK_DEFAULT_SUPPORT -- single shared generator per tfm */
 
-static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
+static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
+{
+    wc_linuxkm_drbg_ctx *ctx = (wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
+    int ret = wc_InitRng(&ctx->rng);
+
+    if (ret != 0) {
+        pr_err("ERROR: wc_InitRng() in wc_linuxkm_drbg_init_tfm() returned err %d\n", ret);
+        WC_DUMP_BACKTRACE_NONDEBUG;
+        if (ret == WC_NO_ERR_TRACE(MEMORY_E))
+            return -ENOMEM;
+        else
+            return -EINVAL;
+    }
+
+    return 0;
+}
+
+static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
+{
+    wc_linuxkm_drbg_ctx *ctx = (wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
+    int ret = wc_FreeRng(&ctx->rng);
+
+    if (ret != 0)
+        pr_err("ERROR: wc_FreeRng() in wc_linuxkm_drbg_exit_tfm() returned err %d\n", ret);
+
+    return;
+}
+
+#endif /* !WC_RNG_BANK_DEFAULT_SUPPORT */
+
+/* Every reader of this is in a _DEFAULT path, so it has no users at all in a
+ * plain-registration build. */
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+static int wc_linuxkm_drbg_default_instance_registered = 0;
+#endif
+
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+
+static struct wc_rng_bank_inst *linuxkm_get_drbg(wc_linuxkm_drbg_ctx *ctx) {
     int err;
     struct wc_rng_bank_inst *ret;
     word32 flags =
@@ -2205,10 +2500,14 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
         WC_RNG_BANK_FLAG_CAN_WAIT |
         WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
 
+    /* No vector-register inhibit in the can't-block path.  Vector registers are
+     * usable wherever this DRBG is legitimately entered from, irq_fpu_usable()
+     * is true throughout softirq, and hardirq/NMI is already refused at the
+     * top of wc_save_vector_registers_x86().  The old inhibit existed to force
+     * the C twin, which no longer exists.  See linuxkm/SVR-FALLBACK-ANALYSIS.md.
+     */
     if (wc_linuxkm_can_block())
         flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
-    else
-        flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
 
     err = wc_rng_bank_checkout(ctx, &ret, 0, WC_LINUXKM_INITRNG_TIMEOUT_SEC, flags);
 
@@ -2221,13 +2520,15 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
     return ret;
 }
 
-static void linuxkm_put_drbg(struct wc_rng_bank *ctx, struct wc_rng_bank_inst **drbg) {
+static void linuxkm_put_drbg(wc_linuxkm_drbg_ctx *ctx, struct wc_rng_bank_inst **drbg) {
     int ret = wc_rng_bank_checkin(ctx, drbg);
     if (ret != 0) {
         pr_err("ERROR: wc_rng_bank_checkin() in linuxkm_put_drbg() returned err %d.\n", ret);
         WC_DUMP_BACKTRACE_NONDEBUG;
     }
 }
+
+#endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
 
 #if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && defined(HAVE_HASHDRBG)
 
@@ -2267,7 +2568,9 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT && HAVE_HASHDRBG */
 
-static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+
+static int wc_linuxkm_drbg_generate(wc_linuxkm_drbg_ctx *ctx,
                                     const u8 *src, unsigned int slen,
                                     u8 *dst, unsigned int dlen)
 {
@@ -2348,6 +2651,65 @@ out:
     return ret;
 }
 
+#else /* !WC_RNG_BANK_DEFAULT_SUPPORT */
+
+static int wc_linuxkm_drbg_generate(wc_linuxkm_drbg_ctx *ctx,
+                                    const u8 *src, unsigned int slen,
+                                    u8 *dst, unsigned int dlen)
+{
+    int ret;
+    WC_RNG *rng = &ctx->rng;
+
+    /* Exclusion is taken inside wc_RNG_GenerateBlock() by WC_RNG_HAVE_INST_EXCL;
+     * there is no checkout to bracket here, and no affinity to hold, because
+     * there is one generator rather than one per core.  Vector registers are
+     * saved and restored by the SHA-2 code underneath, in whatever context this
+     * is entered from. */
+    if (slen > 0) {
+        ret = wc_RNG_DRBG_Reseed(rng, src, slen);
+        if (ret != 0) {
+            pr_warn_once("WARNING: wc_RNG_DRBG_Reseed returned %d\n", ret);
+            return -EINVAL;
+        }
+    }
+
+    for (;;) {
+        #define RNG_MAX_BLOCK_LEN_ROUNDED (RNG_MAX_BLOCK_LEN & ~0xfU)
+        if (dlen > RNG_MAX_BLOCK_LEN_ROUNDED) {
+            ret = wc_RNG_GenerateBlock(rng, dst, RNG_MAX_BLOCK_LEN_ROUNDED);
+            if (ret == 0) {
+                dlen -= RNG_MAX_BLOCK_LEN_ROUNDED;
+                dst += RNG_MAX_BLOCK_LEN_ROUNDED;
+            }
+        }
+        #undef RNG_MAX_BLOCK_LEN_ROUNDED
+        else {
+            ret = wc_RNG_GenerateBlock(rng, dst, dlen);
+            if (ret == 0)
+                dlen = 0;
+        }
+
+        if (dlen == 0)
+            break;
+
+        /* No reinit-and-retry, and nothing to fail over to: a DRBG that has
+         * failed is not answered by another instance of the same DRBG.  The
+         * error is returned to the caller.  ISO/IEC 19790:2012 sec 7.10.1
+         * [10.10]; see linuxkm/SVR-FALLBACK-ANALYSIS.md sec 11.5. */
+        if (ret != 0)
+            break;
+    }
+
+    if (ret != 0) {
+        pr_err_ratelimited("ERROR: wc_linuxkm_drbg_generate() failing on wolfCrypt code %d.\n", ret);
+        ret = -EINVAL;
+    }
+
+    return ret;
+}
+
+#endif /* !WC_RNG_BANK_DEFAULT_SUPPORT */
+
 static int wc_linuxkm_drbg_generate_tfm(struct crypto_rng *tfm,
                         const u8 *src, unsigned int slen,
                         u8 *dst, unsigned int dlen)
@@ -2358,11 +2720,11 @@ static int wc_linuxkm_drbg_generate_tfm(struct crypto_rng *tfm,
         return -EFAULT;
     }
 
-    return wc_linuxkm_drbg_generate((struct wc_rng_bank *)crypto_rng_ctx(tfm),
+    return wc_linuxkm_drbg_generate((wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm),
                                     src, slen, dst, dlen);
 }
 
-static int wc_linuxkm_drbg_seed(struct wc_rng_bank *ctx,
+static int wc_linuxkm_drbg_seed(wc_linuxkm_drbg_ctx *ctx,
                         const u8 *seed, unsigned int slen)
 {
     int ret;
@@ -2370,11 +2732,19 @@ static int wc_linuxkm_drbg_seed(struct wc_rng_bank *ctx,
     if (slen == 0)
         return 0;
 
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     ret = wc_rng_bank_seed(ctx, seed, slen, WC_LINUXKM_INITRNG_TIMEOUT_SEC, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0) {
         pr_err("wc_rng_bank_seed() in wc_linuxkm_drbg_seed() returned err %d.\n", ret);
         ret = -EINVAL;
     }
+#else
+    ret = wc_RNG_DRBG_Reseed(&ctx->rng, seed, slen);
+    if (ret != 0) {
+        pr_err("wc_RNG_DRBG_Reseed() in wc_linuxkm_drbg_seed() returned err %d.\n", ret);
+        ret = -EINVAL;
+    }
+#endif
 
     return ret;
 }
@@ -2388,7 +2758,7 @@ static int wc_linuxkm_drbg_seed_tfm(struct crypto_rng *tfm,
         return -EFAULT;
     }
 
-    return wc_linuxkm_drbg_seed((struct wc_rng_bank *)crypto_rng_ctx(tfm),
+    return wc_linuxkm_drbg_seed((wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm),
                                 seed, slen);
 }
 
@@ -2400,7 +2770,7 @@ static struct rng_alg wc_linuxkm_drbg = {
         .cra_name        =      WOLFKM_STDRNG_NAME,
         .cra_driver_name =      WOLFKM_STDRNG_DRIVER,
         .cra_priority    =      WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
-        .cra_ctxsize     =      sizeof(struct wc_rng_bank),
+        .cra_ctxsize     =      sizeof(wc_linuxkm_drbg_ctx),
         .cra_init        =      wc_linuxkm_drbg_init_tfm,
         .cra_exit        =      wc_linuxkm_drbg_exit_tfm,
         .cra_module      =      THIS_MODULE

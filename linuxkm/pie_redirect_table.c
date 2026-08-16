@@ -53,8 +53,10 @@ const struct wolfssl_linuxkm_pie_redirect_table
     return &wolfssl_linuxkm_pie_redirect_table;
 }
 
-/* placeholder implementations for missing functions. */
-#if defined(CONFIG_MIPS)
+/* placeholder implementations for missing functions.
+ * ARM/ARM64 need these like MIPS: gcc auto-emits memcpy/memset libcalls that
+ * the in-core integrity check forbids as undefined symbols. */
+#if defined(CONFIG_MIPS) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
     #undef memcpy
     void *memcpy(void *dest, const void *src, size_t n) {
         char *dest_i = (char *)dest;
@@ -74,3 +76,79 @@ const struct wolfssl_linuxkm_pie_redirect_table
         return dest;
     }
 #endif
+
+#if defined(CONFIG_ARM)
+    /* 32-bit ARM has no HW divide and the PIE FIPS container cannot reference
+     * the kernel's EABI helpers.  *idivmod returns quot in r0, rem in r1. */
+    /* Divide-by-zero returns 0 (quotient and remainder), matching what the
+     * ARM UDIV/SDIV instructions produce by default.  The kernel's own
+     * __aeabi_idiv0 traps instead, but these helpers exist only to satisfy
+     * compiler-emitted divisions inside the PIE container, where a trap is not
+     * reachable; picking the hardware's answer keeps behaviour predictable
+     * rather than returning an arbitrary sentinel.  No wolfCrypt path divides
+     * by a zero denominator. */
+    unsigned int __aeabi_uidiv(unsigned int n, unsigned int d);
+    unsigned int __aeabi_uidiv(unsigned int n, unsigned int d) {
+        unsigned int q = 0, r = 0;
+        int i;
+        if (d == 0)
+            return 0u;
+        for (i = 31; i >= 0; i--) {
+            /* Branchless restoring division: mask is all-ones when r >= d, so
+             * the loop takes one path for every operand value. */
+            unsigned int mask;
+            r = (r << 1) | ((n >> i) & 1u);
+            mask = 0u - (unsigned int)(r >= d);
+            r -= d & mask;
+            q |= (1u << i) & mask;
+        }
+        return q;
+    }
+
+    unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d);
+    unsigned long long __aeabi_uidivmod(unsigned int n, unsigned int d) {
+        unsigned int q = 0, r = 0;
+        int i;
+        if (d == 0)
+            return 0ULL; /* quot=0, rem=0 -- see __aeabi_uidiv note above */
+        for (i = 31; i >= 0; i--) {
+            /* Branchless restoring division: mask is all-ones when r >= d, so
+             * the loop takes one path for every operand value. */
+            unsigned int mask;
+            r = (r << 1) | ((n >> i) & 1u);
+            mask = 0u - (unsigned int)(r >= d);
+            r -= d & mask;
+            q |= (1u << i) & mask;
+        }
+        return ((unsigned long long)r << 32) | q;
+    }
+
+    /* Magnitudes and result negation are computed in unsigned arithmetic so
+     * INT_MIN is well defined: on 32-bit ARM sizeof(long) == sizeof(int), so
+     * -(long)INT_MIN would be signed overflow (C99 6.5/5 undefined), and
+     * -(int)0x80000000u would negate INT_MIN.  Unsigned wrap-around (C99
+     * 6.2.5/9) yields the same 0x80000000 without relying on -fwrapv.
+     * INT_MIN / -1 returns INT_MIN, matching ARM SDIV. */
+    int __aeabi_idiv(int n, int d);
+    int __aeabi_idiv(int n, int d) {
+        int neg = (n < 0) ^ (d < 0);
+        unsigned int un = (n < 0) ? (0u - (unsigned int)n) : (unsigned int)n;
+        unsigned int ud = (d < 0) ? (0u - (unsigned int)d) : (unsigned int)d;
+        unsigned int uq = __aeabi_uidiv(un, ud);
+        return neg ? (int)(0u - uq) : (int)uq;
+    }
+
+    unsigned long long __aeabi_idivmod(int n, int d);
+    unsigned long long __aeabi_idivmod(int n, int d) {
+        int nneg = (n < 0);
+        int qneg = (n < 0) ^ (d < 0);
+        unsigned int un = nneg ? (0u - (unsigned int)n) : (unsigned int)n;
+        unsigned int ud = (d < 0) ? (0u - (unsigned int)d) : (unsigned int)d;
+        unsigned long long um = __aeabi_uidivmod(un, ud);
+        unsigned int uq = (unsigned int)um;
+        unsigned int ur = (unsigned int)(um >> 32);
+        int q = qneg ? (int)(0u - uq) : (int)uq;
+        int r = nneg ? (int)(0u - ur) : (int)ur;
+        return ((unsigned long long)(unsigned int)r << 32) | (unsigned int)q;
+    }
+#endif /* CONFIG_ARM */
