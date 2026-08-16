@@ -2034,9 +2034,10 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit  e = 0;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     if (*outLen < 256) {
@@ -2070,11 +2071,28 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     if (err == MP_OKAY) {
         sp_2048_from_mp(m, 32, mm);
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* TWO SEPARATE FACTS, TWO SEPARATE VARIABLES.  Conflating them is the
+         * fallback:
+         *   use_avx2_lane         , which implementation.  CPU capability
+         *                             alone decides it, and it is never
+         *                             revised afterwards.
+         *   saved_vector_registers, whether this call holds the bracket and
+         *                             therefore owes a RESTORE.  Nothing else.
+         * A save failure goes into err and stays there, so every "err ==
+         * MP_OKAY" guard below skips BOTH lanes and the error is returned.
+         * Selecting on saved_vector_registers instead would run the base lane
+         * on a save failure and report success, which is what this code did
+         * until 13 Aug 2026, in the e == 0x10001 arm that carries every RSA
+         * signature verification.  See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0
+         * and scripts/fips-no-svr-fallback-check.sh shape 4. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
 
         if (e == 0x10001) {
@@ -2085,13 +2103,16 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 32);
-            err = sp_2048_mod_32_cond(r, a, m);
+            /* Guarded: unguarded, this overwrote a failed save's status with
+             * MP_OKAY and the dispatch below then ran the base lane. */
+            if (err == MP_OKAY)
+                err = sp_2048_mod_32_cond(r, a, m);
             /* Montgomery form: r = a.R mod m */
 
             if (err == MP_OKAY) {
                 /* r = a ^ 0x10000 => r = a squared 16 times */
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i = 15; i >= 0; i--) {
                         sp_2048_mont_sqr_avx2_32(r, r, m, mp);
                     }
@@ -2122,7 +2143,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         }
         else if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers) {
+            if (use_avx2_lane) {
                 if (err == MP_OKAY) {
                     sp_2048_sqr_avx2_32(r, ah);
                     err = sp_2048_mod_32_cond(r, r, m);
@@ -2153,7 +2174,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 32);
-            err = sp_2048_mod_32_cond(a, a, m);
+            /* Guarded, for the reason given in the e == 0x10001 arm. */
+            if (err == MP_OKAY)
+                err = sp_2048_mod_32_cond(a, a, m);
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--) {
@@ -2164,7 +2187,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 32);
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i--; i>=0; i--) {
                         sp_2048_mont_sqr_avx2_32(r, r, m, mp);
                         if (((e >> i) & 1) == 1) {
@@ -2244,6 +2267,9 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     int err = MP_OKAY;
+#if defined(HAVE_INTEL_AVX2)
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
 
     (void)pm;
     (void)qm;
@@ -2279,13 +2305,29 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         sp_2048_from_bin(a, 32, in, (int)inLen);
         sp_2048_from_mp(d, 32, dm);
         sp_2048_from_mp(m, 32, mm);
-        err = sp_2048_mod_exp_32(r, a, d, 2048, m, 0);
+#ifdef HAVE_INTEL_AVX2
+        /* The CPUID test alone chooses the lane, so the else below is reached
+         * only on a part without AVX2.  A save failure returns that error
+         * instead: it must never fall through to the other implementation.
+         * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_2048_mod_exp_avx2_32(r, a, d, 2048, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
+        }
+        else
+#endif
+            err = sp_2048_mod_exp_32(r, a, d, 2048, m, 0);
     }
 
     if (err == MP_OKAY) {
         sp_2048_to_bin_32(r, out);
         *outLen = 256;
     }
+
 
     /* only zeroing private "d" */
     SP_ZEROFREE_VAR(sp_digit, d, 32, NULL, DYNAMIC_TYPE_RSA);
@@ -2344,9 +2386,10 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     sp_digit* r = NULL;
     sp_digit c;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)dm;
@@ -2383,23 +2426,39 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         sp_2048_from_mp(q, 16, qm);
         sp_2048_from_mp(dp, 16, dpm);
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* Lane from CPUID, bracket status in err.  Two facts, two variables
+         *, see the note in sp_RsaPublic_2048() and
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
-            err = sp_2048_mod_exp_avx2_16(tmpa, a, dp, 1024, p, 1);
-        else
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
-            err = sp_2048_mod_exp_16(tmpa, a, dp, 1024, p, 1);
+
+        /* This dispatch is in the SAME err == MP_OKAY block as the save above,
+         * so unlike the later ones it needs its own guard: the lane is chosen
+         * by CPUID, and only err says whether the bracket was actually taken.
+         * Without this guard a failed save would run the accelerated lane with
+         * no vector registers saved. */
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (use_avx2_lane)
+                err = sp_2048_mod_exp_avx2_16(tmpa, a, dp, 1024, p, 1);
+            else
+#endif
+                err = sp_2048_mod_exp_16(tmpa, a, dp, 1024, p, 1);
+        }
     }
     if (err == MP_OKAY) {
         sp_2048_from_mp(dq, 16, dqm);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             err = sp_2048_mod_exp_avx2_16(tmpb, a, dq, 1024, q, 1);
-       else
+        else
 #endif
             err = sp_2048_mod_exp_16(tmpb, a, dq, 1024, q, 1);
     }
@@ -2407,7 +2466,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     if (err == MP_OKAY) {
         c = sp_2048_sub_in_place_16(tmpa, tmpb);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             c += sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
             sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
         }
@@ -2420,7 +2479,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 
         sp_2048_from_mp(qi, 16, qim);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_16(tmpa, tmpa, qi);
         else
 #endif
@@ -2430,7 +2489,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_16(tmpa, q, tmpa);
         else
 #endif
@@ -2543,7 +2602,7 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
     SP_DECL_VAR(sp_digit, e, 32);
     SP_DECL_VAR(sp_digit, m, 32);
     sp_digit* r;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
     int expBits = mp_count_bits(exp);
@@ -2572,10 +2631,17 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
         sp_2048_from_mp(m, 32, mod);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane, so the else is reached only on a part
+         * without AVX2.  A save failure returns that error rather than falling
+         * through to the other implementation, see
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_2048_mod_exp_avx2_32(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_2048_mod_exp_avx2_32(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -2866,7 +2932,7 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
     SP_DECL_VAR(sp_digit, m, 32);
     sp_digit* r;
     word32 i;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -2896,11 +2962,15 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
     #ifdef HAVE_FFDHE_2048
         if (base->used == 1 && base->dp[0] == 2 && m[31] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
+            /* Lane from CPUID; a save failure ends the call.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_2048_mod_exp_2_avx2_32(r, e, (int)expLen * 8, m);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_2048_mod_exp_2_avx2_32(r, e, (int)expLen * 8, m);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -2910,11 +2980,15 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
     #endif
         {
 #ifdef HAVE_INTEL_AVX2
+            /* Lane from CPUID; a save failure ends the call.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_2048_mod_exp_avx2_32(r, b, e, (int)expLen * 8, m, 0);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_2048_mod_exp_avx2_32(r, b, e, (int)expLen * 8, m, 0);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -2958,7 +3032,7 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
     SP_DECL_VAR(sp_digit, e, 16);
     SP_DECL_VAR(sp_digit, m, 16);
     sp_digit* r;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
     int expBits = mp_count_bits(exp);
@@ -2987,10 +3061,17 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
         sp_2048_from_mp(m, 16, mod);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane, so the else is reached only on a part
+         * without AVX2.  A save failure returns that error rather than falling
+         * through to the other implementation, see
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_2048_mod_exp_avx2_16(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_2048_mod_exp_avx2_16(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -4818,9 +4899,10 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit  e = 0;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     if (*outLen < 384) {
@@ -4854,11 +4936,28 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     if (err == MP_OKAY) {
         sp_3072_from_mp(m, 48, mm);
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* TWO SEPARATE FACTS, TWO SEPARATE VARIABLES.  Conflating them is the
+         * fallback:
+         *   use_avx2_lane         , which implementation.  CPU capability
+         *                             alone decides it, and it is never
+         *                             revised afterwards.
+         *   saved_vector_registers, whether this call holds the bracket and
+         *                             therefore owes a RESTORE.  Nothing else.
+         * A save failure goes into err and stays there, so every "err ==
+         * MP_OKAY" guard below skips BOTH lanes and the error is returned.
+         * Selecting on saved_vector_registers instead would run the base lane
+         * on a save failure and report success, which is what this code did
+         * until 13 Aug 2026, in the e == 0x10001 arm that carries every RSA
+         * signature verification.  See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0
+         * and scripts/fips-no-svr-fallback-check.sh shape 4. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
 
         if (e == 0x10001) {
@@ -4869,13 +4968,16 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 48);
-            err = sp_3072_mod_48_cond(r, a, m);
+            /* Guarded: unguarded, this overwrote a failed save's status with
+             * MP_OKAY and the dispatch below then ran the base lane. */
+            if (err == MP_OKAY)
+                err = sp_3072_mod_48_cond(r, a, m);
             /* Montgomery form: r = a.R mod m */
 
             if (err == MP_OKAY) {
                 /* r = a ^ 0x10000 => r = a squared 16 times */
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i = 15; i >= 0; i--) {
                         sp_3072_mont_sqr_avx2_48(r, r, m, mp);
                     }
@@ -4906,7 +5008,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         }
         else if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers) {
+            if (use_avx2_lane) {
                 if (err == MP_OKAY) {
                     sp_3072_sqr_avx2_48(r, ah);
                     err = sp_3072_mod_48_cond(r, r, m);
@@ -4937,7 +5039,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 48);
-            err = sp_3072_mod_48_cond(a, a, m);
+            /* Guarded, for the reason given in the e == 0x10001 arm. */
+            if (err == MP_OKAY)
+                err = sp_3072_mod_48_cond(a, a, m);
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--) {
@@ -4948,7 +5052,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 48);
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i--; i>=0; i--) {
                         sp_3072_mont_sqr_avx2_48(r, r, m, mp);
                         if (((e >> i) & 1) == 1) {
@@ -5028,6 +5132,9 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     int err = MP_OKAY;
+#if defined(HAVE_INTEL_AVX2)
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
 
     (void)pm;
     (void)qm;
@@ -5063,13 +5170,29 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_from_bin(a, 48, in, (int)inLen);
         sp_3072_from_mp(d, 48, dm);
         sp_3072_from_mp(m, 48, mm);
-        err = sp_3072_mod_exp_48(r, a, d, 3072, m, 0);
+#ifdef HAVE_INTEL_AVX2
+        /* The CPUID test alone chooses the lane, so the else below is reached
+         * only on a part without AVX2.  A save failure returns that error
+         * instead: it must never fall through to the other implementation.
+         * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_3072_mod_exp_avx2_48(r, a, d, 3072, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
+        }
+        else
+#endif
+            err = sp_3072_mod_exp_48(r, a, d, 3072, m, 0);
     }
 
     if (err == MP_OKAY) {
         sp_3072_to_bin_48(r, out);
         *outLen = 384;
     }
+
 
     /* only zeroing private "d" */
     SP_ZEROFREE_VAR(sp_digit, d, 48, NULL, DYNAMIC_TYPE_RSA);
@@ -5128,9 +5251,10 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     sp_digit* r = NULL;
     sp_digit c;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)dm;
@@ -5167,23 +5291,39 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_from_mp(q, 24, qm);
         sp_3072_from_mp(dp, 24, dpm);
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* Lane from CPUID, bracket status in err.  Two facts, two variables
+         *, see the note in sp_RsaPublic_3072() and
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
-            err = sp_3072_mod_exp_avx2_24(tmpa, a, dp, 1536, p, 1);
-        else
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
-            err = sp_3072_mod_exp_24(tmpa, a, dp, 1536, p, 1);
+
+        /* This dispatch is in the SAME err == MP_OKAY block as the save above,
+         * so unlike the later ones it needs its own guard: the lane is chosen
+         * by CPUID, and only err says whether the bracket was actually taken.
+         * Without this guard a failed save would run the accelerated lane with
+         * no vector registers saved. */
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (use_avx2_lane)
+                err = sp_3072_mod_exp_avx2_24(tmpa, a, dp, 1536, p, 1);
+            else
+#endif
+                err = sp_3072_mod_exp_24(tmpa, a, dp, 1536, p, 1);
+        }
     }
     if (err == MP_OKAY) {
         sp_3072_from_mp(dq, 24, dqm);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             err = sp_3072_mod_exp_avx2_24(tmpb, a, dq, 1536, q, 1);
-       else
+        else
 #endif
             err = sp_3072_mod_exp_24(tmpb, a, dq, 1536, q, 1);
     }
@@ -5191,7 +5331,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     if (err == MP_OKAY) {
         c = sp_3072_sub_in_place_24(tmpa, tmpb);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             c += sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
             sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
         }
@@ -5204,7 +5344,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 
         sp_3072_from_mp(qi, 24, qim);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_3072_mul_avx2_24(tmpa, tmpa, qi);
         else
 #endif
@@ -5214,7 +5354,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_3072_mul_avx2_24(tmpa, q, tmpa);
         else
 #endif
@@ -5327,7 +5467,7 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
     SP_DECL_VAR(sp_digit, e, 48);
     SP_DECL_VAR(sp_digit, m, 48);
     sp_digit* r;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
     int expBits = mp_count_bits(exp);
@@ -5356,10 +5496,17 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
         sp_3072_from_mp(m, 48, mod);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane, so the else is reached only on a part
+         * without AVX2.  A save failure returns that error rather than falling
+         * through to the other implementation, see
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_3072_mod_exp_avx2_48(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_3072_mod_exp_avx2_48(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -5650,7 +5797,7 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
     SP_DECL_VAR(sp_digit, m, 48);
     sp_digit* r;
     word32 i;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -5680,11 +5827,15 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
     #ifdef HAVE_FFDHE_3072
         if (base->used == 1 && base->dp[0] == 2 && m[47] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
+            /* Lane from CPUID; a save failure ends the call.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_3072_mod_exp_2_avx2_48(r, e, (int)expLen * 8, m);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_3072_mod_exp_2_avx2_48(r, e, (int)expLen * 8, m);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -5694,11 +5845,15 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
     #endif
         {
 #ifdef HAVE_INTEL_AVX2
+            /* Lane from CPUID; a save failure ends the call.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_3072_mod_exp_avx2_48(r, b, e, (int)expLen * 8, m, 0);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_3072_mod_exp_avx2_48(r, b, e, (int)expLen * 8, m, 0);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -5742,7 +5897,7 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
     SP_DECL_VAR(sp_digit, e, 24);
     SP_DECL_VAR(sp_digit, m, 24);
     sp_digit* r;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
     int expBits = mp_count_bits(exp);
@@ -5771,10 +5926,17 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
         sp_3072_from_mp(m, 24, mod);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane, so the else is reached only on a part
+         * without AVX2.  A save failure returns that error rather than falling
+         * through to the other implementation, see
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_3072_mod_exp_avx2_24(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_3072_mod_exp_avx2_24(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -6829,9 +6991,10 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit  e = 0;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     if (*outLen < 512) {
@@ -6865,11 +7028,28 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     if (err == MP_OKAY) {
         sp_4096_from_mp(m, 64, mm);
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* TWO SEPARATE FACTS, TWO SEPARATE VARIABLES.  Conflating them is the
+         * fallback:
+         *   use_avx2_lane         , which implementation.  CPU capability
+         *                             alone decides it, and it is never
+         *                             revised afterwards.
+         *   saved_vector_registers, whether this call holds the bracket and
+         *                             therefore owes a RESTORE.  Nothing else.
+         * A save failure goes into err and stays there, so every "err ==
+         * MP_OKAY" guard below skips BOTH lanes and the error is returned.
+         * Selecting on saved_vector_registers instead would run the base lane
+         * on a save failure and report success, which is what this code did
+         * until 13 Aug 2026, in the e == 0x10001 arm that carries every RSA
+         * signature verification.  See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0
+         * and scripts/fips-no-svr-fallback-check.sh shape 4. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) &&
-            (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
 
         if (e == 0x10001) {
@@ -6880,13 +7060,16 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 64);
-            err = sp_4096_mod_64_cond(r, a, m);
+            /* Guarded: unguarded, this overwrote a failed save's status with
+             * MP_OKAY and the dispatch below then ran the base lane. */
+            if (err == MP_OKAY)
+                err = sp_4096_mod_64_cond(r, a, m);
             /* Montgomery form: r = a.R mod m */
 
             if (err == MP_OKAY) {
                 /* r = a ^ 0x10000 => r = a squared 16 times */
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i = 15; i >= 0; i--) {
                         sp_4096_mont_sqr_avx2_64(r, r, m, mp);
                     }
@@ -6917,7 +7100,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         }
         else if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers) {
+            if (use_avx2_lane) {
                 if (err == MP_OKAY) {
                     sp_4096_sqr_avx2_64(r, ah);
                     err = sp_4096_mod_64_cond(r, r, m);
@@ -6948,7 +7131,9 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
             /* Convert to Montgomery form. */
             XMEMSET(a, 0, sizeof(sp_digit) * 64);
-            err = sp_4096_mod_64_cond(a, a, m);
+            /* Guarded, for the reason given in the e == 0x10001 arm. */
+            if (err == MP_OKAY)
+                err = sp_4096_mod_64_cond(a, a, m);
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--) {
@@ -6959,7 +7144,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 64);
 #ifdef HAVE_INTEL_AVX2
-                if (saved_vector_registers) {
+                if (use_avx2_lane) {
                     for (i--; i>=0; i--) {
                         sp_4096_mont_sqr_avx2_64(r, r, m, mp);
                         if (((e >> i) & 1) == 1) {
@@ -7039,6 +7224,9 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     int err = MP_OKAY;
+#if defined(HAVE_INTEL_AVX2)
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
 
     (void)pm;
     (void)qm;
@@ -7074,13 +7262,29 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_from_bin(a, 64, in, (int)inLen);
         sp_4096_from_mp(d, 64, dm);
         sp_4096_from_mp(m, 64, mm);
-        err = sp_4096_mod_exp_64(r, a, d, 4096, m, 0);
+#ifdef HAVE_INTEL_AVX2
+        /* The CPUID test alone chooses the lane, so the else below is reached
+         * only on a part without AVX2.  A save failure returns that error
+         * instead: it must never fall through to the other implementation.
+         * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_4096_mod_exp_avx2_64(r, a, d, 4096, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
+        }
+        else
+#endif
+            err = sp_4096_mod_exp_64(r, a, d, 4096, m, 0);
     }
 
     if (err == MP_OKAY) {
         sp_4096_to_bin_64(r, out);
         *outLen = 512;
     }
+
 
     /* only zeroing private "d" */
     SP_ZEROFREE_VAR(sp_digit, d, 64, NULL, DYNAMIC_TYPE_RSA);
@@ -7139,9 +7343,10 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     sp_digit* r = NULL;
     sp_digit c;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)dm;
@@ -7178,23 +7383,39 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_from_mp(q, 32, qm);
         sp_4096_from_mp(dp, 32, dpm);
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* Lane from CPUID, bracket status in err.  Two facts, two variables
+         *, see the note in sp_RsaPublic_4096() and
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-
-        if (saved_vector_registers)
-            err = sp_2048_mod_exp_avx2_32(tmpa, a, dp, 2048, p, 1);
-        else
+            IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
 #endif
-            err = sp_2048_mod_exp_32(tmpa, a, dp, 2048, p, 1);
+
+        /* This dispatch is in the SAME err == MP_OKAY block as the save above,
+         * so unlike the later ones it needs its own guard: the lane is chosen
+         * by CPUID, and only err says whether the bracket was actually taken.
+         * Without this guard a failed save would run the accelerated lane with
+         * no vector registers saved. */
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (use_avx2_lane)
+                err = sp_2048_mod_exp_avx2_32(tmpa, a, dp, 2048, p, 1);
+            else
+#endif
+                err = sp_2048_mod_exp_32(tmpa, a, dp, 2048, p, 1);
+        }
     }
     if (err == MP_OKAY) {
         sp_4096_from_mp(dq, 32, dqm);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             err = sp_2048_mod_exp_avx2_32(tmpb, a, dq, 2048, q, 1);
-       else
+        else
 #endif
             err = sp_2048_mod_exp_32(tmpb, a, dq, 2048, q, 1);
     }
@@ -7202,7 +7423,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     if (err == MP_OKAY) {
         c = sp_2048_sub_in_place_32(tmpa, tmpb);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             c += sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
             sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
         }
@@ -7215,7 +7436,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 
         sp_2048_from_mp(qi, 32, qim);
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_32(tmpa, tmpa, qi);
         else
 #endif
@@ -7225,7 +7446,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_2048_mul_avx2_32(tmpa, q, tmpa);
         else
 #endif
@@ -7338,7 +7559,7 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
     SP_DECL_VAR(sp_digit, e, 64);
     SP_DECL_VAR(sp_digit, m, 64);
     sp_digit* r;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
     int expBits = mp_count_bits(exp);
@@ -7367,10 +7588,17 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
         sp_4096_from_mp(m, 64, mod);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane, so the else is reached only on a part
+         * without AVX2.  A save failure returns that error rather than falling
+         * through to the other implementation, see
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_4096_mod_exp_avx2_64(r, b, e, expBits, m, 0);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_4096_mod_exp_avx2_64(r, b, e, expBits, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -7661,7 +7889,7 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     SP_DECL_VAR(sp_digit, m, 64);
     sp_digit* r;
     word32 i;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -7691,11 +7919,15 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     #ifdef HAVE_FFDHE_4096
         if (base->used == 1 && base->dp[0] == 2 && m[63] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
+            /* Lane from CPUID; a save failure ends the call.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_4096_mod_exp_2_avx2_64(r, e, (int)expLen * 8, m);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_4096_mod_exp_2_avx2_64(r, e, (int)expLen * 8, m);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -7705,11 +7937,15 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     #endif
         {
 #ifdef HAVE_INTEL_AVX2
+            /* Lane from CPUID; a save failure ends the call.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_4096_mod_exp_avx2_64(r, b, e, (int)expLen * 8, m, 0);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_4096_mod_exp_avx2_64(r, b, e, (int)expLen * 8, m, 0);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -9503,7 +9739,7 @@ static void sp_256_map_avx2_4(sp_point_256* r, const sp_point_256* p,
     sp_256_mont_reduce_avx2_4(r->x, p256_mod, p256_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_256_cmp_4(r->x, p256_mod);
-    sp_256_cond_sub_4(r->x, r->x, p256_mod, (sp_digit)~(n >> 63));
+    sp_256_cond_sub_avx2_4(r->x, r->x, p256_mod, (sp_digit)~(n >> 63));
     sp_256_norm_4(r->x);
 
     /* y /= z^3 */
@@ -9512,7 +9748,7 @@ static void sp_256_map_avx2_4(sp_point_256* r, const sp_point_256* p,
     sp_256_mont_reduce_avx2_4(r->y, p256_mod, p256_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_256_cmp_4(r->y, p256_mod);
-    sp_256_cond_sub_4(r->y, r->y, p256_mod, (sp_digit)~(n >> 63));
+    sp_256_cond_sub_avx2_4(r->y, r->y, p256_mod, (sp_digit)~(n >> 63));
     sp_256_norm_4(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -11168,7 +11404,15 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 5);
     sp_cache_256_t* cache;
@@ -11214,6 +11458,8 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_256(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_256_gen_stripe_table_avx2_4(g, cache->table, tmp, heap);
 
@@ -11223,6 +11469,8 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
         else {
             err = sp_256_ecc_mulmod_stripe_avx2_4(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_256_lock);
@@ -11253,7 +11501,7 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
     SP_DECL_VAR(sp_point_256, point, 1);
     SP_DECL_VAR(sp_digit, k, 4);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -11265,9 +11513,8 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -11305,9 +11552,10 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
     sp_point_256* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_256, point, 2, heap, DYNAMIC_TYPE_ECC);
@@ -11330,19 +11578,41 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
         err = sp_256_mod_mul_norm_4(addP->z, addP->z, p256_mod);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* Lane choice only, the bracket is NOT taken here.  The point-cache
+         * mulmod below takes the cache lock and then its own bracket, and a
+         * lock may not be acquired inside one. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags))
+            use_avx2_lane = 1;
+#endif
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane)
             err = sp_256_ecc_mulmod_avx2_4(point, point, k, 0, 0, heap);
         else
 #endif
             err = sp_256_ecc_mulmod_4(point, point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* Now take the bracket, for sp_*_proj_point_add_*() only: it needs vector
+     * registers and takes no lock, so it is safe inside one. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        /* Already fail-closed: the lane came from CPUID and a save failure
+         * raises an error rather than selecting another implementation.  Taken
+         * into a variable rather than tested as a bare condition so the shape
+         * matches every other site and scripts/fips-no-svr-fallback-check.sh
+         * does not have to special-case it. */
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+
+        if (svr_ret == 0)
+            saved_vector_registers = 1;
+        else
+            err = WC_ACCEL_INHIBIT_E;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_proj_point_add_avx2_4(point, point, addP, tmp);
         else
 #endif
@@ -11350,7 +11620,7 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_256_map_avx2_4(point, point, tmp);
             else
 #endif
@@ -24026,7 +24296,7 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
     SP_DECL_VAR(sp_point_256, point, 1);
     SP_DECL_VAR(sp_digit, k, 4);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -24036,10 +24306,16 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
         sp_256_from_mp(k, 4, km);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_256_ecc_mulmod_base_avx2_4(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_256_ecc_mulmod_base_avx2_4(point, k, map, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -24076,9 +24352,10 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
     sp_point_256* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_256, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -24100,19 +24377,35 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
         err = sp_256_mod_mul_norm_4(addP->z, addP->z, p256_mod);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* CPUID alone chooses the lane, use_avx2_lane.  Whether the
+         * bracket was taken is a SEPARATE fact and lives in err, so a save
+         * failure reaches neither implementation: the accelerated arm below
+         * is guarded on err, and the base arm is reachable only from a part
+         * without AVX2.  saved_vector_registers means "must RESTORE" and
+         * nothing else, selecting a lane with it is the fallback.
+         * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0 and
+         * scripts/fips-no-svr-fallback-check.sh shape 4. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
-            err = sp_256_ecc_mulmod_base_avx2_4(point, k, 0, 0, heap);
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
+#endif
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane) {
+            if (err == MP_OKAY)
+                err = sp_256_ecc_mulmod_base_avx2_4(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_256_ecc_mulmod_base_4(point, k, 0, 0, heap);
     }
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_proj_point_add_avx2_4(point, point, addP, tmp);
         else
 #endif
@@ -24120,7 +24413,7 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_256_map_avx2_4(point, point, tmp);
             else
 #endif
@@ -24249,9 +24542,10 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 #endif
     int err = MP_OKAY;
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)heap;
@@ -24270,22 +24564,44 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_256_ecc_gen_k_4(rng, k);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            /* Into err, not discarded: the dispatch below selects on the lane,
+             * so a save failure that left err untouched would drop into the
+             * base implementation, the fallback being removed. */
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
+#endif
+#ifdef HAVE_INTEL_AVX2
 
-        if (saved_vector_registers)
-            err = sp_256_ecc_mulmod_base_avx2_4(point, k, 1, 1, NULL);
+        /* Lane from CPUID; the err guard is what keeps a failed save from
+         * reaching the base implementation in the else below. */
+        if (use_avx2_lane) {
+            if (err == MP_OKAY)
+                err = sp_256_ecc_mulmod_base_avx2_4(point, k, 1, 1, NULL);
+        }
         else
 #endif
             err = sp_256_ecc_mulmod_base_4(point, k, 1, 1, NULL);
     }
 
+#ifdef HAVE_INTEL_AVX2
+    /* Release the bracket before the point-cache mulmod below: it takes the
+     * cache lock and then its OWN bracket, and a lock may not be acquired
+     * inside one.  Lane selection continues via use_avx2_lane. */
+    if (saved_vector_registers) {
+        RESTORE_VECTOR_REGISTERS();
+        saved_vector_registers = 0;
+    }
+#endif
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             err = sp_256_ecc_mulmod_avx2_4(infinity, point, p256_order, 1, 1,
                                                                           NULL);
         }
@@ -24470,7 +24786,7 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
     SP_DECL_VAR(sp_point_256, point, 1);
     SP_DECL_VAR(sp_digit, k, 4);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -24485,9 +24801,8 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
         sp_256_point_from_ecc_point_4(point, pub);
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(point, point, k, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -25244,17 +25559,34 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit carry;
     sp_int64 c;
     sp_digit* kInv = k;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     /* Conv k to Montgomery form (mod order) */
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+    /* CPUID alone chooses the lane, use_avx2_lane.  A save failure RETURNS:
+     * every buffer here belongs to the caller and nothing has been acquired
+     * yet, so there is nothing to unwind, and returning is the clearest way to
+     * guarantee that neither implementation runs.  Selecting the lane with
+     * saved_vector_registers instead, which is what this did until 13 Aug
+     * 2026, ran the base lane on the statement after a failed save, with no
+     * err guard anywhere, in every ECDSA signature.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0 and
+     * scripts/fips-no-svr-fallback-check.sh shape 4. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            IS_INTEL_AVX2(cpuid_flags)) {
+        use_avx2_lane = 1;
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err != 0)
+            return err;
         saved_vector_registers = 1;
-    if (saved_vector_registers)
+    }
+#endif
+#ifdef HAVE_INTEL_AVX2
+    if (use_avx2_lane)
         sp_256_mul_avx2_4(k, k, p256_norm_order);
     else
 #endif
@@ -25265,7 +25597,7 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* kInv = 1/k mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_mont_inv_order_avx2_4(kInv, k, tmp);
         else
 #endif
@@ -25274,7 +25606,7 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = r * x + e */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_mul_avx2_4(x, x, r);
         else
 #endif
@@ -25293,7 +25625,7 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = s * k^-1 mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_256_mont_mul_order_avx2_4(s, s, kInv);
         else
 #endif
@@ -25341,7 +25673,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
     sp_int64 c;
     int err = MP_OKAY;
     int i;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -25372,13 +25704,18 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
         }
         if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure ends the call and
+             * never reaches the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
                 err = sp_256_ecc_mulmod_base_avx2_4(point, k, 1, 1, heap);
                 RESTORE_VECTOR_REGISTERS();
+                }
             }
-            else
+            else if (err == MP_OKAY)
 #endif
                 err = sp_256_ecc_mulmod_base_4(point, k, 1, 1, heap);
         }
@@ -25639,18 +25976,25 @@ extern void sp_256_mod_inv_avx2_4(sp_digit* r, const sp_digit* a, const sp_digit
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
  */
-static void sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
+static int sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
     sp_digit* tmp)
 {
-#ifdef HAVE_INTEL_AVX2
+    int err = MP_OKAY;
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; a save failure returns that error
+     * and never runs the other implementation.  See
+     * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_256_proj_point_add_avx2_4(p1, p1, p2, tmp);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_256_proj_point_add_avx2_4(p1, p1, p2, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -25658,11 +26002,16 @@ static void sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
     if (sp_256_iszero_4(p1->z)) {
         if (sp_256_iszero_4(p1->x) && sp_256_iszero_4(p1->y)) {
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure returns that error
+             * and never runs the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                sp_256_proj_point_dbl_avx2_4(p1, p2, tmp);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    sp_256_proj_point_dbl_avx2_4(p1, p2, tmp);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -25677,6 +26026,8 @@ static void sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
             XMEMCPY(p1->z, p256_norm_mod, sizeof(p256_norm_mod));
         }
     }
+
+    return err;
 }
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
@@ -25696,16 +26047,22 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
     int err;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; a save failure returns that error
+     * and never runs the other implementation.  See
+     * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_256_mod_inv_avx2_4(s, s, p256_order);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_256_mod_inv_avx2_4(s, s, p256_order);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -25715,10 +26072,16 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
 #endif /* !WOLFSSL_SP_SMALL */
     {
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mul_avx2_4(s, s, p256_norm_order);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mul_avx2_4(s, s, p256_norm_order);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -25731,12 +26094,18 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
         sp_256_norm_4(s);
 #ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_inv_order_avx2_4(s, s, tmp);
-            sp_256_mont_mul_order_avx2_4(u1, u1, s);
-            sp_256_mont_mul_order_avx2_4(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_inv_order_avx2_4(s, s, tmp);
+                sp_256_mont_mul_order_avx2_4(u1, u1, s);
+                sp_256_mont_mul_order_avx2_4(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -25747,11 +26116,17 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
         }
 #else
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_mul_order_avx2_4(u1, u1, s);
-            sp_256_mont_mul_order_avx2_4(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_mul_order_avx2_4(u1, u1, s);
+                sp_256_mont_mul_order_avx2_4(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -25761,10 +26136,16 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
         }
 #endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_256_ecc_mulmod_base_avx2_4(p1, u1, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_256_ecc_mulmod_base_avx2_4(p1, u1, 0, 0, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -25778,9 +26159,8 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(p2, p2, u2, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -25791,7 +26171,7 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
     }
 
     if (err == MP_OKAY) {
-        sp_256_add_points_4(p1, p2, tmp);
+        err = sp_256_add_points_4(p1, p2, tmp);
     }
 
     return err;
@@ -25834,7 +26214,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     sp_digit carry;
     sp_int64 c = 0;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -25869,19 +26249,31 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_sqr_avx2_4(p1->z, p1->z, p256_mod, p256_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_sqr_avx2_4(p1->z, p1->z, p256_mod, p256_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
             sp_256_mont_sqr_4(p1->z, p1->z, p256_mod, p256_mp_mod);
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -25905,12 +26297,17 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
             if (err == MP_OKAY) {
                 /* u1 = (r + 1*order).z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
+                /* CPUID alone chooses the lane; a save failure returns that error
+                 * and never runs the other implementation.  See
+                 * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                        IS_INTEL_AVX2(cpuid_flags) &&
-                        (SAVE_VECTOR_REGISTERS2() == 0)) {
-                    sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod,
-                        p256_mp_mod);
-                    RESTORE_VECTOR_REGISTERS();
+                        IS_INTEL_AVX2(cpuid_flags)) {
+                    err = SAVE_VECTOR_REGISTERS2();
+                    if (err == 0) {
+                        sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod,
+                            p256_mp_mod);
+                        RESTORE_VECTOR_REGISTERS();
+                    }
                 }
                 else
 #endif
@@ -26204,7 +26601,7 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
     sp_point_256* p = NULL;
     const byte one[1] = { 1 };
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -26252,9 +26649,8 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(p, pub, p256_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -26270,11 +26666,16 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
         if (err == MP_OKAY) {
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure returns that error
+             * and never runs the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_256_ecc_mulmod_base_avx2_4(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_256_ecc_mulmod_base_avx2_4(p, priv, 1, 1, heap);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -26319,7 +26720,7 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     SP_DECL_VAR(sp_point_256, p, 2);
     sp_point_256* q = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -26340,10 +26741,16 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
                       sp_256_iszero_4(q->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_proj_point_add_avx2_4(p, p, q, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_proj_point_add_avx2_4(p, p, q, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26385,7 +26792,7 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 2);
     SP_DECL_VAR(sp_point_256, p, 1);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -26399,10 +26806,16 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
                       sp_256_iszero_4(p->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_proj_point_dbl_avx2_4(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_proj_point_dbl_avx2_4(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26441,7 +26854,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
     SP_DECL_VAR(sp_point_256, p, 1);
     int err = MP_OKAY;
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -26455,10 +26868,16 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
                       sp_256_iszero_4(p->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_map_avx2_4(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_map_avx2_4(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -26494,7 +26913,7 @@ static int sp_256_mont_sqrt_4(sp_digit* y)
     SP_DECL_VAR(sp_digit, t1, 4 * 4);
     sp_digit* t2 = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -26503,8 +26922,13 @@ static int sp_256_mont_sqrt_4(sp_digit* y)
         t2 = t1 + 2 * 4;
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure ends the call and
+         * never reaches the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
             /* t2 = y ^ 0x2 */
             sp_256_mont_sqr_avx2_4(t2, y, p256_mod, p256_mp_mod);
             /* t1 = y ^ 0x3 */
@@ -26535,8 +26959,9 @@ static int sp_256_mont_sqrt_4(sp_digit* y)
             sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
             sp_256_mont_sqr_n_avx2_4(y, t1, 94, p256_mod, p256_mp_mod);
             RESTORE_VECTOR_REGISTERS();
+            }
         }
-        else
+        else if (err == MP_OKAY)
 #endif
         {
             /* t2 = y ^ 0x2 */
@@ -26591,7 +27016,7 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     SP_DECL_VAR(sp_digit, x, 4 * 4);
     sp_digit* y = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -26605,11 +27030,17 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     if (err == MP_OKAY) {
         /* y = x^3 */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_256_mont_sqr_avx2_4(y, x, p256_mod, p256_mp_mod);
-            sp_256_mont_mul_avx2_4(y, y, x, p256_mod, p256_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_256_mont_sqr_avx2_4(y, x, p256_mod, p256_mp_mod);
+                sp_256_mont_mul_avx2_4(y, y, x, p256_mod, p256_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -28514,7 +28945,7 @@ static void sp_384_map_avx2_6(sp_point_384* r, const sp_point_384* p,
     sp_384_mont_reduce_avx2_6(r->x, p384_mod, p384_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_384_cmp_6(r->x, p384_mod);
-    sp_384_cond_sub_6(r->x, r->x, p384_mod, (sp_digit)~(n >> 63));
+    sp_384_cond_sub_avx2_6(r->x, r->x, p384_mod, (sp_digit)~(n >> 63));
     sp_384_norm_6(r->x);
 
     /* y /= z^3 */
@@ -28523,7 +28954,7 @@ static void sp_384_map_avx2_6(sp_point_384* r, const sp_point_384* p,
     sp_384_mont_reduce_avx2_6(r->y, p384_mod, p384_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_384_cmp_6(r->y, p384_mod);
-    sp_384_cond_sub_6(r->y, r->y, p384_mod, (sp_digit)~(n >> 63));
+    sp_384_cond_sub_avx2_6(r->y, r->y, p384_mod, (sp_digit)~(n >> 63));
     sp_384_norm_6(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -30202,7 +30633,15 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 7);
     sp_cache_384_t* cache;
@@ -30248,6 +30687,8 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_384(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_384_gen_stripe_table_avx2_6(g, cache->table, tmp, heap);
 
@@ -30257,6 +30698,8 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
         else {
             err = sp_384_ecc_mulmod_stripe_avx2_6(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_384_lock);
@@ -30287,7 +30730,7 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
     SP_DECL_VAR(sp_point_384, point, 1);
     SP_DECL_VAR(sp_digit, k, 6);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -30299,9 +30742,8 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -30339,9 +30781,10 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
     sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_384, point, 2, heap, DYNAMIC_TYPE_ECC);
@@ -30364,19 +30807,41 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
         err = sp_384_mod_mul_norm_6(addP->z, addP->z, p384_mod);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* Lane choice only, the bracket is NOT taken here.  The point-cache
+         * mulmod below takes the cache lock and then its own bracket, and a
+         * lock may not be acquired inside one. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags))
+            use_avx2_lane = 1;
+#endif
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane)
             err = sp_384_ecc_mulmod_avx2_6(point, point, k, 0, 0, heap);
         else
 #endif
             err = sp_384_ecc_mulmod_6(point, point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* Now take the bracket, for sp_*_proj_point_add_*() only: it needs vector
+     * registers and takes no lock, so it is safe inside one. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        /* Already fail-closed: the lane came from CPUID and a save failure
+         * raises an error rather than selecting another implementation.  Taken
+         * into a variable rather than tested as a bare condition so the shape
+         * matches every other site and scripts/fips-no-svr-fallback-check.sh
+         * does not have to special-case it. */
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+
+        if (svr_ret == 0)
+            saved_vector_registers = 1;
+        else
+            err = WC_ACCEL_INHIBIT_E;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_proj_point_add_avx2_6(point, point, addP, tmp);
         else
 #endif
@@ -30384,7 +30849,7 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_384_map_avx2_6(point, point, tmp);
             else
 #endif
@@ -48874,7 +49339,7 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
     SP_DECL_VAR(sp_point_384, point, 1);
     SP_DECL_VAR(sp_digit, k, 6);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -48884,10 +49349,16 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
         sp_384_from_mp(k, 6, km);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_384_ecc_mulmod_base_avx2_6(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_384_ecc_mulmod_base_avx2_6(point, k, map, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -48924,9 +49395,10 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
     sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_384, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -48948,19 +49420,35 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
         err = sp_384_mod_mul_norm_6(addP->z, addP->z, p384_mod);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* CPUID alone chooses the lane, use_avx2_lane.  Whether the
+         * bracket was taken is a SEPARATE fact and lives in err, so a save
+         * failure reaches neither implementation: the accelerated arm below
+         * is guarded on err, and the base arm is reachable only from a part
+         * without AVX2.  saved_vector_registers means "must RESTORE" and
+         * nothing else, selecting a lane with it is the fallback.
+         * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0 and
+         * scripts/fips-no-svr-fallback-check.sh shape 4. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
-            err = sp_384_ecc_mulmod_base_avx2_6(point, k, 0, 0, heap);
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
+#endif
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane) {
+            if (err == MP_OKAY)
+                err = sp_384_ecc_mulmod_base_avx2_6(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_384_ecc_mulmod_base_6(point, k, 0, 0, heap);
     }
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_proj_point_add_avx2_6(point, point, addP, tmp);
         else
 #endif
@@ -48968,7 +49456,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_384_map_avx2_6(point, point, tmp);
             else
 #endif
@@ -49097,9 +49585,10 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 #endif
     int err = MP_OKAY;
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)heap;
@@ -49118,22 +49607,44 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_384_ecc_gen_k_6(rng, k);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            /* Into err, not discarded: the dispatch below selects on the lane,
+             * so a save failure that left err untouched would drop into the
+             * base implementation, the fallback being removed. */
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
+#endif
+#ifdef HAVE_INTEL_AVX2
 
-        if (saved_vector_registers)
-            err = sp_384_ecc_mulmod_base_avx2_6(point, k, 1, 1, NULL);
+        /* Lane from CPUID; the err guard is what keeps a failed save from
+         * reaching the base implementation in the else below. */
+        if (use_avx2_lane) {
+            if (err == MP_OKAY)
+                err = sp_384_ecc_mulmod_base_avx2_6(point, k, 1, 1, NULL);
+        }
         else
 #endif
             err = sp_384_ecc_mulmod_base_6(point, k, 1, 1, NULL);
     }
 
+#ifdef HAVE_INTEL_AVX2
+    /* Release the bracket before the point-cache mulmod below: it takes the
+     * cache lock and then its OWN bracket, and a lock may not be acquired
+     * inside one.  Lane selection continues via use_avx2_lane. */
+    if (saved_vector_registers) {
+        RESTORE_VECTOR_REGISTERS();
+        saved_vector_registers = 0;
+    }
+#endif
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             err = sp_384_ecc_mulmod_avx2_6(infinity, point, p384_order, 1, 1,
                                                                           NULL);
         }
@@ -49318,7 +49829,7 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
     SP_DECL_VAR(sp_point_384, point, 1);
     SP_DECL_VAR(sp_digit, k, 6);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -49333,9 +49844,8 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
         sp_384_point_from_ecc_point_6(point, pub);
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(point, point, k, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -49977,17 +50487,34 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit carry;
     sp_int64 c;
     sp_digit* kInv = k;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     /* Conv k to Montgomery form (mod order) */
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+    /* CPUID alone chooses the lane, use_avx2_lane.  A save failure RETURNS:
+     * every buffer here belongs to the caller and nothing has been acquired
+     * yet, so there is nothing to unwind, and returning is the clearest way to
+     * guarantee that neither implementation runs.  Selecting the lane with
+     * saved_vector_registers instead, which is what this did until 13 Aug
+     * 2026, ran the base lane on the statement after a failed save, with no
+     * err guard anywhere, in every ECDSA signature.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0 and
+     * scripts/fips-no-svr-fallback-check.sh shape 4. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            IS_INTEL_AVX2(cpuid_flags)) {
+        use_avx2_lane = 1;
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err != 0)
+            return err;
         saved_vector_registers = 1;
-    if (saved_vector_registers)
+    }
+#endif
+#ifdef HAVE_INTEL_AVX2
+    if (use_avx2_lane)
         sp_384_mul_avx2_6(k, k, p384_norm_order);
     else
 #endif
@@ -49998,7 +50525,7 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* kInv = 1/k mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_mont_inv_order_avx2_6(kInv, k, tmp);
         else
 #endif
@@ -50007,7 +50534,7 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = r * x + e */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_mul_avx2_6(x, x, r);
         else
 #endif
@@ -50026,7 +50553,7 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = s * k^-1 mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_384_mont_mul_order_avx2_6(s, s, kInv);
         else
 #endif
@@ -50074,7 +50601,7 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
     sp_int64 c;
     int err = MP_OKAY;
     int i;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -50105,13 +50632,18 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
         }
         if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure ends the call and
+             * never reaches the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
                 err = sp_384_ecc_mulmod_base_avx2_6(point, k, 1, 1, heap);
                 RESTORE_VECTOR_REGISTERS();
+                }
             }
-            else
+            else if (err == MP_OKAY)
 #endif
                 err = sp_384_ecc_mulmod_base_6(point, k, 1, 1, heap);
         }
@@ -50462,18 +50994,25 @@ static int sp_384_mod_inv_6(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
  */
-static void sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
+static int sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
     sp_digit* tmp)
 {
-#ifdef HAVE_INTEL_AVX2
+    int err = MP_OKAY;
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; a save failure returns that error
+     * and never runs the other implementation.  See
+     * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_384_proj_point_add_avx2_6(p1, p1, p2, tmp);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_384_proj_point_add_avx2_6(p1, p1, p2, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -50481,11 +51020,16 @@ static void sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
     if (sp_384_iszero_6(p1->z)) {
         if (sp_384_iszero_6(p1->x) && sp_384_iszero_6(p1->y)) {
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure returns that error
+             * and never runs the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                sp_384_proj_point_dbl_avx2_6(p1, p2, tmp);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    sp_384_proj_point_dbl_avx2_6(p1, p2, tmp);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -50502,6 +51046,8 @@ static void sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
             XMEMCPY(p1->z, p384_norm_mod, sizeof(p384_norm_mod));
         }
     }
+
+    return err;
 }
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
@@ -50521,7 +51067,7 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
     int err;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -50531,10 +51077,16 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
 #endif /* !WOLFSSL_SP_SMALL */
     {
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mul_avx2_6(s, s, p384_norm_order);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mul_avx2_6(s, s, p384_norm_order);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -50547,12 +51099,18 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
         sp_384_norm_6(s);
 #ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_inv_order_avx2_6(s, s, tmp);
-            sp_384_mont_mul_order_avx2_6(u1, u1, s);
-            sp_384_mont_mul_order_avx2_6(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_inv_order_avx2_6(s, s, tmp);
+                sp_384_mont_mul_order_avx2_6(u1, u1, s);
+                sp_384_mont_mul_order_avx2_6(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -50563,11 +51121,17 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
         }
 #else
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_mul_order_avx2_6(u1, u1, s);
-            sp_384_mont_mul_order_avx2_6(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_mul_order_avx2_6(u1, u1, s);
+                sp_384_mont_mul_order_avx2_6(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -50577,10 +51141,16 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
         }
 #endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_384_ecc_mulmod_base_avx2_6(p1, u1, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_384_ecc_mulmod_base_avx2_6(p1, u1, 0, 0, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -50594,9 +51164,8 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(p2, p2, u2, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -50607,7 +51176,7 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
     }
 
     if (err == MP_OKAY) {
-        sp_384_add_points_6(p1, p2, tmp);
+        err = sp_384_add_points_6(p1, p2, tmp);
     }
 
     return err;
@@ -50650,7 +51219,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
     sp_digit carry;
     sp_int64 c = 0;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -50685,19 +51254,31 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_sqr_avx2_6(p1->z, p1->z, p384_mod, p384_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_sqr_avx2_6(p1->z, p1->z, p384_mod, p384_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
             sp_384_mont_sqr_6(p1->z, p1->z, p384_mod, p384_mp_mod);
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -50721,12 +51302,17 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
             if (err == MP_OKAY) {
                 /* u1 = (r + 1*order).z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
+                /* CPUID alone chooses the lane; a save failure returns that error
+                 * and never runs the other implementation.  See
+                 * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                        IS_INTEL_AVX2(cpuid_flags) &&
-                        (SAVE_VECTOR_REGISTERS2() == 0)) {
-                    sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod,
-                        p384_mp_mod);
-                    RESTORE_VECTOR_REGISTERS();
+                        IS_INTEL_AVX2(cpuid_flags)) {
+                    err = SAVE_VECTOR_REGISTERS2();
+                    if (err == 0) {
+                        sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod,
+                            p384_mp_mod);
+                        RESTORE_VECTOR_REGISTERS();
+                    }
                 }
                 else
 #endif
@@ -51020,7 +51606,7 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
     sp_point_384* p = NULL;
     const byte one[1] = { 1 };
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -51068,9 +51654,8 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_384_ecc_mulmod_avx2_6(p, pub, p384_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -51086,11 +51671,16 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
         if (err == MP_OKAY) {
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure returns that error
+             * and never runs the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_384_ecc_mulmod_base_avx2_6(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_384_ecc_mulmod_base_avx2_6(p, priv, 1, 1, heap);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -51135,7 +51725,7 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
     SP_DECL_VAR(sp_point_384, p, 2);
     sp_point_384* q = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -51156,10 +51746,16 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
                       sp_384_iszero_6(q->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_proj_point_add_avx2_6(p, p, q, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_proj_point_add_avx2_6(p, p, q, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51201,7 +51797,7 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
     SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 2);
     SP_DECL_VAR(sp_point_384, p, 1);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -51215,10 +51811,16 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
                       sp_384_iszero_6(p->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_proj_point_dbl_avx2_6(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_proj_point_dbl_avx2_6(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51257,7 +51859,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
     SP_DECL_VAR(sp_point_384, p, 1);
     int err = MP_OKAY;
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -51271,10 +51873,16 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
                       sp_384_iszero_6(p->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_map_avx2_6(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_map_avx2_6(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -51313,7 +51921,7 @@ static int sp_384_mont_sqrt_6(sp_digit* y)
     sp_digit* t4 = NULL;
     sp_digit* t5 = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -51325,8 +51933,13 @@ static int sp_384_mont_sqrt_6(sp_digit* y)
         t5 = t1 + 8 * 6;
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure ends the call and
+         * never reaches the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
             /* t2 = y ^ 0x2 */
             sp_384_mont_sqr_avx2_6(t2, y, p384_mod, p384_mp_mod);
             /* t1 = y ^ 0x3 */
@@ -51382,8 +51995,9 @@ static int sp_384_mont_sqrt_6(sp_digit* y)
             /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc00000000000000040000000 */
             sp_384_mont_sqr_n_avx2_6(y, t1, 30, p384_mod, p384_mp_mod);
             RESTORE_VECTOR_REGISTERS();
+            }
         }
-        else
+        else if (err == MP_OKAY)
 #endif
         {
             /* t2 = y ^ 0x2 */
@@ -51463,7 +52077,7 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
     SP_DECL_VAR(sp_digit, x, 4 * 6);
     sp_digit* y = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -51477,11 +52091,17 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
     if (err == MP_OKAY) {
         /* y = x^3 */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_384_mont_sqr_avx2_6(y, x, p384_mod, p384_mp_mod);
-            sp_384_mont_mul_avx2_6(y, y, x, p384_mod, p384_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_384_mont_sqr_avx2_6(y, x, p384_mod, p384_mp_mod);
+                sp_384_mont_mul_avx2_6(y, y, x, p384_mod, p384_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -53275,7 +53895,7 @@ static void sp_521_map_avx2_9(sp_point_521* r, const sp_point_521* p,
     sp_521_mont_reduce_avx2_9(r->x, p521_mod, p521_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_521_cmp_9(r->x, p521_mod);
-    sp_521_cond_sub_9(r->x, r->x, p521_mod, (sp_digit)~(n >> 63));
+    sp_521_cond_sub_avx2_9(r->x, r->x, p521_mod, (sp_digit)~(n >> 63));
     sp_521_norm_9(r->x);
 
     /* y /= z^3 */
@@ -53284,7 +53904,7 @@ static void sp_521_map_avx2_9(sp_point_521* r, const sp_point_521* p,
     sp_521_mont_reduce_avx2_9(r->y, p521_mod, p521_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_521_cmp_9(r->y, p521_mod);
-    sp_521_cond_sub_9(r->y, r->y, p521_mod, (sp_digit)~(n >> 63));
+    sp_521_cond_sub_avx2_9(r->y, r->y, p521_mod, (sp_digit)~(n >> 63));
     sp_521_norm_9(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -54963,7 +55583,15 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
     sp_cache_521_t* cache;
@@ -55009,6 +55637,8 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_521(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_521_gen_stripe_table_avx2_9(g, cache->table, tmp, heap);
 
@@ -55018,6 +55648,8 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
         else {
             err = sp_521_ecc_mulmod_stripe_avx2_9(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_521_lock);
@@ -55048,7 +55680,7 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
     SP_DECL_VAR(sp_point_521, point, 1);
     SP_DECL_VAR(sp_digit, k, 9);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -55060,9 +55692,8 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -55100,9 +55731,10 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
     sp_point_521* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_521, point, 2, heap, DYNAMIC_TYPE_ECC);
@@ -55125,19 +55757,41 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
         err = sp_521_mod_mul_norm_9(addP->z, addP->z, p521_mod);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* Lane choice only, the bracket is NOT taken here.  The point-cache
+         * mulmod below takes the cache lock and then its own bracket, and a
+         * lock may not be acquired inside one. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
+                IS_INTEL_AVX2(cpuid_flags))
+            use_avx2_lane = 1;
+#endif
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane)
             err = sp_521_ecc_mulmod_avx2_9(point, point, k, 0, 0, heap);
         else
 #endif
             err = sp_521_ecc_mulmod_9(point, point, k, 0, 0, heap);
     }
+#ifdef HAVE_INTEL_AVX2
+    /* Now take the bracket, for sp_*_proj_point_add_*() only: it needs vector
+     * registers and takes no lock, so it is safe inside one. */
+    if ((err == MP_OKAY) && use_avx2_lane) {
+        /* Already fail-closed: the lane came from CPUID and a save failure
+         * raises an error rather than selecting another implementation.  Taken
+         * into a variable rather than tested as a bare condition so the shape
+         * matches every other site and scripts/fips-no-svr-fallback-check.sh
+         * does not have to special-case it. */
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+
+        if (svr_ret == 0)
+            saved_vector_registers = 1;
+        else
+            err = WC_ACCEL_INHIBIT_E;
+    }
+#endif
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_proj_point_add_avx2_9(point, point, addP, tmp);
         else
 #endif
@@ -55145,7 +55799,7 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_521_map_avx2_9(point, point, tmp);
             else
 #endif
@@ -89821,7 +90475,7 @@ int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
     SP_DECL_VAR(sp_point_521, point, 1);
     SP_DECL_VAR(sp_digit, k, 9);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -89831,10 +90485,16 @@ int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
         sp_521_from_mp(k, 9, km);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_521_ecc_mulmod_base_avx2_9(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_521_ecc_mulmod_base_avx2_9(point, k, map, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -89871,9 +90531,10 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
     sp_point_521* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_521, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -89895,19 +90556,35 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
         err = sp_521_mod_mul_norm_9(addP->z, addP->z, p521_mod);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* CPUID alone chooses the lane, use_avx2_lane.  Whether the
+         * bracket was taken is a SEPARATE fact and lives in err, so a save
+         * failure reaches neither implementation: the accelerated arm below
+         * is guarded on err, and the base arm is reachable only from a part
+         * without AVX2.  saved_vector_registers means "must RESTORE" and
+         * nothing else, selecting a lane with it is the fallback.
+         * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0 and
+         * scripts/fips-no-svr-fallback-check.sh shape 4. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
-            err = sp_521_ecc_mulmod_base_avx2_9(point, k, 0, 0, heap);
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
+#endif
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane) {
+            if (err == MP_OKAY)
+                err = sp_521_ecc_mulmod_base_avx2_9(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_521_ecc_mulmod_base_9(point, k, 0, 0, heap);
     }
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_proj_point_add_avx2_9(point, point, addP, tmp);
         else
 #endif
@@ -89915,7 +90592,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_521_map_avx2_9(point, point, tmp);
             else
 #endif
@@ -90045,9 +90722,10 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 #endif
     int err = MP_OKAY;
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     (void)heap;
@@ -90066,22 +90744,44 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_521_ecc_gen_k_9(rng, k);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            /* Into err, not discarded: the dispatch below selects on the lane,
+             * so a save failure that left err untouched would drop into the
+             * base implementation, the fallback being removed. */
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
+#endif
+#ifdef HAVE_INTEL_AVX2
 
-        if (saved_vector_registers)
-            err = sp_521_ecc_mulmod_base_avx2_9(point, k, 1, 1, NULL);
+        /* Lane from CPUID; the err guard is what keeps a failed save from
+         * reaching the base implementation in the else below. */
+        if (use_avx2_lane) {
+            if (err == MP_OKAY)
+                err = sp_521_ecc_mulmod_base_avx2_9(point, k, 1, 1, NULL);
+        }
         else
 #endif
             err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, NULL);
     }
 
+#ifdef HAVE_INTEL_AVX2
+    /* Release the bracket before the point-cache mulmod below: it takes the
+     * cache lock and then its OWN bracket, and a lock may not be acquired
+     * inside one.  Lane selection continues via use_avx2_lane. */
+    if (saved_vector_registers) {
+        RESTORE_VECTOR_REGISTERS();
+        saved_vector_registers = 0;
+    }
+#endif
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers) {
+        if (use_avx2_lane) {
             err = sp_521_ecc_mulmod_avx2_9(infinity, point, p521_order, 1, 1,
                                                                           NULL);
         }
@@ -90266,7 +90966,7 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
     SP_DECL_VAR(sp_point_521, point, 1);
     SP_DECL_VAR(sp_digit, k, 9);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -90281,9 +90981,8 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
         sp_521_point_from_ecc_point_9(point, pub);
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(point, point, k, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -90980,17 +91679,34 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit carry;
     sp_int64 c;
     sp_digit* kInv = k;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     /* Conv k to Montgomery form (mod order) */
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+    /* CPUID alone chooses the lane, use_avx2_lane.  A save failure RETURNS:
+     * every buffer here belongs to the caller and nothing has been acquired
+     * yet, so there is nothing to unwind, and returning is the clearest way to
+     * guarantee that neither implementation runs.  Selecting the lane with
+     * saved_vector_registers instead, which is what this did until 13 Aug
+     * 2026, ran the base lane on the statement after a failed save, with no
+     * err guard anywhere, in every ECDSA signature.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0 and
+     * scripts/fips-no-svr-fallback-check.sh shape 4. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            IS_INTEL_AVX2(cpuid_flags)) {
+        use_avx2_lane = 1;
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err != 0)
+            return err;
         saved_vector_registers = 1;
-    if (saved_vector_registers)
+    }
+#endif
+#ifdef HAVE_INTEL_AVX2
+    if (use_avx2_lane)
         sp_521_mul_avx2_9(k, k, p521_norm_order);
     else
 #endif
@@ -91001,7 +91717,7 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* kInv = 1/k mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_mont_inv_order_avx2_9(kInv, k, tmp);
         else
 #endif
@@ -91010,7 +91726,7 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = r * x + e */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_mul_avx2_9(x, x, r);
         else
 #endif
@@ -91029,7 +91745,7 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
 
         /* s = s * k^-1 mod order */
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_521_mont_mul_order_avx2_9(s, s, kInv);
         else
 #endif
@@ -91077,7 +91793,7 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
     sp_int64 c;
     int err = MP_OKAY;
     int i;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -91108,13 +91824,18 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
         }
         if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure ends the call and
+             * never reaches the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
                 err = sp_521_ecc_mulmod_base_avx2_9(point, k, 1, 1, heap);
                 RESTORE_VECTOR_REGISTERS();
+                }
             }
-            else
+            else if (err == MP_OKAY)
 #endif
                 err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, heap);
         }
@@ -91473,18 +92194,25 @@ static int sp_521_mod_inv_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
  */
-static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
+static int sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
     sp_digit* tmp)
 {
-#ifdef HAVE_INTEL_AVX2
+    int err = MP_OKAY;
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; a save failure returns that error
+     * and never runs the other implementation.  See
+     * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sp_521_proj_point_add_avx2_9(p1, p1, p2, tmp);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            sp_521_proj_point_add_avx2_9(p1, p1, p2, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -91492,11 +92220,16 @@ static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
     if (sp_521_iszero_9(p1->z)) {
         if (sp_521_iszero_9(p1->x) && sp_521_iszero_9(p1->y)) {
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure returns that error
+             * and never runs the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                sp_521_proj_point_dbl_avx2_9(p1, p2, tmp);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    sp_521_proj_point_dbl_avx2_9(p1, p2, tmp);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -91516,6 +92249,8 @@ static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
             XMEMCPY(p1->z, p521_norm_mod, sizeof(p521_norm_mod));
         }
     }
+
+    return err;
 }
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
@@ -91535,7 +92270,7 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
     int err;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -91545,10 +92280,16 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
 #endif /* !WOLFSSL_SP_SMALL */
     {
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mul_avx2_9(s, s, p521_norm_order);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mul_avx2_9(s, s, p521_norm_order);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -91561,12 +92302,18 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
         sp_521_norm_9(s);
 #ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_inv_order_avx2_9(s, s, tmp);
-            sp_521_mont_mul_order_avx2_9(u1, u1, s);
-            sp_521_mont_mul_order_avx2_9(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_inv_order_avx2_9(s, s, tmp);
+                sp_521_mont_mul_order_avx2_9(u1, u1, s);
+                sp_521_mont_mul_order_avx2_9(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -91577,11 +92324,17 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
         }
 #else
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_mul_order_avx2_9(u1, u1, s);
-            sp_521_mont_mul_order_avx2_9(u2, u2, s);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_mul_order_avx2_9(u1, u1, s);
+                sp_521_mont_mul_order_avx2_9(u2, u2, s);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -91591,10 +92344,16 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
         }
 #endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_521_ecc_mulmod_base_avx2_9(p1, u1, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_521_ecc_mulmod_base_avx2_9(p1, u1, 0, 0, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -91608,9 +92367,8 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(p2, p2, u2, 0, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -91621,7 +92379,7 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
     }
 
     if (err == MP_OKAY) {
-        sp_521_add_points_9(p1, p2, tmp);
+        err = sp_521_add_points_9(p1, p2, tmp);
     }
 
     return err;
@@ -91664,7 +92422,7 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
     sp_digit carry;
     sp_int64 c = 0;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -91703,19 +92461,31 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_sqr_avx2_9(p1->z, p1->z, p521_mod, p521_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_sqr_avx2_9(p1->z, p1->z, p521_mod, p521_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
             sp_521_mont_sqr_9(p1->z, p1->z, p521_mod, p521_mp_mod);
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -91739,12 +92509,17 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
             if (err == MP_OKAY) {
                 /* u1 = (r + 1*order).z'.z' mod prime */
 #ifdef HAVE_INTEL_AVX2
+                /* CPUID alone chooses the lane; a save failure returns that error
+                 * and never runs the other implementation.  See
+                 * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                        IS_INTEL_AVX2(cpuid_flags) &&
-                        (SAVE_VECTOR_REGISTERS2() == 0)) {
-                    sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod,
-                        p521_mp_mod);
-                    RESTORE_VECTOR_REGISTERS();
+                        IS_INTEL_AVX2(cpuid_flags)) {
+                    err = SAVE_VECTOR_REGISTERS2();
+                    if (err == 0) {
+                        sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod,
+                            p521_mp_mod);
+                        RESTORE_VECTOR_REGISTERS();
+                    }
                 }
                 else
 #endif
@@ -92041,7 +92816,7 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
     sp_point_521* p = NULL;
     const byte one[1] = { 1 };
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -92089,9 +92864,8 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_521_ecc_mulmod_avx2_9(p, pub, p521_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -92107,11 +92881,16 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
         if (err == MP_OKAY) {
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure returns that error
+             * and never runs the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_521_ecc_mulmod_base_avx2_9(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_521_ecc_mulmod_base_avx2_9(p, priv, 1, 1, heap);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif
@@ -92156,7 +92935,7 @@ int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
     SP_DECL_VAR(sp_point_521, p, 2);
     sp_point_521* q = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -92177,10 +92956,16 @@ int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
                       sp_521_iszero_9(q->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_proj_point_add_avx2_9(p, p, q, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_proj_point_add_avx2_9(p, p, q, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -92222,7 +93007,7 @@ int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
     SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 2);
     SP_DECL_VAR(sp_point_521, p, 1);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -92236,10 +93021,16 @@ int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
                       sp_521_iszero_9(p->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_proj_point_dbl_avx2_9(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_proj_point_dbl_avx2_9(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -92278,7 +93069,7 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
     SP_DECL_VAR(sp_point_521, p, 1);
     int err = MP_OKAY;
 
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -92292,10 +93083,16 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
                       sp_521_iszero_9(p->y);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_map_avx2_9(p, p, tmp);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_map_avx2_9(p, p, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -92337,7 +93134,7 @@ static int sp_521_mont_sqrt_9(sp_digit* y)
 {
     SP_DECL_VAR(sp_digit, t, 2 * 9);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -92345,8 +93142,13 @@ static int sp_521_mont_sqrt_9(sp_digit* y)
     if (err == MP_OKAY) {
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure ends the call and
+         * never reaches the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
             int i;
 
             XMEMCPY(t, y, sizeof(sp_digit) * 9);
@@ -92357,8 +93159,9 @@ static int sp_521_mont_sqrt_9(sp_digit* y)
             }
             XMEMCPY(y, t, sizeof(sp_digit) * 9);
             RESTORE_VECTOR_REGISTERS();
+            }
         }
-        else
+        else if (err == MP_OKAY)
 #endif
         {
             int i;
@@ -92393,7 +93196,7 @@ int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
     SP_DECL_VAR(sp_digit, x, 4 * 9);
     sp_digit* y = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -92407,11 +93210,17 @@ int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
     if (err == MP_OKAY) {
         /* y = x^3 */
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            sp_521_mont_sqr_avx2_9(y, x, p521_mod, p521_mp_mod);
-            sp_521_mont_mul_avx2_9(y, y, x, p521_mod, p521_mp_mod);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                sp_521_mont_sqr_avx2_9(y, x, p521_mod, p521_mp_mod);
+                sp_521_mont_mul_avx2_9(y, y, x, p521_mod, p521_mp_mod);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -94363,7 +95172,7 @@ static void sp_1024_map_avx2_16(sp_point_1024* r, const sp_point_1024* p,
     sp_1024_mont_reduce_avx2_16(r->x, p1024_mod, p1024_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_1024_cmp_16(r->x, p1024_mod);
-    sp_1024_cond_sub_16(r->x, r->x, p1024_mod, (sp_digit)~(n >> 63));
+    sp_1024_cond_sub_avx2_16(r->x, r->x, p1024_mod, (sp_digit)~(n >> 63));
     sp_1024_norm_16(r->x);
 
     /* y /= z^3 */
@@ -94372,7 +95181,7 @@ static void sp_1024_map_avx2_16(sp_point_1024* r, const sp_point_1024* p,
     sp_1024_mont_reduce_avx2_16(r->y, p1024_mod, p1024_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_1024_cmp_16(r->y, p1024_mod);
-    sp_1024_cond_sub_16(r->y, r->y, p1024_mod, (sp_digit)~(n >> 63));
+    sp_1024_cond_sub_avx2_16(r->y, r->y, p1024_mod, (sp_digit)~(n >> 63));
     sp_1024_norm_16(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -96031,7 +96840,15 @@ static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
+    /* Bracket here, not at the call sites: the window code below reaches
+     * vector table lookups, and this covers every caller of the lane.
+     * See linuxkm/SVR-FALLBACK-ANALYSIS.md 13.5. */
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err == 0) {
+        err = sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    return err;
 #else
     SP_DECL_VAR(sp_digit, tmp, 2 * 16 * 38);
     sp_cache_1024_t* cache;
@@ -96077,6 +96894,8 @@ static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_1024(g, &cache);
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
         if (cache->cnt == 2)
             sp_1024_gen_stripe_table_avx2_16(g, cache->table, tmp, heap);
 
@@ -96086,6 +96905,8 @@ static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
         else {
             err = sp_1024_ecc_mulmod_stripe_avx2_16(r, g, cache->table, k,
                     map, ct, heap);
+        }
+            RESTORE_VECTOR_REGISTERS();
         }
 #if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
         wc_UnLockMutex(&sp_cache_1024_lock);
@@ -96116,7 +96937,7 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
     SP_DECL_VAR(sp_point_1024, point, 1);
     SP_DECL_VAR(sp_digit, k, 16);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -96128,9 +96949,8 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_1024_ecc_mulmod_avx2_16(point, point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -99539,7 +100359,7 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
     SP_DECL_VAR(sp_point_1024, point, 1);
     SP_DECL_VAR(sp_digit, k, 16);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -99549,10 +100369,16 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
         sp_1024_from_mp(k, 16, km);
 
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_1024_ecc_mulmod_base_avx2_16(point, k, map, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_1024_ecc_mulmod_base_avx2_16(point, k, map, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -99589,9 +100415,10 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
     sp_point_1024* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
     int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
 #endif
 
     SP_ALLOC_VAR(sp_point_1024, point, 2, NULL, DYNAMIC_TYPE_ECC);
@@ -99613,19 +100440,35 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
         err = sp_1024_mod_mul_norm_16(addP->z, addP->z, p1024_mod);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
+        /* CPUID alone chooses the lane, use_avx2_lane.  Whether the
+         * bracket was taken is a SEPARATE fact and lives in err, so a save
+         * failure reaches neither implementation: the accelerated arm below
+         * is guarded on err, and the base arm is reachable only from a part
+         * without AVX2.  saved_vector_registers means "must RESTORE" and
+         * nothing else, selecting a lane with it is the fallback.
+         * See linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0 and
+         * scripts/fips-no-svr-fallback-check.sh shape 4. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
-            saved_vector_registers = 1;
-        if (saved_vector_registers)
-            err = sp_1024_ecc_mulmod_base_avx2_16(point, k, 0, 0, heap);
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0)
+                saved_vector_registers = 1;
+        }
+#endif
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane) {
+            if (err == MP_OKAY)
+                err = sp_1024_ecc_mulmod_base_avx2_16(point, k, 0, 0, heap);
+        }
         else
 #endif
             err = sp_1024_ecc_mulmod_base_16(point, k, 0, 0, heap);
     }
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (saved_vector_registers)
+        if (use_avx2_lane)
             sp_1024_proj_point_add_avx2_16(point, point, addP, tmp);
         else
 #endif
@@ -99633,7 +100476,7 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
 
         if (map) {
 #ifdef HAVE_INTEL_AVX2
-            if (saved_vector_registers)
+            if (use_avx2_lane)
                 sp_1024_map_avx2_16(point, point, tmp);
             else
 #endif
@@ -99673,7 +100516,7 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
     SP_DECL_VAR(sp_point_1024, point, 1);
     SP_DECL_VAR(sp_digit, t, 38 * 2 * 16);
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -99694,11 +100537,17 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
     if (err == MP_OKAY) {
         sp_1024_point_from_ecc_point_16(point, gm);
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_1024_gen_stripe_table_avx2_16(point,
-                (sp_table_entry_1024*)table, t, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_1024_gen_stripe_table_avx2_16(point,
+                    (sp_table_entry_1024*)table, t, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -99783,11 +100632,17 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
 
 #ifndef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
+        /* CPUID alone chooses the lane; a save failure returns that error
+         * and never runs the other implementation.  See
+         * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-            err = sp_1024_ecc_mulmod_stripe_avx2_16(point, point,
-                (const sp_table_entry_1024*)table, k, map, 0, heap);
-            RESTORE_VECTOR_REGISTERS();
+                IS_INTEL_AVX2(cpuid_flags)) {
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                err = sp_1024_ecc_mulmod_stripe_avx2_16(point, point,
+                    (const sp_table_entry_1024*)table, k, map, 0, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
         }
         else
 #endif
@@ -101870,15 +102725,21 @@ static int sp_ModExp_Fp_star_avx2_1024(const mp_int* base, mp_int* exp, mp_int* 
 int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
 {
     int err;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; the else is reached only on a part
+     * without AVX2.  A save failure returns that error rather than running
+     * the other implementation, linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_ModExp_Fp_star_avx2_1024(base, exp, res);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_ModExp_Fp_star_avx2_1024(base, exp, res);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -103478,15 +104339,21 @@ static int sp_Pairing_avx2_1024(const ecc_point* pm, const ecc_point* qm, mp_int
 int sp_Pairing_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res)
 {
     int err;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; the else is reached only on a part
+     * without AVX2.  A save failure returns that error rather than running
+     * the other implementation, linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_Pairing_avx2_1024(pm, qm, res);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_Pairing_avx2_1024(pm, qm, res);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -104612,15 +105479,21 @@ static int sp_Pairing_precomp_avx2_1024(const ecc_point* pm, const ecc_point* qm
 int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table, word32* len)
 {
     int err;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; the else is reached only on a part
+     * without AVX2.  A save failure returns that error rather than running
+     * the other implementation, linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_Pairing_gen_precomp_avx2_1024(pm, table, len);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_Pairing_gen_precomp_avx2_1024(pm, table, len);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -104650,15 +105523,21 @@ int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm, mp_int* re
     const byte* table, word32 len)
 {
     int err;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
 #ifdef HAVE_INTEL_AVX2
+    /* CPUID alone chooses the lane; the else is reached only on a part
+     * without AVX2.  A save failure returns that error rather than running
+     * the other implementation, linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
     if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        err = sp_Pairing_precomp_avx2_1024(pm, qm, res, table, len);
-        RESTORE_VECTOR_REGISTERS();
+            IS_INTEL_AVX2(cpuid_flags)) {
+        err = SAVE_VECTOR_REGISTERS2();
+        if (err == 0) {
+            err = sp_Pairing_precomp_avx2_1024(pm, qm, res, table, len);
+            RESTORE_VECTOR_REGISTERS();
+        }
     }
     else
 #endif
@@ -104809,7 +105688,7 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     sp_point_1024* p = NULL;
     const byte one[1] = { 1 };
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
+#if defined(HAVE_INTEL_AVX2)
     word32 cpuid_flags = cpuid_get_flags();
 #endif
 
@@ -104857,9 +105736,8 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
         /* Point * order = infinity */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+                IS_INTEL_AVX2(cpuid_flags)) {
             err = sp_1024_ecc_mulmod_avx2_16(p, pub, p1024_order, 1, 1, heap);
-            RESTORE_VECTOR_REGISTERS();
         }
         else
 #endif
@@ -104875,11 +105753,16 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
         if (err == MP_OKAY) {
             /* Base * private = point */
 #ifdef HAVE_INTEL_AVX2
+            /* CPUID alone chooses the lane; a save failure returns that error
+             * and never runs the other implementation.  See
+             * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
-                    IS_INTEL_AVX2(cpuid_flags) &&
-                    (SAVE_VECTOR_REGISTERS2() == 0)) {
-                err = sp_1024_ecc_mulmod_base_avx2_16(p, priv, 1, 1, heap);
-                RESTORE_VECTOR_REGISTERS();
+                    IS_INTEL_AVX2(cpuid_flags)) {
+                err = SAVE_VECTOR_REGISTERS2();
+                if (err == 0) {
+                    err = sp_1024_ecc_mulmod_base_avx2_16(p, priv, 1, 1, heap);
+                    RESTORE_VECTOR_REGISTERS();
+                }
             }
             else
 #endif

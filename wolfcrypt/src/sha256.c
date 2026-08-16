@@ -182,10 +182,7 @@ on the specific device platform.
 
 #if defined(WC_C_DYNAMIC_FALLBACK) && \
         defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP)
-    /* AES-NI can be enabled with WC_C_DYNAMIC_FALLBACK, but without the rest of
-     * USE_INTEL_SPEEDUP, in which case we need to disable the dynamic
-     * fallback.
-     */
+    /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
     #undef WC_C_DYNAMIC_FALLBACK
 #endif
 
@@ -244,12 +241,16 @@ on the specific device platform.
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
     #if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
-        /* With the AVX backend, wc_Sha256.buffer is in big endian even though
-         * the host is little endian.  For WC_C_DYNAMIC_FALLBACK, which requires
-         * alternating between AVX and C, we activate
-         * WC_NO_INTERNAL_FUNCTION_POINTERS, which arranges for just-in-time
-         * byte swapping on each call to the C back end.  This keeps the buffers
-         * big endian at all times.
+        /* Non-FIPS only: settings.h refuses WC_C_DYNAMIC_FALLBACK in a
+         * certified build, so a validated module never reaches this.
+         *
+         * With the AVX backend, wc_Sha256.buffer is in big endian even though
+         * the host is little endian.  WC_C_DYNAMIC_FALLBACK alternates between
+         * AVX and C, so WC_NO_INTERNAL_FUNCTION_POINTERS is activated to byte
+         * swap just in time on each call to the C back end, keeping the buffer
+         * big endian at all times.  That the two back ends need this to agree
+         * is a property of carrying both; it is not an argument for carrying
+         * both.  See linuxkm/SVR-FALLBACK-ANALYSIS.md.
          */
         #define WC_NO_INTERNAL_FUNCTION_POINTERS
     #endif
@@ -298,10 +299,13 @@ on the specific device platform.
     (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
     !defined(WOLFSSL_RENESAS_RX64_HASH)
 
+/* A pinned x86 build has no transform to select, so Sha256_SetTransform() is
+ * a do-nothing macro there rather than a function.  Defined here, ahead of
+ * the call in InitSha256() below. */
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
-     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
-    (defined(WOLFSSL_ARMASM) && defined(__aarch64__) && \
-     !defined(WOLF_CRYPTO_CB_ONLY_SHA256))
+       (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
+      (defined(WOLFSSL_ARMASM) && defined(__aarch64__) && \
+       !defined(WOLF_CRYPTO_CB_ONLY_SHA256))
 static void Sha256_SetTransform(void);
 #endif
 
@@ -356,8 +360,19 @@ static int InitSha256(wc_Sha256* sha256)
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)) && \
     !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 
-    /* in case intel instructions aren't available, plus we need the K[] global */
-    #define NEED_SOFT_SHA256
+    /* SHA-256 transforms compiled here: unpinned that is SHA-NI with and
+     * without AVX1, AVX1 and AVX2 each with and without RORX, and the C one,
+     * chosen from CPUID at run time.  IG 10.3.A GeneralNote1 requires each
+     * implementation in the module to be self-tested separately, so a
+     * pin that once narrowed this to one lane was deleted on 12 Aug 2026;
+     * CPUID now selects one per OE, and a vector-register save failure must
+     * return rather than pick another.  See
+     * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
+
+    /* The C transform, and the K[] table only it uses.  A pinned accelerated
+     * build does not compile it, it would be a second implementation of
+     * SHA-256 in the boundary, reachable from the same services. */
+        #define NEED_SOFT_SHA256
 
     /*****
     Intel AVX1/AVX2 Macro Control Structure
@@ -416,7 +431,9 @@ static int InitSha256(wc_Sha256* sha256)
      */
 
     /* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha256 */
+#ifdef NEED_SOFT_SHA256
     static int Transform_Sha256(wc_Sha256* sha256, const byte* data);
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -453,6 +470,7 @@ static int InitSha256(wc_Sha256* sha256)
     }  /* extern "C" */
 #endif
 
+
     static cpuid_flags_atomic_t intel_flags = WC_CPUID_ATOMIC_INITIALIZER;
 
 #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
@@ -472,12 +490,7 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha_method != SHA256_UNSET)
             return;
 
-        /* Note, with WC_C_DYNAMIC_FALLBACK, sha_method records CPU capability
-         * only.  Whether vector registers are actually usable is determined
-         * independently at each transform via SAVE_VECTOR_REGISTERS2(),
-         * allowing a context to move freely between vectorized and C transforms
-         * call by call.
-         */
+        /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
 
         cpuid_get_flags_atomic(&intel_flags);
 
@@ -570,7 +583,7 @@ static int InitSha256(wc_Sha256* sha256)
     #else
         if (sha_method == SHA256_C) {
             #ifdef WC_SHA256_RAW_BE_BUFFER
-            /* not currently reachable */
+            /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
             return Transform_Sha256_C_from_raw(S, D);
             #else
             return Transform_Sha256(S, D);
@@ -600,8 +613,7 @@ static int InitSha256(wc_Sha256* sha256)
         case SHA256_C:
         case SHA256_UNSET:
         default:
-            /* not reachable -- the C path exits above, before vector register
-             * save -- but must stay layout-correct. */
+            /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
             #ifdef WC_SHA256_RAW_BE_BUFFER
             ret = Transform_Sha256_C_from_raw(S, D);
             #else
@@ -785,6 +797,7 @@ static int InitSha256(wc_Sha256* sha256)
     }
 
 #endif /* !WC_NO_INTERNAL_FUNCTION_POINTERS */
+
 
 #if !defined(WOLFSSL_KCAPI_HASH)
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
@@ -1304,12 +1317,26 @@ static WC_INLINE int Transform_Sha256_Len_aarch64(wc_Sha256* sha256,
     return (*Transform_Sha256_Len_p)(sha256, data, len);
 }
 
+/* Both transforms below run on v0-v31 and save d8-d15
+ * (port/arm/armv8-sha256-asm.S), so a kernel module must bracket them. */
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #define WC_SHA256_ARM64_SVR_BEGIN()                                     \
+        do { int _svr_ret = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr_ret != 0) return _svr_ret; } while (0)
+    #define WC_SHA256_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA256_ARM64_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_SHA256_ARM64_SVR_END()   WC_DO_NOTHING
+#endif
+
 #if !defined(WOLFSSL_ARMASM_NO_NEON)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_crypto(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -1317,7 +1344,9 @@ static int Transform_Sha256_Len_crypto_aarch64(wc_Sha256* sha256,
 static int Transform_Sha256_Len_neon_aarch64(wc_Sha256* sha256,
     const byte* data, word32 len)
 {
+    WC_SHA256_ARM64_SVR_BEGIN();
     Transform_Sha256_Len_neon(sha256, data, len);
+    WC_SHA256_ARM64_SVR_END();
     return 0;
 }
 #endif
@@ -1408,12 +1437,15 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 /* As in the AArch64 arm above: this arm provides Sha256_SetTransform(). */
 #define WOLFSSL_ARMASM_SHA256_TRANSFORM
 
-/* On 32-bit Arm a NEON build compiles in the base and NEON and (unless
- * disabled) the Armv8 crypto-extension block transforms, so the best supported
- * one is chosen at run time - mirroring the AArch64 path.  Thumb-2, no-NEON,
- * no-crypto (NO_HW_CRYPTO) and crypto-only (NO_NEON_IMPL) builds compile a
- * single variant and call it directly, as does a build with no run-time
- * detection to dispatch on (HAVE_CPUID_ARM32). */
+/* On 32-bit Arm a non-FIPS NEON build compiles the base, NEON and Armv8
+ * crypto-extension block transforms and picks between them at run time.  A
+ * FIPS build does not: settings.h defines WOLFSSL_ARMASM_NO_BASE_IMPL and
+ * WOLFSSL_ARMASM_NO_NEON_IMPL for it, so one variant is compiled and called
+ * directly.  Thumb-2, no-NEON and no-crypto builds likewise compile a single
+ * variant, as does a build with no run-time detection (HAVE_CPUID_ARM32).
+ *
+ * Do not restore the run-time selection under FIPS - see
+ * linuxkm/SVR-FALLBACK-ANALYSIS.md. */
 #if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
     !(defined(WOLFSSL_ARMASM_NO_NEON_IMPL) && \
@@ -1507,20 +1539,37 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     return ret;
 }
 
+/* 32-bit ARM SHA-256 NEON/crypto transforms need SAVE/RESTORE_VECTOR_REGISTERS
+ * (kernel_neon_begin/end) in a kernel module, else SIMD faults.  This covers
+ * the SHA256_ARM32_DISPATCH arm too: the selected pointer can be the NEON or
+ * crypto-extension transform. */
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+    #define WC_SHA256_ARM_SVR_BEGIN(fail) SAVE_VECTOR_REGISTERS(fail)
+    #define WC_SHA256_ARM_SVR_END()       RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_SHA256_ARM_SVR_BEGIN(fail) WC_DO_NOTHING
+    #define WC_SHA256_ARM_SVR_END()       WC_DO_NOTHING
+#endif
+
 /* Call the transform selected at run time, or - when only one variant is
  * compiled in - the single one this build has.  The base transform is the
  * choice for Thumb-2 and no-NEON builds, NEON when the crypto extension is off,
  * and otherwise the crypto-extension transform the build was configured for. */
 static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 {
-#ifdef SHA256_ARM32_DISPATCH
-    (*Transform_Sha256_Len_p)(sha256, data, WC_SHA256_BLOCK_SIZE);
-#elif defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
+#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
     Transform_Sha256_Len_base(sha256, data, WC_SHA256_BLOCK_SIZE);
-#elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    Transform_Sha256_Len_neon(sha256, data, WC_SHA256_BLOCK_SIZE);
 #else
+    WC_SHA256_ARM_SVR_BEGIN(return _svr_ret;);
+  #ifdef SHA256_ARM32_DISPATCH
+    (*Transform_Sha256_Len_p)(sha256, data, WC_SHA256_BLOCK_SIZE);
+  #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    Transform_Sha256_Len_neon(sha256, data, WC_SHA256_BLOCK_SIZE);
+  #else
     Transform_Sha256_Len_crypto(sha256, data, WC_SHA256_BLOCK_SIZE);
+  #endif
+    WC_SHA256_ARM_SVR_END();
 #endif
     return 0;
 }
@@ -1529,14 +1578,18 @@ static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     word32 len)
 {
-#ifdef SHA256_ARM32_DISPATCH
-    (*Transform_Sha256_Len_p)(sha256, data, len);
-#elif defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
+#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
     Transform_Sha256_Len_base(sha256, data, len);
-#elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    Transform_Sha256_Len_neon(sha256, data, len);
 #else
+    WC_SHA256_ARM_SVR_BEGIN(return _svr_ret;);
+  #ifdef SHA256_ARM32_DISPATCH
+    (*Transform_Sha256_Len_p)(sha256, data, len);
+  #elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    Transform_Sha256_Len_neon(sha256, data, len);
+  #else
     Transform_Sha256_Len_crypto(sha256, data, len);
+  #endif
+    WC_SHA256_ARM_SVR_END();
 #endif
     return 0;
 }
@@ -1942,7 +1995,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
-        #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
+#if defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
         if (sha_method != SHA256_C)
         #else
         if (Transform_Sha256_Len_p != NULL)
