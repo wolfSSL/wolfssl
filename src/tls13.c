@@ -33,8 +33,13 @@
  * WOLFSSL_DTLS_CH_FRAG:     Enable DTLS 1.3 ClientHello frag     default: off
  *
  * Handshake:
- * WOLFSSL_TLS13_MIDDLEBOX_COMPAT: Enable middlebox compatibility  default: on
- *                            Sends ChangeCipherSpec and includes session id
+ * WOLFSSL_TLS13_MIDDLEBOX_COMPAT: Client-side middlebox compatibility
+ *                            default: off
+ *                            Makes the client send a fake session id and its
+ *                            own ChangeCipherSpec. The server always answers
+ *                            a non-empty client session id with a
+ *                            ChangeCipherSpec, as RFC 8446 Appendix D.4
+ *                            requires, whether or not this is defined.
  * WOLFSSL_SEND_HRR_COOKIE:  Send cookie in HelloRetryRequest     default: off
  *                            for stateless ClientHello tracking. A client
  *                            always echoes back a cookie it is sent.
@@ -7849,10 +7854,15 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     args->idx += sessIdSz;
 
-#ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
     /* RFC 8446 Appendix D.4: server MUST only send CCS if the client's
-     * ClientHello contains a non-empty legacy_session_id. */
+     * ClientHello contains a non-empty legacy_session_id. An ECH inner hello
+     * is rebuilt with the outer session id, so it decides either way. */
     if (sessIdSz == 0) {
+        ssl->options.tls13MiddleBoxCompat = 0;
+    }
+#ifdef WOLFSSL_QUIC
+    /* RFC 9001 Section 8.4: QUIC has no compatibility mode to be had. */
+    if (WOLFSSL_IS_QUIC(ssl)) {
         ssl->options.tls13MiddleBoxCompat = 0;
     }
 #endif
@@ -15798,13 +15808,20 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (ssl->earlyData != no_early_data &&
                 ssl->options.handShakeState != CLIENT_HELLO_COMPLETE) {
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-                    if (!ssl->options.dtls &&
-                           ssl->options.tls13MiddleBoxCompat) {
-                        if ((ssl->error = SendChangeCipher(ssl)) != 0) {
+                    if (!ssl->options.dtls && !ssl->options.sentChangeCipher
+                            && ssl->options.tls13MiddleBoxCompat) {
+                        ssl->error = SendChangeCipher(ssl);
+                        /* A short send leaves the record queued in the output
+                         * buffer, so a resumed connect must not build a second
+                         * one. Same on every other site. */
+                        if (ssl->error == 0 ||
+                                ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                            ssl->options.sentChangeCipher = 1;
+                        }
+                        if (ssl->error != 0) {
                             WOLFSSL_ERROR(ssl->error);
                             return WOLFSSL_FATAL_ERROR;
                         }
-                        ssl->options.sentChangeCipher = 1;
                     }
         #endif
                 ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
@@ -15850,11 +15867,19 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
                 if (!ssl->options.dtls && !ssl->options.sentChangeCipher
                     && ssl->options.tls13MiddleBoxCompat) {
-                    if ((ssl->error = SendChangeCipher(ssl)) != 0) {
+                    ssl->error = SendChangeCipher(ssl);
+                    if (ssl->error == 0 ||
+                            ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                        ssl->options.sentChangeCipher = 1;
+                    }
+                    if (ssl->error != 0) {
+                        /* The second ClientHello still has to follow, so hold
+                         * the state machine on this case while the record
+                         * drains. */
+                        ssl->options.buildingMsg = 1;
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
-                    ssl->options.sentChangeCipher = 1;
                 }
         #endif
                 /* Try again with different security parameters. */
@@ -15920,11 +15945,15 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
             if (!ssl->options.sentChangeCipher && !ssl->options.dtls
                 && ssl->options.tls13MiddleBoxCompat) {
-                if ((ssl->error = SendChangeCipher(ssl)) != 0) {
+                ssl->error = SendChangeCipher(ssl);
+                if (ssl->error == 0 ||
+                        ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+                    ssl->options.sentChangeCipher = 1;
+                }
+                if (ssl->error != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
-                ssl->options.sentChangeCipher = 1;
             }
         #endif
 
@@ -16916,6 +16945,39 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
 
 #ifndef NO_WOLFSSL_SERVER
 
+/* Send the RFC 8446 Appendix D.4 ChangeCipherSpec a server owes a client that
+ * offered a non-empty legacy_session_id.
+ *
+ * ssl    The SSL/TLS object.
+ * flush  Force the record out on its own. A HelloRetryRequest needs this
+ *        because SendTls13ServerHello has already sent it, unlike a
+ *        ServerHello, which waits for the rest of its flight.
+ * returns 0 on success.
+ */
+static int SendTls13ServerChangeCipher(WOLFSSL* ssl, int flush)
+{
+    int ret;
+
+    /* DoTls13ClientHello clears tls13MiddleBoxCompat for a QUIC peer, so the
+     * check here is a local backstop, 0 when QUIC is not built. */
+    if (ssl->options.dtls || WOLFSSL_IS_QUIC(ssl)
+            || !ssl->options.tls13MiddleBoxCompat
+            || ssl->options.sentChangeCipher) {
+        return 0;
+    }
+
+    ret = SendChangeCipher(ssl);
+    /* A short send leaves the record queued in the output buffer. Mark it sent
+     * anyway, or the resumed accept, which comes back in at the ServerHello
+     * case, puts a second record on the wire. */
+    if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
+        ssl->options.sentChangeCipher = 1;
+    if (ret == 0 && flush && ssl->options.groupMessages)
+        ret = SendBuffered(ssl);
+
+    return ret;
+}
+
 /* The server accepting a connection from a client.
  * The protocol version is expecting to be TLS v1.3.
  * If the client downgrades, and older versions of the protocol are compiled
@@ -17157,18 +17219,14 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE :
-    #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-            if (!ssl->options.dtls && ssl->options.tls13MiddleBoxCompat
-                && ssl->options.serverState ==
+            if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-                if ((ssl->error = SendChangeCipher(ssl)) != 0) {
+                ssl->error = SendTls13ServerChangeCipher(ssl, 1);
+                if (ssl->error != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
-                ssl->options.sentChangeCipher = 1;
-                ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
             }
-    #endif
             ssl->options.acceptState = TLS13_ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
             FALL_THROUGH;
@@ -17216,16 +17274,11 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_SERVER_HELLO_SENT :
-    #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-            if (!ssl->options.dtls && ssl->options.tls13MiddleBoxCompat
-                          && !ssl->options.sentChangeCipher && !ssl->options.dtls) {
-                if ((ssl->error = SendChangeCipher(ssl)) != 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
-                }
-                ssl->options.sentChangeCipher = 1;
+            ssl->error = SendTls13ServerChangeCipher(ssl, 0);
+            if (ssl->error != 0) {
+                WOLFSSL_ERROR(ssl->error);
+                return WOLFSSL_FATAL_ERROR;
             }
-    #endif
 
             ssl->options.acceptState = TLS13_ACCEPT_THIRD_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");

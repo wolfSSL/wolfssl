@@ -1429,7 +1429,8 @@ then
 
     if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
-        # Disable QUIC with JNI since incompatible with WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+        # Disable QUIC with JNI since incompatible with client-side
+        # WOLFSSL_TLS13_MIDDLEBOX_COMPAT
         test "$enable_quic" = "" && test "$enable_cryptonly" != "yes" && test "$enable_jni" != "yes" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
@@ -1447,7 +1448,8 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
-        # Disable ECH with JNI since incompatible with WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+        # Disable ECH with JNI since incompatible with client-side
+        # WOLFSSL_TLS13_MIDDLEBOX_COMPAT
         test "$enable_ech" = "" && test "$enable_jni" != "yes" && enable_ech=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_mcast" = "" && enable_mcast=yes
@@ -2708,7 +2710,7 @@ fi
 
 # TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
 AC_ARG_ENABLE([tls13-middlebox-compat],
-    [AS_HELP_STRING([--enable-tls13-middlebox-compat],[Enable TLS v1.3 middlebox compatibility mode (default: disabled)])],
+    [AS_HELP_STRING([--enable-tls13-middlebox-compat],[Enable client-side TLS v1.3 middlebox compatibility: send a fake session id and a ChangeCipherSpec. Server-side is always on (default: disabled)])],
     [ ENABLED_TLS13_MIDDLEBOX_COMPAT=$enableval ],
     [ ENABLED_TLS13_MIDDLEBOX_COMPAT=no ]
     )
@@ -2720,7 +2722,7 @@ then
         ENABLED_TLS13_MIDDLEBOX_COMPAT="no"
     elif test "x$ENABLED_ECH" = "xyes"
     then
-        AC_MSG_NOTICE([ECH is incompatible with middlebox compatibility - disabling middlebox compatibility])
+        AC_MSG_NOTICE([ECH is incompatible with client-side middlebox compatibility - disabling middlebox compatibility])
         ENABLED_TLS13_MIDDLEBOX_COMPAT="no"
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
@@ -9725,7 +9727,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
     if test "x$ENABLED_ECH" = "xyes"
     then
-        AC_MSG_NOTICE([ECH is incompatible with middlebox compatibility - not enabling middlebox compatibility for JNI])
+        AC_MSG_NOTICE([ECH is incompatible with client-side middlebox compatibility - not enabling middlebox compatibility for JNI])
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
     fi
