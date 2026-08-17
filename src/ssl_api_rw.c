@@ -1033,6 +1033,24 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
     return wolfssl_shutdown_internal(ssl, 0);
 }
 
+/* Whether the handshake failed outright rather than being still in flight.
+ * WANT_READ/WANT_WRITE (and a pending async operation) mean it can still
+ * continue, anything else recorded in ssl->error means it cannot.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when the handshake has failed, 0 when it can still progress.
+ */
+static int wolfssl_handshake_failed(const WOLFSSL* ssl)
+{
+    return (ssl->error != 0) &&
+        (ssl->error != WC_NO_ERR_TRACE(WANT_READ)) &&
+        (ssl->error != WC_NO_ERR_TRACE(WANT_WRITE))
+#ifdef WOLFSSL_ASYNC_CRYPT
+        && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+#endif
+        ;
+}
+
 /* Body of wolfSSL_shutdown().
  *
  * @param [in, out] ssl          SSL/TLS object.
@@ -1052,8 +1070,11 @@ static int wolfssl_shutdown_internal(WOLFSSL* ssl, int allowInInit)
     /* close_notify only means anything on an established connection. OpenSSL
      * fails here with SSL_R_SHUTDOWN_WHILE_IN_INIT and sends nothing. Gate on
      * handShakeDone, not handShakeState, so a renegotiation in flight does not
-     * block shutdown. */
-    else if ((!allowInInit) && (!ssl->options.handShakeDone)) {
+     * block shutdown. A handshake that already failed is not in flight - the
+     * caller is tearing down and the peer still has to be told, otherwise it
+     * sees a truncated connection instead of an alert. */
+    else if ((!allowInInit) && (!ssl->options.handShakeDone) &&
+             (!wolfssl_handshake_failed(ssl))) {
         WOLFSSL_MSG("Shutdown called before the handshake completed");
         /* Report without touching ssl->error: as in OpenSSL, this leaves the
          * handshake in progress rather than failing it. */
