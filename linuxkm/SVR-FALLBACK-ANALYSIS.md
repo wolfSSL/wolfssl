@@ -3571,3 +3571,106 @@ In rough order of value for effort:
 4. **Capture the measurements this document reports.** Several results here are
    reported rather than filed. They should be reproducible from artifacts before
    any of them goes into a submission.
+
+## 13.7 The aarch64 bulk AES routines were never bracketed, in any mode
+
+`cpudisrupt` produced real, reproducible **file corruption** through dm-crypt on
+aarch64 with `--enable-armasm`: files written through wolfCrypt came back with
+wrong bytes. This section records what upstream master does, why it did not
+cover this, and what was done instead.
+
+### 13.7.1 What the old solution in upstream master does
+
+Upstream carries a run-time **C dynamic fallback**. When the vector registers
+cannot be acquired, it silently demotes the operation to the C implementation
+(`wolfcrypt/src/aes.c`, upstream master):
+
+```c
+#define VECTOR_REGISTERS_PUSH {                                      \
+        int orig_use_aesni = aes->use_aesni;                         \
+        if (aes->use_aesni && (SAVE_VECTOR_REGISTERS2() != 0)) {     \
+            aes->use_aesni = 0;                                      \
+        }                                                            \
+        WC_DO_NOTHING
+#define VECTOR_REGISTERS_POP                                         \
+        if (aes->use_aesni)                                          \
+            RESTORE_VECTOR_REGISTERS();                              \
+        else                                                         \
+            aes->use_aesni = orig_use_aesni;                         \
+    }
+```
+
+Two properties matter here:
+
+1. **It is keyed on `use_aesni`.** The whole mechanism is x86: `use_aesni`,
+   `intel_flags`, `IS_INTEL_AVX2()`. aarch64 dispatch is keyed on a different
+   flag entirely, `use_aes_hw_crypto`, which this code never touches.
+2. **It only ever engages if `SAVE_VECTOR_REGISTERS2()` is called at all.**
+
+### 13.7.2 Why that never covered aarch64
+
+Verified against `upstream/master` directly, not from memory: the aarch64 bulk
+routines are **not bracketed upstream either**.
+
+| upstream master call site | bracketed |
+|---|---|
+| `AES_CBC_encrypt_AARCH64` | no |
+| `AES_XTS_encrypt_AARCH64` | no |
+| `AES_GCM_encrypt_AARCH64` | no |
+
+So on aarch64 there was nothing to fall back *from*: `SAVE_VECTOR_REGISTERS2()`
+was never reached on the bulk paths, the fallback branch could not fire, and the
+crypto-extension code ran over v0-v31 with no `kernel_neon_begin()`. Deleting
+the run-time fallback (section 3.0) therefore did not cause this defect and
+restoring it would not fix it -- the fallback is x86-only and, on the affected
+paths, dead.
+
+Section 13.5.9 bracketed the aarch64 **single-block** entry points. The **bulk**
+entry points were missed, which is why the defect survived that fix.
+
+### 13.7.3 What was done instead
+
+Every aarch64 crypto-extension call site in `aes.c` is now bracketed with
+`WC_AES_ARM64_SVR_BEGIN()` / `WC_AES_ARM64_SVR_END()`: 29 sites, covering ECB
+bulk, CBC, CTR, XTS, all 17 GCM sites, and `AES_set_key_AARCH64`. Before this
+change only 6 were bracketed.
+
+This is deliberately **not** the upstream approach. On failure to acquire the
+registers the operation **returns `WC_ACCEL_INHIBIT_E`**, which the LKCAPI shim
+maps to `-EBUSY` (retryable) via `wc_lkm_errno()`; it does not silently switch
+implementation mid-operation. One implementation is elected at key setup from
+CPUID and stays elected. That preserves the property the module is validated
+on: the lane that ran the CAST is the lane that does the work.
+
+It also matches what the kernel's own driver does --
+`arch/arm64/crypto/aes-glue.c` calls `kernel_neon_begin()` / `kernel_neon_end()`
+directly around every chunk, with no demotion path.
+
+### 13.7.4 Evidence
+
+dm-crypt over ext4, 40 x 512KB files, SHA-256 manifest re-verified after
+`drop_caches`, wolfCrypt asserted as the `xts(aes)` provider each boot.
+
+| arm64 config | before | after |
+|---|---|---|
+| C3 `--enable-armasm`, `xts(aes)` | 4, 2, 6, 5, 1, 3, 3, 1 bad of 40 | **0, 0, 0, 0** |
+| C3 `--enable-armasm`, `cbc(aes)` | 1 bad of 40 | **0, 0** |
+
+Controls, all clean throughout: C1 (C lane) 0/40; kernel `xts-aes-ce` with
+wolfCrypt unloaded 0/40; x86_64 and i386 0/40.
+
+`cbc(aes)` is the load-bearing control. It shares no XTS code, so its
+independent recovery attributes the fix to the bracketing rather than to
+anything about the XTS path.
+
+Attribution of the original fault was established by re-mounting the SAME
+ciphertext under the kernel's `xts-aes-ce` after `rmmod libwolfssl`: the files
+were still bad, proving wolfCrypt wrote bad ciphertext rather than
+mis-decrypting on read.
+
+### 13.7.5 What this does not cover
+
+Bracketing is per call site. A GCM AAD update takes and releases the registers
+once per `ghash_block`, which is correct but not optimal; consolidating to one
+bracket per public operation is a performance change for after the freeze, not a
+correctness one.
