@@ -5225,10 +5225,7 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
          /* Add chain to DER buffer. */
          res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz,
              ctx->heap);
-    #ifdef WOLFSSL_TLS13
-        /* Update count of certificates. */
         ctx->certChainCnt++;
-    #endif
     }
 
     return res;
@@ -5535,6 +5532,42 @@ int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
     }
 
     return ret;
+}
+
+/* Clear all extra chain certificates set on the SSL object.
+ *
+ * Mirrors OpenSSL's SSL_clear_chain_certs(): drops the chain this SSL will
+ * send, whether it was added via SSL_add0_chain_cert / SSL_add1_chain_cert or
+ * inherited from the WOLFSSL_CTX. A chain still owned by the WOLFSSL_CTX is
+ * only detached, not freed, so the context is left usable. The leaf
+ * certificate and the private key are not affected.
+ *
+ * @param [in, out] ssl  SSL object.
+ * @return  1 on success.
+ * @return  0 when ssl is NULL.
+ */
+int wolfSSL_clear_chain_certs(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_clear_chain_certs");
+
+    if (ssl == NULL)
+        return 0;
+
+    /* Free the DER-encoded chain buffer if this SSL owns it. */
+    if (ssl->buffers.weOwnCertChain) {
+        FreeDer(&ssl->buffers.certChain);
+        ssl->buffers.weOwnCertChain = 0;
+    }
+    ssl->buffers.certChain = NULL;
+    ssl->buffers.certChainCnt = 0;
+
+    /* Free the X509 stack used to track ownership of added chain certs. */
+    if (ssl->ourCertChain != NULL) {
+        wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
+        ssl->ourCertChain = NULL;
+    }
+
+    return 1;
 }
 #endif /* KEEP_OUR_CERT */
 #endif /* OPENSSL_EXTRA, HAVE_LIGHTY, WOLFSSL_MYSQL_COMPATIBLE, HAVE_STUNNEL,
