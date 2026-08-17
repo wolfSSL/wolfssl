@@ -2072,6 +2072,16 @@ AC_ARG_WITH([liboqs],
 #            emulated fpr backend is that expansion. Costs ~57KB (Falcon-512)
 #            or ~120KB (Falcon-1024) of heap per key. In small-mem builds,
 #            which have no expanded key, this reduces to cache-basis.
+#   level1 / level5 - build only the levels listed. Naming neither builds both.
+#            Every FALCON_MAX_* bound follows the highest level built, so
+#            'level1' alone takes falcon_key from 4120 to 2200 bytes and the
+#            verify stack arena from 4KB to 2KB.
+#   dynamic-keys - hold the encoded public and private key in heap buffers
+#            sized for the key's own level rather than inline arrays sized for
+#            the highest level built, which leaves falcon_key at a few dozen
+#            bytes. --enable-falcon=cache-* is the analogue for the signing
+#            working set. wc_falcon_set_level allocates, so it can return
+#            MEMORY_E.
 #   cache-basis - keep the decoded and completed secret basis (f, g, F, G) in
 #            the key structure, saving the private-key decode and the G
 #            recomputation on every signature after the first. Costs 4*n bytes
@@ -2079,7 +2089,7 @@ AC_ARG_WITH([liboqs],
 #   Neither cache is synchronized: a key signed with from several threads at
 #            once must either not use them or be signed with before sharing.
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem for low-memory signing and cache-key/cache-basis for per-key signing caches (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem, cache-key/cache-basis, level1/level5 and dynamic-keys (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
@@ -2090,6 +2100,9 @@ ENABLED_FALCON_NEON=no
 ENABLED_FALCON_SMALL_MEM=no
 ENABLED_FALCON_CACHE_KEY=no
 ENABLED_FALCON_CACHE_BASIS=no
+ENABLED_FALCON_LEVEL1=no
+ENABLED_FALCON_LEVEL5=no
+ENABLED_FALCON_DYNAMIC_KEYS=no
 
 # Parse the comma-separated backend sub-options. AC_ARG_ENABLE yields the plain
 # "yes"/"no" for a bare --enable-falcon/--disable-falcon; anything else is a
@@ -2108,7 +2121,10 @@ if test "$ENABLED_FALCON" != "no" && test "$ENABLED_FALCON" != "yes"; then
             small-mem) ENABLED_FALCON_SMALL_MEM=yes ;;
             cache-key) ENABLED_FALCON_CACHE_KEY=yes ;;
             cache-basis) ENABLED_FALCON_CACHE_BASIS=yes ;;
-            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem, cache-key, cache-basis]) ;;
+            level1) ENABLED_FALCON_LEVEL1=yes ;;
+            level5) ENABLED_FALCON_LEVEL5=yes ;;
+            dynamic-keys) ENABLED_FALCON_DYNAMIC_KEYS=yes ;;
+            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem, cache-key, cache-basis, level1, level5, dynamic-keys]) ;;
         esac
     done
     IFS="$OIFS"
@@ -8669,6 +8685,19 @@ fi
 if test "$ENABLED_FALCON_CACHE_BASIS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_FALCON_CACHE_PRIV_BASIS"
+fi
+# Naming neither level builds both; naming one drops the other.
+if test "$ENABLED_FALCON_LEVEL1" = "yes" && test "$ENABLED_FALCON_LEVEL5" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_FALCON_LEVEL5"
+fi
+if test "$ENABLED_FALCON_LEVEL5" = "yes" && test "$ENABLED_FALCON_LEVEL1" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_FALCON_LEVEL1"
+fi
+if test "$ENABLED_FALCON_DYNAMIC_KEYS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_DYNAMIC_KEYS"
 fi
 
 # XMSS CFLAG processing (after FIPS section for sandwich pattern)
