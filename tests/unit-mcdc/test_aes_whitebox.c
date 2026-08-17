@@ -107,6 +107,12 @@ static void wb_ghash_classic(void)
      * flipping the a!=NULL / c!=NULL operand while size!=0 is held true. */
     GHASH(&aes.gcm, NULL, (word32)sizeof(buf), NULL, (word32)sizeof(buf),
           s, (word32)sizeof(s));
+    /* Size operand's own FALSE half: aSz==0 / cSz==0 short-circuit the
+     * decision before the pointer is read. Needed here rather than left to
+     * the API tests for the GHASH_RISCV64 backend, which is reached only from
+     * this binary -- the RISC-V GCM cores call GHASH_RISCV64() directly and
+     * never enter this GHASH(). */
+    GHASH(&aes.gcm, buf, 0, buf, 0, s, (word32)sizeof(s));
 
     WB_NOTE("classic GHASH ptr-guard pairs exercised");
     wc_AesFree(&aes);
