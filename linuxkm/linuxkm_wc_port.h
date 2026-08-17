@@ -773,6 +773,13 @@
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
+    /* wolfCrypt error to errno for the LKCAPI shims.  WC_ACCEL_INHIBIT_E is a
+     * transient context restriction, so it must not reach dm-crypt as
+     * BLK_STS_IOERR; -EBUSY is retryable.  Defined outside the vector-register
+     * block below: the LKCAPI glue calls it whether or not SVR is compiled, and
+     * inside that block a no-armasm build fails with an implicit declaration. */
+    #define wc_lkm_errno(e) (((e) == WC_ACCEL_INHIBIT_E) ? -EBUSY : -EINVAL)
+
     /* x86 and ARM/ARM64 share the arch-neutral tracker in
      * x86_vector_register_glue.c, which keeps wc_*_x86 names on all arches. */
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
@@ -867,12 +874,6 @@
                 #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_NONE)
             #endif
         #endif
-/* wolfCrypt error to errno for the LKCAPI shims.  WC_ACCEL_INHIBIT_E is a
- * transient context restriction, so it must not reach dm-crypt as
- * BLK_STS_IOERR; -EBUSY is retryable.  A macro, so it needs no declaration
- * ordering against error-crypt.h. */
-#define wc_lkm_errno(e) (((e) == WC_ACCEL_INHIBIT_E) ? -EBUSY : -EINVAL)
-
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_NONE)
         #endif
