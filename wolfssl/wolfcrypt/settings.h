@@ -2470,6 +2470,10 @@
         #define WOLF_CRYPTO_CB
     #endif
     #define WOLFSSL_SHA512_HASHTYPE
+    #ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
+        #undef HAVE_HASHDRBG
+        #define WC_NO_HASHDRBG
+    #endif
 #endif
 
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE
