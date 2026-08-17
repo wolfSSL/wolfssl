@@ -45,14 +45,51 @@
 #include "security/security_common/drivers/crypto/crypto.h"
 #include "security/security_common/drivers/crypto/rng/rng.h"
 #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
+#include "drivers/sciclient.h"
+#include "drivers/sciclient/include/tisci/security/tisci_soc_uid.h"
 
 static Crypto_Handle handle;
 static Crypto_Context cryptoCtx XALIGNED(SA2UL_CACHELINE_ALIGNMENT);
+static uint32_t socUid[UID_LEN_WORDS];
+static int socUidAvail = 0;
+
+static int _getSocUid(void)
+{
+    if (socUidAvail == 0)
+    {
+        struct tisci_msg_get_soc_uid_req req = {0};
+        const Sciclient_ReqPrm_t reqPrm =
+        {
+            TISCI_MSG_GET_SOC_UID,
+            TISCI_MSG_FLAG_AOP,
+            (const uint8_t *)&req,
+            sizeof(req),
+            SystemP_WAIT_FOREVER
+        };
+        struct tisci_msg_get_soc_uid_resp resp;
+        Sciclient_RespPrm_t respPrm =
+        {
+            0,
+            (uint8_t *) &resp,
+            sizeof(resp)
+        };
+
+        if (Sciclient_service(&reqPrm, &respPrm) != SystemP_SUCCESS ||
+            respPrm.flags != TISCI_MSG_FLAG_ACK)
+        {
+            return -1;
+        }
+        XMEMCPY(socUid, resp.soc_uid, sizeof(socUid));
+        socUidAvail = 1;
+    }
+    return 0;
+}
 
 #ifndef WC_NO_RNG
 #define RNG_NUM_DWORDS (4u)
 static RNG_Handle rngHandle = NULL;
-static void ti_sa2ul_trng_init(void)
+
+static void ti_sa2ul_trng_init_common(void)
 {
     RNG_Handle handle = NULL;
     if (gRngConfig[0].attrs->isOpen == 0) {
@@ -73,7 +110,72 @@ static void ti_sa2ul_trng_init(void)
     }
 }
 
-static int ti_sa2ul_trng_get(OS_Seed* os, byte* output, word32 sz)
+#ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
+static void ti_sa2ul_trng_init_drbg(void)
+{
+    if (_getSocUid() == 0) {
+        uint32_t initialSeed[RNG_DRBG_SEED_MAX_ARRY_SIZE_IN_DWORD];
+        /* seed is 384 bits, uid is 256 bits, so copy uid 1.5x */
+        XMEMCPY(initialSeed, socUid, sizeof(socUid));
+        XMEMCPY(&initialSeed[8], socUid, sizeof(initialSeed) - sizeof(socUid));
+        gRngConfig[0].attrs->mode = RNG_DRBG_MODE;
+        gRngConfig[0].attrs->seedValue = initialSeed;
+        gRngConfig[0].attrs->seedSizeInDwords =
+            RNG_DRBG_SEED_MAX_ARRY_SIZE_IN_DWORD;
+        ti_sa2ul_trng_init_common();
+    }
+}
+
+static int ti_sa2ul_trng_get_drbg(byte* output, word32 sz)
+{
+    CSL_Cp_aceTrngRegs *pTrngRegs = (CSL_Cp_aceTrngRegs *)gRngConfig[0].attrs->rngBaseAddr;
+
+    if (output == NULL && sz != 0)
+        return -1;
+
+    while (sz) {
+        uint32_t val;
+        uint32_t random[RNG_NUM_DWORDS];
+        uint8_t *ptr = (uint8_t *)random;
+        int copy_len;
+
+        /* wait for READY==1 (random data ready) */
+        do {
+            val = CSL_REG_RD(&pTrngRegs->TRNG_STATUS);
+        } while ((val & CSL_CP_ACE_TRNG_STATUS_READY_MASK) !=
+                 CSL_CP_ACE_TRNG_STATUS_READY_MASK);
+
+        random[0] = CSL_REG_RD(&pTrngRegs->TRNG_INPUT_0);
+        random[1] = CSL_REG_RD(&pTrngRegs->TRNG_INPUT_1);
+        random[2] = CSL_REG_RD(&pTrngRegs->TRNG_INPUT_2);
+        random[3] = CSL_REG_RD(&pTrngRegs->TRNG_INPUT_3);
+        /* ack the data read */
+        CSL_REG_WR(&pTrngRegs->TRNG_STATUS, CSL_CP_ACE_TRNG_INTACK_READY_ACK_MASK);
+
+        /* kick off next generate request */
+        val = CSL_REG_RD(&pTrngRegs->TRNG_CONTROL);
+        val |= CSL_CP_ACE_TRNG_CONTROL_DATA_BLOCKS_MASK;
+        val |= CSL_CP_ACE_TRNG_CONTROL_REQUEST_DATA_MASK;
+        CSL_REG_WR(&pTrngRegs->TRNG_CONTROL, val);
+
+        copy_len = RNG_NUM_DWORDS * 4;
+        if (sz < copy_len)
+            copy_len = sz;
+        XMEMCPY(output, ptr, copy_len);
+        output += copy_len;
+        sz -= copy_len;
+    }
+
+    return 0;
+}
+#else
+static void ti_sa2ul_trng_init_nrbg(void)
+{
+    gRngConfig[0].attrs->mode = RNG_DRBG_DISABLE_MODE;
+    ti_sa2ul_trng_init_common();
+}
+
+static int ti_sa2ul_trng_get_nrbg(byte* output, word32 sz)
 {
     if (output == NULL && sz != 0)
         return -1;
@@ -93,6 +195,25 @@ static int ti_sa2ul_trng_get(OS_Seed* os, byte* output, word32 sz)
     }
 
     return 0;
+}
+#endif /* WOLFSSL_TI_AM64X_RNG_CTR_DRBG */
+
+static void ti_sa2ul_trng_init(void)
+{
+#ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
+    return ti_sa2ul_trng_init_drbg();
+#else
+    return ti_sa2ul_trng_init_nrbg();
+#endif
+}
+
+static int ti_sa2ul_trng_get(byte* output, word32 sz)
+{
+#ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
+    return ti_sa2ul_trng_get_drbg(output, sz);
+#else
+    return ti_sa2ul_trng_get_nrbg(output, sz);
+#endif
 }
 #endif /* WC_NO_RNG */
 
@@ -897,15 +1018,28 @@ static int ti_sa2ul_CryptoDevCb(int devId, wc_CryptoInfo* info, void* devCtx)
 #endif /* !NO_SHA256 || WOLFSSL_SHA512 */
     }
 #ifndef WC_NO_RNG
+# ifdef WOLFSSL_TI_AM64X_RNG_CTR_DRBG
+    else if (info->algo_type == WC_ALGO_TYPE_RNG)
+    {
+        ret = ti_sa2ul_trng_get(info->rng.out, info->rng.sz);
+    }
+# else
     else if (info->algo_type == WC_ALGO_TYPE_SEED)
     {
-        ret = ti_sa2ul_trng_get(info->seed.os,
-                                info->seed.seed,
-                                info->seed.sz);
+        ret = ti_sa2ul_trng_get(info->seed.seed, info->seed.sz);
     }
-#endif /* WC_NO_RNG */
+# endif
+#endif /* !WC_NO_RNG */
 
     return ret;
+}
+
+void ti_sa2ul_soc_uid(byte* uid)
+{
+    if (_getSocUid() == 0)
+        XMEMCPY(uid, socUid, sizeof(socUid));
+    else
+        XMEMSET(uid, 0xFFu, sizeof(socUid));
 }
 
 int ti_sa2ul_port_init(void)
