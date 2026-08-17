@@ -190,7 +190,7 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
 #ifdef WOLFSSL_TI_AM64X
-    #include "security/security_common/drivers/crypto/crypto.h"
+    #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
 #endif
 
 /* Backends that replace one or more AES mode entry points, either with a
