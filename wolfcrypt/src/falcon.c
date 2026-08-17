@@ -588,6 +588,18 @@ static int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g,
  * 48*2^logn bytes. */
 #define FALCON_SIGN_TMP_FPR(logn)        ((size_t)6 << (logn))
 
+/* Scratch, in fpr elements, that falcon_complete_private and
+ * falcon_expand_privkey each need. Both write the whole region and
+ * wc_ForceZero it on the way out, so a lender supplying less than this
+ * overruns silently. The static assertions below check the in-tree lenders. */
+#define FALCON_COMPLETE_PRIV_TMP_FPR(logn) ((size_t)3 << (logn))
+#define FALCON_EXPAND_PRIV_TMP_FPR(logn)   ((size_t)5 << (logn))
+
+/* The signer lends its own scratch to the key setup. The ratios are constant
+ * in logn, so one logn checks them all. */
+wc_static_assert(FALCON_SIGN_TMP_FPR(1) >= FALCON_EXPAND_PRIV_TMP_FPR(1));
+wc_static_assert(FALCON_SIGN_TMP_FPR(1) >= FALCON_COMPLETE_PRIV_TMP_FPR(1));
+
 /* The discrete-Gaussian sampler callback type used by ffSampling. The second
  * argument is the center mu, the third the inverse standard deviation isigma.
  * falcon_sampler_z (wc_falcon_sampler.h) implements this contract. */
@@ -599,19 +611,27 @@ typedef int (*falcon_samplerZ)(void* ctx, fpr mu, fpr isigma);
  * quotient is exact; a rounded coefficient outside the [-127, 127] range is
  * rejected (this also catches a grossly inconsistent/corrupt key). Returns 0 on
  * success, or a negative wolfCrypt error on out-of-range coefficient or memory
- * allocation failure. */
+ * allocation failure.
+ *
+ * 'scratch', when not NULL, is borrowed as the working area and must hold at
+ * least FALCON_COMPLETE_PRIV_TMP_FPR(logn) fpr elements. Pass NULL to have one
+ * allocated instead. */
 static int falcon_complete_private(sword8* G, const sword8* f,
-        const sword8* g, const sword8* F, unsigned logn, void* heap);
+        const sword8* g, const sword8* F, unsigned logn, void* heap,
+        fpr* scratch);
 
 #ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
 /* Expand the private basis (f, g, F, G) into 'expanded' (which must hold
  * FALCON_EXPANDED_KEY_FPR(logn) fpr elements): the B0 matrix in FFT
- * representation and the normalized ffLDL tree. Allocates an internal scratch
- * of FALCON_SIGN_TMP_FPR(logn) fpr. Returns 0 on success or a negative
- * wolfCrypt error. */
+ * representation and the normalized ffLDL tree. Returns 0 on success or a
+ * negative wolfCrypt error.
+ *
+ * 'scratch', when not NULL, is borrowed as the working area and must hold at
+ * least FALCON_EXPAND_PRIV_TMP_FPR(logn) fpr elements. Pass NULL to have one
+ * allocated. */
 static int falcon_expand_privkey(fpr* expanded, const sword8* f,
         const sword8* g, const sword8* F, const sword8* G, unsigned logn,
-        void* heap);
+        void* heap, fpr* scratch);
 
 /* Fast Fourier sampling: sample the target (t0, t1) against the ffLDL 'tree',
  * writing the sampled lattice coordinates into (z0, z1). 'tmp' needs room for
@@ -6479,12 +6499,13 @@ static const word32 l2bound[] = {
  * the real (lower) half of the FFT representation, divide by f, inverse-FFT and
  * round to integers. */
 int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
-        const sword8* F, unsigned logn, void* heap)
+        const sword8* F, unsigned logn, void* heap, fpr* scratch)
 {
     size_t n, hn, u;
     fpr* t1;
     fpr* t2;
     fpr* t3;
+    fpr* alloc = NULL;
     int ret = 0;
 
     if (G == NULL || f == NULL || g == NULL || F == NULL
@@ -6495,11 +6516,19 @@ int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
     n = MKN(logn);
     hn = n >> 1;
 
-    /* Three working polynomials. */
-    t1 = (fpr*)XMALLOC((size_t)3 * n * sizeof(fpr), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (t1 == NULL) {
-        return MEMORY_E;
+    /* Three working polynomials, from the caller's scratch when it has some
+     * idle (the signer does) so this does not add to the peak. */
+    if (scratch != NULL) {
+        t1 = scratch;
+    }
+    else {
+        alloc = (fpr*)XMALLOC(
+                FALCON_COMPLETE_PRIV_TMP_FPR(logn) * sizeof(fpr), heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (alloc == NULL) {
+            return MEMORY_E;
+        }
+        t1 = alloc;
     }
     t2 = t1 + n;
     t3 = t2 + n;
@@ -6539,8 +6568,9 @@ int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
     }
 
     /* t1 held the FFT images of the secret basis (g, F, f) and the derived G. */
-    wc_ForceZero(t1, (word32)((size_t)3 * n * sizeof(fpr)));
-    XFREE(t1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_ForceZero(t1,
+        (word32)(FALCON_COMPLETE_PRIV_TMP_FPR(logn) * sizeof(fpr)));
+    XFREE(alloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -6772,7 +6802,8 @@ static WC_INLINE size_t skoff_b11(unsigned logn) { return 3 * MKN(logn); }
 static WC_INLINE size_t skoff_tree(unsigned logn) { return 4 * MKN(logn); }
 
 int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
-        const sword8* F, const sword8* G, unsigned logn, void* heap)
+        const sword8* F, const sword8* G, unsigned logn, void* heap,
+        fpr* scratch)
 {
     size_t n;
     fpr* rf;
@@ -6785,10 +6816,10 @@ int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
     fpr* b11;
     fpr* g00;
     fpr* g01;
-    fpr* g11;
     fpr* gxx;
     fpr* tree;
     fpr* tmp;
+    fpr* alloc = NULL;
 
     if (expanded == NULL || f == NULL || g == NULL || F == NULL || G == NULL
             || logn < 1 || logn > 10) {
@@ -6797,11 +6828,21 @@ int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
 
     n = MKN(logn);
 
-    /* Internal scratch: six polynomials (matches the reference 48*2^logn). */
-    tmp = (fpr*)XMALLOC((size_t)6 * n * sizeof(fpr), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL) {
-        return MEMORY_E;
+    /* Internal scratch: FALCON_EXPAND_PRIV_TMP_FPR(logn) == five polynomials -
+     * three for g00/g01/gxx plus the two ffLDL_fft carves out of gxx. The
+     * reference asks for six; the g11 slot it counts is not kept here. Taken
+     * from the caller's scratch when it has some idle. */
+    if (scratch != NULL) {
+        tmp = scratch;
+    }
+    else {
+        alloc = (fpr*)XMALLOC(
+                FALCON_EXPAND_PRIV_TMP_FPR(logn) * sizeof(fpr), heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (alloc == NULL) {
+            return MEMORY_E;
+        }
+        tmp = alloc;
     }
 
     b00 = expanded + skoff_b00(logn);
@@ -6828,11 +6869,12 @@ int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
     falcon_poly_neg(rf, logn);
     falcon_poly_neg(rF, logn);
 
-    /* Gram matrix G = B*B^* (upper triangle: g00, g01, g11). */
+    /* Gram matrix G = B*B^* (upper triangle: g00, g01). No slot for g11: the
+     * root derives D11 from g00 and no other level reads it. gxx is the
+     * working polynomial below plus the three ffLDL_fft needs. */
     g00 = tmp;
     g01 = g00 + n;
-    g11 = g01 + n;
-    gxx = g11 + n;
+    gxx = g01 + n;
 
     XMEMCPY(g00, b00, n * sizeof(*b00));
     falcon_poly_mulselfadj_fft(g00, logn);
@@ -6846,16 +6888,14 @@ int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
     falcon_poly_muladj_fft(gxx, b11, logn);
     falcon_poly_add(g01, gxx, logn);
 
-    /* g11 is deliberately not formed: ffLDL_fft derives the root D11 from
-     * det(G) = q^2 and g00, and no other level reads it. */
-
     /* Falcon tree, then normalization. */
     ffLDL_fft(tree, g00, g01, logn, gxx);
     ffLDL_binary_normalize(tree, logn, logn);
 
     /* tmp held the secret-derived Gram matrix and ffLDL intermediates. */
-    wc_ForceZero(tmp, (word32)((size_t)6 * n * sizeof(fpr)));
-    XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_ForceZero(tmp,
+        (word32)(FALCON_EXPAND_PRIV_TMP_FPR(logn) * sizeof(fpr)));
+    XFREE(alloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
 
@@ -7328,6 +7368,10 @@ int falcon_sign_core(falcon_sampler_ctx* spc, const fpr* expanded,
 /* Scratch, in fpr, for falcon_do_sign_dyn (reference TMPSIZE_SIGNDYN = 78*2^logn
  * bytes; 10*2^logn fpr = 80*2^logn bytes covers it for the supported logn). */
 #define FALCON_SIGN_DYN_TMP_FPR(logn)    ((size_t)10 << (logn))
+
+/* The small-mem signer lends this scratch to falcon_complete_private. */
+wc_static_assert(FALCON_SIGN_DYN_TMP_FPR(1) >=
+                 FALCON_COMPLETE_PRIV_TMP_FPR(1));
 
 /* One pending ffSampling_fft_dyntree node (the reference recursion, flattened).
  * Each internal node LDL-decomposes its Gram block in place, then descends first
@@ -8363,9 +8407,14 @@ out:
 /* Load the secret basis f | g | F | G into the 4n contiguous bytes at 'basis'
  * and, in the tree signer, expand it into *expanded. With the cache options
  * the work happens once per key instead of once per signature. Vector
- * registers must already be held by the caller. */
+ * registers must already be held by the caller.
+ *
+ * 'scratch' is the caller's signing scratch, which is idle until the sampler
+ * runs: 6*2^logn fpr in the tree signer and 10*2^logn in the small-mem one,
+ * against the 5 and 3 that the expansion and the key completion need. Lending
+ * it here is what keeps both off the signing peak. */
 static int falcon_sign_key_setup(falcon_key* key, word32 keySz, unsigned logn,
-        size_t n, sword8* basis, fpr** expanded)
+        size_t n, sword8* basis, fpr** expanded, fpr* scratch)
 {
     int ret = 0;
     int haveBasis = 0;
@@ -8412,7 +8461,8 @@ static int falcon_sign_key_setup(falcon_key* key, word32 keySz, unsigned logn,
     if (!haveBasis) {
         ret = falcon_privkey_decode(key->k, keySz, f, g, F, logn);
         if (ret == 0) {
-            ret = falcon_complete_private(G, f, g, F, logn, key->heap);
+            ret = falcon_complete_private(G, f, g, F, logn, key->heap,
+                scratch);
         }
 #ifdef WC_FALCON_CACHE_PRIV_BASIS
         if (ret == 0) {
@@ -8424,7 +8474,8 @@ static int falcon_sign_key_setup(falcon_key* key, word32 keySz, unsigned logn,
 
 #ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
     if (ret == 0) {
-        ret = falcon_expand_privkey(*expanded, f, g, F, G, logn, key->heap);
+        ret = falcon_expand_privkey(*expanded, f, g, F, G, logn, key->heap,
+            scratch);
     }
 #ifdef WC_FALCON_CACHE_TREE
     if (ret == 0) {
@@ -8564,9 +8615,10 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     /* Decode the secret basis, recompute G and (outside small-mem mode, where
      * the dynamic signer rebuilds the tree per attempt) expand it. */
 #ifdef WOLFSSL_FALCON_SIGN_SMALL_MEM
-    ret = falcon_sign_key_setup(key, keySz, logn, (size_t)n, f, NULL);
+    ret = falcon_sign_key_setup(key, keySz, logn, (size_t)n, f, NULL, tmp);
 #else
-    ret = falcon_sign_key_setup(key, keySz, logn, (size_t)n, f, &expanded);
+    ret = falcon_sign_key_setup(key, keySz, logn, (size_t)n, f, &expanded,
+        tmp);
 #endif
     if (ret != 0) {
         goto out;
