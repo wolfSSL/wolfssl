@@ -809,7 +809,55 @@ int IsDtlsNotSrtpMode(WOLFSSL* ssl)
         err = inflate(&ssl->d_stream, Z_SYNC_FLUSH);
         if (err != Z_OK && err != Z_STREAM_END) return ZLIB_DECOMPRESS_ERROR;
 
+        /* RFC 5246 6.2.2: a fragment decompressing past the maximum plaintext
+         * size is fatal, it must not be silently truncated.  'out' is sized
+         * one byte over that limit (see EnsureDecompBuffer), so a full output
+         * buffer means the limit was passed.  Leftover input cannot be used
+         * for this: inflate() pulls the last input bytes into its bit
+         * accumulator with output still pending. */
+        if (ssl->d_stream.avail_out == 0) {
+            WOLFSSL_MSG("Decompressed record exceeds max plaintext size");
+            return ZLIB_DECOMPRESS_ERROR;
+        }
+
+        /* room was left, so anything unconsumed is trailing garbage or data
+         * past the end of a stream the peer terminated */
+        if (ssl->d_stream.avail_in != 0) {
+            WOLFSSL_MSG("Trailing bytes after decompressed record");
+            return ZLIB_DECOMPRESS_ERROR;
+        }
+
         return (int)ssl->d_stream.total_out - currTotal;
+    }
+
+
+    /* Size the decompression buffer one byte over the largest plaintext the
+     * peer may send, so myDeCompress() can tell a record at the limit apart
+     * from one past it.  Grows if a renegotiation raised the fragment size.
+     * Not DYNAMIC_TYPE_IN_BUFFER: a static memory build with a fixed IO pool
+     * serves that type from the same buffer as ssl->buffers.inputBuffer. */
+    static int EnsureDecompBuffer(WOLFSSL* ssl)
+    {
+        word32 needed = (word32)wolfSSL_GetMaxFragSize(ssl) + 1;
+        byte*  tmp;
+
+        if (ssl->buffers.decompBuffer.length >= needed)
+            return 0;
+
+        tmp = (byte*)XMALLOC(needed, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL)
+            return MEMORY_E;
+
+        if (ssl->buffers.decompBuffer.buffer != NULL) {
+            ForceZero(ssl->buffers.decompBuffer.buffer,
+                      ssl->buffers.decompBuffer.length);
+            XFREE(ssl->buffers.decompBuffer.buffer, ssl->heap,
+                  DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        ssl->buffers.decompBuffer.buffer = tmp;
+        ssl->buffers.decompBuffer.length = needed;
+
+        return 0;
     }
 
 #endif /* HAVE_LIBZ */
@@ -9883,6 +9931,15 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);
+    if (ssl->buffers.decompBuffer.buffer != NULL) {
+        /* holds decrypted application data */
+        ForceZero(ssl->buffers.decompBuffer.buffer,
+                  ssl->buffers.decompBuffer.length);
+        XFREE(ssl->buffers.decompBuffer.buffer, ssl->heap,
+              DYNAMIC_TYPE_TMP_BUFFER);
+        ssl->buffers.decompBuffer.buffer = NULL;
+        ssl->buffers.decompBuffer.length = 0;
+    }
 #endif
     FreeSSL_EccPeerKeys(ssl);
 #if defined(WOLFSSL_HAVE_MLDSA)
@@ -23500,9 +23557,6 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
     word32 idx     = *inOutIdx;
     int    dataSz;
     byte*  rawData = input + idx;  /* keep current  for hmac */
-#ifdef HAVE_LIBZ
-    byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
-#endif
 #ifdef WOLFSSL_EARLY_DATA
     int    isEarlyData = ssl->options.tls1_3 &&
                          ssl->options.handShakeDone == 0 &&
@@ -23637,8 +23691,27 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
-            dataSz = myDeCompress(ssl, rawData, dataSz, decomp, sizeof(decomp));
-            if (dataSz < 0) return dataSz;
+            /* Plaintext goes into a connection owned buffer rather than back
+             * over 'input': a fragment can decompress to far more than the
+             * record it arrived in, and 'input' is only sized for that record
+             * and may hold the records queued behind it. */
+            dataSz = EnsureDecompBuffer(ssl);
+            if (dataSz != 0) {
+                WOLFSSL_ERROR_VERBOSE(dataSz);
+                return dataSz;
+            }
+
+            dataSz = myDeCompress(ssl, rawData, rawSz,
+                                  ssl->buffers.decompBuffer.buffer,
+                                  (int)ssl->buffers.decompBuffer.length);
+            if (dataSz < 0) {
+                if (sniff == NO_SNIFF) {
+                    SendAlert(ssl, alert_fatal, decompression_failure);
+                }
+                WOLFSSL_ERROR_VERBOSE(dataSz);
+                return dataSz;
+            }
+            rawData = ssl->buffers.decompBuffer.buffer;
         }
 #endif
         idx += (word32)rawSz;
@@ -23646,12 +23719,6 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
         ssl->buffers.clearOutputBuffer.buffer = rawData;
         ssl->buffers.clearOutputBuffer.length = (unsigned int)dataSz;
     }
-
-#ifdef HAVE_LIBZ
-    /* decompress could be bigger, overwrite after verify */
-    if (ssl->options.usingCompression)
-        XMEMMOVE(rawData, decomp, dataSz);
-#endif
 
     *inOutIdx = idx;
 #ifdef WOLFSSL_DTLS13
@@ -25578,9 +25645,13 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     >= ssl->buffers.inputBuffer.length) {
                 return BUFFER_ERROR;
             }
+            /* RFC 5246 6.2.2 lets a compressed fragment run MAX_COMP_EXTRA
+             * over the plaintext limit, same allowance GetRecordHeader()
+             * makes for the record length. */
        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (IsEncryptionOn(ssl, 0) && ssl->options.startedETMRead) {
-                if ((ssl->curSize > MAX_PLAINTEXT_SZ)
+                if ((ssl->curSize > MAX_PLAINTEXT_SZ +
+                        (ssl->options.usingCompression ? MAX_COMP_EXTRA : 0))
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
                                 ssl->buffers.inputBuffer.idx
@@ -25598,7 +25669,8 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
        #endif
             /* TLS13 plaintext limit is checked earlier before decryption */
             if (!IsAtLeastTLSv1_3(ssl->version)
-                    && ssl->curSize > MAX_PLAINTEXT_SZ
+                    && ssl->curSize > MAX_PLAINTEXT_SZ +
+                        (ssl->options.usingCompression ? MAX_COMP_EXTRA : 0)
 #ifdef WOLFSSL_ASYNC_CRYPT
                     && ssl->buffers.inputBuffer.length !=
                             ssl->buffers.inputBuffer.idx
@@ -28879,8 +28951,18 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         byte* sendBuffer = (byte*)data + sent;  /* may switch on comp */
         int   buffSz;                           /* may switch on comp */
         int   outputSz;
+        /* The threaded crypt path returns each record directly and never
+         * advances 'sent', so it only needs this when compressing. */
+#if defined(HAVE_LIBZ) || !defined(WOLFSSL_THREADED_CRYPT)
+        int   plainSz;                          /* buffSz before compression */
+#endif
 #ifdef HAVE_LIBZ
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
+        /* deflate may expand incompressible data, so the record has to be
+         * sized for the worst case before the payload is compressed into it */
+        int   compExtra = ssl->options.usingCompression ? MAX_COMP_EXTRA : 0;
+#else
+        const int compExtra = 0;
 #endif
 #ifdef WOLFSSL_THREADED_CRYPT
         int i;
@@ -28970,7 +29052,12 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             int maxFrag = wolfSSL_GetMaxFragSize(ssl);
             if (maxFrag > 0)
                 buffSz = min((word32)buffSz, (word32)maxFrag);
-            outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
+            /* No MTU to respect here, so the record is simply allocated big
+             * enough for deflate's worst case.  Without the allowance an
+             * incompressible full size fragment fails BuildMessage()'s outSz
+             * bound.  DTLS above cannot do this: there the size is charged
+             * against the MTU. */
+            outputSz = wolfssl_local_GetRecordSize(ssl, buffSz + compExtra, 1);
         }
 
         /* check for available size, it does also DTLS MTU checks */
@@ -29003,9 +29090,15 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         out = encrypt->buffer.buffer;
 #endif
 
+        /* buffSz becomes the compressed length below, so hold on to the
+         * plaintext length: that is what the caller's 'sent' cursor and the
+         * WANT_WRITE resume point are measured in. */
+#if defined(HAVE_LIBZ) || !defined(WOLFSSL_THREADED_CRYPT)
+        plainSz = buffSz;
+#endif
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
-            buffSz = myCompress(ssl, sendBuffer, buffSz, comp, sizeof(comp));
+            buffSz = myCompress(ssl, sendBuffer, plainSz, comp, sizeof(comp));
             if (buffSz < 0) {
                 return buffSz;
             }
@@ -29099,7 +29192,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             WOLFSSL_ERROR(error);
             /* store for next call if WANT_WRITE or user embedSend() that
                doesn't present like WANT_WRITE */
-            ssl->buffers.plainSz  = buffSz;
+            ssl->buffers.plainSz  = (word32)plainSz;
             ssl->buffers.prevSent = sent;
             if (error == WC_NO_ERR_TRACE(SOCKET_ERROR_E) &&
                     (ssl->options.connReset || ssl->options.isClosed)) {
@@ -29114,7 +29207,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             ssl->error = 0; /* Clear any previous errors */
         }
 
-        sent += buffSz;
+        sent += (word32)plainSz;
 
         /* only one message per attempt */
         if (ssl->options.partialWrite == 1) {
@@ -34030,6 +34123,8 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
                + (word32)idSz + ENUM_LEN
                + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
+        if (ssl->options.usingCompression)
+            length += ENUM_LEN;   /* null is offered next to zlib */
 #ifndef NO_FORCE_SCR_SAME_SUITE
         if (IsSCR(ssl))
             length += SUITE_LEN;
@@ -34147,12 +34242,18 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
             idx += suites->suiteSz;
         }
 
-        /* last, compression */
-        output[idx++] = COMP_LEN;
-        if (ssl->options.usingCompression)
+        /* last, compression.  RFC 5246 7.4.1.2 requires the list to always
+         * include CompressionMethod.null, so zlib is offered alongside it
+         * rather than on its own - a list of just zlib is rejected. */
+        if (ssl->options.usingCompression) {
+            output[idx++] = COMP_LEN + ENUM_LEN;
             output[idx++] = ZLIB_COMPRESSION;
-        else
             output[idx++] = NO_COMPRESSION;
+        }
+        else {
+            output[idx++] = COMP_LEN;
+            output[idx++] = NO_COMPRESSION;
+        }
 
 #ifdef HAVE_TLS_EXTENSIONS
         extSz = 0;

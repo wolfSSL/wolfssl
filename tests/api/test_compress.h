@@ -25,8 +25,20 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_CompressDecisionCoverage(void);
+int test_wolfSSL_tls_compression(void);
+int test_wolfSSL_tls_compression_multi_record(void);
+int test_wolfSSL_tls_compression_client_hello(void);
+int test_wolfSSL_tls13_compression_off(void);
+int test_wolfSSL_tls_decompression_no_writeback(void);
+int test_wolfSSL_tls_decompression_limit(void);
 
 #define TEST_COMPRESS_DECLS                                                    \
-    TEST_DECL_GROUP("compress", test_wc_CompressDecisionCoverage)
+    TEST_DECL_GROUP("compress", test_wc_CompressDecisionCoverage),             \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression),                 \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_multi_record),    \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_compression_client_hello),    \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls13_compression_off),           \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_no_writeback),  \
+    TEST_DECL_GROUP("compress", test_wolfSSL_tls_decompression_limit)
 
 #endif /* WOLFCRYPT_TEST_COMPRESS_H */

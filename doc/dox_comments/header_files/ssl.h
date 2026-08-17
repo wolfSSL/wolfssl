@@ -7231,6 +7231,13 @@ int wolfSSL_negotiate(WOLFSSL* ssl);
     the amount of data saved by compression usually takes longer in time to
     analyze than it does to send it raw on all but the slowest of networks.
 
+    Record layer compression was removed in TLS 1.3 (RFC 8446 section 5.2).
+    A connection that negotiates TLS 1.3 or DTLS 1.3 therefore completes
+    uncompressed and this request is silently dropped; the call still returns
+    SSL_SUCCESS, so check the negotiated protocol version rather than this
+    return value to learn whether compression is actually in use. For the same
+    reason a ClientHello that offers TLS 1.3 never advertises zlib.
+
     \return SSL_SUCCESS upon success.
     \return NOT_COMPILED_IN will be returned if compression support wasn’t
     built into the library.
