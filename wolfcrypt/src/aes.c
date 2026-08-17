@@ -6403,7 +6403,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     #else
         Check_CPU_support_HwCrypto(aes);
         if (aes->use_aes_hw_crypto) {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_set_key_AARCH64(userKey, keylen, (byte*)aes->key, dir);
+            WC_AES_ARM64_SVR_END();
         }
         else
     #endif /* __aarch64__ */
@@ -7788,8 +7790,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
       #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         if (aes->use_aes_hw_crypto) {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_CBC_encrypt_AARCH64(in, out, sz, (byte*)aes->reg,
                 (byte*)aes->key, (int)aes->rounds);
+            WC_AES_ARM64_SVR_END();
         }
         else
     #endif /* __aarch64__ */
@@ -8050,8 +8054,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
       #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         if (aes->use_aes_hw_crypto) {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_CBC_decrypt_AARCH64(in, out, sz, (byte*)aes->reg,
                 (byte*)aes->key, (int)aes->rounds);
+            WC_AES_ARM64_SVR_END();
         }
         else
     #endif /* !__aarch64__ */
@@ -8550,8 +8556,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
               #endif /* WOLFSSL_ARM32_AES_DISPATCH */
             #else
             if (aes->use_aes_hw_crypto) {
+                WC_AES_ARM64_SVR_BEGIN();
                 AES_CTR_encrypt_AARCH64(in, out, sz, (byte*)aes->reg,
                     (byte*)aes->key, (byte*)aes->tmp, &aes->left, aes->rounds);
+                WC_AES_ARM64_SVR_END();
                 return 0;
             }
             else
@@ -9286,8 +9294,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
       #endif /* WOLFSSL_ARM32_AES_DISPATCH */
     #else
         if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_set_key_AARCH64(iv, (byte*)aes->key, aes->gcm.H,
                 aes->rounds);
+            WC_AES_ARM64_SVR_END();
         }
         else
     #endif /* !__aarch64__ */
@@ -12150,9 +12160,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         else
     #endif
         {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_encrypt_AARCH64(in, out, sz, iv, ivSz, authTag, authTagSz,
                 authIn, authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp,
                 (byte*)aes->reg, aes->rounds);
+            WC_AES_ARM64_SVR_END();
         }
         ret = 0;
     }
@@ -13029,9 +13041,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         else
     #endif
         {
+            WC_AES_ARM64_SVR_BEGIN();
             ret = AES_GCM_decrypt_AARCH64(in, out, sz, iv, ivSz, authTag,
                 authTagSz, authIn, authInSz, (byte*)aes->key, aes->gcm.H,
                 (byte*)aes->tmp, (byte*)aes->reg, aes->rounds);
+            WC_AES_ARM64_SVR_END();
         }
     }
     else
@@ -14328,8 +14342,10 @@ static WARN_UNUSED_RESULT int AesGcmInit_AARCH64(Aes* aes, const byte* iv,
     else
 #endif
     {
+        WC_AES_ARM64_SVR_BEGIN();
         AES_GCM_init_AARCH64((byte*)aes->key, (int)aes->rounds, iv, ivSz,
             aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
+        WC_AES_ARM64_SVR_END();
     }
 
     return 0;
@@ -14373,8 +14389,10 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
                 else
             #endif
                 {
+                    WC_AES_ARM64_SVR_BEGIN();
                     AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes),
                         AES_TAG(aes), aes->gcm.H);
+                    WC_AES_ARM64_SVR_END();
                 }
                 /* Reset count. */
                 aes->aOver = 0;
@@ -14397,8 +14415,10 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
             else
         #endif
             {
+                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_aad_update_AARCH64(a, blocks * WC_AES_BLOCK_SIZE,
                     AES_TAG(aes), aes->gcm.H);
+                WC_AES_ARM64_SVR_END();
             }
             /* Skip over to end of AAD blocks. */
             a += blocks * WC_AES_BLOCK_SIZE;
@@ -14423,8 +14443,10 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
         else
     #endif
         {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes),
                 AES_TAG(aes), aes->gcm.H);
+            WC_AES_ARM64_SVR_END();
         }
         /* Clear partial count for next time through. */
         aes->aOver = 0;
@@ -14481,8 +14503,10 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
                 else
             #endif
                 {
+                    WC_AES_ARM64_SVR_BEGIN();
                     AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes),
                         AES_TAG(aes), aes->gcm.H);
+                    WC_AES_ARM64_SVR_END();
                 }
                 /* Reset count. */
                 aes->cOver = 0;
@@ -14507,9 +14531,11 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
             else
         #endif
             {
+                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_encrypt_update_AARCH64((byte*)aes->key,
                     (int)aes->rounds, c, p, blocks * WC_AES_BLOCK_SIZE,
                     AES_TAG(aes), aes->gcm.H, AES_COUNTER(aes));
+                WC_AES_ARM64_SVR_END();
             }
             /* Skip over to end of blocks. */
             p += blocks * WC_AES_BLOCK_SIZE;
@@ -14527,8 +14553,10 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
             else
         #endif
             {
+                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_encrypt_block_AARCH64((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+                WC_AES_ARM64_SVR_END();
             }
             /* XOR the remaining plaintext to calculate cipher text.
              * Keep cipher text for GHASH of last partial block.
@@ -14576,8 +14604,10 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_AARCH64(Aes* aes,
         else
     #endif
         {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes), AES_TAG(aes),
                 aes->gcm.H);
+            WC_AES_ARM64_SVR_END();
         }
     }
     /* Calculate the authentication tag. */
@@ -14589,8 +14619,10 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_AARCH64(Aes* aes,
     else
 #endif
     {
+        WC_AES_ARM64_SVR_BEGIN();
         AES_GCM_encrypt_final_AARCH64(AES_TAG(aes), authTag, authTagSz,
             aes->cSz, aes->aSz, aes->gcm.H, AES_INITCTR(aes));
+        WC_AES_ARM64_SVR_END();
     }
 
     return 0;
@@ -14645,8 +14677,10 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
                 else
             #endif
                 {
+                    WC_AES_ARM64_SVR_BEGIN();
                     AES_GCM_ghash_block_AARCH64(AES_LASTBLOCK(aes),
                         AES_TAG(aes), aes->gcm.H);
+                    WC_AES_ARM64_SVR_END();
                 }
                 /* Reset count. */
                 aes->cOver = 0;
@@ -14671,9 +14705,11 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
             else
         #endif
             {
+                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_decrypt_update_AARCH64((byte*)aes->key,
                     (int)aes->rounds, p, c, blocks * WC_AES_BLOCK_SIZE,
                     AES_TAG(aes), aes->gcm.H, AES_COUNTER(aes));
+                WC_AES_ARM64_SVR_END();
             }
             /* Skip over to end of blocks. */
             c += blocks * WC_AES_BLOCK_SIZE;
@@ -14691,8 +14727,10 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
             else
         #endif
             {
+                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_encrypt_block_AARCH64((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+                WC_AES_ARM64_SVR_END();
             }
             /* Keep cipher text for GHASH of last partial block. */
             XMEMCPY(AES_LASTBLOCK(aes), c, (size_t)partial);
@@ -14749,7 +14787,9 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_AARCH64(
         else
     #endif
         {
+            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_ghash_block_AARCH64(lastBlock, AES_TAG(aes), aes->gcm.H);
+            WC_AES_ARM64_SVR_END();
         }
     }
     /* Calculate and compare the authentication tag. */
@@ -14761,8 +14801,10 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_AARCH64(
     else
 #endif
     {
+        WC_AES_ARM64_SVR_BEGIN();
         AES_GCM_decrypt_final_AARCH64(AES_TAG(aes), authTag, authTagSz,
             aes->cSz, aes->aSz, aes->gcm.H, AES_INITCTR(aes), &res);
+        WC_AES_ARM64_SVR_END();
     }
 
     /* Return error code when calculated doesn't match input. */
@@ -17203,8 +17245,12 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
+        /* Bulk crypto-extension code over v0-v31; a kernel module must bracket
+         * it or a concurrent NEON user clobbers mid-buffer state. */
+        WC_AES_ARM64_SVR_BEGIN();
         AES_encrypt_blocks_AARCH64(in, out, sz, (byte*)aes->key,
             (int)aes->rounds);
+        WC_AES_ARM64_SVR_END();
     }
     else
 #endif
@@ -17213,8 +17259,10 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     if (sz >= 32)
 #endif
     {
+        WC_AES_ARM64_SVR_BEGIN();
         AES_ECB_encrypt_NEON(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds);
+        WC_AES_ARM64_SVR_END();
     }
 #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     else
@@ -17333,8 +17381,12 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
+        /* Bulk crypto-extension code over v0-v31; a kernel module must bracket
+         * it or a concurrent NEON user clobbers mid-buffer state. */
+        WC_AES_ARM64_SVR_BEGIN();
         AES_decrypt_blocks_AARCH64(in, out, sz, (byte*)aes->key,
             (int)aes->rounds);
+        WC_AES_ARM64_SVR_END();
     }
     else
 #endif
@@ -17343,8 +17395,10 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     if (sz >= 64)
 #endif
     {
+        WC_AES_ARM64_SVR_BEGIN();
         AES_ECB_decrypt_NEON(in, out, sz, (const unsigned char*)aes->key,
             aes->rounds);
+        WC_AES_ARM64_SVR_END();
     }
 #ifndef WOLFSSL_ARMASM_NEON_NO_TABLE_LOOKUP
     else
@@ -19591,8 +19645,10 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
+        WC_AES_ARM64_SVR_BEGIN();
         AES_XTS_encrypt_AARCH64(in, out, sz, i, (byte*)xaes->aes.key,
             (byte*)xaes->tweak.key, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+        WC_AES_ARM64_SVR_END();
         ret = 0;
     }
     else
@@ -19853,7 +19909,13 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     if (sz & ((word32)WC_AES_BLOCK_SIZE - 1U))
         return BAD_FUNC_ARG;
-    return AesXtsEncryptUpdate(xaes, out, in, sz, stream);
+    {
+        int _ret;
+        WC_AES_ARM64_SVR_BEGIN();
+        _ret = AesXtsEncryptUpdate(xaes, out, in, sz, stream);
+        WC_AES_ARM64_SVR_END();
+        return _ret;
+    }
 }
 
 int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
@@ -19862,8 +19924,11 @@ int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     int ret;
     if (stream == NULL)
         return BAD_FUNC_ARG;
-    if (sz > 0)
+    if (sz > 0) {
+        WC_AES_ARM64_SVR_BEGIN();
         ret = AesXtsEncryptUpdate(xaes, out, in, sz, stream);
+        WC_AES_ARM64_SVR_END();
+    }
     else
         ret = 0;
     /* force the count odd, to assure error on attempt to AesXtsEncryptUpdate()
@@ -20187,8 +20252,10 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #if !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
+        WC_AES_ARM64_SVR_BEGIN();
         AES_XTS_decrypt_AARCH64(in, out, sz, i, (byte*)aes->key,
             (byte*)xaes->tweak.key, (byte*)aes->tmp, aes->rounds);
+        WC_AES_ARM64_SVR_END();
         ret = 0;
     }
     else
@@ -20457,7 +20524,13 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     if (sz & ((word32)WC_AES_BLOCK_SIZE - 1U))
         return BAD_FUNC_ARG;
-    return AesXtsDecryptUpdate(xaes, out, in, sz, stream);
+    {
+        int _ret;
+        WC_AES_ARM64_SVR_BEGIN();
+        _ret = AesXtsDecryptUpdate(xaes, out, in, sz, stream);
+        WC_AES_ARM64_SVR_END();
+        return _ret;
+    }
 }
 
 int wc_AesXtsDecryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
@@ -20466,8 +20539,11 @@ int wc_AesXtsDecryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     int ret;
     if (stream == NULL)
         return BAD_FUNC_ARG;
-    if (sz > 0)
+    if (sz > 0) {
+        WC_AES_ARM64_SVR_BEGIN();
         ret = AesXtsDecryptUpdate(xaes, out, in, sz, stream);
+        WC_AES_ARM64_SVR_END();
+    }
     else
         ret = 0;
     ForceZero(stream->tweak_block, WC_AES_BLOCK_SIZE);
