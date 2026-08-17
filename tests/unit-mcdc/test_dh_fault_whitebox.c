@@ -556,6 +556,33 @@ static void test_dhkeycopy_null_guards(void)
     wc_FreeDhKey(&dst);
 }
 
+/* ---- wc_DhCheckPubValue, dh.c:1776 ---------------------------------------
+ * if (prime == NULL || pub == NULL) -> BAD_FUNC_ARG
+ * Both operands need their TRUE row against an all-false row in this same
+ * binary; every in-tree caller of wc_DhCheckPubValue() hands it two buffers
+ * it has already produced, so the API-level tests only ever build the
+ * all-false row. The guard short-circuits before either pointer is read. */
+static void test_check_pub_value_null_guards(void)
+{
+    static const byte prime[4] = { 0xFF, 0xFF, 0xFF, 0xFB };
+    static const byte pub[4]   = { 0x00, 0x00, 0x00, 0x02 };
+
+    /* idx0 TRUE: prime absent. */
+    WB_CHECK(wc_DhCheckPubValue(NULL, (word32)sizeof(prime), pub,
+                                (word32)sizeof(pub))
+             == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "prime==NULL");
+
+    /* idx0 FALSE, idx1 TRUE: pub absent. */
+    WB_CHECK(wc_DhCheckPubValue(prime, (word32)sizeof(prime), NULL,
+                                (word32)sizeof(pub))
+             == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "pub==NULL");
+
+    /* all-false baseline: pub == 2 is neither 0/1 nor prime/prime-1. */
+    WB_CHECK(wc_DhCheckPubValue(prime, (word32)sizeof(prime), pub,
+                                (word32)sizeof(pub)) == 0,
+             "valid prime/pub baseline");
+}
+
 /* ---- wc_DhExportParamsRaw, dh.c:3391/3400 ---------------------------------
  * if (p==NULL && q==NULL && g==NULL) ... LENGTH_ONLY_E          (3391)
  * if (p==NULL || q==NULL || g==NULL) ... BAD_FUNC_ARG           (3400)
@@ -1291,6 +1318,7 @@ int main(void)
     test_import_export_keypair();
     test_cmp_named_key();
     test_dhkeycopy_null_guards();
+    test_check_pub_value_null_guards();
     test_export_params_null_guards();
 #ifdef WOLFSSL_HAVE_SP_DH
     test_agree_sp_dispatch();
