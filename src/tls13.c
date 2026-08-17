@@ -14200,8 +14200,10 @@ static int CheckTls13TicketPskModes(WOLFSSL* ssl)
         ) {
         return 0;
     }
+    /* The configured policy, not noPskDheKe - a certificate handshake clears
+     * that one before the ticket is sent, which would make this always true. */
     if ((ssl->options.pskKeModes & (1 << PSK_DHE_KE)) != 0 &&
-            !ssl->options.noPskDheKe) {
+            !ssl->options.noPskDheKePolicy) {
         return 0;
     }
 
@@ -16455,6 +16457,7 @@ int wolfSSL_no_dhe_psk(WOLFSSL* ssl)
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ssl->options.noPskDheKe = 1;
+    ssl->options.noPskDheKePolicy = 1;
 #endif
 
     return 0;

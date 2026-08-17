@@ -5480,6 +5480,11 @@ struct Options {
     word16            usingAnon_cipher:1; /* are we using an anon cipher */
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     word16            noPskDheKe:1;       /* Don't use (EC)DHE with PSK */
+    /* noPskDheKe doubles as negotiated state - it is set when psk_ke is chosen
+     * and cleared on every certificate handshake. Decisions that must follow
+     * what the application configured use this copy, which is only written by
+     * the configuration APIs. */
+    word16            noPskDheKePolicy:1; /* Configured no (EC)DHE with PSK */
 #ifdef HAVE_SUPPORTED_CURVES
     word16            onlyPskDheKe:1;     /* Only use (EC)DHE with PSK */
 #endif

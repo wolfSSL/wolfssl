@@ -121,6 +121,7 @@ int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 int test_tls13_x25519_keyshare_masks_reserved_bit(void);
 int test_tls13_ticket_psk_modes(void);
+int test_tls13_ticket_psk_modes_uses_policy(void);
 int test_tls13_send_session_ticket_psk_modes(void);
 int test_tls13_new_session_ticket_ext_framing(void);
 
@@ -223,6 +224,7 @@ int test_tls13_new_session_ticket_ext_framing(void);
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
     TEST_DECL_GROUP("tls13", test_tls13_ticket_psk_modes), \
     TEST_DECL_GROUP("tls13", test_tls13_send_session_ticket_psk_modes), \
-    TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_ext_framing)
+    TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_ext_framing), \
+    TEST_DECL_GROUP("tls13", test_tls13_ticket_psk_modes_uses_policy)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
