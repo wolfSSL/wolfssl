@@ -2062,10 +2062,10 @@ AC_ARG_WITH([liboqs],
 #            double. Advanced SIMD is part of the ARMv8-A baseline, so no special
 #            -march is required.
 #   small-mem - low-memory dynamic signing: rebuilds the ffLDL tree inside the
-#            sampler instead of precomputing the expanded key, roughly halving
-#            the sign working set (~168KB -> ~78KB at Falcon-1024) for ~10%
-#            slower signing. Orthogonal to the fpr/FFT backends above; verify
-#            and keygen are unchanged.
+#            sampler instead of precomputing the expanded key, halving the peak
+#            heap of a signature (176KB -> 88KB at Falcon-1024, 84KB -> 44KB at
+#            Falcon-512) for ~15% slower signing. Orthogonal to the fpr/FFT
+#            backends above; verify and keygen are unchanged.
 #   cache-key - keep the expanded key (FFT basis plus normalized ffLDL tree) in
 #            the key structure, so only the first signature made with a key
 #            pays for the expansion. Over half of a signature with the default
