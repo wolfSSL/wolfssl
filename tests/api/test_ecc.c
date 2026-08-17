@@ -2627,8 +2627,12 @@ int test_wc_ecc_sig_size_calc(void)
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
-#if FIPS_VERSION3_GE(6,0,0)
+#if FIPS_VERSION3_GE(6,0,0) && !defined(FIPS_NO_WRAPPERS)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#elif FIPS_VERSION3_GE(6,0,0)
+    /* No wrapper enforces WC_ECC_FIPS_GEN_MIN here, so the native path fails
+     * to match a 16-byte curve instead. */
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ECC_CURVE_OID_E));
 #else
     ExpectIntEQ(ret, 0);
 #endif

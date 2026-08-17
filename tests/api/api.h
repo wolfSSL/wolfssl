@@ -67,7 +67,10 @@
  * validation", is documented but untested: a wrapper changed to return the
  * indicator BEFORE validating its arguments would keep every existing test
  * green while silently changing the service contract. */
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+/* With FIPS_NO_WRAPPERS no wrapper returns an indicator, so a successful seed
+ * call yields plain 0.  dev-no-post also inhibits fips.h, which defines it. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(FIPS_NO_WRAPPERS)
     #define SEED_OK  WC_FIPS_NOT_APPROVED
 #else
     #define SEED_OK  0

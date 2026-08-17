@@ -6127,7 +6127,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 #error "If TLS is enabled please make sure either client or server is enabled."
 #endif
 
-#if defined(WC_RNG_BANK_SUPPORT) && defined(NO_ASN_TIME)
+/* WOLFSSL_NO_MALLOC as well as NO_ASN_TIME: the bank heap-allocates its
+ * per-core DRBG instances, so a no-malloc build fails checkout with MEMORY_E.
+ * Withheld here rather than in configure because these arrive by CFLAGS or
+ * user_settings.h, which configure does not see. */
+#if defined(WC_RNG_BANK_SUPPORT) && \
+    (defined(NO_ASN_TIME) || defined(WOLFSSL_NO_MALLOC))
     #undef WC_RNG_BANK_SUPPORT
 #endif
 

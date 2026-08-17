@@ -3930,7 +3930,11 @@ int test_slhdsa_get_sigalg_info(void)
 int test_wc_SlhDsaKey_seed_service_indicator(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_NO_MAKE_KEY)
+/* WOLFSSL_SLHDSA_VERIFY_ONLY as well as _NO_MAKE_KEY: verify-only drops
+ * wc_SlhDsaKey_MakeKeyWithRandom() without setting _NO_MAKE_KEY, so testing
+ * only the latter left this calling a symbol that is not built. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
     SlhDsaKey key;
     /* n is 16/24/32 for the 128/192/256 parameter sets (FIPS 205 Table 2);
      * wc_SlhDsaKey_SeedSize() reports it so this covers every set rather than

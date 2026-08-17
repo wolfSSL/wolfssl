@@ -40,9 +40,10 @@
 #endif
 #include <wolfssl/wolfcrypt/settings.h> /* also picks up user_settings.h */
 
-/* wc_RunCast_fips() / wc_RunAllCast_fips() are v7.0.0-only; older module
- * flavors would fail to link, so they use the empty-main stub below. */
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+/* wc_RunCast_fips() is v7.0.0+ and needs fips.c, which dev-no-post compiles
+ * only into linuxkm, not libwolfssl.  Both flavors use the stub below. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
 
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -357,7 +358,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-#else /* !(HAVE_FIPS && FIPS_VERSION3_GE(7,0,0)) */
+#else /* !(HAVE_FIPS && v7.0.0+ && !WOLFSSL_FIPS_DEV_NO_POST) */
 
 #include <stdio.h>
 
@@ -366,6 +367,11 @@ int main(void)
 #ifndef HAVE_FIPS
     fprintf(stderr,
             "fips_cast_bench: built without HAVE_FIPS - nothing to measure\n");
+#elif defined(WOLFSSL_FIPS_DEV_NO_POST)
+    fprintf(stderr,
+            "fips_cast_bench: dev-no-post compiles fips.c only into linuxkm, "
+            "so the CAST entry points are absent from libwolfssl - "
+            "nothing to measure\n");
 #else
     fprintf(stderr,
             "fips_cast_bench: requires v7.0.0+ FIPS module "
@@ -375,4 +381,4 @@ int main(void)
     return 0;
 }
 
-#endif /* HAVE_FIPS && FIPS_VERSION3_GE(7,0,0) */
+#endif /* HAVE_FIPS && v7.0.0+ && !WOLFSSL_FIPS_DEV_NO_POST */

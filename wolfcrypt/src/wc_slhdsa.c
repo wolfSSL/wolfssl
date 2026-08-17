@@ -495,6 +495,94 @@ static const SlhDsaParameters SlhDsaParams[] =
  * @return  0 on success.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
+    byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
+    byte* hash, byte hash_len)
+{
+#ifdef WOLFSSL_SLHDSA_FULL_HASH
+    int ret;
+    byte address[SLHDSA_HA_SZ];
+
+    /* Encode hash address. */
+    HA_Encode(adrs, address);
+
+    /* Update the SHAKE-256 object with first block of data. */
+    ret = wc_Shake256_Update(shake, data1, data1_len);
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with encoded HashAddress. */
+        ret = wc_Shake256_Update(shake, address, SLHDSA_HA_SZ);
+    }
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with second block of data. */
+        ret = wc_Shake256_Update(shake, data2, data2_len);
+    }
+    if (ret == 0) {
+        /* Calculate and output hash. */
+        ret = wc_Shake256_Final(shake, hash, hash_len);
+    }
+
+    return ret;
+#elif defined(USE_INTEL_SPEEDUP)
+    word64* state = shake->s;
+    word8* state8 = (word8*)shake->s;
+    word32 o = 0;
+
+    /* Move the first block of data into the state. */
+    XMEMCPY(state8 + o, data1, data1_len);
+    o += data1_len;
+    /* Encode the HashAddress into the state next. */
+    HA_Encode(adrs, state8 + o);
+    o += SLHDSA_HA_SZ;
+    /* Move the second block of data into the state next. */
+    XMEMCPY(state8 + o, data2, data2_len);
+    o += data2_len;
+    /* Place SHAKE end-of-content marker. */
+    state8[o] = 0x1f;
+    o += 1;
+    /* Zero out rest of state. */
+    XMEMSET(state8 + o, 0, sizeof(shake->s) - o);
+    /* Place SHAKE-256 end-of-data marker. */
+    state8[WC_SHA3_256_COUNT * 8 - 1] ^= 0x80;
+
+#ifndef WC_SHA3_NO_ASM
+    /* Check availability of AVX2 instructions. */
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* Process the state using AVX2 instructions. */
+        sha3_block_avx2(state);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    /* Check availability of BMI2 instructions. */
+    else if (IS_INTEL_BMI2(cpuid_flags)) {
+        /* Process the state using BMI2 instructions. */
+        sha3_block_bmi2(state);
+    }
+    else
+#endif
+    {
+        /* Process the state using C code. */
+        BlockSha3(state);
+    }
+    /* Copy hash result, of the required length, from the state into hash. */
+    XMEMCPY(hash, shake->s, hash_len);
+
+    return 0;
+#else
+    /* Copy the first block of data into the cached data buffer. */
+    XMEMCPY(shake->t, data1, data1_len);
+    /* Encode HashAddress into the cached data buffer next. */
+    HA_Encode(adrs, shake->t + data1_len);
+    /* Copy the second block of data into the cached data buffer next. */
+    XMEMCPY(shake->t + data1_len + SLHDSA_HA_SZ, data2, data2_len);
+
+    /* Update count of bytes cached. */
+    shake->i = (byte)(data1_len + SLHDSA_HA_SZ + data2_len);
+
+    /* Calculate and output hash. */
+    return wc_Shake256_Final(shake, hash, hash_len);
+#endif
+}
+#else
 static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
     byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
     byte* hash, byte hash_len)
@@ -574,6 +662,7 @@ static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
 #endif
 }
 #endif
+#endif
 
 /* Hash four data elements with SHAKE-256.
  *
@@ -592,6 +681,103 @@ static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
  * @return  0 on success.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
+    byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
+    const byte* data3, byte data3_len, byte* hash, byte hash_len)
+{
+#ifdef WOLFSSL_SLHDSA_FULL_HASH
+    int ret;
+    byte address[SLHDSA_HA_SZ];
+
+    /* Encode hash address. */
+    HA_Encode(adrs, address);
+
+    /* Update the SHAKE-256 object with first block of data. */
+    ret = wc_Shake256_Update(shake, data1, data1_len);
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with encoded HashAddress. */
+        ret = wc_Shake256_Update(shake, address, SLHDSA_HA_SZ);
+    }
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with second block of data. */
+        ret = wc_Shake256_Update(shake, data2, data2_len);
+    }
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with third block of data. */
+        ret = wc_Shake256_Update(shake, data3, data3_len);
+    }
+    if (ret == 0) {
+        /* Calculate and output hash. */
+        ret = wc_Shake256_Final(shake, hash, hash_len);
+    }
+
+    return ret;
+#elif defined(USE_INTEL_SPEEDUP)
+    word64* state = shake->s;
+    word8* state8 = (word8*)shake->s;
+    word32 o = 0;
+
+    /* Move the first block of data into the state. */
+    XMEMCPY(state8 + o, data1, data1_len);
+    o += data1_len;
+    /* Encode the HashAddress into the state next. */
+    HA_Encode(adrs, state8 + o);
+    o += SLHDSA_HA_SZ;
+    /* Move the second block of data into the state next. */
+    XMEMCPY(state8 + o, data2, data2_len);
+    o += data2_len;
+    /* Move the third block of data into the state next. */
+    XMEMCPY(state8 + o, data3, data3_len);
+    o += data3_len;
+    /* Place SHAKE end-of-content marker. */
+    state8[o] = 0x1f;
+    o += 1;
+    /* Zero out rest of state. */
+    XMEMSET(state8 + o, 0, sizeof(shake->s) - o);
+    /* Place SHAKE-256 end-of-data marker. */
+    state8[WC_SHA3_256_COUNT * 8 - 1] ^= 0x80;
+
+#ifndef WC_SHA3_NO_ASM
+    /* Check availability of AVX2 instructions. */
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* Process the state using AVX2 instructions. */
+        sha3_block_avx2(state);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    /* Check availability of BMI2 instructions. */
+    else if (IS_INTEL_BMI2(cpuid_flags)) {
+        /* Process the state using BMI2 instructions. */
+        sha3_block_bmi2(state);
+    }
+    else
+#endif
+    {
+        /* Process the state using C code. */
+        BlockSha3(state);
+    }
+    /* Copy hash result, of the required length, from the state into hash. */
+    XMEMCPY(hash, shake->s, hash_len);
+
+    return 0;
+#else
+    /* Copy the first block of data into the cached data buffer. */
+    XMEMCPY(shake->t, data1, data1_len);
+    /* Encode HashAddress into the cached data buffer next. */
+    HA_Encode(adrs, shake->t + data1_len);
+    /* Copy the second block of data into the cached data buffer next. */
+    XMEMCPY(shake->t + data1_len + SLHDSA_HA_SZ, data2, data2_len);
+    /* Copy the third block of data into the cached data buffer next. */
+    XMEMCPY(shake->t + data1_len + SLHDSA_HA_SZ + data2_len, data3, data3_len);
+
+    /* Update count of bytes cached. */
+    shake->i = (byte)(data1_len + SLHDSA_HA_SZ + data2_len + data3_len);
+
+    /* Calculate and output hash. */
+    return wc_Shake256_Final(shake, hash, hash_len);
+#endif
+}
+#else
 static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
     byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
     const byte* data3, byte data3_len, byte* hash, byte hash_len)
@@ -679,6 +865,7 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
     return wc_Shake256_Final(shake, hash, hash_len);
 #endif
 }
+#endif
 
 /******************************************************************************
  * SHA2 Hash Functions (FIPS 205, Section 11.2)
@@ -3422,6 +3609,59 @@ static int slhdsakey_wots_pkgen_chain_c(SlhDsaKey* key, const byte* sk_seed,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
+    const byte* pk_seed, word32* adrs, byte* node)
+{
+    int ret;
+    byte n = key->params->n;
+    int hash_t_started = 0;
+
+    {
+        HashAddress wotspk_adrs;
+
+        /* Steps 11-12. Copy address and set to WOTS PK. */
+        HA_Copy(wotspk_adrs, adrs);
+        HA_SetTypeAndClearNotKPA(wotspk_adrs, HA_WOTS_PK);
+        /* Step 13. Start hash with public key seed and address. */
+        ret = HASH_T_START_ADDR(key, pk_seed, wotspk_adrs, n);
+    }
+    if (ret == 0) {
+        HashAddress sk_adrs;
+
+        hash_t_started = 1;
+
+        /* Steps 1-2. Copy address and set to WOTS PRF. */
+        HA_Copy(sk_adrs, adrs);
+        HA_SetTypeAndClearNotKPA(sk_adrs, HA_WOTS_PRF);
+        /* Steps 4-10,13: Generate hashes and update the public key hash. */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+        if (!SLHDSA_IS_SHA2(key->params->param) &&
+                IS_INTEL_AVX2(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            ret = slhdsakey_wots_pkgen_chain_x4(key, sk_seed, pk_seed, adrs,
+                sk_adrs);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            ret = slhdsakey_wots_pkgen_chain_c(key, sk_seed, pk_seed, adrs,
+                sk_adrs);
+        }
+    }
+    if (ret == 0) {
+        /* Step 13: Output hash of compressed public key. */
+        ret = HASH_T_FINAL(key, node, n);
+    }
+
+    if (hash_t_started) {
+        HASH_T_FREE(key);
+    }
+
+    return ret;
+}
+#else
 static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
     const byte* pk_seed, word32* adrs, byte* node)
 {
@@ -3477,6 +3717,7 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
 
     return ret;
 }
+#endif
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
@@ -3854,6 +4095,91 @@ static int slhdsakey_wots_sign_chain_x4(SlhDsaKey* key, const byte* msg,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig)
+{
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    word16 csum;
+    HashAddress sk_adrs;
+    byte n = key->params->n;
+    byte len = key->params->len;
+    int i;
+    byte msg[SLHDSA_MAX_MSG_SZ];
+
+    /* Step 1: Start csum at 0 */
+    csum = 0;
+    /* Step 3: For each byte in message. */
+    for (i = 0; i < n * 2; i += 2) {
+        /* Step 2: Append high order 4 bits to msg. */
+        msg[i+0] = (byte)((m[i / 2] >> 4) & 0xf);
+        /* Step 4: Calculate checksum with first lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 0]);
+        /* Step 2: Append low order 4 bits to msg. */
+        msg[i+1] = (byte)( m[i / 2]       & 0xf);
+        /* Step 4: Calculate checksum with next lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 1]);
+    }
+    /* Steps 6-7: Encode bottom 12 bits of csum onto end of msg. */
+    msg[i + 0] = (byte)((csum >> 8) & 0xf);
+    msg[i + 1] = (byte)((csum >> 4) & 0xf);
+    msg[i + 2] = (byte)( csum       & 0xf);
+
+    /* Steps 8-10: Copy address for WOTS PRF. */
+    HA_Copy(sk_adrs, adrs);
+    HA_SetTypeAndClearNotKPA(sk_adrs, HA_WOTS_PRF);
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+    /* Steps 11-17: Generate signature from msg. */
+    if (!SLHDSA_IS_SHA2(key->params->param) &&
+            IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        ret = slhdsakey_wots_sign_chain_x4(key, msg, sk_seed, pk_seed, adrs,
+            sk_adrs, sig);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        byte sk[SLHDSA_MAX_N];
+
+        /* sk will hold secret WOTS+ leaves; baseline-zero and register it up
+         * front (block has a single exit through the ForceZero below). */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(sk, 0, n);
+        wc_MemZero_Add("slhdsa wots sk", sk, n);
+#endif
+        /* Step 11: For each value of msg. */
+        for (i = 0; i < len; i++) {
+            /* Step 12: Set chain address for WOTS PRF. */
+            HA_SetChainAddress(sk_adrs, i);
+            /* Step 13. PRF the secret chain value into a temp (not sig). */
+            ret = HASH_PRF(key, pk_seed, sk_seed, sk_adrs, n, sk);
+            if (ret != 0) {
+                break;
+            }
+            /* Step 14: Set chain address for WOTS HASH. */
+            HA_SetChainAddress(adrs, i);
+            /* Step 15. Chain hashes in the temp so intermediate secret chain
+             * values never touch the public sig buffer (even on error). */
+            ret = slhdsakey_chain(key, sk, 0, msg[i], pk_seed, adrs, sk);
+            if (ret != 0) {
+                break;
+            }
+            /* Step 15: Copy the (public) chain result into the signature. */
+            XMEMCPY(sig, sk, n);
+            sig += n;
+        }
+
+        /* sk held the secret WOTS+ leaf. */
+        ForceZero(sk, n);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(sk, n);
+#endif
+    }
+
+    return ret;
+}
+#else
 static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig)
 {
@@ -3939,6 +4265,7 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
 
     return ret;
 }
+#endif
 #endif
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
@@ -4503,6 +4830,53 @@ static int slhdsakey_wots_pk_from_sig_c(SlhDsaKey* key, const byte* sig,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
+    const byte* m, const byte* pk_seed, word32* adrs, byte* pk_sig)
+{
+    int ret;
+    word16 csum;
+    byte n = key->params->n;
+    int i;
+    byte msg[SLHDSA_MAX_MSG_SZ];
+
+    /* Step 1: Start csum at 0 */
+    csum = 0;
+    /* Step 3: For each byte in message. */
+    for (i = 0; i < n * 2; i += 2) {
+        /* Step 2: Append high order 4 bits to msg. */
+        msg[i+0] = (byte)((m[i / 2] >> 4) & 0xf);
+        /* Step 4: Calculate checksum with first lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 0]);
+        /* Step 2: Append low order 4 bits to msg. */
+        msg[i+1] = (byte)( m[i / 2]       & 0xf);
+        /* Step 4: Calculate checksum with next lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 1]);
+    }
+    /* Steps 6-7: Encode bottom 12 bits of csum onto end of msg. */
+    msg[i + 0] = (byte)((csum >> 8) & 0xf);
+    msg[i + 1] = (byte)((csum >> 4) & 0xf);
+    msg[i + 2] = (byte)( csum       & 0xf);
+
+    /* Steps 8-16. */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+    if (!SLHDSA_IS_SHA2(key->params->param) &&
+            IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        ret = slhdsakey_wots_pk_from_sig_x4(key, sig, msg, pk_seed, adrs,
+            pk_sig);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        ret = slhdsakey_wots_pk_from_sig_c(key, sig, msg, pk_seed, adrs,
+            pk_sig);
+    }
+
+    return ret;
+}
+#else
 static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
     const byte* m, const byte* pk_seed, word32* adrs, byte* pk_sig)
 {
@@ -4550,6 +4924,7 @@ static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
 
     return ret;
 }
+#endif
 
 /******************************************************************************
  * XMSS
@@ -5954,6 +6329,84 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors)
+{
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    word16 indices[SLHDSA_MAX_INDICES_SZ];
+    int i;
+    int j;
+    byte n = key->params->n;
+    byte a = key->params->a;
+    byte k = key->params->k;
+
+    /* Step 2: Convert message digest to base 2^a. */
+    slhdsakey_base_2b(md, a, k, indices);
+
+    /* Step 3: For each index: */
+    for (i = 0; i < k; i++) {
+        /* Step 4: Generate FORS private key value into signature. */
+        ret = slhdsakey_fors_sk_gen(key, sk_seed, pk_seed, adrs,
+            ((word32)i << a) + indices[i], sig_fors);
+        if (ret != 0) {
+            break;
+        }
+        /* Step 4: Move over private key value. */
+        sig_fors += n;
+
+    #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+        if (!SLHDSA_IS_SHA2(key->params->param) &&
+                IS_INTEL_AVX2(cpuid_flags) &&
+                (SAVE_VECTOR_REGISTERS2() == 0)) {
+            word16 idx = indices[i];
+            /* Step 5: For each bit: */
+            for (j = 0; j < a; j++) {
+                /* Calculate side. */
+                word32 s = idx ^ 1;
+                /* Step 7: Compute authentication node into signature. */
+                ret = slhdsakey_fors_node_x4(key, sk_seed,
+                    ((word32)i << (a - j)) + s, (word32)j, pk_seed, adrs,
+                    sig_fors);
+                if (ret != 0) {
+                    break;
+                }
+                /* Step 9: Move signature to after authentication node. */
+                sig_fors += n;
+                /* Update tree index. */
+                idx >>= 1;
+            }
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #endif
+        {
+            word16 idx = indices[i];
+            /* Step 5: For each bit: */
+            for (j = 0; j < a; j++) {
+                /* Calculate side. */
+                word32 s = idx ^ 1;
+                /* Step 7: Compute authentication node into signature. */
+                ret = slhdsakey_fors_node_c(key, sk_seed,
+                    ((word32)i << (a - j)) + s, (word32)j, pk_seed, adrs,
+                    sig_fors);
+                if (ret != 0) {
+                    break;
+                }
+                /* Step 9: Move signature to after authentication node. */
+                sig_fors += n;
+                /* Update tree index. */
+                idx >>= 1;
+            }
+        }
+        if (ret != 0) {
+            break;
+        }
+    }
+
+    return ret;
+}
+#else
 static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
     const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors)
 {
@@ -6033,6 +6486,7 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
 
     return ret;
 }
+#endif
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
@@ -6641,6 +7095,60 @@ static int slhdsakey_fors_pk_from_sig_c(SlhDsaKey* key, const byte* sig_fors,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
+    const byte* md, const byte* pk_seed, word32* adrs, byte* pk_fors)
+{
+    int ret;
+    word16 indices[SLHDSA_MAX_INDICES_SZ];
+    HashAddress forspk_adrs;
+    byte n = key->params->n;
+    byte a = key->params->a;
+    byte k = key->params->k;
+    int hash_t_started = 0;
+
+    /* Step 1: Get indices from byte array. */
+    slhdsakey_base_2b(md, a, k, indices);
+
+    /* Step 21: Create address to FORS roots */
+    HA_Copy(forspk_adrs, adrs);
+    /* Steps 22-23: Set type and clear all but key pair address. */
+    HA_SetTypeAndClearNotKPA(forspk_adrs, HA_FORS_ROOTS);
+    /* Step 24: Add public key seed and FORS roots address to hash ... */
+    ret = HASH_T_START_ADDR(key, pk_seed, forspk_adrs, n);
+
+    if (ret == 0) {
+        hash_t_started = 1;
+    }
+
+    /* Steps 2-20: Compute roots and add to hash. */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+    if ((ret == 0) && !SLHDSA_IS_SHA2(key->params->param) &&
+            IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        ret = slhdsakey_fors_pk_from_sig_x4(key, sig_fors, indices, pk_seed,
+            adrs);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    if (ret == 0) {
+        ret = slhdsakey_fors_pk_from_sig_c(key, sig_fors, indices, pk_seed,
+            adrs, pk_fors);
+    }
+
+    if (ret == 0) {
+        /* Step 24. Compute FORS public key. */
+        ret = HASH_T_FINAL(key, pk_fors, n);
+    }
+
+    if (hash_t_started) {
+        HASH_T_FREE(key);
+    }
+
+    return ret;
+}
+#else
 static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
     const byte* md, const byte* pk_seed, word32* adrs, byte* pk_fors)
 {
@@ -6697,6 +7205,7 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
 
     return ret;
 }
+#endif
 
 /******************************************************************************
  * SLH-DSA API

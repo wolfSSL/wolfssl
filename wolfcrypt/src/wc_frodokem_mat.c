@@ -1713,6 +1713,146 @@ static void frodokem_as_accum(word16* out, const word16* s,
  * @param  [in]       aes    AES object for matrix-A generation.
  * @return  0 on success, negative on error.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
+    const byte* seedA, const FrodoKemParams* p, word16* row, Aes* aes)
+{
+    int ret;
+    int i;
+    int n = p->n;
+
+    /* Key the reusable AES object with seedA (the object is wc_AesInit'd once
+     * in wc_FrodoKemKey_Init, so no per-call init/free here). */
+    ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+        AES_ENCRYPTION);
+
+    /* Generate the A rows in batches matching the fused asm accumulate (eight
+     * with AVX512, four with AVX2); n is a multiple of 8 for every set. */
+#ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
+    if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* The AES-NI/VAES row kernels below consume aes->key directly, which
+         * holds a valid AES-NI-layout key schedule only when the
+         * wc_AesSetKeyDirect() above ran with vector registers available
+         * (aes->use_aesni nonzero).  Under WC_C_DYNAMIC_FALLBACK a failed
+         * SAVE_VECTOR_REGISTERS2() inside SetKey returns success having keyed
+         * only the C-fallback schedule (aes->key_C_fallback) - re-key under
+         * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
+         * succeeds, so aes->key is valid for the kernels. */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (i = 0; (ret == 0) && (i < n); i += 8) {
+            /* Widest matrix-A generator available at run time (cf. aes.c):
+             * VAES (whole batch in one asm call), else the AES-NI register
+             * kernel, else the per-row C generator. */
+#ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
+            if (IS_INTEL_VAES(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_avx512((byte*)row, row,
+                    (const byte*)aes->key, i, 8, n, (int)p->qMask);
+            }
+            else
+#endif
+            if (IS_INTEL_AESNI(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_aesni((byte*)row, row,
+                    (const byte*)aes->key, i, 8, n, (int)p->qMask);
+            }
+            else {
+                ret = frodokem_gen_a_rows_aes(row, aes, i, 8, p);
+                if (ret != 0) {
+                    break;
+                }
+            }
+            frodokem_as_accum_avx512(out, s, row, i, n);
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef FRODOKEM_HAVE_MATRIX_ASM
+    if ((ret == 0) && IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* Re-key if SetKey lacked vector registers - see the note in the
+         * AVX512 branch above (or in frodokem_mul_add_as_plus_e_aes). */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (i = 0; (ret == 0) && (i < n); i += 4) {
+            /* Widest matrix-A generator available at run time (cf. aes.c):
+             * VAES (whole batch in one asm call), else the AES-NI register
+             * kernel, else the per-row C generator. */
+#ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
+            if (IS_INTEL_VAES(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_avx2((byte*)row, row,
+                    (const byte*)aes->key, i, 4, n, (int)p->qMask);
+            }
+            else
+#endif
+            if (IS_INTEL_AESNI(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_aesni((byte*)row, row,
+                    (const byte*)aes->key, i, 4, n, (int)p->qMask);
+            }
+            else {
+                ret = frodokem_gen_a_rows_aes(row, aes, i, 4, p);
+                if (ret != 0) {
+                    break;
+                }
+            }
+            frodokem_as_accum_avx2(out, s, row, i, n);
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef FRODOKEM_HAVE_ARM_ASM
+    if (ret == 0) {
+        for (i = 0; i < n; i += FRODOKEM_ROW_MULT) {
+        #ifdef FRODOKEM_HAVE_ARM_AES_ASM
+            /* The whole build + AES-ECB + reduce is one crypto-extension asm
+             * call (in place). */
+            frodokem_gen_a_rows_aes_arm((byte*)row, row,
+                (const byte*)aes->key, i, FRODOKEM_ROW_MULT, n, (int)p->qMask);
+        #else
+            ret = frodokem_gen_a_rows_aes(row, aes, i, FRODOKEM_ROW_MULT, p);
+            if (ret != 0) {
+                break;
+            }
+        #endif
+            /* Accumulate the whole FRODOKEM_ROW_MULT-row batch just generated. */
+            FRODOKEM_AS_ACCUM_BATCH(out, s, row, i, n);
+        }
+    }
+#else
+    {
+        for (i = 0; (ret == 0) && (i < n); i++) {
+            ret = frodokem_gen_a_rows_aes(row, aes, i, 1, p);
+            if (ret == 0) {
+                frodokem_as_accum(out, s, row, i, n);
+            }
+        }
+    }
+#endif /* FRODOKEM_HAVE_ARM_ASM */
+
+#ifdef FRODOKEM_D15_SHAKE128
+    /* q == 2^15 (640) needs a final reduction mod q; for q == 2^16 (976/1344)
+     * the word16 accumulation already reduced. */
+#ifdef FRODOKEM_D16_SHAKE256
+    if ((ret == 0) && (p->qMask != 0xffff))
+#else
+    if (ret == 0)
+#endif
+    {
+        for (i = 0; i < FRODOKEM_NBAR * n; i++) {
+            out[i] = (word16)(out[i] & p->qMask);
+        }
+    }
+#endif /* FRODOKEM_D15_SHAKE128 */
+
+    return ret;
+}
+#else
 static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
     const byte* seedA, const FrodoKemParams* p, word16* row, Aes* aes)
 {
@@ -1844,6 +1984,7 @@ static int frodokem_mul_add_as_plus_e_aes(word16* out, const word16* s,
 
     return ret;
 }
+#endif
 #endif /* WOLFSSL_FRODOKEM_AES */
 
 #ifdef WOLFSSL_FRODOKEM_SHAKE
@@ -2025,6 +2166,150 @@ int frodokem_mul_add_as_plus_e(FrodoKemKey* key, word16* out, const word16* s,
  * @param  [in]       aes    AES object for matrix-A generation.
  * @return  0 on success, negative on error.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
+    const byte* seedA, const FrodoKemParams* p, word16* row, Aes* aes)
+{
+    int ret;
+#ifdef FRODOKEM_D15_SHAKE128
+    int i;
+#endif
+    int j;
+    int n = p->n;
+
+    /* Key the reusable AES object with seedA (the object is wc_AesInit'd once
+     * in wc_FrodoKemKey_Init, so no per-call init/free here). */
+    ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+        AES_ENCRYPTION);
+
+    /* Generate the A rows in batches matching the fused asm accumulate (eight
+     * with AVX512, four with AVX2); n is a multiple of 8 for every set. */
+#ifdef FRODOKEM_HAVE_MATRIX_ASM_AVX512
+    if ((ret == 0) && USE_INTEL_AVX512(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* The AES-NI/VAES row kernels below consume aes->key directly, which
+         * holds a valid AES-NI-layout key schedule only when the
+         * wc_AesSetKeyDirect() above ran with vector registers available
+         * (aes->use_aesni nonzero).  Under WC_C_DYNAMIC_FALLBACK a failed
+         * SAVE_VECTOR_REGISTERS2() inside SetKey returns success having keyed
+         * only the C-fallback schedule (aes->key_C_fallback) - re-key under
+         * the held region, where the nested SAVE_VECTOR_REGISTERS2() always
+         * succeeds, so aes->key is valid for the kernels. */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (j = 0; (ret == 0) && (j < n); j += 8) {
+            /* Widest matrix-A generator available at run time (cf. aes.c):
+             * VAES (whole batch in one asm call), else the AES-NI register
+             * kernel, else the per-row C generator. */
+#ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
+            if (IS_INTEL_VAES(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_avx512((byte*)row, row,
+                    (const byte*)aes->key, j, 8, n, (int)p->qMask);
+            }
+            else
+#endif
+            if (IS_INTEL_AESNI(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_aesni((byte*)row, row,
+                    (const byte*)aes->key, j, 8, n, (int)p->qMask);
+            }
+            else {
+                ret = frodokem_gen_a_rows_aes(row, aes, j, 8, p);
+                if (ret != 0) {
+                    break;
+                }
+            }
+            frodokem_sa_accum_avx512(out, s, row, j, n);
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef FRODOKEM_HAVE_MATRIX_ASM
+    if ((ret == 0) && IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0)) {
+        /* Re-key if SetKey lacked vector registers - see the note in the
+         * AVX512 branch above (or in frodokem_mul_add_as_plus_e_aes). */
+        if (IS_INTEL_AESNI(cpuid_flags) && (! aes->use_aesni)) {
+            ret = wc_AesSetKeyDirect(aes, seedA, FRODOKEM_SEEDA_SZ, NULL,
+                AES_ENCRYPTION);
+        }
+        for (j = 0; (ret == 0) && (j < n); j += 4) {
+            /* Widest matrix-A generator available at run time (cf. aes.c):
+             * VAES (whole batch in one asm call), else the AES-NI register
+             * kernel, else the per-row C generator. */
+#ifdef FRODOKEM_HAVE_MATRIX_ASM_VAES
+            if (IS_INTEL_VAES(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_avx2((byte*)row, row,
+                    (const byte*)aes->key, j, 4, n, (int)p->qMask);
+            }
+            else
+#endif
+            if (IS_INTEL_AESNI(cpuid_flags)) {
+                frodokem_gen_a_rows_aes_aesni((byte*)row, row,
+                    (const byte*)aes->key, j, 4, n, (int)p->qMask);
+            }
+            else {
+                ret = frodokem_gen_a_rows_aes(row, aes, j, 4, p);
+                if (ret != 0) {
+                    break;
+                }
+            }
+            frodokem_sa_accum_avx2(out, s, row, j, n);
+        }
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef FRODOKEM_HAVE_ARM_ASM
+    if (ret == 0) {
+        for (j = 0; j < n; j += FRODOKEM_ROW_MULT) {
+        #ifdef FRODOKEM_HAVE_ARM_AES_ASM
+            /* The whole build + AES-ECB + reduce is one crypto-extension asm
+             * call (in place). */
+            frodokem_gen_a_rows_aes_arm((byte*)row, row,
+                (const byte*)aes->key, j, FRODOKEM_ROW_MULT, n, (int)p->qMask);
+        #else
+            ret = frodokem_gen_a_rows_aes(row, aes, j, FRODOKEM_ROW_MULT, p);
+            if (ret != 0) {
+                break;
+            }
+        #endif
+            /* Accumulate the whole FRODOKEM_ROW_MULT-row batch just generated. */
+            FRODOKEM_SA_ACCUM_BATCH(out, s, row, j, n);
+        }
+    }
+#else
+    {
+        /* Generate A a row at a time (index j) and accumulate its part. */
+        for (j = 0; (ret == 0) && (j < n); j++) {
+            ret = frodokem_gen_a_rows_aes(row, aes, j, 1, p);
+            if (ret == 0) {
+                frodokem_sa_accum(out, s, row, j, n);
+            }
+        }
+    }
+#endif /* FRODOKEM_HAVE_ARM_ASM */
+
+#ifdef FRODOKEM_D15_SHAKE128
+    /* q == 2^15 (640) needs a final reduction mod q; for q == 2^16 (976/1344)
+     * the word16 accumulation already reduced. */
+#ifdef FRODOKEM_D16_SHAKE256
+    if ((ret == 0) && (p->qMask != 0xffff))
+#else
+    if (ret == 0)
+#endif
+    {
+        for (i = 0; i < FRODOKEM_NBAR * n; i++) {
+            out[i] = (word16)(out[i] & p->qMask);
+        }
+    }
+#endif /* FRODOKEM_D15_SHAKE128 */
+
+    return ret;
+}
+#else
 static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
     const byte* seedA, const FrodoKemParams* p, word16* row, Aes* aes)
 {
@@ -2160,6 +2445,7 @@ static int frodokem_mul_add_sa_plus_e_aes(word16* out, const word16* s,
 
     return ret;
 }
+#endif
 #endif /* WOLFSSL_FRODOKEM_AES */
 
 #ifdef WOLFSSL_FRODOKEM_SHAKE

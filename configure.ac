@@ -2793,11 +2793,16 @@ then
 fi
 
 AC_ARG_ENABLE([rng-bank],
-    [AS_HELP_STRING([--enable-rng-bank],[Enable compiling and using RNG banks (default: disabled)])],
+    [AS_HELP_STRING([--enable-rng-bank],[Enable compiling and using RNG banks (default: enabled except in a validation-targeted FIPS build)])],
     [ ENABLED_RNG_BANK=$enableval ],
-    [ AS_IF([test "$FIPS_CERTIFIABLE" = "yes"],
-             [ ENABLED_RNG_BANK=no ],
-             [ ENABLED_RNG_BANK=$KERNEL_MODE_DEFAULTS ]) ]
+    [ dnl The default must withhold itself wherever the bank cannot be built,
+      dnl because the two AC_MSG_ERRORs below are worded for an EXPLICIT
+      dnl request and are right to keep failing on one.  A default that walks
+      dnl into them turns an unrelated build into a configure error:
+      dnl --enable-cryptonly --disable-rng did exactly that.
+      AS_IF([test "$FIPS_CERTIFIABLE" = "yes"], [ ENABLED_RNG_BANK=no ],
+            [test "$ENABLED_RNG" = "no"],       [ ENABLED_RNG_BANK=no ],
+            [ ENABLED_RNG_BANK=yes ]) ]
     )
 
 if test "$ENABLED_RNG_BANK" = "yes"

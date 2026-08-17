@@ -2025,6 +2025,194 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digi
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
+    const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, a, 32 * 5);
+    sp_digit* ah = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
+    sp_digit  e = 0;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    if (*outLen < 256) {
+        err = MP_TO_E;
+    }
+    else if (mp_count_bits(em) > 64 || inLen > 256 ||
+                                                     mp_count_bits(mm) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, a, 32 * 5, NULL, DYNAMIC_TYPE_RSA);
+    if (err == MP_OKAY) {
+        r = a + 32 * 2;
+        m = r + 32 * 2;
+        ah = a + 32;
+
+        sp_2048_from_bin(ah, 32, in, (int)inLen);
+#if DIGIT_BIT >= 64
+        e = em->dp[0];
+#else
+        e = em->dp[0];
+        if (em->used > 1)
+            e |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+#endif
+        if (e == 0)
+            err = MP_EXPTMOD_E;
+    }
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(m, 32, mm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+#endif
+
+        if (e == 0x10001) {
+            int i;
+            sp_digit mp;
+
+            sp_2048_mont_setup(m, &mp);
+
+            /* Convert to Montgomery form. */
+            XMEMSET(a, 0, sizeof(sp_digit) * 32);
+            err = sp_2048_mod_32_cond(r, a, m);
+            /* Montgomery form: r = a.R mod m */
+
+            if (err == MP_OKAY) {
+                /* r = a ^ 0x10000 => r = a squared 16 times */
+#ifdef HAVE_INTEL_AVX2
+                if (saved_vector_registers) {
+                    for (i = 15; i >= 0; i--) {
+                        sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+                    }
+                    /* mont_red(r.R.R) = (r.R.R / R) mod m = r.R mod m
+                     * mont_red(r.R * a) = (r.R.a / R) mod m = r.a mod m
+                     */
+                    sp_2048_mont_mul_avx2_32(r, r, ah, m, mp);
+                }
+                else
+#endif
+                {
+                    for (i = 15; i >= 0; i--) {
+                        sp_2048_mont_sqr_32(r, r, m, mp);
+                    }
+                    /* mont_red(r.R.R) = (r.R.R / R) mod m = r.R mod m
+                     * mont_red(r.R * a) = (r.R.a / R) mod m = r.a mod m
+                     */
+                    sp_2048_mont_mul_32(r, r, ah, m, mp);
+                }
+
+                for (i = 31; i > 0; i--) {
+                    if (r[i] != m[i])
+                        break;
+                }
+                if (r[i] >= m[i])
+                    sp_2048_sub_in_place_32(r, m);
+            }
+        }
+        else if (e == 0x3) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers) {
+                if (err == MP_OKAY) {
+                    sp_2048_sqr_avx2_32(r, ah);
+                    err = sp_2048_mod_32_cond(r, r, m);
+                }
+                if (err == MP_OKAY) {
+                    sp_2048_mul_avx2_32(r, ah, r);
+                    err = sp_2048_mod_32_cond(r, r, m);
+                }
+            }
+            else
+#endif
+            {
+                if (err == MP_OKAY) {
+                    sp_2048_sqr_32(r, ah);
+                    err = sp_2048_mod_32_cond(r, r, m);
+                }
+                if (err == MP_OKAY) {
+                    sp_2048_mul_32(r, ah, r);
+                    err = sp_2048_mod_32_cond(r, r, m);
+                }
+            }
+        }
+        else {
+            int i;
+            sp_digit mp;
+
+            sp_2048_mont_setup(m, &mp);
+
+            /* Convert to Montgomery form. */
+            XMEMSET(a, 0, sizeof(sp_digit) * 32);
+            err = sp_2048_mod_32_cond(a, a, m);
+
+            if (err == MP_OKAY) {
+                for (i=63; i>=0; i--) {
+                    if (e >> i) {
+                        break;
+                    }
+                }
+
+                XMEMCPY(r, a, sizeof(sp_digit) * 32);
+#ifdef HAVE_INTEL_AVX2
+                if (saved_vector_registers) {
+                    for (i--; i>=0; i--) {
+                        sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+                        if (((e >> i) & 1) == 1) {
+                            sp_2048_mont_mul_avx2_32(r, r, a, m, mp);
+                        }
+                    }
+                    XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
+                    sp_2048_mont_reduce_avx2_32(r, m, mp);
+                }
+                else
+#endif
+                {
+                    for (i--; i>=0; i--) {
+                        sp_2048_mont_sqr_32(r, r, m, mp);
+                        if (((e >> i) & 1) == 1) {
+                            sp_2048_mont_mul_32(r, r, a, m, mp);
+                        }
+                    }
+                    XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
+                    sp_2048_mont_reduce_32(r, m, mp);
+                }
+
+                for (i = 31; i > 0; i--) {
+                    if (r[i] != m[i])
+                        break;
+                }
+                if (r[i] >= m[i])
+                    sp_2048_sub_in_place_32(r, m);
+            }
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_to_bin_32(r, out);
+        *outLen = 256;
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(a, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     const mp_int* mm, byte* out, word32* outLen)
 {
@@ -2234,6 +2422,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 
     return err;
 }
+#endif
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
@@ -2258,6 +2447,65 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm,const  mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, d, 32 * 4);
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 256U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 2048) {
+            err = MP_READ_E;
+        }
+        else if (inLen > 256U) {
+            err = MP_READ_E;
+        }
+        else if (mp_count_bits(mm) != 2048) {
+            err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
+        }
+    }
+
+    SP_ALLOC_VAR(sp_digit, d, 32 * 4, NULL, DYNAMIC_TYPE_RSA);
+    if (err == MP_OKAY) {
+        a = d + 32;
+        m = a + 64;
+
+        r = a;
+
+        sp_2048_from_bin(a, 32, in, (int)inLen);
+        sp_2048_from_mp(d, 32, dm);
+        sp_2048_from_mp(m, 32, mm);
+        err = sp_2048_mod_exp_32(r, a, d, 2048, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_to_bin_32(r, out);
+        *outLen = 256;
+    }
+
+    /* only zeroing private "d" */
+    SP_ZEROFREE_VAR(sp_digit, d, 32, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* pm, const mp_int* qm,const  mp_int* dpm, const mp_int* dqm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
@@ -2334,6 +2582,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 
     return err;
 }
+#endif
 
 #else
 #ifdef __cplusplus
@@ -2371,6 +2620,130 @@ extern sp_digit sp_2048_cond_add_avx2_16(sp_digit* r, const sp_digit* a, const s
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, a, 16 * 11);
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* dq = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
+    sp_digit* r = NULL;
+    sp_digit c;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    (void)dm;
+    (void)mm;
+
+    if (*outLen < 256) {
+        err = MP_TO_E;
+    }
+    else if (inLen > 256 || mp_count_bits(mm) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(pm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(qm)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, a, 16 * 11, NULL, DYNAMIC_TYPE_RSA);
+
+    if (err == MP_OKAY) {
+        p = a + 32 * 2;
+        q = p + 16;
+        qi = dq = dp = q + 16;
+        tmpa = qi + 16;
+        tmpb = tmpa + 32;
+        r = a + 32;
+
+        sp_2048_from_bin(a, 32, in, (int)inLen);
+        sp_2048_from_mp(p, 16, pm);
+        sp_2048_from_mp(q, 16, qm);
+        sp_2048_from_mp(dp, 16, dpm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+
+        if (saved_vector_registers)
+            err = sp_2048_mod_exp_avx2_16(tmpa, a, dp, 1024, p, 1);
+        else
+#endif
+            err = sp_2048_mod_exp_16(tmpa, a, dp, 1024, p, 1);
+    }
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(dq, 16, dqm);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            err = sp_2048_mod_exp_avx2_16(tmpb, a, dq, 1024, q, 1);
+       else
+#endif
+            err = sp_2048_mod_exp_16(tmpb, a, dq, 1024, q, 1);
+    }
+
+    if (err == MP_OKAY) {
+        c = sp_2048_sub_in_place_16(tmpa, tmpb);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers) {
+            c += sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
+            sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
+        }
+        else
+#endif
+        {
+            c += sp_2048_cond_add_16(tmpa, tmpa, p, c);
+            sp_2048_cond_add_16(tmpa, tmpa, p, c);
+        }
+
+        sp_2048_from_mp(qi, 16, qim);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_2048_mul_avx2_16(tmpa, tmpa, qi);
+        else
+#endif
+            sp_2048_mul_16(tmpa, tmpa, qi);
+        err = sp_2048_mod_16(tmpa, tmpa, p);
+    }
+
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_2048_mul_avx2_16(tmpa, q, tmpa);
+        else
+#endif
+            sp_2048_mul_16(tmpa, q, tmpa);
+        XMEMSET(&tmpb[16], 0, sizeof(sp_digit) * 16);
+        sp_2048_add_32(r, tmpb, tmpa);
+
+        sp_2048_to_bin_32(r, out);
+        *outLen = 256;
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_ZEROFREE_VAR(sp_digit, a, 16 * 11, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
@@ -2510,6 +2883,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 
     return err;
 }
+#endif
 #endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
@@ -2594,6 +2968,65 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 64);
+    SP_DECL_VAR(sp_digit, e, 32);
+    SP_DECL_VAR(sp_digit, m, 32);
+    sp_digit* r;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 2048) {
+        err = MP_READ_E;
+    }
+    else if (expBits > 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_2048_from_mp(b, 32, base);
+        sp_2048_from_mp(e, 32, exp);
+        sp_2048_from_mp(m, 32, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_2048_mod_exp_avx2_32(r, b, e, expBits, m, 0);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_2048_mod_exp_32(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_2048_to_mp(r, res);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
@@ -2658,6 +3091,7 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifdef HAVE_FFDHE_2048
@@ -2923,6 +3357,89 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
+    const mp_int* mod, byte* out, word32* outLen)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 64);
+    SP_DECL_VAR(sp_digit, e, 32);
+    SP_DECL_VAR(sp_digit, m, 32);
+    sp_digit* r;
+    word32 i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    if (mp_count_bits(base) > 2048) {
+        err = MP_READ_E;
+    }
+    else if (expLen > 256U) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_2048_from_mp(b, 32, base);
+        sp_2048_from_bin(e, 32, exp, (int)expLen);
+        sp_2048_from_mp(m, 32, mod);
+
+    #ifdef HAVE_FFDHE_2048
+        if (base->used == 1 && base->dp[0] == 2 && m[31] == (sp_digit)-1) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_2048_mod_exp_2_avx2_32(r, e, (int)expLen * 8, m);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_2048_mod_exp_2_32(r, e, (int)expLen * 8, m);
+        }
+        else
+    #endif
+        {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_2048_mod_exp_avx2_32(r, b, e, (int)expLen * 8, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_2048_mod_exp_32(r, b, e, (int)expLen * 8, m, 0);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_to_bin_32(r, out);
+        *outLen = 256;
+        for (i=0; i<256 && out[i] == 0; i++) {
+            /* Search for first non-zero. */
+        }
+        *outLen -= i;
+        XMEMMOVE(out, out + i, *outLen);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
     const mp_int* mod, byte* out, word32* outLen)
 {
@@ -3013,6 +3530,7 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
     return err;
 }
 #endif
+#endif
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * @param [in]  base  Base. MP integer.
@@ -3024,6 +3542,66 @@ int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 32);
+    SP_DECL_VAR(sp_digit, e, 16);
+    SP_DECL_VAR(sp_digit, m, 16);
+    sp_digit* r;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1024) {
+        err = MP_READ_E;
+    }
+    else if (expBits > 1024) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_2048_from_mp(b, 16, base);
+        sp_2048_from_mp(e, 16, exp);
+        sp_2048_from_mp(m, 16, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_2048_mod_exp_avx2_16(r, b, e, expBits, m, 0);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_2048_mod_exp_16(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 16, 0, sizeof(*r) * 16);
+        err = sp_2048_to_mp(r, res);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
@@ -3089,6 +3667,7 @@ int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
     return err;
 }
+#endif
 
 #endif /* WOLFSSL_HAVE_SP_DH | (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) */
 
@@ -4890,6 +5469,194 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digi
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
+    const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, a, 48 * 5);
+    sp_digit* ah = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
+    sp_digit  e = 0;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    if (*outLen < 384) {
+        err = MP_TO_E;
+    }
+    else if (mp_count_bits(em) > 64 || inLen > 384 ||
+                                                     mp_count_bits(mm) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, a, 48 * 5, NULL, DYNAMIC_TYPE_RSA);
+    if (err == MP_OKAY) {
+        r = a + 48 * 2;
+        m = r + 48 * 2;
+        ah = a + 48;
+
+        sp_3072_from_bin(ah, 48, in, (int)inLen);
+#if DIGIT_BIT >= 64
+        e = em->dp[0];
+#else
+        e = em->dp[0];
+        if (em->used > 1)
+            e |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+#endif
+        if (e == 0)
+            err = MP_EXPTMOD_E;
+    }
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(m, 48, mm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+#endif
+
+        if (e == 0x10001) {
+            int i;
+            sp_digit mp;
+
+            sp_3072_mont_setup(m, &mp);
+
+            /* Convert to Montgomery form. */
+            XMEMSET(a, 0, sizeof(sp_digit) * 48);
+            err = sp_3072_mod_48_cond(r, a, m);
+            /* Montgomery form: r = a.R mod m */
+
+            if (err == MP_OKAY) {
+                /* r = a ^ 0x10000 => r = a squared 16 times */
+#ifdef HAVE_INTEL_AVX2
+                if (saved_vector_registers) {
+                    for (i = 15; i >= 0; i--) {
+                        sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+                    }
+                    /* mont_red(r.R.R) = (r.R.R / R) mod m = r.R mod m
+                     * mont_red(r.R * a) = (r.R.a / R) mod m = r.a mod m
+                     */
+                    sp_3072_mont_mul_avx2_48(r, r, ah, m, mp);
+                }
+                else
+#endif
+                {
+                    for (i = 15; i >= 0; i--) {
+                        sp_3072_mont_sqr_48(r, r, m, mp);
+                    }
+                    /* mont_red(r.R.R) = (r.R.R / R) mod m = r.R mod m
+                     * mont_red(r.R * a) = (r.R.a / R) mod m = r.a mod m
+                     */
+                    sp_3072_mont_mul_48(r, r, ah, m, mp);
+                }
+
+                for (i = 47; i > 0; i--) {
+                    if (r[i] != m[i])
+                        break;
+                }
+                if (r[i] >= m[i])
+                    sp_3072_sub_in_place_48(r, m);
+            }
+        }
+        else if (e == 0x3) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers) {
+                if (err == MP_OKAY) {
+                    sp_3072_sqr_avx2_48(r, ah);
+                    err = sp_3072_mod_48_cond(r, r, m);
+                }
+                if (err == MP_OKAY) {
+                    sp_3072_mul_avx2_48(r, ah, r);
+                    err = sp_3072_mod_48_cond(r, r, m);
+                }
+            }
+            else
+#endif
+            {
+                if (err == MP_OKAY) {
+                    sp_3072_sqr_48(r, ah);
+                    err = sp_3072_mod_48_cond(r, r, m);
+                }
+                if (err == MP_OKAY) {
+                    sp_3072_mul_48(r, ah, r);
+                    err = sp_3072_mod_48_cond(r, r, m);
+                }
+            }
+        }
+        else {
+            int i;
+            sp_digit mp;
+
+            sp_3072_mont_setup(m, &mp);
+
+            /* Convert to Montgomery form. */
+            XMEMSET(a, 0, sizeof(sp_digit) * 48);
+            err = sp_3072_mod_48_cond(a, a, m);
+
+            if (err == MP_OKAY) {
+                for (i=63; i>=0; i--) {
+                    if (e >> i) {
+                        break;
+                    }
+                }
+
+                XMEMCPY(r, a, sizeof(sp_digit) * 48);
+#ifdef HAVE_INTEL_AVX2
+                if (saved_vector_registers) {
+                    for (i--; i>=0; i--) {
+                        sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+                        if (((e >> i) & 1) == 1) {
+                            sp_3072_mont_mul_avx2_48(r, r, a, m, mp);
+                        }
+                    }
+                    XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
+                    sp_3072_mont_reduce_avx2_48(r, m, mp);
+                }
+                else
+#endif
+                {
+                    for (i--; i>=0; i--) {
+                        sp_3072_mont_sqr_48(r, r, m, mp);
+                        if (((e >> i) & 1) == 1) {
+                            sp_3072_mont_mul_48(r, r, a, m, mp);
+                        }
+                    }
+                    XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
+                    sp_3072_mont_reduce_48(r, m, mp);
+                }
+
+                for (i = 47; i > 0; i--) {
+                    if (r[i] != m[i])
+                        break;
+                }
+                if (r[i] >= m[i])
+                    sp_3072_sub_in_place_48(r, m);
+            }
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_to_bin_48(r, out);
+        *outLen = 384;
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(a, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     const mp_int* mm, byte* out, word32* outLen)
 {
@@ -5099,6 +5866,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 
     return err;
 }
+#endif
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
@@ -5123,6 +5891,65 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm,const  mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, d, 48 * 4);
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 384U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 3072) {
+            err = MP_READ_E;
+        }
+        else if (inLen > 384U) {
+            err = MP_READ_E;
+        }
+        else if (mp_count_bits(mm) != 3072) {
+            err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
+        }
+    }
+
+    SP_ALLOC_VAR(sp_digit, d, 48 * 4, NULL, DYNAMIC_TYPE_RSA);
+    if (err == MP_OKAY) {
+        a = d + 48;
+        m = a + 96;
+
+        r = a;
+
+        sp_3072_from_bin(a, 48, in, (int)inLen);
+        sp_3072_from_mp(d, 48, dm);
+        sp_3072_from_mp(m, 48, mm);
+        err = sp_3072_mod_exp_48(r, a, d, 3072, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_to_bin_48(r, out);
+        *outLen = 384;
+    }
+
+    /* only zeroing private "d" */
+    SP_ZEROFREE_VAR(sp_digit, d, 48, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* pm, const mp_int* qm,const  mp_int* dpm, const mp_int* dqm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
@@ -5199,6 +6026,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 
     return err;
 }
+#endif
 
 #else
 #ifdef __cplusplus
@@ -5236,6 +6064,130 @@ extern sp_digit sp_3072_cond_add_avx2_24(sp_digit* r, const sp_digit* a, const s
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, a, 24 * 11);
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* dq = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
+    sp_digit* r = NULL;
+    sp_digit c;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    (void)dm;
+    (void)mm;
+
+    if (*outLen < 384) {
+        err = MP_TO_E;
+    }
+    else if (inLen > 384 || mp_count_bits(mm) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(pm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(qm)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, a, 24 * 11, NULL, DYNAMIC_TYPE_RSA);
+
+    if (err == MP_OKAY) {
+        p = a + 48 * 2;
+        q = p + 24;
+        qi = dq = dp = q + 24;
+        tmpa = qi + 24;
+        tmpb = tmpa + 48;
+        r = a + 48;
+
+        sp_3072_from_bin(a, 48, in, (int)inLen);
+        sp_3072_from_mp(p, 24, pm);
+        sp_3072_from_mp(q, 24, qm);
+        sp_3072_from_mp(dp, 24, dpm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+
+        if (saved_vector_registers)
+            err = sp_3072_mod_exp_avx2_24(tmpa, a, dp, 1536, p, 1);
+        else
+#endif
+            err = sp_3072_mod_exp_24(tmpa, a, dp, 1536, p, 1);
+    }
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(dq, 24, dqm);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            err = sp_3072_mod_exp_avx2_24(tmpb, a, dq, 1536, q, 1);
+       else
+#endif
+            err = sp_3072_mod_exp_24(tmpb, a, dq, 1536, q, 1);
+    }
+
+    if (err == MP_OKAY) {
+        c = sp_3072_sub_in_place_24(tmpa, tmpb);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers) {
+            c += sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
+            sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
+        }
+        else
+#endif
+        {
+            c += sp_3072_cond_add_24(tmpa, tmpa, p, c);
+            sp_3072_cond_add_24(tmpa, tmpa, p, c);
+        }
+
+        sp_3072_from_mp(qi, 24, qim);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_3072_mul_avx2_24(tmpa, tmpa, qi);
+        else
+#endif
+            sp_3072_mul_24(tmpa, tmpa, qi);
+        err = sp_3072_mod_24(tmpa, tmpa, p);
+    }
+
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_3072_mul_avx2_24(tmpa, q, tmpa);
+        else
+#endif
+            sp_3072_mul_24(tmpa, q, tmpa);
+        XMEMSET(&tmpb[24], 0, sizeof(sp_digit) * 24);
+        sp_3072_add_48(r, tmpb, tmpa);
+
+        sp_3072_to_bin_48(r, out);
+        *outLen = 384;
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_ZEROFREE_VAR(sp_digit, a, 24 * 11, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
@@ -5375,6 +6327,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 
     return err;
 }
+#endif
 #endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
@@ -5459,6 +6412,65 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 96);
+    SP_DECL_VAR(sp_digit, e, 48);
+    SP_DECL_VAR(sp_digit, m, 48);
+    sp_digit* r;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 3072) {
+        err = MP_READ_E;
+    }
+    else if (expBits > 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_3072_from_mp(b, 48, base);
+        sp_3072_from_mp(e, 48, exp);
+        sp_3072_from_mp(m, 48, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_3072_mod_exp_avx2_48(r, b, e, expBits, m, 0);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_3072_mod_exp_48(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_3072_to_mp(r, res);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
@@ -5523,6 +6535,7 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifdef HAVE_FFDHE_3072
@@ -5788,6 +6801,89 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
+    const mp_int* mod, byte* out, word32* outLen)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 96);
+    SP_DECL_VAR(sp_digit, e, 48);
+    SP_DECL_VAR(sp_digit, m, 48);
+    sp_digit* r;
+    word32 i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    if (mp_count_bits(base) > 3072) {
+        err = MP_READ_E;
+    }
+    else if (expLen > 384U) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 96, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_3072_from_mp(b, 48, base);
+        sp_3072_from_bin(e, 48, exp, (int)expLen);
+        sp_3072_from_mp(m, 48, mod);
+
+    #ifdef HAVE_FFDHE_3072
+        if (base->used == 1 && base->dp[0] == 2 && m[47] == (sp_digit)-1) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_3072_mod_exp_2_avx2_48(r, e, (int)expLen * 8, m);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_3072_mod_exp_2_48(r, e, (int)expLen * 8, m);
+        }
+        else
+    #endif
+        {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_3072_mod_exp_avx2_48(r, b, e, (int)expLen * 8, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_3072_mod_exp_48(r, b, e, (int)expLen * 8, m, 0);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_to_bin_48(r, out);
+        *outLen = 384;
+        for (i=0; i<384 && out[i] == 0; i++) {
+            /* Search for first non-zero. */
+        }
+        *outLen -= i;
+        XMEMMOVE(out, out + i, *outLen);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
     const mp_int* mod, byte* out, word32* outLen)
 {
@@ -5878,6 +6974,7 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
     return err;
 }
 #endif
+#endif
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * @param [in]  base  Base. MP integer.
@@ -5889,6 +6986,66 @@ int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 48);
+    SP_DECL_VAR(sp_digit, e, 24);
+    SP_DECL_VAR(sp_digit, m, 24);
+    sp_digit* r;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1536) {
+        err = MP_READ_E;
+    }
+    else if (expBits > 1536) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 48, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 24, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 24, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_3072_from_mp(b, 24, base);
+        sp_3072_from_mp(e, 24, exp);
+        sp_3072_from_mp(m, 24, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_3072_mod_exp_avx2_24(r, b, e, expBits, m, 0);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_3072_mod_exp_24(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 24, 0, sizeof(*r) * 24);
+        err = sp_3072_to_mp(r, res);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 24, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
@@ -5954,6 +7111,7 @@ int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
     return err;
 }
+#endif
 
 #endif /* WOLFSSL_HAVE_SP_DH | (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) */
 
@@ -6982,6 +8140,194 @@ static int sp_4096_mod_exp_avx2_64(sp_digit* r, const sp_digit* a, const sp_digi
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
+    const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, a, 64 * 5);
+    sp_digit* ah = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
+    sp_digit  e = 0;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    if (*outLen < 512) {
+        err = MP_TO_E;
+    }
+    else if (mp_count_bits(em) > 64 || inLen > 512 ||
+                                                     mp_count_bits(mm) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, a, 64 * 5, NULL, DYNAMIC_TYPE_RSA);
+    if (err == MP_OKAY) {
+        r = a + 64 * 2;
+        m = r + 64 * 2;
+        ah = a + 64;
+
+        sp_4096_from_bin(ah, 64, in, (int)inLen);
+#if DIGIT_BIT >= 64
+        e = em->dp[0];
+#else
+        e = em->dp[0];
+        if (em->used > 1)
+            e |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+#endif
+        if (e == 0)
+            err = MP_EXPTMOD_E;
+    }
+    if (err == MP_OKAY) {
+        sp_4096_from_mp(m, 64, mm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) &&
+            (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+#endif
+
+        if (e == 0x10001) {
+            int i;
+            sp_digit mp;
+
+            sp_4096_mont_setup(m, &mp);
+
+            /* Convert to Montgomery form. */
+            XMEMSET(a, 0, sizeof(sp_digit) * 64);
+            err = sp_4096_mod_64_cond(r, a, m);
+            /* Montgomery form: r = a.R mod m */
+
+            if (err == MP_OKAY) {
+                /* r = a ^ 0x10000 => r = a squared 16 times */
+#ifdef HAVE_INTEL_AVX2
+                if (saved_vector_registers) {
+                    for (i = 15; i >= 0; i--) {
+                        sp_4096_mont_sqr_avx2_64(r, r, m, mp);
+                    }
+                    /* mont_red(r.R.R) = (r.R.R / R) mod m = r.R mod m
+                     * mont_red(r.R * a) = (r.R.a / R) mod m = r.a mod m
+                     */
+                    sp_4096_mont_mul_avx2_64(r, r, ah, m, mp);
+                }
+                else
+#endif
+                {
+                    for (i = 15; i >= 0; i--) {
+                        sp_4096_mont_sqr_64(r, r, m, mp);
+                    }
+                    /* mont_red(r.R.R) = (r.R.R / R) mod m = r.R mod m
+                     * mont_red(r.R * a) = (r.R.a / R) mod m = r.a mod m
+                     */
+                    sp_4096_mont_mul_64(r, r, ah, m, mp);
+                }
+
+                for (i = 63; i > 0; i--) {
+                    if (r[i] != m[i])
+                        break;
+                }
+                if (r[i] >= m[i])
+                    sp_4096_sub_in_place_64(r, m);
+            }
+        }
+        else if (e == 0x3) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers) {
+                if (err == MP_OKAY) {
+                    sp_4096_sqr_avx2_64(r, ah);
+                    err = sp_4096_mod_64_cond(r, r, m);
+                }
+                if (err == MP_OKAY) {
+                    sp_4096_mul_avx2_64(r, ah, r);
+                    err = sp_4096_mod_64_cond(r, r, m);
+                }
+            }
+            else
+#endif
+            {
+                if (err == MP_OKAY) {
+                    sp_4096_sqr_64(r, ah);
+                    err = sp_4096_mod_64_cond(r, r, m);
+                }
+                if (err == MP_OKAY) {
+                    sp_4096_mul_64(r, ah, r);
+                    err = sp_4096_mod_64_cond(r, r, m);
+                }
+            }
+        }
+        else {
+            int i;
+            sp_digit mp;
+
+            sp_4096_mont_setup(m, &mp);
+
+            /* Convert to Montgomery form. */
+            XMEMSET(a, 0, sizeof(sp_digit) * 64);
+            err = sp_4096_mod_64_cond(a, a, m);
+
+            if (err == MP_OKAY) {
+                for (i=63; i>=0; i--) {
+                    if (e >> i) {
+                        break;
+                    }
+                }
+
+                XMEMCPY(r, a, sizeof(sp_digit) * 64);
+#ifdef HAVE_INTEL_AVX2
+                if (saved_vector_registers) {
+                    for (i--; i>=0; i--) {
+                        sp_4096_mont_sqr_avx2_64(r, r, m, mp);
+                        if (((e >> i) & 1) == 1) {
+                            sp_4096_mont_mul_avx2_64(r, r, a, m, mp);
+                        }
+                    }
+                    XMEMSET(&r[64], 0, sizeof(sp_digit) * 64);
+                    sp_4096_mont_reduce_avx2_64(r, m, mp);
+                }
+                else
+#endif
+                {
+                    for (i--; i>=0; i--) {
+                        sp_4096_mont_sqr_64(r, r, m, mp);
+                        if (((e >> i) & 1) == 1) {
+                            sp_4096_mont_mul_64(r, r, a, m, mp);
+                        }
+                    }
+                    XMEMSET(&r[64], 0, sizeof(sp_digit) * 64);
+                    sp_4096_mont_reduce_64(r, m, mp);
+                }
+
+                for (i = 63; i > 0; i--) {
+                    if (r[i] != m[i])
+                        break;
+                }
+                if (r[i] >= m[i])
+                    sp_4096_sub_in_place_64(r, m);
+            }
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_to_bin_64(r, out);
+        *outLen = 512;
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(a, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     const mp_int* mm, byte* out, word32* outLen)
 {
@@ -7191,6 +8537,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 
     return err;
 }
+#endif
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
@@ -7215,6 +8562,65 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm,const  mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, d, 64 * 4);
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 512U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 4096) {
+            err = MP_READ_E;
+        }
+        else if (inLen > 512U) {
+            err = MP_READ_E;
+        }
+        else if (mp_count_bits(mm) != 4096) {
+            err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
+        }
+    }
+
+    SP_ALLOC_VAR(sp_digit, d, 64 * 4, NULL, DYNAMIC_TYPE_RSA);
+    if (err == MP_OKAY) {
+        a = d + 64;
+        m = a + 128;
+
+        r = a;
+
+        sp_4096_from_bin(a, 64, in, (int)inLen);
+        sp_4096_from_mp(d, 64, dm);
+        sp_4096_from_mp(m, 64, mm);
+        err = sp_4096_mod_exp_64(r, a, d, 4096, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_to_bin_64(r, out);
+        *outLen = 512;
+    }
+
+    /* only zeroing private "d" */
+    SP_ZEROFREE_VAR(sp_digit, d, 64, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* pm, const mp_int* qm,const  mp_int* dpm, const mp_int* dqm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
@@ -7291,6 +8697,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 
     return err;
 }
+#endif
 
 #else
 #ifdef __cplusplus
@@ -7328,6 +8735,130 @@ extern sp_digit sp_4096_cond_add_avx2_32(sp_digit* r, const sp_digit* a, const s
  * @return  MP_READ_E when an array is too long.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
+{
+    SP_DECL_VAR(sp_digit, a, 32 * 11);
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* dq = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
+    sp_digit* r = NULL;
+    sp_digit c;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    (void)dm;
+    (void)mm;
+
+    if (*outLen < 512) {
+        err = MP_TO_E;
+    }
+    else if (inLen > 512 || mp_count_bits(mm) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(pm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(qm)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, a, 32 * 11, NULL, DYNAMIC_TYPE_RSA);
+
+    if (err == MP_OKAY) {
+        p = a + 64 * 2;
+        q = p + 32;
+        qi = dq = dp = q + 32;
+        tmpa = qi + 32;
+        tmpb = tmpa + 64;
+        r = a + 64;
+
+        sp_4096_from_bin(a, 64, in, (int)inLen);
+        sp_4096_from_mp(p, 32, pm);
+        sp_4096_from_mp(q, 32, qm);
+        sp_4096_from_mp(dp, 32, dpm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+
+        if (saved_vector_registers)
+            err = sp_2048_mod_exp_avx2_32(tmpa, a, dp, 2048, p, 1);
+        else
+#endif
+            err = sp_2048_mod_exp_32(tmpa, a, dp, 2048, p, 1);
+    }
+    if (err == MP_OKAY) {
+        sp_4096_from_mp(dq, 32, dqm);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            err = sp_2048_mod_exp_avx2_32(tmpb, a, dq, 2048, q, 1);
+       else
+#endif
+            err = sp_2048_mod_exp_32(tmpb, a, dq, 2048, q, 1);
+    }
+
+    if (err == MP_OKAY) {
+        c = sp_2048_sub_in_place_32(tmpa, tmpb);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers) {
+            c += sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
+            sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
+        }
+        else
+#endif
+        {
+            c += sp_4096_cond_add_32(tmpa, tmpa, p, c);
+            sp_4096_cond_add_32(tmpa, tmpa, p, c);
+        }
+
+        sp_2048_from_mp(qi, 32, qim);
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_2048_mul_avx2_32(tmpa, tmpa, qi);
+        else
+#endif
+            sp_2048_mul_32(tmpa, tmpa, qi);
+        err = sp_2048_mod_32(tmpa, tmpa, p);
+    }
+
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_2048_mul_avx2_32(tmpa, q, tmpa);
+        else
+#endif
+            sp_2048_mul_32(tmpa, q, tmpa);
+        XMEMSET(&tmpb[32], 0, sizeof(sp_digit) * 32);
+        sp_4096_add_64(r, tmpb, tmpa);
+
+        sp_4096_to_bin_64(r, out);
+        *outLen = 512;
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_ZEROFREE_VAR(sp_digit, a, 32 * 11, NULL, DYNAMIC_TYPE_RSA);
+
+    return err;
+}
+#else
 int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
@@ -7467,6 +8998,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 
     return err;
 }
+#endif
 #endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
@@ -7551,6 +9083,65 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 128);
+    SP_DECL_VAR(sp_digit, e, 64);
+    SP_DECL_VAR(sp_digit, m, 64);
+    sp_digit* r;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 4096) {
+        err = MP_READ_E;
+    }
+    else if (expBits > 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_4096_from_mp(b, 64, base);
+        sp_4096_from_mp(e, 64, exp);
+        sp_4096_from_mp(m, 64, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_4096_mod_exp_avx2_64(r, b, e, expBits, m, 0);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_4096_mod_exp_64(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_4096_to_mp(r, res);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
@@ -7615,6 +9206,7 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifdef HAVE_FFDHE_4096
@@ -7880,6 +9472,89 @@ static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
+    const mp_int* mod, byte* out, word32* outLen)
+{
+    int err = MP_OKAY;
+    SP_DECL_VAR(sp_digit, b, 128);
+    SP_DECL_VAR(sp_digit, e, 64);
+    SP_DECL_VAR(sp_digit, m, 64);
+    sp_digit* r;
+    word32 i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    if (mp_count_bits(base) > 4096) {
+        err = MP_READ_E;
+    }
+    else if (expLen > 512U) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, b, 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, e, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ALLOC_VAR(sp_digit, m, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        r = b;
+
+        sp_4096_from_mp(b, 64, base);
+        sp_4096_from_bin(e, 64, exp, (int)expLen);
+        sp_4096_from_mp(m, 64, mod);
+
+    #ifdef HAVE_FFDHE_4096
+        if (base->used == 1 && base->dp[0] == 2 && m[63] == (sp_digit)-1) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_4096_mod_exp_2_avx2_64(r, e, (int)expLen * 8, m);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_4096_mod_exp_2_64(r, e, (int)expLen * 8, m);
+        }
+        else
+    #endif
+        {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_4096_mod_exp_avx2_64(r, b, e, (int)expLen * 8, m, 0);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_4096_mod_exp_64(r, b, e, (int)expLen * 8, m, 0);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_to_bin_64(r, out);
+        *outLen = 512;
+        for (i=0; i<512 && out[i] == 0; i++) {
+            /* Search for first non-zero. */
+        }
+        *outLen -= i;
+        XMEMMOVE(out, out + i, *outLen);
+    }
+
+    SP_FREE_VAR(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_ZEROFREE_VAR(sp_digit, e, 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    SP_FREE_VAR(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return err;
+}
+#else
 int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     const mp_int* mod, byte* out, word32* outLen)
 {
@@ -7969,6 +9644,7 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+#endif
 #endif
 #endif /* WOLFSSL_HAVE_SP_DH | (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) */
 
@@ -11033,6 +12709,77 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 5);
+    sp_cache_256_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_256) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_256, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_256_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_256,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_256_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_256(g, &cache);
+        if (cache->cnt == 2)
+            sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_256_ecc_mulmod_stripe_4(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_256_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -11114,6 +12861,7 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
     return err;
 #endif
 }
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 #if defined(FP_ECC) || defined(WOLFSSL_SP_SMALL)
@@ -11412,6 +13160,77 @@ static int sp_256_ecc_mulmod_stripe_avx2_4(sp_point_256* r, const sp_point_256* 
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 5);
+    sp_cache_256_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 4 * 5, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_256) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_256, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_256_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_256,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_256_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_256(g, &cache);
+        if (cache->cnt == 2)
+            sp_256_gen_stripe_table_avx2_4(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_256_ecc_mulmod_win_add_sub_avx2_4(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_256_ecc_mulmod_stripe_avx2_4(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_256_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -11493,6 +13312,7 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
     return err;
 #endif
 }
+#endif
 
 #endif /* HAVE_INTEL_AVX2 */
 /* Multiply the point by the scalar and return the result.
@@ -11507,6 +13327,43 @@ static int sp_256_ecc_mulmod_avx2_4(sp_point_256* r, const sp_point_256* g,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_256, point, 1);
+    SP_DECL_VAR(sp_digit, k, 4);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 4, km);
+        sp_256_point_from_ecc_point_4(point, gm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_256_ecc_mulmod_avx2_4(point, point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_256_ecc_mulmod_4(point, point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_4(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
         int map, void* heap)
 {
@@ -11541,6 +13398,7 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
     return err;
 }
+#endif
 
 /* Multiply the point by the scalar, add point a and return the result.
  * If map is true then convert result to affine coordinates.
@@ -11556,6 +13414,81 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_256, point, 2);
+    SP_DECL_VAR(sp_digit, k, 4 + 4 * 2 * 6);
+    sp_point_256* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    SP_ALLOC_VAR(sp_point_256, point, 2, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 4 + 4 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 4;
+
+        sp_256_from_mp(k, 4, km);
+        sp_256_point_from_ecc_point_4(point, gm);
+        sp_256_point_from_ecc_point_4(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_4(addP->x, addP->x, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_4(addP->y, addP->y, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_4(addP->z, addP->z, p256_mod);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+        if (saved_vector_registers)
+            err = sp_256_ecc_mulmod_avx2_4(point, point, k, 0, 0, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_4(point, point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_256_proj_point_add_avx2_4(point, point, addP, tmp);
+        else
+#endif
+            sp_256_proj_point_add_4(point, point, addP, tmp);
+
+        if (map) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers)
+                sp_256_map_avx2_4(point, point, tmp);
+            else
+#endif
+                sp_256_map_4(point, point, tmp);
+        }
+
+        err = sp_256_point_to_ecc_point_4(point, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
@@ -11652,6 +13585,7 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_SMALL
 /* Striping precomputation table.
@@ -24303,6 +26237,41 @@ static int sp_256_ecc_mulmod_base_avx2_4(sp_point_256* r, const sp_digit* k,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_256, point, 1);
+    SP_DECL_VAR(sp_digit, k, 4);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 4, km);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_256_ecc_mulmod_base_avx2_4(point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_256_ecc_mulmod_base_4(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_4(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
 {
     SP_DECL_VAR(sp_point_256, point, 1);
@@ -24342,6 +26311,7 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
 
     return err;
 }
+#endif
 
 /* Multiply the base point of P256 by the scalar, add point a and return
  * the result. If map is true then convert result to affine coordinates.
@@ -24356,6 +26326,80 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_256, point, 2);
+    SP_DECL_VAR(sp_digit, k, 4 + 4 * 2 * 6);
+    sp_point_256* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    SP_ALLOC_VAR(sp_point_256, point, 2, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 4 + 4 * 2 * 6, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 4;
+
+        sp_256_from_mp(k, 4, km);
+        sp_256_point_from_ecc_point_4(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_4(addP->x, addP->x, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_4(addP->y, addP->y, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_4(addP->z, addP->z, p256_mod);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+        if (saved_vector_registers)
+            err = sp_256_ecc_mulmod_base_avx2_4(point, k, 0, 0, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_base_4(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_256_proj_point_add_avx2_4(point, point, addP, tmp);
+        else
+#endif
+            sp_256_proj_point_add_4(point, point, addP, tmp);
+
+        if (map) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers)
+                sp_256_map_avx2_4(point, point, tmp);
+            else
+#endif
+                sp_256_map_4(point, point, tmp);
+        }
+
+        err = sp_256_point_to_ecc_point_4(point, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
         int inMont, ecc_point* r, int map, void* heap)
 {
@@ -24445,6 +26489,7 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
 
     return err;
 }
+#endif
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
@@ -24541,6 +26586,90 @@ static int sp_256_ecc_gen_k_4(WC_RNG* rng, sp_digit* k)
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
+{
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    SP_DECL_VAR(sp_point_256, point, 2);
+#else
+    SP_DECL_VAR(sp_point_256, point, 1);
+#endif
+    SP_DECL_VAR(sp_digit, k, 4);
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_256* infinity = NULL;
+#endif
+    int err = MP_OKAY;
+
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    (void)heap;
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    SP_ALLOC_VAR(sp_point_256, point, 2, heap, DYNAMIC_TYPE_ECC);
+#else
+    SP_ALLOC_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+#endif
+    SP_ALLOC_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
+        err = sp_256_ecc_gen_k_4(rng, k);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+
+        if (saved_vector_registers)
+            err = sp_256_ecc_mulmod_base_avx2_4(point, k, 1, 1, NULL);
+        else
+#endif
+            err = sp_256_ecc_mulmod_base_4(point, k, 1, 1, NULL);
+    }
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers) {
+            err = sp_256_ecc_mulmod_avx2_4(infinity, point, p256_order, 1, 1,
+                                                                          NULL);
+        }
+        else
+#endif
+            err = sp_256_ecc_mulmod_4(infinity, point, p256_order, 1, 1, NULL);
+    }
+    if (err == MP_OKAY) {
+        if (sp_256_iszero_4(point->x) || sp_256_iszero_4(point->y)) {
+            err = ECC_INF_E;
+        }
+    }
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(k, priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_4(point, pub);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    /* point is not sensitive, so no need to zeroize */
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
@@ -24646,6 +26775,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_key_gen_256_ctx {
@@ -24792,6 +26922,47 @@ static void sp_256_to_bin_4(sp_digit* r, byte* a)
  * @return  BUFFER_E when the buffer is too small for output size.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
+                          word32* outLen, void* heap)
+{
+    SP_DECL_VAR(sp_point_256, point, 1);
+    SP_DECL_VAR(sp_digit, k, 4);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    if (*outLen < 32U) {
+        err = BUFFER_E;
+    }
+
+    SP_ALLOC_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 4, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 4, priv);
+        sp_256_point_from_ecc_point_4(point, pub);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_256_ecc_mulmod_avx2_4(point, point, k, 1, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_256_ecc_mulmod_4(point, point, k, 1, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        sp_256_to_bin_4(point->x, out);
+        *outLen = 32;
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
                           word32* outLen, void* heap)
 {
@@ -24830,6 +27001,7 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_sec_gen_256_ctx {
@@ -25564,6 +27736,79 @@ static void sp_256_mont_inv_order_avx2_4(sp_digit* r, const sp_digit* a,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    sp_int64 c;
+    sp_digit* kInv = k;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    /* Conv k to Montgomery form (mod order) */
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+        saved_vector_registers = 1;
+    if (saved_vector_registers)
+        sp_256_mul_avx2_4(k, k, p256_norm_order);
+    else
+#endif
+        sp_256_mul_4(k, k, p256_norm_order);
+    err = sp_256_mod_4(k, k, p256_order);
+    if (err == MP_OKAY) {
+        sp_256_norm_4(k);
+
+        /* kInv = 1/k mod order */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_256_mont_inv_order_avx2_4(kInv, k, tmp);
+        else
+#endif
+            sp_256_mont_inv_order_4(kInv, k, tmp);
+        sp_256_norm_4(kInv);
+
+        /* s = r * x + e */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_256_mul_avx2_4(x, x, r);
+        else
+#endif
+            sp_256_mul_4(x, x, r);
+        err = sp_256_mod_4(x, x, p256_order);
+    }
+    if (err == MP_OKAY) {
+        sp_256_norm_4(x);
+        carry = sp_256_add_4(s, e, x);
+        sp_256_cond_sub_4(s, s, p256_order, 0 - carry);
+        sp_256_norm_4(s);
+        c = sp_256_cmp_4(s, p256_order);
+        sp_256_cond_sub_4(s, s, p256_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_256_norm_4(s);
+
+        /* s = s * k^-1 mod order */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_256_mont_mul_order_avx2_4(s, s, kInv);
+        else
+#endif
+            sp_256_mont_mul_order_4(s, s, kInv);
+        sp_256_norm_4(s);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    return err;
+}
+#else
 static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit* x, const sp_digit* e, sp_digit* tmp)
 {
@@ -25652,6 +27897,7 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
 
     return err;
 }
+#endif
 
 /* Sign the hash using the private key.
  *   e = [hash, 256 bits] from binary
@@ -25672,6 +27918,107 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    SP_DECL_VAR(sp_digit, e, 8 * 2 * 4);
+    SP_DECL_VAR(sp_point_256, point, 1);
+    sp_digit* x = NULL;
+    sp_digit* k = NULL;
+    sp_digit* r = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* s = NULL;
+    sp_int64 c;
+    int err = MP_OKAY;
+    int i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    (void)heap;
+
+    SP_ALLOC_VAR(sp_digit, e, 8 * 2 * 4, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        x = e + 2 * 4;
+        k = e + 4 * 4;
+        r = e + 6 * 4;
+        tmp = e + 8 * 4;
+        s = e;
+
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+    }
+
+    for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_256_ecc_gen_k_4(rng, k);
+        }
+        else {
+            sp_256_from_mp(k, 4, km);
+            mp_zero(km);
+        }
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_256_ecc_mulmod_base_avx2_4(point, k, 1, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_256_ecc_mulmod_base_4(point, k, 1, 1, heap);
+        }
+
+        if (err == MP_OKAY) {
+            /* r = point->x mod order */
+            XMEMCPY(r, point->x, sizeof(sp_digit) * 4U);
+            sp_256_norm_4(r);
+            c = sp_256_cmp_4(r, p256_order);
+            sp_256_cond_sub_4(r, r, p256_order,
+                (sp_digit)0 - (sp_digit)(c >= 0));
+            sp_256_norm_4(r);
+
+            if (!sp_256_iszero_4(r)) {
+                /* x is modified in calculation of s. */
+                sp_256_from_mp(x, 4, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_256_from_bin(e, 4, hash, (int)hashLen);
+
+                err = sp_256_calc_s_4(s, r, k, x, e, tmp);
+
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (!sp_256_iszero_4(s))) {
+                    break;
+                }
+            }
+        }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
+    }
+
+    if (i == 0) {
+        err = RNG_FAILURE_E;
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(r, rm);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(s, sm);
+    }
+
+    SP_ZEROFREE_VAR(sp_point_256, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ZEROFREE_VAR(sp_digit, e, 8 * 2 * 4, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
     const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
@@ -25776,6 +28123,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_sign_256_ctx {
@@ -25988,6 +28336,47 @@ extern void sp_256_mod_inv_avx2_4(sp_digit* r, const sp_digit* a, const sp_digit
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static void sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
+    sp_digit* tmp)
+{
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        sp_256_proj_point_add_avx2_4(p1, p1, p2, tmp);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+        sp_256_proj_point_add_4(p1, p1, p2, tmp);
+    if (sp_256_iszero_4(p1->z)) {
+        if (sp_256_iszero_4(p1->x) && sp_256_iszero_4(p1->y)) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                sp_256_proj_point_dbl_avx2_4(p1, p2, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                sp_256_proj_point_dbl_4(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            XMEMCPY(p1->z, p256_norm_mod, sizeof(p256_norm_mod));
+        }
+    }
+}
+#else
 static int sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
     sp_digit* tmp)
 {
@@ -26041,6 +28430,7 @@ static int sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
 
     return err;
 }
+#endif
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
  *
@@ -26055,6 +28445,112 @@ static int sp_256_add_points_4(sp_point_256* p1, const sp_point_256* p2,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+{
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifndef WOLFSSL_SP_SMALL
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        sp_256_mod_inv_avx2_4(s, s, p256_order);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        sp_256_mod_inv_4(s, s, p256_order);
+    }
+#endif /* !WOLFSSL_SP_SMALL */
+    {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_mul_avx2_4(s, s, p256_norm_order);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_256_mul_4(s, s, p256_norm_order);
+        }
+        err = sp_256_mod_4(s, s, p256_order);
+    }
+    if (err == MP_OKAY) {
+        sp_256_norm_4(s);
+#ifdef WOLFSSL_SP_SMALL
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_mont_inv_order_avx2_4(s, s, tmp);
+            sp_256_mont_mul_order_avx2_4(u1, u1, s);
+            sp_256_mont_mul_order_avx2_4(u2, u2, s);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_256_mont_inv_order_4(s, s, tmp);
+            sp_256_mont_mul_order_4(u1, u1, s);
+            sp_256_mont_mul_order_4(u2, u2, s);
+        }
+#else
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_mont_mul_order_avx2_4(u1, u1, s);
+            sp_256_mont_mul_order_avx2_4(u2, u2, s);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_256_mont_mul_order_4(u1, u1, s);
+            sp_256_mont_mul_order_4(u2, u2, s);
+        }
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_256_ecc_mulmod_base_avx2_4(p1, u1, 0, 0, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            err = sp_256_ecc_mulmod_base_4(p1, u1, 0, 0, heap);
+        }
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_4(p1->z)) {
+        p1->infinity = 1;
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_256_ecc_mulmod_avx2_4(p2, p2, u2, 0, 0, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_256_ecc_mulmod_4(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_4(p2->z)) {
+        p2->infinity = 1;
+    }
+
+    if (err == MP_OKAY) {
+        sp_256_add_points_4(p1, p2, tmp);
+    }
+
+    return err;
+}
+#else
 static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
@@ -26188,6 +28684,7 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
 
     return err;
 }
+#endif
 
 #ifdef HAVE_ECC_VERIFY
 /* Verify the signature values with the hash and public key.
@@ -26213,6 +28710,113 @@ static int sp_256_calc_vfy_point_4(sp_point_256* p1, sp_point_256* p2,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    SP_DECL_VAR(sp_digit, u1, 18 * 4);
+    SP_DECL_VAR(sp_point_256, p1, 2);
+    sp_digit* u2 = NULL;
+    sp_digit* s = NULL;
+    sp_digit* tmp = NULL;
+    sp_point_256* p2 = NULL;
+    sp_digit carry;
+    sp_int64 c = 0;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, u1, 18 * 4, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_256, p1, 2, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        u2  = u1 + 2 * 4;
+        s   = u1 + 4 * 4;
+        tmp = u1 + 6 * 4;
+        p2 = p1 + 1;
+
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        sp_256_from_bin(u1, 4, hash, (int)hashLen);
+        sp_256_from_mp(u2, 4, rm);
+        sp_256_from_mp(s, 4, sm);
+        sp_256_from_mp(p2->x, 4, pX);
+        sp_256_from_mp(p2->y, 4, pY);
+        sp_256_from_mp(p2->z, 4, pZ);
+
+        err = sp_256_calc_vfy_point_4(p1, p2, s, u1, u2, tmp, heap);
+    }
+    if (err == MP_OKAY) {
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_256_from_mp(u2, 4, rm);
+        err = sp_256_mod_mul_norm_4(u2, u2, p256_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* u1 = r.z'.z' mod prime */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_mont_sqr_avx2_4(p1->z, p1->z, p256_mod, p256_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_256_mont_sqr_4(p1->z, p1->z, p256_mod, p256_mp_mod);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_256_mont_mul_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
+        *res = (int)(sp_256_cmp_4(p1->x, u1) == 0);
+        if (*res == 0) {
+            /* Reload r and add order. */
+            sp_256_from_mp(u2, 4, rm);
+            carry = sp_256_add_4(u2, u2, p256_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_256_norm_4(u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_256_cmp_4(u2, p256_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_256_mod_mul_norm_4(u2, u2, p256_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+#ifdef HAVE_INTEL_AVX2
+                if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                        IS_INTEL_AVX2(cpuid_flags) &&
+                        (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    sp_256_mont_mul_avx2_4(u1, u2, p1->z, p256_mod,
+                        p256_mp_mod);
+                    RESTORE_VECTOR_REGISTERS();
+                }
+                else
+#endif
+                {
+                    sp_256_mont_mul_4(u1, u2, p1->z, p256_mod, p256_mp_mod);
+                }
+                *res = (sp_256_cmp_4(p1->x, u1) == 0);
+            }
+        }
+    }
+
+    SP_FREE_VAR(p1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(u1, heap, DYNAMIC_TYPE_ECC);
+    return err;
+}
+#else
 int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
     int* res, void* heap)
@@ -26335,6 +28939,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     SP_FREE_VAR(u1, heap, DYNAMIC_TYPE_ECC);
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_verify_256_ctx {
@@ -26605,6 +29210,105 @@ int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
  * @return  ECC_PRIV_KEY_E when the private scalar doesn't generate the EC
  *          point.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+    SP_DECL_VAR(sp_digit, priv, 4);
+    SP_DECL_VAR(sp_point_256, pub, 2);
+    sp_point_256* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if (((mp_count_bits(pX) > 256) ||
+        (mp_count_bits(pY) > 256) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 256)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    SP_ALLOC_VAR(sp_digit, priv, 4, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_256, pub, 2, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        p = pub + 1;
+
+        sp_256_from_mp(pub->x, 4, pX);
+        sp_256_from_mp(pub->y, 4, pY);
+        sp_256_from_bin(pub->z, 4, one, (int)sizeof(one));
+        if (privm)
+            sp_256_from_mp(priv, 4, privm);
+
+        /* Check point at infinitiy. */
+        if ((sp_256_iszero_4(pub->x) != 0) &&
+            (sp_256_iszero_4(pub->y) != 0)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_256_cmp_4(pub->x, p256_mod) >= 0) ||
+             (sp_256_cmp_4(pub->y, p256_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_256_ecc_is_point_4(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_256_ecc_mulmod_avx2_4(p, pub, p256_order, 1, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_256_ecc_mulmod_4(p, pub, p256_order, 1, 1, heap);
+    }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_256_iszero_4(p->x) == 0) ||
+                             (sp_256_iszero_4(p->y) == 0))) {
+        err = ECC_INF_E;
+    }
+
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_256_ecc_mulmod_base_avx2_4(p, priv, 1, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_256_ecc_mulmod_base_4(p, priv, 1, 1, heap);
+        }
+        /* Check result is public key */
+        if ((err == MP_OKAY) &&
+                ((sp_256_cmp_4(p->x, pub->x) != 0) ||
+                 (sp_256_cmp_4(p->y, pub->y) != 0))) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+    SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap)
 {
@@ -26707,6 +29411,7 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
     return err;
 }
 #endif
+#endif
 #ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
 /* Add two projective EC points together.
  * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
@@ -26724,6 +29429,62 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 6);
+    SP_DECL_VAR(sp_point_256, p, 2);
+    sp_point_256* q = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 4 * 6, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_256, p, 2, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        q = p + 1;
+
+        sp_256_from_mp(p->x, 4, pX);
+        sp_256_from_mp(p->y, 4, pY);
+        sp_256_from_mp(p->z, 4, pZ);
+        sp_256_from_mp(q->x, 4, qX);
+        sp_256_from_mp(q->y, 4, qY);
+        sp_256_from_mp(q->z, 4, qZ);
+        p->infinity = sp_256_iszero_4(p->x) &
+                      sp_256_iszero_4(p->y);
+        q->infinity = sp_256_iszero_4(q->x) &
+                      sp_256_iszero_4(q->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_proj_point_add_avx2_4(p, p, q, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_256_proj_point_add_4(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, rZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* qX, mp_int* qY, mp_int* qZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
@@ -26784,6 +29545,7 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
 
     return err;
 }
+#endif
 
 /* Double a projective EC point.
  * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
@@ -26798,6 +29560,53 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 2);
+    SP_DECL_VAR(sp_point_256, p, 1);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 4 * 2, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_256, p, 1, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 4, pX);
+        sp_256_from_mp(p->y, 4, pY);
+        sp_256_from_mp(p->z, 4, pZ);
+        p->infinity = sp_256_iszero_4(p->x) &
+                      sp_256_iszero_4(p->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_proj_point_dbl_avx2_4(p, p, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_256_proj_point_dbl_4(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, rZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
 {
@@ -26849,6 +29658,7 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
 
     return err;
 }
+#endif
 
 /* Map a projective EC point to affine in place.
  * pZ will be one.
@@ -26860,6 +29670,53 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 4);
+    SP_DECL_VAR(sp_point_256, p, 1);
+    int err = MP_OKAY;
+
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 4 * 4, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_256, p, 1, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 4, pX);
+        sp_256_from_mp(p->y, 4, pY);
+        sp_256_from_mp(p->z, 4, pZ);
+        p->infinity = sp_256_iszero_4(p->x) &
+                      sp_256_iszero_4(p->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_map_avx2_4(p, p, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_256_map_4(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, pX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, pY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, pZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
 {
     SP_DECL_VAR(sp_digit, tmp, 2 * 4 * 4);
@@ -26911,6 +29768,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
 
     return err;
 }
+#endif
 #endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
 #ifdef HAVE_COMP_KEY
 /* Find the square root of a number mod the prime of the curve.
@@ -26920,6 +29778,94 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_256_mont_sqrt_4(sp_digit* y)
+{
+    SP_DECL_VAR(sp_digit, t1, 4 * 4);
+    sp_digit* t2 = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, t1, 4 * 4, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        t2 = t1 + 2 * 4;
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_avx2_4(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_avx2_4(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_avx2_4(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_avx2_4(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_avx2_4(y, t1, 94, p256_mod, p256_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_4(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_4(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_4(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_4(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_4(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_4(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_4(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_4(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_4(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_4(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_4(y, t1, 94, p256_mod, p256_mp_mod);
+        }
+    }
+
+    SP_FREE_VAR(t1, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 static int sp_256_mont_sqrt_4(sp_digit* y)
 {
     SP_DECL_VAR(sp_digit, t1, 4 * 4);
@@ -27012,6 +29958,7 @@ static int sp_256_mont_sqrt_4(sp_digit* y)
 
     return err;
 }
+#endif
 
 
 /* Uncompress the point given the X ordinate.
@@ -27023,6 +29970,65 @@ static int sp_256_mont_sqrt_4(sp_digit* y)
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
+{
+    SP_DECL_VAR(sp_digit, x, 4 * 4);
+    sp_digit* y = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, x, 4 * 4, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        y = x + 2 * 4;
+
+        sp_256_from_mp(x, 4, xm);
+        err = sp_256_mod_mul_norm_4(x, x, p256_mod);
+    }
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_256_mont_sqr_avx2_4(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_avx2_4(y, y, x, p256_mod, p256_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_256_mont_sqr_4(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_4(y, y, x, p256_mod, p256_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_256_mont_sub_4(y, y, x, p256_mod);
+        sp_256_mont_sub_4(y, y, x, p256_mod);
+        sp_256_mont_sub_4(y, y, x, p256_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_256_mod_mul_norm_4(x, p256_b, p256_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_256_mont_add_4(y, y, x, p256_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_256_mont_sqrt_4(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 4, 0, 4U * sizeof(sp_digit));
+        sp_256_mont_reduce_4(y, p256_mod, p256_mp_mod);
+        if ((((word32)y[0] ^ (word32)odd) & 1U) != 0U) {
+            sp_256_mont_sub_4(y, p256_mod, y, p256_mod);
+        }
+
+        err = sp_256_to_mp(y, ym);
+    }
+
+    SP_FREE_VAR(x, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 {
     SP_DECL_VAR(sp_digit, x, 4 * 4);
@@ -27086,6 +30092,7 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 
     return err;
 }
+#endif
 #endif
 #endif /* !WOLFSSL_SP_NO_256 */
 #ifdef WOLFSSL_SP_384
@@ -30271,6 +33278,77 @@ static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 7);
+    sp_cache_384_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 6 * 7, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_384) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_384, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_384_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_384,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_384_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_384(g, &cache);
+        if (cache->cnt == 2)
+            sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_384_ecc_mulmod_stripe_6(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_384_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -30352,6 +33430,7 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
     return err;
 #endif
 }
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 #if defined(FP_ECC) || defined(WOLFSSL_SP_SMALL)
@@ -30653,6 +33732,77 @@ static int sp_384_ecc_mulmod_stripe_avx2_6(sp_point_384* r, const sp_point_384* 
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 7);
+    sp_cache_384_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 6 * 7, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_384) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_384, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_384_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_384,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_384_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_384(g, &cache);
+        if (cache->cnt == 2)
+            sp_384_gen_stripe_table_avx2_6(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_384_ecc_mulmod_win_add_sub_avx2_6(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_384_ecc_mulmod_stripe_avx2_6(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_384_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -30734,6 +33884,7 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
     return err;
 #endif
 }
+#endif
 
 #endif /* HAVE_INTEL_AVX2 */
 /* Multiply the point by the scalar and return the result.
@@ -30748,6 +33899,43 @@ static int sp_384_ecc_mulmod_avx2_6(sp_point_384* r, const sp_point_384* g,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_384, point, 1);
+    SP_DECL_VAR(sp_digit, k, 6);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_384_from_mp(k, 6, km);
+        sp_384_point_from_ecc_point_6(point, gm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_384_ecc_mulmod_avx2_6(point, point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_384_ecc_mulmod_6(point, point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_point_to_ecc_point_6(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
         int map, void* heap)
 {
@@ -30782,6 +33970,7 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
     return err;
 }
+#endif
 
 /* Multiply the point by the scalar, add point a and return the result.
  * If map is true then convert result to affine coordinates.
@@ -30797,6 +33986,81 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_384, point, 2);
+    SP_DECL_VAR(sp_digit, k, 6 + 6 * 2 * 6);
+    sp_point_384* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    SP_ALLOC_VAR(sp_point_384, point, 2, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 6 + 6 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 6;
+
+        sp_384_from_mp(k, 6, km);
+        sp_384_point_from_ecc_point_6(point, gm);
+        sp_384_point_from_ecc_point_6(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_6(addP->x, addP->x, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_6(addP->y, addP->y, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_6(addP->z, addP->z, p384_mod);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+        if (saved_vector_registers)
+            err = sp_384_ecc_mulmod_avx2_6(point, point, k, 0, 0, heap);
+        else
+#endif
+            err = sp_384_ecc_mulmod_6(point, point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_384_proj_point_add_avx2_6(point, point, addP, tmp);
+        else
+#endif
+            sp_384_proj_point_add_6(point, point, addP, tmp);
+
+        if (map) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers)
+                sp_384_map_avx2_6(point, point, tmp);
+            else
+#endif
+                sp_384_map_6(point, point, tmp);
+        }
+
+        err = sp_384_point_to_ecc_point_6(point, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
@@ -30893,6 +34157,7 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_SMALL
 /* Striping precomputation table.
@@ -49358,6 +52623,41 @@ static int sp_384_ecc_mulmod_base_avx2_6(sp_point_384* r, const sp_digit* k,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_384, point, 1);
+    SP_DECL_VAR(sp_digit, k, 6);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_384_from_mp(k, 6, km);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_384_ecc_mulmod_base_avx2_6(point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_384_ecc_mulmod_base_6(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_point_to_ecc_point_6(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
 {
     SP_DECL_VAR(sp_point_384, point, 1);
@@ -49397,6 +52697,7 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
 
     return err;
 }
+#endif
 
 /* Multiply the base point of P384 by the scalar, add point a and return
  * the result. If map is true then convert result to affine coordinates.
@@ -49411,6 +52712,80 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_384, point, 2);
+    SP_DECL_VAR(sp_digit, k, 6 + 6 * 2 * 6);
+    sp_point_384* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    SP_ALLOC_VAR(sp_point_384, point, 2, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 6 + 6 * 2 * 6, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 6;
+
+        sp_384_from_mp(k, 6, km);
+        sp_384_point_from_ecc_point_6(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_6(addP->x, addP->x, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_6(addP->y, addP->y, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_6(addP->z, addP->z, p384_mod);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+        if (saved_vector_registers)
+            err = sp_384_ecc_mulmod_base_avx2_6(point, k, 0, 0, heap);
+        else
+#endif
+            err = sp_384_ecc_mulmod_base_6(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_384_proj_point_add_avx2_6(point, point, addP, tmp);
+        else
+#endif
+            sp_384_proj_point_add_6(point, point, addP, tmp);
+
+        if (map) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers)
+                sp_384_map_avx2_6(point, point, tmp);
+            else
+#endif
+                sp_384_map_6(point, point, tmp);
+        }
+
+        err = sp_384_point_to_ecc_point_6(point, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
         int inMont, ecc_point* r, int map, void* heap)
 {
@@ -49500,6 +52875,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
 
     return err;
 }
+#endif
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
@@ -49596,6 +52972,90 @@ static int sp_384_ecc_gen_k_6(WC_RNG* rng, sp_digit* k)
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
+{
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    SP_DECL_VAR(sp_point_384, point, 2);
+#else
+    SP_DECL_VAR(sp_point_384, point, 1);
+#endif
+    SP_DECL_VAR(sp_digit, k, 6);
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_384* infinity = NULL;
+#endif
+    int err = MP_OKAY;
+
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    (void)heap;
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    SP_ALLOC_VAR(sp_point_384, point, 2, heap, DYNAMIC_TYPE_ECC);
+#else
+    SP_ALLOC_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+#endif
+    SP_ALLOC_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
+        err = sp_384_ecc_gen_k_6(rng, k);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+
+        if (saved_vector_registers)
+            err = sp_384_ecc_mulmod_base_avx2_6(point, k, 1, 1, NULL);
+        else
+#endif
+            err = sp_384_ecc_mulmod_base_6(point, k, 1, 1, NULL);
+    }
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers) {
+            err = sp_384_ecc_mulmod_avx2_6(infinity, point, p384_order, 1, 1,
+                                                                          NULL);
+        }
+        else
+#endif
+            err = sp_384_ecc_mulmod_6(infinity, point, p384_order, 1, 1, NULL);
+    }
+    if (err == MP_OKAY) {
+        if (sp_384_iszero_6(point->x) || sp_384_iszero_6(point->y)) {
+            err = ECC_INF_E;
+        }
+    }
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(k, priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_point_to_ecc_point_6(point, pub);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    /* point is not sensitive, so no need to zeroize */
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
@@ -49701,6 +53161,7 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_key_gen_384_ctx {
@@ -49847,6 +53308,47 @@ static void sp_384_to_bin_6(sp_digit* r, byte* a)
  * @return  BUFFER_E when the buffer is too small for output size.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
+                          word32* outLen, void* heap)
+{
+    SP_DECL_VAR(sp_point_384, point, 1);
+    SP_DECL_VAR(sp_digit, k, 6);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    if (*outLen < 48U) {
+        err = BUFFER_E;
+    }
+
+    SP_ALLOC_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 6, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_384_from_mp(k, 6, priv);
+        sp_384_point_from_ecc_point_6(point, pub);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_384_ecc_mulmod_avx2_6(point, point, k, 1, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_384_ecc_mulmod_6(point, point, k, 1, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        sp_384_to_bin_6(point->x, out);
+        *outLen = 48;
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
                           word32* outLen, void* heap)
 {
@@ -49885,6 +53387,7 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_sec_gen_384_ctx {
@@ -50504,6 +54007,79 @@ static void sp_384_mont_inv_order_avx2_6(sp_digit* r, const sp_digit* a,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    sp_int64 c;
+    sp_digit* kInv = k;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    /* Conv k to Montgomery form (mod order) */
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+        saved_vector_registers = 1;
+    if (saved_vector_registers)
+        sp_384_mul_avx2_6(k, k, p384_norm_order);
+    else
+#endif
+        sp_384_mul_6(k, k, p384_norm_order);
+    err = sp_384_mod_6(k, k, p384_order);
+    if (err == MP_OKAY) {
+        sp_384_norm_6(k);
+
+        /* kInv = 1/k mod order */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_384_mont_inv_order_avx2_6(kInv, k, tmp);
+        else
+#endif
+            sp_384_mont_inv_order_6(kInv, k, tmp);
+        sp_384_norm_6(kInv);
+
+        /* s = r * x + e */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_384_mul_avx2_6(x, x, r);
+        else
+#endif
+            sp_384_mul_6(x, x, r);
+        err = sp_384_mod_6(x, x, p384_order);
+    }
+    if (err == MP_OKAY) {
+        sp_384_norm_6(x);
+        carry = sp_384_add_6(s, e, x);
+        sp_384_cond_sub_6(s, s, p384_order, 0 - carry);
+        sp_384_norm_6(s);
+        c = sp_384_cmp_6(s, p384_order);
+        sp_384_cond_sub_6(s, s, p384_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_384_norm_6(s);
+
+        /* s = s * k^-1 mod order */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_384_mont_mul_order_avx2_6(s, s, kInv);
+        else
+#endif
+            sp_384_mont_mul_order_6(s, s, kInv);
+        sp_384_norm_6(s);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    return err;
+}
+#else
 static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit* x, const sp_digit* e, sp_digit* tmp)
 {
@@ -50592,6 +54168,7 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
 
     return err;
 }
+#endif
 
 /* Sign the hash using the private key.
  *   e = [hash, 384 bits] from binary
@@ -50612,6 +54189,107 @@ static int sp_384_calc_s_6(sp_digit* s, const sp_digit* r, sp_digit* k,
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    SP_DECL_VAR(sp_digit, e, 7 * 2 * 6);
+    SP_DECL_VAR(sp_point_384, point, 1);
+    sp_digit* x = NULL;
+    sp_digit* k = NULL;
+    sp_digit* r = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* s = NULL;
+    sp_int64 c;
+    int err = MP_OKAY;
+    int i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    (void)heap;
+
+    SP_ALLOC_VAR(sp_digit, e, 7 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        x = e + 2 * 6;
+        k = e + 4 * 6;
+        r = e + 6 * 6;
+        tmp = e + 8 * 6;
+        s = e;
+
+        if (hashLen > 48U) {
+            hashLen = 48U;
+        }
+    }
+
+    for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_384_ecc_gen_k_6(rng, k);
+        }
+        else {
+            sp_384_from_mp(k, 6, km);
+            mp_zero(km);
+        }
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_384_ecc_mulmod_base_avx2_6(point, k, 1, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_384_ecc_mulmod_base_6(point, k, 1, 1, heap);
+        }
+
+        if (err == MP_OKAY) {
+            /* r = point->x mod order */
+            XMEMCPY(r, point->x, sizeof(sp_digit) * 6U);
+            sp_384_norm_6(r);
+            c = sp_384_cmp_6(r, p384_order);
+            sp_384_cond_sub_6(r, r, p384_order,
+                (sp_digit)0 - (sp_digit)(c >= 0));
+            sp_384_norm_6(r);
+
+            if (!sp_384_iszero_6(r)) {
+                /* x is modified in calculation of s. */
+                sp_384_from_mp(x, 6, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_384_from_bin(e, 6, hash, (int)hashLen);
+
+                err = sp_384_calc_s_6(s, r, k, x, e, tmp);
+
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (!sp_384_iszero_6(s))) {
+                    break;
+                }
+            }
+        }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
+    }
+
+    if (i == 0) {
+        err = RNG_FAILURE_E;
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(r, rm);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(s, sm);
+    }
+
+    SP_ZEROFREE_VAR(sp_point_384, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ZEROFREE_VAR(sp_digit, e, 7 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
     const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
@@ -50716,6 +54394,7 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_sign_384_ctx {
@@ -51018,6 +54697,49 @@ static int sp_384_mod_inv_6(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static void sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
+    sp_digit* tmp)
+{
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        sp_384_proj_point_add_avx2_6(p1, p1, p2, tmp);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+        sp_384_proj_point_add_6(p1, p1, p2, tmp);
+    if (sp_384_iszero_6(p1->z)) {
+        if (sp_384_iszero_6(p1->x) && sp_384_iszero_6(p1->y)) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                sp_384_proj_point_dbl_avx2_6(p1, p2, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                sp_384_proj_point_dbl_6(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            p1->x[4] = 0;
+            p1->x[5] = 0;
+            XMEMCPY(p1->z, p384_norm_mod, sizeof(p384_norm_mod));
+        }
+    }
+}
+#else
 static int sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
     sp_digit* tmp)
 {
@@ -51073,6 +54795,7 @@ static int sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
 
     return err;
 }
+#endif
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
  *
@@ -51087,6 +54810,103 @@ static int sp_384_add_points_6(sp_point_384* p1, const sp_point_384* p2,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+{
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifndef WOLFSSL_SP_SMALL
+    err = sp_384_mod_inv_6(s, s, p384_order);
+    if (err == MP_OKAY)
+#endif /* !WOLFSSL_SP_SMALL */
+    {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_mul_avx2_6(s, s, p384_norm_order);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_384_mul_6(s, s, p384_norm_order);
+        }
+        err = sp_384_mod_6(s, s, p384_order);
+    }
+    if (err == MP_OKAY) {
+        sp_384_norm_6(s);
+#ifdef WOLFSSL_SP_SMALL
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_mont_inv_order_avx2_6(s, s, tmp);
+            sp_384_mont_mul_order_avx2_6(u1, u1, s);
+            sp_384_mont_mul_order_avx2_6(u2, u2, s);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_384_mont_inv_order_6(s, s, tmp);
+            sp_384_mont_mul_order_6(u1, u1, s);
+            sp_384_mont_mul_order_6(u2, u2, s);
+        }
+#else
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_mont_mul_order_avx2_6(u1, u1, s);
+            sp_384_mont_mul_order_avx2_6(u2, u2, s);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_384_mont_mul_order_6(u1, u1, s);
+            sp_384_mont_mul_order_6(u2, u2, s);
+        }
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_384_ecc_mulmod_base_avx2_6(p1, u1, 0, 0, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            err = sp_384_ecc_mulmod_base_6(p1, u1, 0, 0, heap);
+        }
+    }
+    if ((err == MP_OKAY) && sp_384_iszero_6(p1->z)) {
+        p1->infinity = 1;
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_384_ecc_mulmod_avx2_6(p2, p2, u2, 0, 0, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_384_ecc_mulmod_6(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_384_iszero_6(p2->z)) {
+        p2->infinity = 1;
+    }
+
+    if (err == MP_OKAY) {
+        sp_384_add_points_6(p1, p2, tmp);
+    }
+
+    return err;
+}
+#else
 static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
@@ -51205,6 +55025,7 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
 
     return err;
 }
+#endif
 
 #ifdef HAVE_ECC_VERIFY
 /* Verify the signature values with the hash and public key.
@@ -51230,6 +55051,113 @@ static int sp_384_calc_vfy_point_6(sp_point_384* p1, sp_point_384* p2,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    SP_DECL_VAR(sp_digit, u1, 18 * 6);
+    SP_DECL_VAR(sp_point_384, p1, 2);
+    sp_digit* u2 = NULL;
+    sp_digit* s = NULL;
+    sp_digit* tmp = NULL;
+    sp_point_384* p2 = NULL;
+    sp_digit carry;
+    sp_int64 c = 0;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, u1, 18 * 6, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_384, p1, 2, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        u2  = u1 + 2 * 6;
+        s   = u1 + 4 * 6;
+        tmp = u1 + 6 * 6;
+        p2 = p1 + 1;
+
+        if (hashLen > 48U) {
+            hashLen = 48U;
+        }
+
+        sp_384_from_bin(u1, 6, hash, (int)hashLen);
+        sp_384_from_mp(u2, 6, rm);
+        sp_384_from_mp(s, 6, sm);
+        sp_384_from_mp(p2->x, 6, pX);
+        sp_384_from_mp(p2->y, 6, pY);
+        sp_384_from_mp(p2->z, 6, pZ);
+
+        err = sp_384_calc_vfy_point_6(p1, p2, s, u1, u2, tmp, heap);
+    }
+    if (err == MP_OKAY) {
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_384_from_mp(u2, 6, rm);
+        err = sp_384_mod_mul_norm_6(u2, u2, p384_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* u1 = r.z'.z' mod prime */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_mont_sqr_avx2_6(p1->z, p1->z, p384_mod, p384_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_384_mont_sqr_6(p1->z, p1->z, p384_mod, p384_mp_mod);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_384_mont_mul_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
+        *res = (int)(sp_384_cmp_6(p1->x, u1) == 0);
+        if (*res == 0) {
+            /* Reload r and add order. */
+            sp_384_from_mp(u2, 6, rm);
+            carry = sp_384_add_6(u2, u2, p384_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_384_norm_6(u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_384_cmp_6(u2, p384_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_384_mod_mul_norm_6(u2, u2, p384_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+#ifdef HAVE_INTEL_AVX2
+                if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                        IS_INTEL_AVX2(cpuid_flags) &&
+                        (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    sp_384_mont_mul_avx2_6(u1, u2, p1->z, p384_mod,
+                        p384_mp_mod);
+                    RESTORE_VECTOR_REGISTERS();
+                }
+                else
+#endif
+                {
+                    sp_384_mont_mul_6(u1, u2, p1->z, p384_mod, p384_mp_mod);
+                }
+                *res = (sp_384_cmp_6(p1->x, u1) == 0);
+            }
+        }
+    }
+
+    SP_FREE_VAR(p1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(u1, heap, DYNAMIC_TYPE_ECC);
+    return err;
+}
+#else
 int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
     int* res, void* heap)
@@ -51352,6 +55280,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
     SP_FREE_VAR(u1, heap, DYNAMIC_TYPE_ECC);
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_verify_384_ctx {
@@ -51622,6 +55551,105 @@ int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY)
  * @return  ECC_PRIV_KEY_E when the private scalar doesn't generate the EC
  *          point.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+    SP_DECL_VAR(sp_digit, priv, 6);
+    SP_DECL_VAR(sp_point_384, pub, 2);
+    sp_point_384* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if (((mp_count_bits(pX) > 384) ||
+        (mp_count_bits(pY) > 384) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 384)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    SP_ALLOC_VAR(sp_digit, priv, 6, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_384, pub, 2, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        p = pub + 1;
+
+        sp_384_from_mp(pub->x, 6, pX);
+        sp_384_from_mp(pub->y, 6, pY);
+        sp_384_from_bin(pub->z, 6, one, (int)sizeof(one));
+        if (privm)
+            sp_384_from_mp(priv, 6, privm);
+
+        /* Check point at infinitiy. */
+        if ((sp_384_iszero_6(pub->x) != 0) &&
+            (sp_384_iszero_6(pub->y) != 0)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_384_cmp_6(pub->x, p384_mod) >= 0) ||
+             (sp_384_cmp_6(pub->y, p384_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_384_ecc_is_point_6(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_384_ecc_mulmod_avx2_6(p, pub, p384_order, 1, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_384_ecc_mulmod_6(p, pub, p384_order, 1, 1, heap);
+    }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_384_iszero_6(p->x) == 0) ||
+                             (sp_384_iszero_6(p->y) == 0))) {
+        err = ECC_INF_E;
+    }
+
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_384_ecc_mulmod_base_avx2_6(p, priv, 1, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_384_ecc_mulmod_base_6(p, priv, 1, 1, heap);
+        }
+        /* Check result is public key */
+        if ((err == MP_OKAY) &&
+                ((sp_384_cmp_6(p->x, pub->x) != 0) ||
+                 (sp_384_cmp_6(p->y, pub->y) != 0))) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+    SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap)
 {
@@ -51724,6 +55752,7 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
     return err;
 }
 #endif
+#endif
 #ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
 /* Add two projective EC points together.
  * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
@@ -51741,6 +55770,62 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 6);
+    SP_DECL_VAR(sp_point_384, p, 2);
+    sp_point_384* q = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 6 * 6, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_384, p, 2, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        q = p + 1;
+
+        sp_384_from_mp(p->x, 6, pX);
+        sp_384_from_mp(p->y, 6, pY);
+        sp_384_from_mp(p->z, 6, pZ);
+        sp_384_from_mp(q->x, 6, qX);
+        sp_384_from_mp(q->y, 6, qY);
+        sp_384_from_mp(q->z, 6, qZ);
+        p->infinity = sp_384_iszero_6(p->x) &
+                      sp_384_iszero_6(p->y);
+        q->infinity = sp_384_iszero_6(q->x) &
+                      sp_384_iszero_6(q->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_proj_point_add_avx2_6(p, p, q, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_384_proj_point_add_6(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->z, rZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* qX, mp_int* qY, mp_int* qZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
@@ -51801,6 +55886,7 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
 
     return err;
 }
+#endif
 
 /* Double a projective EC point.
  * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
@@ -51815,6 +55901,53 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 2);
+    SP_DECL_VAR(sp_point_384, p, 1);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 6 * 2, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_384, p, 1, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_384_from_mp(p->x, 6, pX);
+        sp_384_from_mp(p->y, 6, pY);
+        sp_384_from_mp(p->z, 6, pZ);
+        p->infinity = sp_384_iszero_6(p->x) &
+                      sp_384_iszero_6(p->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_proj_point_dbl_avx2_6(p, p, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_384_proj_point_dbl_6(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->z, rZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
 {
@@ -51866,6 +55999,7 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
 
     return err;
 }
+#endif
 
 /* Map a projective EC point to affine in place.
  * pZ will be one.
@@ -51877,6 +56011,53 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 6);
+    SP_DECL_VAR(sp_point_384, p, 1);
+    int err = MP_OKAY;
+
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 6 * 6, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_384, p, 1, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_384_from_mp(p->x, 6, pX);
+        sp_384_from_mp(p->y, 6, pY);
+        sp_384_from_mp(p->z, 6, pZ);
+        p->infinity = sp_384_iszero_6(p->x) &
+                      sp_384_iszero_6(p->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_map_avx2_6(p, p, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_384_map_6(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->x, pX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->y, pY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->z, pZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
 {
     SP_DECL_VAR(sp_digit, tmp, 2 * 6 * 6);
@@ -51928,6 +56109,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
 
     return err;
 }
+#endif
 #endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
 #ifdef HAVE_COMP_KEY
 /* Find the square root of a number mod the prime of the curve.
@@ -51937,6 +56119,150 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_384_mont_sqrt_6(sp_digit* y)
+{
+    SP_DECL_VAR(sp_digit, t1, 5 * 2 * 6);
+    sp_digit* t2 = NULL;
+    sp_digit* t3 = NULL;
+    sp_digit* t4 = NULL;
+    sp_digit* t5 = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, t1, 5 * 2 * 6, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        t2 = t1 + 2 * 6;
+        t3 = t1 + 4 * 6;
+        t4 = t1 + 6 * 6;
+        t5 = t1 + 8 * 6;
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            /* t2 = y ^ 0x2 */
+            sp_384_mont_sqr_avx2_6(t2, y, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_384_mont_mul_avx2_6(t1, t2, y, p384_mod, p384_mp_mod);
+            /* t5 = y ^ 0xc */
+            sp_384_mont_sqr_n_avx2_6(t5, t1, 2, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_384_mont_mul_avx2_6(t1, t1, t5, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x1e */
+            sp_384_mont_sqr_avx2_6(t2, t1, p384_mod, p384_mp_mod);
+            /* t3 = y ^ 0x1f */
+            sp_384_mont_mul_avx2_6(t3, t2, y, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3e0 */
+            sp_384_mont_sqr_n_avx2_6(t2, t3, 5, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3ff */
+            sp_384_mont_mul_avx2_6(t1, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x7fe0 */
+            sp_384_mont_sqr_n_avx2_6(t2, t1, 5, p384_mod, p384_mp_mod);
+            /* t3 = y ^ 0x7fff */
+            sp_384_mont_mul_avx2_6(t3, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fff800 */
+            sp_384_mont_sqr_n_avx2_6(t2, t3, 15, p384_mod, p384_mp_mod);
+            /* t4 = y ^ 0x3ffffff */
+            sp_384_mont_mul_avx2_6(t4, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xffffffc000000 */
+            sp_384_mont_sqr_n_avx2_6(t2, t4, 30, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xfffffffffffff */
+            sp_384_mont_mul_avx2_6(t1, t4, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xfffffffffffffff000000000000000 */
+            sp_384_mont_sqr_n_avx2_6(t2, t1, 60, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xffffffffffffffffffffffffffffff */
+            sp_384_mont_mul_avx2_6(t1, t1, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xffffffffffffffffffffffffffffff000000000000000000000000000000 */
+            sp_384_mont_sqr_n_avx2_6(t2, t1, 120, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+            sp_384_mont_mul_avx2_6(t1, t1, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8000 */
+            sp_384_mont_sqr_n_avx2_6(t2, t1, 15, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+            sp_384_mont_mul_avx2_6(t1, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80000000 */
+            sp_384_mont_sqr_n_avx2_6(t2, t1, 31, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff */
+            sp_384_mont_mul_avx2_6(t1, t4, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff0 */
+            sp_384_mont_sqr_n_avx2_6(t2, t1, 4, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc */
+            sp_384_mont_mul_avx2_6(t1, t5, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000 */
+            sp_384_mont_sqr_n_avx2_6(t2, t1, 62, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000001 */
+            sp_384_mont_mul_avx2_6(t1, y, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc00000000000000040000000 */
+            sp_384_mont_sqr_n_avx2_6(y, t1, 30, p384_mod, p384_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            /* t2 = y ^ 0x2 */
+            sp_384_mont_sqr_6(t2, y, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_384_mont_mul_6(t1, t2, y, p384_mod, p384_mp_mod);
+            /* t5 = y ^ 0xc */
+            sp_384_mont_sqr_n_6(t5, t1, 2, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_384_mont_mul_6(t1, t1, t5, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x1e */
+            sp_384_mont_sqr_6(t2, t1, p384_mod, p384_mp_mod);
+            /* t3 = y ^ 0x1f */
+            sp_384_mont_mul_6(t3, t2, y, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3e0 */
+            sp_384_mont_sqr_n_6(t2, t3, 5, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3ff */
+            sp_384_mont_mul_6(t1, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x7fe0 */
+            sp_384_mont_sqr_n_6(t2, t1, 5, p384_mod, p384_mp_mod);
+            /* t3 = y ^ 0x7fff */
+            sp_384_mont_mul_6(t3, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fff800 */
+            sp_384_mont_sqr_n_6(t2, t3, 15, p384_mod, p384_mp_mod);
+            /* t4 = y ^ 0x3ffffff */
+            sp_384_mont_mul_6(t4, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xffffffc000000 */
+            sp_384_mont_sqr_n_6(t2, t4, 30, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xfffffffffffff */
+            sp_384_mont_mul_6(t1, t4, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xfffffffffffffff000000000000000 */
+            sp_384_mont_sqr_n_6(t2, t1, 60, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xffffffffffffffffffffffffffffff */
+            sp_384_mont_mul_6(t1, t1, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xffffffffffffffffffffffffffffff000000000000000000000000000000 */
+            sp_384_mont_sqr_n_6(t2, t1, 120, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+            sp_384_mont_mul_6(t1, t1, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8000 */
+            sp_384_mont_sqr_n_6(t2, t1, 15, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+            sp_384_mont_mul_6(t1, t3, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80000000 */
+            sp_384_mont_sqr_n_6(t2, t1, 31, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff */
+            sp_384_mont_mul_6(t1, t4, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffff0 */
+            sp_384_mont_sqr_n_6(t2, t1, 4, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc */
+            sp_384_mont_mul_6(t1, t5, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000 */
+            sp_384_mont_sqr_n_6(t2, t1, 62, p384_mod, p384_mp_mod);
+            /* t1 = y ^ 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000001 */
+            sp_384_mont_mul_6(t1, y, t2, p384_mod, p384_mp_mod);
+            /* t2 = y ^ 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffffffc00000000000000040000000 */
+            sp_384_mont_sqr_n_6(y, t1, 30, p384_mod, p384_mp_mod);
+        }
+    }
+
+    SP_FREE_VAR(t1, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 static int sp_384_mont_sqrt_6(sp_digit* y)
 {
     SP_DECL_VAR(sp_digit, t1, 5 * 2 * 6);
@@ -52085,6 +56411,7 @@ static int sp_384_mont_sqrt_6(sp_digit* y)
 
     return err;
 }
+#endif
 
 
 /* Uncompress the point given the X ordinate.
@@ -52096,6 +56423,65 @@ static int sp_384_mont_sqrt_6(sp_digit* y)
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
+{
+    SP_DECL_VAR(sp_digit, x, 4 * 6);
+    sp_digit* y = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, x, 4 * 6, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        y = x + 2 * 6;
+
+        sp_384_from_mp(x, 6, xm);
+        err = sp_384_mod_mul_norm_6(x, x, p384_mod);
+    }
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_384_mont_sqr_avx2_6(y, x, p384_mod, p384_mp_mod);
+            sp_384_mont_mul_avx2_6(y, y, x, p384_mod, p384_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_384_mont_sqr_6(y, x, p384_mod, p384_mp_mod);
+            sp_384_mont_mul_6(y, y, x, p384_mod, p384_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_384_mont_sub_6(y, y, x, p384_mod);
+        sp_384_mont_sub_6(y, y, x, p384_mod);
+        sp_384_mont_sub_6(y, y, x, p384_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_384_mod_mul_norm_6(x, p384_b, p384_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_384_mont_add_6(y, y, x, p384_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_384_mont_sqrt_6(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 6, 0, 6U * sizeof(sp_digit));
+        sp_384_mont_reduce_6(y, p384_mod, p384_mp_mod);
+        if ((((word32)y[0] ^ (word32)odd) & 1U) != 0U) {
+            sp_384_mont_sub_6(y, p384_mod, y, p384_mod);
+        }
+
+        err = sp_384_to_mp(y, ym);
+    }
+
+    SP_FREE_VAR(x, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
 {
     SP_DECL_VAR(sp_digit, x, 4 * 6);
@@ -52159,6 +56545,7 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
 
     return err;
 }
+#endif
 #endif
 #endif /* WOLFSSL_SP_384 */
 #ifdef WOLFSSL_SP_521
@@ -55233,6 +59620,77 @@ static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
+    sp_cache_521_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_521) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_521, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_521_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_521,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_521_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_521(g, &cache);
+        if (cache->cnt == 2)
+            sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_521_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -55314,6 +59772,7 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
     return err;
 #endif
 }
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 #if defined(FP_ECC) || defined(WOLFSSL_SP_SMALL)
@@ -55615,6 +60074,77 @@ static int sp_521_ecc_mulmod_stripe_avx2_9(sp_point_521* r, const sp_point_521* 
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
+    sp_cache_521_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 9 * 6, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_521) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_521, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_521_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_521,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_521_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_521(g, &cache);
+        if (cache->cnt == 2)
+            sp_521_gen_stripe_table_avx2_9(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_521_ecc_mulmod_win_add_sub_avx2_9(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_521_ecc_mulmod_stripe_avx2_9(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_521_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -55696,6 +60226,7 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
     return err;
 #endif
 }
+#endif
 
 #endif /* HAVE_INTEL_AVX2 */
 /* Multiply the point by the scalar and return the result.
@@ -55710,6 +60241,43 @@ static int sp_521_ecc_mulmod_avx2_9(sp_point_521* r, const sp_point_521* g,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_521, point, 1);
+    SP_DECL_VAR(sp_digit, k, 9);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_521_from_mp(k, 9, km);
+        sp_521_point_from_ecc_point_9(point, gm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_521_ecc_mulmod_avx2_9(point, point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_521_ecc_mulmod_9(point, point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
         int map, void* heap)
 {
@@ -55744,6 +60312,7 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
     return err;
 }
+#endif
 
 /* Multiply the point by the scalar, add point a and return the result.
  * If map is true then convert result to affine coordinates.
@@ -55759,6 +60328,81 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_521, point, 2);
+    SP_DECL_VAR(sp_digit, k, 9 + 9 * 2 * 6);
+    sp_point_521* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    SP_ALLOC_VAR(sp_point_521, point, 2, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 9 + 9 * 2 * 6, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 9;
+
+        sp_521_from_mp(k, 9, km);
+        sp_521_point_from_ecc_point_9(point, gm);
+        sp_521_point_from_ecc_point_9(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->x, addP->x, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->y, addP->y, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->z, addP->z, p521_mod);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+        if (saved_vector_registers)
+            err = sp_521_ecc_mulmod_avx2_9(point, point, k, 0, 0, heap);
+        else
+#endif
+            err = sp_521_ecc_mulmod_9(point, point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_521_proj_point_add_avx2_9(point, point, addP, tmp);
+        else
+#endif
+            sp_521_proj_point_add_9(point, point, addP, tmp);
+
+        if (map) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers)
+                sp_521_map_avx2_9(point, point, tmp);
+            else
+#endif
+                sp_521_map_9(point, point, tmp);
+        }
+
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
@@ -55855,6 +60499,7 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_SMALL
 /* Striping precomputation table.
@@ -90506,6 +95151,41 @@ static int sp_521_ecc_mulmod_base_avx2_9(sp_point_521* r, const sp_digit* k,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_521, point, 1);
+    SP_DECL_VAR(sp_digit, k, 9);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_521_from_mp(k, 9, km);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_521_ecc_mulmod_base_avx2_9(point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_521_ecc_mulmod_base_9(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
 {
     SP_DECL_VAR(sp_point_521, point, 1);
@@ -90545,6 +95225,7 @@ int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
 
     return err;
 }
+#endif
 
 /* Multiply the base point of P521 by the scalar, add point a and return
  * the result. If map is true then convert result to affine coordinates.
@@ -90559,6 +95240,80 @@ int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_521, point, 2);
+    SP_DECL_VAR(sp_digit, k, 9 + 9 * 2 * 6);
+    sp_point_521* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    SP_ALLOC_VAR(sp_point_521, point, 2, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 9 + 9 * 2 * 6, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 9;
+
+        sp_521_from_mp(k, 9, km);
+        sp_521_point_from_ecc_point_9(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->x, addP->x, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->y, addP->y, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->z, addP->z, p521_mod);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+        if (saved_vector_registers)
+            err = sp_521_ecc_mulmod_base_avx2_9(point, k, 0, 0, heap);
+        else
+#endif
+            err = sp_521_ecc_mulmod_base_9(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_521_proj_point_add_avx2_9(point, point, addP, tmp);
+        else
+#endif
+            sp_521_proj_point_add_9(point, point, addP, tmp);
+
+        if (map) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers)
+                sp_521_map_avx2_9(point, point, tmp);
+            else
+#endif
+                sp_521_map_9(point, point, tmp);
+        }
+
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
         int inMont, ecc_point* r, int map, void* heap)
 {
@@ -90648,6 +95403,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
 
     return err;
 }
+#endif
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
@@ -90745,6 +95501,90 @@ static int sp_521_ecc_gen_k_9(WC_RNG* rng, sp_digit* k)
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
+{
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    SP_DECL_VAR(sp_point_521, point, 2);
+#else
+    SP_DECL_VAR(sp_point_521, point, 1);
+#endif
+    SP_DECL_VAR(sp_digit, k, 9);
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_521* infinity = NULL;
+#endif
+    int err = MP_OKAY;
+
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    (void)heap;
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    SP_ALLOC_VAR(sp_point_521, point, 2, heap, DYNAMIC_TYPE_ECC);
+#else
+    SP_ALLOC_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+#endif
+    SP_ALLOC_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
+        err = sp_521_ecc_gen_k_9(rng, k);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+
+        if (saved_vector_registers)
+            err = sp_521_ecc_mulmod_base_avx2_9(point, k, 1, 1, NULL);
+        else
+#endif
+            err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, NULL);
+    }
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers) {
+            err = sp_521_ecc_mulmod_avx2_9(infinity, point, p521_order, 1, 1,
+                                                                          NULL);
+        }
+        else
+#endif
+            err = sp_521_ecc_mulmod_9(infinity, point, p521_order, 1, 1, NULL);
+    }
+    if (err == MP_OKAY) {
+        if (sp_521_iszero_9(point->x) || sp_521_iszero_9(point->y)) {
+            err = ECC_INF_E;
+        }
+    }
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(k, priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_point_to_ecc_point_9(point, pub);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    /* point is not sensitive, so no need to zeroize */
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
@@ -90850,6 +95690,7 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_key_gen_521_ctx {
@@ -90996,6 +95837,47 @@ static void sp_521_to_bin_9(sp_digit* r, byte* a)
  * @return  BUFFER_E when the buffer is too small for output size.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
+                          word32* outLen, void* heap)
+{
+    SP_DECL_VAR(sp_point_521, point, 1);
+    SP_DECL_VAR(sp_digit, k, 9);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    if (*outLen < 66U) {
+        err = BUFFER_E;
+    }
+
+    SP_ALLOC_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 9, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_521_from_mp(k, 9, priv);
+        sp_521_point_from_ecc_point_9(point, pub);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_521_ecc_mulmod_avx2_9(point, point, k, 1, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_521_ecc_mulmod_9(point, point, k, 1, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        sp_521_to_bin_9(point->x, out);
+        *outLen = 66;
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
                           word32* outLen, void* heap)
 {
@@ -91034,6 +95916,7 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_sec_gen_521_ctx {
@@ -91708,6 +96591,79 @@ static void sp_521_mont_inv_order_avx2_9(sp_digit* r, const sp_digit* a,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    sp_int64 c;
+    sp_digit* kInv = k;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    /* Conv k to Montgomery form (mod order) */
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+        saved_vector_registers = 1;
+    if (saved_vector_registers)
+        sp_521_mul_avx2_9(k, k, p521_norm_order);
+    else
+#endif
+        sp_521_mul_9(k, k, p521_norm_order);
+    err = sp_521_mod_9(k, k, p521_order);
+    if (err == MP_OKAY) {
+        sp_521_norm_9(k);
+
+        /* kInv = 1/k mod order */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_521_mont_inv_order_avx2_9(kInv, k, tmp);
+        else
+#endif
+            sp_521_mont_inv_order_9(kInv, k, tmp);
+        sp_521_norm_9(kInv);
+
+        /* s = r * x + e */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_521_mul_avx2_9(x, x, r);
+        else
+#endif
+            sp_521_mul_9(x, x, r);
+        err = sp_521_mod_9(x, x, p521_order);
+    }
+    if (err == MP_OKAY) {
+        sp_521_norm_9(x);
+        carry = sp_521_add_9(s, e, x);
+        sp_521_cond_sub_9(s, s, p521_order, 0 - carry);
+        sp_521_norm_9(s);
+        c = sp_521_cmp_9(s, p521_order);
+        sp_521_cond_sub_9(s, s, p521_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_521_norm_9(s);
+
+        /* s = s * k^-1 mod order */
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_521_mont_mul_order_avx2_9(s, s, kInv);
+        else
+#endif
+            sp_521_mont_mul_order_9(s, s, kInv);
+        sp_521_norm_9(s);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    return err;
+}
+#else
 static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
     sp_digit* x, const sp_digit* e, sp_digit* tmp)
 {
@@ -91796,6 +96752,7 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
 
     return err;
 }
+#endif
 
 /* Sign the hash using the private key.
  *   e = [hash, 521 bits] from binary
@@ -91816,6 +96773,112 @@ static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
  * @return  RNG failures.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    SP_DECL_VAR(sp_digit, e, 7 * 2 * 9);
+    SP_DECL_VAR(sp_point_521, point, 1);
+    sp_digit* x = NULL;
+    sp_digit* k = NULL;
+    sp_digit* r = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* s = NULL;
+    sp_int64 c;
+    int err = MP_OKAY;
+    int i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    (void)heap;
+
+    SP_ALLOC_VAR(sp_digit, e, 7 * 2 * 9, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        x = e + 2 * 9;
+        k = e + 4 * 9;
+        r = e + 6 * 9;
+        tmp = e + 8 * 9;
+        s = e;
+
+        if (hashLen > 66U) {
+            hashLen = 66U;
+        }
+    }
+
+    for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_521_ecc_gen_k_9(rng, k);
+        }
+        else {
+            sp_521_from_mp(k, 9, km);
+            mp_zero(km);
+        }
+        if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_521_ecc_mulmod_base_avx2_9(point, k, 1, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, heap);
+        }
+
+        if (err == MP_OKAY) {
+            /* r = point->x mod order */
+            XMEMCPY(r, point->x, sizeof(sp_digit) * 9U);
+            sp_521_norm_9(r);
+            c = sp_521_cmp_9(r, p521_order);
+            sp_521_cond_sub_9(r, r, p521_order,
+                (sp_digit)0 - (sp_digit)(c >= 0));
+            sp_521_norm_9(r);
+
+            if (!sp_521_iszero_9(r)) {
+                /* x is modified in calculation of s. */
+                sp_521_from_mp(x, 9, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_521_from_bin(e, 9, hash, (int)hashLen);
+
+                /* Take 521 leftmost bits of hash. */
+                if (hashLen == 66U) {
+                    sp_521_rshift_9(e, e, 7);
+                }
+
+                err = sp_521_calc_s_9(s, r, k, x, e, tmp);
+
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (!sp_521_iszero_9(s))) {
+                    break;
+                }
+            }
+        }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
+    }
+
+    if (i == 0) {
+        err = RNG_FAILURE_E;
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(r, rm);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(s, sm);
+    }
+
+    SP_ZEROFREE_VAR(sp_point_521, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ZEROFREE_VAR(sp_digit, e, 7 * 2 * 9, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
     const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
@@ -91925,6 +96988,7 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
 
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_sign_521_ctx {
@@ -92230,6 +97294,52 @@ static int sp_521_mod_inv_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * @param [in]      p2   Second point to add.
  * @param [out]     tmp  Temporary storage for intermediate numbers.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
+    sp_digit* tmp)
+{
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        sp_521_proj_point_add_avx2_9(p1, p1, p2, tmp);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+        sp_521_proj_point_add_9(p1, p1, p2, tmp);
+    if (sp_521_iszero_9(p1->z)) {
+        if (sp_521_iszero_9(p1->x) && sp_521_iszero_9(p1->y)) {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                sp_521_proj_point_dbl_avx2_9(p1, p2, tmp);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                sp_521_proj_point_dbl_9(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            p1->x[4] = 0;
+            p1->x[5] = 0;
+            p1->x[6] = 0;
+            p1->x[7] = 0;
+            p1->x[8] = 0;
+            XMEMCPY(p1->z, p521_norm_mod, sizeof(p521_norm_mod));
+        }
+    }
+}
+#else
 static int sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
     sp_digit* tmp)
 {
@@ -92288,6 +97398,7 @@ static int sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
 
     return err;
 }
+#endif
 
 /* Calculate the verification point: [e/s]G + [r/s]Q
  *
@@ -92302,6 +97413,103 @@ static int sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+{
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifndef WOLFSSL_SP_SMALL
+    err = sp_521_mod_inv_9(s, s, p521_order);
+    if (err == MP_OKAY)
+#endif /* !WOLFSSL_SP_SMALL */
+    {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_mul_avx2_9(s, s, p521_norm_order);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_521_mul_9(s, s, p521_norm_order);
+        }
+        err = sp_521_mod_9(s, s, p521_order);
+    }
+    if (err == MP_OKAY) {
+        sp_521_norm_9(s);
+#ifdef WOLFSSL_SP_SMALL
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_mont_inv_order_avx2_9(s, s, tmp);
+            sp_521_mont_mul_order_avx2_9(u1, u1, s);
+            sp_521_mont_mul_order_avx2_9(u2, u2, s);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_521_mont_inv_order_9(s, s, tmp);
+            sp_521_mont_mul_order_9(u1, u1, s);
+            sp_521_mont_mul_order_9(u2, u2, s);
+        }
+#else
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_mont_mul_order_avx2_9(u1, u1, s);
+            sp_521_mont_mul_order_avx2_9(u2, u2, s);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_521_mont_mul_order_9(u1, u1, s);
+            sp_521_mont_mul_order_9(u2, u2, s);
+        }
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_521_ecc_mulmod_base_avx2_9(p1, u1, 0, 0, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            err = sp_521_ecc_mulmod_base_9(p1, u1, 0, 0, heap);
+        }
+    }
+    if ((err == MP_OKAY) && sp_521_iszero_9(p1->z)) {
+        p1->infinity = 1;
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_521_ecc_mulmod_avx2_9(p2, p2, u2, 0, 0, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_521_ecc_mulmod_9(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_521_iszero_9(p2->z)) {
+        p2->infinity = 1;
+    }
+
+    if (err == MP_OKAY) {
+        sp_521_add_points_9(p1, p2, tmp);
+    }
+
+    return err;
+}
+#else
 static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
     sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
 {
@@ -92420,6 +97628,7 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
 
     return err;
 }
+#endif
 
 #ifdef HAVE_ECC_VERIFY
 /* Verify the signature values with the hash and public key.
@@ -92445,6 +97654,117 @@ static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    SP_DECL_VAR(sp_digit, u1, 18 * 9);
+    SP_DECL_VAR(sp_point_521, p1, 2);
+    sp_digit* u2 = NULL;
+    sp_digit* s = NULL;
+    sp_digit* tmp = NULL;
+    sp_point_521* p2 = NULL;
+    sp_digit carry;
+    sp_int64 c = 0;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, u1, 18 * 9, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_521, p1, 2, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        u2  = u1 + 2 * 9;
+        s   = u1 + 4 * 9;
+        tmp = u1 + 6 * 9;
+        p2 = p1 + 1;
+
+        if (hashLen > 66U) {
+            hashLen = 66U;
+        }
+
+        sp_521_from_bin(u1, 9, hash, (int)hashLen);
+        sp_521_from_mp(u2, 9, rm);
+        sp_521_from_mp(s, 9, sm);
+        sp_521_from_mp(p2->x, 9, pX);
+        sp_521_from_mp(p2->y, 9, pY);
+        sp_521_from_mp(p2->z, 9, pZ);
+
+        if (hashLen == 66U) {
+            sp_521_rshift_9(u1, u1, 7);
+        }
+
+        err = sp_521_calc_vfy_point_9(p1, p2, s, u1, u2, tmp, heap);
+    }
+    if (err == MP_OKAY) {
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_521_from_mp(u2, 9, rm);
+        err = sp_521_mod_mul_norm_9(u2, u2, p521_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* u1 = r.z'.z' mod prime */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_mont_sqr_avx2_9(p1->z, p1->z, p521_mod, p521_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_521_mont_sqr_9(p1->z, p1->z, p521_mod, p521_mp_mod);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_521_mont_mul_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+        *res = (int)(sp_521_cmp_9(p1->x, u1) == 0);
+        if (*res == 0) {
+            /* Reload r and add order. */
+            sp_521_from_mp(u2, 9, rm);
+            carry = sp_521_add_9(u2, u2, p521_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_521_norm_9(u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_521_cmp_9(u2, p521_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_521_mod_mul_norm_9(u2, u2, p521_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+#ifdef HAVE_INTEL_AVX2
+                if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                        IS_INTEL_AVX2(cpuid_flags) &&
+                        (SAVE_VECTOR_REGISTERS2() == 0)) {
+                    sp_521_mont_mul_avx2_9(u1, u2, p1->z, p521_mod,
+                        p521_mp_mod);
+                    RESTORE_VECTOR_REGISTERS();
+                }
+                else
+#endif
+                {
+                    sp_521_mont_mul_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+                }
+                *res = (sp_521_cmp_9(p1->x, u1) == 0);
+            }
+        }
+    }
+
+    SP_FREE_VAR(p1, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(u1, heap, DYNAMIC_TYPE_ECC);
+    return err;
+}
+#else
 int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
     int* res, void* heap)
@@ -92571,6 +97891,7 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
     SP_FREE_VAR(u1, heap, DYNAMIC_TYPE_ECC);
     return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_verify_521_ctx {
@@ -92844,6 +98165,105 @@ int sp_ecc_is_point_521(const mp_int* pX, const mp_int* pY)
  * @return  ECC_PRIV_KEY_E when the private scalar doesn't generate the EC
  *          point.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+    SP_DECL_VAR(sp_digit, priv, 9);
+    SP_DECL_VAR(sp_point_521, pub, 2);
+    sp_point_521* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if (((mp_count_bits(pX) > 521) ||
+        (mp_count_bits(pY) > 521) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 521)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    SP_ALLOC_VAR(sp_digit, priv, 9, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_521, pub, 2, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        p = pub + 1;
+
+        sp_521_from_mp(pub->x, 9, pX);
+        sp_521_from_mp(pub->y, 9, pY);
+        sp_521_from_bin(pub->z, 9, one, (int)sizeof(one));
+        if (privm)
+            sp_521_from_mp(priv, 9, privm);
+
+        /* Check point at infinitiy. */
+        if ((sp_521_iszero_9(pub->x) != 0) &&
+            (sp_521_iszero_9(pub->y) != 0)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_521_cmp_9(pub->x, p521_mod) >= 0) ||
+             (sp_521_cmp_9(pub->y, p521_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_521_ecc_is_point_9(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_521_ecc_mulmod_avx2_9(p, pub, p521_order, 1, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_521_ecc_mulmod_9(p, pub, p521_order, 1, 1, heap);
+    }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_521_iszero_9(p->x) == 0) ||
+                             (sp_521_iszero_9(p->y) == 0))) {
+        err = ECC_INF_E;
+    }
+
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_521_ecc_mulmod_base_avx2_9(p, priv, 1, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_521_ecc_mulmod_base_9(p, priv, 1, 1, heap);
+        }
+        /* Check result is public key */
+        if ((err == MP_OKAY) &&
+                ((sp_521_cmp_9(p->x, pub->x) != 0) ||
+                 (sp_521_cmp_9(p->y, pub->y) != 0))) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+    SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap)
 {
@@ -92946,6 +98366,7 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
     return err;
 }
 #endif
+#endif
 #ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
 /* Add two projective EC points together.
  * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
@@ -92963,6 +98384,62 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 6);
+    SP_DECL_VAR(sp_point_521, p, 2);
+    sp_point_521* q = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 9 * 6, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_521, p, 2, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        q = p + 1;
+
+        sp_521_from_mp(p->x, 9, pX);
+        sp_521_from_mp(p->y, 9, pY);
+        sp_521_from_mp(p->z, 9, pZ);
+        sp_521_from_mp(q->x, 9, qX);
+        sp_521_from_mp(q->y, 9, qY);
+        sp_521_from_mp(q->z, 9, qZ);
+        p->infinity = sp_521_iszero_9(p->x) &
+                      sp_521_iszero_9(p->y);
+        q->infinity = sp_521_iszero_9(q->x) &
+                      sp_521_iszero_9(q->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_proj_point_add_avx2_9(p, p, q, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_521_proj_point_add_9(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->z, rZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* qX, mp_int* qY, mp_int* qZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
@@ -93023,6 +98500,7 @@ int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
 
     return err;
 }
+#endif
 
 /* Double a projective EC point.
  * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
@@ -93037,6 +98515,53 @@ int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 2);
+    SP_DECL_VAR(sp_point_521, p, 1);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 9 * 2, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_521, p, 1, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_521_from_mp(p->x, 9, pX);
+        sp_521_from_mp(p->y, 9, pY);
+        sp_521_from_mp(p->z, 9, pZ);
+        p->infinity = sp_521_iszero_9(p->x) &
+                      sp_521_iszero_9(p->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_proj_point_dbl_avx2_9(p, p, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_521_proj_point_dbl_9(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->z, rZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
 {
@@ -93088,6 +98613,7 @@ int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
 
     return err;
 }
+#endif
 
 /* Map a projective EC point to affine in place.
  * pZ will be one.
@@ -93099,6 +98625,53 @@ int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+    SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 5);
+    SP_DECL_VAR(sp_point_521, p, 1);
+    int err = MP_OKAY;
+
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 9 * 5, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_521, p, 1, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_521_from_mp(p->x, 9, pX);
+        sp_521_from_mp(p->y, 9, pY);
+        sp_521_from_mp(p->z, 9, pZ);
+        p->infinity = sp_521_iszero_9(p->x) &
+                      sp_521_iszero_9(p->y);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_map_avx2_9(p, p, tmp);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            sp_521_map_9(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->x, pX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->y, pY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->z, pZ);
+    }
+
+    SP_FREE_VAR(p, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(tmp, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
 {
     SP_DECL_VAR(sp_digit, tmp, 2 * 9 * 5);
@@ -93150,6 +98723,7 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
 
     return err;
 }
+#endif
 #endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
 #ifdef HAVE_COMP_KEY
 /* Square root power for the P521 curve. */
@@ -93166,6 +98740,52 @@ static const word64 p521_sqrt_power[9] = {
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_521_mont_sqrt_9(sp_digit* y)
+{
+    SP_DECL_VAR(sp_digit, t, 2 * 9);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, t, 2 * 9, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            int i;
+
+            XMEMCPY(t, y, sizeof(sp_digit) * 9);
+            for (i=518; i>=0; i--) {
+                sp_521_mont_sqr_avx2_9(t, t, p521_mod, p521_mp_mod);
+                if (p521_sqrt_power[i / 64] & ((sp_uint64)1 << (i % 64)))
+                    sp_521_mont_mul_avx2_9(t, t, y, p521_mod, p521_mp_mod);
+            }
+            XMEMCPY(y, t, sizeof(sp_digit) * 9);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            int i;
+
+            XMEMCPY(t, y, sizeof(sp_digit) * 9);
+            for (i=518; i>=0; i--) {
+                sp_521_mont_sqr_9(t, t, p521_mod, p521_mp_mod);
+                if (p521_sqrt_power[i / 64] & ((sp_uint64)1 << (i % 64)))
+                    sp_521_mont_mul_9(t, t, y, p521_mod, p521_mp_mod);
+            }
+            XMEMCPY(y, t, sizeof(sp_digit) * 9);
+        }
+    }
+
+    SP_FREE_VAR(t, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 static int sp_521_mont_sqrt_9(sp_digit* y)
 {
     SP_DECL_VAR(sp_digit, t, 2 * 9);
@@ -93216,6 +98836,7 @@ static int sp_521_mont_sqrt_9(sp_digit* y)
 
     return err;
 }
+#endif
 
 
 /* Uncompress the point given the X ordinate.
@@ -93227,6 +98848,65 @@ static int sp_521_mont_sqrt_9(sp_digit* y)
  * @return  MP_OKAY otherwise.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
+{
+    SP_DECL_VAR(sp_digit, x, 4 * 9);
+    sp_digit* y = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_digit, x, 4 * 9, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        y = x + 2 * 9;
+
+        sp_521_from_mp(x, 9, xm);
+        err = sp_521_mod_mul_norm_9(x, x, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sp_521_mont_sqr_avx2_9(y, x, p521_mod, p521_mp_mod);
+            sp_521_mont_mul_avx2_9(y, y, x, p521_mod, p521_mp_mod);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+        {
+            sp_521_mont_sqr_9(y, x, p521_mod, p521_mp_mod);
+            sp_521_mont_mul_9(y, y, x, p521_mod, p521_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_521_mont_sub_9(y, y, x, p521_mod);
+        sp_521_mont_sub_9(y, y, x, p521_mod);
+        sp_521_mont_sub_9(y, y, x, p521_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_521_mod_mul_norm_9(x, p521_b, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_521_mont_add_9(y, y, x, p521_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_521_mont_sqrt_9(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 9, 0, 9U * sizeof(sp_digit));
+        sp_521_mont_reduce_9(y, p521_mod, p521_mp_mod);
+        if ((((word32)y[0] ^ (word32)odd) & 1U) != 0U) {
+            sp_521_mont_sub_9(y, p521_mod, y, p521_mod);
+        }
+
+        err = sp_521_to_mp(y, ym);
+    }
+
+    SP_FREE_VAR(x, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
 {
     SP_DECL_VAR(sp_digit, x, 4 * 9);
@@ -93290,6 +98970,7 @@ int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
 
     return err;
 }
+#endif
 #endif
 #endif /* WOLFSSL_SP_521 */
 #ifdef WOLFCRYPT_HAVE_SAKKE
@@ -96519,6 +102200,77 @@ static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cach
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_1024_ecc_mulmod_win_add_sub_16(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 16 * 38);
+    sp_cache_1024_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 16 * 38, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_1024) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_1024, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_1024_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_1024,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_1024_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_1024(g, &cache);
+        if (cache->cnt == 2)
+            sp_1024_gen_stripe_table_16(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_1024_ecc_mulmod_win_add_sub_16(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_1024_ecc_mulmod_stripe_16(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_1024_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -96600,6 +102352,7 @@ static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
     return err;
 #endif
 }
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 #ifdef FP_ECC
@@ -96884,6 +102637,77 @@ static int sp_1024_ecc_mulmod_stripe_avx2_16(sp_point_1024* r, const sp_point_10
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
+#else
+    SP_DECL_VAR(sp_digit, tmp, 2 * 16 * 38);
+    sp_cache_1024_t* cache;
+    int err = MP_OKAY;
+
+    SP_ALLOC_VAR(sp_digit, tmp, 2 * 16 * 38, heap, DYNAMIC_TYPE_ECC);
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+    if (err == MP_OKAY) {
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* Lazy initialization of mutex - one atomic with three states:
+         *   0 = uninitialized, 1 = initialization in progress,
+         *   2 = initialized.
+         */
+        if (WOLFSSL_ATOMIC_LOAD(initCacheMutex_1024) != 2) {
+            unsigned int expected_then_actual;
+
+            for (;;) {
+                expected_then_actual = 0;
+                if (wolfSSL_Atomic_Uint_CompareExchange(
+                        &initCacheMutex_1024, &expected_then_actual,
+                        1) == 1) {
+                    /* Won race - initialize mutex. On failure, reset state
+                     * to 0 so that a later call retries. */
+                    err = wc_InitMutex(&sp_cache_1024_lock);
+                    WOLFSSL_ATOMIC_STORE(initCacheMutex_1024,
+                        (err == 0) ? 2U : 0U);
+                    break;
+                }
+                if (expected_then_actual == 2) {
+                    /* Another thread completed initialization. */
+                    break;
+                }
+                /* Initialization in progress in another thread. */
+                WC_RELAX_LONG_LOOP();
+            }
+        }
+    #endif
+        if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_1024_lock) != 0)) {
+            err = BAD_MUTEX_E;
+        }
+    }
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_1024(g, &cache);
+        if (cache->cnt == 2)
+            sp_1024_gen_stripe_table_avx2_16(g, cache->table, tmp, heap);
+
+        if (cache->cnt < 2) {
+            err = sp_1024_ecc_mulmod_win_add_sub_avx2_16(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_1024_ecc_mulmod_stripe_avx2_16(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+#if !defined(SINGLE_THREADED) && !defined(HAVE_THREAD_LS)
+        wc_UnLockMutex(&sp_cache_1024_lock);
+#endif /* !SINGLE_THREADED && !HAVE_THREAD_LS */
+    }
+
+    SP_FREE_VAR(tmp, heap, DYNAMIC_TYPE_ECC);
+    return err;
+#endif
+}
+#else
 static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
         const sp_digit* k, int map, int ct, void* heap)
 {
@@ -96965,6 +102789,7 @@ static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
     return err;
 #endif
 }
+#endif
 
 #endif /* HAVE_INTEL_AVX2 */
 /* Multiply the point by the scalar and return the result.
@@ -96979,6 +102804,43 @@ static int sp_1024_ecc_mulmod_avx2_16(sp_point_1024* r, const sp_point_1024* g,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_1024, point, 1);
+    SP_DECL_VAR(sp_digit, k, 16);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_1024, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 16, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_1024_from_mp(k, 16, km);
+        sp_1024_point_from_ecc_point_16(point, gm);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_1024_ecc_mulmod_avx2_16(point, point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_1024_ecc_mulmod_16(point, point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_to_ecc_point_16(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
         int map, void* heap)
 {
@@ -97013,6 +102875,7 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
     return err;
 }
+#endif
 
 /* Striping precomputation table.
  * 8 points combined into a table of 256 points.
@@ -100402,6 +106265,41 @@ static int sp_1024_ecc_mulmod_base_avx2_16(sp_point_1024* r, const sp_digit* k,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_1024, point, 1);
+    SP_DECL_VAR(sp_digit, k, 16);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_1024, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 16, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_1024_from_mp(k, 16, km);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_1024_ecc_mulmod_base_avx2_16(point, k, map, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_1024_ecc_mulmod_base_16(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_to_ecc_point_16(point, r);
+    }
+
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
 {
     SP_DECL_VAR(sp_point_1024, point, 1);
@@ -100441,6 +106339,7 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
 
     return err;
 }
+#endif
 
 /* Multiply the base point of P1024 by the scalar, add point a and return
  * the result. If map is true then convert result to affine coordinates.
@@ -100455,6 +106354,80 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_1024, point, 2);
+    SP_DECL_VAR(sp_digit, k, 16 + 16 * 2 * 37);
+    sp_point_1024* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+#endif
+
+    SP_ALLOC_VAR(sp_point_1024, point, 2, NULL, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 16 + 16 * 2 * 37, NULL, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 16;
+
+        sp_1024_from_mp(k, 16, km);
+        sp_1024_point_from_ecc_point_16(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_1024_mod_mul_norm_16(addP->x, addP->x, p1024_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_1024_mod_mul_norm_16(addP->y, addP->y, p1024_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_1024_mod_mul_norm_16(addP->z, addP->z, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0))
+            saved_vector_registers = 1;
+        if (saved_vector_registers)
+            err = sp_1024_ecc_mulmod_base_avx2_16(point, k, 0, 0, heap);
+        else
+#endif
+            err = sp_1024_ecc_mulmod_base_16(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (saved_vector_registers)
+            sp_1024_proj_point_add_avx2_16(point, point, addP, tmp);
+        else
+#endif
+            sp_1024_proj_point_add_16(point, point, addP, tmp);
+
+        if (map) {
+#ifdef HAVE_INTEL_AVX2
+            if (saved_vector_registers)
+                sp_1024_map_avx2_16(point, point, tmp);
+            else
+#endif
+                sp_1024_map_16(point, point, tmp);
+        }
+
+        err = sp_1024_point_to_ecc_point_16(point, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_FREE_VAR(k, NULL, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, NULL, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
         int inMont, ecc_point* r, int map, void* heap)
 {
@@ -100544,6 +106517,7 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
 
     return err;
 }
+#endif
 
 #ifndef WOLFSSL_SP_SMALL
 /* Generate a pre-computation table for the point.
@@ -100558,6 +106532,55 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
  * @return  LENGTH_ONLY_E when table is NULL and length is returned.
  * @return  BUFFER_E when length is too small.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
+    void* heap)
+{
+    SP_DECL_VAR(sp_point_1024, point, 1);
+    SP_DECL_VAR(sp_digit, t, 38 * 2 * 16);
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    if ((gm == NULL) || (len == NULL)) {
+        err = BAD_FUNC_ARG;
+    }
+
+    if ((err == MP_OKAY) && (table == NULL)) {
+        *len = sizeof(sp_table_entry_1024) * 256;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+    }
+    if ((err == MP_OKAY) && (*len < (int)(sizeof(sp_table_entry_1024) * 256))) {
+        err = BUFFER_E;
+    }
+
+    SP_ALLOC_VAR(sp_point_1024, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, t, 38 * 2 * 16, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_1024_point_from_ecc_point_16(point, gm);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_1024_gen_stripe_table_avx2_16(point,
+                (sp_table_entry_1024*)table, t, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_1024_gen_stripe_table_16(point,
+                (sp_table_entry_1024*)table, t, heap);
+    }
+    if (err == 0) {
+        *len = sizeof(sp_table_entry_1024) * 256;
+    }
+
+    SP_FREE_VAR(t, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
     void* heap)
 {
@@ -100611,6 +106634,7 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
 
     return err;
 }
+#endif
 #else
 /* Generate a pre-computation table for the point.
  *
@@ -100662,6 +106686,50 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
+        ecc_point* r, int map, void* heap)
+{
+    SP_DECL_VAR(sp_point_1024, point, 1);
+    SP_DECL_VAR(sp_digit, k, 16);
+    int err = MP_OKAY;
+#if defined(HAVE_INTEL_AVX2) && !defined(WOLFSSL_SP_SMALL)
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    SP_ALLOC_VAR(sp_point_1024, point, 1, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_digit, k, 16, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        sp_1024_from_mp(k, 16, km);
+        sp_1024_point_from_ecc_point_16(point, gm);
+
+#ifndef WOLFSSL_SP_SMALL
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_1024_ecc_mulmod_stripe_avx2_16(point, point,
+                (const sp_table_entry_1024*)table, k, map, 0, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_1024_ecc_mulmod_stripe_16(point, point,
+                (const sp_table_entry_1024*)table, k, map, 0, heap);
+#else
+        (void)table;
+        err = sp_1024_ecc_mulmod_16(point, point, k, map, 0, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_to_ecc_point_16(point, r);
+    }
+
+    SP_FREE_VAR(point, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(k, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
         ecc_point* r, int map, void* heap)
 {
@@ -100710,6 +106778,7 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
 
     return err;
 }
+#endif
 
 /* Multiply p* in projective coordinates by q*.
  *
@@ -102770,6 +108839,29 @@ static int sp_ModExp_Fp_star_avx2_1024(const mp_int* base, mp_int* exp, mp_int* 
  * @return  MP_READ_E when there are too many bytes in an array.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
+{
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        err = sp_ModExp_Fp_star_avx2_1024(base, exp, res);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        err = sp_ModExp_Fp_star_x64_1024(base, exp, res);
+    }
+
+   return err;
+}
+#else
 int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
 {
     int err;
@@ -102797,6 +108889,7 @@ int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
 
    return err;
 }
+#endif
 
 /* Multiply p* by q* in projective coordinates.
  *
@@ -104384,6 +110477,29 @@ static int sp_Pairing_avx2_1024(const ecc_point* pm, const ecc_point* qm, mp_int
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_Pairing_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res)
+{
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        err = sp_Pairing_avx2_1024(pm, qm, res);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        err = sp_Pairing_x64_1024(pm, qm, res);
+    }
+
+   return err;
+}
+#else
 int sp_Pairing_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res)
 {
     int err;
@@ -104411,6 +110527,7 @@ int sp_Pairing_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res)
 
    return err;
 }
+#endif
 
 #ifdef WOLFSSL_SP_SMALL
 /*
@@ -105524,6 +111641,29 @@ static int sp_Pairing_precomp_avx2_1024(const ecc_point* pm, const ecc_point* qm
  * @return  0 on success.
  * @return  Otherwise failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table, word32* len)
+{
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        err = sp_Pairing_gen_precomp_avx2_1024(pm, table, len);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        err = sp_Pairing_gen_precomp_x64_1024(pm, table, len);
+    }
+
+   return err;
+}
+#else
 int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table, word32* len)
 {
     int err;
@@ -105551,6 +111691,7 @@ int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table, word32* len)
 
    return err;
 }
+#endif
 
 /*
  * Calculate r = pairing <P, Q>.
@@ -105567,6 +111708,30 @@ int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table, word32* len)
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value on internal failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res,
+    const byte* table, word32 len)
+{
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+            IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+        err = sp_Pairing_precomp_avx2_1024(pm, qm, res, table, len);
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        err = sp_Pairing_precomp_x64_1024(pm, qm, res, table, len);
+    }
+
+   return err;
+}
+#else
 int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res,
     const byte* table, word32 len)
 {
@@ -105595,6 +111760,7 @@ int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm, mp_int* re
 
    return err;
 }
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -105728,6 +111894,105 @@ int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY)
  * @return  ECC_PRIV_KEY_E when the private scalar doesn't generate the EC
  *          point.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+    SP_DECL_VAR(sp_digit, priv, 16);
+    SP_DECL_VAR(sp_point_1024, pub, 2);
+    sp_point_1024* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if (((mp_count_bits(pX) > 1024) ||
+        (mp_count_bits(pY) > 1024) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 1024)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    SP_ALLOC_VAR(sp_digit, priv, 16, heap, DYNAMIC_TYPE_ECC);
+    SP_ALLOC_VAR(sp_point_1024, pub, 2, heap, DYNAMIC_TYPE_ECC);
+    if (err == MP_OKAY) {
+        p = pub + 1;
+
+        sp_1024_from_mp(pub->x, 16, pX);
+        sp_1024_from_mp(pub->y, 16, pY);
+        sp_1024_from_bin(pub->z, 16, one, (int)sizeof(one));
+        if (privm)
+            sp_1024_from_mp(priv, 16, privm);
+
+        /* Check point at infinitiy. */
+        if ((sp_1024_iszero_16(pub->x) != 0) &&
+            (sp_1024_iszero_16(pub->y) != 0)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_1024_cmp_16(pub->x, p1024_mod) >= 0) ||
+             (sp_1024_cmp_16(pub->y, p1024_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_1024_ecc_is_point_16(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
+            err = sp_1024_ecc_mulmod_avx2_16(p, pub, p1024_order, 1, 1, heap);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#endif
+            err = sp_1024_ecc_mulmod_16(p, pub, p1024_order, 1, 1, heap);
+    }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_1024_iszero_16(p->x) == 0) ||
+                             (sp_1024_iszero_16(p->y) == 0))) {
+        err = ECC_INF_E;
+    }
+
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                    IS_INTEL_AVX2(cpuid_flags) &&
+                    (SAVE_VECTOR_REGISTERS2() == 0)) {
+                err = sp_1024_ecc_mulmod_base_avx2_16(p, priv, 1, 1, heap);
+                RESTORE_VECTOR_REGISTERS();
+            }
+            else
+#endif
+                err = sp_1024_ecc_mulmod_base_16(p, priv, 1, 1, heap);
+        }
+        /* Check result is public key */
+        if ((err == MP_OKAY) &&
+                ((sp_1024_cmp_16(p->x, pub->x) != 0) ||
+                 (sp_1024_cmp_16(p->y, pub->y) != 0))) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+    SP_FREE_VAR(pub, heap, DYNAMIC_TYPE_ECC);
+    SP_FREE_VAR(priv, heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#else
 int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap)
 {
@@ -105829,6 +112094,7 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
 
     return err;
 }
+#endif
 #endif
 #endif /* WOLFSSL_SP_1024 */
 #endif /* WOLFCRYPT_HAVE_SAKKE */

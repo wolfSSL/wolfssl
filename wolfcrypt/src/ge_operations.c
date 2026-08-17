@@ -9885,6 +9885,52 @@ where a = a[0]+256*a[1]+...+256^31 a[31].
 and b = b[0]+256*b[1]+...+256^31 b[31].
 B is the Ed25519 base point (x,4/5) with x positive.
 */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
+int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
+                                 const ge_p3 *A, const unsigned char *b)
+{
+#ifdef WOLFSSL_GE_HAVE_INTEL_AVX512_IFMA
+  int ret;
+  cpuid_flags_t cpuid_flags;
+
+  /* The assembly works out the window digits and the multiples of A itself,
+   * so it needs none of the temporaries the C implementation uses - just the
+   * one buffer, which it works in instead of taking a stack frame.  The
+   * 256-bit EVEX VPMADD52 code needs AVX512F, IFMA and VL - see the same test
+   * in fe_init(). */
+  cpuid_flags = cpuid_get_flags();
+  if (IS_INTEL_AVX512(cpuid_flags) && IS_INTEL_AVX512_IFMA(cpuid_flags) &&
+          IS_INTEL_AVX512_VL(cpuid_flags) &&
+          (SAVE_VECTOR_REGISTERS2() == 0)) {
+  #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
+      byte buf[GE_DSM_IFMA_TMP_SIZE];
+  #else
+      byte *buf = (byte *)XMALLOC(GE_DSM_IFMA_TMP_SIZE, NULL,
+                                  DYNAMIC_TYPE_TMP_BUFFER);
+      if (buf == NULL) {
+          RESTORE_VECTOR_REGISTERS();
+          return MEMORY_E;
+      }
+  #endif
+      /* VPMULLQ is a single uop on AMD and microcoded on Intel, so the
+       * variant that reduces with it is only used on AMD. */
+      if (IS_CPU_AMD(cpuid_flags) && IS_INTEL_AVX512_DQ(cpuid_flags)) {
+          ret = ge_double_scalarmult_vartime_avx512_ifma_dq(r, a, A, b, Bi, buf);
+      }
+      else {
+          ret = ge_double_scalarmult_vartime_avx512_ifma(r, a, A, b, Bi, buf);
+      }
+  #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+      XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  #endif
+      RESTORE_VECTOR_REGISTERS();
+      return ret;
+  }
+#endif
+
+  return ge_double_scalarmult_vartime_c(r, a, A, b);
+}
+#else
 int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
                                  const ge_p3 *A, const unsigned char *b)
 {
@@ -9937,6 +9983,7 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 
   return ge_double_scalarmult_vartime_c(r, a, A, b);
 }
+#endif
 
 #ifdef CURVED25519_ASM_64BIT
 static const ge d = {
