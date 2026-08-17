@@ -401,6 +401,19 @@ WOLFSSL_API int wc_Cshake256(const byte* name, word32 nameLen,
 
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 
+/* Vector-register bracket for callers OUTSIDE sha3.c that permute a raw state
+ * through BlockSha3().  On aarch64 with FEAT_SHA3 that trampoline can reach
+ * BlockSha3_crypto, which works in v0-v31, so such a caller owes a save.
+ *
+ * A function pair rather than sha3.c's WC_SHA3_ARM64_SVR_BEGIN macro: that
+ * macro returns from its caller, which cannot be used by a void function and
+ * hides control flow, and testing SHA3_BLOCK directly would export the block
+ * dispatch.  acquire() returns 0 when the caller may proceed, or the save
+ * error; release() must be called only after acquire() returned 0.  Both are
+ * no-ops wherever the compiled block cannot use vector registers. */
+WOLFSSL_LOCAL int wc_sha3_block_vregs_acquire(void);
+WOLFSSL_LOCAL void wc_sha3_block_vregs_release(void);
+
 /* The single Keccak-f[1600] this build carries; see the definitions in sha3.c.
  * Both return 0, or a vector-register save error, never a fallback.
  * wc_Sha3PermuteN() absorbs n blocks of c bytes, permuting after each.

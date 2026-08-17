@@ -13930,12 +13930,26 @@ static const sp_table_entry_256 p256_table[64] = {
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
     return sp_256_ecc_mulmod_stripe_4(r, &p256_base, p256_table,
                                       k, map, ct, heap);
 }
+#else
+static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err != 0)
+        return err;
+    err = sp_256_ecc_mulmod_stripe_4(r, &p256_base, p256_table,
+                                      k, map, ct, heap);
+    RESTORE_VECTOR_REGISTERS();
+    return err;
+}
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 /* Multiply the base point of P256 by the scalar and return the result.
@@ -26106,12 +26120,26 @@ static int sp_256_ecc_mulmod_add_only_4(sp_point_256* r, const sp_point_256* g,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
     return sp_256_ecc_mulmod_add_only_4(r, NULL, p256_table,
                                       k, map, ct, heap);
 }
+#else
+static int sp_256_ecc_mulmod_base_4(sp_point_256* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err != 0)
+        return err;
+    err = sp_256_ecc_mulmod_add_only_4(r, NULL, p256_table,
+                                      k, map, ct, heap);
+    RESTORE_VECTOR_REGISTERS();
+    return err;
+}
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 /* Multiply the point by the scalar and return the result.
@@ -34502,12 +34530,26 @@ static const sp_table_entry_384 p384_table[64] = {
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
     return sp_384_ecc_mulmod_stripe_6(r, &p384_base, p384_table,
                                       k, map, ct, heap);
 }
+#else
+static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err != 0)
+        return err;
+    err = sp_384_ecc_mulmod_stripe_6(r, &p384_base, p384_table,
+                                      k, map, ct, heap);
+    RESTORE_VECTOR_REGISTERS();
+    return err;
+}
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 /* Multiply the base point of P384 by the scalar and return the result.
@@ -52492,12 +52534,26 @@ static int sp_384_ecc_mulmod_add_only_6(sp_point_384* r, const sp_point_384* g,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
     return sp_384_ecc_mulmod_add_only_6(r, NULL, p384_table,
                                       k, map, ct, heap);
 }
+#else
+static int sp_384_ecc_mulmod_base_6(sp_point_384* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err != 0)
+        return err;
+    err = sp_384_ecc_mulmod_add_only_6(r, NULL, p384_table,
+                                      k, map, ct, heap);
+    RESTORE_VECTOR_REGISTERS();
+    return err;
+}
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 /* Multiply the point by the scalar and return the result.
@@ -60970,12 +61026,26 @@ static const sp_table_entry_521 p521_table[64] = {
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
     return sp_521_ecc_mulmod_stripe_9(r, &p521_base, p521_table,
                                       k, map, ct, heap);
 }
+#else
+static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err != 0)
+        return err;
+    err = sp_521_ecc_mulmod_stripe_9(r, &p521_base, p521_table,
+                                      k, map, ct, heap);
+    RESTORE_VECTOR_REGISTERS();
+    return err;
+}
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 /* Multiply the base point of P521 by the scalar and return the result.
@@ -95020,12 +95090,26 @@ static int sp_521_ecc_mulmod_add_only_9(sp_point_521* r, const sp_point_521* g,
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
     return sp_521_ecc_mulmod_add_only_9(r, NULL, p521_table,
                                       k, map, ct, heap);
 }
+#else
+static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err != 0)
+        return err;
+    err = sp_521_ecc_mulmod_add_only_9(r, NULL, p521_table,
+                                      k, map, ct, heap);
+    RESTORE_VECTOR_REGISTERS();
+    return err;
+}
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 /* Multiply the point by the scalar and return the result.
@@ -106221,12 +106305,26 @@ static const sp_table_entry_1024 p1024_table[256] = {
  * @return  MP_OKAY on success.
  * @return  MEMORY_E when memory allocation fails.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int sp_1024_ecc_mulmod_base_16(sp_point_1024* r, const sp_digit* k,
         int map, int ct, void* heap)
 {
     return sp_1024_ecc_mulmod_stripe_16(r, &p1024_base, p1024_table,
                                       k, map, ct, heap);
 }
+#else
+static int sp_1024_ecc_mulmod_base_16(sp_point_1024* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    int err = SAVE_VECTOR_REGISTERS2();
+    if (err != 0)
+        return err;
+    err = sp_1024_ecc_mulmod_stripe_16(r, &p1024_base, p1024_table,
+                                      k, map, ct, heap);
+    RESTORE_VECTOR_REGISTERS();
+    return err;
+}
+#endif
 
 #ifdef HAVE_INTEL_AVX2
 /* Multiply the base point of P1024 by the scalar and return the result.

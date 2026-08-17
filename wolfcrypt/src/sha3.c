@@ -206,10 +206,24 @@
 #endif
 #endif
 
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WC_SHA3_NO_ASM)
+    /* arm32 non-Thumb ARMASM compiles exactly ONE Keccak block, the NEON one
+     * in port/arm/armv8-32-sha3-asm.S (d0-d15, q registers), under the same
+     * condition as this test.  It is not reached through a function pointer,
+     * so unlike x86 and aarch64 there is nothing to select on: whenever a
+     * block runs here it uses vector registers.  Thumb2's block is
+     * integer-only and is deliberately not covered. */
+    #define SHA3_BLOCK_VREGS(f) 1
+#endif
+
 /* Set when a compiled block function may need the vector registers, so the
- * callers carry the save/restore: AVX2 on x86, FEAT_SHA3 on aarch64. */
+ * callers carry the save/restore: AVX2 on x86, FEAT_SHA3 on aarch64, NEON on
+ * arm32 non-Thumb. */
 #if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
-        defined(WOLFSSL_ARMASM))
+        defined(WOLFSSL_ARMASM)) || \
+    (defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+     !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WC_SHA3_NO_ASM))
     #define WC_SHA3_MAY_USE_VREGS
 #endif
 
@@ -229,6 +243,32 @@
     #define WC_SHA3_ARM64_SVR_BEGIN() WC_DO_NOTHING
     #define WC_SHA3_ARM64_SVR_END()   WC_DO_NOTHING
 #endif
+
+/* Same bracket for callers in OTHER translation units, which cannot use the
+ * macro above: it returns from its caller, so a void function cannot carry it,
+ * and SHA3_BLOCK is private to this file.  Declared in sha3.h.  Inside this
+ * guard SHA3_BLOCK is the file-scope pointer, not the sha3-> member form the
+ * run-time-select arm uses, so reading it here needs no object. */
+int wc_sha3_block_vregs_acquire(void)
+{
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    defined(WOLFSSL_ARMASM_CRYPTO_SHA3) && \
+    !(defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT))
+    if (SHA3_BLOCK_VREGS(SHA3_BLOCK))
+        return SAVE_VECTOR_REGISTERS2();
+#endif
+    return 0;
+}
+
+void wc_sha3_block_vregs_release(void)
+{
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    defined(WOLFSSL_ARMASM_CRYPTO_SHA3) && \
+    !(defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT))
+    if (SHA3_BLOCK_VREGS(SHA3_BLOCK))
+        RESTORE_VECTOR_REGISTERS();
+#endif
+}
 
 /* BlockSha3() calls through the pointer InitSha3() installs.  A caller passing
  * a raw state can arrive first, so report that rather than dereference NULL. */

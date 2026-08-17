@@ -3785,6 +3785,7 @@ static int mlkem_gen_matrix_k4_avx512(sword16* a, byte* seed, int transposed)
  */
 static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
 {
+    int svr_ret;
     word64 state[3 * 25];
     word64* st = (word64*)state;
     unsigned int ctr0;
@@ -3832,6 +3833,9 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
     state[4] = 0x1f0000 + (1 << 8) + 1;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[20] = W64LIT(0x8000000000000000);
+    svr_ret = wc_sha3_block_vregs_acquire();
+    if (svr_ret != 0)
+        return svr_ret;
     BlockSha3(state);
     p = (byte*)state;
     ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
@@ -3841,6 +3845,7 @@ static int mlkem_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
             XOF_BLOCK_SIZE);
     }
 
+    wc_sha3_block_vregs_release();
     return 0;
 }
 #endif
@@ -3921,6 +3926,7 @@ static int mlkem_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
  */
 static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
 {
+    int svr_ret;
     int i;
     int k;
     word64 state[3 * 25];
@@ -3976,6 +3982,9 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
     state[4] = 0x1f0000 + (3 << 8) + 3;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[20] = W64LIT(0x8000000000000000);
+    svr_ret = wc_sha3_block_vregs_acquire();
+    if (svr_ret != 0)
+        return svr_ret;
     BlockSha3(state);
     p = (byte*)state;
     ctr0 = mlkem_rej_uniform_neon(a, MLKEM_N, p, XOF_BLOCK_SIZE);
@@ -3985,6 +3994,7 @@ static int mlkem_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
             XOF_BLOCK_SIZE);
     }
 
+    wc_sha3_block_vregs_release();
     return 0;
 }
 #endif
@@ -4354,6 +4364,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
  */
 int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 {
+    int svr_ret;
     word64 state[25];
     word32 len64 = seedLen / 8;
 
@@ -4362,6 +4373,9 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
+    svr_ret = wc_sha3_block_vregs_acquire();
+    if (svr_ret != 0)
+        return svr_ret;
     BlockSha3(state);
     XMEMCPY(out, state, outLen);
 
@@ -4373,6 +4387,7 @@ int mlkem_kdf(const byte* seed, int seedLen, byte* out, int outLen)
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(state, sizeof(state));
 #endif
+    wc_sha3_block_vregs_release();
     return 0;
 }
 #endif
@@ -6157,9 +6172,13 @@ static void mlkem_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
 static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed)
 {
+    int svr_ret;
     int ret = 0;
     word64 rand[3 * 25];
 
+    svr_ret = wc_sha3_block_vregs_acquire();
+    if (svr_ret != 0)
+        return svr_ret;
     mlkem_get_noise_x3_eta3_aarch64((byte*)rand, seed, 0);
     mlkem_cbd_eta3(vec1          , (byte*)rand + 0 * ETA3_RAND_SIZE);
     mlkem_cbd_eta3(vec1 + MLKEM_N, (byte*)rand + 1 * ETA3_RAND_SIZE);
@@ -6183,6 +6202,7 @@ static int mlkem_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(rand, sizeof(rand));
 #endif
+    wc_sha3_block_vregs_release();
     return ret;
 }
 #endif
@@ -6223,8 +6243,12 @@ static void mlkem_get_noise_eta2_aarch64(word64* rand, byte* seed, byte o)
 static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
      sword16* poly, byte* seed)
 {
+    int svr_ret;
     word64 rand[3 * 25];
 
+    svr_ret = wc_sha3_block_vregs_acquire();
+    if (svr_ret != 0)
+        return svr_ret;
     mlkem_get_noise_x3_eta2_aarch64(rand, seed, 0);
     mlkem_cbd_eta2(vec1              , (byte*)rand + 0 * 25 * 8);
     mlkem_cbd_eta2(vec1 + 1 * MLKEM_N, (byte*)rand + 1 * 25 * 8);
@@ -6246,6 +6270,7 @@ static int mlkem_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(rand, sizeof(rand));
 #endif
+    wc_sha3_block_vregs_release();
     return 0;
 }
 #endif
