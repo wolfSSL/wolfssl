@@ -22,7 +22,7 @@
 /*
  * MC/DC supplement for wolfcrypt/src/kdf.c.
  *
- * Three residual classes that tests/api/test_kdf.c cannot close on its own,
+ * Four residual classes that tests/api/test_kdf.c cannot close on its own,
  * driven here with BOTH halves of every independence pair in ONE binary
  * (llvm-cov derives MC/DC per binary, so a rejection on its own proves
  * nothing):
@@ -56,6 +56,16 @@
  *      wc_HashAlg scratch) makes iteration 1 return MEMORY_E, the loop breaks
  *      with outIdx still 0, and the tail guard is evaluated with (F,T).
  *
+ *   4. wc_PRF() (~line 90), wc_PRF_TLSv1() (~line 239) and wc_PRF_TLS()
+ *      (~line 303): the (ptr == NULL && ptrLen != 0) chains added by
+ *      "Crypto layer: Add missing input validation", plus the
+ *      "labLen > MAX_PRF_LABSEED" operand the same commit split out of the
+ *      old "labLen + seedLen > MAX_PRF_LABSEED" bound (~line 250 / ~324).
+ *      Every caller in tests/api and in the library hands these functions
+ *      buffers it has already produced, so only the all-false row is ever
+ *      built there. See the block comment above wb_prf_arg_guard() for why
+ *      each fall-through row is memory-safe.
+ *
  * Not chased in THIS file, and no longer residual: the "ret == 0 && kPad"
  * pairs in wc_SSH_KDF (~804/~855), the "(ret == 0) && ..." loop/tail guards in
  * wc_srtp_kdf_derive_key (~947/~959) and the "ret == 0 && fixedInfoSz > 0"
@@ -88,6 +98,8 @@
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+#define WB_EXPECT(cond, msg) \
+    do { if (!(cond)) { WB_NOTE("FAIL: " msg); wb_fail = 1; } } while (0)
 
 /* --------------------------------------------------------------------------
  * 1. wc_Tls13_HKDF_Extract_ex(): prk / ikm / ikmLen argument guard.
@@ -234,6 +246,176 @@ static void wb_kda_kdf_onestep_errprop(void)
 { WB_NOTE("WC_KDF_NIST_SP_800_56C/small-stack off; KDA tail guard skipped"); }
 #endif
 
+/* --------------------------------------------------------------------------
+ * 4. wc_PRF() / wc_PRF_TLSv1() / wc_PRF_TLS(): the pointer/length argument
+ *    guards, plus the labLen bound they made reachable.
+ * ----------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && !defined(NO_SHA256)
+
+/* Every operand of these guards is one half of an (x == NULL && xLen != 0)
+ * pair, so each pair needs three rows in this binary:
+ *   (T,T) x absent with a length claimed      -> decision TRUE
+ *   (T,F) x absent with a zero length          -> decision FALSE
+ *   (F,-) x present                            -> decision FALSE
+ * The (T,F) rows fall THROUGH the guard, so each one is chosen so the
+ * function still cannot dereference the absent pointer:
+ *   - result/digest absent with a zero length: wc_PRF() computes times == 0
+ *     from resLen == 0 and returns BAD_FUNC_ARG before the first XMALLOC.
+ *   - secret absent with a zero length: paired with labLen > MAX_PRF_LABSEED
+ *     so the size check (kdf.c:250 / :324) returns BUFFER_E before
+ *     "md5_half = secret" / before wc_PRF() is called. That same row is the
+ *     TRUE half of the labLen bound, which is otherwise unreachable.
+ *   - label/seed absent with a zero length: the "if (labLen != 0)" /
+ *     "if (seedLen != 0)" copies that the same upstream commit added are
+ *     skipped, which is exactly the shape the guard is there to admit.
+ */
+
+/* Past MAX_PRF_LABSEED, so kdf.c:250:1 / :324:0 is the operand that trips. */
+#define WB_PRF_LAB_BIG (MAX_PRF_LABSEED + 72)
+
+static void wb_prf_arg_guard(void)
+{
+    byte dig[32];
+    byte sec[32];
+    byte seed[32];
+    byte lab[WB_PRF_LAB_BIG];
+    const word32 digLen  = (word32)sizeof(dig);
+    const word32 secLen  = (word32)sizeof(sec);
+    const word32 seedLen = (word32)sizeof(seed);
+    const word32 labLen  = 16;
+    const word32 labBig  = (word32)sizeof(lab);
+    int ret;
+
+    XMEMSET(dig,  0, sizeof(dig));
+    XMEMSET(sec,  0x11, sizeof(sec));
+    XMEMSET(seed, 0x22, sizeof(seed));
+    XMEMSET(lab,  0x33, sizeof(lab));
+
+    /* ---- wc_PRF(), kdf.c:90 ---- */
+
+    ret = wc_PRF(NULL, digLen, sec, secLen, seed, seedLen, sha256_mac, NULL,
+        INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "PRF result==NULL");
+
+    ret = wc_PRF(NULL, 0, sec, secLen, seed, seedLen, sha256_mac, NULL,
+        INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+        "PRF result==NULL/resLen==0");
+
+    ret = wc_PRF(dig, digLen, NULL, secLen, seed, seedLen, sha256_mac, NULL,
+        INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "PRF secret==NULL");
+
+    ret = wc_PRF(dig, 0, NULL, 0, seed, seedLen, sha256_mac, NULL,
+        INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+        "PRF secret==NULL/secLen==0");
+
+    ret = wc_PRF(dig, digLen, sec, secLen, NULL, seedLen, sha256_mac, NULL,
+        INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "PRF seed==NULL");
+
+    ret = wc_PRF(dig, 0, sec, secLen, NULL, 0, sha256_mac, NULL,
+        INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+        "PRF seed==NULL/seedLen==0");
+
+    /* All-false row, same binary. */
+    ret = wc_PRF(dig, digLen, sec, secLen, seed, seedLen, sha256_mac, NULL,
+        INVALID_DEVID);
+    WB_EXPECT(ret == 0, "PRF all-valid baseline");
+
+    /* ---- wc_PRF_TLSv1(), kdf.c:239 and the :249 labLen bound ---- */
+
+    ret = wc_PRF_TLSv1(NULL, digLen, sec, secLen, lab, labLen, seed, seedLen,
+        NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLSv1 digest==NULL");
+
+    ret = wc_PRF_TLSv1(NULL, 0, sec, secLen, lab, labLen, seed, seedLen,
+        NULL, INVALID_DEVID);
+    WB_EXPECT(ret != 0, "TLSv1 digest==NULL/digLen==0 falls through");
+
+    ret = wc_PRF_TLSv1(dig, digLen, NULL, secLen, lab, labLen, seed, seedLen,
+        NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLSv1 secret==NULL");
+
+    /* secLen == 0 falls through the guard; labBig then trips :249:1. */
+    ret = wc_PRF_TLSv1(dig, digLen, NULL, 0, lab, labBig, seed, seedLen,
+        NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BUFFER_E), "TLSv1 labLen>MAX_PRF_LABSEED");
+
+    ret = wc_PRF_TLSv1(dig, digLen, sec, secLen, NULL, labLen, seed, seedLen,
+        NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLSv1 label==NULL");
+
+    ret = wc_PRF_TLSv1(dig, digLen, sec, secLen, NULL, 0, seed, seedLen,
+        NULL, INVALID_DEVID);
+#if !defined(NO_MD5) && !defined(NO_SHA)
+    WB_EXPECT(ret == 0, "TLSv1 label==NULL/labLen==0 accepted");
+#endif
+
+    ret = wc_PRF_TLSv1(dig, digLen, sec, secLen, lab, labLen, NULL, seedLen,
+        NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLSv1 seed==NULL");
+
+    ret = wc_PRF_TLSv1(dig, digLen, sec, secLen, lab, labLen, NULL, 0,
+        NULL, INVALID_DEVID);
+#if !defined(NO_MD5) && !defined(NO_SHA)
+    WB_EXPECT(ret == 0, "TLSv1 seed==NULL/seedLen==0 accepted");
+#endif
+
+    ret = wc_PRF_TLSv1(dig, digLen, sec, secLen, lab, labLen, seed, seedLen,
+        NULL, INVALID_DEVID);
+#if !defined(NO_MD5) && !defined(NO_SHA)
+    WB_EXPECT(ret == 0, "TLSv1 all-valid baseline");
+#endif
+
+    /* ---- wc_PRF_TLS(), kdf.c:303 and the :324 labLen bound ---- */
+
+    ret = wc_PRF_TLS(NULL, digLen, sec, secLen, lab, labLen, seed, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLS digest==NULL");
+
+    ret = wc_PRF_TLS(NULL, 0, sec, secLen, lab, labLen, seed, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret != 0, "TLS digest==NULL/digLen==0 falls through");
+
+    ret = wc_PRF_TLS(dig, digLen, NULL, secLen, lab, labLen, seed, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLS secret==NULL");
+
+    /* secLen == 0 falls through the guard; labBig then trips :324:0. */
+    ret = wc_PRF_TLS(dig, digLen, NULL, 0, lab, labBig, seed, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BUFFER_E), "TLS labLen>MAX_PRF_LABSEED");
+
+    ret = wc_PRF_TLS(dig, digLen, sec, secLen, NULL, labLen, seed, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLS label==NULL");
+
+    ret = wc_PRF_TLS(dig, digLen, sec, secLen, NULL, 0, seed, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == 0, "TLS label==NULL/labLen==0 accepted");
+
+    ret = wc_PRF_TLS(dig, digLen, sec, secLen, lab, labLen, NULL, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "TLS seed==NULL");
+
+    ret = wc_PRF_TLS(dig, digLen, sec, secLen, lab, labLen, NULL, 0,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == 0, "TLS seed==NULL/seedLen==0 accepted");
+
+    ret = wc_PRF_TLS(dig, digLen, sec, secLen, lab, labLen, seed, seedLen,
+        1, sha256_mac, NULL, INVALID_DEVID);
+    WB_EXPECT(ret == 0, "TLS all-valid baseline");
+
+    WB_NOTE("wc_PRF/wc_PRF_TLSv1/wc_PRF_TLS argument-guard pairs exercised");
+}
+#else
+static void wb_prf_arg_guard(void)
+{ WB_NOTE("WOLFSSL_HAVE_PRF/HMAC/SHA256 off; PRF argument guards skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -243,6 +425,7 @@ int main(void)
     wb_tls13_hkdf_extract_guard();
     wb_prf_alloc_guard();
     wb_kda_kdf_onestep_errprop();
+    wb_prf_arg_guard();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Always 0: a nonzero exit discards this variant's whole coverage. */
