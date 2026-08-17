@@ -32,14 +32,22 @@
  *            qemu-aarch64 lane only) .............................. 18 conditions
  *   Class 5  AArch64 GCM streaming internal ptr!=NULL guards
  *            (WOLFSSL_ARMASM, __aarch64__, qemu-aarch64 lane only) ..4 conditions
- * Classes 4 and 5 only compile in the qemu-aarch64 emulator lane (see
+ *   Class 7  AesKeyWrapRaw / AesKeyUnWrapRaw argument guards
+ *            (HAVE_AES_KEYWRAP) .................................. 11 conditions
+ *   Class 8  roll_auth()'s block-cipher return guard (HAVE_AESCCM) .. 1 condition
+ *   Class 9  wc_AesCcmEncrypt()'s use_aesni dispatch (WOLFSSL_AESNI)  1 condition
+ *   Class 10 AArch64 CTR leftover-keystream loop (WOLFSSL_ARMASM,
+ *            __aarch64__, qemu-aarch64 lane only) ................. 2 conditions
+ * Classes 4, 5 and 10 only compile in the qemu-aarch64 emulator lane (see
  * iso26262/mcdc-per-module campaign, db/lanes.json); on every other build
  * they reduce to a no-op stub so this file still compiles+runs natively.
- * The remaining 4 union residuals are structurally uncoverable even here
- * (2 complementary-operand decisions where unique-cause MC/DC is unsatisfiable,
- * 1 needs an internal AES failure not selectable without corrupting state,
- * 1 dead defensive branch on a provably-bounded loop index) and stay justified
- * in reports/aes/RESIDUALS.md.
+ * The remaining union residuals are structurally uncoverable even here
+ * (complementary-operand decisions where unique-cause MC/DC is unsatisfiable,
+ * a dead defensive branch on a provably-bounded loop index, and
+ * AesCfbDecrypt_C's `ret == 0` loop guard: the only build axis that compiles
+ * that block, WOLFSSL_ARMASM, also selects a wc_AesEncrypt() with no failure
+ * path). Those stay justified in campaign/db/exclusions.json + EXCLUSIONS.md
+ * and reports/aes/RESIDUALS.md.
  */
 
 /* Pull aes.c in verbatim so the file-static and WOLFSSL_LOCAL helpers below are
@@ -823,6 +831,334 @@ static void wb_aesgcm_asm_aad(void)
 { WB_NOTE("GCM ASM cores not the compiled backend here; AAD guard skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Class 7: the RFC 3394 core loops' own argument guards (11 conditions).
+ *
+ *   AesKeyWrapRaw   (line ~17320, idx0..idx4)
+ *       if (aes == NULL || out == NULL || aiv == NULL ||
+ *           inSz < 2 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0)
+ *   AesKeyUnWrapRaw (line ~17475, idx0..idx5)
+ *       if (aes == NULL || in == NULL || out == NULL || aOut == NULL ||
+ *           inSz < 3 * KEYWRAP_BLOCK_SIZE || (inSz % KEYWRAP_BLOCK_SIZE) != 0)
+ *
+ * Both are file-static helpers introduced when wc_AesKeyWrap_ex() /
+ * wc_AesKeyUnWrap_ex() were split so RFC 5649 padded wrapping could reuse the
+ * loops. Every caller in aes.c validates the same properties first (and the
+ * padded entry points derive inSz themselves), so no public call can make any
+ * of these operands true -- the guards are defence in depth against a future
+ * caller. Each rejection short-circuits before the pointer is read or the
+ * buffer is touched, so the oversized inSz values below never index anything.
+ *
+ * The accepting vector (all operands false) is completed inside THIS binary by
+ * a real wrap/unwrap round trip, because llvm-cov derives independence pairs
+ * per binary.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_AES) && defined(HAVE_AES_KEYWRAP) && defined(HAVE_AES_DECRYPT)
+static void wb_keywrap_raw(void)
+{
+    Aes  enc;
+    Aes  dec;
+    byte kek[16];
+    byte aiv[KEYWRAP_BLOCK_SIZE];
+    byte plain[2 * KEYWRAP_BLOCK_SIZE];
+    byte wrapped[3 * KEYWRAP_BLOCK_SIZE];
+    byte recovered[2 * KEYWRAP_BLOCK_SIZE];
+    byte a[KEYWRAP_BLOCK_SIZE];
+
+    XMEMSET(kek, 0x5a, sizeof(kek));
+    XMEMSET(aiv, 0xA6, sizeof(aiv));
+    XMEMSET(plain, 0x3c, sizeof(plain));
+    XMEMSET(wrapped, 0, sizeof(wrapped));
+    XMEMSET(recovered, 0, sizeof(recovered));
+    XMEMSET(a, 0, sizeof(a));
+
+    if (wc_AesInit(&enc, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (key-wrap raw guards skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_AesSetKey(&enc, kek, (word32)sizeof(kek), NULL,
+            AES_ENCRYPTION) != 0) {
+        WB_NOTE("wc_AesSetKey(ENCRYPTION) failed (key-wrap raw guards "
+                "skipped)");
+        wb_fail = 1;
+        wc_AesFree(&enc);
+        return;
+    }
+
+    /* One operand true at a time, every earlier operand false. */
+    (void)AesKeyWrapRaw(NULL, (word32)sizeof(plain), wrapped, aiv);
+    (void)AesKeyWrapRaw(&enc, (word32)sizeof(plain), NULL,    aiv);
+    (void)AesKeyWrapRaw(&enc, (word32)sizeof(plain), wrapped, NULL);
+    (void)AesKeyWrapRaw(&enc, KEYWRAP_BLOCK_SIZE,    wrapped, aiv);
+    (void)AesKeyWrapRaw(&enc, 2 * KEYWRAP_BLOCK_SIZE + 1, wrapped, aiv);
+
+    /* All false: the plaintext is staged at out+8 the way wc_AesKeyWrap_ex()
+     * stages it, so this is a real RFC 3394 wrap. */
+    XMEMCPY(wrapped + KEYWRAP_BLOCK_SIZE, plain, sizeof(plain));
+    if (AesKeyWrapRaw(&enc, (word32)sizeof(plain), wrapped, aiv) != 0) {
+        WB_NOTE("AesKeyWrapRaw valid call failed");
+        wb_fail = 1;
+    }
+    wc_AesFree(&enc);
+
+    if (wc_AesInit(&dec, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (key-unwrap raw guards skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_AesSetKey(&dec, kek, (word32)sizeof(kek), NULL,
+            AES_DECRYPTION) != 0) {
+        WB_NOTE("wc_AesSetKey(DECRYPTION) failed (key-unwrap raw guards "
+                "skipped)");
+        wb_fail = 1;
+        wc_AesFree(&dec);
+        return;
+    }
+
+    (void)AesKeyUnWrapRaw(NULL, wrapped, (word32)sizeof(wrapped), recovered, a);
+    (void)AesKeyUnWrapRaw(&dec, NULL,    (word32)sizeof(wrapped), recovered, a);
+    (void)AesKeyUnWrapRaw(&dec, wrapped, (word32)sizeof(wrapped), NULL,      a);
+    (void)AesKeyUnWrapRaw(&dec, wrapped, (word32)sizeof(wrapped), recovered,
+                          NULL);
+    (void)AesKeyUnWrapRaw(&dec, wrapped, 2 * KEYWRAP_BLOCK_SIZE, recovered, a);
+    (void)AesKeyUnWrapRaw(&dec, wrapped, 3 * KEYWRAP_BLOCK_SIZE + 1, recovered,
+                          a);
+
+    /* All false: unwrap what was wrapped above and check it round-trips, so
+     * the accepting vector is an evidenced one rather than a bare call. */
+    if (AesKeyUnWrapRaw(&dec, wrapped, (word32)sizeof(wrapped), recovered,
+            a) != 0) {
+        WB_NOTE("AesKeyUnWrapRaw valid call failed");
+        wb_fail = 1;
+    }
+    else if (XMEMCMP(recovered, plain, sizeof(plain)) != 0 ||
+             XMEMCMP(a, aiv, sizeof(aiv)) != 0) {
+        WB_NOTE("AesKeyWrapRaw/AesKeyUnWrapRaw round trip mismatch");
+        wb_fail = 1;
+    }
+    wc_AesFree(&dec);
+
+    WB_NOTE("AesKeyWrapRaw/AesKeyUnWrapRaw argument-guard pairs exercised "
+            "(11 conditions)");
+}
+#else
+static void wb_keywrap_raw(void)
+{ WB_NOTE("AES key wrap not compiled in this variant; raw guards skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 8: roll_auth()'s block-cipher return guard (line ~15412, idx0).
+ *
+ *   ret = AesEncrypt_preFetchOpt(aes, out, out, &never_prefetch);
+ *   if ((ret == 0) && (inSz > 0)) {
+ *
+ * `ret` has exactly one assignment before the decision, so idx0 can only be
+ * false when that block-cipher call fails. wc_AesCcmEncrypt() /
+ * wc_AesCcmDecrypt() are the only callers and they reach roll_auth() with a
+ * fully validated Aes, so from the public API idx0 is always true.
+ *
+ * BUILD-AXIS GUARD: the false half is driven by putting aes->rounds outside
+ * the 2..14 the cipher accepts, which only rejects on the build axis whose
+ * wc_AesEncrypt() carries the "r > 7 || r == 0" check (line ~3545). The
+ * WOLFSSL_ARMASM and WOLFSSL_RISCV_ASM arms define a wc_AesEncrypt() that has
+ * no failure path at all and would hand rounds == 0 straight to the assembly
+ * routine, so this section is compiled off there. The check runs before the
+ * key schedule is read, so the rejected call touches nothing.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_AESCCM) && !defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_RISCV_ASM)
+static void wb_ccm_roll_auth_ret(void)
+{
+    Aes    aes;
+    byte   key[16];
+    byte   in[32];
+    byte   blk[WC_AES_BLOCK_SIZE];
+    word32 savedRounds;
+
+    XMEMSET(key, 0x11, sizeof(key));
+    XMEMSET(in, 0x22, sizeof(in));
+    XMEMSET(blk, 0, sizeof(blk));
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("wc_AesInit failed (roll_auth return guard skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_AesSetKey(&aes, key, (word32)sizeof(key), NULL,
+            AES_ENCRYPTION) != 0) {
+        WB_NOTE("wc_AesSetKey failed (roll_auth return guard skipped)");
+        wb_fail = 1;
+        wc_AesFree(&aes);
+        return;
+    }
+
+    /* (T,T): the cipher succeeds and, with 32 bytes of header, data is still
+     * pending after the first block is filled. */
+    if (roll_auth(&aes, in, (word32)sizeof(in), blk) != 0) {
+        WB_NOTE("roll_auth valid call failed");
+        wb_fail = 1;
+    }
+
+    /* (F,-): the cipher rejects the round count, so ret != 0 at the decision
+     * and idx1 is never evaluated. */
+    savedRounds = aes.rounds;
+    aes.rounds = 0;
+    (void)roll_auth(&aes, in, (word32)sizeof(in), blk);
+    aes.rounds = savedRounds;
+
+    wc_AesFree(&aes);
+    WB_NOTE("roll_auth block-cipher return guard pair exercised");
+}
+#else
+static void wb_ccm_roll_auth_ret(void)
+{ WB_NOTE("this variant's wc_AesEncrypt has no failure path; roll_auth "
+          "return guard skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 9: wc_AesCcmEncrypt()'s AES-NI dispatch (line ~15576, idx1).
+ *
+ *   if ((ret == 0) && aes->use_aesni) {
+ *
+ * This decision only compiles under WOLFSSL_AESNI, and on an AES-NI host
+ * wc_AesSetKey() always leaves use_aesni set, so tests/api never sees the
+ * false half. aes.c caches the CPU answer in the file-statics checkedAESNI /
+ * haveAESNI and consults them on every key install; pinning them to
+ * "AES-NI absent" before the key is installed makes wc_AesSetKey() take
+ * AesSetKey_C() and leave use_aesni 0 together with a matching software key
+ * schedule, so the CCM call that follows is state-consistent rather than a
+ * half-forced hybrid. The true half is the host's own natural case, run first
+ * so both halves land in this binary.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_AESCCM) && defined(WOLFSSL_AESNI)
+static void wb_ccm_aesni_dispatch(void)
+{
+    Aes  aes;
+    byte key[16];
+    byte nonce[13];
+    byte in[4 * WC_AES_BLOCK_SIZE];
+    byte out[4 * WC_AES_BLOCK_SIZE];
+    byte tag[WC_AES_BLOCK_SIZE];
+    int  savedChecked;
+    int  savedHave;
+
+    XMEMSET(key, 0x33, sizeof(key));
+    XMEMSET(nonce, 0x44, sizeof(nonce));
+    XMEMSET(in, 0x55, sizeof(in));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(tag, 0, sizeof(tag));
+
+    /* idx1 TRUE: natural detection. */
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0 ||
+        wc_AesCcmSetKey(&aes, key, (word32)sizeof(key)) != 0) {
+        WB_NOTE("CCM key setup failed (AES-NI dispatch skipped)");
+        wb_fail = 1;
+        return;
+    }
+    if (wc_AesCcmEncrypt(&aes, out, in, (word32)sizeof(in),
+            nonce, (word32)sizeof(nonce), tag, (word32)sizeof(tag),
+            NULL, 0) != 0) {
+        WB_NOTE("wc_AesCcmEncrypt failed (AES-NI enabled)");
+        wb_fail = 1;
+    }
+    if (!aes.use_aesni) {
+        WB_NOTE("host reports no AES-NI; use_aesni TRUE half not reached");
+    }
+    wc_AesFree(&aes);
+
+    /* idx1 FALSE: pin the cached CPU answer to "absent" for this key. */
+    savedChecked = checkedAESNI;
+    savedHave    = haveAESNI;
+    checkedAESNI = 1;
+    haveAESNI    = 0;
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) == 0 &&
+        wc_AesCcmSetKey(&aes, key, (word32)sizeof(key)) == 0) {
+        if (wc_AesCcmEncrypt(&aes, out, in, (word32)sizeof(in),
+                nonce, (word32)sizeof(nonce), tag, (word32)sizeof(tag),
+                NULL, 0) != 0) {
+            WB_NOTE("wc_AesCcmEncrypt failed (AES-NI inhibited)");
+            wb_fail = 1;
+        }
+        wc_AesFree(&aes);
+    }
+    else {
+        WB_NOTE("CCM key setup failed with AES-NI inhibited");
+        wb_fail = 1;
+    }
+    checkedAESNI = savedChecked;
+    haveAESNI    = savedHave;
+
+    WB_NOTE("wc_AesCcmEncrypt use_aesni dispatch pair exercised");
+}
+#else
+static void wb_ccm_aesni_dispatch(void)
+{ WB_NOTE("WOLFSSL_AESNI off or no CCM; CCM AES-NI dispatch skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Class 10: the AArch64 CTR leftover-keystream loop (line ~7996, idx0+idx1).
+ *
+ *   while ((aes->left != 0) && (sz != 0)) {
+ *
+ * This is the base (non-crypto-extension) CTR body. On the qemu-aarch64 lane
+ * the CPU advertises FEAT_AES, so wc_AesCtrEncrypt() dispatches to
+ * AES_CTR_encrypt_AARCH64() and returns before ever reaching this loop; the
+ * body is only entered with use_aes_hw_crypto false. Seeding the file-static
+ * cpuid_flags with an AES-less value before the key is installed derives that
+ * field false and leaves it on the Aes for every later call, the same seam
+ * Class 4 uses.
+ *
+ * Both operands then pair on plain data: the first call starts with left == 0
+ * (idx0 false, loop skipped) and its 4-byte tail leaves left == 12; the second
+ * call runs five iterations with left != 0 and sz != 0 (idx0/idx1 true) and
+ * exits when sz reaches 0 (idx1 false).
+ * ------------------------------------------------------------------------- */
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(WOLFSSL_AES_COUNTER)
+static void wb_aarch64_ctr_leftover(void)
+{
+    cpuid_flags_t saved = cpuid_flags;
+    Aes  aes;
+    byte key[16];
+    byte iv[WC_AES_BLOCK_SIZE];
+    byte in[32];
+    byte out[32];
+
+    XMEMSET(key, 0x66, sizeof(key));
+    XMEMSET(iv, 0x77, sizeof(iv));
+    XMEMSET(in, 0x88, sizeof(in));
+    XMEMSET(out, 0, sizeof(out));
+
+    cpuid_flags = (cpuid_flags_t)0;
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) == 0 &&
+        wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+            AES_ENCRYPTION) == 0) {
+        /* left == 0 on entry -> idx0 false; 20 % 16 = 4 leaves left == 12. */
+        if (wc_AesCtrEncrypt(&aes, out, in, 20) != 0) {
+            WB_NOTE("wc_AesCtrEncrypt (20 bytes) failed");
+            wb_fail = 1;
+        }
+        /* left == 12, sz == 5 -> idx0/idx1 true, then sz == 0 -> idx1 false. */
+        if (wc_AesCtrEncrypt(&aes, out, in, 5) != 0) {
+            WB_NOTE("wc_AesCtrEncrypt (5 bytes) failed");
+            wb_fail = 1;
+        }
+        wc_AesFree(&aes);
+    }
+    else {
+        WB_NOTE("aarch64 CTR key setup failed; leftover loop skipped");
+        wb_fail = 1;
+    }
+    cpuid_flags = saved;
+
+    WB_NOTE("aarch64 CTR leftover-keystream loop pairs exercised");
+}
+#else
+static void wb_aarch64_ctr_leftover(void)
+{ WB_NOTE("aarch64 base CTR body not compiled in this variant; skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -841,6 +1177,10 @@ int main(void)
     wb_aesgcm_init_ivsz();
     wb_aesgcm_core_aad();
     wb_aesgcm_asm_aad();
+    wb_keywrap_raw();
+    wb_ccm_roll_auth_ret();
+    wb_ccm_aesni_dispatch();
+    wb_aarch64_ctr_leftover();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the campaign
      * treats a nonzero exit as a failed variant and discards its coverage. */
