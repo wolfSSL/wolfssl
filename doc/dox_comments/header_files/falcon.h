@@ -212,7 +212,11 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng);
     \param [in] inLen Length of the message in bytes.
     \param [out] out Buffer to receive the signature.
     \param [in,out] outLen In: size of out; Out: signature length.
-    \param [in] key Pointer to a falcon_key holding a private key.
+    \param [in,out] key Pointer to a falcon_key holding a private key. With
+    WC_FALCON_CACHE_EXPANDED_KEY or WC_FALCON_CACHE_PRIV_BASIS the first call
+    fills a per-key cache and later calls read it. That cache is not
+    synchronized: such a key must not be signed with from two threads at once,
+    nor freed, re-levelled or re-imported while a signature is in flight.
     \param [in] rng Pointer to an initialized WC_RNG.
 
     _Example_

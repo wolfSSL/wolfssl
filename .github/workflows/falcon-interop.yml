@@ -175,10 +175,16 @@ jobs:
           - { name: 'avx2',              runner: ubuntu-latest,    opts: '--enable-falcon=avx2',           avx2: true }
           - { name: 'small-mem',         runner: ubuntu-latest,    opts: '--enable-falcon=small-mem' }
           - { name: 'avx2+small-mem',    runner: ubuntu-latest,    opts: '--enable-falcon=avx2,small-mem', avx2: true }
-          - { name: 'neon (ARM64)',      runner: ubuntu-24.04-arm, opts: '--enable-falcon=neon' }
+          # -ffp-contract=off: --enable-falcon=neon implies the native double fpr
+          # seam, and aarch64 has baseline FMA with contraction on by default, so
+          # without this even the scalar ops can round differently here.
+          - { name: 'neon (ARM64)',      runner: ubuntu-24.04-arm, opts: '--enable-falcon=neon', cflags: '-ffp-contract=off' }
+          - { name: 'cache-key',         runner: ubuntu-latest,    opts: '--enable-falcon=cache-key' }
+          - { name: 'cache-basis',       runner: ubuntu-latest,    opts: '--enable-falcon=cache-basis' }
+          - { name: 'cache-key+small-mem', runner: ubuntu-latest,  opts: '--enable-falcon=cache-key,small-mem' }
           # verify-only strips keygen/sign, so it is a build/link check only
           # (testwolfcrypt's falcon_test needs signing).
-          - { name: 'verify-only',       runner: ubuntu-latest,    opts: '--enable-falcon CPPFLAGS=-DWOLFSSL_FALCON_VERIFY_ONLY', build_only: true }
+          - { name: 'verify-only',       runner: ubuntu-latest,    opts: '--enable-falcon', cppflags: '-DWOLFSSL_FALCON_VERIFY_ONLY', build_only: true }
     steps:
       - name: Install build tools
         run: |
@@ -217,12 +223,20 @@ jobs:
         if: ${{ matrix.avx2 }}
         run: grep -q avx2 /proc/cpuinfo || { echo "::error::runner lacks AVX2"; exit 1; }
 
+      # WC_RNG_SEED_CB makes the DRBG reproducible, which is what lets the
+      # deterministic Falcon vector run at all.
       - name: Build wolfSSL (Falcon ${{ matrix.name }})
         run: |
           ./autogen.sh
-          ./configure ${{ matrix.opts }} --enable-experimental --enable-static
+          ./configure ${{ matrix.opts }} --enable-experimental --enable-static \
+              CPPFLAGS="-DWC_RNG_SEED_CB ${{ matrix.cppflags }}" \
+              CFLAGS="-O2 ${{ matrix.cflags }}"
           make -j$(nproc)
 
       - name: Run wolfCrypt Falcon self-test
         if: ${{ ! matrix.build_only }}
         run: ./wolfcrypt/test/testwolfcrypt
+
+      - name: Run Falcon API tests (includes the deterministic vector)
+        if: ${{ ! matrix.build_only }}
+        run: ./tests/unit.test --group falcon

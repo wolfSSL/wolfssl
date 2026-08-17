@@ -19,6 +19,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* Build-time tuning knobs. Set these in user_settings.h or with -D; the
+ * fpr/FFT backend selectors (WOLFSSL_FALCON_FPR_ASM, WOLFSSL_FALCON_FPR_DOUBLE,
+ * WOLFSSL_FALCON_FFT_AVX2, WOLFSSL_FALCON_FFT_NEON) and
+ * WOLFSSL_FALCON_SIGN_SMALL_MEM come from --enable-falcon=<opts>.
+ *
+ * WC_FALCON_CACHE_PRIV_BASIS                             Default: OFF
+ *   Cache the secret basis (f, g, F, G) in the key on first sign.
+ *   Skips the private-key decode and the G recomputation in later signs.
+ *   Costs 4*n bytes of heap per key (4KB at Falcon-1024).
+ * WC_FALCON_CACHE_EXPANDED_KEY                           Default: OFF
+ *   Cache the expanded key (FFT basis plus normalized ffLDL tree) in the key
+ *   on first sign. Skips all per-key setup in later signs, which is over half
+ *   of a signature with the emulated fpr backend.
+ *   Costs 8*(logn+5)*2^logn bytes of heap per key (~57KB at Falcon-512,
+ *   ~120KB at Falcon-1024).
+ *   Implies WC_FALCON_CACHE_PRIV_BASIS in small-mem builds, which have no
+ *   expanded key to cache.
+ *
+ * Both caches hold secret material, are zeroized when dropped, and are
+ * invalidated whenever the private key changes. Neither is synchronized: a key
+ * being used to sign concurrently from several threads must be built with them
+ * off, or have its first signature made before the key is shared.
+ */
+
 #define _WC_BUILDING_FALCON_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -4528,6 +4552,7 @@ int falcon_sampler_init(falcon_sampler_ctx* spc, int logn, WC_RNG* rng)
  * These mirror the named constants in the reference fpr.h that are not part of
  * the fpr seam declared above. */
 static const fpr fpr_q         = 4667981563525332992ULL; /* (double)12289      */
+static const fpr fpr_q_sqr     = 4729343383359717376ULL; /* (double)12289^2    */
 static const fpr fpr_bnorm_max = 4670353323383631276ULL; /* 1.17^2 * q bound   */
 
 /* Per-level coefficient bounds, indexed by logn (1..10). Ported from the
@@ -6522,6 +6547,47 @@ int falcon_complete_private(sword8* G, const sword8* f, const sword8* g,
 /* ==================================================================== */
 /* ffLDL tree construction (expand_privkey).                             */
 
+/* LDL* of the Gram matrix at the ffLDL root. The basis is the NTRU basis, so
+ * det(G) = q^2 (f*G - g*F = q) and D11 = q^2/G00 directly. The general
+ * D11 = G11 - L10*adj(G01) subtracts two values of size ~|F,G|^2 to land on
+ * one of size ~q^2/G00, losing about ten bits of mantissa to cancellation.
+ * Unlike the general form this holds only for a determinant-q basis, which no
+ * caller on the signing path verifies; wc_falcon_check_key does.
+ *
+ * l10 receives L10 and may be g01 (in place); d11 receives D11 and must alias
+ * neither input. Scalar in every backend: the root is one pass over
+ * 2^(logn-1) points, and a vectorized twin would have to reproduce this
+ * rounding exactly.
+ */
+static void falcon_poly_LDL_ntru_root_fft(fpr* d11, fpr* l10, const fpr* g00,
+        const fpr* g01, unsigned logn)
+{
+    size_t n = (size_t)1 << logn, hn = n >> 1, u;
+
+    for (u = 0; u < hn; u++) {
+        fpr g00_re = g00[u], g00_im = g00[u + hn];
+        fpr g01_re = g01[u], g01_im = g01[u + hn];
+        fpr m, i_re, i_im, mu_re, mu_im;
+
+        /* 1/g00 = conj(g00) / |g00|^2, shared by L10 and D11. The operation
+         * order matches FPC_DIV so L10 is unchanged bit for bit. */
+        m = fpr_inv(fpr_add(fpr_mul(g00_re, g00_re),
+                            fpr_mul(g00_im, g00_im)));
+        i_re = fpr_mul(g00_re, m);
+        i_im = fpr_neg(fpr_mul(g00_im, m));
+
+        mu_re = fpr_sub(fpr_mul(g01_re, i_re), fpr_mul(g01_im, i_im));
+        mu_im = fpr_add(fpr_mul(g01_re, i_im), fpr_mul(g01_im, i_re));
+
+        /* D11 = q^2 * (1/g00); real up to rounding, so keep both parts. */
+        d11[u] = fpr_mul(fpr_q_sqr, i_re);
+        d11[u + hn] = fpr_mul(fpr_q_sqr, i_im);
+
+        l10[u] = mu_re;
+        l10[u + hn] = fpr_neg(mu_im);
+    }
+}
+
 /* The eager ffLDL tree + tree-based signer are compiled only for the default
  * (fast) path. WOLFSSL_FALCON_SIGN_SMALL_MEM builds the dynamic signer instead,
  * which rebuilds the tree inside the sampler and so does not use any of this. */
@@ -6610,11 +6676,12 @@ static void ffLDL_fft_inner(fpr* tree, fpr* g0, fpr* g1, unsigned logn,
     }
 }
 
-/* Compute the ffLDL tree of the auto-adjoint matrix [[g00, adj(g01)],
- * [g01, g11]] (FFT representation). tmp[] needs room for at least three
- * polynomials. */
+/* Compute the ffLDL tree of the auto-adjoint NTRU Gram matrix
+ * [[g00, adj(g01)], [g01, g11]] (FFT representation). g11 is not a parameter:
+ * falcon_poly_LDL_ntru_root_fft derives D11 from g00 alone. tmp[] needs room
+ * for at least three polynomials. */
 static void ffLDL_fft(fpr* tree, const fpr* g00, const fpr* g01,
-        const fpr* g11, unsigned logn, fpr* tmp)
+        unsigned logn, fpr* tmp)
 {
     size_t n, hn;
     fpr* d00;
@@ -6631,7 +6698,7 @@ static void ffLDL_fft(fpr* tree, const fpr* g00, const fpr* g01,
     tmp += n << 1;
 
     XMEMCPY(d00, g00, n * sizeof(*g00));
-    falcon_poly_LDLmv_fft(d11, tree, g00, g01, g11, logn);
+    falcon_poly_LDL_ntru_root_fft(d11, tree, g00, g01, logn);
 
     falcon_poly_split_fft(tmp, tmp + hn, d00, logn);
     falcon_poly_split_fft(d00, d00 + hn, d11, logn);
@@ -6779,14 +6846,11 @@ int falcon_expand_privkey(fpr* expanded, const sword8* f, const sword8* g,
     falcon_poly_muladj_fft(gxx, b11, logn);
     falcon_poly_add(g01, gxx, logn);
 
-    XMEMCPY(g11, b10, n * sizeof(*b10));
-    falcon_poly_mulselfadj_fft(g11, logn);
-    XMEMCPY(gxx, b11, n * sizeof(*b11));
-    falcon_poly_mulselfadj_fft(gxx, logn);
-    falcon_poly_add(g11, gxx, logn);
+    /* g11 is deliberately not formed: ffLDL_fft derives the root D11 from
+     * det(G) = q^2 and g00, and no other level reads it. */
 
     /* Falcon tree, then normalization. */
-    ffLDL_fft(tree, g00, g01, g11, logn, gxx);
+    ffLDL_fft(tree, g00, g01, logn, gxx);
     ffLDL_binary_normalize(tree, logn, logn);
 
     /* tmp held the secret-derived Gram matrix and ffLDL intermediates. */
@@ -7322,8 +7386,15 @@ static void falcon_ffSampling_fft_dyntree(falcon_samplerZ samp, void* samp_ctx,
         hn = n >> 1;
 
         if (f->stage == FALCON_DYN_STAGE_ENTER) {
-            /* Decompose G into LDL (in place): keep d00 (== g00), d11 and l10. */
-            falcon_poly_LDL_fft(f->g00, f->g01, f->g11, f->logn);
+            /* Decompose G into LDL (in place): keep d00 (== g00), d11 and
+             * l10, the root taken from det(G) = q^2. */
+            if (f->logn == orig_logn) {
+                falcon_poly_LDL_ntru_root_fft(f->g11, f->g01, f->g00, f->g01,
+                        f->logn);
+            }
+            else {
+                falcon_poly_LDL_fft(f->g00, f->g01, f->g11, f->logn);
+            }
             /* Split d00 and d11 into half-size Gram matrices; save l10 in tmp. */
             falcon_poly_split_fft(f->tmp, f->tmp + hn, f->g00, f->logn);
             XMEMCPY(f->g00, f->tmp, n * sizeof(fpr));
@@ -7408,9 +7479,8 @@ static int falcon_do_sign_dyn_once(falcon_samplerZ samp, void* samp_ctx,
     falcon_poly_mulselfadj_fft(b00, logn); falcon_poly_add(b00, t0, logn); /* g00 */
     XMEMCPY(t0, b01, n * sizeof(fpr));
     falcon_poly_muladj_fft(b01, b11, logn); falcon_poly_add(b01, t1, logn); /* g01 */
-    falcon_poly_mulselfadj_fft(b10, logn);
-    XMEMCPY(t1, b11, n * sizeof(fpr)); falcon_poly_mulselfadj_fft(t1, logn);
-    falcon_poly_add(b10, t1, logn);                                        /* g11 */
+    /* g11 is not formed: the sampler derives the root D11 from det(G) = q^2,
+     * and b10 only has to be the buffer that D11 is written into. */
 
     /* Layout now: g00 g01 g11 b11 b01 t0 t1. */
     g00 = b00; g01 = b01; g11 = b10;
@@ -8173,6 +8243,35 @@ static int falcon_level_params(byte level, unsigned* logn, int* n, word32* pubSz
 }
 
 #ifndef WOLFSSL_FALCON_VERIFY_ONLY
+
+#if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
+/* Release every cached copy of secret key material held by the key. Call this
+ * whenever the key stops describing what the cache was built from: a level
+ * change, a new private key, or teardown. Each buffer is wiped at its own
+ * recorded length, so an out-of-range key->level cannot skip or mis-size it. */
+static void falcon_cache_clear(falcon_key* key)
+{
+#ifdef WC_FALCON_CACHE_TREE
+    if (key->expanded != NULL) {
+        ForceZero(key->expanded, key->expandedSz);
+        XFREE(key->expanded, key->heap, DYNAMIC_TYPE_FALCON);
+        key->expanded = NULL;
+    }
+    key->expandedSz = 0;
+    key->expandedSet = 0;
+#endif
+#ifdef WC_FALCON_CACHE_PRIV_BASIS
+    if (key->basis != NULL) {
+        ForceZero(key->basis, key->basisSz);
+        XFREE(key->basis, key->heap, DYNAMIC_TYPE_FALCON);
+        key->basis = NULL;
+    }
+    key->basisSz = 0;
+    key->basisSet = 0;
+#endif
+}
+#endif /* WC_FALCON_CACHE_TREE || WC_FALCON_CACHE_PRIV_BASIS */
+
 int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
 {
     int ret = 0;
@@ -8238,6 +8337,10 @@ int falcon_native_make_key(falcon_key* key, WC_RNG* rng)
         goto out;
     }
 
+#if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
+    /* The freshly generated key replaces whatever the cache was built from. */
+    falcon_cache_clear(key);
+#endif
     /* Encode the secret key (header | f | g | F) into key->k. */
     if (falcon_privkey_encode(key->k, keySz, f, g, F, logn) != (size_t)keySz) {
         ret = BAD_FUNC_ARG;
@@ -8257,6 +8360,87 @@ out:
     return ret;
 }
 
+/* Load the secret basis f | g | F | G into the 4n contiguous bytes at 'basis'
+ * and, in the tree signer, expand it into *expanded. With the cache options
+ * the work happens once per key instead of once per signature. Vector
+ * registers must already be held by the caller. */
+static int falcon_sign_key_setup(falcon_key* key, word32 keySz, unsigned logn,
+        size_t n, sword8* basis, fpr** expanded)
+{
+    int ret = 0;
+    int haveBasis = 0;
+    sword8* f = basis;
+    sword8* g = basis + n;
+    sword8* F = g + n;
+    sword8* G = F + n;
+
+    (void)expanded;
+
+#ifdef WC_FALCON_CACHE_TREE
+    if (key->expanded == NULL) {
+        word32 expandedSz =
+            (word32)(sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn));
+
+        key->expanded = (word64*)XMALLOC(expandedSz, key->heap,
+            DYNAMIC_TYPE_FALCON);
+        if (key->expanded == NULL) {
+            return MEMORY_E;
+        }
+        key->expandedSz = expandedSz;
+        key->expandedSet = 0;
+    }
+    *expanded = (fpr*)key->expanded;
+    if (key->expandedSet) {
+        return 0;
+    }
+#endif
+#ifdef WC_FALCON_CACHE_PRIV_BASIS
+    if (key->basis == NULL) {
+        key->basis = (sword8*)XMALLOC(4 * n, key->heap, DYNAMIC_TYPE_FALCON);
+        if (key->basis == NULL) {
+            return MEMORY_E;
+        }
+        key->basisSz = (word32)(4 * n);
+        key->basisSet = 0;
+    }
+    if (key->basisSet) {
+        XMEMCPY(basis, key->basis, 4 * n);
+        haveBasis = 1;
+    }
+#endif
+
+    if (!haveBasis) {
+        ret = falcon_privkey_decode(key->k, keySz, f, g, F, logn);
+        if (ret == 0) {
+            ret = falcon_complete_private(G, f, g, F, logn, key->heap);
+        }
+#ifdef WC_FALCON_CACHE_PRIV_BASIS
+        if (ret == 0) {
+            XMEMCPY(key->basis, basis, 4 * n);
+            key->basisSet = 1;
+        }
+#endif
+    }
+
+#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
+    if (ret == 0) {
+        ret = falcon_expand_privkey(*expanded, f, g, F, G, logn, key->heap);
+    }
+#ifdef WC_FALCON_CACHE_TREE
+    if (ret == 0) {
+        key->expandedSet = 1;
+    }
+#endif
+#endif
+#if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
+    if (ret != 0) {
+        /* Nothing was cached, so do not keep the buffers reserved for it. */
+        falcon_cache_clear(key);
+    }
+#endif
+    return ret;
+}
+
 int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outLen,
         falcon_key* key, WC_RNG* rng)
 {
@@ -8264,7 +8448,10 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     unsigned logn = 0;
     int n = 0;
     word32 pubSz = 0, keySz = 0, sigMax = 0;
-    sword8 *f = NULL, *g = NULL, *F = NULL, *G = NULL;
+    sword8* f = NULL;
+#ifdef WOLFSSL_FALCON_SIGN_SMALL_MEM
+    sword8 *g = NULL, *F = NULL, *G = NULL;
+#endif
     word16* c = NULL;
     sword16* s2 = NULL;
 #ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
@@ -8336,19 +8523,23 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
             G   = F + n;
         }
 #else
+    #ifdef WC_FALCON_CACHE_TREE
+        /* The expanded key is held by the key structure, not the arena. */
+        size_t eSz = 0;
+    #else
         size_t eSz = sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn);
+    #endif
         size_t tSz = sizeof(fpr) * FALCON_SIGN_TMP_FPR(logn);
         arenaSz = eSz + tSz + (size_t)8 * (size_t)n;  /* c+s2 = 4n, f+g+F+G = 4n */
         arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (arena != NULL) {
+    #ifndef WC_FALCON_CACHE_TREE
             expanded = (fpr*)arena;
+    #endif
             tmp      = (fpr*)(arena + eSz);
             c        = (word16*)(arena + eSz + tSz);
             s2       = (sword16*)(arena + eSz + tSz + 2 * (size_t)n);
             f        = (sword8*)(arena + eSz + tSz + 4 * (size_t)n);
-            g        = f + n;
-            F        = g + n;
-            G        = F + n;
         }
 #endif
     }
@@ -8357,11 +8548,6 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         goto out;
     }
 
-    /* Decode the secret basis, recompute G, expand to the ffLDL tree. */
-    ret = falcon_privkey_decode(key->k, keySz, f, g, F, logn);
-    if (ret != 0) {
-        goto out;
-    }
 #ifdef WOLFSSL_FALCON_SAVE_VREGS
     /* The key completion, ffLDL tree build and ffSampling below run the
      * vectorized (AVX2/NEON) FFT and pointwise kernels. Hold the vector
@@ -8374,18 +8560,18 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     }
     svr = 1;
 #endif
-    ret = falcon_complete_private(G, f, g, F, logn, heap);
-    if (ret != 0) {
-        goto out;
-    }
-#ifndef WOLFSSL_FALCON_SIGN_SMALL_MEM
-    /* Precompute the expanded key (skipped in small-mem mode: the dynamic signer
-     * rebuilds the tree on the fly for each attempt). */
-    ret = falcon_expand_privkey(expanded, f, g, F, G, logn, heap);
-    if (ret != 0) {
-        goto out;
-    }
+
+    /* Decode the secret basis, recompute G and (outside small-mem mode, where
+     * the dynamic signer rebuilds the tree per attempt) expand it. */
+#ifdef WOLFSSL_FALCON_SIGN_SMALL_MEM
+    ret = falcon_sign_key_setup(key, keySz, logn, (size_t)n, f, NULL);
+#else
+    ret = falcon_sign_key_setup(key, keySz, logn, (size_t)n, f, &expanded);
 #endif
+    if (ret != 0) {
+        goto out;
+    }
+
     ret = falcon_sampler_init(spc, (int)logn, rng);
     if (ret != 0) {
         goto out;
@@ -8761,6 +8947,13 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
+    /* Drop the caches here rather than in falcon_native_make_key, which a
+     * crypto callback servicing the keygen never reaches. A cache left behind
+     * would sign under the replaced private key. */
+    falcon_cache_clear(key);
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
@@ -9029,6 +9222,10 @@ int wc_falcon_set_level(falcon_key* key, byte level)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
+    /* Before key->level changes: the cache buffer sizes follow the old one. */
+    falcon_cache_clear(key);
+#endif
     key->level = level;
     key->pubKeySet = 0;
     key->prvKeySet = 0;
@@ -9070,6 +9267,11 @@ void wc_falcon_free(falcon_key* key)
                                    (void*)key);
             /* always continue to software cleanup */
         }
+#endif
+#if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
+        /* Zeroize and release the cached secrets before the pointers to them
+         * are cleared by the ForceZero below. */
+        falcon_cache_clear(key);
 #endif
         ForceZero(key, sizeof(*key));
 #ifdef WOLF_CRYPTO_CB
@@ -9204,6 +9406,10 @@ int wc_falcon_import_private_only(const byte* priv, word32 privSz,
         return BAD_FUNC_ARG;
     }
 
+#if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
+    /* The incoming key replaces whatever the cache was built from. */
+    falcon_cache_clear(key);
+#endif
     XMEMCPY(key->k, priv, keySz);
     key->prvKeySet = 1;
 

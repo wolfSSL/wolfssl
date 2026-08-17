@@ -122,7 +122,7 @@ int test_wc_falcon_sizes(void)
         wc_falcon_free(&key);
     }
 
-    /* Pin the spec constants so an accidental edit to falcon.h surfaces here. */
+    /* Pin the spec constants so an edit to falcon.h surfaces here. */
     ExpectIntEQ(FALCON_LEVEL1_PUB_KEY_SIZE, 897);
     ExpectIntEQ(FALCON_LEVEL1_SIG_SIZE,     666);
     ExpectIntEQ(FALCON_LEVEL5_PUB_KEY_SIZE, 1793);
@@ -442,7 +442,8 @@ int test_wc_falcon_check_key(void)
     int li;
     static const byte levels[2] = { FALCON_LEVEL1, FALCON_LEVEL5 };
 
-    pub = (byte*)XMALLOC(FALCON_MAX_PUB_KEY_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (byte*)XMALLOC(FALCON_MAX_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
     prv = (byte*)XMALLOC(FALCON_MAX_KEY_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(pub);
     ExpectNotNull(prv);
@@ -798,20 +799,334 @@ int test_wc_falcon_error_paths(void)
     return EXPECT_RESULT();
 }
 
+/* The pinned digests only reproduce under the DRBG they were produced with:
+ * SHA-256 and SHA-512 Hash_DRBG take different seed sizes, so one seed gives
+ * two unrelated streams. Hence the SHA-512 requirement below and the run-time
+ * check for wc_Sha512Drbg_Disable(); anything bypassing the DRBG is excluded. */
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+    defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(WOLFSSL_RNG_USE_FULL_SEED) && defined(WOLFSSL_DRBG_SHA512)
+
+/* Fixed seed so the DRBG, and with it key generation and signing, is
+ * reproducible. A constant fill would be rejected by the seed health test, so
+ * the bytes come from a fixed linear congruential stream. */
+static int falcon_det_seed_cb(OS_Seed* os, byte* seed, word32 sz)
+{
+    word32 i;
+    word32 s = 0x5A5A5A5AU;
+
+    (void)os;
+    for (i = 0; i < sz; i++) {
+        s = (s * 1103515245U) + 12345U;
+        seed[i] = (byte)(s >> 24);
+    }
+    return 0;
+}
+
+/* SHA-256 of buf, for pinning a key or signature without embedding it. */
+static int falcon_det_digest(const byte* buf, word32 sz, byte* out)
+{
+    wc_Sha256 sha;
+    int ret;
+
+    /* Only free what was initialized: wc_Sha256Free reads members that a
+     * failed wc_InitSha256 leaves indeterminate. */
+    ret = wc_InitSha256(&sha);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_Sha256Update(&sha, buf, sz);
+    if (ret == 0) {
+        ret = wc_Sha256Final(&sha, out);
+    }
+    wc_Sha256Free(&sha);
+    return ret;
+}
+#endif
+
+/*
+ * Deterministic key generation and signing, pinned by digest: the key digests
+ * cover key generation, the signature digest covers signing. The integer
+ * emulation, native double and assembly fpr backends are bit-exact with each
+ * other, so one seed pins all three.
+ *
+ * AVX2 and NEON fuse multiply-add and falcon.c disclaims bit-identical output
+ * for them; the digests still hold empirically, so a mismatch seen only there
+ * is a rounding change to investigate before it is called a defect.
+ */
+int test_wc_falcon_deterministic(void)
+{
+    EXPECT_DECLS;
+#if defined(WC_FALCON_HAVE_NATIVE_SIGN) && defined(WC_RNG_SEED_CB) && \
+    defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_INTEL_RDRAND) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(WOLFSSL_RNG_USE_FULL_SEED) && defined(WOLFSSL_DRBG_SHA512)
+    /* SHA-256 of the encoded public key, private key and signature the fixed
+     * seed produces, indexed by level. Verified identical across the emulated,
+     * asm, double, avx2, neon and small-mem builds. */
+    static const byte expPub[2][WC_SHA256_DIGEST_SIZE] = {
+        { 0x82, 0x67, 0x64, 0xA9, 0x6D, 0xAB, 0x82, 0xA0,
+          0xC2, 0xD5, 0x38, 0x7E, 0xDF, 0x4F, 0xAC, 0x1C,
+          0x62, 0xB0, 0x94, 0x2A, 0xEE, 0xA9, 0x50, 0x4E,
+          0x3F, 0x3A, 0x95, 0x81, 0x44, 0x06, 0x85, 0x23 },
+        { 0xFB, 0xA2, 0xEC, 0x57, 0x66, 0x98, 0xFA, 0x87,
+          0x6D, 0xE4, 0x64, 0x21, 0x7F, 0x49, 0x82, 0x70,
+          0xEA, 0x8B, 0x0D, 0x0F, 0x7C, 0xED, 0xAC, 0xA8,
+          0x05, 0x20, 0x71, 0x0B, 0x49, 0xC4, 0xF3, 0x8E }
+    };
+    static const byte expPrv[2][WC_SHA256_DIGEST_SIZE] = {
+        { 0x5B, 0x09, 0xEF, 0xE6, 0x49, 0xBF, 0x12, 0x5C,
+          0x86, 0x7F, 0xEF, 0xC3, 0xC7, 0x0F, 0xA9, 0x3F,
+          0x88, 0x31, 0x03, 0xC1, 0xFD, 0xDF, 0x28, 0x01,
+          0x9E, 0xD1, 0x72, 0x74, 0x01, 0xE9, 0x06, 0x2C },
+        { 0xFD, 0x4D, 0xB3, 0xB1, 0x96, 0x0F, 0x80, 0xEB,
+          0x7E, 0x37, 0x49, 0x9E, 0x03, 0x3D, 0x53, 0x68,
+          0x0B, 0x12, 0x16, 0xA9, 0xF6, 0x92, 0x76, 0xFA,
+          0xCD, 0x89, 0x91, 0x3B, 0xE7, 0xEB, 0x11, 0x29 }
+    };
+    static const byte expSig[2][WC_SHA256_DIGEST_SIZE] = {
+        { 0x52, 0x37, 0x4D, 0x5B, 0xFC, 0x1A, 0xCE, 0x05,
+          0x86, 0xFA, 0x76, 0x9F, 0x07, 0xE6, 0x7D, 0x46,
+          0xC9, 0x1D, 0x5A, 0xF9, 0x5B, 0x3E, 0x37, 0xDE,
+          0x34, 0x58, 0x5E, 0x7E, 0xC0, 0xD3, 0xDB, 0x7F },
+        { 0x78, 0x32, 0xB7, 0xB5, 0xDB, 0xA6, 0x65, 0x56,
+          0x8B, 0x3E, 0x9D, 0xB4, 0xD7, 0x7D, 0x99, 0xD7,
+          0x28, 0x85, 0x2B, 0x4D, 0xC4, 0x96, 0x26, 0xE9,
+          0x08, 0x49, 0x91, 0x4A, 0x6D, 0x16, 0x6C, 0xC0 }
+    };
+    static const byte msg[] = "wolfSSL Falcon deterministic vector";
+    static const byte levels[2] = { FALCON_LEVEL1, FALCON_LEVEL5 };
+    falcon_key key;
+    WC_RNG rng;
+    byte* buf = NULL;
+    byte* pub = NULL;
+    byte* prv = NULL;
+    byte* sig = NULL;
+    byte dig[WC_SHA256_DIGEST_SIZE];
+    int li;
+    int seedCbSet = 0;
+
+    buf = (byte*)XMALLOC(FALCON_MAX_PUB_KEY_SIZE + FALCON_MAX_KEY_SIZE +
+        FALCON_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(buf);
+    if (buf != NULL) {
+        pub = buf;
+        prv = pub + FALCON_MAX_PUB_KEY_SIZE;
+        sig = prv + FALCON_MAX_KEY_SIZE;
+    }
+
+    /* The random group can leave the SHA-512 DRBG disabled process-wide, which
+     * silently switches the stream. Skip rather than report six digest
+     * mismatches for a reason that has nothing to do with Falcon. */
+    if ((buf != NULL) && wc_Sha512Drbg_IsDisabled()) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return TEST_SKIPPED;
+    }
+
+    /* DoExpect, not ExpectIntEQ: the latter evaluates its argument only while
+     * no earlier expectation has failed, so the restore at the end would be
+     * skipped by the very failure it has to clean up after. */
+    if (buf != NULL) {
+        DoExpectIntEQ(wc_SetSeed_Cb(falcon_det_seed_cb), 0);
+        seedCbSet = 1;
+    }
+
+    for (li = 0; (buf != NULL) && (li < 2); li++) {
+        byte level = levels[li];
+        word32 pubLen = FALCON_MAX_PUB_KEY_SIZE;
+        word32 prvLen = FALCON_MAX_KEY_SIZE;
+        word32 sigLen = FALCON_MAX_SIG_SIZE;
+        int res = 0;
+        int rngInited = 0;
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&rng, 0, sizeof(rng));
+
+        /* Same reason: pair the free with an init that actually ran. */
+        if (wc_InitRng(&rng) == 0) {
+            rngInited = 1;
+        }
+        ExpectIntEQ(rngInited, 1);
+        ExpectIntEQ(wc_falcon_init(&key), 0);
+        ExpectIntEQ(wc_falcon_set_level(&key, level), 0);
+        ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+
+        ExpectIntEQ(wc_falcon_export_public(&key, pub, &pubLen), 0);
+        ExpectIntEQ(falcon_det_digest(pub, pubLen, dig), 0);
+        ExpectBufEQ(dig, expPub[li], WC_SHA256_DIGEST_SIZE);
+
+        ExpectIntEQ(wc_falcon_export_private_only(&key, prv, &prvLen), 0);
+        ExpectIntEQ(falcon_det_digest(prv, prvLen, dig), 0);
+        ExpectBufEQ(dig, expPrv[li], WC_SHA256_DIGEST_SIZE);
+
+        ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+            &key, &rng), 0);
+        ExpectIntEQ(falcon_det_digest(sig, sigLen, dig), 0);
+        ExpectBufEQ(dig, expSig[li], WC_SHA256_DIGEST_SIZE);
+
+        /* The pinned signature must still verify, so a stale digest cannot
+         * hide a signature that no longer works. */
+        ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+            &res, &key), 0);
+        ExpectIntEQ(res, 1);
+
+        wc_falcon_free(&key);
+        if (rngInited) {
+            DoExpectIntEQ(wc_FreeRng(&rng), 0);
+        }
+    }
+
+    if (seedCbSet) {
+        DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+    }
+
+    if (buf != NULL) {
+        /* Holds an exported private key. */
+        ForceZero(buf, FALCON_MAX_PUB_KEY_SIZE + FALCON_MAX_KEY_SIZE +
+            FALCON_MAX_SIG_SIZE);
+    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * Signing the same key repeatedly, and reusing one key structure for different
+ * keys and levels. With the per-key caches this covers the reuse and the three
+ * points that have to drop the cache - key generation, private-key import and
+ * a level change - which the verify against the current public key catches.
+ */
+int test_wc_falcon_key_reuse(void)
+{
+    EXPECT_DECLS;
+#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+    falcon_key key;
+    falcon_key other;
+    WC_RNG rng;
+    byte* sig = NULL;
+    byte* prv = NULL;
+    byte* pub = NULL;
+    word32 sigLen;
+    word32 prvLen;
+    word32 pubLen;
+    static const byte msg[] = "wolfSSL Falcon key reuse";
+    int res = 0;
+    int rngInited = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&other, 0, sizeof(other));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    sig = (byte*)XMALLOC(FALCON_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    prv = (byte*)XMALLOC(FALCON_MAX_KEY_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (byte*)XMALLOC(FALCON_MAX_PUB_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+    ExpectNotNull(prv);
+    ExpectNotNull(pub);
+
+    /* Pair the free below with an init that actually ran: ExpectIntEQ skips its
+     * argument once an earlier expectation has failed. */
+    if (wc_InitRng(&rng) == 0) {
+        rngInited = 1;
+    }
+    ExpectIntEQ(rngInited, 1);
+    ExpectIntEQ(wc_falcon_init(&key), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+
+    /* Two signatures with one key: the second runs off the cache. */
+    sigLen = FALCON_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &res, &key), 0);
+    ExpectIntEQ(res, 1);
+
+    res = 0;
+    sigLen = FALCON_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &res, &key), 0);
+    ExpectIntEQ(res, 1);
+
+    /* A different key imported over the same structure must be the one that
+     * signs from then on. */
+    ExpectIntEQ(wc_falcon_init(&other), 0);
+    ExpectIntEQ(wc_falcon_set_level(&other, FALCON_LEVEL1), 0);
+    ExpectIntEQ(wc_falcon_make_key(&other, &rng), 0);
+    prvLen = FALCON_MAX_KEY_SIZE;
+    pubLen = FALCON_MAX_PUB_KEY_SIZE;
+    ExpectIntEQ(wc_falcon_export_private_only(&other, prv, &prvLen), 0);
+    ExpectIntEQ(wc_falcon_export_public(&other, pub, &pubLen), 0);
+    ExpectIntEQ(wc_falcon_import_private_key(prv, prvLen, pub, pubLen, &key),
+        0);
+
+    res = 0;
+    sigLen = FALCON_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &res, &other), 0);
+    ExpectIntEQ(res, 1);
+
+    /* Switching the level resizes everything the cache holds. */
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL5), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+    res = 0;
+    sigLen = FALCON_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &res, &key), 0);
+    ExpectIntEQ(res, 1);
+
+    /* Back down to the smaller level, to cover shrinking as well. */
+    ExpectIntEQ(wc_falcon_set_level(&key, FALCON_LEVEL1), 0);
+    ExpectIntEQ(wc_falcon_make_key(&key, &rng), 0);
+    res = 0;
+    sigLen = FALCON_MAX_SIG_SIZE;
+    ExpectIntEQ(wc_falcon_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen,
+        &key, &rng), 0);
+    ExpectIntEQ(wc_falcon_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        &res, &key), 0);
+    ExpectIntEQ(res, 1);
+
+    wc_falcon_free(&other);
+    wc_falcon_free(&key);
+    if (rngInited) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+    XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (prv != NULL) {
+        /* Holds an exported private key. */
+        ForceZero(prv, FALCON_MAX_KEY_SIZE);
+    }
+    XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * MC/DC decision coverage for the public wc_falcon_* wrapper decisions that the
  * functional tests above leave with an unshown independence pair. Each block
  * targets one decision and supplies the operand combinations that flip exactly
  * one condition at a time while the others are held non-determining (the MC/DC
  * requirement), using cheap negative/edge inputs that stop at the guard under
- * test -- no key generation is performed here (the positive fall-through half of
+ * test. No key generation is performed here (the positive fall-through half of
  * each guard is owned by test_wc_falcon_make_key / _sign_vfy above, which run a
  * real key).
  *
  * Documented residuals (operands whose determined half is unreachable in this
- * software build): the `ret == 0` operands in wc_falcon_sign_msg (8748/8751) and
- * wc_falcon_verify_msg (8801) are only ever 0 on the software path -- ret is
- * assigned non-zero solely by a WOLF_CRYPTO_CB callback error, absent here -- so
+ * software build): the `ret == 0` operands guarding the !prvKeySet and
+ * rng==NULL tests in wc_falcon_sign_msg, and the !pubKeySet test in
+ * wc_falcon_verify_msg, are only ever 0 on the software path, where ret is
+ * assigned non-zero solely by a WOLF_CRYPTO_CB callback error, absent here, so
  * their FALSE half cannot be demonstrated without a crypto-callback harness
  * (same residual class as the rsa/mldsa `ret==0`-chain guards).
  */
@@ -937,11 +1252,11 @@ int test_wc_FalconDecisionCoverage(void)
     /* ---- wc_falcon_sign_msg: (ret==0) && (!prvKeySet), then
      *      (ret==0) && (rng==NULL) --------------------------------------
      * All of in/out/outLen/key are non-NULL so the front guard falls through.
-     *   level set, prvKeySet=0        -> 8748 (!prvKeySet) T -> BAD
-     *   prvKeySet forced, rng==NULL   -> 8748 (!prvKeySet) F (falls through),
-     *                                    8751 (rng==NULL) T -> BAD (native
-     *                                    signer never entered, so the unset
-     *                                    key material is never dereferenced).
+     *   level set, prvKeySet=0        -> (!prvKeySet) T -> BAD
+     *   prvKeySet forced, rng==NULL   -> (!prvKeySet) F (falls through),
+     *                                    (rng==NULL) T -> BAD (native signer
+     *                                    never entered, so the unset key
+     *                                    material is never dereferenced).
      * The (!prvKeySet) F + valid-rng fall-through into the native signer is
      * owned by test_wc_falcon_sign_vfy (real key). */
     {

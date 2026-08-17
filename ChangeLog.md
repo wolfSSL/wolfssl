@@ -1,3 +1,9 @@
+# wolfSSL Release (unreleased)
+
+## Post-Quantum Cryptography (PQC)
+
+* Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
+
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 
 Release 5.9.4 has been developed according to wolfSSL's development and QA
