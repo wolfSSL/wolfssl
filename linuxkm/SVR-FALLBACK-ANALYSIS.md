@@ -61,8 +61,8 @@ second implementation existed to survive. The kernel's own rule for the same
 question contains no test of process identity at all. Deleting our extra
 condition resolved the hang. See section 2.
 
-**2. It let an outsider choose which version of the algorithm encrypted their
-data, and told nobody.** Whether the save succeeds depends on how busy the
+**2. It let an outside party influence which version of the algorithm encrypted
+their data, and did not report the change.** Whether the save succeeds depends on how busy the
 machine is, and system load is something an outside party can influence without
 any cryptographic attack. The two versions did not have the same security
 properties: the fast one is constant-time, the plain C one performed table
@@ -79,7 +79,7 @@ an error. See section 12.2.
 
 When the save fails, an operation now fails where it previously completed by
 another route. That is a real reduction in availability and it is stated here
-rather than buried. In the kernel the failure surfaces as an error the caller
+explicitly. In the kernel the failure surfaces as an error the caller
 can retry. Nothing produces a wrong answer. See section 14 item 14.
 
 ### The decision, side by side
@@ -103,9 +103,9 @@ this tree and does not depend on either figure.
 This review found the fallback while testing something else, and found
 several other issues on the way. It did not go looking for them systematically.
 
-Every issue the solution purported to solve seemed to be anecdotal, not from a
-test failing. None of the defensive structures involved had a test log that
-showed it despite attempts to procure such evidence. A count of problems found
+Every issue the mechanism was built to solve was reported anecdotally, not from a
+test failing. No test log demonstrating any of those conditions has been
+located, including after asking for one. A count of problems found
 that way is a count of what one reader noticed, not a measure of what exists.
 Section 14 sets out the specific limits.
 
@@ -139,7 +139,7 @@ Section 14 sets out the specific limits.
 
 ---
 
-## 2. What was here before, and why it was wrong
+## 2. What was here before, and why it was removed
 
 The old approach wanted to ship **two implementations of one algorithm** — one using
 vector registers, one not — and pick between them at run time. If
@@ -154,17 +154,17 @@ switch could happen mid-operation, call to call.
    `crypto/drbg.c:drbg_generate_long()` wraps every generate in a sleeping lock
    (`struct mutex drbg_mutex`, `include/crypto/drbg.h:115`), and
    `crypto/rng.c:crypto_get_default_rng()` — the only route to that service —
-   takes one too. A sleeping lock cannot be taken in softirq. That was readable
-   before any of this was written.
+   takes one too. A sleeping lock cannot be taken in softirq. That constraint is
+   stated in the kernel headers cited above.
 2. **Failures followed**, as they had to.
-3. **Instead of correcting the insertion point, a fallback was invented** to
-   survive the failures: a second implementation, selected at run time.
+3. **A fallback was added to survive the failures, rather than correcting the
+   insertion point:** a second implementation, selected at run time.
 4. **The fallback solved a problem that only existed because of step 1**, and
    created a compliance concern doing it.
 
 Remove the improper insertion and the fallback has nothing left to do.
 
-### 2.0.2 The specific failure blamed on the operating system was ours
+### 2.0.2 The specific failure attributed to the operating system originated here
 
 A kernel DRBG hang — module spinning in softirq, `FIPS_MODE_FAILED`, 62,915
 errors over 29.7 s, a 28.9 s clocksource stall — traced to one line in
@@ -193,7 +193,7 @@ anywhere**:
 ```
 
 On x86, `may_use_simd()` is defined to be exactly `irq_fpu_usable()`
-(`arch/x86/include/asm/simd.h`). Our condition was a locally invented
+(`arch/x86/include/asm/simd.h`). Our condition was a locally defined
 substitute, stricter than the rule it replaced.
 
 **How it was fixed.** The "slot free" marker moved to its own `in_use` field so
@@ -202,8 +202,9 @@ module now applies the operating environment's actual rule.
 
 **Result.** Timer softirq 0/2 → 2/2; the module stays in `FIPS_MODE_NORMAL`,
 verified under `CONFIG_PROVE_LOCKING` and `CONFIG_DEBUG_ATOMIC_SLEEP`.
-Reinstating only that line reproduces the failure at 61,458 errors. "It can
-never work in softirq" was measurable, was measured, and is false.
+Reinstating only that line reproduces the failure at 61,458 errors. The position
+that this can never work in softirq was measurable, was measured, and the
+measurement does not support it.
 
 NMI and hardirq context are still refused, for a stated reason: this function
 brackets with `local_bh_disable()` / `local_bh_enable()`, and
@@ -365,7 +366,7 @@ implementation. The downgrade path is deleted even though the code is not.
 Whether *carrying* the unreachable twin is acceptable is the contained-versus-
 reachable question of section 3.1.1, and this section does not settle it.
 
-### 2.1.6 Scope, stated honestly
+### 2.1.6 Scope of the claim
 
 This is an argument about AES, where the two implementations differ in
 constant-timeness. It is not a claim that every fallback pair in the tree has a
@@ -607,7 +608,7 @@ are fine." It is:
 
 That last point is the whole cost, and it is what section 3.2 records.
 
-### 3.1.1 Contained versus reachable — the distinction the counting arguments missed
+### 3.1.1 Contained versus reachable — the distinction the counting arguments turn on
 
 The lane counts above (70-90 CASTs) and section 3.2 item 5's "5x or 6x OEs" both
 count implementations *contained in the binary across every processor that could
@@ -1328,7 +1329,7 @@ not checked.
 
 **How it caused flakiness and a compliance issue.** It repairs damage the
 fallback caused — a SetKey reporting success with its output unset is the defect.
-And the justification is false: in `wc_save_vector_registers_x86()` the
+And the stated justification does not hold: in `wc_save_vector_registers_x86()` the
 non-outermost path returns `WC_ACCEL_INHIBIT_E` when the enclosing region was
 entered inhibited, `BAD_STATE_E` on recursion-counter overflow, and
 `BAD_STATE_E` for `WC_SVR_FLAG_MAYBE_INHIBIT` at non-outermost depth. With the
@@ -1349,7 +1350,7 @@ re-key and the claim about nested saves both become unnecessary.
 
 ---
 
-## 9. `lkcapi_aes_glue.c` — "there's no AES-XTS in Cert 4718"
+## 9. `lkcapi_aes_glue.c` — the Cert 4718 algorithm-list exemption
 
 **Original problem.** The AES-XTS shim had to decide whether the fallback
 applied.
@@ -1540,7 +1541,7 @@ the thing that just failed. That is the pattern section 1 exists to rule out, an
 it is a reason to keep the mechanism out of the validated boundary rather than
 adjudicate it.
 
-### 11.6 The exception, stated rather than buried
+### 11.6 The exception
 
 At **2x thread oversubscription** the shared RNG loses **28% on ECDSA sign**. The
 mechanism is understood: a preempted compare-and-swap holder makes the others
@@ -1877,7 +1878,7 @@ cached `cpuid_flags` is unchanged either way, and (c) no
 `SAVE_VECTOR_REGISTERS2()` failure is produced by the event. **Not run here** —
 stated as the procedure, not as a result.
 
-### 12.4 Every justification offered has been tested as it was raised
+### 12.4 Each rationale offered for the fallback, tested as it was raised
 
 | Account given for the fallback | Outcome |
 |---|---|
@@ -1886,11 +1887,11 @@ stated as the procedure, not as a result.
 | "Deferred interrupt work can never use these registers" | the kernel's own rule permits it; removing our extra condition made the work succeed |
 | "Microcode can change capabilities at run time" | answered by reading the dispatch (section 12.3); the fallback is keyed on a different event |
 
-None has survived. That is a statement about the arguments, not about anyone who
-made them. It matters because the case for keeping the mechanism does not
+None is borne out by the testing. That is a statement about the arguments, not
+about anyone who made them. It matters because the case for keeping the mechanism does not
 currently rest on any demonstrated failure that only it addresses.
 
-### 12.5 Corrupting SSPs and CSPs produced no failure — the module hid it
+### 12.5 Corrupting SSPs and CSPs produced no failure and no indicator
 
 SSPs and CSPs were corrupted directly in memory with the kernel debugger while
 the module was running. **Nothing failed. Nothing was reported.** The module
@@ -1913,7 +1914,7 @@ rule:
 * The result returned to the caller came from an implementation the Cryptographic
   Officer did not select and cannot identify after the fact.
 
-**`rng_bank` was the worst offender.** Corrupting a bank instance's state did not
+**`rng_bank` shows this most sharply.** Corrupting a bank instance's state did not
 surface as a DRBG failure: the request was served from a different instance and
 the caller received bytes as though nothing had happened. A DRBG that answers
 after its state has been corrupted, without saying so, is the most damaging
@@ -2218,7 +2219,7 @@ and 6.1.62).
 while holding a bracket.** The scan searches for a condition the locking
 excludes.
 
-### 13.3.3 The evidence, quoted rather than argued
+### 13.3.3 The evidence, quoted from the kernel sources
 
 The claim "a task cannot migrate while holding the bracket" is not an argument
 made here; it is a documented kernel guarantee.
@@ -2320,14 +2321,14 @@ For a validated cryptographic module the cost is not confined to this function:
    testing — and would not have been found by any amount of running.
 3. **Complexity is the vulnerability substrate.** Concurrency scaffolding that
    mutates shared per-CPU state on a path nobody can reach is precisely where
-   latent flaws accumulate: no coverage, no reproducer, and reviewers deterred by
-   the surrounding commentary.
+   latent flaws accumulate: no coverage, no reproducer, and dense surrounding
+   commentary.
 4. **Reviewer trust is the asset.** A vendor whose module contains defensive
    machinery for impossible states invites the question of what else was assumed
    rather than verified. That question is expensive to answer and difficult to
    un-ask.
 
-### 13.3.6 A comment that argued the opposite of the code
+### 13.3.6 A comment that did not match the code
 
 The block comment preceding the recovery branch asserted that "a matching slot,
 or no slot at all, still does not prove the bracket belongs to THIS frame rather
@@ -2532,9 +2533,9 @@ identical in every field the module records.** Elapsed time is the only quantity
 that differs. A timeout was not a chosen discriminator; it was the only one the
 data structure left available.
 
-The five-second constant had no measured basis. The comment defending it argued
-that a bracket is "milliseconds at worst" because the longest operation is an
-SLH-DSA or ML-DSA sign. Nobody timed one under a bracket. That comment now
+The five-second constant had no measured basis. The comment accompanying it
+stated that a bracket is "milliseconds at worst" because the longest operation is
+an SLH-DSA or ML-DSA sign. That timing was never taken. That comment now
 states what the constant is and that it is unmeasured.
 
 ### 13.4.5 What actually keeps an intruder out: `may_use_simd()`
@@ -3476,7 +3477,7 @@ Held to the same standard as the rest of the document.
     enumerated the in-kernel callers that can reach this module with interrupts
     disabled. There is no trace, no measurement, and no matrix cell that
     exercises the refusal. The bullets above bound the cost **by argument, not by
-    evidence** — they rule out the consumers someone thought of, which is not the
+    evidence** — they rule out the consumers that were enumerated, which is not the
     same as ruling out the set. And a consumer that genuinely needs crypto from
     an IRQs-disabled region has no retry path: the contract change lands on it,
     and no consumer has been asked. **Do not cite this section as "the
@@ -3518,18 +3519,19 @@ The last column is the reason this appendix is short. Each was removed by
 deciding what the module's job actually is — section 1's rule — rather than by
 making the machinery work.
 
-The consistent failure is methodological: **a hypothesis about kernel behaviour
-was treated as a requirement without first reading what the kernel guarantees.**
+The common thread is methodological: **a hypothesis about kernel behaviour was
+treated as a requirement without a documented kernel guarantee behind it.**
 
-### A.2 The guarantees were available in advance
+### A.2 Where those guarantees are documented
 
 The kernel guarantees relied on in section 13.3 are neither obscure nor recent.
 `kernel_fpu_begin()` has disabled preemption for the life of the section for many
 releases, and it is eleven lines of `arch/x86/kernel/fpu/core.c`.
 `locktypes.rst` exists to tell driver authors which primitive gives which
 guarantee. `floating-point.rst` states the module's whole obligation in four
-sentences. **The information required to not write this code was available before
-it was written.**
+sentences. **All three are short and stable, and they are the first place to look
+whenever a kernel behaviour is in question — which is the process point A.4
+makes.**
 
 ### A.3 Why the count of problems is not a measure of the problem
 
@@ -3541,7 +3543,7 @@ Three properties of everything in this document deserve to be stated together:
    a state the operating system's own locking prevents cannot be reached by any
    test that respects that locking. Its defect was findable only by reading, and
    would not have been found by any amount of running.
-3. **Nobody went looking systematically.** The fallback was found while
+3. **No systematic search was made.** The fallback was found while
    investigating something else. The AES build setting was found while writing up
    the fallback. The slot machinery was found while writing up the fallback. The
    unbracketed ECC AVX2 was found while checking the slot machinery.

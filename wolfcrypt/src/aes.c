@@ -131,6 +131,19 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 /* Tip: Locate the software cipher modes by searching for "Software AES" */
 
+/* AES_*_AARCH64() are crypto-extension code over v0-v31, so a kernel module
+ * must bracket them.  Defined at top level: the XTS stream entry points that
+ * use it are arch-neutral and compile in builds with no ARM asm at all. */
+#if defined(__aarch64__) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #define WC_AES_ARM64_SVR_BEGIN()                                    \
+        do { int _svr = SAVE_VECTOR_REGISTERS2();                       \
+             if (_svr != 0) return _svr; } while (0)
+    #define WC_AES_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
+#else
+    #define WC_AES_ARM64_SVR_BEGIN() WC_DO_NOTHING
+    #define WC_AES_ARM64_SVR_END()   WC_DO_NOTHING
+#endif
+
 #if FIPS_VERSION3_GE(2,0,0)
     #ifdef USE_WINDOWS_API
         #pragma code_seg(".fipsA$b")
@@ -1281,15 +1294,6 @@ static void Check_CPU_support_HwCrypto(Aes* aes)
  * kernel_neon_begin()/end() or the first SIMD instruction faults. */
 /* AES_{en,de}crypt_AARCH64() are crypto-extension code over v0-v31
  * (port/arm/armv8-aes-asm.S), so a kernel module must bracket them. */
-#if defined(__aarch64__) && defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
-    #define WC_AES_ARM64_SVR_BEGIN()                                    \
-        do { int _svr = SAVE_VECTOR_REGISTERS2();                       \
-             if (_svr != 0) return _svr; } while (0)
-    #define WC_AES_ARM64_SVR_END()  RESTORE_VECTOR_REGISTERS()
-#else
-    #define WC_AES_ARM64_SVR_BEGIN() WC_DO_NOTHING
-    #define WC_AES_ARM64_SVR_END()   WC_DO_NOTHING
-#endif
 
 
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
