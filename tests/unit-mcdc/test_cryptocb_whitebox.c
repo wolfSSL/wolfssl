@@ -68,9 +68,11 @@
  * below is an ordinary devId value that is never registered and is not
  * INVALID_DEVID, which correctly makes wc_CryptoCb_FindDevice() return NULL.
  *
- * Coverage in this file: RSA, ECC, Curve25519, Ed25519, AES (GCM/CCM/CBC/
- * CTR/CFB/OFB/ECB/SetKey), DES3, the hash family (SHA/SHA224/SHA256/SHA384/
- * SHA512/SHA3/SHAKE), HMAC, RNG (RandomBlock/RandomSeed), GetCert, CMAC,
+ * Coverage in this file: RSA (including the WOLF_CRYPTO_CB_RSA_PAD
+ * RsaPad/RsaPssVerify pair), ECC, Curve25519, Ed25519, Ed448, AES (GCM/CCM/
+ * CBC/CTR/CFB/OFB/ECB/SetKey/KeyWrap/KeyUnWrap), DES3, the hash family
+ * (SHA/SHA224/SHA256/SHA384/SHA512/SHA3/SHAKE),
+ * HMAC, RNG (RandomBlock/RandomSeed), GetCert, CMAC,
  * HKDF (extract/expand/two-step-CMAC), the generic Copy/Free/SetKey/
  * ExportKey callbacks, and the ML-KEM / ML-DSA PQC dispatch functions.
  * wc_SHE (WOLFSSL_SHE) and the LMS/XMSS/FALCON/SLHDSA/FRODOKEM PQC families
@@ -274,6 +276,11 @@ int main(void)
         outLen = sizeof(out);
         WB_DRIVE3(rsaKey.devId, wc_CryptoCb_RsaPad(in, sizeof(in), out,
             &outLen, RSA_PUBLIC_ENCRYPT, &rsaKey, NULL, NULL));
+
+        outLen = sizeof(out2);
+        WB_DRIVE3(rsaKey.devId, wc_CryptoCb_RsaPssVerify(in, sizeof(in),
+            in, sizeof(in), WC_HASH_TYPE_SHA256, 0, 0, &rsaKey, &res,
+            out2, sizeof(out2), &outLen));
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
@@ -459,6 +466,26 @@ int main(void)
     WB_NOTE("HAVE_ED25519 not defined; Ed25519 dispatch skipped");
 #endif /* HAVE_ED25519 */
 
+    /* ---- Ed448 ---- */
+#ifdef HAVE_ED448
+    {
+        ed448_key e4;
+        XMEMSET(&e4, 0, sizeof(e4));
+        (void)wc_ed448_init_ex(&e4, NULL, 0);
+
+        outLen = sizeof(out);
+        WB_DRIVE3(e4.devId, wc_CryptoCb_Ed448Sign(in, sizeof(in), out,
+            &outLen, &e4, 0, NULL, 0));
+
+        WB_DRIVE3(e4.devId, wc_CryptoCb_Ed448Verify(out, sizeof(out), in,
+            sizeof(in), &res, &e4, 0, NULL, 0));
+
+        WB_NOTE("Ed448: Ed448Sign/Ed448Verify dev&&dev->cb driven");
+    }
+#else
+    WB_NOTE("HAVE_ED448 not defined; Ed448 dispatch skipped");
+#endif /* HAVE_ED448 */
+
     /* ---- AES ---- */
 #ifndef NO_AES
     {
@@ -522,8 +549,20 @@ int main(void)
             wc_CryptoCb_AesSetKey(&aes, smallKey, sizeof(smallKey)));
 #endif
 
-        WB_NOTE("AES: GCM/CCM/CBC/CTR/CFB/OFB/ECB/SetKey (as compiled) "
-                "dev&&dev->cb driven");
+#ifdef HAVE_AES_KEYWRAP
+        /* wc_CryptoCb_AesKeyWrap/AesKeyUnWrap resolve their device from
+         * aes->devId when aes != NULL, so the standard three-vector sweep
+         * applies. wb_cb returns CRYPTOCB_UNAVAILABLE, so the post-dispatch
+         * "device reports the wrapped length" block is not entered and no
+         * payload buffer is read. */
+        WB_DRIVE3(aes.devId, wc_CryptoCb_AesKeyWrap(&aes, in, sizeof(in),
+            out2, sizeof(out2), nonce, 0));
+        WB_DRIVE3(aes.devId, wc_CryptoCb_AesKeyUnWrap(&aes, in, sizeof(in),
+            out2, sizeof(out2), nonce, 0));
+#endif
+
+        WB_NOTE("AES: GCM/CCM/CBC/CTR/CFB/OFB/ECB/SetKey/KeyWrap "
+                "(as compiled) dev&&dev->cb driven");
     }
 #else
     WB_NOTE("NO_AES defined; AES dispatch skipped");
