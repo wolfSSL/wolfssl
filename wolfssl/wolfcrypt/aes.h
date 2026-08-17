@@ -189,6 +189,10 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     #include "cy_crypto_common.h"
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
+#ifdef WOLFSSL_TI_AM64X
+    #include "security/security_common/drivers/crypto/sa2ul/sa2ul.h"
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -482,6 +486,9 @@ struct Aes {
     cy_stc_crypto_aes_gcm_state_t aes_gcm_state;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
+#ifdef WOLFSSL_TI_AM64X
+    XALIGNED(16) SA2UL_ContextObject scObj;
+#endif
 };
 
 #ifndef WC_AES_TYPE_DEFINED
