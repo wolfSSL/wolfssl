@@ -37,17 +37,17 @@
  *   Class 8  roll_auth()'s block-cipher return guard (HAVE_AESCCM) .. 1 condition
  *   Class 9  wc_AesCcmEncrypt()'s use_aesni dispatch (WOLFSSL_AESNI)  1 condition
  *   Class 10 AArch64 CTR leftover-keystream loop (WOLFSSL_ARMASM,
- *            __aarch64__, qemu-aarch64 lane only) ................. 2 conditions
+ *            __aarch64__, qemu-aarch64 lane only) .. exclusion demonstration
  * Classes 4, 5 and 10 only compile in the qemu-aarch64 emulator lane (see
  * iso26262/mcdc-per-module campaign, db/lanes.json); on every other build
  * they reduce to a no-op stub so this file still compiles+runs natively.
  * The remaining union residuals are structurally uncoverable even here
  * (complementary-operand decisions where unique-cause MC/DC is unsatisfiable,
- * a dead defensive branch on a provably-bounded loop index, and
- * AesCfbDecrypt_C's `ret == 0` loop guard: the only build axis that compiles
- * that block, WOLFSSL_ARMASM, also selects a wc_AesEncrypt() with no failure
- * path). Those stay justified in campaign/db/exclusions.json + EXCLUSIONS.md
- * and reports/aes/RESIDUALS.md.
+ * a dead defensive branch on a provably-bounded loop index, the Class 10
+ * loop above, and AesCfbDecrypt_C's `ret == 0` loop guard: the only build
+ * axis that compiles that block, WOLFSSL_ARMASM, also selects a
+ * wc_AesEncrypt() with no failure path). Those stay justified in
+ * campaign/db/exclusions.json + EXCLUSIONS.md and reports/aes/RESIDUALS.md.
  */
 
 /* Pull aes.c in verbatim so the file-static and WOLFSSL_LOCAL helpers below are
@@ -1097,22 +1097,28 @@ static void wb_ccm_aesni_dispatch(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Class 10: the AArch64 CTR leftover-keystream loop (line ~7996, idx0+idx1).
+ * Class 10: the AArch64 CTR leftover-keystream loop (line ~7996, idx0+idx1)
+ * -- an EXCLUSION demonstration, not a covering driver.
  *
  *   while ((aes->left != 0) && (sz != 0)) {
  *
- * This is the base (non-crypto-extension) CTR body. On the qemu-aarch64 lane
- * the CPU advertises FEAT_AES, so wc_AesCtrEncrypt() dispatches to
- * AES_CTR_encrypt_AARCH64() and returns before ever reaching this loop; the
- * body is only entered with use_aes_hw_crypto false. Seeding the file-static
- * cpuid_flags with an AES-less value before the key is installed derives that
- * field false and leaves it on the Aes for every later call, the same seam
- * Class 4 uses.
+ * This is the base (non-crypto-extension) CTR body, reachable only with
+ * use_aes_hw_crypto false; seeding the file-static cpuid_flags with an
+ * AES-less value before the key is installed derives that field false, the
+ * same seam Class 4 uses, and the two calls below then enter the body twice
+ * with different (left, sz) shapes.
  *
- * Both operands then pair on plain data: the first call starts with left == 0
- * (idx0 false, loop skipped) and its 4-byte tail leaves left == 12; the second
- * call runs five iterations with left != 0 and sz != 0 (idx0/idx1 true) and
- * exits when sz reaches 0 (idx1 false).
+ * The decision is nevertheless constant FALSE. wc_AesCtrEncrypt() already
+ * drains the leftover keystream unconditionally, before any port dispatch:
+ *
+ *     processed = min(aes->left, sz);
+ *     ... aes->left -= processed; sz -= processed;
+ *
+ * so on arrival either left == 0 (left <= sz) or sz == 0 (left > sz), never
+ * both non-zero. The loop below is a duplicate of that drain and its body is
+ * dead. With the decision never true, neither operand has an independence
+ * pair, so both conditions are recorded in campaign/db/exclusions.json. The
+ * calls stay so the argument is demonstrated rather than only asserted.
  * ------------------------------------------------------------------------- */
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(WOLFSSL_AES_COUNTER)
@@ -1134,12 +1140,13 @@ static void wb_aarch64_ctr_leftover(void)
     if (wc_AesInit(&aes, NULL, INVALID_DEVID) == 0 &&
         wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
             AES_ENCRYPTION) == 0) {
-        /* left == 0 on entry -> idx0 false; 20 % 16 = 4 leaves left == 12. */
+        /* left == 0 on entry; the 4-byte tail leaves left == 12. */
         if (wc_AesCtrEncrypt(&aes, out, in, 20) != 0) {
             WB_NOTE("wc_AesCtrEncrypt (20 bytes) failed");
             wb_fail = 1;
         }
-        /* left == 12, sz == 5 -> idx0/idx1 true, then sz == 0 -> idx1 false. */
+        /* left == 12 > sz == 5, so the unconditional drain above takes all 5
+         * bytes and the loop is reached with sz == 0. */
         if (wc_AesCtrEncrypt(&aes, out, in, 5) != 0) {
             WB_NOTE("wc_AesCtrEncrypt (5 bytes) failed");
             wb_fail = 1;
@@ -1152,7 +1159,8 @@ static void wb_aarch64_ctr_leftover(void)
     }
     cpuid_flags = saved;
 
-    WB_NOTE("aarch64 CTR leftover-keystream loop pairs exercised");
+    WB_NOTE("aarch64 CTR leftover-keystream loop entered twice; decision "
+            "constant false (excluded)");
 }
 #else
 static void wb_aarch64_ctr_leftover(void)
