@@ -6833,6 +6833,63 @@ cleanup:
     return ret;
 }
 
+/* Check whether a PSK may be used given the key exchange modes the client
+ * advertised and the modes this server is configured to allow.
+ *
+ * RFC 9846 Section 4.3.9 forbids selecting a mode the client did not list.
+ * Section 4.3.11 says a server that finds no acceptable PSK should perform a
+ * non-PSK handshake instead of aborting. Deciding before a PSK is selected
+ * leaves nothing to unwind: no ticket is decrypted, no binder is verified, no
+ * secret is derived and no early data is accepted.
+ *
+ * The configured policy is read, not ssl->options.noPskDheKe, which also
+ * carries negotiated state and is cleared by every certificate handshake.
+ *
+ * ssl         SSL/TLS object.
+ * clSuites    Client's cipher suite list.
+ * returns 1 when PSK selection may proceed and 0 when the PSK must be ignored.
+ */
+static int PskModesUsable(const WOLFSSL* ssl, const Suites* clSuites)
+{
+#ifdef HAVE_SUPPORTED_CURVES
+    TLSX*  ext;
+    word32 modes;
+
+    /* Offering pre_shared_key without psk_key_exchange_modes is a MUST-level
+     * abort (Section 4.3.9). Leave it to CheckPreSharedKeys. */
+    ext = TLSX_Find(ssl->extensions, TLSX_PSK_KEY_EXCHANGE_MODES);
+    if (ext == NULL)
+        return 1;
+    modes = ext->val;
+
+#ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
+    /* RFC 9973 requires psk_dhe_ke and overrides the no-(EC)DHE policy, so a
+     * mismatch must abort rather than fall back. */
+    if (TLSX_Find(ssl->extensions, TLSX_CERT_WITH_EXTERN_PSK) != NULL)
+        return 1;
+#endif
+
+    /* Only decline when a certificate handshake can actually run instead.
+     * These are the same two things DoTls13ClientHello() requires of a
+     * ClientHello that negotiates no PSK. */
+    if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL)
+        return 1;
+    if (clSuites == NULL || clSuites->hashSigAlgoSz == 0)
+        return 1;
+
+    if ((modes & (1 << PSK_DHE_KE)) != 0 && !ssl->options.noPskDheKePolicy)
+        return 1;
+    if (ssl->options.onlyPskDheKe)
+        return 0;
+    return (modes & (1 << PSK_KE)) != 0;
+#else
+    /* Without (EC)DHE there is no certificate handshake to fall back to. */
+    (void)ssl;
+    (void)clSuites;
+    return 1;
+#endif
+}
+
 /* Handle any Pre-Shared Key (PSK) extension.
  * Must do this in ClientHello as it requires a hash of the truncated message.
  * Don't know size of binders until Pre-Shared Key extension has been parsed.
@@ -6850,6 +6907,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     TLSX*  ext;
     word16 bindersLen;
     int    first = 0;
+    int    usePsk;
 #ifndef WOLFSSL_PSK_ONE_ID
     int    i;
     const Suites* suites;
@@ -6902,6 +6960,12 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
     /* Refine list for PSK processing. */
     sslRefineSuites(ssl, clSuites);
+
+    usePsk = PskModesUsable(ssl, clSuites);
+    if (!usePsk) {
+        WOLFSSL_MSG("No usable psk_key_exchange_modes, ignoring PSK");
+    }
+
 #ifndef WOLFSSL_PSK_ONE_ID
     if (usingPSK == NULL)
         return BAD_FUNC_ARG;
@@ -6910,7 +6974,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     suites = WOLFSSL_SUITES(ssl);
     /* Server list has only common suites from refining in server or client
      * order. */
-    for (i = 0; !(*usingPSK) && i < suites->suiteSz; i += 2) {
+    for (i = 0; usePsk && !(*usingPSK) && i < suites->suiteSz; i += 2) {
         ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
                 suites->suites + i, usingPSK, &first);
         if (ret != 0) {
@@ -6928,11 +6992,13 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     CleanupClientTickets((PreSharedKey*)ext->data);
 #endif
 #else
-    ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
-        &first);
-    if (ret != 0) {
-        WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
-        return ret;
+    if (usePsk) {
+        ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
+            &first);
+        if (ret != 0) {
+            WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
+            return ret;
+        }
     }
 #endif
 
@@ -7099,8 +7165,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     #ifdef HAVE_SUPPORTED_CURVES
         ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
         /* Use (EC)DHE for forward-security if possible. */
-        if (((modes & (1 << PSK_DHE_KE)) != 0 && !ssl->options.noPskDheKe &&
-             ext != NULL)
+        if (((modes & (1 << PSK_DHE_KE)) != 0 &&
+             !ssl->options.noPskDheKePolicy && ext != NULL)
 #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
              || usingCertWithExternPsk
 #endif
@@ -7120,7 +7186,11 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                  (ssl->options.failNoPSK && !ssl->options.resuming)) {
             /* A mandatory external PSK (failNoPSK) must be combined with
              * (EC)DHE for forward secrecy, so reject a pure psk_ke
-             * negotiation. Session-ticket resumption is exempt. */
+             * negotiation. Session-ticket resumption is exempt.
+             * onlyPskDheKe only reaches here when PskModesUsable() could not
+             * decline, i.e. there is no certificate handshake to fall back
+             * to. */
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
         }
         else
