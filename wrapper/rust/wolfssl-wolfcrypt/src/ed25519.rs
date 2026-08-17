@@ -26,6 +26,7 @@ This module provides a Rust wrapper for the wolfCrypt library's EdDSA Curve
 #![cfg(ed25519)]
 
 use crate::sys;
+#[cfg(random)]
 use crate::random::RNG;
 use core::mem::MaybeUninit;
 
@@ -67,11 +68,15 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate(rng: &RNG) -> Result<Self, i32> {
         Self::generate_ex(rng, None, None)
     }
@@ -92,11 +97,15 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate_ex(rng: &RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<sys::ed25519_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -198,11 +207,14 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// ed.check_key().expect("Error with check_key()");
+    /// }
     /// ```
     pub fn check_key(&mut self) -> Result<(), i32> {
         let rc = unsafe { sys::wc_ed25519_check_key(&mut self.ws_key) };
@@ -229,7 +241,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_export)]
+    /// #[cfg(all(ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -271,7 +283,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_export)]
+    /// #[cfg(all(ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -310,7 +322,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_export)]
+    /// #[cfg(all(ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -349,7 +361,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_export)]
+    /// #[cfg(all(ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -390,7 +402,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_import)]
+    /// #[cfg(all(ed25519_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -434,7 +446,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_import)]
+    /// #[cfg(all(ed25519_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -474,7 +486,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_import)]
+    /// #[cfg(all(ed25519_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -518,7 +530,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_import)]
+    /// #[cfg(all(ed25519_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -569,7 +581,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_import)]
+    /// #[cfg(all(ed25519_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -618,6 +630,8 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(ed25519_export, ed25519_import, random))]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -628,6 +642,7 @@ impl Ed25519 {
     /// ed.import_private_only(&private).expect("Error with import_private_only()");
     /// let mut public = [0u8; Ed25519::KEY_SIZE];
     /// ed.make_public(&mut public).expect("Error with make_public()");
+    /// }
     /// ```
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
         let pubkey_size = crate::buffer_len_to_u32(pubkey.len())?;
@@ -657,7 +672,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_sign)]
+    /// #[cfg(all(ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -701,7 +716,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_sign)]
+    /// #[cfg(all(ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -752,7 +767,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_sign)]
+    /// #[cfg(all(ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -817,7 +832,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_sign)]
+    /// #[cfg(all(ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -873,7 +888,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_sign)]
+    /// #[cfg(all(ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -924,7 +939,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_verify)]
+    /// #[cfg(all(ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -975,7 +990,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_verify)]
+    /// #[cfg(all(ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1034,7 +1049,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_verify)]
+    /// #[cfg(all(ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1106,7 +1121,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_verify)]
+    /// #[cfg(all(ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1169,7 +1184,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_verify)]
+    /// #[cfg(all(ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1229,7 +1244,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_streaming_verify)]
+    /// #[cfg(all(ed25519_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1281,7 +1296,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_streaming_verify)]
+    /// #[cfg(all(ed25519_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1324,7 +1339,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed25519_streaming_verify)]
+    /// #[cfg(all(ed25519_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1369,12 +1384,15 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// let key_size = ed.size().expect("Error with size()");
     /// assert_eq!(key_size, Ed25519::KEY_SIZE);
+    /// }
     /// ```
     pub fn size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed25519_size(&self.ws_key) };
@@ -1394,12 +1412,15 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// let priv_size = ed.priv_size().expect("Error with priv_size()");
     /// assert_eq!(priv_size, Ed25519::PRV_KEY_SIZE);
+    /// }
     /// ```
     pub fn priv_size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed25519_priv_size(&self.ws_key) };
@@ -1419,12 +1440,15 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// let pub_size = ed.pub_size().expect("Error with pub_size()");
     /// assert_eq!(pub_size, Ed25519::PUB_KEY_SIZE);
+    /// }
     /// ```
     pub fn pub_size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed25519_pub_size(&self.ws_key) };
@@ -1444,12 +1468,15 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// let sig_size = ed.sig_size().expect("Error with sig_size()");
     /// assert_eq!(sig_size, Ed25519::SIG_SIZE);
+    /// }
     /// ```
     pub fn sig_size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed25519_sig_size(&self.ws_key) };
