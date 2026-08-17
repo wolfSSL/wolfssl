@@ -79555,11 +79555,15 @@ typedef struct {
     int sm3Count;         /* SM3 hash callback invocations */
 #endif
 #if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
-    int sm4EcbCount;      /* SM4-ECB callback invocations */
-    int sm4CbcCount;      /* SM4-CBC callback invocations */
+    /* Counted per direction ([0] decrypt, [1] encrypt) so a decrypt entry
+     * point that was never wired up cannot hide behind the encrypt one.
+     * Counter mode has a single entry point for both directions, so it keeps
+     * one counter. */
+    int sm4EcbCount[2];   /* SM4-ECB callback invocations */
+    int sm4CbcCount[2];   /* SM4-CBC callback invocations */
     int sm4CtrCount;      /* SM4-CTR callback invocations */
-    int sm4GcmCount;      /* SM4-GCM callback invocations */
-    int sm4CcmCount;      /* SM4-CCM callback invocations */
+    int sm4GcmCount[2];   /* SM4-GCM callback invocations */
+    int sm4CcmCount[2];   /* SM4-CCM callback invocations */
 #endif
 } myCryptoDevCtx;
 
@@ -82081,7 +82085,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
     #ifdef WOLFSSL_SM4_ECB
         if (info->cipher.type == WC_CIPHER_SM4_ECB) {
-            myCtx->sm4EcbCount++;
+            if (info->cipher.sm4ecb.sm4 == NULL)
+                return NOT_COMPILED_IN;
+
+            myCtx->sm4EcbCount[info->cipher.enc ? 1 : 0]++;
 
             /* set devId to invalid, so software is used */
             info->cipher.sm4ecb.sm4->devId = INVALID_DEVID;
@@ -82107,7 +82114,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_SM4_ECB */
     #ifdef WOLFSSL_SM4_CBC
         if (info->cipher.type == WC_CIPHER_SM4_CBC) {
-            myCtx->sm4CbcCount++;
+            if (info->cipher.sm4cbc.sm4 == NULL)
+                return NOT_COMPILED_IN;
+
+            myCtx->sm4CbcCount[info->cipher.enc ? 1 : 0]++;
 
             /* set devId to invalid, so software is used */
             info->cipher.sm4cbc.sm4->devId = INVALID_DEVID;
@@ -82133,6 +82143,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_SM4_CBC */
     #ifdef WOLFSSL_SM4_CTR
         if (info->cipher.type == WC_CIPHER_SM4_CTR) {
+            if (info->cipher.sm4ctr.sm4 == NULL)
+                return NOT_COMPILED_IN;
+
             myCtx->sm4CtrCount++;
 
             /* set devId to invalid, so software is used */
@@ -82151,7 +82164,14 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_SM4_CTR */
     #ifdef WOLFSSL_SM4_GCM
         if (info->cipher.type == WC_CIPHER_SM4_GCM) {
-            myCtx->sm4GcmCount++;
+            if (((info->cipher.enc != 0) &&
+                    (info->cipher.sm4gcm_enc.sm4 == NULL)) ||
+                ((info->cipher.enc == 0) &&
+                    (info->cipher.sm4gcm_dec.sm4 == NULL))) {
+                return NOT_COMPILED_IN;
+            }
+
+            myCtx->sm4GcmCount[info->cipher.enc ? 1 : 0]++;
 
             if (info->cipher.enc) {
                 /* set devId to invalid, so software is used */
@@ -82195,7 +82215,14 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* WOLFSSL_SM4_GCM */
     #ifdef WOLFSSL_SM4_CCM
         if (info->cipher.type == WC_CIPHER_SM4_CCM) {
-            myCtx->sm4CcmCount++;
+            if (((info->cipher.enc != 0) &&
+                    (info->cipher.sm4ccm_enc.sm4 == NULL)) ||
+                ((info->cipher.enc == 0) &&
+                    (info->cipher.sm4ccm_dec.sm4 == NULL))) {
+                return NOT_COMPILED_IN;
+            }
+
+            myCtx->sm4CcmCount[info->cipher.enc ? 1 : 0]++;
 
             if (info->cipher.enc) {
                 /* set devId to invalid, so software is used */
@@ -83757,11 +83784,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.sm3Count = 0;
 #endif
 #if defined(WOLFSSL_SM4) && defined(WOLFSSL_SM_CRYPTOCB)
-    myCtx.sm4EcbCount = 0;
-    myCtx.sm4CbcCount = 0;
+    XMEMSET(myCtx.sm4EcbCount, 0, sizeof(myCtx.sm4EcbCount));
+    XMEMSET(myCtx.sm4CbcCount, 0, sizeof(myCtx.sm4CbcCount));
     myCtx.sm4CtrCount = 0;
-    myCtx.sm4GcmCount = 0;
-    myCtx.sm4CcmCount = 0;
+    XMEMSET(myCtx.sm4GcmCount, 0, sizeof(myCtx.sm4GcmCount));
+    XMEMSET(myCtx.sm4CcmCount, 0, sizeof(myCtx.sm4CcmCount));
 #endif
 
     /* set devId to something other than INVALID_DEVID */
@@ -84181,23 +84208,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
      * not handled in software behind the callback's back. */
     #ifdef WOLFSSL_SM_CRYPTOCB
     #ifdef WOLFSSL_SM4_ECB
-    if (ret == 0 && myCtx.sm4EcbCount == 0)
+    if (ret == 0 && ((myCtx.sm4EcbCount[0] == 0) ||
+                     (myCtx.sm4EcbCount[1] == 0)))
         ret = WC_TEST_RET_ENC_NC;
     #endif
     #ifdef WOLFSSL_SM4_CBC
-    if (ret == 0 && myCtx.sm4CbcCount == 0)
+    if (ret == 0 && ((myCtx.sm4CbcCount[0] == 0) ||
+                     (myCtx.sm4CbcCount[1] == 0)))
         ret = WC_TEST_RET_ENC_NC;
     #endif
     #ifdef WOLFSSL_SM4_CTR
+    /* Counter mode encrypts in both directions, so there is only one hook. */
     if (ret == 0 && myCtx.sm4CtrCount == 0)
         ret = WC_TEST_RET_ENC_NC;
     #endif
     #ifdef WOLFSSL_SM4_GCM
-    if (ret == 0 && myCtx.sm4GcmCount == 0)
+    if (ret == 0 && ((myCtx.sm4GcmCount[0] == 0) ||
+                     (myCtx.sm4GcmCount[1] == 0)))
         ret = WC_TEST_RET_ENC_NC;
     #endif
     #ifdef WOLFSSL_SM4_CCM
-    if (ret == 0 && myCtx.sm4CcmCount == 0)
+    if (ret == 0 && ((myCtx.sm4CcmCount[0] == 0) ||
+                     (myCtx.sm4CcmCount[1] == 0)))
         ret = WC_TEST_RET_ENC_NC;
     #endif
     #endif /* WOLFSSL_SM_CRYPTOCB */
@@ -84445,6 +84477,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         if (ret == 0 && !sm2Skip &&
                 (myCtx.sm2VerifyCount == 0 || sm2Verify != 1)) {
             ret = WC_TEST_RET_ENC_NC;
+        }
+        /* A corrupted signature must come back rejected through the
+         * callback, not errored. Flip a bit in s, leaving the DER framing
+         * intact so the failure is the math and not a parse. */
+        if (ret == 0 && !sm2Skip) {
+            int sm2VerifyCnt = myCtx.sm2VerifyCount;
+
+            sm2Verify = 1;
+            sm2Sig[sm2SigLen - 1] ^= 0x01;
+            ret = wc_ecc_sm2_verify_hash(sm2Sig, sm2SigLen, sm2Digest,
+                (word32)sizeof(sm2Digest), &sm2Verify, sm2KeyA);
+            sm2Sig[sm2SigLen - 1] ^= 0x01;
+            if (ret != 0) {
+                ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            else if ((sm2Verify == 1) ||
+                    (myCtx.sm2VerifyCount == sm2VerifyCnt)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
         }
     #if defined(HAVE_ECC_DHE) && defined(ECC_TIMING_RESISTANT)
         /* blinding needs an RNG on the key before the shared secret */
