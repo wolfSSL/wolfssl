@@ -4436,6 +4436,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_hpke.c
         tests/api/test_kdf.c
         tests/api/test_she.c
+        tests/api/test_async.c
         tests/api/test_des3.c
         tests/api/test_chacha.c
         tests/api/test_poly1305.c
