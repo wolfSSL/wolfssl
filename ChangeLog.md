@@ -228,6 +228,19 @@
   key of a reloaded key must keep the one exported at generation time, or
   load it into a separate key with `ImportPubRaw`.
 
+* **Behavioral change (TLS 1.3 server ChangeCipherSpec)**: a TLS 1.3 server
+  now answers a ClientHello carrying a non-empty `legacy_session_id` with a
+  ChangeCipherSpec record, as RFC 8446 Appendix D.4 describes for middlebox
+  compatibility mode.  It only did so before in builds defining
+  `WOLFSSL_TLS13_MIDDLEBOX_COMPAT`, which only `--enable-tls13-middlebox-compat`
+  and `--enable-jni` set and neither is on by default, so a default-built
+  server stayed silent and peers that expect the record - Erlang's `ssl`
+  among them - aborted the handshake with an unexpected_message alert.  A
+  client sending an empty session id still sees none, and DTLS and QUIC are
+  unaffected.  One visible difference: `wolfSSL_get_state()` no longer passes
+  through `WOLFSSL_SS_SERVER_CHANGECIPHERSPEC` or
+  `WOLFSSL_SS_CLIENT_CHANGECIPHERSPEC` on a TLS 1.3 connection.
+
 ## New Features
 
 * Added `WC_ALGO_TYPE_KEYSTORE`, a crypto callback algorithm type for lifetime operations on keys held in a hardware key store, with the public API in `wolfssl/wolfcrypt/wc_keystore.h` behind `--enable-cryptocbutils=keystore`. Seven operations - plaintext and wrapped import/export, derive, delete and get-info - address keys by an opaque device-defined reference that wolfCrypt copies through and never interprets, the same way it treats a key object's `id[]` blob. This lets a device create, wrap, derive and destroy keys that never appear in memory, which `WOLF_CRYPTO_CB_SETKEY` and `WOLF_CRYPTO_CB_EXPORT_KEY` cannot express because both are bound to a wolfCrypt key object holding material for its own use.
