@@ -11870,8 +11870,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
         WOLFSSL_ENTER("EVP_DigestUpdate");
 
-        if (ctx == NULL)
+        if (ctx == NULL || data == NULL)
             return WOLFSSL_FAILURE;
+        if (sz == 0)
+            return WOLFSSL_SUCCESS;
 
         /* The underlying update functions take a word32 length. Feed the data
          * in chunks so the whole of sz is hashed instead of sz mod 2^32.
