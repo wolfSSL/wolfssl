@@ -8737,6 +8737,7 @@ int falcon_native_check_key(falcon_key* key)
     word32 pubSz = 0, keySz;
     sword8 *f = NULL, *g = NULL, *F = NULL;
     word16 *h = NULL, *ft = NULL, *gt = NULL;
+    word32 bad;
     const word16* zetas = NULL;
     const word16* izetas = NULL;
     byte* arena = NULL;
@@ -8804,16 +8805,22 @@ int falcon_native_check_key(falcon_key* key)
     falcon_ntt(ft, n, zetas);
     falcon_ntt(gt, n, zetas);
     falcon_ntt(h, n, zetas);
+    /* Sticky mask rather than an early break: ft[] and gt[] are the NTT images
+     * of the secret f and g, so stopping at the first bad slot would time-leak
+     * its index to a caller that imports a chosen h. Barrett keeps the compare
+     * division-free; both operands are canonical in [0, q), so XOR is exact. */
+    bad = 0;
     for (i = 0; i < n; i++) {
-        /* Barrett reduction (division-free, constant-time) instead of '%': ft[i]
-         * is the NTT image of the secret polynomial f, and both h[i] and ft[i]
-         * are in [0, q) so the product is in [0, q^2) -- falcon_barrett's domain
-         * -- matching the verify path's pointwise multiply. */
-        if (ft[i] == 0 ||
-                (word16)falcon_barrett((word32)h[i] * ft[i]) != gt[i]) {
-            ret = PUBLIC_KEY_E;
-            break;
-        }
+        word32 prod = falcon_barrett((word32)h[i] * ft[i]);
+        word32 diff = prod ^ (word32)gt[i];
+
+        /* f not invertible at this slot: ft[i] == 0. */
+        bad |= ((word32)ft[i] - 1U) >> 31;
+        /* h*f != g at this slot. */
+        bad |= (diff | (0U - diff)) >> 31;
+    }
+    if (bad != 0) {
+        ret = PUBLIC_KEY_E;
     }
 
 out:
