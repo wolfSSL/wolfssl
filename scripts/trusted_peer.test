@@ -255,6 +255,11 @@ create_port
 $TIMEOUT_KILL_2M ./examples/client/client -A "$wrong_ca" -E "$wrong_cert" -p $port
 RESULT=$?
 remove_ready_file
+if timed_out $RESULT; then
+    echo -e "\nClient trusted peer cert test timed out!"
+    do_cleanup
+    exit 1
+fi
 if [ $RESULT -eq 0 ]; then
     echo -e "\nClient trusted peer cert test failed!"
     do_cleanup
@@ -273,6 +278,11 @@ create_port
 $TIMEOUT_KILL_2M ./examples/client/client -A "$client_ca" -p $port
 RESULT=$?
 remove_ready_file
+if timed_out $RESULT; then
+    echo -e "\nServer trusted peer cert test timed out!"
+    do_cleanup
+    exit 1
+fi
 if [ $RESULT -eq 0 ]; then
     echo -e "\nServer trusted peer cert test failed!"
     do_cleanup
@@ -322,6 +332,11 @@ if [ $RESULT -ne 0 ]; then
 fi
 $TIMEOUT_KILL_2M ./examples/client/client -A "$client_ca" -c "$wrong_cert" -k "$client_key" -p $port
 RESULT=$?
+if timed_out $RESULT; then
+    echo -e "\nServer load multiple trusted peer certs timed out!"
+    do_cleanup
+    exit 1
+fi
 if [ $RESULT -eq 0 ]; then
     echo -e "\nServer load multiple trusted peer certs failed!"
     do_cleanup

@@ -193,6 +193,11 @@ if [ "${pipe_rc[1]}" -ne 0 ]; then
         $TIMEOUT_KILL_2M ./examples/client/client -x -p $port
         RESULT=$?
         remove_ready_file
+        if timed_out $RESULT; then
+            echo -e "\n\nClient timed out, expected a connection failure"
+            do_cleanup
+            exit 1
+        fi
         if [ $RESULT -eq 0 ]; then
             echo -e "\n\nClient connected when supposed to fail"
             do_cleanup

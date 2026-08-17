@@ -158,6 +158,11 @@ create_port
 $TIMEOUT_KILL_2M ./examples/client/client -v 4 -p $port -l TLS13-AES256-GCM-SHA384
 RESULT=$?
 remove_ready_file
+if timed_out $RESULT; then
+    echo -e "\n\nMismatched TLS v1.3 cipher suite test timed out"
+    do_cleanup
+    exit 1
+fi
 if [ $RESULT -eq 0 ]; then
     echo -e "\n\nIssue with mismatched TLS v1.3 cipher suites"
     do_cleanup
@@ -180,6 +185,11 @@ if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
     $TIMEOUT_KILL_2M ./examples/client/client -v 4 -x -p $port
     RESULT=$?
     remove_ready_file
+    if timed_out $RESULT; then
+        echo -e "\n\nMutual authentication test timed out"
+        do_cleanup
+        exit 1
+    fi
     if [ $RESULT -eq 0 ]; then
         echo -e "\n\nIssue with requiring mutual authentication"
         do_cleanup
@@ -206,6 +216,11 @@ if [ "${pipe_rc[1]}" -ne 0 ]; then
     $TIMEOUT_KILL_2M ./examples/client/client -v 3 -p $port
     RESULT=$?
     remove_ready_file
+    if timed_out $RESULT; then
+        echo -e "\n\nTLS v1.3 server downgrade test timed out"
+        do_cleanup
+        exit 1
+    fi
     if [ $RESULT -eq 0 ]; then
         echo -e "\n\nIssue with TLS v1.3 server downgrading to TLS v1.2"
         do_cleanup
@@ -223,6 +238,11 @@ if [ "${pipe_rc[1]}" -ne 0 ]; then
     $TIMEOUT_KILL_2M ./examples/client/client -v 4 -p $port
     RESULT=$?
     remove_ready_file
+    if timed_out $RESULT; then
+        echo -e "\n\nTLS v1.3 client upgrade test timed out"
+        do_cleanup
+        exit 1
+    fi
     if [ $RESULT -eq 0 ]; then
         echo -e "\n\nIssue with TLS v1.3 client upgrading server to TLS v1.3"
         do_cleanup
@@ -254,6 +274,11 @@ if [ "${pipe_rc[1]}" -ne 0 ]; then
         $TIMEOUT_KILL_2M ./examples/client/client -v d -l $CLIENT_CS -p $port
         RESULT=$?
         remove_ready_file
+        if timed_out $RESULT; then
+            echo -e "\n\nTLS v1.3 cipher downgrade test timed out"
+            do_cleanup
+            exit 1
+        fi
         if [ $RESULT -eq 0 ]; then
             echo -e "\n\nTLS v1.3 downgrading to TLS v1.2 due to ciphers"
             do_cleanup
