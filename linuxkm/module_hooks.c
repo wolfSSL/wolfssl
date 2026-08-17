@@ -928,7 +928,10 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+
     {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
         if (svr_disallowed_count > 0) {
@@ -963,7 +966,8 @@ static int wolfssl_init(void)
             return -ECANCELED;
         }
     }
-#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK */
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK &&                    */
+       /* !DEBUG_VECTOR_REGISTER_ACCESS_FUZZING && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
 
 #endif /* HAVE_FIPS */
 
@@ -1021,7 +1025,9 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
     {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
         if (svr_disallowed_count > 0) {
@@ -1071,7 +1077,8 @@ static int wolfssl_init(void)
         }
     }
 
-#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK */
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK &&                    */
+       /* !DEBUG_VECTOR_REGISTER_ACCESS_FUZZING && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
 
     pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
             "self-test succeeded.\n",
@@ -2185,7 +2192,9 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         return -EINVAL;
     }
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
     /* Note that wc_svr_disallowed_count*() can't be checked in
      * FIPS_rerun_self_test_handler() -- we're already multiuser at this point
      * and other threads can and will increment wc_svr_disallowed_count outside
@@ -2206,7 +2215,8 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
         return -EINVAL;
     }
-#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK */
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK &&                    */
+       /* !DEBUG_VECTOR_REGISTER_ACCESS_FUZZING && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
 
     pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
 
