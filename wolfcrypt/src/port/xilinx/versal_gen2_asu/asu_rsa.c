@@ -96,25 +96,48 @@ typedef struct {
     int                   op;
 } AsuRsaReq;
 
-/* Line the request up on a 64-byte boundary so the hardware output buffer does
- * not share space with the key. *raw returns the pointer to free later. */
-static AsuRsaReq* wc_AsuRsaReqNew(void** raw)
+/* Carries the request's original allocation and its aligned view together, so
+ * they never get separated: use .req for the op, and Free frees .raw. */
+typedef struct {
+    void*      raw;   /* the pointer XMALLOC returned, the one to free */
+    AsuRsaReq* req;   /* the 64-byte aligned request the operation uses */
+} AsuRsaMem;
+
+/* Allocate a request lined up on a 64-byte boundary (cache on) so the hardware
+ * output buffer owns its cache line. Fills mem, returns 0 or MEMORY_E. */
+static int wc_AsuRsaReqNew(AsuRsaMem* mem)
 {
+    if (mem == NULL) {
+        return BAD_FUNC_ARG;
+    }
 #ifdef WC_ASU_DISABLE_CACHE
     /* Cache off: nothing to align for, so allocate plainly. */
-    AsuRsaReq* p = (AsuRsaReq*)XMALLOC(sizeof(AsuRsaReq), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    *raw = p;
-    return p;
+    mem->raw = XMALLOC(sizeof(AsuRsaReq), NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #else
-    byte* p = (byte*)XMALLOC(sizeof(AsuRsaReq) + 63U, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    *raw = p;
-    if (p == NULL) {
-        return NULL;
-    }
-    return (AsuRsaReq*)(void*)(((UINTPTR)p + 63U) & ~(UINTPTR)63U);
+    mem->raw = XMALLOC(sizeof(AsuRsaReq) + 63U, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+    if (mem->raw == NULL) {
+        mem->req = NULL;
+        return MEMORY_E;
+    }
+#ifdef WC_ASU_DISABLE_CACHE
+    mem->req = (AsuRsaReq*)mem->raw;
+#else
+    mem->req = (AsuRsaReq*)(void*)(((UINTPTR)mem->raw + 63U) & ~(UINTPTR)63U);
+#endif
+    return 0;
+}
+
+/* Scrub the request (it may hold the private exponent or plaintext), flush the
+ * zeros to DRAM (the struct was DMA-flushed), then free the base. */
+static void wc_AsuRsaReqFree(AsuRsaMem* mem)
+{
+    if (mem == NULL || mem->req == NULL) {
+        return;
+    }
+    ForceZero(mem->req, sizeof(*mem->req));
+    wc_AsuCacheFlush(mem->req, sizeof(*mem->req));
+    XFREE(mem->raw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
 /* Submit thunk: queue one ASU RSA operation. */
@@ -257,84 +280,78 @@ static int wc_AsuRsaShaMap(enum wc_HashType hash, int mgf, u8* shaType,
  * is one full modulus-width block and the result is keySize bytes. */
 static int wc_AsuRsaRaw(wc_CryptoInfo* info, RsaKey* key, u32 keySize, int op)
 {
-    AsuRsaReq* req;
-    void*      reqRaw = NULL;
+    AsuRsaMem mem;
     word32 addl = 0;
     word32 status;
-    int    ret = 0;
+    int    ret;
 
-    req = wc_AsuRsaReqNew(&reqRaw);
-    if (req == NULL) {
-        return MEMORY_E;
+    ret = wc_AsuRsaReqNew(&mem);
+    if (ret != 0) {
+        return ret;
     }
 
-    XMEMSET(req, 0, sizeof(*req));
-    ret = wc_AsuRsaPubComp(key, keySize, &req->key.PubKeyComp);
+    XMEMSET(mem.req, 0, sizeof(*mem.req));
+    ret = wc_AsuRsaPubComp(key, keySize, &mem.req->key.PubKeyComp);
     if (ret != 0) {
-        goto out;
+        wc_AsuRsaReqFree(&mem);
+        return ret;
     }
     /* Reject in >= n (SW: RSA_OUT_OF_RANGE_E); the ASU reduces mod n, so in and
      * in+n verify alike. The 0/1/n-1 small-input hardening is left to HW. */
-    if (XMEMCMP(info->pk.rsa.in, req->key.PubKeyComp.Modulus, keySize) >= 0) {
-        ret = CRYPTOCB_UNAVAILABLE;
-        goto out;
+    if (XMEMCMP(info->pk.rsa.in, mem.req->key.PubKeyComp.Modulus,
+                keySize) >= 0) {
+        wc_AsuRsaReqFree(&mem);
+        return CRYPTOCB_UNAVAILABLE;
     }
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     if (op == WC_ASU_RSA_OP_PVT) {
-        req->key.PrimeCompOrTotientPrsnt = 0U;
-        if (mp_to_unsigned_bin_len_ct(&key->d, (byte*)req->key.PvtExp,
+        mem.req->key.PrimeCompOrTotientPrsnt = 0U;
+        if (mp_to_unsigned_bin_len_ct(&key->d, (byte*)mem.req->key.PvtExp,
                 (int)keySize) < 0) {
-            ret = WC_HW_E;
-            goto out;
+            wc_AsuRsaReqFree(&mem);
+            return WC_HW_E;
         }
     }
 #endif
 
-    req->op                            = op;
-    req->pad.XAsu_RsaOpComp.InputDataAddr  = (u64)(UINTPTR)info->pk.rsa.in;
+    mem.req->op                            = op;
+    mem.req->pad.XAsu_RsaOpComp.InputDataAddr  = (u64)(UINTPTR)info->pk.rsa.in;
     /* The ASU DMA writes the result into the request buffer; the caller's
      * output may be in a region the DMA cannot reach, so copy it out after. */
-    req->pad.XAsu_RsaOpComp.OutputDataAddr = (u64)(UINTPTR)req->out;
-    req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&req->key;
-    req->pad.XAsu_RsaOpComp.ExpoCompAddr   = 0U;
-    req->pad.XAsu_RsaOpComp.Len            = keySize;
-    req->pad.XAsu_RsaOpComp.KeySize        = keySize;
+    mem.req->pad.XAsu_RsaOpComp.OutputDataAddr = (u64)(UINTPTR)mem.req->out;
+    mem.req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
+    mem.req->pad.XAsu_RsaOpComp.ExpoCompAddr   = 0U;
+    mem.req->pad.XAsu_RsaOpComp.Len            = keySize;
+    mem.req->pad.XAsu_RsaOpComp.KeySize        = keySize;
 
     WC_ASU_PRINTF("[ASU] rsa raw op=%d keySize=%u\r\n",
         op, (unsigned int)keySize);
 
     wc_AsuCacheFlush(info->pk.rsa.in, keySize);
-    wc_AsuCacheFlush(&req->key, sizeof(req->key));
-    wc_AsuCacheFlush(req->out, keySize);
+    wc_AsuCacheFlush(&mem.req->key, sizeof(mem.req->key));
+    wc_AsuCacheFlush(mem.req->out, keySize);
 
-    status = wc_AsuTransact(wc_AsuRsaSubmit, req, &addl);
+    status = wc_AsuTransact(wc_AsuRsaSubmit, mem.req, &addl);
 
-    wc_AsuCacheInvalidate(req->out, keySize);
+    wc_AsuCacheInvalidate(mem.req->out, keySize);
 
     if (status != XST_SUCCESS) {
-        ret = WC_HW_E;
-        goto out;
+        wc_AsuRsaReqFree(&mem);
+        return WC_HW_E;
     }
     /* A private decrypt reports its own success in addl; the public path
      * trusts the SUCCESS status (the firmware writes the result on success). */
     if (op == WC_ASU_RSA_OP_PVT &&
         addl != (word32)XASU_RSA_DECRYPTION_SUCCESS) {
-        ret = WC_HW_E;
-        goto out;
+        wc_AsuRsaReqFree(&mem);
+        return WC_HW_E;
     }
 
-    XMEMCPY(info->pk.rsa.out, req->out, keySize);
+    XMEMCPY(info->pk.rsa.out, mem.req->out, keySize);
     /* outLen is non-NULL here: dispatch/pre-check already rejected NULL. */
     *info->pk.rsa.outLen = keySize;
-    ret = 0;
-
-out:
-    ForceZero(req, sizeof(*req));
-    /* The request held the private exponent / plaintext, which was DMA-flushed
-     * to DRAM; flush the zeros too or the cleared bytes live only in cache. */
-    wc_AsuCacheFlush(req, sizeof(*req));
-    XFREE(reqRaw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return ret;
+    wc_AsuRsaReqFree(&mem);
+    return 0;
 }
 
 /* Pick the public or private RSA math for the WC_PK_TYPE_RSA direction. */
@@ -400,8 +417,7 @@ static int wc_AsuRsaRawDispatch(wc_CryptoInfo* info)
  * (hashed-input mode); ASU does the PSS encode and private RSA math to out. */
 static int wc_AsuRsaPssSign(wc_CryptoInfo* info)
 {
-    AsuRsaReq* req;
-    void*      reqRaw = NULL;
+    AsuRsaMem mem;
     RsaKey* key = info->pk.rsa.key;
     RsaPadding* padding = info->pk.rsa.padding;
     u32     keySize = 0;
@@ -451,76 +467,69 @@ static int wc_AsuRsaPssSign(wc_CryptoInfo* info)
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    req = wc_AsuRsaReqNew(&reqRaw);
-    if (req == NULL) {
-        return MEMORY_E;
-    }
-
-    XMEMSET(req, 0, sizeof(*req));
-    ret = wc_AsuRsaPubComp(key, keySize, &req->key.PubKeyComp);
+    ret = wc_AsuRsaReqNew(&mem);
     if (ret != 0) {
-        goto out;
+        return ret;
     }
-    req->key.PrimeCompOrTotientPrsnt = 0U;
-    if (mp_to_unsigned_bin_len_ct(&key->d, (byte*)req->key.PvtExp,
+    XMEMSET(mem.req, 0, sizeof(*mem.req));
+    ret = wc_AsuRsaPubComp(key, keySize, &mem.req->key.PubKeyComp);
+    if (ret != 0) {
+        wc_AsuRsaReqFree(&mem);
+        return ret;
+    }
+    mem.req->key.PrimeCompOrTotientPrsnt = 0U;
+    if (mp_to_unsigned_bin_len_ct(&key->d, (byte*)mem.req->key.PvtExp,
             (int)keySize) < 0) {
-        ret = WC_HW_E;
-        goto out;
+        wc_AsuRsaReqFree(&mem);
+        return WC_HW_E;
     }
 
-    req->op                                = WC_ASU_RSA_OP_PSS_SIGN;
-    req->pad.XAsu_RsaOpComp.InputDataAddr  = (u64)(UINTPTR)info->pk.rsa.in;
+    mem.req->op                                = WC_ASU_RSA_OP_PSS_SIGN;
+    mem.req->pad.XAsu_RsaOpComp.InputDataAddr  = (u64)(UINTPTR)info->pk.rsa.in;
     /* For sign the signature goes to OutputDataAddr (not SignatureDataAddr,
-     * the verify input); DMA it into req->out and copy out after. */
-    req->pad.XAsu_RsaOpComp.OutputDataAddr = (u64)(UINTPTR)req->out;
-    req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&req->key;
-    req->pad.XAsu_RsaOpComp.Len            = hashLen;
-    req->pad.XAsu_RsaOpComp.KeySize        = keySize;
-    req->pad.SignatureDataAddr             = (u64)(UINTPTR)req->scratch;
-    req->pad.SignatureLen                  = keySize;
-    req->pad.SaltLen                       = (u32)saltLen;
-    req->pad.ShaType                       = shaType;
-    req->pad.ShaMode                       = shaMode;
-    req->pad.InputDataType                 = (u8)XASU_RSA_HASHED_INPUT_DATA;
+     * the verify input); DMA it into mem.req->out and copy out after. */
+    mem.req->pad.XAsu_RsaOpComp.OutputDataAddr = (u64)(UINTPTR)mem.req->out;
+    mem.req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
+    mem.req->pad.XAsu_RsaOpComp.Len            = hashLen;
+    mem.req->pad.XAsu_RsaOpComp.KeySize        = keySize;
+    mem.req->pad.SignatureDataAddr             = (u64)(UINTPTR)mem.req->scratch;
+    mem.req->pad.SignatureLen                  = keySize;
+    mem.req->pad.SaltLen                       = (u32)saltLen;
+    mem.req->pad.ShaType                       = shaType;
+    mem.req->pad.ShaMode                       = shaMode;
+    mem.req->pad.InputDataType                 = (u8)XASU_RSA_HASHED_INPUT_DATA;
 
     WC_ASU_PRINTF("[ASU] rsa pss-sign keySize=%u shaMode=%u saltLen=%d\r\n",
         (unsigned int)keySize, (unsigned int)shaMode, saltLen);
 
     wc_AsuCacheFlush(info->pk.rsa.in, hashLen);
-    wc_AsuCacheFlush(&req->key, sizeof(req->key));
-    wc_AsuCacheFlush(req->out, keySize);
-    /* req->scratch is published as SignatureDataAddr; flush the XMEMSET-dirtied
-     * lines to DRAM and invalidate after, like req->out and the verify path. */
-    wc_AsuCacheFlush(req->scratch, keySize);
+    wc_AsuCacheFlush(&mem.req->key, sizeof(mem.req->key));
+    wc_AsuCacheFlush(mem.req->out, keySize);
+    /* mem.req->scratch is published as SignatureDataAddr; flush the dirtied
+     * lines to DRAM and invalidate after, like mem.req->out and the verify. */
+    wc_AsuCacheFlush(mem.req->scratch, keySize);
 
-    status = wc_AsuTransact(wc_AsuRsaSubmit, req, &addl);
+    status = wc_AsuTransact(wc_AsuRsaSubmit, mem.req, &addl);
 
-    wc_AsuCacheInvalidate(req->out, keySize);
-    wc_AsuCacheInvalidate(req->scratch, keySize);
+    wc_AsuCacheInvalidate(mem.req->out, keySize);
+    wc_AsuCacheInvalidate(mem.req->scratch, keySize);
 
     WC_ASU_PRINTF(
         "[ASU] pss-sign st=%u out %02x%02x%02x%02x..%02x%02x%02x%02x\r\n",
         (unsigned int)status,
-        req->out[0], req->out[1], req->out[2], req->out[3],
-        req->out[keySize - 4], req->out[keySize - 3], req->out[keySize - 2],
-        req->out[keySize - 1]);
+        mem.req->out[0], mem.req->out[1], mem.req->out[2], mem.req->out[3],
+        mem.req->out[keySize - 4], mem.req->out[keySize - 3],
+        mem.req->out[keySize - 2], mem.req->out[keySize - 1]);
 
     if (status != XST_SUCCESS) {
-        ret = WC_HW_E;
-        goto out;
+        wc_AsuRsaReqFree(&mem);
+        return WC_HW_E;
     }
-    XMEMCPY(info->pk.rsa.out, req->out, keySize);
+    XMEMCPY(info->pk.rsa.out, mem.req->out, keySize);
     /* outLen is non-NULL here: dispatch/pre-check already rejected NULL. */
     *info->pk.rsa.outLen = keySize;
-    ret = 0;
-
-out:
-    ForceZero(req, sizeof(*req));
-    /* The request held the private exponent / plaintext, which was DMA-flushed
-     * to DRAM; flush the zeros too or the cleared bytes live only in cache. */
-    wc_AsuCacheFlush(req, sizeof(*req));
-    XFREE(reqRaw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return ret;
+    wc_AsuRsaReqFree(&mem);
+    return 0;
 }
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY && WC_ASU_RSA_PAD */
 
@@ -560,8 +569,7 @@ static int wc_AsuRsaVerifyResult(word32 status, word32 addl,
  * signature and digest; ASU does the RSA math + PSS check, *res=1 iff good. */
 static int wc_AsuRsaPssVerify(wc_CryptoInfo* info)
 {
-    AsuRsaReq* req;
-    void*      reqRaw = NULL;
+    AsuRsaMem mem;
     RsaKey* key = info->pk.rsa_pss_verify.key;
     u32     keySize = 0;
     u8      shaType = 0;
@@ -606,31 +614,31 @@ static int wc_AsuRsaPssVerify(wc_CryptoInfo* info)
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    req = wc_AsuRsaReqNew(&reqRaw);
-    if (req == NULL) {
-        return MEMORY_E;
-    }
-
-    XMEMSET(req, 0, sizeof(*req));
-    /* Verify is a public operation; only the public components are needed. */
-    ret = wc_AsuRsaPubComp(key, keySize, &req->key.PubKeyComp);
+    ret = wc_AsuRsaReqNew(&mem);
     if (ret != 0) {
-        goto out;
+        return ret;
+    }
+    XMEMSET(mem.req, 0, sizeof(*mem.req));
+    /* Verify is a public operation; only the public components are needed. */
+    ret = wc_AsuRsaPubComp(key, keySize, &mem.req->key.PubKeyComp);
+    if (ret != 0) {
+        wc_AsuRsaReqFree(&mem);
+        return ret;
     }
 
-    req->op                                = WC_ASU_RSA_OP_PSS_VERIFY;
-    req->pad.XAsu_RsaOpComp.InputDataAddr  =
+    mem.req->op                                = WC_ASU_RSA_OP_PSS_VERIFY;
+    mem.req->pad.XAsu_RsaOpComp.InputDataAddr  =
         (u64)(UINTPTR)info->pk.rsa_pss_verify.digest;
-    req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&req->key;
-    req->pad.XAsu_RsaOpComp.Len            = hashLen;
-    req->pad.XAsu_RsaOpComp.KeySize        = keySize;
-    req->pad.SignatureDataAddr             =
+    mem.req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
+    mem.req->pad.XAsu_RsaOpComp.Len            = hashLen;
+    mem.req->pad.XAsu_RsaOpComp.KeySize        = keySize;
+    mem.req->pad.SignatureDataAddr             =
         (u64)(UINTPTR)info->pk.rsa_pss_verify.sig;
-    req->pad.SignatureLen                  = keySize;
-    req->pad.SaltLen                       = (u32)saltLen;
-    req->pad.ShaType                       = shaType;
-    req->pad.ShaMode                       = shaMode;
-    req->pad.InputDataType                 = (u8)XASU_RSA_HASHED_INPUT_DATA;
+    mem.req->pad.SignatureLen                  = keySize;
+    mem.req->pad.SaltLen                       = (u32)saltLen;
+    mem.req->pad.ShaType                       = shaType;
+    mem.req->pad.ShaMode                       = shaMode;
+    mem.req->pad.InputDataType                 = (u8)XASU_RSA_HASHED_INPUT_DATA;
 
     /* Clear the verdict only now that every CRYPTOCB_UNAVAILABLE feasibility
      * exit has passed, so a decline never mutates the caller's result. */
@@ -638,9 +646,9 @@ static int wc_AsuRsaPssVerify(wc_CryptoInfo* info)
 
     wc_AsuCacheFlush(info->pk.rsa_pss_verify.digest, hashLen);
     wc_AsuCacheFlush(info->pk.rsa_pss_verify.sig, keySize);
-    wc_AsuCacheFlush(&req->key, sizeof(req->key));
+    wc_AsuCacheFlush(&mem.req->key, sizeof(mem.req->key));
 
-    status = wc_AsuTransact(wc_AsuRsaSubmit, req, &addl);
+    status = wc_AsuTransact(wc_AsuRsaSubmit, mem.req, &addl);
 
     WC_ASU_PRINTF("[ASU] rsa pss-verify keySize=%u status=%u addl=0x%x\r\n",
         (unsigned int)keySize, (unsigned int)status, (unsigned int)addl);
@@ -650,12 +658,7 @@ static int wc_AsuRsaPssVerify(wc_CryptoInfo* info)
     ret = wc_AsuRsaVerifyResult(status, addl,
         (word32)XASU_RSA_PSS_SIGNATURE_VERIFIED, info->pk.rsa_pss_verify.res);
 
-out:
-    ForceZero(req, sizeof(*req));
-    /* Verify is public-key only, so the request holds no secret; the scrub and
-     * flush are just parity with the private paths. */
-    wc_AsuCacheFlush(req, sizeof(*req));
-    XFREE(reqRaw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_AsuRsaReqFree(&mem);
     return ret;
 }
 #endif /* WC_ASU_RSA_PAD (PSS verify) */
@@ -665,8 +668,7 @@ out:
  * hash/MGF/label in .padding; ASU does the OAEP encode + public RSA math. */
 static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
 {
-    AsuRsaReq* req;
-    void*      reqRaw = NULL;
+    AsuRsaMem mem;
     RsaKey* key = info->pk.rsa.key;
     RsaPadding* padding = info->pk.rsa.padding;
     u32     keySize = 0;
@@ -708,15 +710,15 @@ static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    req = wc_AsuRsaReqNew(&reqRaw);
-    if (req == NULL) {
-        return MEMORY_E;
-    }
-
-    XMEMSET(req, 0, sizeof(*req));
-    ret = wc_AsuRsaPubComp(key, keySize, &req->key.PubKeyComp);
+    ret = wc_AsuRsaReqNew(&mem);
     if (ret != 0) {
-        goto out;
+        return ret;
+    }
+    XMEMSET(mem.req, 0, sizeof(*mem.req));
+    ret = wc_AsuRsaPubComp(key, keySize, &mem.req->key.PubKeyComp);
+    if (ret != 0) {
+        wc_AsuRsaReqFree(&mem);
+        return ret;
     }
 
     /* The ASU requires a non-zero label address; an empty label (wolfSSL's
@@ -726,25 +728,26 @@ static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
     /* A NULL label with a non-zero size is contradictory; wc_RsaPad_ex rejects
      * it with BUFFER_E, so do the same, not silently bind an empty label. */
     if (label == NULL && labelSz > 0) {
-        ret = BUFFER_E;
-        goto out;
+        wc_AsuRsaReqFree(&mem);
+        return BUFFER_E;
     }
     if (label == NULL) {
-        label = req->scratch;
+        label = mem.req->scratch;
         labelSz = 0;
     }
 
-    req->op                                 = WC_ASU_RSA_OP_OAEP_ENC;
-    req->oaep.XAsu_RsaOpComp.InputDataAddr  = (u64)(UINTPTR)info->pk.rsa.in;
-    /* DMA ciphertext to req->out, then copy to the (maybe non-DMA) caller. */
-    req->oaep.XAsu_RsaOpComp.OutputDataAddr = (u64)(UINTPTR)req->out;
-    req->oaep.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&req->key;
-    req->oaep.XAsu_RsaOpComp.Len            = info->pk.rsa.inLen;
-    req->oaep.XAsu_RsaOpComp.KeySize        = keySize;
-    req->oaep.OptionalLabelAddr             = (u64)(UINTPTR)label;
-    req->oaep.OptionalLabelSize             = labelSz;
-    req->oaep.ShaType                       = shaType;
-    req->oaep.ShaMode                       = shaMode;
+    mem.req->op                                 = WC_ASU_RSA_OP_OAEP_ENC;
+    mem.req->oaep.XAsu_RsaOpComp.InputDataAddr  = (u64)(UINTPTR)info->pk.rsa.in;
+    /* DMA ciphertext to mem.req->out, then copy to the caller (which may be
+     * in a region the DMA cannot reach). */
+    mem.req->oaep.XAsu_RsaOpComp.OutputDataAddr = (u64)(UINTPTR)mem.req->out;
+    mem.req->oaep.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
+    mem.req->oaep.XAsu_RsaOpComp.Len            = info->pk.rsa.inLen;
+    mem.req->oaep.XAsu_RsaOpComp.KeySize        = keySize;
+    mem.req->oaep.OptionalLabelAddr             = (u64)(UINTPTR)label;
+    mem.req->oaep.OptionalLabelSize             = labelSz;
+    mem.req->oaep.ShaType                       = shaType;
+    mem.req->oaep.ShaMode                       = shaMode;
 
     WC_ASU_PRINTF("[ASU] rsa oaep-enc keySize=%u shaMode=%u labelSz=%u\r\n",
         (unsigned int)keySize, (unsigned int)shaMode, (unsigned int)labelSz);
@@ -753,29 +756,22 @@ static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
     if (labelSz > 0) {
         wc_AsuCacheFlush(label, labelSz);
     }
-    wc_AsuCacheFlush(&req->key, sizeof(req->key));
-    wc_AsuCacheFlush(req->out, keySize);
+    wc_AsuCacheFlush(&mem.req->key, sizeof(mem.req->key));
+    wc_AsuCacheFlush(mem.req->out, keySize);
 
-    status = wc_AsuTransact(wc_AsuRsaSubmit, req, &addl);
+    status = wc_AsuTransact(wc_AsuRsaSubmit, mem.req, &addl);
 
-    wc_AsuCacheInvalidate(req->out, keySize);
+    wc_AsuCacheInvalidate(mem.req->out, keySize);
 
     if (status != XST_SUCCESS) {
-        ret = WC_HW_E;
-        goto out;
+        wc_AsuRsaReqFree(&mem);
+        return WC_HW_E;
     }
-    XMEMCPY(info->pk.rsa.out, req->out, keySize);
+    XMEMCPY(info->pk.rsa.out, mem.req->out, keySize);
     /* outLen is non-NULL here: dispatch/pre-check already rejected NULL. */
     *info->pk.rsa.outLen = keySize;
-    ret = 0;
-
-out:
-    ForceZero(req, sizeof(*req));
-    /* The request held the plaintext message, DMA-flushed to DRAM; flush the
-     * zeros too or the cleared bytes live only in cache (public-key op). */
-    wc_AsuCacheFlush(req, sizeof(*req));
-    XFREE(reqRaw, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return ret;
+    wc_AsuRsaReqFree(&mem);
+    return 0;
 }
 #endif /* WC_ASU_RSA_PAD (OAEP encrypt) */
 
