@@ -179,12 +179,18 @@ jobs:
           # seam, and aarch64 has baseline FMA with contraction on by default, so
           # without this even the scalar ops can round differently here.
           - { name: 'neon (ARM64)',      runner: ubuntu-24.04-arm, opts: '--enable-falcon=neon', cflags: '-ffp-contract=off' }
-          - { name: 'cache-key',         runner: ubuntu-latest,    opts: '--enable-falcon=cache-key' }
-          - { name: 'cache-basis',       runner: ubuntu-latest,    opts: '--enable-falcon=cache-basis' }
-          - { name: 'cache-key+small-mem', runner: ubuntu-latest,  opts: '--enable-falcon=cache-key,small-mem' }
-          # verify-only strips keygen/sign, so it is a build/link check only
-          # (testwolfcrypt's falcon_test needs signing).
-          - { name: 'verify-only',       runner: ubuntu-latest,    opts: '--enable-falcon', cppflags: '-DWOLFSSL_FALCON_VERIFY_ONLY', build_only: true }
+          - { name: 'cache-key',         runner: ubuntu-latest,    opts: '--enable-falcon=cache-key', full_suite: true }
+          - { name: 'cache-basis',       runner: ubuntu-latest,    opts: '--enable-falcon=cache-basis', full_suite: true }
+          - { name: 'cache-key+small-mem', runner: ubuntu-latest,  opts: '--enable-falcon=cache-key,small-mem', full_suite: true }
+          - { name: 'level1 only',       runner: ubuntu-latest,    opts: '--enable-falcon=level1', full_suite: true }
+          - { name: 'level5 only',       runner: ubuntu-latest,    opts: '--enable-falcon=level5', full_suite: true }
+          - { name: 'dynamic-keys',      runner: ubuntu-latest,    opts: '--enable-falcon=dynamic-keys', full_suite: true }
+          - { name: 'level1+dynamic-keys', runner: ubuntu-latest,  opts: '--enable-falcon=level1,dynamic-keys', full_suite: true }
+          - { name: 'cache-key+dynamic-keys', runner: ubuntu-latest, opts: '--enable-falcon=cache-key,dynamic-keys', full_suite: true }
+          - { name: 'level5+dynamic-keys', runner: ubuntu-latest,  opts: '--enable-falcon=level5,dynamic-keys', full_suite: true }
+          # verify-only strips keygen/sign; the KAT verifies still run, and
+          # this is the only config where the verify path is all there is.
+          - { name: 'verify-only',       runner: ubuntu-latest,    opts: '--enable-falcon', cppflags: '-DWOLFSSL_FALCON_VERIFY_ONLY' }
     steps:
       - name: Install build tools
         run: |
@@ -240,3 +246,10 @@ jobs:
       - name: Run Falcon API tests (includes the deterministic vector)
         if: ${{ ! matrix.build_only }}
         run: ./tests/unit.test --group falcon
+
+      # --group falcon misses the Falcon test in the signature group and every
+      # caller of wc_falcon_set_level in the TLS and ASN paths, which a level
+      # restriction or a struct-changing option reaches.
+      - name: Run the full unit test suite
+        if: ${{ ! matrix.build_only && matrix.full_suite }}
+        run: ./tests/unit.test

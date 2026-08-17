@@ -1454,8 +1454,12 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-frodokem-1344",     BENCH_FRODOKEM_1344     },
 #endif
 #if defined(HAVE_FALCON)
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
     { "-falcon_level1",     BENCH_FALCON_LEVEL1_SIGN },
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
     { "-falcon_level5",     BENCH_FALCON_LEVEL5_SIGN },
+#endif
 #endif
 #if defined(WOLFSSL_HAVE_MLDSA)
     /* Legacy CLI option names, kept as deprecated aliases for -ml-dsa-{44,65,87}.
@@ -5009,10 +5013,14 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifdef HAVE_FALCON
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
         bench_falconKeySign(1);
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
         bench_falconKeySign(5);
+#endif
 #endif
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_NO_RNG)
 #ifndef WOLFSSL_NO_ML_DSA_44

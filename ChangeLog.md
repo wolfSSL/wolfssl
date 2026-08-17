@@ -3,6 +3,7 @@
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
+* Added `--enable-falcon=level1`/`level5` to build a single Falcon level and `--enable-falcon=dynamic-keys` for per-level heap key buffers; `wc_falcon_set_level()` now returns `BAD_FUNC_ARG` for a level not built and can return `MEMORY_E` with dynamic keys. by @Frauschi
 
 # wolfSSL Release 5.9.4 (Sep 25, 2026)
 

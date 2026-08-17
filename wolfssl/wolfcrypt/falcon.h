@@ -63,6 +63,10 @@
     #undef WC_FALCON_CACHE_EXPANDED_KEY
     #undef WC_FALCON_CACHE_PRIV_BASIS
 #endif
+
+/* Resolve WC_FALCON_CACHE_EXPANDED_KEY to what the selected signer can
+ * actually hold: the expanded key in the tree signer, the secret basis alone
+ * in a small-mem build. */
 #if defined(WC_FALCON_CACHE_EXPANDED_KEY) && \
     !defined(WOLFSSL_FALCON_SIGN_SMALL_MEM)
     /* Internal: the expanded key is really held in the key structure. */
@@ -75,6 +79,13 @@
     #ifndef WC_FALCON_CACHE_PRIV_BASIS
         #define WC_FALCON_CACHE_PRIV_BASIS
     #endif
+#endif
+
+/* WOLFSSL_FALCON_DYNAMIC_KEYS moves the encoded key buffers to the heap, sized
+ * for the level in use rather than for the highest enabled one. It trades two
+ * allocations per key for a much smaller falcon_key. */
+#if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && defined(WOLFSSL_NO_MALLOC)
+    #error "WOLFSSL_FALCON_DYNAMIC_KEYS needs an allocator; not WOLFSSL_NO_MALLOC."
 #endif
 
 #ifdef __cplusplus
@@ -93,7 +104,6 @@
 #define FALCON_LEVEL1_N       (1 << FALCON_LEVEL1_LOGN)   /* 512  */
 #define FALCON_LEVEL5_LOGN    10
 #define FALCON_LEVEL5_N       (1 << FALCON_LEVEL5_LOGN)   /* 1024 */
-#define FALCON_MAX_N          FALCON_LEVEL5_N
 
 /* Salt/nonce prepended to the message before hash-to-point. */
 #define FALCON_NONCE_SIZE     40
@@ -110,10 +120,28 @@
 #define FALCON_LEVEL5_PUB_KEY_SIZE 1793
 #define FALCON_LEVEL5_PRV_KEY_SIZE (FALCON_LEVEL5_PUB_KEY_SIZE+FALCON_LEVEL5_KEY_SIZE)
 
+/* Every FALCON_MAX_* bound follows the highest enabled level, so
+ * WOLFSSL_NO_FALCON_LEVEL5 shrinks the key structure and the verify stack
+ * arena to Falcon-512 sizes. WOLFSSL_NO_FALCON_LEVEL1 changes no bound. */
+#if defined(WOLFSSL_NO_FALCON_LEVEL1) && defined(WOLFSSL_NO_FALCON_LEVEL5)
+    #error "Falcon needs at least one of level 1 and level 5 enabled."
+#endif
+
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
+#define FALCON_MAX_LEVEL        FALCON_LEVEL5
+#define FALCON_MAX_N            FALCON_LEVEL5_N
 #define FALCON_MAX_KEY_SIZE     FALCON_LEVEL5_KEY_SIZE
 #define FALCON_MAX_SIG_SIZE     FALCON_LEVEL5_SIG_SIZE
 #define FALCON_MAX_PUB_KEY_SIZE FALCON_LEVEL5_PUB_KEY_SIZE
 #define FALCON_MAX_PRV_KEY_SIZE FALCON_LEVEL5_PRV_KEY_SIZE
+#else
+#define FALCON_MAX_LEVEL        FALCON_LEVEL1
+#define FALCON_MAX_N            FALCON_LEVEL1_N
+#define FALCON_MAX_KEY_SIZE     FALCON_LEVEL1_KEY_SIZE
+#define FALCON_MAX_SIG_SIZE     FALCON_LEVEL1_SIG_SIZE
+#define FALCON_MAX_PUB_KEY_SIZE FALCON_LEVEL1_PUB_KEY_SIZE
+#define FALCON_MAX_PRV_KEY_SIZE FALCON_LEVEL1_PRV_KEY_SIZE
+#endif
 
 /* Encoding header bytes: high nibble = format, low nibble = logn. */
 #define FALCON_SIG_HEAD_COMPRESSED    0x30
@@ -145,11 +173,24 @@ struct falcon_key {
     int  labelLen;
 #endif
 
+    /* p holds the encoded public key, k the private key only (header | f | g |
+     * F). wc_falcon_export_private rebuilds the concat(priv,pub) layout on
+     * demand, so no duplicate copy is kept here.
+     *
+     * With WOLFSSL_FALCON_DYNAMIC_KEYS both are heap buffers sized for the
+     * key's own level, allocated by wc_falcon_set_level, which shrinks the
+     * structure itself to a few dozen bytes. Otherwise they are inline arrays
+     * bounded by the highest enabled level. */
+#ifdef WOLFSSL_FALCON_DYNAMIC_KEYS
+    byte* p;
+    byte* k;
+    /* Allocated length of k. The release path zeroizes and must not take a
+     * length from key->level, which callers can set to anything. */
+    word32 kSz;
+#else
     byte p[FALCON_MAX_PUB_KEY_SIZE];
-    /* Private key only: the secret polynomials (header | f | g | F). The public
-     * key is held separately in p[]; the concat(priv,pub) layout is rebuilt on
-     * demand by wc_falcon_export_private, so no duplicate copy is kept here. */
     byte k[FALCON_MAX_KEY_SIZE];
+#endif
 
     /* Both caches below hold secret material and are zeroized before release.
      * Their allocated lengths are kept alongside them for the same reason kSz
@@ -192,6 +233,10 @@ WOLFSSL_API
 int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                          word32 msgLen, int* res, falcon_key* key);
 
+/* Initialize a falcon_key. The structure may own heap allocations - the
+ * encoded key buffers and the signing caches - so this takes an unused or
+ * already-freed one. Re-initializing a used key without wc_falcon_free()
+ * first orphans those allocations with the secret material still in them. */
 WOLFSSL_API
 int wc_falcon_init(falcon_key* key);
 

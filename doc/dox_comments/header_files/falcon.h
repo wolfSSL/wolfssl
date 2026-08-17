@@ -4,7 +4,9 @@
     \brief Initializes a falcon_key object with default settings (no heap
     hint, software-only). Must be called before any other Falcon operation.
     Call wc_falcon_set_level() to select a parameter set before generating or
-    importing a key. Release resources with wc_falcon_free() when done.
+    importing a key. Release resources with wc_falcon_free() when done: the
+    structure can own heap allocations, so re-initializing a used key without
+    freeing it first orphans them with the secret material still in them.
 
     Falcon is a quantum-resistant lattice signature scheme. It has not been
     standardized by NIST yet, so the "falcon" API name is experimental and
@@ -119,7 +121,11 @@ int wc_falcon_init_label(falcon_key* key, const char* label, void* heap,
     set before key generation or import.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL or level is not 1 or 5.
+    \return BAD_FUNC_ARG if key is NULL, level is not 1 or 5, or that level was
+    not built into the library (WOLFSSL_NO_FALCON_LEVEL1 /
+    WOLFSSL_NO_FALCON_LEVEL5).
+    \return MEMORY_E if WOLFSSL_FALCON_DYNAMIC_KEYS is defined and the encoded
+    key buffers could not be allocated.
 
     \param [in,out] key Pointer to the falcon_key.
     \param [in] level Parameter set: 1 for Falcon-512, 5 for Falcon-1024.
@@ -149,7 +155,9 @@ int wc_falcon_get_level(falcon_key* key, byte* level);
     \ingroup Falcon
 
     \brief Frees a falcon_key object and securely zeros any key material it
-    holds. The key may be re-initialized afterwards.
+    holds. The key may be re-initialized afterwards. The structure can own heap
+    allocations, so it must have been initialized (or zeroed) first; calling
+    this on an untouched stack object frees indeterminate pointers.
 
     \param [in,out] key Pointer to the falcon_key to free. May be NULL.
 

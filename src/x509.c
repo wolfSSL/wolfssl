@@ -12651,15 +12651,17 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
 
             if (x509->pubKeyOID == FALCON_LEVEL1k) {
                 type = FALCON_LEVEL1_TYPE;
-                wc_falcon_set_level(falcon, 1);
+                ret = wc_falcon_set_level(falcon, 1);
             }
             else if (x509->pubKeyOID == FALCON_LEVEL5k) {
                 type = FALCON_LEVEL5_TYPE;
-                wc_falcon_set_level(falcon, 5);
+                ret = wc_falcon_set_level(falcon, 5);
             }
 
-            ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx, falcon,
-                                            x509->pubKey.length);
+            if (ret == 0) {
+                ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx,
+                                                falcon, x509->pubKey.length);
+            }
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
                 wc_falcon_free(falcon);

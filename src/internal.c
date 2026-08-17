@@ -3586,16 +3586,20 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
         else
     #endif
     #ifdef HAVE_FALCON
+      #ifndef WOLFSSL_NO_FALCON_LEVEL1
         if (sigAlgo == falcon_level1_sa_algo) {
             ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
                 FALCON_LEVEL1_SA_MAJOR, FALCON_LEVEL1_SA_MINOR);
         }
         else
+      #endif
+      #ifndef WOLFSSL_NO_FALCON_LEVEL5
         if (sigAlgo == falcon_level5_sa_algo) {
             ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
                 FALCON_LEVEL5_SA_MAJOR, FALCON_LEVEL5_SA_MINOR);
         }
         else
+      #endif
     #endif /* HAVE_FALCON */
     #ifdef WOLFSSL_HAVE_MLDSA
         if (sigAlgo == mldsa_44_sa_algo) {
@@ -3811,10 +3815,14 @@ void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
 #endif
 #ifdef HAVE_FALCON
     if (haveSig & SIG_FALCON) {
+    #ifndef WOLFSSL_NO_FALCON_LEVEL1
         AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level1_sa_algo, keySz,
             &idx);
+    #endif
+    #ifndef WOLFSSL_NO_FALCON_LEVEL5
         AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level5_sa_algo, keySz,
             &idx);
+    #endif
     }
 #endif /* HAVE_FALCON */
 #ifdef WOLFSSL_HAVE_MLDSA
@@ -9553,7 +9561,7 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
     #if defined(HAVE_FALCON)
         case DYNAMIC_TYPE_FALCON:
             wc_falcon_free((falcon_key*)pKey);
-            ret = wc_falcon_init((falcon_key*)pKey);
+            ret = wc_falcon_init_ex((falcon_key*)pKey, ssl->heap, ssl->devId);
             break;
     #endif /* HAVE_FALCON */
     #if defined(WOLFSSL_HAVE_MLDSA)

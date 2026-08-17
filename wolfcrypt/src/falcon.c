@@ -24,23 +24,26 @@
  * WOLFSSL_FALCON_FFT_AVX2, WOLFSSL_FALCON_FFT_NEON) and
  * WOLFSSL_FALCON_SIGN_SMALL_MEM come from --enable-falcon=<opts>.
  *
- * WC_FALCON_CACHE_PRIV_BASIS                             Default: OFF
- *   Cache the secret basis (f, g, F, G) in the key on first sign.
- *   Skips the private-key decode and the G recomputation in later signs.
- *   Costs 4*n bytes of heap per key (4KB at Falcon-1024).
- * WC_FALCON_CACHE_EXPANDED_KEY                           Default: OFF
- *   Cache the expanded key (FFT basis plus normalized ffLDL tree) in the key
- *   on first sign. Skips all per-key setup in later signs, which is over half
- *   of a signature with the emulated fpr backend.
- *   Costs 8*(logn+5)*2^logn bytes of heap per key (~57KB at Falcon-512,
- *   ~120KB at Falcon-1024).
- *   Implies WC_FALCON_CACHE_PRIV_BASIS in small-mem builds, which have no
- *   expanded key to cache.
+ * WOLFSSL_NO_FALCON_LEVEL1 / WOLFSSL_NO_FALCON_LEVEL5    Default: both on
+ *   Drop a security level. Every FALCON_MAX_* bound follows the highest level
+ *   still enabled. At least one level must remain.
+ * WOLFSSL_FALCON_DYNAMIC_KEYS                            Default: OFF
+ *   Hold the encoded keys in heap buffers sized for the key's own level
+ *   instead of inline arrays sized for the highest enabled one, which leaves
+ *   falcon_key at a few dozen bytes. wc_falcon_set_level can then fail with
+ *   MEMORY_E.
  *
- * Both caches hold secret material, are zeroized when dropped, and are
- * invalidated whenever the private key changes. Neither is synchronized: a key
- * being used to sign concurrently from several threads must be built with them
- * off, or have its first signature made before the key is shared.
+ * WC_FALCON_CACHE_PRIV_BASIS                             Default: OFF
+ *   Cache the secret basis (f, g, F, G) in the key on first sign, skipping
+ *   the private-key decode and the G recomputation later. 4*n bytes per key.
+ * WC_FALCON_CACHE_EXPANDED_KEY                           Default: OFF
+ *   Cache the expanded key (FFT basis plus normalized ffLDL tree) on first
+ *   sign, skipping all per-key setup later. 8*(logn+5)*2^logn bytes per key
+ *   (~57KB at Falcon-512, ~120KB at Falcon-1024). Reduces to
+ *   WC_FALCON_CACHE_PRIV_BASIS in small-mem builds, which have no tree.
+ *
+ * Neither cache is synchronized: a key signed with from several threads at
+ * once must be built without them, or signed with once before it is shared.
  */
 
 #define _WC_BUILDING_FALCON_C
@@ -8271,16 +8274,20 @@ static WC_INLINE sword32 falcon_center(word32 x)
 static int falcon_level_params(byte level, unsigned* logn, int* n, word32* pubSz)
 {
     switch (level) {
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
         case FALCON_LEVEL1:
             *logn = FALCON_LEVEL1_LOGN;
             *n = FALCON_LEVEL1_N;
             *pubSz = FALCON_LEVEL1_PUB_KEY_SIZE;
             return 0;
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
         case FALCON_LEVEL5:
             *logn = FALCON_LEVEL5_LOGN;
             *n = FALCON_LEVEL5_N;
             *pubSz = FALCON_LEVEL5_PUB_KEY_SIZE;
             return 0;
+#endif
         default:
             return BAD_FUNC_ARG;
     }
@@ -8821,15 +8828,16 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     const word16* zetas = NULL;
     const word16* izetas = NULL;
     sword16* s2 = NULL;
+    word64 normS2 = 0;
     void* heap;
-    /* h, c, t (word16) and s2 (sword16) are all n elements of 2 bytes: carve
-     * them from one arena. The verify working set is public and small (<=8KB at
-     * Falcon-1024), so it lives on the stack unless WOLFSSL_SMALL_STACK asks for
-     * the heap. */
+    /* Only two n-element buffers are live at once, so the arena is 2*n word16:
+     * h dies once the pointwise product is formed, which is where c is built,
+     * and s2 once its squared norm is accumulated, before t is lifted in
+     * place. The set is public, so the stack unless WOLFSSL_SMALL_STACK. */
 #ifdef WOLFSSL_SMALL_STACK
     word16* arena = NULL;
 #else
-    word16 arena[4 * FALCON_MAX_N];
+    word16 arena[2 * FALCON_MAX_N];
 #endif
 
     if (sig == NULL || res == NULL || key == NULL ||
@@ -8861,17 +8869,19 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     sigDataLen = sigLen - 1 - FALCON_NONCE_SIZE;
 
 #ifdef WOLFSSL_SMALL_STACK
-    arena = (word16*)XMALLOC(sizeof(word16) * 4 * (size_t)n, heap,
+    arena = (word16*)XMALLOC(sizeof(word16) * 2 * (size_t)n, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (arena == NULL) {
         ret = MEMORY_E;
         goto out;
     }
 #endif
+    /* Two buffers, each used for two things in sequence: h then c, and s2
+     * then t (the lift from sword16 to word16 is in place). */
     h  = arena;
-    c  = arena + n;
-    t  = arena + 2 * n;
-    s2 = (sword16*)(arena + 3 * n);
+    c  = arena;
+    s2 = (sword16*)(arena + n);
+    t  = arena + n;
 
     /* Decode public key h (skip the 0x0n header byte). */
     if (key->p[0] != (byte)(FALCON_PUB_HEAD | logn)) {
@@ -8899,13 +8909,24 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         }
     }
 
-    /* c = HashToPoint(nonce || msg). */
-    ret = falcon_hash_to_point(sig + 1, msg, msgLen, c, logn, heap);
-    if (ret != 0) {
-        goto out;
+    /* ||s2||^2, taken before s2's storage is reused for t below. */
+    {
+        int i = 0;
+#ifdef WOLFSSL_FALCON_NTT_DSP
+        for (; i + 1 < n; i += 2) {
+            word32 s2p = falcon_pack((word32)(sword16)s2[i],
+                                     (word32)(sword16)s2[i + 1]);
+            normS2 += (word64)(word32)__smuad(s2p, s2p);
+        }
+#endif
+        for (; i < n; i++) {
+            sword32 s2c = s2[i];
+            normS2 += (word64)((sword64)s2c * s2c);
+        }
     }
 
-    /* t = s2 * h mod (x^n + 1) mod q, via NTT. Twiddle tables are cached. */
+    /* t = s2 * h mod (x^n + 1) mod q, via NTT. Twiddle tables are cached.
+     * The lift to [0, q) is in place: t and s2 are the same storage. */
     falcon_get_tables(logn, &zetas, &izetas);
     {
         int i;
@@ -8936,9 +8957,15 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     }
     falcon_intt(t, n, izetas);
 
+    /* c = HashToPoint(nonce || msg), built now that h is dead: c reuses it. */
+    ret = falcon_hash_to_point(sig + 1, msg, msgLen, c, logn, heap);
+    if (ret != 0) {
+        goto out;
+    }
+
     /* s1 = c - s2*h mod q (centered); accept iff ||(s1,s2)||^2 <= bound. */
     {
-        word64 norm = 0;
+        word64 norm = normS2;
         int i = 0;
 #ifdef WOLFSSL_FALCON_NTT_DSP
         /* Accumulate two squared coefficients per SMUAD (a.lo^2 + a.hi^2).
@@ -8949,18 +8976,13 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
             word32 d1 = falcon_csub(c[i + 1] + FALCON_Q - t[i + 1]);
             word32 s1p = falcon_pack((word32)(sword16)falcon_center(d0),
                                      (word32)(sword16)falcon_center(d1));
-            word32 s2p = falcon_pack((word32)(sword16)s2[i],
-                                     (word32)(sword16)s2[i + 1]);
             norm += (word64)(word32)__smuad(s1p, s1p);
-            norm += (word64)(word32)__smuad(s2p, s2p);
         }
 #endif
         for (; i < n; i++) {
             word32 d = falcon_csub(c[i] + FALCON_Q - t[i]);
             sword32 s1c = falcon_center(d);
-            sword32 s2c = s2[i];
             norm += (word64)((sword64)s1c * s1c);
-            norm += (word64)((sword64)s2c * s2c);
         }
         if (norm <= (word64)falcon_l2bound[logn]) {
             *res = 1;
@@ -8968,7 +8990,7 @@ int falcon_native_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     }
 
 out:
-    /* h/c/t/s2 share one arena; zetas/izetas point at static caches. */
+    /* h/c and s2/t pair up in one arena; zetas/izetas are static caches. */
 #ifdef WOLFSSL_SMALL_STACK
     if (arena != NULL) XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -9224,8 +9246,12 @@ int wc_falcon_init_id(falcon_key* key, const unsigned char* id, int len,
         key->idLen = len;
     }
 
-    /* Set the maximum level here */
-    wc_falcon_set_level(key, 5);
+    /* Set the highest level this build has. It can fail (MEMORY_E with
+     * WOLFSSL_FALCON_DYNAMIC_KEYS), and returning 0 over that would hand back
+     * a key whose level is still 0. */
+    if (ret == 0) {
+        ret = wc_falcon_set_level(key, FALCON_MAX_LEVEL);
+    }
 
     return ret;
 }
@@ -9251,25 +9277,86 @@ int wc_falcon_init_label(falcon_key* key, const char* label, void* heap,
         key->labelLen = labelLen;
     }
 
-    /* Set the maximum level here */
-    wc_falcon_set_level(key, 5);
+    /* Set the highest level this build has; see wc_falcon_init_id. */
+    if (ret == 0) {
+        ret = wc_falcon_set_level(key, FALCON_MAX_LEVEL);
+    }
 
     return ret;
 }
 #endif
 
+#ifdef WOLFSSL_FALCON_DYNAMIC_KEYS
+/* Release the heap-held encoded key buffers. The private one is secret. */
+static void falcon_keybuf_free(falcon_key* key)
+{
+    if (key->k != NULL) {
+        ForceZero(key->k, key->kSz);
+        XFREE(key->k, key->heap, DYNAMIC_TYPE_FALCON);
+        key->k = NULL;
+    }
+    key->kSz = 0;
+    XFREE(key->p, key->heap, DYNAMIC_TYPE_FALCON);
+    key->p = NULL;
+}
+
+/* Allocate the encoded key buffers for 'level', which must be valid. */
+static int falcon_keybuf_alloc(falcon_key* key, byte level)
+{
+    word32 pubSz = (level == FALCON_LEVEL1) ? FALCON_LEVEL1_PUB_KEY_SIZE
+                                            : FALCON_LEVEL5_PUB_KEY_SIZE;
+    word32 keySz = (level == FALCON_LEVEL1) ? FALCON_LEVEL1_KEY_SIZE
+                                            : FALCON_LEVEL5_KEY_SIZE;
+
+    key->p = (byte*)XMALLOC(pubSz, key->heap, DYNAMIC_TYPE_FALCON);
+    if (key->p == NULL) {
+        return MEMORY_E;
+    }
+    key->k = (byte*)XMALLOC(keySz, key->heap, DYNAMIC_TYPE_FALCON);
+    if (key->k == NULL) {
+        XFREE(key->p, key->heap, DYNAMIC_TYPE_FALCON);
+        key->p = NULL;
+        return MEMORY_E;
+    }
+    /* Zero both halves. wc_falcon_export_private and wc_Falcon_KeyToDer emit
+     * the public key alongside the private one and rely on an unpopulated half
+     * reading back as zeros rather than on pubKeySet, so a fresh allocation
+     * must not hand the caller whatever the allocator last held. */
+    XMEMSET(key->p, 0, pubSz);
+    XMEMSET(key->k, 0, keySz);
+    key->kSz = keySz;
+    return 0;
+}
+#endif /* WOLFSSL_FALCON_DYNAMIC_KEYS */
+
 /* Set the level of the falcon private/public key.
  *
  * key   [out]  Falcon key.
- * level [in]   Either 1 or 5.
- * returns BAD_FUNC_ARG when key is NULL or level is not 1 and not 5.
+ * level [in]   Either 1 or 5, and enabled in this build.
+ * returns BAD_FUNC_ARG when key is NULL or the level is not available,
+ *         MEMORY_E when WOLFSSL_FALCON_DYNAMIC_KEYS is set and the encoded
+ *         key buffers cannot be allocated.
  */
 int wc_falcon_set_level(falcon_key* key, byte level)
 {
+#ifdef WOLFSSL_FALCON_DYNAMIC_KEYS
+    int ret;
+#endif
+
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_NO_FALCON_LEVEL1
+    if (level == FALCON_LEVEL1) {
+        return BAD_FUNC_ARG;
+    }
+#endif
+#ifdef WOLFSSL_NO_FALCON_LEVEL5
+    if (level == FALCON_LEVEL5) {
+        return BAD_FUNC_ARG;
+    }
+#endif
     if (level != 1 && level != 5) {
         return BAD_FUNC_ARG;
     }
@@ -9277,6 +9364,25 @@ int wc_falcon_set_level(falcon_key* key, byte level)
 #if defined(WC_FALCON_CACHE_TREE) || defined(WC_FALCON_CACHE_PRIV_BASIS)
     /* Before key->level changes: the cache buffer sizes follow the old one. */
     falcon_cache_clear(key);
+#endif
+#ifdef WOLFSSL_FALCON_DYNAMIC_KEYS
+    /* Likewise the encoded key buffers, which are sized for the old level. */
+    falcon_keybuf_free(key);
+    ret = falcon_keybuf_alloc(key, level);
+    if (ret != 0) {
+        /* The old buffers are gone and the new ones were not obtained. Clear
+         * the level and the key-present flags as well, so the key reads as
+         * empty rather than as a valid key whose buffers are NULL: every
+         * accessor gates on those fields and then dereferences p/k. */
+        key->level = 0;
+        key->pubKeySet = 0;
+        key->prvKeySet = 0;
+        return ret;
+    }
+#else
+    /* The inline array keeps the old secret polynomials until something
+     * overwrites them, and the level change has just declared them gone. */
+    ForceZero(key->k, sizeof(key->k));
 #endif
     key->level = level;
     key->pubKeySet = 0;
@@ -9324,6 +9430,9 @@ void wc_falcon_free(falcon_key* key)
         /* Zeroize and release the cached secrets before the pointers to them
          * are cleared by the ForceZero below. */
         falcon_cache_clear(key);
+#endif
+#ifdef WOLFSSL_FALCON_DYNAMIC_KEYS
+        falcon_keybuf_free(key);
 #endif
         ForceZero(key, sizeof(*key));
 #ifdef WOLF_CRYPTO_CB

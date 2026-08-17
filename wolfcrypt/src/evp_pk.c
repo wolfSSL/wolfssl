@@ -959,13 +959,20 @@ static int d2iTryAltDhKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in] mem     Memory containing key data.
  * @param [in] memSz   Size of key data in bytes.
  * @return  1 on success.
+ * @return  -1 when out of memory.
  * @return  0 otherwise.
  */
 static int d2i_falcon_priv_key_level(falcon_key* falcon, byte level,
     const unsigned char* mem, long memSz)
 {
     word32 idx = 0;
-    return (wc_falcon_set_level(falcon, level) == 0) &&
+    int lvlRet = wc_falcon_set_level(falcon, level);
+
+    if (lvlRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+        WOLFSSL_MSG("Falcon set level out of memory");
+        return -1;
+    }
+    return (lvlRet == 0) &&
            (wc_Falcon_PrivateKeyDecode(mem, &idx, falcon,
                                         (word32)memSz) == 0);
 }
@@ -978,12 +985,19 @@ static int d2i_falcon_priv_key_level(falcon_key* falcon, byte level,
  * @param [in] mem     Memory containing key data.
  * @param [in] memSz   Size of key data in bytes.
  * @return  1 on success.
+ * @return  -1 when out of memory.
  * @return  0 otherwise.
  */
 static int d2i_falcon_pub_key_level(falcon_key* falcon, byte level,
     const unsigned char* mem, long memSz)
 {
-    return (wc_falcon_set_level(falcon, level) == 0) &&
+    int lvlRet = wc_falcon_set_level(falcon, level);
+
+    if (lvlRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+        WOLFSSL_MSG("Falcon set level out of memory");
+        return -1;
+    }
+    return (lvlRet == 0) &&
            (wc_falcon_import_public(mem, (word32)memSz, falcon) == 0);
 }
 
@@ -1018,7 +1032,7 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     if (priv) {
         /* Try level 1 */
         isFalcon = d2i_falcon_priv_key_level(falcon, 1, mem, memSz);
-        if (!isFalcon) {
+        if (isFalcon == 0) {
             /* Try level 5 */
             isFalcon = d2i_falcon_priv_key_level(falcon, 5, mem, memSz);
         }
@@ -1026,7 +1040,7 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     else {
         /* Try level 1 */
         isFalcon = d2i_falcon_pub_key_level(falcon, 1, mem, memSz);
-        if (!isFalcon) {
+        if (isFalcon == 0) {
             /* Try level 5 */
             isFalcon = d2i_falcon_pub_key_level(falcon, 5, mem, memSz);
         }
@@ -1035,6 +1049,9 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     wc_falcon_free(falcon);
     WC_FREE_VAR_EX(falcon, NULL, DYNAMIC_TYPE_FALCON);
 
+    if (isFalcon < 0) {
+        return 0;
+    }
     if (!isFalcon) {
         return WOLFSSL_FATAL_ERROR;
     }

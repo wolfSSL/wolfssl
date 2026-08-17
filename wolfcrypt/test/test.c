@@ -66891,6 +66891,7 @@ static wc_test_ret_t mldsa_decode_test(void)
 #ifndef WOLF_CRYPTO_CB_ONLY_FALCON
 #define FALCON_KAT_MSG "wolfSSL Falcon differential KAT"
 
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
 static const byte FALCON512_pk[] = {
 0x09,0xb5,0x78,0xda,0xb5,0x88,0xee,0x60,0x41,0xb2,0xe3,0xb3,
 0xd8,0x02,0x2b,0x97,0x98,0x8d,0x55,0xd8,0x5c,0xf5,0xba,0xbc,
@@ -67026,8 +67027,10 @@ static const byte FALCON512_sig[] = {
 0xb6,0x81,0xfc,0xfb,0x95,0x7e,0xe5,0x8a,
 };
 #define FALCON512_SIGLEN 656
+#endif /* !WOLFSSL_NO_FALCON_LEVEL1 */
 
 /* msg="wolfSSL Falcon differential KAT" */
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
 static const byte FALCON1024_pk[] = {
 0x0a,0x90,0x5c,0x8e,0x51,0xa9,0x0c,0xeb,0x7a,0x31,0xcc,0xc6,
 0xa7,0x8e,0x62,0x6f,0x3d,0x94,0x77,0xd5,0x93,0xac,0x25,0xde,
@@ -67290,6 +67293,7 @@ static const byte FALCON1024_sig[] = {
 0x18,0x86,0x99,
 };
 #define FALCON1024_SIGLEN 1275
+#endif /* !WOLFSSL_NO_FALCON_LEVEL5 */
 
 
 static wc_test_ret_t falcon_verify_kat(byte level, const byte* pk, word32 pkLen,
@@ -67362,20 +67366,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
     wc_test_ret_t ret = 0;
 
 #ifndef WOLF_CRYPTO_CB_ONLY_FALCON
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
     ret = falcon_verify_kat(FALCON_LEVEL1, FALCON512_pk,
             (word32)sizeof(FALCON512_pk), FALCON512_sig, FALCON512_SIGLEN);
     if (ret != 0)
         return ret;
+#endif
 
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
     ret = falcon_verify_kat(FALCON_LEVEL5, FALCON1024_pk,
             (word32)sizeof(FALCON1024_pk), FALCON1024_sig, FALCON1024_SIGLEN);
     if (ret != 0)
         return ret;
+#endif
 
 #ifdef WC_FALCON_HAVE_NATIVE_SIGN
     {
         /* Native keygen -> sign -> verify round-trip (no liboqs). */
-        static const byte falconLvls[2] = { FALCON_LEVEL1, FALCON_LEVEL5 };
+        /* Only the levels this build has: wc_falcon_set_level() rejects one
+         * that was not built. */
+        static const byte falconLvls[] = {
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
+            FALCON_LEVEL1,
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
+            FALCON_LEVEL5
+#endif
+        };
         const char* falconMsg = "wolfSSL native Falcon self test";
         word32 falconMsgLen = (word32)XSTRLEN(falconMsg);
         WC_RNG rng;
@@ -67399,7 +67416,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
             goto exit;
         }
 
-        for (li = 0; li < 2; li++) {
+        for (li = 0; li < (int)(sizeof(falconLvls) / sizeof(byte)); li++) {
             word32 siglen = FALCON_MAX_SIG_SIZE;
             int res = 0;
             int k_inited = 0;
@@ -67486,7 +67503,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
             ret = wc_falcon_init(k);
         if (ret == 0) {
             k_inited = 1;
-            ret = wc_falcon_set_level(k, FALCON_LEVEL1);
+            ret = wc_falcon_set_level(k, FALCON_MAX_LEVEL);
         }
         if (ret == 0) {
             r = wc_falcon_verify_msg((const byte*)"m", 1, (const byte*)"m", 1,

@@ -36,7 +36,7 @@
  *      guards, NULL/logn defensive guards, poly_big_to_small, complete_private)
  *      with bounded, correctly-sized stack/heap buffers -- driving the TRUE and
  *      FALSE half of each guard deterministically.
- *   2. A single real native make/sign/verify round-trip at Falcon-512, which is
+ *   2. A real native make/sign/verify round-trip at each built level, which is
  *      the exact production path and exercises the "success"/FALSE half of the
  *      deep keygen/solve_NTRU/make_fg/expand/sign decisions that tests/api does
  *      not reach (the measured baseline never runs keygen).
@@ -52,6 +52,7 @@
  */
 
 #include <wolfcrypt/src/falcon.c>
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 
@@ -694,9 +695,10 @@ static void wb_native_guards(WC_RNG* rng)
 }
 
 /* ------------------------------------------------------------------ *
- * Real native make/sign/verify round-trip at Falcon-512. This is the
- * production path; it drives the "success"/FALSE half of the deep file-static
- * decisions that the measured baseline never reaches (keygen never runs there):
+ * Real native make/sign/verify round-trip at every level the build has. This
+ * is the production path; it drives the "success"/FALSE half of the deep
+ * file-static decisions that the measured baseline never reaches (keygen never
+ * runs there):
  *   - falcon_keygen guards (both-FALSE) + coeff-range guard all-FALSE + the
  *     Gaussian sampler / norm / invertibility / NTRU-solve success path;
  *   - make_fg with depth==logn (depth!=0, the cond0 FALSE half);
@@ -707,34 +709,60 @@ static void wb_native_guards(WC_RNG* rng)
  *   - hash_to_point loop (ret==0 TRUE, i<n both), comp/modq decode success.
  * ------------------------------------------------------------------ */
 #ifndef WOLFSSL_FALCON_VERIFY_ONLY
-static void wb_native_roundtrip(WC_RNG* rng)
+static void wb_native_roundtrip_level(WC_RNG* rng, byte level)
 {
     falcon_key key;
-    byte   sig[FALCON_LEVEL1_SIG_SIZE];
+    byte   sig[FALCON_MAX_SIG_SIZE];
     word32 sigLen = sizeof(sig);
     byte   msg[32];
     int    res = 0;
     int    r;
 
     XMEMSET(&key, 0, sizeof(key));
-    key.level = FALCON_LEVEL1;
-    key.heap  = NULL;
     XMEMSET(msg, 0x5A, sizeof(msg));
+
+    /* Set the level through the API rather than by assigning key.level: with
+     * WOLFSSL_FALCON_DYNAMIC_KEYS that assignment is what allocates the
+     * encoded key buffers, and the keygen below writes straight into them. */
+    if (wc_falcon_init(&key) != 0) {
+        WB_NOTE("falcon_init failed; deep keygen paths skipped");
+        return;
+    }
+    if (wc_falcon_set_level(&key, level) != 0) {
+        WB_NOTE("falcon_set_level failed; deep keygen paths skipped");
+        wc_falcon_free(&key);
+        return;
+    }
 
     r = falcon_native_make_key(&key, rng);
     if (r != 0) {
-        WB_NOTE("native_make_key(Falcon-512) failed; deep keygen paths skipped");
+        WB_NOTE("native_make_key failed; deep keygen paths skipped");
+        wc_falcon_free(&key);
         return;
     }
     r = falcon_native_sign_msg(msg, sizeof(msg), sig, &sigLen, &key, rng);
     if (r != 0) {
         WB_NOTE("native_sign_msg failed; deep sign paths skipped");
+        wc_falcon_free(&key);
         return;
     }
     r = falcon_native_verify_msg(sig, sigLen, msg, sizeof(msg), &res, &key);
     if ((r != 0) || (res != 1)) {
         WB_NOTE("native_verify_msg did not accept a self-signed message");
     }
+    wc_falcon_free(&key);
+}
+
+/* Every level the build has, so neither level's keygen and sign paths are
+ * dropped by a single-level choice here. */
+static void wb_native_roundtrip(WC_RNG* rng)
+{
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
+    wb_native_roundtrip_level(rng, FALCON_LEVEL1);
+#endif
+#ifndef WOLFSSL_NO_FALCON_LEVEL5
+    wb_native_roundtrip_level(rng, FALCON_LEVEL5);
+#endif
     WB_OK("native make/sign/verify round-trip (deep static paths) exercised");
 }
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
@@ -841,6 +869,12 @@ static void wb_mkgauss_range(WC_RNG* rng)
     WB_OK("poly_small_mkgauss s<-127 / s>127 operand pair exercised");
 }
 
+/* Both vectors below are built at Falcon-512, so the whole driver goes away in
+ * a build without level 1: falcon_level_params() has no case for it, and
+ * falcon_native_check_key() would reject the key before reaching the decision.
+ * wb_residuals() carries the operand as an excluded row in that build. */
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
+
 /* ------------------------------------------------------------------ *
  * falcon_native_check_key: if (ft[i] == 0 || barrett(h[i]*ft[i]) != gt[i])
  * cond0's TRUE half needs a private key whose f is NOT invertible mod q, i.e.
@@ -863,26 +897,43 @@ static int wb_check_key_case(falcon_key* key, sword8* poly, word16* h,
     const unsigned logn = 9;      /* FALCON_LEVEL1 -> n = 512 */
     const size_t   n    = (size_t)1 << 9;
 
-    XMEMSET(key, 0, sizeof(*key));
+    int ret = 1;
+
     XMEMSET(poly, 0, 3 * n);              /* f = g = F = 0 */
     XMEMSET(h, 0, n * sizeof(word16));
     poly[0] = f0;                         /* constant term of f */
     h[0]    = h0;                         /* constant term of h */
 
-    key->level = FALCON_LEVEL1;
-    key->heap  = NULL;
+    /* k and p are heap buffers under WOLFSSL_FALCON_DYNAMIC_KEYS, so the level
+     * has to be set through the API that allocates them rather than assigned. */
+    XMEMSET(key, 0, sizeof(*key));
+    if (wc_falcon_init(key) != 0) {
+        WB_NOTE("check_key: init failed");
+        return 1;
+    }
+    if (wc_falcon_set_level(key, FALCON_LEVEL1) != 0) {
+        WB_NOTE("check_key: set_level failed");
+        wc_falcon_free(key);
+        return 1;
+    }
+
     if (falcon_privkey_encode(key->k, FALCON_LEVEL1_KEY_SIZE, poly, poly + n,
             poly + 2 * n, logn) != FALCON_LEVEL1_KEY_SIZE) {
         WB_NOTE("check_key: privkey_encode did not fill the blob");
-        return 1;
     }
-    key->p[0] = (byte)(FALCON_PUB_HEAD | logn);
-    if (falcon_modq_encode(key->p + 1, FALCON_LEVEL1_PUB_KEY_SIZE - 1, h,
-            logn) == 0) {
-        WB_NOTE("check_key: modq_encode failed");
-        return 1;
+    else {
+        key->p[0] = (byte)(FALCON_PUB_HEAD | logn);
+        if (falcon_modq_encode(key->p + 1, FALCON_LEVEL1_PUB_KEY_SIZE - 1, h,
+                logn) == 0) {
+            WB_NOTE("check_key: modq_encode failed");
+        }
+        else {
+            ret = falcon_native_check_key(key);
+        }
     }
-    return falcon_native_check_key(key);
+
+    wc_falcon_free(key);
+    return ret;
 }
 
 static void wb_check_key_ntt_slots(void)
@@ -919,6 +970,7 @@ static void wb_check_key_ntt_slots(void)
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WB_OK("falcon_native_check_key ft[i]==0 operand pair exercised");
 }
+#endif /* !WOLFSSL_NO_FALCON_LEVEL1 */
 
 /* ------------------------------------------------------------------ *
  * solve_NTRU_deepest:
@@ -1364,6 +1416,194 @@ static void wb_sign_dyn_core_err(WC_RNG* rng)
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
 
 /* ------------------------------------------------------------------ *
+ * wc_falcon_set_level allocation failure (WOLFSSL_FALCON_DYNAMIC_KEYS).
+ * The old buffers are released before the new ones are obtained, so a failed
+ * allocation must leave the key reading as empty: every accessor gates on
+ * level plus pubKeySet/prvKeySet and then dereferences p/k.
+ * ------------------------------------------------------------------ */
+#if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && !defined(MCDC_FA_UNAVAILABLE)
+static void wb_set_level_alloc_fail(void)
+{
+    falcon_key key;
+    byte   pub[FALCON_MAX_PUB_KEY_SIZE];
+    byte   out[FALCON_MAX_PUB_KEY_SIZE];
+    word32 outLen = (word32)sizeof(out);
+    byte   lvl = FALCON_MAX_LEVEL;
+    int    n;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(pub, 0xAB, sizeof(pub));
+
+    if (wc_falcon_init(&key) != 0 || wc_falcon_set_level(&key, lvl) != 0) {
+        WB_NOTE("set_level alloc-fail setup failed; invariant not exercised");
+        return;
+    }
+    if (wc_falcon_import_public(pub, (word32)FALCON_MAX_PUB_KEY_SIZE,
+            &key) != 0) {
+        wc_falcon_free(&key);
+        WB_NOTE("set_level alloc-fail setup import failed");
+        return;
+    }
+
+    mcdc_fa_install();
+    /* Both buffers are allocated here, so sweeping two positions covers the
+     * first-allocation and second-allocation failures. */
+    for (n = 1; n <= 2; n++) {
+        mcdc_fa_arm(n);
+        if (wc_falcon_set_level(&key, lvl) != WC_NO_ERR_TRACE(MEMORY_E)) {
+            WB_NOTE("set_level under allocation failure expected MEMORY_E");
+        }
+        mcdc_fa_disarm();
+
+        if (key.level != 0 || key.pubKeySet != 0 || key.prvKeySet != 0) {
+            WB_NOTE("set_level left a level or key flag set after a failed "
+                    "allocation");
+        }
+        outLen = (word32)sizeof(out);
+        if (wc_falcon_export_public(&key, out, &outLen) !=
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            WB_NOTE("export_public did not reject the emptied key");
+        }
+        if (wc_falcon_set_level(&key, lvl) != 0) {
+            WB_NOTE("set_level could not recover after an allocation failure");
+            break;
+        }
+        /* set_level cleared pubKeySet, which the next pass has to see set for
+         * the flag half of the check above to mean anything. */
+        if (wc_falcon_import_public(pub, (word32)FALCON_MAX_PUB_KEY_SIZE,
+                &key) != 0) {
+            WB_NOTE("set_level alloc-fail re-import failed");
+            break;
+        }
+    }
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
+    wc_falcon_free(&key);
+    WB_OK("set_level allocation-failure invariant exercised");
+}
+#endif /* WOLFSSL_FALCON_DYNAMIC_KEYS && !MCDC_FA_UNAVAILABLE */
+
+#if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+    (defined(HAVE_PKCS8) || defined(HAVE_PKCS12))
+#define WB_GETKEYOID_OOM
+
+static int wb_oid_failAt = -1;
+static int wb_oid_kCount;
+static int wb_oid_live;
+
+/* Fails only wc_falcon_set_level's private key buffer, found by its size. */
+static void* wb_oid_malloc(size_t n)
+{
+    void* p;
+
+    if (((n == (size_t)FALCON_LEVEL1_KEY_SIZE) ||
+            (n == (size_t)FALCON_LEVEL5_KEY_SIZE)) &&
+            (wb_oid_kCount++ == wb_oid_failAt)) {
+        return NULL;
+    }
+    p = malloc(n);
+    if (p != NULL) {
+        wb_oid_live++;
+    }
+    return p;
+}
+
+static void wb_oid_free(void* p)
+{
+    if (p != NULL) {
+        wb_oid_live--;
+    }
+    free(p);
+}
+
+static void* wb_oid_realloc(void* p, size_t n)
+{
+    void* r = realloc(p, n);
+
+    if ((p == NULL) && (r != NULL)) {
+        wb_oid_live++;
+    }
+    return r;
+}
+
+static int wb_oid_run(const byte* der, int derSz, int failAt, int* algoID)
+{
+    wolfSSL_Malloc_cb mf = NULL;
+    wolfSSL_Free_cb ff = NULL;
+    wolfSSL_Realloc_cb rf = NULL;
+    const byte* curveOID = NULL;
+    word32 oidSz = 0;
+    int ret;
+
+    wb_oid_failAt = failAt;
+    wb_oid_kCount = 0;
+    wb_oid_live = 0;
+    (void)wolfSSL_GetAllocators(&mf, &ff, &rf);
+    (void)wolfSSL_SetAllocators(wb_oid_malloc, wb_oid_free, wb_oid_realloc);
+    ret = wc_GetKeyOID((byte*)der, (word32)derSz, &curveOID, &oidSz, algoID,
+        NULL);
+    (void)wolfSSL_SetAllocators(mf, ff, rf);
+    return ret;
+}
+
+/* wc_GetKeyOID must return MEMORY_E, not "unknown key", when set_level runs
+ * out of memory, without leaking or trying another level. */
+static void wb_getkeyoid_set_level_oom(WC_RNG* rng)
+{
+    falcon_key key;
+    byte* der;
+    int derSz = 0;
+    int algoID = 0;
+    int total;
+    int n;
+    int ret;
+    const word32 derMax = 2 * FALCON_MAX_PRV_KEY_SIZE;
+
+    der = (byte*)XMALLOC(derMax, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        WB_NOTE("GetKeyOID OOM: no DER buffer; not exercised");
+        return;
+    }
+    XMEMSET(&key, 0, sizeof(key));
+    if ((wc_falcon_init(&key) != 0) ||
+            (wc_falcon_set_level(&key, FALCON_MAX_LEVEL) != 0) ||
+            (wc_falcon_make_key(&key, rng) != 0) ||
+            ((derSz = wc_Falcon_KeyToDer(&key, der, derMax)) <= 0)) {
+        WB_NOTE("GetKeyOID OOM setup failed; not exercised");
+        wc_falcon_free(&key);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return;
+    }
+    wc_falcon_free(&key);
+
+    ret = wb_oid_run(der, derSz, -1, &algoID);
+    total = wb_oid_kCount;
+    if ((ret != 1) || (total == 0) || (wb_oid_live != 0) ||
+            (algoID != ((FALCON_MAX_LEVEL == FALCON_LEVEL5) ? FALCON_LEVEL5k :
+                                                               FALCON_LEVEL1k))) {
+        WB_NOTE("GetKeyOID did not identify the Falcon key unarmed");
+    }
+    for (n = 0; n < total; n++) {
+        ret = wb_oid_run(der, derSz, n, &algoID);
+        if (ret != WC_NO_ERR_TRACE(MEMORY_E)) {
+            WB_NOTE("GetKeyOID hid a set_level MEMORY_E");
+        }
+        if (wb_oid_kCount != n + 1) {
+            WB_NOTE("GetKeyOID tried another level after MEMORY_E");
+        }
+        if (wb_oid_live != 0) {
+            WB_NOTE("GetKeyOID leaked after a set_level MEMORY_E");
+        }
+    }
+
+    ForceZero(der, derMax);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WB_OK("GetKeyOID set_level MEMORY_E paths exercised");
+}
+#endif /* WB_GETKEYOID_OOM */
+
+/* ------------------------------------------------------------------ *
  * Documented residuals: decision halves reachable only from a genuine
  * mid-computation error or a degenerate/forbidden operand, which cannot be
  * driven crash-safely from a white-box harness. Their opposite (normal) half is
@@ -1399,6 +1639,12 @@ static void wb_residuals(void)
             "a 7.9 sigma deviate (~6e-14 per coefficient, ~6e-11 per keygen), "
             "and f is generated inside falcon_keygen from its own falcon_rng, "
             "so no supplied input reaches it");
+#if defined(WOLFSSL_FALCON_VERIFY_ONLY) || defined(WOLFSSL_NO_FALCON_LEVEL1)
+    WB_NOTE("residual: check_key ft[i]==0 half: the vector is a decoded "
+            "Falcon-512 key with a nowhere-invertible f, which this build "
+            "cannot present - it has either no level 1 to encode one at or no "
+            "private-key side at all");
+#endif
     WB_NOTE("residual: sign_msg/verify_msg (ret==0)&&(!key->...Set) cond0 "
             "FALSE half: the preceding argument check returns early, so ret is "
             "invariably 0 at that line");
@@ -1452,7 +1698,9 @@ int main(void)
             wb_berexp_loop(&rng);
             wb_mkgauss_range(&rng);
         }
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
         wb_check_key_ntt_slots();
+#endif
         wb_solve_deepest_overflow();
         if (haveRng) {
             wb_solve_ntru_lim(&rng);
@@ -1470,6 +1718,14 @@ int main(void)
         }
 #endif
 #endif /* !WOLFSSL_FALCON_VERIFY_ONLY */
+#if defined(WOLFSSL_FALCON_DYNAMIC_KEYS) && !defined(MCDC_FA_UNAVAILABLE)
+        wb_set_level_alloc_fail();
+#endif
+#ifdef WB_GETKEYOID_OOM
+        if (haveRng) {
+            wb_getkeyoid_set_level_oom(&rng);
+        }
+#endif
         wb_residuals();
 
         if (haveRng) {
