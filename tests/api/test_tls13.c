@@ -9326,7 +9326,9 @@ int test_tls13_ticket_psk_modes(void)
     WOLFSSL* ssl_s = NULL;
     struct test_memio_ctx test_ctx;
 
-    /* A ClientHello without psk_key_exchange_modes gets no ticket. */
+    /* The wolfSSL client always advertises psk_key_exchange_modes, so drive
+     * the no-extension case by clearing the recorded flag after the
+     * handshake: a ClientHello without the extension gets no ticket. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
