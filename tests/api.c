@@ -23079,7 +23079,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_CERTS) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    !defined(NO_ASN)
     EVP_PKEY* pkey = NULL;
     const unsigned char* p;
     unsigned char *der = NULL;
@@ -23215,7 +23215,7 @@ static int test_wolfSSL_i2d_PrivateKey(void)
 {
     EXPECT_DECLS;
 #if (!defined(NO_RSA) || defined(HAVE_ECC)) && defined(OPENSSL_EXTRA) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    !defined(NO_ASN)
 
 #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
     {
