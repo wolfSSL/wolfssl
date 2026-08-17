@@ -2066,8 +2066,20 @@ AC_ARG_WITH([liboqs],
 #            the sign working set (~168KB -> ~78KB at Falcon-1024) for ~10%
 #            slower signing. Orthogonal to the fpr/FFT backends above; verify
 #            and keygen are unchanged.
+#   cache-key - keep the expanded key (FFT basis plus normalized ffLDL tree) in
+#            the key structure, so only the first signature made with a key
+#            pays for the expansion. Over half of a signature with the default
+#            emulated fpr backend is that expansion. Costs ~57KB (Falcon-512)
+#            or ~120KB (Falcon-1024) of heap per key. In small-mem builds,
+#            which have no expanded key, this reduces to cache-basis.
+#   cache-basis - keep the decoded and completed secret basis (f, g, F, G) in
+#            the key structure, saving the private-key decode and the G
+#            recomputation on every signature after the first. Costs 4*n bytes
+#            per key. An alternative to cache-key, not implied by it.
+#   Neither cache is synchronized: a key signed with from several threads at
+#            once must either not use them or be signed with before sharing.
 AC_ARG_ENABLE([falcon],
-    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem for low-memory signing (default: disabled)])],
+    [AS_HELP_STRING([--enable-falcon@<:@=OPTS@:>@],[Enable Falcon post-quantum signatures (native, no liboqs; requires --enable-experimental). OPTS is a comma-separated list: fpr/FFT backends asm, double, avx2, neon, plus small-mem for low-memory signing and cache-key/cache-basis for per-key signing caches (default: disabled)])],
     [ ENABLED_FALCON=$enableval ],
     [ ENABLED_FALCON=no ])
 
@@ -2076,6 +2088,8 @@ ENABLED_FALCON_DOUBLE=no
 ENABLED_FALCON_AVX2=no
 ENABLED_FALCON_NEON=no
 ENABLED_FALCON_SMALL_MEM=no
+ENABLED_FALCON_CACHE_KEY=no
+ENABLED_FALCON_CACHE_BASIS=no
 
 # Parse the comma-separated backend sub-options. AC_ARG_ENABLE yields the plain
 # "yes"/"no" for a bare --enable-falcon/--disable-falcon; anything else is a
@@ -2092,7 +2106,9 @@ if test "$ENABLED_FALCON" != "no" && test "$ENABLED_FALCON" != "yes"; then
             avx2)   ENABLED_FALCON_AVX2=yes ;;
             neon)   ENABLED_FALCON_NEON=yes ;;
             small-mem) ENABLED_FALCON_SMALL_MEM=yes ;;
-            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem]) ;;
+            cache-key) ENABLED_FALCON_CACHE_KEY=yes ;;
+            cache-basis) ENABLED_FALCON_CACHE_BASIS=yes ;;
+            *) AC_MSG_ERROR([Unknown falcon option: $opt. Valid options: asm, double, avx2, neon, small-mem, cache-key, cache-basis]) ;;
         esac
     done
     IFS="$OIFS"
@@ -8645,6 +8661,14 @@ fi
 if test "$ENABLED_FALCON_SMALL_MEM" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FALCON_SIGN_SMALL_MEM"
+fi
+if test "$ENABLED_FALCON_CACHE_KEY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_FALCON_CACHE_EXPANDED_KEY"
+fi
+if test "$ENABLED_FALCON_CACHE_BASIS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_FALCON_CACHE_PRIV_BASIS"
 fi
 
 # XMSS CFLAG processing (after FIPS section for sandwich pattern)

@@ -31,6 +31,8 @@ int test_wc_falcon_import_export(void);
 int test_wc_falcon_check_key(void);
 int test_wc_falcon_der(void);
 int test_wc_falcon_error_paths(void);
+int test_wc_falcon_deterministic(void);
+int test_wc_falcon_key_reuse(void);
 int test_wc_FalconDecisionCoverage(void);
 int test_falcon_cb_free(void);
 
@@ -42,6 +44,8 @@ int test_falcon_cb_free(void);
     TEST_DECL_GROUP("falcon", test_wc_falcon_check_key),                      \
     TEST_DECL_GROUP("falcon", test_wc_falcon_der),                            \
     TEST_DECL_GROUP("falcon", test_wc_falcon_error_paths),                    \
+    TEST_DECL_GROUP("falcon", test_wc_falcon_deterministic),                  \
+    TEST_DECL_GROUP("falcon", test_wc_falcon_key_reuse),                      \
     TEST_DECL_GROUP("falcon", test_wc_FalconDecisionCoverage),                \
     TEST_DECL_GROUP("falcon", test_falcon_cb_free)
 
