@@ -6278,11 +6278,12 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
         word16* h, unsigned logn)
 {
     size_t n;
-    falcon_rng rc;
+    falcon_rng* rc;          /* ~570B of SHAKE state; kept off the stack */
+    byte* alloc = NULL;      /* base of the tmpbuf allocation */
     byte* tmpbuf = NULL;
     word16* hwork = NULL;
     void* heap = NULL;
-    size_t tmpSz;
+    size_t tmpSz, rcSz;
     int ret;
 
     if (rng == NULL || f == NULL || g == NULL || F == NULL || G == NULL) {
@@ -6293,12 +6294,17 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
     }
     n = MKN(logn);
 
-    /* Temporary buffer (sized per the reference; padded for fpr alignment). */
-    tmpSz = FALCON_KEYGEN_TEMP[logn] + sizeof(fpr);
-    tmpbuf = (byte*)XMALLOC(tmpSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmpbuf == NULL) {
+    /* Temporary buffer (sized per the reference; padded for fpr alignment),
+     * with the SHAKE stream state carved off the front. Rounding rcSz up to
+     * 8 keeps what follows aligned for both fpr and word64. */
+    rcSz = (sizeof(falcon_rng) + 7U) & ~(size_t)7U;
+    tmpSz = rcSz + FALCON_KEYGEN_TEMP[logn] + sizeof(fpr);
+    alloc = (byte*)XMALLOC(tmpSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (alloc == NULL) {
         return MEMORY_E;
     }
+    rc = (falcon_rng*)alloc;
+    tmpbuf = alloc + rcSz;
 
     /* We always need h to test invertibility; allocate scratch if caller
      * did not supply one. */
@@ -6306,7 +6312,7 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
         hwork = (word16*)XMALLOC(n * sizeof(word16), heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
         if (hwork == NULL) {
-            XFREE(tmpbuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(alloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
     }
@@ -6314,12 +6320,16 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
         hwork = h;
     }
 
-    ret = falcon_rng_init(&rc, rng, heap);
+    ret = falcon_rng_init(rc, rng, heap);
     if (ret != 0) {
         if (h == NULL) {
             XFREE(hwork, heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
-        XFREE(tmpbuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        /* rc sits at the front of the allocation and its sponge may already
+         * have absorbed the seed even though the init failed, so wipe before
+         * the block goes back to the allocator. */
+        wc_ForceZero(alloc, (word32)tmpSz);
+        XFREE(alloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -6338,10 +6348,10 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
         size_t u;
         int cp;
 
-        poly_small_mkgauss(&rc, f, logn);
-        poly_small_mkgauss(&rc, g, logn);
-        if (rc.err != 0) {
-            ret = rc.err;
+        poly_small_mkgauss(rc, f, logn);
+        poly_small_mkgauss(rc, g, logn);
+        if (rc->err != 0) {
+            ret = rc->err;
             goto out;
         }
 
@@ -6415,7 +6425,7 @@ int falcon_keygen(WC_RNG* rng, sword8* f, sword8* g, sword8* F, sword8* G,
     ret = 0;
 
 out:
-    falcon_rng_free(&rc);
+    falcon_rng_free(rc);
     if (h == NULL) {
         /* hwork holds the public key h by now (g was overwritten in place);
          * zeroized anyway for consistency with the tmpbuf hardening. */
@@ -6426,10 +6436,10 @@ out:
     }
     /* tmpbuf held the full secret-key expansion (f,g in RNS/NTT, F,G, FFT
      * images, Babai reduction vectors). */
-    if (tmpbuf != NULL) {
-        wc_ForceZero(tmpbuf, (word32)tmpSz);
+    if (alloc != NULL) {
+        wc_ForceZero(alloc, (word32)tmpSz);
     }
-    XFREE(tmpbuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(alloc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -8518,7 +8528,8 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     fpr* tmp = NULL;
     byte* arena = NULL;             /* single allocation backing all buffers */
     size_t arenaSz = 0;
-    WC_DECLARE_VAR(spc, falcon_sampler_ctx, 1, key ? key->heap : NULL);
+    falcon_sampler_ctx* spc = NULL;  /* carved from the arena, not the stack */
+    size_t spcSz;
     byte nonce[FALCON_NONCE_SIZE];
     void* heap;
     int attempt, haveSpc = 0;
@@ -8547,17 +8558,10 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
     }
     heap = key->heap;
 
-    WC_ALLOC_VAR(spc, falcon_sampler_ctx, 1, heap);
-    if (!WC_VAR_OK(spc))
-        return MEMORY_E;
-
-    /* spc may hold seed-derived sampler state; baseline-zero and register it
-     * before the arena/decode/sampler work so every goto-out and any future
-     * early-exit path is covered by the check. */
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    XMEMSET(spc, 0, sizeof(*spc));
-    wc_MemZero_Add("falcon sign spc", spc, sizeof(*spc));
-#endif
+    /* The ~1.5KB sampler SHAKE state rides in the arena rather than on the
+     * stack. Its size is rounded up so the fpr regions after it stay 8-byte
+     * aligned. */
+    spcSz = (sizeof(falcon_sampler_ctx) + 7U) & ~(size_t)7U;
 
     /* One allocation backs every sign buffer (the working set is >100KB at
      * Falcon-1024, so it stays on the heap in all builds). Ordered by decreasing
@@ -8569,13 +8573,14 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         /* Dynamic signing needs only one fpr scratch (the tree is rebuilt inside
          * the sampler), so the arena is far smaller than the expand+tree path. */
         size_t dSz = sizeof(fpr) * FALCON_SIGN_DYN_TMP_FPR(logn);
-        arenaSz = dSz + (size_t)8 * (size_t)n;   /* c+s2 = 4n, f+g+F+G = 4n */
+        arenaSz = spcSz + dSz + (size_t)8 * (size_t)n; /* c+s2 4n, fgFG 4n */
         arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (arena != NULL) {
-            tmp = (fpr*)arena;
-            c   = (word16*)(arena + dSz);
-            s2  = (sword16*)(arena + dSz + 2 * (size_t)n);
-            f   = (sword8*)(arena + dSz + 4 * (size_t)n);
+            spc = (falcon_sampler_ctx*)arena;
+            tmp = (fpr*)(arena + spcSz);
+            c   = (word16*)(arena + spcSz + dSz);
+            s2  = (sword16*)(arena + spcSz + dSz + 2 * (size_t)n);
+            f   = (sword8*)(arena + spcSz + dSz + 4 * (size_t)n);
             g   = f + n;
             F   = g + n;
             G   = F + n;
@@ -8588,16 +8593,17 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         size_t eSz = sizeof(fpr) * FALCON_EXPANDED_KEY_FPR(logn);
     #endif
         size_t tSz = sizeof(fpr) * FALCON_SIGN_TMP_FPR(logn);
-        arenaSz = eSz + tSz + (size_t)8 * (size_t)n;  /* c+s2 = 4n, f+g+F+G = 4n */
+        arenaSz = spcSz + eSz + tSz + (size_t)8 * (size_t)n; /* c+s2, fgFG */
         arena = (byte*)XMALLOC(arenaSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (arena != NULL) {
+            spc = (falcon_sampler_ctx*)arena;
     #ifndef WC_FALCON_CACHE_TREE
-            expanded = (fpr*)arena;
+            expanded = (fpr*)(arena + spcSz);
     #endif
-            tmp      = (fpr*)(arena + eSz);
-            c        = (word16*)(arena + eSz + tSz);
-            s2       = (sword16*)(arena + eSz + tSz + 2 * (size_t)n);
-            f        = (sword8*)(arena + eSz + tSz + 4 * (size_t)n);
+            tmp      = (fpr*)(arena + spcSz + eSz);
+            c        = (word16*)(arena + spcSz + eSz + tSz);
+            s2       = (sword16*)(arena + spcSz + eSz + tSz + 2 * (size_t)n);
+            f        = (sword8*)(arena + spcSz + eSz + tSz + 4 * (size_t)n);
         }
 #endif
     }
@@ -8605,6 +8611,13 @@ int falcon_native_sign_msg(const byte* in, word32 inLen, byte* out, word32* outL
         ret = MEMORY_E;
         goto out;
     }
+
+    /* spc holds seed-derived sampler state; baseline-zero and register it
+     * before the decode/sampler work so every goto-out is covered. */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(spc, 0, sizeof(*spc));
+    wc_MemZero_Add("falcon sign spc", spc, sizeof(*spc));
+#endif
 
 #ifdef WOLFSSL_FALCON_SAVE_VREGS
     /* The key completion, ffLDL tree build and ffSampling below run the
@@ -8690,20 +8703,20 @@ out:
     if (haveSpc) {
         wc_Shake256_Free(&spc->p.shake);
     }
-    /* Always zeroize: the SHAKE sponge may hold seed-derived state even if
-     * falcon_sampler_init failed after absorbing the seed. */
-    ForceZero(spc, sizeof(*spc));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(spc, sizeof(*spc));
-#endif
-    WC_FREE_VAR(spc, heap);
 
-    /* One ForceZero + free covers every secret in the arena (f/g/F/G, the
-     * expanded basis, and the sign scratch). */
+    /* One ForceZero covers every secret in the arena: the sampler state (whose
+     * sponge may hold seed-derived bytes even after a partly failed
+     * falcon_sampler_init), f/g/F/G, the expanded basis and the sign scratch.
+     * It has to precede the mem-zero check, which verifies that clearing. */
     if (arena != NULL) {
         ForceZero(arena, (word32)arenaSz);
-        XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (spc != NULL) {
+        wc_MemZero_Check(spc, sizeof(*spc));
+    }
+#endif
+    XFREE(arena, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
