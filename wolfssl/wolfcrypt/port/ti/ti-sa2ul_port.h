@@ -27,6 +27,7 @@
 #define WC_USE_DEVID WOLFSSL_TI_SA2UL_DEVID
 
 int ti_sa2ul_port_init(void);
+void ti_sa2ul_soc_uid(uint8_t *uid);
 
 #endif /* WOLFSSL_TI_AM64X */
 
