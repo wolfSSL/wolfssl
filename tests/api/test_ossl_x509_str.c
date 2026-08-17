@@ -2078,7 +2078,11 @@ static int test_untrusted_inter_terminal_anchor_rejected(X509* leaf,
     /* SSL_CTX_set_cert_store() pushes store->certs into the CertManager and
      * detaches the stack, so int-ca becomes a CM anchor and the terminal
      * lookup has to fall back to the caller's trusted stack. */
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(sslCtx = SSL_CTX_new(wolfSSLv23_server_method()));
+#else
     ExpectNotNull(sslCtx = SSL_CTX_new(wolfSSLv23_client_method()));
+#endif
     ExpectNotNull(store = X509_STORE_new());
     ExpectIntEQ(X509_STORE_add_cert(store, root), 1);
     ExpectIntEQ(X509_STORE_add_cert(store, inter), 1);
