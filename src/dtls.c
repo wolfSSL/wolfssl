@@ -806,16 +806,27 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             if (ret != 0)
                 goto dtls13_cleanup;
             if ((modes & (1 << PSK_DHE_KE)) &&
-                    !ssl->options.noPskDheKe) {
+                    !ssl->options.noPskDheKePolicy) {
                 if (!haveKS)
                     ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
                 doKE = 1;
+                usePSK = 1;
             }
-            else if ((modes & (1 << PSK_KE)) == 0 ||
-                    ssl->options.onlyPskDheKe) {
+            else if ((modes & (1 << PSK_KE)) != 0 &&
+                    !ssl->options.onlyPskDheKe) {
+                usePSK = 1;
+            }
+            else if (!haveKS || !haveSA || !haveSG) {
+                /* No usable mode and nothing to fall back to. */
                 ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
             }
-            usePSK = 1;
+            else {
+                /* RFC 9846 Section 4.3.11: ignore the PSK and do a full
+                 * handshake. Mirrors PskModesUsable() so this stateless reply
+                 * and the stateful ClientHello agree on the cipher suite. */
+                WOLFSSL_MSG("psk_key_exchange_modes offer no usable mode, "
+                            "ignoring PSK");
+            }
         }
     }
 #endif

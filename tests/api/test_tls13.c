@@ -1993,7 +1993,8 @@ int test_tls13_fail_if_no_psk_resumption_exempt_from_dhe(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && defined(HAVE_SESSION_TICKET) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     (defined(HAVE_ECC) || !defined(NO_RSA))
@@ -9590,6 +9591,99 @@ int test_tls13_new_session_ticket_ext_framing(void)
             ExpectIntEQ(h.last_tx.level, alert_fatal);
         }
 
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 4.3.11: when the modes the client advertised leave no PSK
+ * the server may use, the PSK is ignored and a certificate handshake runs.
+ * Aborting instead would kill a connection that can still be completed. */
+int test_tls13_psk_mode_mismatch_falls_back(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    int round;
+
+    for (round = 0; round < 2 && EXPECT_SUCCESS(); round++) {
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+        WOLFSSL_SESSION* sess = NULL;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_ALERT_HISTORY h;
+        byte readBuf[16];
+        char buf[32];
+        static const char appData[] = "still talking";
+
+        /* Full handshake with no mode policy, to obtain a ticket. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* Drain the NewSessionTicket so the session carries a ticket. */
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+
+        /* Resume into a mode mismatch. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+        if (round == 0) {
+            /* Client offers psk_ke only, server requires psk_dhe_ke. */
+            ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_c), 0);
+            ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_s), 0);
+        }
+        else {
+            /* Client offers psk_dhe_ke only, server refuses (EC)DHE. */
+            ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_c), 0);
+            ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_s), 0);
+        }
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+        /* The PSK was declined, not used, and no alert was raised. */
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+        ExpectIntEQ(ssl_s->options.resuming, 0);
+        ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &h), WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_tx.code, -1);
+        ExpectIntEQ(h.last_tx.level, -1);
+        if (round == 1) {
+            /* The certificate handshake clears noPskDheKe, so the configured
+             * policy has to be kept separately. */
+            ExpectIntEQ(ssl_s->options.noPskDheKePolicy, 1);
+        }
+        /* The connection carries on: data still flows both ways. */
+        ExpectIntEQ(wolfSSL_write(ssl_s, appData, (int)sizeof(appData) - 1),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
+        ExpectIntEQ(wolfSSL_write(ssl_c, appData, (int)sizeof(appData) - 1),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
+
+        wolfSSL_SESSION_free(sess);
         wolfSSL_free(ssl_c);
         wolfSSL_free(ssl_s);
         wolfSSL_CTX_free(ctx_c);
