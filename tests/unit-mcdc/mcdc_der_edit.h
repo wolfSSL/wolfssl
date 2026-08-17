@@ -218,10 +218,16 @@ static int mcdc_der_relength(byte* der, word32 sz, word32 at, int delta)
             return -1;
         }
         if (mcdc_der_setlen(der, lo, lw, (word32)((int)cl + delta)) != 0) {
-            /* Undo the ones already written. */
+            /* Undo the ones already written. On the grow path the widened
+             * outer lengths can make mcdc_der_hdr() fail its bounds check,
+             * which leaves its outputs unset - skip those rather than write
+             * at an uninitialised offset. */
             while (--i >= 0) {
                 word32 co2, cl2, lo2, lw2;
-                (void)mcdc_der_hdr(der, sz, chain[i], &co2, &cl2, &lo2, &lw2);
+                if (mcdc_der_hdr(der, sz, chain[i], &co2, &cl2, &lo2,
+                        &lw2) == 0) {
+                    continue;
+                }
                 (void)mcdc_der_setlen(der, lo2, lw2,
                         (word32)((int)cl2 - delta));
             }

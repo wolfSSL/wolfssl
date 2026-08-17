@@ -2231,11 +2231,16 @@ static void wb_parse_crl(void)
     FreeDecodedCRL(&dcrl);
 
 #if defined(WC_ASN_RUNTIME_DATE_CHECK_CONTROL) && !defined(NO_ASN_TIME)
-    /* Same CRL and verify mode with the runtime skip flag set: the 2nd
-     * operand goes false while the 1st stays true. */
+    /* Expired nextUpdate with verify != NO_VERIFY and the runtime skip flag
+     * set: the 2nd operand goes false while the 1st stays true. The CRL must
+     * be rebuilt expired here - the truncation vector above left der/sz
+     * holding a future nextUpdate, against which this assertion would hold
+     * whether or not the flag is honoured. */
     (void)wc_AsnSetSkipDateCheck(1);
     InitDecodedCRL(&dcrl, NULL);
     XMEMSET(rcertArr, 0, sizeof(rcertArr));
+    sz = wb_build_crl_tbs(der, 2, pastDate, 15, ASN_GENERALIZED_TIME,
+            pastDate, 15, ASN_GENERALIZED_TIME, 0);
     ret = ParseCRL(rcertArr, &dcrl, der, sz, VERIFY, NULL);
     WB_CHECK(ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
             ":37630 2nd operand false (AsnSkipDateCheck set)");

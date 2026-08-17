@@ -137,6 +137,9 @@ static void mcdc_sr_arm(unsigned long seed)
     byte s[8];
     int i;
 
+    /* Drop any staging bytes left from a previous arming, or re-arming the
+     * same seed hands those out before restarting the seeded squeeze. */
+    mcdc_sr_left = 0;
     for (i = 0; i < 8; i++) {
         s[i] = (byte)((seed >> (8 * i)) & 0xff);
     }

@@ -226,6 +226,34 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_to_unsigned_bin_len(const mp_int* a,
     return mp_to_unsigned_bin_len(MCDC_FM_MI(a), out, outSz);
 }
 
+/* Some entry points are declared only under a feature condition by the
+ * heapmath (integer.h) and fastmath (tfm.h) backends; sp_int.h declares all of
+ * them. Wrapping one the active backend does not declare makes the including
+ * TU fail to build, which the campaign scores as a silent skip. */
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #define MCDC_FM_HAVE_READ_RADIX
+    #define MCDC_FM_HAVE_PRIME_IS_PRIME_EX
+    #define MCDC_FM_HAVE_RAND_PRIME
+    #define MCDC_FM_HAVE_MONT_NORM
+#else
+    #if defined(OPENSSL_EXTRA) || !defined(NO_DSA) || defined(HAVE_ECC)
+        #define MCDC_FM_HAVE_READ_RADIX
+    #endif
+    #if defined(WOLFSSL_KEY_GEN) || !defined(NO_RSA) || !defined(NO_DSA) || \
+        !defined(NO_DH)
+        #define MCDC_FM_HAVE_PRIME_IS_PRIME_EX
+    #endif
+    #ifdef WOLFSSL_KEY_GEN
+        #define MCDC_FM_HAVE_RAND_PRIME
+    #endif
+    #if !defined(USE_FAST_MATH) || defined(HAVE_ECC) || \
+        defined(WOLFSSL_KEY_GEN) || !defined(NO_RSA) || !defined(NO_DSA) || \
+        !defined(NO_DH)
+        #define MCDC_FM_HAVE_MONT_NORM
+    #endif
+#endif
+
+#ifdef MCDC_FM_HAVE_READ_RADIX
 MCDC_FM_MAYBE_UNUSED static int mcdc_fm_read_radix(mp_int* a, const char* in,
     int radix)
 {
@@ -233,6 +261,8 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_read_radix(mp_int* a, const char* in,
         return MCDC_FM_ERR;
     return mp_read_radix(a, in, radix);
 }
+#endif
+
 
 MCDC_FM_MAYBE_UNUSED static int mcdc_fm_exptmod_ex(const mp_int* b,
     const mp_int* e, int digits, const mp_int* m, mp_int* r)
@@ -251,6 +281,7 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_prime_is_prime(const mp_int* a, int t,
     return mp_prime_is_prime(MCDC_FM_MI(a), t, result);
 }
 
+#ifdef MCDC_FM_HAVE_PRIME_IS_PRIME_EX
 MCDC_FM_MAYBE_UNUSED static int mcdc_fm_prime_is_prime_ex(const mp_int* a,
     int t, int* result, WC_RNG* rng)
 {
@@ -258,7 +289,10 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_prime_is_prime_ex(const mp_int* a,
         return MCDC_FM_ERR;
     return mp_prime_is_prime_ex(MCDC_FM_MI(a), t, result, rng);
 }
+#endif
 
+
+#ifdef MCDC_FM_HAVE_RAND_PRIME
 MCDC_FM_MAYBE_UNUSED static int mcdc_fm_rand_prime(mp_int* r, int len,
     WC_RNG* rng, void* heap)
 {
@@ -266,6 +300,8 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_rand_prime(mp_int* r, int len,
         return MCDC_FM_ERR;
     return mp_rand_prime(r, len, rng, heap);
 }
+#endif
+
 
 MCDC_FM_MAYBE_UNUSED static int mcdc_fm_montgomery_setup(const mp_int* m,
     mp_digit* rho)
@@ -283,6 +319,7 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_montgomery_reduce(mp_int* a,
     return mp_montgomery_reduce(a, MCDC_FM_MI(m), mp);
 }
 
+#ifdef MCDC_FM_HAVE_MONT_NORM
 MCDC_FM_MAYBE_UNUSED static int mcdc_fm_montgomery_calc_normalization(
     mp_int* a, const mp_int* b)
 {
@@ -290,6 +327,8 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_montgomery_calc_normalization(
         return MCDC_FM_ERR;
     return mp_montgomery_calc_normalization(a, MCDC_FM_MI(b));
 }
+#endif
+
 
 /* ------------------------------------------------------------------------
  * Install the interposers. Everything above is already bound to the REAL
@@ -350,21 +389,29 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_montgomery_calc_normalization(
 #undef  mp_to_unsigned_bin_len
 #define mp_to_unsigned_bin_len(a, b, c) \
     mcdc_fm_to_unsigned_bin_len((a), (b), (c))
+#ifdef MCDC_FM_HAVE_READ_RADIX
 #undef  mp_read_radix
 #define mp_read_radix(a, b, c)        mcdc_fm_read_radix((a), (b), (c))
+#endif
 #undef  mp_prime_is_prime
 #define mp_prime_is_prime(a, t, r)    mcdc_fm_prime_is_prime((a), (t), (r))
+#ifdef MCDC_FM_HAVE_PRIME_IS_PRIME_EX
 #undef  mp_prime_is_prime_ex
 #define mp_prime_is_prime_ex(a, t, r, g) \
     mcdc_fm_prime_is_prime_ex((a), (t), (r), (g))
+#endif
+#ifdef MCDC_FM_HAVE_RAND_PRIME
 #undef  mp_rand_prime
 #define mp_rand_prime(r, l, g, h)     mcdc_fm_rand_prime((r), (l), (g), (h))
+#endif
 #undef  mp_montgomery_setup
 #define mp_montgomery_setup(m, rho)   mcdc_fm_montgomery_setup((m), (rho))
 #undef  mp_montgomery_reduce
 #define mp_montgomery_reduce(a, m, r) mcdc_fm_montgomery_reduce((a), (m), (r))
+#ifdef MCDC_FM_HAVE_MONT_NORM
 #undef  mp_montgomery_calc_normalization
 #define mp_montgomery_calc_normalization(a, b) \
     mcdc_fm_montgomery_calc_normalization((a), (b))
+#endif
 
 #endif /* MCDC_FAULT_MP_H */
