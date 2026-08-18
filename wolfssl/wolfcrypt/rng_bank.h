@@ -184,7 +184,6 @@ WOLFSSL_API int wc_BankRef_Release(WC_RNG *rng);
 
 #if !defined(WC_RNG_BANK_STATIC) && !defined(WC_NO_CONSTRUCTORS)
 WOLFSSL_API int wc_rng_new_bankref(struct wc_rng_bank *bank, WC_RNG **rng);
-/* note, free with wc_rng_free(). */
 #endif
 #endif /* WC_HAVE_RNG_BANKREF */
 

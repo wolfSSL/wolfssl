@@ -317,13 +317,12 @@
      */
     /* The _DEFAULT variant additionally installs a process-wide default that
      * wolfCrypt's own callers reach through wc_InitRng_BankRef(), so it needs
-     * the RNG bank by construction.  The bank is compiled out of the
-     * certifiable FIPS flavors (settings.h), and there "register everything"
-     * means plain stdrng registration, which needs no bank, rather than
-     * nothing at all.  Tested against the same two macros rng_bank.h uses to
-     * decide WC_RNG_BANK_DEFAULT_SUPPORT, both of which arrive on the command
-     * line, because rng_bank.h is not included this early.
-     * See linuxkm/SVR-FALLBACK-ANALYSIS.md sec 11. */
+     * the bankref type by construction.  bankref is compiled out under
+     * HAVE_FIPS (random.h), so HAVE_FIPS is excluded here and "register
+     * everything" means plain stdrng registration, which needs no bank.
+     * HAVE_FIPS is tested rather than WC_HAVE_RNG_BANKREF because random.h is
+     * not included this early; the bank macros likewise arrive on the command
+     * line.  See linuxkm/SVR-FALLBACK-ANALYSIS.md sec 11. */
     #if defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT) && \
@@ -331,6 +330,7 @@
         !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
         defined(WC_RNG_BANK_SUPPORT) && \
         !defined(WC_RNG_BANK_NO_DEFAULT_SUPPORT) && \
+        !defined(HAVE_FIPS) && \
         defined(HAVE_HASHDRBG)
         #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #endif

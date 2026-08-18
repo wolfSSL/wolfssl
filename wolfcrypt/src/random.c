@@ -132,7 +132,7 @@ This library contains implementation for the random number generator.
 
 
 #include <wolfssl/wolfcrypt/random.h>
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
     #include <wolfssl/wolfcrypt/rng_bank.h>
 #endif
 #include <wolfssl/wolfcrypt/cpuid.h>
@@ -826,7 +826,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         return BAD_FUNC_ARG;
     }
 
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
     /* A bankref WC_RNG carries no DRBG state of its own: rng->bankref shares
      * the union with rng->drbg, and drbgType reads 0 (WC_DRBG_SHA256) because
      * wc_InitRng_BankRef() never sets it.  Without this the reseed below
@@ -2794,7 +2794,7 @@ static int RngGenerateFailure(WC_RNG* rng, int ret)
 #endif
 
 /* place a generated block in output */
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
 static int wc_local_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #else
 WOLFSSL_ABI
@@ -2959,27 +2959,19 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     return ret;
 }
 
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
+/* Bankref dispatch.  Not compiled under HAVE_FIPS: servicing a bankref means
+ * calling rng_bank.c, which is linked outside the module boundary. */
 WOLFSSL_ABI
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
-    int ret;
-
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
     if (rng->status == WC_DRBG_BANKREF) {
+        int ret;
         struct wc_rng_bank_inst *bank_inst = NULL;
 
-        /* A bankref WC_RNG holds no DRBG state of its own, so there is nothing
-         * here to serialize.  The checkout below both selects an instance and
-         * makes it exclusive.  The selected instance's own WC_RNG carries
-         * WC_RNG_EXCL_OWNER (stored by wc_rng_bank_inst_instantiate()), so the
-         * generate below takes no second flag, note that path is also
-         * reached directly, without this function, whenever a caller holding a
-         * checkout passes WC_RNG_BANK_INST_TO_RNG() to the public API, as
-         * wc_rng_bank_seed(), wc_rng_bank_reseed() and the linuxkm DRBG glue
-         * in lkcapi_sha_glue.c all do. */
         ret = wc_local_rng_bank_checkout_for_bankref(rng->bankref, &bank_inst);
         if (ret != 0)
             return ret;
@@ -3001,10 +2993,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         }
         return ret;
     }
-
-    return wc_local_RNG_GenerateBlock(rng, output, sz);
+    else
+        return wc_local_RNG_GenerateBlock(rng, output, sz);
 }
-#endif /* WC_RNG_BANK_SUPPORT */
+#endif /* WC_HAVE_RNG_BANKREF */
 
 int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
@@ -3019,10 +3011,10 @@ int wc_FreeRng(WC_RNG* rng)
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef WC_RNG_BANK_SUPPORT
+#ifdef WC_HAVE_RNG_BANKREF
     if (rng->status == WC_DRBG_BANKREF)
         return wc_BankRef_Release(rng);
-#endif /* WC_RNG_BANK_SUPPORT */
+#endif /* WC_HAVE_RNG_BANKREF */
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
     wolfAsync_DevCtxFree(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG);
@@ -3116,8 +3108,9 @@ int wc_FreeRng(WC_RNG* rng)
 #ifdef WC_RNG_HAVE_INST_EXCL
     /* Last: the DRBG state it guarded is already gone.  Nothing to destroy --
      * just return the flag to FREE so a WC_RNG re-instantiated in place (as
-     * wc_rng_bank_inst_reinit() does) does not start out marked.  Reached only
-     * for a non-bankref RNG; the WC_DRBG_BANKREF case returned above. */
+     * wc_rng_bank_inst_reinit() does) does not start out marked.  Where
+     * WC_DRBG_BANKREF exists that case returned above, so this is always a
+     * WC_RNG with its own DRBG state. */
     WOLFSSL_ATOMIC_STORE(rng->excl, WC_RNG_EXCL_FREE);
 #endif
 

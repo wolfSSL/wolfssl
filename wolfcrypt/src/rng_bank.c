@@ -799,6 +799,18 @@ WOLFSSL_LOCAL int wc_local_rng_bank_checkout_for_bankref(
 
     return ret;
 }
+
+/* Generate through the bank, from OUTSIDE the module boundary.
+ *
+ * Design by @lealem47.  The bank used to replace wc_RNG_GenerateBlock() in
+ * random.c, which made it the approved service rather than a caller of one.
+ * Here it selects an instance and calls the module's own approved
+ * wc_RNG_GenerateBlock() on it, acting as a pseudo Cryptographic Officer
+ * managing DRBG instances while the DRBG output itself stays module-supplied.
+ *
+ * A non-bankref rng is passed straight through, so this is a drop-in for
+ * callers that may hold either.
+ */
 #endif /* WC_HAVE_RNG_BANKREF */
 
 /* Returns 1 if rng_inst is one of this bank's live instances, else
