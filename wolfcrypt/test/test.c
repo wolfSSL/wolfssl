@@ -61964,7 +61964,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
         if ((i == 2) && (sk_snapshot == NULL)) {
             sk_snapshot = (byte *)XMALLOC(skSz, HEAP_HINT,
                 DYNAMIC_TYPE_TMP_BUFFER);
-            if (sk_snapshot == NULL) { ERROR_OUT(WC_TEST_RET_ENC_NC, out); }
+            if (sk_snapshot == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
             XMEMCPY(sk_snapshot, sk, skSz);
         }
 #endif

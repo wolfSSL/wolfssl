@@ -2738,7 +2738,7 @@ static int wc_xmss_bds_state_load(const XmssState* state, byte* sk,
             return WC_FAILURE;
         }
         /* Leaf index must be within the subtree. */
-        if (bds[i].next > ((word32)1U << hs)) {
+        if (bds[i].next >= ((word32)1U << hs)) {
             return WC_FAILURE;
         }
         /* An update pops one stack node per node a tree hash uses. Tree hash
