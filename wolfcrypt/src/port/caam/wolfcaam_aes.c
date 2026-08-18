@@ -347,6 +347,11 @@ int wc_CAAM_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (blocks > 0) {
         ret = wc_CAAM_AesCbcCtrCommon(aes, out, in, blocks * WC_AES_BLOCK_SIZE,
             CAAM_ENC, CAAM_AESCTR);
+        if (ret != 0) {
+            /* the counter was not advanced, so do not run the leftover
+             * handler below against stale state */
+            return ret;
+        }
 
         out += blocks * WC_AES_BLOCK_SIZE;
         in  += blocks * WC_AES_BLOCK_SIZE;
