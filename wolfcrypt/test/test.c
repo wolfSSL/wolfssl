@@ -60645,8 +60645,12 @@ out:
     return ret;
 }
 
-#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+/* Guard must match the call site below, or the function is defined and never
+ * referenced and -Wunused-function fires. */
+#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    (!defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87))
 /* Negative test: HashML-DSA must reject a pre-hash whose collision resistance
  * is below the parameter set's claimed security strength (FIPS 204 sec. 5.4,
  * Table 4: approved PH per level).  Asserts sigGen and sigVer both reject. */
@@ -63421,6 +63425,11 @@ out:
     return ret;
 }
 
+/* Guard must match the call sites below, or the function is defined and never
+ * referenced and -Wunused-function fires. */
+#if defined(WOLFSSL_SLHDSA_PARAM_192S) || defined(WOLFSSL_SLHDSA_PARAM_256S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
 /* Negative test: HashSLH-DSA must reject a pre-hash whose collision resistance
  * is below the parameter set's claimed security strength (FIPS 205 sec.
  * 10.2.2 with sec. 11).  Asserts sigGen and sigVer both
@@ -63502,8 +63511,10 @@ static wc_test_ret_t slhdsa_hash_paramset_rejection_test(enum SlhDsaParam param)
         goto out;
     }
 
-    /* sigVer with too-weak PH must ALSO be REJECTED. */
-    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    /* sigVer with too-weak PH must ALSO be REJECTED.  Use the param set's own
+     * length: Alg 20 Step 1 rejects a wrong sigSz before the PH gate runs, so
+     * WC_SLHDSA_MAX_SIG_LEN would pass this test with the gate removed. */
+    sigLen = (word32)wc_SlhDsaKey_SigSize(key);
     XMEMSET(sig, 0, sigLen);
     ret = wc_SlhDsaKey_VerifyHash(key, ctx, 0, msg, (word32)sizeof(msg),
         badHash, sig, sigLen);
@@ -63524,6 +63535,7 @@ out:
 #endif
     return testRet;
 }
+#endif /* one of the 192S/256S param sets */
 #endif
 
 /* True iff slhdsa_test() actually emits at least one `goto out;` /
