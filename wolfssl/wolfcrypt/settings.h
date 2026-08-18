@@ -6130,9 +6130,19 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
 /* WOLFSSL_NO_MALLOC as well as NO_ASN_TIME: the bank heap-allocates its
  * per-core DRBG instances, so a no-malloc build fails checkout with MEMORY_E.
  * Withheld here rather than in configure because these arrive by CFLAGS or
- * user_settings.h, which configure does not see. */
+ * user_settings.h, which configure does not see.
+ *
+ * WC_NO_HASHDRBG / CUSTOM_RAND_GENERATE_BLOCK: the bank IS a Hash_DRBG bank.
+ * rng_bank.c dereferences WC_RNG.drbg and uses WC_RESEED_INTERVAL and
+ * wc_RNG_DRBG_Reseed(), none of which exist without HAVE_HASHDRBG, so
+ * --disable-hashdrbg with the bank left on fails to compile.  This tests the
+ * two INPUT macros rather than HAVE_HASHDRBG itself: HAVE_HASHDRBG is derived
+ * in random.h, which includes this header, so it is not yet defined here --
+ * testing it would disable the bank on every build.  These are the same two
+ * macros random.h keys on. */
 #if defined(WC_RNG_BANK_SUPPORT) && \
-    (defined(NO_ASN_TIME) || defined(WOLFSSL_NO_MALLOC))
+    (defined(NO_ASN_TIME) || defined(WOLFSSL_NO_MALLOC) || \
+     defined(WC_NO_HASHDRBG) || defined(CUSTOM_RAND_GENERATE_BLOCK))
     #undef WC_RNG_BANK_SUPPORT
 #endif
 
