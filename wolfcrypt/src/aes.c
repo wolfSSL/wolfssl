@@ -12155,6 +12155,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
   #endif /* WOLFSSL_ARM32_AES_DISPATCH */
 #else
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+        WC_AES_ARM64_SVR_BEGIN();
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
         if (aes->use_sha3_hw_crypto) {
             AES_GCM_encrypt_AARCH64_EOR3(in, out, sz, iv, ivSz, authTag,
@@ -12164,12 +12165,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         else
     #endif
         {
-            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_encrypt_AARCH64(in, out, sz, iv, ivSz, authTag, authTagSz,
                 authIn, authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp,
                 (byte*)aes->reg, aes->rounds);
-            WC_AES_ARM64_SVR_END();
         }
+        WC_AES_ARM64_SVR_END();
         ret = 0;
     }
     else
@@ -13036,6 +13036,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
   #endif
 #else
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+        WC_AES_ARM64_SVR_BEGIN();
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
         if (aes->use_sha3_hw_crypto) {
             ret = AES_GCM_decrypt_AARCH64_EOR3(in, out, sz, iv, ivSz, authTag,
@@ -13045,12 +13046,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         else
     #endif
         {
-            WC_AES_ARM64_SVR_BEGIN();
             ret = AES_GCM_decrypt_AARCH64(in, out, sz, iv, ivSz, authTag,
                 authTagSz, authIn, authInSz, (byte*)aes->key, aes->gcm.H,
                 (byte*)aes->tmp, (byte*)aes->reg, aes->rounds);
-            WC_AES_ARM64_SVR_END();
         }
+        WC_AES_ARM64_SVR_END();
     }
     else
 #endif /* !__aarch64__ */
@@ -14338,6 +14338,7 @@ static WARN_UNUSED_RESULT int AesGcmInit_AARCH64(Aes* aes, const byte* iv,
     aes->aOver = 0;
     aes->cOver = 0;
 
+    WC_AES_ARM64_SVR_BEGIN();
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
     if (aes->use_sha3_hw_crypto) {
         AES_GCM_init_AARCH64_EOR3((byte*)aes->key, (int)aes->rounds, iv, ivSz,
@@ -14346,11 +14347,10 @@ static WARN_UNUSED_RESULT int AesGcmInit_AARCH64(Aes* aes, const byte* iv,
     else
 #endif
     {
-        WC_AES_ARM64_SVR_BEGIN();
         AES_GCM_init_AARCH64((byte*)aes->key, (int)aes->rounds, iv, ivSz,
             aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
-        WC_AES_ARM64_SVR_END();
     }
+    WC_AES_ARM64_SVR_END();
 
     return 0;
 }
@@ -14385,6 +14385,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
             aes->aOver = (byte)(aes->aOver + sz);
             if (aes->aOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
+                WC_AES_ARM64_SVR_BEGIN();
             #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
                 if (aes->use_sha3_hw_crypto) {
                     AES_GCM_ghash_block_AARCH64_EOR3(AES_LASTGBLOCK(aes),
@@ -14393,11 +14394,10 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
                 else
             #endif
                 {
-                    WC_AES_ARM64_SVR_BEGIN();
                     AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes),
                         AES_TAG(aes), aes->gcm.H);
-                    WC_AES_ARM64_SVR_END();
                 }
+                WC_AES_ARM64_SVR_END();
                 /* Reset count. */
                 aes->aOver = 0;
             }
@@ -14411,6 +14411,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
         partial = aSz % WC_AES_BLOCK_SIZE;
         if (blocks > 0) {
             /* GHASH full blocks now. */
+            WC_AES_ARM64_SVR_BEGIN();
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (aes->use_sha3_hw_crypto) {
                 AES_GCM_aad_update_AARCH64_EOR3(a, blocks * WC_AES_BLOCK_SIZE,
@@ -14419,11 +14420,10 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
             else
         #endif
             {
-                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_aad_update_AARCH64(a, blocks * WC_AES_BLOCK_SIZE,
                     AES_TAG(aes), aes->gcm.H);
-                WC_AES_ARM64_SVR_END();
             }
+            WC_AES_ARM64_SVR_END();
             /* Skip over to end of AAD blocks. */
             a += blocks * WC_AES_BLOCK_SIZE;
         }
@@ -14439,6 +14439,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
         XMEMSET(AES_LASTGBLOCK(aes) + aes->aOver, 0,
                 (size_t)WC_AES_BLOCK_SIZE - aes->aOver);
         /* GHASH last AAD block. */
+        WC_AES_ARM64_SVR_BEGIN();
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
         if (aes->use_sha3_hw_crypto) {
             AES_GCM_ghash_block_AARCH64_EOR3(AES_LASTGBLOCK(aes),
@@ -14447,11 +14448,10 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_AARCH64(
         else
     #endif
         {
-            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes),
                 AES_TAG(aes), aes->gcm.H);
-            WC_AES_ARM64_SVR_END();
         }
+        WC_AES_ARM64_SVR_END();
         /* Clear partial count for next time through. */
         aes->aOver = 0;
     }
@@ -14499,6 +14499,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
             aes->cOver = (byte)(aes->cOver + sz);
             if (aes->cOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
+                WC_AES_ARM64_SVR_BEGIN();
             #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
                 if (aes->use_sha3_hw_crypto) {
                     AES_GCM_ghash_block_AARCH64_EOR3(AES_LASTGBLOCK(aes),
@@ -14507,11 +14508,10 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
                 else
             #endif
                 {
-                    WC_AES_ARM64_SVR_BEGIN();
                     AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes),
                         AES_TAG(aes), aes->gcm.H);
-                    WC_AES_ARM64_SVR_END();
                 }
+                WC_AES_ARM64_SVR_END();
                 /* Reset count. */
                 aes->cOver = 0;
             }
@@ -14526,6 +14526,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
         partial = cSz % WC_AES_BLOCK_SIZE;
         if (blocks > 0) {
             /* Encrypt and GHASH full blocks now. */
+            WC_AES_ARM64_SVR_BEGIN();
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (aes->use_sha3_hw_crypto) {
                 AES_GCM_encrypt_update_AARCH64_EOR3((byte*)aes->key,
@@ -14535,12 +14536,11 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
             else
         #endif
             {
-                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_encrypt_update_AARCH64((byte*)aes->key,
                     (int)aes->rounds, c, p, blocks * WC_AES_BLOCK_SIZE,
                     AES_TAG(aes), aes->gcm.H, AES_COUNTER(aes));
-                WC_AES_ARM64_SVR_END();
             }
+            WC_AES_ARM64_SVR_END();
             /* Skip over to end of blocks. */
             p += blocks * WC_AES_BLOCK_SIZE;
             c += blocks * WC_AES_BLOCK_SIZE;
@@ -14548,6 +14548,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
         if (partial != 0) {
             /* Encrypt the counter - XOR in zeros as proxy for plaintext. */
             XMEMSET(AES_LASTGBLOCK(aes), 0, WC_AES_BLOCK_SIZE);
+            WC_AES_ARM64_SVR_BEGIN();
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (aes->use_sha3_hw_crypto) {
                 AES_GCM_encrypt_block_AARCH64_EOR3((byte*)aes->key,
@@ -14557,11 +14558,10 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_AARCH64(
             else
         #endif
             {
-                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_encrypt_block_AARCH64((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
-                WC_AES_ARM64_SVR_END();
             }
+            WC_AES_ARM64_SVR_END();
             /* XOR the remaining plaintext to calculate cipher text.
              * Keep cipher text for GHASH of last partial block.
              */
@@ -14600,6 +14600,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_AARCH64(Aes* aes,
         XMEMSET(AES_LASTGBLOCK(aes) + over, 0,
             (size_t)WC_AES_BLOCK_SIZE - over);
         /* GHASH last cipher block. */
+        WC_AES_ARM64_SVR_BEGIN();
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
         if (aes->use_sha3_hw_crypto) {
             AES_GCM_ghash_block_AARCH64_EOR3(AES_LASTGBLOCK(aes), AES_TAG(aes),
@@ -14608,13 +14609,13 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_AARCH64(Aes* aes,
         else
     #endif
         {
-            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_ghash_block_AARCH64(AES_LASTGBLOCK(aes), AES_TAG(aes),
                 aes->gcm.H);
-            WC_AES_ARM64_SVR_END();
         }
+        WC_AES_ARM64_SVR_END();
     }
     /* Calculate the authentication tag. */
+    WC_AES_ARM64_SVR_BEGIN();
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
     if (aes->use_sha3_hw_crypto) {
         AES_GCM_encrypt_final_AARCH64_EOR3(AES_TAG(aes), authTag, authTagSz,
@@ -14623,11 +14624,10 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_AARCH64(Aes* aes,
     else
 #endif
     {
-        WC_AES_ARM64_SVR_BEGIN();
         AES_GCM_encrypt_final_AARCH64(AES_TAG(aes), authTag, authTagSz,
             aes->cSz, aes->aSz, aes->gcm.H, AES_INITCTR(aes));
-        WC_AES_ARM64_SVR_END();
     }
+    WC_AES_ARM64_SVR_END();
 
     return 0;
 }
@@ -14673,6 +14673,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
             aes->cOver = (byte)(aes->cOver + sz);
             if (aes->cOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
+                WC_AES_ARM64_SVR_BEGIN();
             #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
                 if (aes->use_sha3_hw_crypto) {
                     AES_GCM_ghash_block_AARCH64_EOR3(AES_LASTBLOCK(aes),
@@ -14681,11 +14682,10 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
                 else
             #endif
                 {
-                    WC_AES_ARM64_SVR_BEGIN();
                     AES_GCM_ghash_block_AARCH64(AES_LASTBLOCK(aes),
                         AES_TAG(aes), aes->gcm.H);
-                    WC_AES_ARM64_SVR_END();
                 }
+                WC_AES_ARM64_SVR_END();
                 /* Reset count. */
                 aes->cOver = 0;
             }
@@ -14700,6 +14700,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
         partial = cSz % WC_AES_BLOCK_SIZE;
         if (blocks > 0) {
             /* Decrypt and GHASH full blocks now. */
+            WC_AES_ARM64_SVR_BEGIN();
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (aes->use_sha3_hw_crypto) {
                 AES_GCM_decrypt_update_AARCH64_EOR3((byte*)aes->key,
@@ -14709,12 +14710,11 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
             else
         #endif
             {
-                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_decrypt_update_AARCH64((byte*)aes->key,
                     (int)aes->rounds, p, c, blocks * WC_AES_BLOCK_SIZE,
                     AES_TAG(aes), aes->gcm.H, AES_COUNTER(aes));
-                WC_AES_ARM64_SVR_END();
             }
+            WC_AES_ARM64_SVR_END();
             /* Skip over to end of blocks. */
             c += blocks * WC_AES_BLOCK_SIZE;
             p += blocks * WC_AES_BLOCK_SIZE;
@@ -14722,6 +14722,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
         if (partial != 0) {
             /* Encrypt the counter - XOR in zeros as proxy for cipher text. */
             XMEMSET(AES_LASTGBLOCK(aes), 0, WC_AES_BLOCK_SIZE);
+            WC_AES_ARM64_SVR_BEGIN();
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (aes->use_sha3_hw_crypto) {
                 AES_GCM_encrypt_block_AARCH64_EOR3((byte*)aes->key,
@@ -14731,11 +14732,10 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
             else
         #endif
             {
-                WC_AES_ARM64_SVR_BEGIN();
                 AES_GCM_encrypt_block_AARCH64((byte*)aes->key, (int)aes->rounds,
                     AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
-                WC_AES_ARM64_SVR_END();
             }
+            WC_AES_ARM64_SVR_END();
             /* Keep cipher text for GHASH of last partial block. */
             XMEMCPY(AES_LASTBLOCK(aes), c, (size_t)partial);
             /* XOR the remaining cipher text to calculate plaintext. */
@@ -14783,6 +14783,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_AARCH64(
         /* Zeroize the unused part of the block. */
         XMEMSET(lastBlock + over, 0, (size_t)WC_AES_BLOCK_SIZE - over);
         /* Hash the last block of cipher text. */
+        WC_AES_ARM64_SVR_BEGIN();
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
         if (aes->use_sha3_hw_crypto) {
             AES_GCM_ghash_block_AARCH64_EOR3(lastBlock, AES_TAG(aes),
@@ -14791,12 +14792,12 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_AARCH64(
         else
     #endif
         {
-            WC_AES_ARM64_SVR_BEGIN();
             AES_GCM_ghash_block_AARCH64(lastBlock, AES_TAG(aes), aes->gcm.H);
-            WC_AES_ARM64_SVR_END();
         }
+        WC_AES_ARM64_SVR_END();
     }
     /* Calculate and compare the authentication tag. */
+    WC_AES_ARM64_SVR_BEGIN();
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
     if (aes->use_sha3_hw_crypto) {
         AES_GCM_decrypt_final_AARCH64_EOR3(AES_TAG(aes), authTag, authTagSz,
@@ -14805,11 +14806,10 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_AARCH64(
     else
 #endif
     {
-        WC_AES_ARM64_SVR_BEGIN();
         AES_GCM_decrypt_final_AARCH64(AES_TAG(aes), authTag, authTagSz,
             aes->cSz, aes->aSz, aes->gcm.H, AES_INITCTR(aes), &res);
-        WC_AES_ARM64_SVR_END();
     }
+    WC_AES_ARM64_SVR_END();
 
     /* Return error code when calculated doesn't match input. */
     if (res == 0) {
