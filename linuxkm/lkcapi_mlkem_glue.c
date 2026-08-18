@@ -532,8 +532,13 @@ static int km_mlkem_generate_ct(struct km_mlkem_ctx *ctx,
     if (err == 0)
         err = wc_Sha256Hash(ct, ct_len, node->ct_digest);
 
-    if (err != 0)
+    if (err != 0) {
+        /* Normalize wolfCrypt failure codes to a kernel errno; the kernel
+         * errnos this function sets itself (-ENOMEM, -ENODEV) take their
+         * own paths to out.  Matches km_mlkem_generate_ek(). */
+        err = -EINVAL;
         goto out;
+    }
 
     /* Publish the pending node; at capacity, evict the oldest
      * (list_add prepends, so the oldest is the tail).  Unlink under

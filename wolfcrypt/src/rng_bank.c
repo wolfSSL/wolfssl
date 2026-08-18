@@ -886,9 +886,14 @@ WOLFSSL_API int wc_rng_bank_checkin(
          * lock and the bank refcount stay held and wc_rng_bank_fini() will
          * report BUSY_E/BAD_STATE_E until the caller checks in correctly.
          *
-         * We can't warn for this misuse because random_bank_test() exercises
-         * the functionality.
+         * We can't normally warn for this misuse because random_bank_test()
+         * exercises the functionality.
          */
+#ifdef WC_RNG_BANK_LOCK_DEBUG
+        WOLFSSL_DEBUG_PRINTF(
+            "BUG: wc_rng_bank_checkin() with an instance that is not in this "
+            "bank; caller's lock and bank refcount remain held.\n");
+#endif
         return ret;
     }
 
@@ -897,7 +902,7 @@ WOLFSSL_API int wc_rng_bank_checkin(
     /* Opportunistically check for lock misuse/corruption.
      *
      * An instance must be checked in exactly once, by the caller that checked
-     * it out. A duplicate or cross-thread checkin double-releases the affinity
+     * it out. A duplicate or cross-thread check-in double-releases the affinity
      * lock (double migrate_enable() in linuxkm) and double-decrements the bank
      * refcount.  In normal builds we detect sequential misuse -- duplicate or
      * stale checkins ordered after the release -- with a cheap check that the
@@ -907,7 +912,7 @@ WOLFSSL_API int wc_rng_bank_checkin(
      * the slot within the race window).
      */
     if (! (lockval & WC_RNG_BANK_INST_LOCK_HELD)) {
-#ifdef WC_VERBOSE_RNG
+#ifdef WC_RNG_BANK_LOCK_DEBUG
         WOLFSSL_DEBUG_PRINTF(
             "BUG: wc_rng_bank_checkin() on an instance that is not checked "
             "out (lock %d).\n", lockval);
