@@ -146,6 +146,14 @@ on the specific device platform.
     #endif
 #endif
 
+/* The arms below and the WOLFSSL_KCAPI_HASH block compile no software
+ * transform, so the cross-check inside the software arm never reaches them. */
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    (defined(WOLFSSL_TI_HASH) || defined(WOLFSSL_CRYPTOCELL) || \
+     defined(MAX3266X_SHA) || defined(WOLFSSL_KCAPI_HASH))
+    #error "WOLFSSL_HAVE_SHA256_HASH_BLOCK set without a SHA-256 transform"
+#endif
+
 #if defined(WOLFSSL_TI_HASH)
     /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
 #elif defined(WOLFSSL_CRYPTOCELL)
@@ -1884,6 +1892,12 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #endif
 /* End wc_ software implementation */
 
+/* The port list behind WOLFSSL_HAVE_SHA256_HASH_BLOCK in sha256.h has to
+ * agree with the arms that select a transform here. */
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && !defined(XTRANSFORM)
+    #error "WOLFSSL_HAVE_SHA256_HASH_BLOCK set without a SHA-256 transform"
+#endif
+
 #ifdef XTRANSFORM
 
     static WC_INLINE void AddLength(wc_Sha256* sha256, word32 len)
@@ -2422,7 +2436,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     }
 #endif /* OPENSSL_EXTRA || HAVE_CURL */
 
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
     /* One block will be used from data.
      * hash must be big enough to hold all of digest output.
      */
@@ -2531,7 +2545,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 
         return ret;
     }
-#endif /* WOLFSSL_HAVE_LMS && !WOLFSSL_LMS_FULL_HASH */
+#endif /* WOLFSSL_HAVE_SHA256_HASH_BLOCK */
 #endif /* !WOLFSSL_KCAPI_HASH */
 
 #endif /* XTRANSFORM */
