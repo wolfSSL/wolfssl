@@ -9974,6 +9974,14 @@ static int IsSha1SignedCert(const byte* der, word32 derSz)
  * verified self-signature, which is enough here: the chain is the one this end
  * was configured with, not one an attacker supplies.
  *
+ * The certificate is parsed as CA_TYPE rather than CERT_TYPE so a trust anchor
+ * carrying serial number 0 still decodes. ParseCertRelative() rejects a zero
+ * serial for CERT_TYPE, and legacy roots, the certificates most likely to be
+ * SHA-1 signed, are the ones that use it. With NO_VERIFY and no certificate
+ * manager the serial exemption is all the type changes, and that exemption
+ * still requires a self signed CA, so a leaf carrying serial 0 is reported as
+ * not self signed and stays subject to the SHA-1 rule.
+ *
  * ssl           The SSL/TLS object.
  * der           Buffer holding the DER encoded certificate.
  * derSz         Length of the DER encoded certificate.
@@ -9995,7 +10003,7 @@ static int IsSelfSignedCert(WOLFSSL* ssl, const byte* der, word32 derSz,
         return MEMORY_E;
 
     InitDecodedCert(cert, der, derSz, ssl->heap);
-    if (ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, NULL, NULL) == 0)
+    if (ParseCertRelative(cert, CA_TYPE, NO_VERIFY, NULL, NULL) == 0)
         *isSelfSigned = (cert->selfSigned != 0);
     else
         WOLFSSL_MSG("Cannot decode certificate, not treating as self signed");
