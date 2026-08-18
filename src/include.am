@@ -208,10 +208,6 @@ if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
 
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
-endif
-
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
 
 if BUILD_RSA
@@ -528,6 +524,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 
 # fips last file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
+
 endif BUILD_FIPS_V5
 
 if BUILD_FIPS_V6
@@ -551,10 +548,6 @@ if !BUILD_FIPS_V6
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
-endif
-
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
 
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
@@ -954,6 +947,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 
 # fips last file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
+
 endif BUILD_FIPS_V6
 
 if BUILD_FIPS_V7_PLUS
@@ -969,10 +963,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
 
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
-endif
-
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
 
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
@@ -1470,9 +1460,6 @@ if BUILD_RNG
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/random.c
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
-endif
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
 endif
 endif !BUILD_FIPS_V2_PLUS
@@ -2438,4 +2425,14 @@ endif !BUILD_FIPS_RAND
 if BUILD_ARIA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-crypt.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-cryptocb.c
+endif
+
+
+# The per-core DRBG bank is OUTSIDE the module boundary: it calls the
+# approved wc_RNG_GenerateBlock() rather than implementing it, so it must
+# never appear between wolfcrypt_first.c and wolfcrypt_last.c.  Emitted
+# once here, after every FIPS block, so it links in every flavour that
+# enables it.  Design by @lealem47.
+if BUILD_RNG_BANK
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
