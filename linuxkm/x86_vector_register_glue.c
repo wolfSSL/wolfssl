@@ -1476,9 +1476,13 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
     if (! may_use_simd())
         return WC_ACCEL_INHIBIT_E;
 
-    /* kernel_fpu_begin() takes fpregs_lock() itself, so no bh or preempt call
-     * is added here, and kernel_fpu_begin_mask() handles an irqs-disabled
-     * caller on its own, so this path needs no irqs_disabled() test. */
+    /* No irqs_disabled() test here.  kernel_fpu_begin_mask() takes
+     * preempt_disable(), NOT fpregs_lock(), and kernel_fpu_end() takes
+     * preempt_enable() (arch/x86/kernel/fpu/core.c, checked in 4.18.9, 6.1.62
+     * and 6.12.59), so no local_bh_disable()/enable() runs inside with
+     * interrupts off.  preempt_enable() cannot schedule here either:
+     * preemptible() is false while irqs_disabled().  The INHIBIT branch above
+     * still needs its test because it calls local_bh_enable() itself. */
     WC_LINUXKM_FPU_BEGIN();
     st = this_cpu_ptr(&wc_svr_state);
     st->depth = 1;
