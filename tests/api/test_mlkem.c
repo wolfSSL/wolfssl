@@ -4694,14 +4694,22 @@ int test_wc_mlkem_encode_key_len_decision(void)
 int test_wc_MlKemKey_seed_service_indicator(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_NO_ML_KEM)
     MlKemKey key;
     byte rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(rand, 0x5a, sizeof(rand));
 
-    ExpectIntEQ(wc_MlKemKey_Init(&key, WC_ML_KEM_512, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Init(&key, mlkemType, NULL, INVALID_DEVID), 0);
     /* Valid key, valid randomness: performed, and reported non-approved. */
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(&key, rand, (int)sizeof(rand)),
         SEED_OK);
