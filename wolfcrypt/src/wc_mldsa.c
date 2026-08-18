@@ -7117,7 +7117,7 @@ static int mldsa_vec_check_low(const sword32* a, byte l, sword32 hi,
 
 #ifdef USE_INTEL_SPEEDUP
 #ifdef WOLFSSL_MLDSA_HAVE_INTEL_AVX512
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         *valid = wc_mldsa_vec_check_low_avx512(a, l, hi);
         RESTORE_VECTOR_REGISTERS();
     }
@@ -7236,7 +7236,7 @@ static int mldsa_make_hint_88(const sword32* s, const sword32* w1, byte* h,
      * reached by falling back from one. */
 #if defined(USE_INTEL_SPEEDUP) && \
     defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int ret;
 
         ret = wc_mldsa_make_hint_88_avx512(s, w1, PARAMS_ML_DSA_44_OMEGA,
@@ -7396,7 +7396,7 @@ static int mldsa_make_hint_32(const sword32* s, const sword32* w1,
      * reached by falling back from one. */
 #if defined(USE_INTEL_SPEEDUP) && \
     defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512)
-    if (USE_INTEL_AVX512(cpuid_flags)) {
+    if (USE_INTEL_AVX512(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int ret;
 
         ret = wc_mldsa_make_hint_32_avx512(s, w1, omega, h, idxp);
