@@ -904,6 +904,12 @@ static int km_mldsa_sign(struct akcipher_request *req)
 
     msg_len = req->src_len;
 
+    /* Guard the allocation-size addition, as km_mldsa_verify() does.
+     * The (msg_len ? msg_len : 1) below never exceeds max(msg_len, 1),
+     * so this bound covers it. */
+    if ((msg_len + sig_len) != ((word64)msg_len + (word64)sig_len))
+        return -EINVAL;
+
     /* one buffer for the contiguous message copy and the signature;
      * allocate at least 1 message byte, to assure well-defined pointer
      * arithmetic for zero-length messages (msg_len 0 is legal). */
