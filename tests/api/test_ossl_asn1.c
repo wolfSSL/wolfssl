@@ -1085,7 +1085,13 @@ int test_wolfSSL_i2a_ASN1_OBJECT(void)
     /* DER encoding */
     p = notObjDer;
     ExpectNotNull(a = c2i_ASN1_OBJECT(NULL, &p, 3));
-    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 5);
+    /* notObjDer's trailing arc is truncated (0xff, no terminator) and
+     * now rejected, falling through to the "<INVALID>" + hex dump path. */
+#ifndef NO_FILESYSTEM
+    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 70);
+#else
+    ExpectIntEQ(wolfSSL_i2a_ASN1_OBJECT(bio, a), 9);
+#endif
     ASN1_OBJECT_free(a);
 
     BIO_free(bio);

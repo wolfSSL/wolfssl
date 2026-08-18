@@ -1357,7 +1357,7 @@ static int wolfssl_x509_add_custom_ext(WOLFSSL_X509 *x509,
 
     if (err == 0) {
         XMEMCPY(val, ext->value.data, ext->value.length);
-        if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) < 0) {
+        if (wolfSSL_OBJ_obj2txt(oid, MAX_OID_STRING_SZ, ext->obj, 1) <= 0) {
             err = 1;
         }
     }
