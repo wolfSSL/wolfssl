@@ -3986,6 +3986,195 @@ int test_tls13_pha(void)
     return EXPECT_RESULT();
 }
 
+/* Post-handshake auth over a resumed (ticket-PSK) connection. Client
+ * credentials go on the CTX: FreeHandshakeResources() unloads SSL-owned
+ * certificates, leaving nothing to answer a later request with. */
+int test_tls13_pha_resumption(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "hello wolfssl!";
+    char buf[sizeof(msg)];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    /* PHA has to be offered in the ClientHello. */
+    ExpectIntEQ(wolfSSL_CTX_allow_post_handshake_auth(ctx_c), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    /* No client certificate wanted for the handshake itself. */
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        test_ctx.c_len = test_ctx.s_len = 0;
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+        if (i == 1)
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), i);
+
+        if (i == 0) {
+            /* Drain the NewSessionTicket so the ticket gets cached. */
+            ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+        }
+
+        if (EXPECT_SUCCESS()) {
+            wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+            ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+        }
+
+        /* The server's write carries the CertificateRequest. */
+        ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1),
+            (int)sizeof(msg) - 1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf) - 1),
+            (int)sizeof(msg) - 1);
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+            (int)sizeof(msg) - 1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf) - 1),
+            (int)sizeof(msg) - 1);
+
+        ExpectIntEQ(ssl_s->options.havePeerCert, 1);
+        ExpectIntEQ(ssl_s->options.havePeerVerify, 1);
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Server must reject a post-handshake Finished that omits the Certificate
+ * flight on a resumed connection. A client answers the request from inside
+ * wolfSSL_read(), so handShakeState is parked for that read and the response is
+ * driven by hand with sendVerify cleared. handShakeDone stays set, so
+ * SendTls13Finished() still produces a valid MAC. */
+int test_tls13_pha_resumption_bare_finished(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(HAVE_SESSION_TICKET) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    char msg[] = "hello wolfssl!";
+    char buf[sizeof(msg)];
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_allow_post_handshake_auth(ctx_c), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    /* First connection only exists to obtain a ticket. */
+    for (i = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        test_ctx.c_len = test_ctx.s_len = 0;
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+        if (i == 1)
+            ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), i);
+
+        if (i == 0) {
+            ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+        }
+        else {
+            if (EXPECT_SUCCESS()) {
+                wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+                    WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+                ExpectIntEQ(wolfSSL_request_certificate(ssl_s),
+                    WOLFSSL_SUCCESS);
+            }
+            ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1),
+                (int)sizeof(msg) - 1);
+
+            /* Consume the CertificateRequest without answering it. */
+            if (EXPECT_SUCCESS()) {
+                ssl_c->options.handShakeState = CLIENT_FINISHED_COMPLETE;
+            }
+            ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf) - 1),
+                (int)sizeof(msg) - 1);
+            ExpectIntEQ(ssl_c->options.sendVerify, SEND_CERT);
+
+            /* Answer with a bare Finished over that same transcript. */
+            if (EXPECT_SUCCESS()) {
+                ssl_c->options.sendVerify = 0;
+                ssl_c->options.clientState = CLIENT_HELLO_COMPLETE;
+                ssl_c->options.connectState = FIRST_REPLY_DONE;
+                ssl_c->options.handShakeState = CLIENT_HELLO_COMPLETE;
+                ssl_c->options.processReply = 0;
+                ExpectIntEQ(wolfSSL_connect_TLSv13(ssl_c), WOLFSSL_SUCCESS);
+            }
+
+            /* Data behind the Finished: a server that wrongly accepted it
+             * returns this instead of an error. */
+            ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+                (int)sizeof(msg) - 1);
+
+            ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf) - 1), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), OUT_OF_ORDER_E);
+            ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+            ExpectIntEQ(ssl_s->options.havePeerVerify, 0);
+        }
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_SHA256)
