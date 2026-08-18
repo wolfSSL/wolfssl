@@ -871,7 +871,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -943,7 +943,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -1244,7 +1244,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -1551,7 +1551,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmSetExtIV() failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2060,7 +2060,7 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCcmEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
     }
@@ -2834,7 +2834,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesOfbEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2907,7 +2907,7 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesOfbDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
