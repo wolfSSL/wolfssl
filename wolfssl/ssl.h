@@ -2448,6 +2448,8 @@ WOLFSSL_API const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(
                                             const WOLFSSL_ASN1_INTEGER* ai);
 WOLFSSL_API int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dst,
                                                 const WOLFSSL_ASN1_STRING* src);
+/* NOTE: a single WOLFSSL_X509_STORE must not be shared across threads that
+ * verify concurrently; verification reads the store's trusted set live. */
 WOLFSSL_API int         wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx);
 WOLFSSL_API const char* wolfSSL_X509_verify_cert_error_string(long err);
 
