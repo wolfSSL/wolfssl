@@ -9950,8 +9950,11 @@ static int IsSha1SignedCert(const byte* der, word32 derSz)
         }
     #if defined(WC_RSA_PSS) && !defined(NO_RSA)
         /* RSASSA-PSS uses one signature OID for every digest and names the
-         * digest in the algorithm parameters instead. */
-        else if ((oid == RSAPSSk) && (idx < algoIdEnd) &&
+         * digest in the algorithm parameters instead. Absent parameters are
+         * passed through as a zero length buffer rather than skipped: RFC 4055
+         * makes them mean all defaults, which is SHA-1, and
+         * wc_DecodeRsaPssParams() reports that. */
+        else if ((oid == RSAPSSk) && (idx <= algoIdEnd) &&
                 (wc_DecodeRsaPssParams(der + idx, algoIdEnd - idx, &hash, &mgf,
                                        &saltLen) == 0)) {
             isSha1 = (hash == WC_HASH_TYPE_SHA);
