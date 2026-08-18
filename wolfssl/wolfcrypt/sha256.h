@@ -112,6 +112,40 @@
 #define WOLFSSL_NO_HASH_RAW
 #endif
 
+/* Ports with no software transform or with state outside sha256->digest.
+ * A macro a port defines only in its own .c is undefined here. */
+#if (defined(WOLFSSL_HAVE_LMS) || \
+     (defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_SHA2))) && \
+    !defined(WOLFSSL_NO_HASH_RAW) && \
+    !defined(WOLFSSL_TI_HASH) && \
+    !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MAX3266X) && \
+    !defined(WOLFSSL_MAX3266X_OLD) && \
+    !defined(FREESCALE_LTC_SHA) && \
+    !defined(WOLFSSL_PIC32MZ_HASH) && \
+    !defined(STM32_HASH_SHA2) && \
+    !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+      !defined(WOLFSSL_QNX_CAAM)) && \
+    !(defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)) && \
+    !defined(WOLFSSL_AFALG_HASH) && \
+    !defined(WOLFSSL_DEVCRYPTO_HASH) && \
+    !(defined(WOLFSSL_ESP32_CRYPT) && \
+      !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)) && \
+    !((defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
+      !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
+    !((defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+       defined(WOLFSSL_RENESAS_RSIP)) && \
+      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) && \
+    !defined(WOLFSSL_RENESAS_RX64_HASH) && \
+    !defined(PSOC6_HASH_SHA2) && \
+    !defined(WOLFSSL_IMXRT_DCP) && \
+    !defined(WOLFSSL_NXP_HASHCRYPT_SHA) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_HASH)
+    #define WOLFSSL_HAVE_SHA256_HASH_BLOCK
+#endif
+
 #define SHA256_NOINLINE WC_NO_INLINE
 
 #if !defined(NO_OLD_SHA_NAMES)
@@ -281,7 +315,7 @@ WOLFSSL_API int wc_Sha256Reset(wc_Sha256* sha256);
     !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
 WOLFSSL_API int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
     unsigned char* hash);
 #endif
