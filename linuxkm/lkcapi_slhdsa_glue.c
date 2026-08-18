@@ -635,6 +635,7 @@ static int km_slhdsa_sign(struct akcipher_request *req)
     byte *                   msg = NULL;
     byte *                   sig = NULL;
     word32                   msg_len = 0;
+    int                      exp_sig_len;
     int                      err = -1;
 
     if (req->src == NULL || req->dst == NULL)
@@ -643,16 +644,34 @@ static int km_slhdsa_sign(struct akcipher_request *req)
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
 
+    /* Size the signature area from the parameter set, not from the
+     * caller-supplied dst_len, and honor the akcipher contract of
+     * reporting the required size on -EOVERFLOW, as km_mldsa_sign()
+     * does. */
+    exp_sig_len = wc_SlhDsaKey_SigSizeFromParam((enum SlhDsaParam)ctx->param);
+    if (exp_sig_len <= 0)
+        return -EINVAL;
+
+    if (req->dst_len < (unsigned int)exp_sig_len) {
+        req->dst_len = (unsigned int)exp_sig_len;
+        return -EOVERFLOW;
+    }
+
     msg_len = req->src_len;
 
-    msg = malloc(msg_len + req->dst_len);
+    /* Guard the allocation-size addition, as km_slhdsa_verify() does. */
+    if ((msg_len + (word32)exp_sig_len) !=
+        ((word64)msg_len + (word64)exp_sig_len))
+        return -EINVAL;
+
+    msg = malloc(msg_len + (word32)exp_sig_len);
     if (unlikely(msg == NULL))
         return -ENOMEM;
     sig = msg + msg_len;
 
     scatterwalk_map_and_copy(msg, req->src, 0, msg_len, 0);
 
-    err = km_slhdsa_sign_common(ctx, sig, (word32)req->dst_len,
+    err = km_slhdsa_sign_common(ctx, sig, (word32)exp_sig_len,
                                 msg, msg_len);
     if (err >= 0) {
         scatterwalk_map_and_copy(sig, req->dst, 0, (unsigned int)err, 1);

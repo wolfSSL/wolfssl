@@ -71,9 +71,11 @@
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_XMSS) && \
         !defined(LINUXKM_LKCAPI_REGISTER_XMSS)
         #define LINUXKM_LKCAPI_REGISTER_XMSS
-        #ifndef HAVE_FIPS
-            #define LINUXKM_LKCAPI_REGISTER_XMSS_MT
-        #endif
+    #endif
+    #if defined(LINUXKM_LKCAPI_REGISTER_XMSS) && !defined(HAVE_FIPS) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_XMSS_MT) &&              \
+        !defined(LINUXKM_LKCAPI_REGISTER_XMSS_MT)
+        #define LINUXKM_LKCAPI_REGISTER_XMSS_MT
     #endif
 #else
     #undef LINUXKM_LKCAPI_REGISTER_XMSS

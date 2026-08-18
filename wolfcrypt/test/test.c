@@ -23816,7 +23816,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
 
         if (aes_inited)
             wc_AesFree(aes);
-        WC_FREE_VAR(aes, HEAP_HINT);
+        WC_FREE_VAR_EX(aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (ret != 0)
             return ret;
     }
@@ -27135,6 +27135,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     {
         struct wc_rng_bank_inst *bogus_inst = (struct wc_rng_bank_inst *)(wc_ptr_t)bank;
         ret = wc_rng_bank_checkin(bank, &bogus_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
+    {
+        struct wc_rng_bank_inst *neg_inst = NULL;
+
+        ret = wc_rng_bank_inst_checkin(NULL);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        ret = wc_rng_bank_inst_checkin(&neg_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        /* A misaligned pointer within the instance array is memory-safe to
+         * probe through wc_rng_bank_checkin() -- the caller-supplied bank is
+         * validated before any instance dereference -- and exercises
+         * rng_inst_matches_bank()'s mid-instance alignment rejection.
+         * (The same probe through wc_rng_bank_inst_checkin() would be
+         * undefined behavior: that API must read (*rng_inst)->bank before
+         * any validation can run.) */
+        neg_inst = (struct wc_rng_bank_inst *)((wc_ptr_t)bank->rngs + 1);
+        ret = wc_rng_bank_checkin(bank, &neg_inst);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
