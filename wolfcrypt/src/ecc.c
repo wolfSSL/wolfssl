@@ -4845,17 +4845,16 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    err = silabs_ecc_shared_secret(private_key, public_key, out, outlen);
 #elif defined(WOLFSSL_KCAPI_ECC)
    err = KcapiEcc_SharedSecret(private_key, public_key, out, outlen);
-#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE) && \
-      defined(WOLFSSL_SE050_ONLY_KEY_ID)
+#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE)
    /* SE050-resident private key uses hardware ECDH; a software private key
-    * (keyIdSet == 0) uses the wolfCrypt software implementation. */
+    * (keyIdSet == 0, e.g. decoded from DER as in PKCS#7 KARI) has no key in
+    * the SE050 to derive with, so it uses the wolfCrypt software
+    * implementation. */
    if (private_key->keyIdSet)
        err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
    else
        err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out,
                                      outlen);
-#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_ECDHE)
-   err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
 #else
    err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out, outlen);
 #endif /* WOLFSSL_ATECC508A */

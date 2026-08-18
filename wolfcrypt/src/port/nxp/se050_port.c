@@ -1427,6 +1427,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     smStatus_t       smStatus = SM_NOT_OK;
     byte* pad    = NULL;
     byte* derBuf = NULL;
+    byte* decBuf = NULL;
     int derSz = 0;
 
 #ifdef SE050_DEBUG
@@ -1529,22 +1530,42 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
                                     &newKey, algorithm, kMode_SSS_Verify);
         if (status == kStatus_SSS_Success) {
+            /* The raw RSA public operation always produces keySz bytes, but
+             * callers such as PKCS#7 signature verify pass an out buffer
+             * sized for the unpadded payload only. Decrypt into a
+             * keySz-sized scratch buffer, then unpad and copy the payload
+             * to out. */
+            decBuf = (byte*)XMALLOC((size_t)keySz, key->heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+            if (decBuf == NULL) {
+                status = kStatus_SSS_Fail;
+                ret = MEMORY_E;
+            }
+        }
+        if (status == kStatus_SSS_Success) {
             /* Use lower Se05x API instead of sss_asymmetric_verify_digest()
              * since we need to return decoded data not just verify result */
-            decLen = outLen;
+            decLen = (size_t)keySz;
             se050_ctx_asymm = (sss_se05x_asymmetric_t*)&ctx_asymm;
             smStatus = Se05x_API_RSAEncrypt(&se050_ctx_asymm->session->s_ctx,
                                             se050_ctx_asymm->keyObject->keyId,
                                             kSE05x_RSAEncryptionAlgo_NO_PAD,
-                                            in, inLen, out, &decLen);
+                                            in, inLen, decBuf, &decLen);
             if (smStatus == SM_OK) {
                 /* find end of padding, pad points to start of actual data */
-                ret = wc_RsaUnPad_ex(out, decLen, &pad, pad_value,
+                ret = wc_RsaUnPad_ex(decBuf, decLen, &pad, pad_value,
                         pad_type, hash, mgf,
                         label, labelSz, RSA_PSS_SALT_LEN_DEFAULT, (keySz * 8),
                         key->heap);
                 if (ret >= 0) {
-                    XMEMCPY(out, pad, ret);
+                    if ((word32)ret > outLen) {
+                        WOLFSSL_MSG("Output buffer too small for RSA verify");
+                        ret = RSA_BUFFER_E;
+                        status = kStatus_SSS_Fail;
+                    }
+                    else {
+                        XMEMCPY(out, pad, ret);
+                    }
                 }
                 else {
                     WOLFSSL_MSG("Error in wc_RsaUnPad_ex for RSA verify");
@@ -1556,6 +1577,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                 status = kStatus_SSS_Fail;
             }
         }
+        XFREE(decBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         sss_asymmetric_context_free(&ctx_asymm);
     }
