@@ -2543,7 +2543,8 @@ typedef struct BdsState {
     byte*     treeHashNode;
     /* Hashes of nodes to retain - based on K parameter. */
     byte*     retain;
-    /* Next leaf to calculate - max 20 bits. */
+    /* Next leaf to calculate - max 20 bits. Equals 2^sub_h when the subtree
+     * has been completed. */
     word32    next;
     /* Current offset into stack - 0..<subtree height>. */
     word8     offset;
@@ -2737,8 +2738,10 @@ static int wc_xmss_bds_state_load(const XmssState* state, byte* sk,
         if (bds[i].offset > (word8)(hs + 1)) {
             return WC_FAILURE;
         }
-        /* Leaf index must be within the subtree. */
-        if (bds[i].next >= ((word32)1U << hs)) {
+        /* next counts leaves done rather than indexing one: it is only used
+         * as an index while below 2^hs and comes to rest at 2^hs when the
+         * subtree is complete. */
+        if (bds[i].next > ((word32)1U << hs)) {
             return WC_FAILURE;
         }
         /* An update pops one stack node per node a tree hash uses. Tree hash
