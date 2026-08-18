@@ -2747,6 +2747,18 @@ add_option("WOLFSSL_SP_MATH_ALL"
     "Enable Single Precision math implementation for full algorithm suite (default: enabled)"
     "yes" "yes;no")
 
+# SP base point table layout.  The default table is byte transposed: the
+# lookup reads one byte per block rather than scanning every entry, which is
+# faster but makes the load address depend on the secret index within a cache
+# line.  Turn this on to scan the entries instead, so that no address depends
+# on the index at any granularity.
+add_option("WOLFSSL_SP_NO_TRANSPOSED_TABLE"
+    "Disable the transposed Single Precision base point table (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_SP_NO_TRANSPOSED_TABLE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SP_NO_TRANSPOSED_TABLE")
+endif()
+
 # Enable examples, used to disable examples
 if(WOLFSSL_LINUX_KM)
     set(EXAMPLES_DEFAULT "no")

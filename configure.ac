@@ -1107,7 +1107,7 @@ fi
 
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
-    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
+    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation, comma separated options include small, smallstack, nomalloc, nonblock and notransposedtable (default: disabled)])],
     [ ENABLED_SP=$enableval ],
     [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
     )
@@ -10914,6 +10914,7 @@ ENABLED_SP_SAKKE_1024=$ENABLED_SAKKE
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
 ENABLED_SP_SMALL=no
+ENABLED_SP_NO_TRANSPOSED_TABLE=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
@@ -11082,6 +11083,19 @@ do
     ENABLED_SP_NO_MALLOC=yes
     ;;
 
+  transposedtable)
+    # Default.  Base point table lookup reads one byte per block instead of
+    # scanning every entry - faster, but the index is part of the address
+    # within a cache line.
+    ENABLED_SP_NO_TRANSPOSED_TABLE=no
+    ;;
+
+  notransposedtable)
+    # Scan every entry of the base point table instead, so that no address
+    # depends on the index at any granularity.
+    ENABLED_SP_NO_TRANSPOSED_TABLE=yes
+    ;;
+
   nonblock)
     # Requires small and no malloc
     ENABLED_SP_NONBLOCK=yes
@@ -11175,6 +11189,10 @@ fi
 if test "$ENABLED_SP_NO_MALLOC" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_MALLOC"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_MALLOC"
+fi
+if test "$ENABLED_SP_NO_TRANSPOSED_TABLE" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_TRANSPOSED_TABLE"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_TRANSPOSED_TABLE"
 fi
 if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NONBLOCK"

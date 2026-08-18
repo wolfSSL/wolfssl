@@ -377,6 +377,8 @@ extern "C" {
 #cmakedefine WOLFSSL_CSHAKE
 #undef WOLFSSL_KMAC
 #cmakedefine WOLFSSL_KMAC
+#undef WOLFSSL_SP_NO_TRANSPOSED_TABLE
+#cmakedefine WOLFSSL_SP_NO_TRANSPOSED_TABLE
 #undef WOLFSSL_SRTP
 #cmakedefine WOLFSSL_SRTP
 #undef WOLFSSL_SYS_CA_CERTS
