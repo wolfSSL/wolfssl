@@ -1983,8 +1983,14 @@ int test_wc_ecc_decrypt_pubkey_preserved(void)
     WC_RNG      rng;
     const char* msg   = "EccBlock Size 16";
     word32      msgSz = (word32)XSTRLEN("EccBlock Size 16");
+#ifdef WOLFSSL_ECIES_GEN_IV
+    /* GEN_IV mode carries the nonce in the message as well */
+    byte        out[KEY20 * 2 + 1 + AES_BLOCK_SIZE +
+                    (sizeof("EccBlock Size 16") - 1) + WC_SHA256_DIGEST_SIZE];
+#else
     byte        out[KEY20 * 2 + 1 + (sizeof("EccBlock Size 16") - 1) +
                     WC_SHA256_DIGEST_SIZE];
+#endif
     word32      outSz = (word32)sizeof(out);
     byte        plain[sizeof("EccBlock Size 16")];
     word32      plainSz = (word32)sizeof(plain);
