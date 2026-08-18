@@ -238,7 +238,9 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
             break;
 
         case WC_ALGO_TYPE_CIPHER:
-        #if defined(WOLFSSL_CAAM_CIPHER)
+        /* wc_CryptoInfo has no cipher member without AES, and every cipher
+         * this dispatches is an AES mode, so the whole case goes with it. */
+        #if defined(WOLFSSL_CAAM_CIPHER) && !defined(NO_AES)
         #ifdef WOLFSSL_SECO_CAAM
             if (devId != WOLFSSL_SECO_DEVID)
                 break; /* only call to SECO if using WOLFSSL_SECO_DEVID */
@@ -755,6 +757,7 @@ int caamFindUnusedPartition()
 }
 
 
+#ifndef WOLFSSL_CAAM_NO_SM
 /* return the address of the given partition number "part" */
 CAAM_ADDRESS caamGetPartition(int part, int sz)
 {
@@ -793,6 +796,7 @@ int caamFreePart(int partNum)
 
     return 0;
 }
+#endif /* !WOLFSSL_CAAM_NO_SM */
 
 
 /* Internal function to help write to a secure partition
