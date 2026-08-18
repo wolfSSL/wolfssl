@@ -40,12 +40,15 @@ jobs:
       # Check out the commit the Zephyr workflow actually built so Membrowse
       # attributes the report to the right commit. Only the last 2 commits
       # are needed (current + parent) to resolve the base for comparison.
+      # Set allow-unsafe-pr-checkout to allow the workflow to run on a PR from
+      # a fork. This was added in actions/checkout@v5.1.0.
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 2
           persist-credentials: false
+          allow-unsafe-pr-checkout: true
 
       - name: Download Zephyr build artifact
         id: download
