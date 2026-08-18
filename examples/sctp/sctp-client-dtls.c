@@ -113,7 +113,11 @@ int main(int argc, char **argv)
 
     for (i = 0; i < (int)sizeof(bigBuf); i++)
         bigBuf[i] = (unsigned char)(i & 0xFF);
-    wolfSSL_write(ssl, bigBuf, sizeof(bigBuf));
+    ret = wolfSSL_write(ssl, bigBuf, sizeof(bigBuf));
+    if (ret != (int)sizeof(bigBuf)) {
+        fprintf(stderr, "ssl write big message failed\n");
+        exit(EXIT_FAILURE);
+    }
     memset(bigBuf, 0, sizeof(bigBuf));
 
     wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
