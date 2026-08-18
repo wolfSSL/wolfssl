@@ -557,10 +557,12 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
                 }
                 if (ret == 0) {
                     if (enc) {
-                        wc_Des_CbcEncrypt(&des, input, input, (word32)length);
+                        ret = wc_Des_CbcEncrypt(&des, input, input,
+                            (word32)length);
                     }
                     else {
-                        wc_Des_CbcDecrypt(&des, input, input, (word32)length);
+                        ret = wc_Des_CbcDecrypt(&des, input, input,
+                            (word32)length);
                     }
                 }
                 ForceZero(&des, sizeof(Des));
@@ -605,8 +607,10 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
             {
                 Arc4    dec;
 
-                wc_Arc4SetKey(&dec, key, derivedLen);
-                wc_Arc4Process(&dec, input, input, (word32)length);
+                ret = wc_Arc4SetKey(&dec, key, derivedLen);
+                if (ret == 0) {
+                    ret = wc_Arc4Process(&dec, input, input, (word32)length);
+                }
                 ForceZero(&dec, sizeof(Arc4));
                 break;
             }
