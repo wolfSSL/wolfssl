@@ -4004,6 +4004,8 @@ int test_tls13_pha_resumption(void)
     char buf[sizeof(msg)];
     int i;
 
+    /* Setup only creates a CTX when the pointer is NULL, so the call in the
+     * loop reuses these and creates just the SSL objects. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
@@ -4091,6 +4093,8 @@ int test_tls13_pha_resumption_bare_finished(void)
     char buf[sizeof(msg)];
     int i;
 
+    /* Setup only creates a CTX when the pointer is NULL, so the call in the
+     * loop reuses these and creates just the SSL objects. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
