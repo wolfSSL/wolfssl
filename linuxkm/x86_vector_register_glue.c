@@ -23,6 +23,9 @@
 /* included by linuxkm/module_hooks.c */
 #ifndef WC_SKIP_INCLUDED_C_FILES
 
+#include <linux/printk.h>
+#include <linux/ratelimit.h>
+
 #if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
     #error x86_vector_register_glue.c included in non-vectorized/non-x86 project.
 #endif

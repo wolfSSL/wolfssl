@@ -237,10 +237,14 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
         m->irq_flags = irq_flags;
         return 0;
     }
-    if (irq_count() != 0) {
+    if (! wc_linuxkm_can_block()) {
         /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
          * required, because in_softirq() is always true while saved,
          * even for WC_FPU_INHIBITED_FLAG contexts.
+         *
+         * It also catches non-interrupt atomic callers -- tasks holding a
+         * spinlock or running with IRQs off -- which must not reach the
+         * cond_resched() retry loop below.
          */
         spin_lock_irqsave(&m->lock, irq_flags);
         m->irq_flags = irq_flags;
