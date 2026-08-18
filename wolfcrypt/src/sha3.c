@@ -53,6 +53,9 @@
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
+    #undef WOLFSSL_PPC64_ASM
+    #undef WOLFSSL_PPC64_ASM_POWER8
+    #undef WOLFSSL_PPC32_ASM
 #endif
 #ifdef WOLFSSL_X86_BUILD
     #undef USE_INTEL_SPEEDUP
