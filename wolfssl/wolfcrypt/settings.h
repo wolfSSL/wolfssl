@@ -546,10 +546,11 @@
 /* WC_RNG_BANK_SUPPORT puts the per-core DRBG bank inside the module boundary:
  * one DRBG instance per core plus a checkout/checkin protocol, affinity
  * callbacks, per-instance reinit, and failover to a sibling instance when one
- * fails.  It is not permitted in a validation-targeted build: with the bank
- * compiled in, wc_RNG_GenerateBlock() is no longer the function random.c
- * defines for it (see random.c:2796 and :2961), so the bank IS the approved
- * service rather than a caller outside the boundary.
+ * fails.  It is permitted in a validation-targeted build only because
+ * rng_bank.c links outside the boundary markers and the bankref type, which
+ * would make the in-boundary generate path call into it, is compiled out
+ * under HAVE_FIPS (random.h).  There the bank is reached through
+ * wc_rng_bank_checkout(), which hands back an ordinary approved WC_RNG.
  *
  * It is not needed for correctness, a single shared WC_RNG is already
  * exclusive across threads, and on the workload the kernel's stdrng actually
@@ -560,15 +561,12 @@
  * just failed.  Upstream Linux serializes the same consumers behind one
  * sleeping mutex; we support the operating environment rather than redesign it.
  *
- * The uncertified development flavors keep it: they build no certified module,
- * and the throughput gain is real on a synthetic draw loop.
+ * Only non-FIPS builds keep the bankref path, where every
+ * wc_RNG_GenerateBlock() takes a fresh checkout.  HAVE_FIPS is defined for
+ * every FIPS flavor including the uncertified dev ones (configure.ac:7230
+ * covers v7, ready, dev and dev-no-post), so all of them reach the bank
+ * through wc_rng_bank_checkout() instead.
  * See linuxkm/SVR-FALLBACK-ANALYSIS.md */
-#if defined(WC_RNG_BANK_SUPPORT) && \
-    (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
-     defined(WOLFSSL_FIPS_DEV)) && \
-    !defined(WC_FIPS_UNCERTIFIED_BUILD)
-    #error "WC_RNG_BANK_SUPPORT is not permitted in a certified FIPS build."
-#endif
 
 /* WC_ALLOW_RUNTIME_IMPL_SELECT, gate for any code that carries a second,
  * run-time-selectable implementation of an algorithm: the

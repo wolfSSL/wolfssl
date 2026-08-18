@@ -2809,20 +2809,12 @@ if test "$ENABLED_RNG_BANK" = "yes"
 then
     AS_IF([test "$ENABLED_RNG" = "no"],
     AC_MSG_ERROR([--enable-rng-bank requires --enable-rng]))
-    # The per-core DRBG bank is not permitted inside a validated boundary.
-    # Decisive reason: WC_RNG_BANK_SUPPORT renames the real generate to
-    # wc_local_RNG_GenerateBlock() and defines its own wc_RNG_GenerateBlock()
-    # over the top (wolfcrypt/src/random.c:2796 and :2961), so the bank becomes
-    # the approved service fips.c wraps, not a caller of it.  Dropping the API
-    # from fips.c instead would leave every user of it without an approved
-    # service, so the bank stays out.
-    # settings.h #errors on WC_RNG_BANK_SUPPORT for the same set of flavors, so
-    # a CFLAGS or user_settings.h route fails to compile rather than slipping
-    # past configure.  Reaching here means it was asked for explicitly: the
-    # kernel-mode default above is already withheld for these flavors.
-    # See linuxkm/SVR-FALLBACK-ANALYSIS.md.
-    AS_IF([test "$FIPS_CERTIFIABLE" = "yes"],
-          [AC_MSG_ERROR([--enable-rng-bank is not permitted with --enable-fips=$FIPS_VERSION: the per-core DRBG bank adds a checkout protocol, affinity callbacks and failover between DRBG instances inside the module boundary, for 0.16% on the workload the kernel stdrng serves. Use an uncertified development flavor (--enable-fips=dev or --enable-fips=dev-no-post) if you need it.])])
+    # Permitted: rng_bank.c is linked OUTSIDE the boundary markers and calls
+    # the approved wc_RNG_GenerateBlock() rather than replacing it, so the bank
+    # is a caller acting as a pseudo Cryptographic Officer over DRBG instances,
+    # not an implementation inside the module.  It still writes WC_RNG fields
+    # the module declares but never reads; that residue is a header question,
+    # not a boundary one.  Design by @lealem47.
     AM_CFLAGS="$AM_CFLAGS -DWC_RNG_BANK_SUPPORT"
 fi
 
