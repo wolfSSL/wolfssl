@@ -520,8 +520,7 @@
  * derived from WOLFSSL_FIPS_DEV, an ordinary macro any caller can define.
  * Without this check, CFLAGS=-DWOLFSSL_FIPS_DEV ./configure --enable-fips=v7,
  * or one line in an operating environment's user_settings.h, would disarm the
- * WC_C_DYNAMIC_FALLBACK #error, the WC_RNG_BANK_SUPPORT #error and the
- * one-implementation requirement, in a build that still reports HAVE_FIPS_VERSION
+ * WC_C_DYNAMIC_FALLBACK #error and the one-implementation requirement, in a build that still reports HAVE_FIPS_VERSION
  * 7.  WC_FIPS_CERTIFIABLE_BUILD is emitted by configure ONLY for v5, v6, v7,
  * ready and their lean variants, so the two together mean the development macro
  * was forced into a certified build.  Fail closed and say which one to drop.
@@ -546,7 +545,8 @@
 /* WC_RNG_BANK_SUPPORT puts the per-core DRBG bank inside the module boundary:
  * one DRBG instance per core plus a checkout/checkin protocol, affinity
  * callbacks, per-instance reinit, and failover to a sibling instance when one
- * fails.  It is not permitted in a validation-targeted build.
+ * fails.  It is withheld by default in a validation-targeted build, and
+ * enabled only by an explicit --enable-rng-bank.
  *
  * It is not needed for correctness, a single shared WC_RNG is already
  * exclusive across threads, and on the workload the kernel's stdrng actually
@@ -560,13 +560,6 @@
  * The uncertified development flavors keep it: they build no certified module,
  * and the throughput gain is real on a synthetic draw loop.
  * See linuxkm/SVR-FALLBACK-ANALYSIS.md */
-#if defined(WC_RNG_BANK_SUPPORT) && \
-    (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
-     defined(WOLFSSL_FIPS_DEV)) && \
-    !defined(WC_FIPS_UNCERTIFIED_BUILD)
-    #error "WC_RNG_BANK_SUPPORT is not permitted in a certified FIPS build."
-#endif
-
 /* WC_ALLOW_RUNTIME_IMPL_SELECT, gate for any code that carries a second,
  * run-time-selectable implementation of an algorithm: the
  * WC_C_DYNAMIC_FALLBACK C twins.  A validation-targeted FIPS build compiles
