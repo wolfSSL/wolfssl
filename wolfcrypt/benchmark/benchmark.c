@@ -4517,6 +4517,18 @@ static void* benchmarks_do(void* args)
     #ifdef BENCH_DEVID
         bench_rsa(1);
     #endif
+    #if defined(WOLFSSL_BENCH_RSA_PAD) && \
+        !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+        !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WC_NO_RNG) && \
+        !defined(NO_ASN) && \
+        defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
+        (defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING) || defined(OPENSSL_EXTRA)) && \
+        !defined(WC_NO_RSA_OAEP) && \
+        (defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_3072) || \
+         defined(USE_CERT_BUFFERS_4096))
+        /* raw / PKCS#1 v1.5 / PSS / OAEP, software then hardware per size */
+        bench_rsa_pad();
+    #endif
     }
 
     #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
@@ -11315,6 +11327,184 @@ exit:
     WC_FREE_VAR(message, HEAP_HINT);
 #endif
 }
+
+/* Off by default: define WOLFSSL_BENCH_RSA_PAD to build this extra sweep. */
+#if defined(WOLFSSL_BENCH_RSA_PAD) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WC_NO_RNG) && \
+    !defined(NO_ASN) && \
+    defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
+    (defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING) || \
+     defined(OPENSSL_EXTRA)) && \
+    !defined(WC_NO_RSA_OAEP) && \
+    (defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_3072) || \
+     defined(USE_CERT_BUFFERS_4096))
+/* Time EXPR in a runtime-bounded loop and print one ops/sec row. Expands
+ * only in bench_rsa_pad, where the referenced locals are in scope. */
+#define RSA_PAD_BENCH(DESC, EXPR) do { \
+    ret = 0; \
+    bench_stats_start(&count, &start); \
+    do { \
+        for (times = 0; times < ntimes; times++) { \
+            ret = (EXPR); \
+            if (ret < 0) break; \
+        } \
+        count += times; \
+    } while (bench_stats_check(start) && ret >= 0); \
+    bench_stats_asym_finish("RSA", (int)keySz, DESC, useDeviceID, count, \
+                            start, ret); \
+} while (0)
+
+/* Benchmark RSA raw, PKCS#1 v1.5, PSS and OAEP for each enabled key size.
+ * Keys are static test DER (no keygen); each size runs software then HW. */
+void bench_rsa_pad(void)
+{
+    static const word32 rsaPadSizes[] = {
+    /* Gate each size on the math backend's RSA range like bench_rsaKeyGen,
+     * so a capped SP build emits no guaranteed "key setup failed" rows. */
+    #if defined(USE_CERT_BUFFERS_2048) && RSA_MAX_SIZE >= 2048 && \
+        RSA_MIN_SIZE <= 2048
+        2048,
+    #endif
+    #if defined(USE_CERT_BUFFERS_3072) && RSA_MAX_SIZE >= 3072 && \
+        RSA_MIN_SIZE <= 3072
+        3072,
+    #endif
+    #if defined(USE_CERT_BUFFERS_4096) && RSA_MAX_SIZE >= 4096 && \
+        RSA_MIN_SIZE <= 4096
+        4096,
+    #endif
+        /* sentinel: keeps the ISO C initializer valid when no size fits */
+        0U
+    };
+    word32 s;
+
+    for (s = 0; rsaPadSizes[s] != 0U; s++) {
+        word32 keySz = rsaPadSizes[s];
+        word32 bytes = keySz / 8;
+        const byte* der = NULL;
+        word32 derSz = 0;
+        int    pass;
+        byte   digest[WC_SHA256_DIGEST_SIZE];
+        byte*  msg = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        byte*  enc = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        byte*  out = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (msg == NULL || enc == NULL || out == NULL) {
+            printf("RSA-pad %u: out of memory\n", (unsigned int)keySz);
+            goto next;
+        }
+        XMEMSET(digest, 0x2b, sizeof(digest));
+        XMEMSET(msg, 0x5a, bytes); /* top byte < modulus, so valid raw input */
+        /* Zero the producer/consumer buffers so a failed producer row
+         * cannot leave a consumer row reading indeterminate heap. */
+        XMEMSET(enc, 0, bytes);
+        XMEMSET(out, 0, bytes);
+
+        /* Pick the static private key DER for this size. Only enabled sizes are
+         * in the table above, so only their symbols are referenced. */
+    #ifdef USE_CERT_BUFFERS_2048
+        if (keySz == 2048) {
+            der = rsa_key_der_2048; derSz = (word32)sizeof_rsa_key_der_2048;
+        }
+    #endif
+    #ifdef USE_CERT_BUFFERS_3072
+        if (keySz == 3072) {
+            der = rsa_key_der_3072; derSz = (word32)sizeof_rsa_key_der_3072;
+        }
+    #endif
+    #ifdef USE_CERT_BUFFERS_4096
+        if (keySz == 4096) {
+            der = client_key_der_4096;
+            derSz = (word32)sizeof_client_key_der_4096;
+        }
+    #endif
+
+        /* pass 0 = software, pass 1 = hardware (device id). */
+        for (pass = 0; pass < 2; pass++) {
+            int    useDeviceID = (pass == 1);
+            int    devIdArg = useDeviceID ? devId : INVALID_DEVID;
+            RsaKey key;
+            int    ret, count, times, keyInit = 0;
+            double start = 0.0;
+            word32 outLen, idx;
+
+        #ifdef NO_SW_BENCH
+            if (!useDeviceID) continue;
+        #endif
+        #ifndef BENCH_DEVID
+            if (useDeviceID) continue;
+        #endif
+
+            ret = wc_InitRsaKey_ex(&key, HEAP_HINT, devIdArg);
+            if (ret == 0) {
+                keyInit = 1;
+                idx = 0;
+                ret = wc_RsaPrivateKeyDecode(der, &idx, &key, derSz);
+            }
+        #ifdef WC_RSA_BLINDING
+            /* Private-decrypt uses the key's own RNG for blinding (no rng arg),
+             * so bind it or OAEP decrypt returns MISSING_RNG_E. */
+            if (ret == 0)
+                ret = wc_RsaSetRNG(&key, &gRng);
+        #endif
+            if (ret != 0) {
+                printf("RSA-pad %u: key setup failed %d\n",
+                    (unsigned int)keySz, ret);
+                if (keyInit)
+                    wc_FreeRsaKey(&key);
+                continue;
+            }
+
+            outLen = bytes;
+            RSA_PAD_BENCH("raw-public", wc_RsaDirect(msg, bytes, enc, &outLen,
+                &key, RSA_PUBLIC_ENCRYPT, &gRng));
+            outLen = bytes;
+            RSA_PAD_BENCH("raw-private", wc_RsaDirect(enc, bytes, out, &outLen,
+                &key, RSA_PRIVATE_DECRYPT, &gRng));
+            /* Raw modexp has no structural self-check, so verify the
+             * round trip: a device-pass cache/DMA fault would time garbage. */
+            if (ret >= 0 && XMEMCMP(out, msg, bytes) != 0) {
+                printf("RSA-pad %u: raw round trip MISMATCH\n",
+                    (unsigned int)keySz);
+            }
+
+            RSA_PAD_BENCH("pkcs-sign", wc_RsaSSL_Sign(digest,
+                (word32)sizeof(digest), enc, bytes, &key, &gRng));
+            RSA_PAD_BENCH("pkcs-verify", wc_RsaSSL_Verify(enc, bytes, out,
+                bytes, &key));
+
+            /* PKCS#1 v1.5 enc/dec; distinct descriptors keep bench_stats_add
+             * from aliasing bench_rsa's public/private rows (desc-keyed). */
+            RSA_PAD_BENCH("pkcs1-enc", wc_RsaPublicEncrypt(digest,
+                (word32)sizeof(digest), enc, bytes, &key, &gRng));
+            RSA_PAD_BENCH("pkcs1-dec", wc_RsaPrivateDecrypt(enc, bytes, out,
+                bytes, &key));
+
+            RSA_PAD_BENCH("pss-sign", wc_RsaPSS_Sign(digest,
+                (word32)sizeof(digest), enc, bytes, WC_HASH_TYPE_SHA256,
+                WC_MGF1SHA256, &key, &gRng));
+            RSA_PAD_BENCH("pss-verify", wc_RsaPSS_Verify(enc, bytes, out, bytes,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key));
+
+            RSA_PAD_BENCH("oaep-enc", wc_RsaPublicEncrypt_ex(digest,
+                (word32)sizeof(digest), enc, bytes, &key, &gRng,
+                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0));
+            RSA_PAD_BENCH("oaep-dec", wc_RsaPrivateDecrypt_ex(enc, bytes, out,
+                bytes, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+                WC_MGF1SHA256, NULL, 0));
+
+            wc_FreeRsaKey(&key);
+        }
+
+    next:
+        XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+}
+#undef RSA_PAD_BENCH
+#endif /* WOLFSSL_BENCH_RSA_PAD && !PUBLIC_ONLY && !VERIFY_ONLY && CERT_BUFS */
 
 void bench_rsa(int useDeviceID)
 {

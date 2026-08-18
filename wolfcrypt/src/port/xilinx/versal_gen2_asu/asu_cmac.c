@@ -187,7 +187,7 @@ static int wc_AsuCmacProduce(const byte* key, word32 keyLen, const byte* msg,
 {
     /* Own a whole cache line: the ASU DMAs the tag here while the response
      * interrupt writes nearby stack, so a shared line could stamp stale bytes. */
-    ALIGN64 byte tag[XASU_AES_MAX_TAG_LENGTH_IN_BYTES];
+    WC_ASU_ALIGN64 byte tag[XASU_AES_MAX_TAG_LENGTH_IN_BYTES];
     u32    keySize = 0;
     int    ret;
 
