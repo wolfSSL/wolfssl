@@ -591,12 +591,16 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name);
 #endif
 
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
+    #define WC_LINUXKM_SVR_DYNAMIC_AUDITING
+#endif
+
 #ifdef FIPS_OPTEST
     #ifndef HAVE_FIPS
         #error FIPS_OPTEST requires HAVE_FIPS.
-    #endif
-    #ifdef LINUXKM_LKCAPI_REGISTER
-        #error FIPS_OPTEST is not allowed with LINUXKM_LKCAPI_REGISTER.
     #endif
     extern int linuxkm_op_test_1(int argc, const char* argv[]);
     extern int linuxkm_op_test_wrapper(void);
@@ -608,6 +612,12 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
                                        const char *buf, size_t count);
     static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
     static int installed_sysfs_FIPS_optest_trig_files = 0;
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    static struct kobj_attribute FIPS_optest_trig_audit_accel_attr = __ATTR(FIPS_optest_run_code_audit_accel, 0220, NULL, FIPS_optest_trig_handler);
+    static int installed_sysfs_FIPS_optest_trig_audit_accel_files = 0;
+    static struct kobj_attribute FIPS_optest_trig_audit_c_attr = __ATTR(FIPS_optest_run_code_audit_c, 0220, NULL, FIPS_optest_trig_handler);
+    static int installed_sysfs_FIPS_optest_trig_audit_c_files = 0;
+#endif
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
@@ -899,7 +909,7 @@ static int wolfssl_init(void)
      * wolfCrypt_IntegrityTest_fips() with asm disabled.
      */
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     wc_svr_disallowed_count_reset();
 #endif
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
@@ -932,10 +942,7 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
-
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
         if (svr_disallowed_count > 0) {
@@ -970,8 +977,7 @@ static int wolfssl_init(void)
             return -ECANCELED;
         }
     }
-#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK &&                    */
-       /* !DEBUG_VECTOR_REGISTER_ACCESS_FUZZING && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
+#endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
 
 #endif /* HAVE_FIPS */
 
@@ -1010,7 +1016,7 @@ static int wolfssl_init(void)
         wc_linuxkm_stack_hwm_prepare(0xee);
     #endif
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK)
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     wc_svr_disallowed_count_reset();
 #endif
 
@@ -1029,9 +1035,7 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
         if (svr_disallowed_count > 0) {
@@ -1081,8 +1085,7 @@ static int wolfssl_init(void)
         }
     }
 
-#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK &&                    */
-       /* !DEBUG_VECTOR_REGISTER_ACCESS_FUZZING && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
+#endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
 
     pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
             "self-test succeeded.\n",
@@ -1128,6 +1131,19 @@ static int wolfssl_init(void)
         pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_attr.attr.name, ret);
         return -ECANCELED;
     }
+
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_audit_accel_attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
+    if (ret != 0) {
+        pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_audit_accel_attr.attr.name, ret);
+        return -ECANCELED;
+    }
+    ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_audit_c_attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
+    if (ret != 0) {
+        pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_audit_c_attr.attr.name, ret);
+        return -ECANCELED;
+    }
+#endif
 
 #ifdef FIPS_OPTEST_FULL_RUN_AT_MODULE_INIT
 
@@ -1301,6 +1317,10 @@ static void wolfssl_exit(void)
     (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
 #ifdef FIPS_OPTEST
     (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_audit_accel_attr, &installed_sysfs_FIPS_optest_trig_audit_accel_files);
+    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_audit_c_attr, &installed_sysfs_FIPS_optest_trig_audit_c_files);
+#endif
 #endif
 #endif
 
@@ -2196,9 +2216,8 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         return -EINVAL;
     }
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WC_C_DYNAMIC_FALLBACK) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
-    !defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+
     /* Note that wc_svr_disallowed_count*() can't be checked in
      * FIPS_rerun_self_test_handler() -- we're already multiuser at this point
      * and other threads can and will increment wc_svr_disallowed_count outside
@@ -2219,8 +2238,7 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
         pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
         return -EINVAL;
     }
-#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS && WC_C_DYNAMIC_FALLBACK &&                    */
-       /* !DEBUG_VECTOR_REGISTER_ACCESS_FUZZING && !DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON */
+#endif /* WC_LINUXKM_SVR_DYNAMIC_AUDITING */
 
     pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
 
@@ -2242,9 +2260,20 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     char code_buf[5];
     size_t corrected_count;
     int i;
+    static wolfSSL_Atomic_Int in_optest = WOLFSSL_ATOMIC_INITIALIZER(-1);
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    long long unsigned int svr_disallowed_before_optest = 0, svr_disallowed_after_optest;
+#endif
 
     (void)kobj;
     (void)attr;
+
+#ifdef LINUXKM_LKCAPI_REGISTER
+    if (linuxkm_lkcapi_registered) {
+        pr_err("ERROR: FIPS_optest_trig_handler() with linuxkm_lkcapi_registered: before running optest, echo 1 > /sys/module/libwolfssl/deinstall_algs.\n");
+        return -EBUSY;
+    }
+#endif
 
     /* buf may or may not have an LF at end -- tolerate both.  there is no
      * terminating null in either case.
@@ -2268,6 +2297,17 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     argv[2] = code_buf;
     argc = 3;
 
+    {
+        WC_ATOMIC_INT_ARG expected_in_optest = -1;
+        if (! wolfSSL_Atomic_Int_CompareExchange(
+                &in_optest, &expected_in_optest, task_pid_nr(current)))
+        {
+            pr_err("ERROR: FIPS_optest_trig_handler() called by pid %d while pid %d is running optest in another thread.\n",
+                   task_pid_nr(current), expected_in_optest);
+            return -EBUSY;
+        }
+    }
+
     printf("OK, testing code %s\n", code_buf);
 
     #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
@@ -2278,7 +2318,53 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
         wc_linuxkm_stack_hwm_prepare(0xee);
     #endif
 
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+
+    /* The audits treat wc_svr_disallowed_count as
+     * ours alone: in_optest excludes the other trigger nodes, and the
+     * linuxkm_lkcapi_registered check above excludes registered-
+     * algorithm consumers. The entry check is advisory against re-
+     * registration mid-optest; don't do that.
+     */
+
+    if ((attr == &FIPS_optest_trig_audit_accel_attr) ||
+        (attr == &FIPS_optest_trig_audit_c_attr))
+    {
+        if (attr == &FIPS_optest_trig_audit_c_attr) {
+            ret = DISABLE_VECTOR_REGISTERS();
+            if (ret != 0) {
+                pr_err("ERROR: DISABLE_VECTOR_REGISTERS() for FIPS_optest_trig_handler() returned %d.\n", ret);
+                WOLFSSL_ATOMIC_STORE(in_optest, -1);
+                return -EINVAL;
+            }
+        }
+        svr_disallowed_before_optest = wc_svr_disallowed_count_current();
+    }
+#endif
+
     ret = linuxkm_op_test_1(argc, &argv[0]);
+
+#ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
+    if (attr == &FIPS_optest_trig_audit_c_attr) {
+        REENABLE_VECTOR_REGISTERS();
+        svr_disallowed_after_optest = wc_svr_disallowed_count_current();
+        if (svr_disallowed_after_optest == svr_disallowed_before_optest) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() did not increment during optest with DISABLE_VECTOR_REGISTERS().\n");
+            WOLFSSL_ATOMIC_STORE(in_optest, -1);
+            return -EINVAL;
+        }
+    }
+    else if (attr == &FIPS_optest_trig_audit_accel_attr) {
+        svr_disallowed_after_optest = wc_svr_disallowed_count_current();
+        if (svr_disallowed_after_optest != svr_disallowed_before_optest) {
+            pr_err("ERROR: wc_svr_disallowed_count_current() incremented (+%llu) during optest.\n", svr_disallowed_after_optest - svr_disallowed_before_optest);
+            WOLFSSL_ATOMIC_STORE(in_optest, -1);
+            return -EINVAL;
+        }
+    }
+#endif
+
+    WOLFSSL_ATOMIC_STORE(in_optest, -1);
 
     #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
         stack_usage = wc_linuxkm_stack_hwm_measure_rel(0xee);
