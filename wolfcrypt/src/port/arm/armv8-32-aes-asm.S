@@ -27199,7 +27199,7 @@ L_aes_gcm_encrypt_arm32_crypto_done_enc:
 	vld1.32	{q8}, [r8]
 	orr	r10, r6, r2
 	cmp	r10, #32
-	blt	L_aes_gcm_encrypt_arm32_crypto_h_done
+	blo	L_aes_gcm_encrypt_arm32_crypto_h_done
 	# Square H => H^2
 	vmull.p64	q1, d17, d17
 	vmull.p64	q0, d16, d16
@@ -27209,7 +27209,7 @@ L_aes_gcm_encrypt_arm32_crypto_done_enc:
 	vmull.p64	q9, d2, d26
 	veor.8	q9, q9, q0
 	cmp	r10, #0x40
-	blt	L_aes_gcm_encrypt_arm32_crypto_h_done
+	blo	L_aes_gcm_encrypt_arm32_crypto_h_done
 	# Multiply H and H^2  => H^3
 	vmull.p64	q2, d17, d18
 	vmull.p64	q3, d16, d19
@@ -27797,7 +27797,7 @@ AES_GCM_decrypt_AARCH32:
 	vld1.32	{q8}, [r8]
 	orr	r10, r6, r2
 	cmp	r10, #32
-	blt	L_aes_gcm_decrypt_arm32_crypto_h_done
+	blo	L_aes_gcm_decrypt_arm32_crypto_h_done
 	# Square H => H^2
 	vmull.p64	q1, d17, d17
 	vmull.p64	q0, d16, d16
@@ -27807,7 +27807,7 @@ AES_GCM_decrypt_AARCH32:
 	vmull.p64	q9, d2, d26
 	veor.8	q9, q9, q0
 	cmp	r10, #0x40
-	blt	L_aes_gcm_decrypt_arm32_crypto_h_done
+	blo	L_aes_gcm_decrypt_arm32_crypto_h_done
 	# Multiply H and H^2  => H^3
 	vmull.p64	q2, d17, d18
 	vmull.p64	q3, d16, d19

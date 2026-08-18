@@ -926,7 +926,7 @@ void AES_GCM_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
     "L_AES_GCM_encrypt_RISCV64_j0_ghash:\n\t"
         /* vxor.vv v16, v16, v16 */
         ".word   0x2f080857\n\t"
-        "srli    t6, %[nonceSz], 4\n\t"
+        "srliw   t6, %[nonceSz], 4\n\t"
         "beqz    t6, L_AES_GCM_encrypt_RISCV64_j0_nblk_done\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_j0_nloop:\n\t"
@@ -988,7 +988,7 @@ void AES_GCM_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
     "L_AES_GCM_encrypt_RISCV64_j0_done:\n\t"
         /* GHASH the AAD */
         "beqz    %[aadSz], L_AES_GCM_encrypt_RISCV64_aad_done\n\t"
-        "srli    t1, %[aadSz], 4\n\t"
+        "srliw   t1, %[aadSz], 4\n\t"
         "beqz    t1, L_AES_GCM_encrypt_RISCV64_aad_blocks_done\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_aad_loop:\n\t"
@@ -1053,7 +1053,7 @@ void AES_GCM_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
         /* vrev8.v v20, v20 */
         ".word   0x4b44aa57\n\t"
         /* 4-block fast path (64-byte groups), then <64-byte tail below */
-        "srli    t6, %[sz], 6\n\t"
+        "srliw   t6, %[sz], 6\n\t"
         "beqz    t6, L_AES_GCM_encrypt_RISCV64_x4_done\n\t"
         /* Precompute H^2, H^3, H^4 (v21/v22/v23) */
         /* vmv.v.v v21, v19 */
@@ -1565,7 +1565,7 @@ int AES_GCM_decrypt_RISCV64(byte* in, byte* out, word32 sz, const byte* nonce,
     "L_AES_GCM_decrypt_RISCV64_j0_ghash:\n\t"
         /* vxor.vv v16, v16, v16 */
         ".word   0x2f080857\n\t"
-        "srli    t6, %[nonceSz], 4\n\t"
+        "srliw   t6, %[nonceSz], 4\n\t"
         "beqz    t6, L_AES_GCM_decrypt_RISCV64_j0_nblk_done\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_j0_nloop:\n\t"
@@ -1627,7 +1627,7 @@ int AES_GCM_decrypt_RISCV64(byte* in, byte* out, word32 sz, const byte* nonce,
     "L_AES_GCM_decrypt_RISCV64_j0_done:\n\t"
         /* GHASH the AAD */
         "beqz    %[aadSz], L_AES_GCM_decrypt_RISCV64_aad_done\n\t"
-        "srli    t1, %[aadSz], 4\n\t"
+        "srliw   t1, %[aadSz], 4\n\t"
         "beqz    t1, L_AES_GCM_decrypt_RISCV64_aad_blocks_done\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_aad_loop:\n\t"
@@ -1692,7 +1692,7 @@ int AES_GCM_decrypt_RISCV64(byte* in, byte* out, word32 sz, const byte* nonce,
         /* vrev8.v v20, v20 */
         ".word   0x4b44aa57\n\t"
         /* 4-block fast path (64-byte groups), then <64-byte tail below */
-        "srli    t6, %[sz], 6\n\t"
+        "srliw   t6, %[sz], 6\n\t"
         "beqz    t6, L_AES_GCM_decrypt_RISCV64_x4_done\n\t"
         /* Precompute H^2, H^3, H^4 (v21/v22/v23) */
         /* vmv.v.v v21, v19 */
@@ -2224,7 +2224,7 @@ void AES_GCM_init_RISCV64(const byte* key, int nr, const byte* nonce,
     "L_AES_GCM_init_RISCV64_j0_ghash:\n\t"
         /* vxor.vv v16, v16, v16 */
         ".word   0x2f080857\n\t"
-        "srli    t6, %[nonceSz], 4\n\t"
+        "srliw   t6, %[nonceSz], 4\n\t"
         "beqz    t6, L_AES_GCM_init_RISCV64_j0_nblk_done\n\t"
         "\n"
     "L_AES_GCM_init_RISCV64_j0_nloop:\n\t"
@@ -2383,7 +2383,7 @@ void AES_GCM_aad_update_RISCV64(const byte* addt, word32 abytes, byte* tag,
         "mv      t0, %[h]\n\t"
         /* vl1re32.v v19, (t0) */
         ".word   0x0282e987\n\t"
-        "srli    t1, %[abytes], 4\n\t"
+        "srliw   t1, %[abytes], 4\n\t"
         "beqz    t1, L_AES_GCM_aad_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_aad_update_RISCV64_loop:\n\t"
@@ -2555,7 +2555,7 @@ void AES_GCM_encrypt_update_RISCV64(const byte* key, int nr, byte* out,
         ".word   0x3f01ba57\n\t"
         /* vrev8.v v20, v20 */
         ".word   0x4b44aa57\n\t"
-        "srli    t1, %[nbytes], 4\n\t"
+        "srliw   t1, %[nbytes], 4\n\t"
         "beqz    t1, L_AES_GCM_encrypt_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_encrypt_update_RISCV64_loop:\n\t"
@@ -2761,7 +2761,7 @@ void AES_GCM_decrypt_update_RISCV64(const byte* key, int nr, byte* out,
         ".word   0x3f01ba57\n\t"
         /* vrev8.v v20, v20 */
         ".word   0x4b44aa57\n\t"
-        "srli    t1, %[nbytes], 4\n\t"
+        "srliw   t1, %[nbytes], 4\n\t"
         "beqz    t1, L_AES_GCM_decrypt_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_decrypt_update_RISCV64_loop:\n\t"
@@ -3026,7 +3026,7 @@ void AES_XTS_encrypt_RISCV64(const byte* in, byte* out, word32 sz,
         "addi    t0, %[key], 224\n\t"
         /* vl1re32.v v14, (t0) */
         ".word   0x0282e707\n\t"
-        "srli    t3, %[sz], 4\n\t"
+        "srliw   t3, %[sz], 4\n\t"
         "andi    %[sz], %[sz], 15\n\t"
         /* Binary batch ladder m8->m4->m2->m1 (t5/t6 set before the loop as */
         /* xts_gf_mul clobbers t1-t4). */
@@ -3850,7 +3850,7 @@ void AES_XTS_decrypt_RISCV64(const byte* in, byte* out, word32 sz,
         "addi    t0, %[key], 224\n\t"
         /* vl1re32.v v14, (t0) */
         ".word   0x0282e707\n\t"
-        "srli    t3, %[sz], 4\n\t"
+        "srliw   t3, %[sz], 4\n\t"
         "andi    %[sz], %[sz], 15\n\t"
         /* With a partial block, leave the last full block for stealing */
         "beqz    %[sz], L_AES_XTS_decrypt_RISCV64_no_steal\n\t"
@@ -4854,7 +4854,7 @@ void AES_encrypt_blocks_RISCV64(const byte* in, byte* out, word32 sz, byte* key,
         "addi    t0, %[key], 224\n\t"
         /* vl1re32.v v14, (t0) */
         ".word   0x0282e707\n\t"
-        "srli    t3, %[sz], 4\n\t"
+        "srliw   t3, %[sz], 4\n\t"
         "mv      t1, %[in]\n\t"
         "mv      t2, %[out]\n\t"
         /* m8 main loop: 8 blocks per pass via an LMUL=8 register group. */
@@ -5096,7 +5096,7 @@ void AES_decrypt_blocks_RISCV64(const byte* in, byte* out, word32 sz, byte* key,
         "addi    t0, %[key], 224\n\t"
         /* vl1re32.v v14, (t0) */
         ".word   0x0282e707\n\t"
-        "srli    t3, %[sz], 4\n\t"
+        "srliw   t3, %[sz], 4\n\t"
         "mv      t1, %[in]\n\t"
         "mv      t2, %[out]\n\t"
         /* m8 main loop: 8 blocks per pass via an LMUL=8 register group. */
@@ -5344,7 +5344,7 @@ void AES_CBC_encrypt_RISCV64(const byte* in, byte* out, word32 sz, byte* reg,
         "mv      t0, %[reg]\n\t"
         /* vl1re32.v v16, (t0) */
         ".word   0x0282e807\n\t"
-        "srli    t3, %[sz], 4\n\t"
+        "srliw   t3, %[sz], 4\n\t"
         "mv      t1, %[in]\n\t"
         "mv      t2, %[out]\n\t"
         "beqz    t3, L_AES_CBC_encrypt_RISCV64_done\n\t"
@@ -5450,7 +5450,7 @@ void AES_CBC_decrypt_RISCV64(const byte* in, byte* out, word32 sz, byte* reg,
         "mv      t0, %[reg]\n\t"
         /* vl1re32.v v15, (t0) */
         ".word   0x0282e787\n\t"
-        "srli    t3, %[sz], 4\n\t"
+        "srliw   t3, %[sz], 4\n\t"
         "mv      t1, %[in]\n\t"
         "mv      t2, %[out]\n\t"
         /* Binary batch ladder m8->m4->m2->m1. */
@@ -5781,7 +5781,7 @@ void AES_CTR_encrypt_RISCV64(const byte* in, byte* out, word32 sz, byte* reg,
     "L_AES_CTR_encrypt_RISCV64_left_done:\n\t"
         "sw      t5, 0(%[left])\n\t"
         /* Encrypt whole blocks; binary batch ladder m8->m4->m2->m1. */
-        "srli    t3, %[sz], 4\n\t"
+        "srliw   t3, %[sz], 4\n\t"
         "srli    t5, t3, 3\n\t"
         "beqz    t5, L_AES_CTR_encrypt_RISCV64_after8\n\t"
         "\n"
@@ -13985,7 +13985,7 @@ void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
         "mv      s10, %[nonce]\n\t"
         "mv      s11, %[nonceSz]\n\t"
         "beqz    s11, L_AES_GCM_encrypt_RISCV64_j0n_gdone\n\t"
-        "srli    a6, s11, 4\n\t"
+        "srliw   a6, s11, 4\n\t"
         "beqz    a6, L_AES_GCM_encrypt_RISCV64_j0n_gpart\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_j0n_gloop:\n\t"
@@ -14555,7 +14555,7 @@ void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
         "sd      t3, 8(sp)\n\t"
         /* GHASH the AAD */
         "beqz    s2, L_AES_GCM_encrypt_RISCV64_aad_gdone\n\t"
-        "srli    a6, s2, 4\n\t"
+        "srliw   a6, s2, 4\n\t"
         "beqz    a6, L_AES_GCM_encrypt_RISCV64_aad_gpart\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_aad_gloop:\n\t"
@@ -14861,7 +14861,7 @@ void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
         "mv      s8, t1\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_aad_gdone:\n\t"
-        "srli    a7, s9, 4\n\t"
+        "srliw   a7, s9, 4\n\t"
         "beqz    a7, L_AES_GCM_encrypt_RISCV64_dbdone\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_dloop:\n\t"
@@ -15912,7 +15912,7 @@ int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p, word32 sz_p,
         "mv      s10, %[nonce]\n\t"
         "mv      s11, %[nonceSz]\n\t"
         "beqz    s11, L_AES_GCM_decrypt_RISCV64_j0n_gdone\n\t"
-        "srli    a6, s11, 4\n\t"
+        "srliw   a6, s11, 4\n\t"
         "beqz    a6, L_AES_GCM_decrypt_RISCV64_j0n_gpart\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_j0n_gloop:\n\t"
@@ -16482,7 +16482,7 @@ int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p, word32 sz_p,
         "sd      t3, 8(sp)\n\t"
         /* GHASH the AAD */
         "beqz    s2, L_AES_GCM_decrypt_RISCV64_aad_gdone\n\t"
-        "srli    a6, s2, 4\n\t"
+        "srliw   a6, s2, 4\n\t"
         "beqz    a6, L_AES_GCM_decrypt_RISCV64_aad_gpart\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_aad_gloop:\n\t"
@@ -16788,7 +16788,7 @@ int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p, word32 sz_p,
         "mv      s8, t1\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_aad_gdone:\n\t"
-        "srli    a7, s9, 4\n\t"
+        "srliw   a7, s9, 4\n\t"
         "beqz    a7, L_AES_GCM_decrypt_RISCV64_dbdone\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_dloop:\n\t"
@@ -17825,7 +17825,7 @@ void AES_GCM_init_RISCV64(const byte* key_p, int nr_p, const byte* nonce_p,
         "mv      s7, s2\n\t"
         "mv      s9, s3\n\t"
         "beqz    s9, L_AES_GCM_init_RISCV64_j0n_gdone\n\t"
-        "srli    a6, s9, 4\n\t"
+        "srliw   a6, s9, 4\n\t"
         "beqz    a6, L_AES_GCM_init_RISCV64_j0n_gpart\n\t"
         "\n"
     "L_AES_GCM_init_RISCV64_j0n_gloop:\n\t"
@@ -18750,7 +18750,7 @@ void AES_GCM_aad_update_RISCV64(const byte* addt, word32 abytes, byte* tag,
 #endif /* WOLFSSL_RISCV_BIT_MANIPULATION */
         "mv      s1, t0\n\t"
         "mv      s8, t1\n\t"
-        "srli    a7, %[abytes], 4\n\t"
+        "srliw   a7, %[abytes], 4\n\t"
         "beqz    a7, L_AES_GCM_aad_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_aad_update_RISCV64_loop:\n\t"
@@ -19440,7 +19440,7 @@ void AES_GCM_encrypt_update_RISCV64(const byte* key_p, int nr_p, byte* out_p,
 #endif /* WOLFSSL_RISCV_BIT_MANIPULATION */
         "mv      s1, t0\n\t"
         "mv      s8, t1\n\t"
-        "srli    a7, s4, 4\n\t"
+        "srliw   a7, s4, 4\n\t"
         "beqz    a7, L_AES_GCM_encrypt_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_encrypt_update_RISCV64_loop:\n\t"
@@ -20243,7 +20243,7 @@ void AES_GCM_decrypt_update_RISCV64(const byte* key_p, int nr_p, byte* out_p,
 #endif /* WOLFSSL_RISCV_BIT_MANIPULATION */
         "mv      s1, t0\n\t"
         "mv      s8, t1\n\t"
-        "srli    a7, s4, 4\n\t"
+        "srliw   a7, s4, 4\n\t"
         "beqz    a7, L_AES_GCM_decrypt_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_decrypt_update_RISCV64_loop:\n\t"
@@ -48160,6 +48160,8 @@ void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
         "sd      zero, 8(s3)\n\t"
         "ld      s9, 56(sp)\n\t"
         "ld      s10, 64(sp)\n\t"
+        "slli    s10, s10, 32\n\t"
+        "srli    s10, s10, 32\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_nonce_block_loop:\n\t"
         "li      t0, 16\n\t"
@@ -51634,6 +51636,8 @@ void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
         "sd      zero, 8(s3)\n\t"
         "ld      s9, 88(sp)\n\t"
         "ld      s10, 96(sp)\n\t"
+        "slli    s10, s10, 32\n\t"
+        "srli    s10, s10, 32\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_aad_block_loop:\n\t"
         "li      t0, 16\n\t"
@@ -52899,7 +52903,7 @@ void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
 #endif /* GCM_TABLE */
         "\n"
     "L_AES_GCM_encrypt_RISCV64_aad_partial_done:\n\t"
-        "srli    s10, %[sz], 4\n\t"
+        "srliw   s10, %[sz], 4\n\t"
         "beqz    s10, L_AES_GCM_encrypt_RISCV64_blocks_done\n\t"
         "\n"
     "L_AES_GCM_encrypt_RISCV64_block_loop:\n\t"
@@ -58411,6 +58415,8 @@ int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p, word32 sz_p,
         "sd      zero, 8(s3)\n\t"
         "ld      s9, 56(sp)\n\t"
         "ld      s10, 64(sp)\n\t"
+        "slli    s10, s10, 32\n\t"
+        "srli    s10, s10, 32\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_nonce_block_loop:\n\t"
         "li      t0, 16\n\t"
@@ -61885,6 +61891,8 @@ int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p, word32 sz_p,
         "sd      zero, 8(s3)\n\t"
         "ld      s9, 88(sp)\n\t"
         "ld      s10, 96(sp)\n\t"
+        "slli    s10, s10, 32\n\t"
+        "srli    s10, s10, 32\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_aad_block_loop:\n\t"
         "li      t0, 16\n\t"
@@ -63150,7 +63158,7 @@ int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p, word32 sz_p,
 #endif /* GCM_TABLE */
         "\n"
     "L_AES_GCM_decrypt_RISCV64_aad_partial_done:\n\t"
-        "srli    s10, %[sz], 4\n\t"
+        "srliw   s10, %[sz], 4\n\t"
         "beqz    s10, L_AES_GCM_decrypt_RISCV64_blocks_done\n\t"
         "\n"
     "L_AES_GCM_decrypt_RISCV64_block_loop:\n\t"
@@ -68649,7 +68657,7 @@ void AES_GCM_init_RISCV64(const byte* key_p, int nr_p, const byte* nonce_p,
         "addi    s10, sp, 0\n\t"
         "sd      zero, 0(s10)\n\t"
         "sd      zero, 8(s10)\n\t"
-        "srli    s11, s7, 4\n\t"
+        "srliw   s11, s7, 4\n\t"
         "\n"
     "L_AES_GCM_init_RISCV64_nonce_loop:\n\t"
         "beqz    s11, L_AES_GCM_init_RISCV64_nonce_partial\n\t"
@@ -72774,7 +72782,7 @@ void AES_GCM_aad_update_RISCV64(const byte* addt, word32 abytes, byte* tag,
         "mv      s9, %[abytes]\n\t"
         "mv      s2, %[tag]\n\t"
         "mv      s4, %[h]\n\t"
-        "srli    s10, s9, 4\n\t"
+        "srliw   s10, s9, 4\n\t"
         "beqz    s10, L_AES_GCM_aad_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_aad_update_RISCV64_loop:\n\t"
@@ -75270,7 +75278,7 @@ void AES_GCM_encrypt_update_RISCV64(const byte* key_p, int nr_p, byte* out_p,
     "        .option arch, +zba\n\t"
 #endif /* defined(WOLFSSL_RISCV_BASE_ADDRESS) */
         "sd      ra, 32(sp)\n\t"
-        "srli    s10, s9, 4\n\t"
+        "srliw   s10, s9, 4\n\t"
         "beqz    s10, L_AES_GCM_encrypt_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_encrypt_update_RISCV64_loop:\n\t"
@@ -78443,7 +78451,7 @@ void AES_GCM_decrypt_update_RISCV64(const byte* key_p, int nr_p, byte* out_p,
     "        .option arch, +zba\n\t"
 #endif /* defined(WOLFSSL_RISCV_BASE_ADDRESS) */
         "sd      ra, 32(sp)\n\t"
-        "srli    s10, s9, 4\n\t"
+        "srliw   s10, s9, 4\n\t"
         "beqz    s10, L_AES_GCM_decrypt_update_RISCV64_done\n\t"
         "\n"
     "L_AES_GCM_decrypt_update_RISCV64_loop:\n\t"

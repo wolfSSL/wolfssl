@@ -65,7 +65,7 @@ _chacha_encrypt_x64:
         pushq	%r15
         subq	$0x48, %rsp
         cmpl	$0x40, %ecx
-        jl	L_chacha_x64_small
+        jb	L_chacha_x64_small
 L_chacha_x64_start:
         subq	$48, %rsp
         movq	%rdx, 24(%rsp)
@@ -249,7 +249,7 @@ L_chacha_x64_block_crypt_start:
         addq	$0x40, %rsi
         addq	$0x40, %rdx
         cmpl	$0x40, %ecx
-        jge	L_chacha_x64_start
+        jae	L_chacha_x64_start
 L_chacha_x64_small:
         cmpl	$0x00, %ecx
         je	L_chacha_x64_done
@@ -510,7 +510,7 @@ _chacha_encrypt_sse3:
         leaq	L_chacha20_sse3_rotl16(%rip), %r12
         leaq	L_chacha20_sse3_one(%rip), %r13
         cmpl	$0x80, %ecx
-        jl	L_chacha20_sse3_128_done
+        jb	L_chacha20_sse3_128_done
 L_chacha20_sse3_128_start:
         movdqu	(%rdi), %xmm0
         movdqu	16(%rdi), %xmm1
@@ -651,7 +651,7 @@ L_chacha20_sse3_128_crypt2_start:
         addq	$0x80, %rsi
         addq	$0x80, %rdx
         cmpl	$0x80, %ecx
-        jge	L_chacha20_sse3_128_start
+        jae	L_chacha20_sse3_128_start
 L_chacha20_sse3_128_done:
         cmpl	$0x00, %ecx
         je	L_chacha20_sse3_last_done
@@ -766,7 +766,7 @@ L_chacha20_sse3_last_crypt2_start:
         paddd	%xmm13, %xmm7
         paddd	(%r13), %xmm7
         cmpl	$0x40, %ecx
-        jle	L_chacha20_sse3_last_lt64
+        jbe	L_chacha20_sse3_last_lt64
         movdqu	(%rsi), %xmm8
         pxor	%xmm8, %xmm0
         movdqu	%xmm0, (%rdx)
@@ -1201,7 +1201,7 @@ L_chacha20_avx1_loop128:
         subl	$0x100, %ecx
         vmovdqa	%xmm12, 192(%r9)
         cmpl	$0x100, %ecx
-        jl	L_chacha20_avx1_done128
+        jb	L_chacha20_avx1_done128
         vmovdqa	(%r9), %xmm0
         vmovdqa	16(%r9), %xmm1
         vmovdqa	32(%r9), %xmm2
@@ -1224,7 +1224,7 @@ L_chacha20_avx1_done128:
         addl	%eax, 48(%rdi)
 L_chacha20_avx1_end128:
         cmpl	$0x40, %ecx
-        jl	L_chacha20_avx1_block_done
+        jb	L_chacha20_avx1_block_done
 L_chacha20_avx1_block_start:
         vmovdqu	(%rdi), %xmm0
         vmovdqu	16(%rdi), %xmm1
@@ -1297,7 +1297,7 @@ L_chacha20_avx1_block_crypt_start:
         addq	$0x40, %rsi
         addq	$0x40, %rdx
         cmpl	$0x40, %ecx
-        jge	L_chacha20_avx1_block_start
+        jae	L_chacha20_avx1_block_start
 L_chacha20_avx1_block_done:
         cmpl	$0x00, %ecx
         je	L_chacha20_avx1_partial_done
@@ -1790,7 +1790,7 @@ L_chacha20_avx2_loop256:
         subl	$0x200, %ecx
         vmovdqa	%ymm12, 384(%r9)
         cmpl	$0x200, %ecx
-        jl	L_chacha20_avx2_done256
+        jb	L_chacha20_avx2_done256
         vmovdqa	(%r9), %ymm0
         vmovdqa	32(%r9), %ymm1
         vmovdqa	64(%r9), %ymm2
@@ -2133,7 +2133,7 @@ L_chacha20_avx512vl_loop128:
         subl	$0x100, %ecx
         vmovdqa	%xmm12, 192(%r9)
         cmpl	$0x100, %ecx
-        jl	L_chacha20_avx512vl_done128
+        jb	L_chacha20_avx512vl_done128
         vmovdqa	(%r9), %xmm0
         vmovdqa	16(%r9), %xmm1
         vmovdqa	32(%r9), %xmm2
@@ -2371,7 +2371,7 @@ L_chacha20_avx512vl_last_round:
         vmovdqu	%xmm6, 224(%r9)
         vmovdqu	%xmm7, 240(%r9)
         cmpl	$0x40, %ecx
-        jl	L_chacha20_avx512vl_last_fdone
+        jb	L_chacha20_avx512vl_last_fdone
 L_chacha20_avx512vl_last_fstart:
         vmovdqu	(%rsi), %xmm0
         vpxor	(%r9), %xmm0, %xmm0
@@ -2391,7 +2391,7 @@ L_chacha20_avx512vl_last_fstart:
         addq	$0x40, %rdx
         addq	$0x40, %r9
         cmpl	$0x40, %ecx
-        jge	L_chacha20_avx512vl_last_fstart
+        jae	L_chacha20_avx512vl_last_fstart
 L_chacha20_avx512vl_last_fdone:
         cmpl	$0x00, %ecx
         je	L_chacha20_avx512vl_last_done
@@ -2470,7 +2470,7 @@ _chacha_encrypt_avx512:
         subq	$8, %rsp
         leaq	L_chacha20_avx512_add(%rip), %r8
         cmpl	$0x400, %ecx
-        jl	L_chacha20_avx512_end512
+        jb	L_chacha20_avx512_end512
 L_chacha20_avx512_start512:
         vpbroadcastd	(%rdi), %zmm0
         vpbroadcastd	4(%rdi), %zmm1
@@ -2708,7 +2708,7 @@ L_chacha20_avx512_loop512:
         addl	$16, 48(%rdi)
         subl	$0x400, %ecx
         cmpl	$0x400, %ecx
-        jge	L_chacha20_avx512_start512
+        jae	L_chacha20_avx512_start512
 L_chacha20_avx512_end512:
 #ifndef __APPLE__
         callq	chacha_encrypt_avx2@plt
