@@ -2347,6 +2347,13 @@ WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 
+#ifndef NO_CERTS
+/* Call after any callback that hands control to the application in the middle
+ * of a handshake, to catch it replacing what this object took from the
+ * context. */
+WOLFSSL_LOCAL int CheckCtxCertsUnchanged(WOLFSSL* ssl);
+#endif
+
 #ifdef HAVE_SNI
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);

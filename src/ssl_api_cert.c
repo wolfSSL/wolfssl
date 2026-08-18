@@ -2806,6 +2806,8 @@ void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
  *          unrecognized value. A fatal alert is sent when it failed.
  * @return  WOLFSSL_ERROR_WANT_X509_LOOKUP when the callback returned a
  *          negative value to ask to be called again.
+ * @return  BAD_STATE_E when the callback replaced a certificate or key on the
+ *          context this handshake is running against. A fatal alert is sent.
  */
 int CertSetupCbWrapper(WOLFSSL* ssl)
 {
@@ -2814,6 +2816,13 @@ int CertSetupCbWrapper(WOLFSSL* ssl)
     if (ssl->ctx->certSetupCb != NULL) {
         WOLFSSL_MSG("Calling user cert setup callback");
         ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
+#ifndef NO_CERTS
+        /* Cert modification is not allowed during the callback */
+        if (CheckCtxCertsUnchanged(ssl) != 0) {
+            SendAlert(ssl, alert_fatal, internal_error);
+            return BAD_STATE_E;
+        }
+#endif
         if (ret == 1) {
             WOLFSSL_MSG("User cert callback returned success");
             ret = 0;

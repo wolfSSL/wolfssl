@@ -7704,6 +7704,103 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     return ret;
 }
+
+/* Whether a buffer the SSL object holds is one the context has since let go.
+ *
+ * Only a buffer the object took from the context can go stale. One it
+ * allocated for itself is its own, and a NULL has nothing to point at.
+ *
+ * A replacement landing on the address just freed is not caught. That is no
+ * read of freed memory either, as the address now holds the new buffer, so
+ * the session carries on with a certificate it did not start with.
+ *
+ * @param [in] der     Buffer the SSL object holds. May be NULL.
+ * @param [in] weOwn   Whether the object allocated that buffer itself.
+ * @param [in] ctxDer  Buffer the context holds now. May be NULL.
+ * @return  1 when the object's buffer is no longer the context's.
+ * @return  0 otherwise.
+ */
+static int SslDerIsStale(const DerBuffer* der, byte weOwn,
+    const DerBuffer* ctxDer)
+{
+    return (!weOwn) && (der != NULL) && (der != ctxDer);
+}
+
+#ifndef WOLFSSL_BLIND_PRIVATE_KEY
+/* Whether the private key the SSL object holds is one the context has since
+ * let go.
+ *
+ * A dual algorithm CertificateVerify swaps the alternate key into place and
+ * leaves it there, so from then on the object is holding the context's
+ * alternate key rather than its private key. Either one is the context's.
+ *
+ * @param [in] ssl  SSL object.
+ * @return  1 when the object's key is no longer one of the context's.
+ * @return  0 otherwise.
+ */
+static int SslKeyIsStale(WOLFSSL* ssl)
+{
+    int stale = SslDerIsStale(ssl->buffers.key, ssl->buffers.weOwnKey,
+        ssl->ctx->privateKey);
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    if (stale && (ssl->buffers.key == ssl->ctx->altPrivateKey)) {
+        stale = 0;
+    }
+#endif
+
+    return stale;
+}
+#endif /* !WOLFSSL_BLIND_PRIVATE_KEY */
+
+/* Check the certificate and key this object took from the context are still
+ * the ones the context holds.
+ *
+ * What the object took is a plain pointer into the context, so loading a new
+ * certificate or key on that context frees what this handshake is in the
+ * middle of using. Call this after any callback that hands control to the
+ * application mid-handshake: the pointers are only compared here, never read,
+ * so the handshake can be failed before anything follows a stale one.
+ *
+ * A callback that swaps in a whole new context with wolfSSL_set_SSL_CTX(), or
+ * that sets a certificate on this object alone, moves both sides together and
+ * is left alone.
+ *
+ * @param [in] ssl  SSL object.
+ * @return  0 when the object and the context still agree.
+ * @return  BAD_STATE_E when the context no longer holds what the object took.
+ */
+int CheckCtxCertsUnchanged(WOLFSSL* ssl)
+{
+    int ret = 0;
+
+    if (SslDerIsStale(ssl->buffers.certificate, ssl->buffers.weOwnCert,
+            ssl->ctx->certificate)) {
+        ret = BAD_STATE_E;
+    }
+    else if (SslDerIsStale(ssl->buffers.certChain,
+            ssl->buffers.weOwnCertChain, ssl->ctx->certChain)) {
+        ret = BAD_STATE_E;
+    }
+#ifndef WOLFSSL_BLIND_PRIVATE_KEY
+    else if (SslKeyIsStale(ssl)) {
+        ret = BAD_STATE_E;
+    }
+#endif
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && !defined(WOLFSSL_BLIND_PRIVATE_KEY)
+    else if (SslDerIsStale(ssl->buffers.altKey, ssl->buffers.weOwnAltKey,
+            ssl->ctx->altPrivateKey)) {
+        ret = BAD_STATE_E;
+    }
+#endif
+
+    if (ret != 0) {
+        WOLFSSL_MSG("Context certificate or key replaced during handshake");
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
+
+    return ret;
+}
 #endif /* NO_CERTS */
 
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
@@ -45359,6 +45456,14 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
             WOLFSSL_MSG("Calling custom sni callback");
             sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
+#ifndef NO_CERTS
+            /* Cert modification is not allowed during the callback */
+            ret = CheckCtxCertsUnchanged(ssl);
+            if (ret != 0) {
+                SendAlert(ssl, alert_fatal, internal_error);
+                return ret;
+            }
+#endif
             switch (sniRet) {
                 case warning_return:
                     WOLFSSL_MSG("Error in custom sni callback. Warning alert");
