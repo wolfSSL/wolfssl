@@ -294,6 +294,9 @@ void wolfSSL_quic_clear(WOLFSSL* ssl)
         ssl->quic.transport_peer_draft = NULL;
     }
     ssl->quic.enc_level_write = wolfssl_encryption_initial;
+    ssl->quic.enc_level_write_next = wolfssl_encryption_initial;
+    ssl->quic.enc_level_read = wolfssl_encryption_initial;
+    ssl->quic.enc_level_read_next = wolfssl_encryption_initial;
     ssl->quic.enc_level_latest_recvd = wolfssl_encryption_initial;
 
     while ((qd = ssl->quic.input_head)) {
