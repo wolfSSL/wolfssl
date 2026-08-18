@@ -2074,6 +2074,7 @@ static int test_untrusted_inter_terminal_anchor_rejected(X509* leaf,
     STACK_OF(X509)* chain = NULL;
     int i;
     int foundTampered = 0;
+    int storeOwned = 0;
 
     /* SSL_CTX_set_cert_store() pushes store->certs into the CertManager and
      * detaches the stack, so int-ca becomes a CM anchor and the terminal
@@ -2088,6 +2089,7 @@ static int test_untrusted_inter_terminal_anchor_rejected(X509* leaf,
     ExpectIntEQ(X509_STORE_add_cert(store, inter), 1);
     if (store != NULL && sslCtx != NULL) {
         SSL_CTX_set_cert_store(sslCtx, store);
+        storeOwned = 1;
     }
 
     ExpectNotNull(trusted = sk_X509_new_null());
@@ -2109,7 +2111,9 @@ static int test_untrusted_inter_terminal_anchor_rejected(X509* leaf,
 
     X509_STORE_CTX_free(ctx);
     sk_X509_free(trusted);
-    /* store ownership passed to sslCtx */
+    /* store ownership passes to sslCtx only when both allocations succeeded */
+    if (!storeOwned)
+        X509_STORE_free(store);
     SSL_CTX_free(sslCtx);
     return EXPECT_RESULT();
 }

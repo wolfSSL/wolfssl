@@ -34,6 +34,9 @@
 #ifdef OPENSSL_EXTRA
 static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
                             WOLFSSL_STACK *certs, WOLFSSL_X509 *x);
+static int X509StoreGetIssuerSkip(WOLFSSL_X509 **issuer,
+                            WOLFSSL_STACK *certs, WOLFSSL_X509 *x,
+                            WOLF_STACK_OF(WOLFSSL_X509)* skip);
 static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
                                           WOLFSSL_X509* x509, int type);
 #endif
@@ -1150,25 +1153,23 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 wolfSSL_sk_X509_push(ctx->owned, issuer);
             }
     #else
-            if (ctx->setTrustedSk == NULL) {
-                X509StoreGetIssuerEx(&issuer,
-                    ctx->store->trusted, ctx->current_cert);
-            }
-            else {
-                X509StoreGetIssuerEx(&issuer,
-                    ctx->setTrustedSk, ctx->current_cert);
-            }
-    #endif
             /* A candidate that already failed verification (moved to
              * failedCerts by the retry path) must not terminate the reported
              * chain.  setTrustedSk / store->trusted are searched by name+AKID,
              * not by signature, and setTrustedSk is no longer pruned during
-             * chain building, so X509StoreGetIssuerEx can return a same-subject
-             * cert that was tried and rejected.
-             * Under WOLFSSL_SIGNER_DER_CERT the issuer above is a freshly
-             * allocated CM copy, never pointer-equal to a failedCerts entry, so
-             * this guard is a no-op on that path. */
-            if (issuer != NULL && !X509StoreCertInStack(failedCerts, issuer)) {
+             * chain building, so a same-subject cert that was tried and
+             * rejected can match here.  Skip those entries and keep scanning so
+             * a genuine anchor further down the stack is still found. */
+            if (ctx->setTrustedSk == NULL) {
+                X509StoreGetIssuerSkip(&issuer,
+                    ctx->store->trusted, ctx->current_cert, failedCerts);
+            }
+            else {
+                X509StoreGetIssuerSkip(&issuer,
+                    ctx->setTrustedSk, ctx->current_cert, failedCerts);
+            }
+    #endif
+            if (issuer != NULL) {
                 X509StoreChainPush(ctx->chain, issuer);
             }
 
@@ -1727,8 +1728,12 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
 
 #ifdef OPENSSL_EXTRA
 
-static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
-                            WOLFSSL_STACK * certs, WOLFSSL_X509 *x)
+/* Like X509StoreGetIssuerEx, but candidates present in `skip` are passed over
+ * and the scan continues, so a rejected same-subject cert does not hide a
+ * genuine issuer further down the stack. */
+static int X509StoreGetIssuerSkip(WOLFSSL_X509 **issuer,
+                            WOLFSSL_STACK * certs, WOLFSSL_X509 *x,
+                            WOLF_STACK_OF(WOLFSSL_X509)* skip)
 {
     int i;
 
@@ -1737,16 +1742,24 @@ static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
 
     if (certs != NULL) {
         for (i = 0; i < wolfSSL_sk_X509_num(certs); i++) {
-            if (wolfSSL_X509_check_issued(
-                    wolfSSL_sk_X509_value(certs, i), x) ==
-                    WOLFSSL_X509_V_OK) {
-                *issuer = wolfSSL_sk_X509_value(certs, i);
+            WOLFSSL_X509* cand = wolfSSL_sk_X509_value(certs, i);
+
+            if (X509StoreCertInStack(skip, cand))
+                continue;
+            if (wolfSSL_X509_check_issued(cand, x) == WOLFSSL_X509_V_OK) {
+                *issuer = cand;
                 return WOLFSSL_SUCCESS;
             }
         }
     }
 
     return WOLFSSL_FAILURE;
+}
+
+static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
+                            WOLFSSL_STACK * certs, WOLFSSL_X509 *x)
+{
+    return X509StoreGetIssuerSkip(issuer, certs, x, NULL);
 }
 
 #endif
