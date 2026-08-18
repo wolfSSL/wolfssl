@@ -30058,8 +30058,11 @@ int test_mldsa_encode_w1_large_values(void)
     };
     const int n_patterns = (int)(sizeof(patterns) / sizeof(patterns[0]));
 
+/* Only where a C fallback exists: without WC_ALLOW_RUNTIME_IMPL_SELECT the
+ * forced failure returns the error instead of dispatching to C. */
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
-    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     /* Pin dispatch to the C path: under SVR2 fuzzing the two calls can
      * otherwise take different (AVX2 vs C) implementations, which are only
      * specified - and only equal - on the valid input domain. */
@@ -30151,8 +30154,11 @@ int test_mldsa_encode_w1_large_values(void)
     }
 #endif /* !WOLFSSL_NO_ML_DSA_65 || !WOLFSSL_NO_ML_DSA_87 */
 
+/* Only where a C fallback exists: without WC_ALLOW_RUNTIME_IMPL_SELECT the
+ * forced failure returns the error instead of dispatching to C. */
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && \
-    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+    defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
 #endif
 
