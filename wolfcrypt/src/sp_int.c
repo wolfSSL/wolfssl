@@ -12292,6 +12292,7 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
  * @param [out] r  SP integer result.
  *
  * @return  MP_OKAY on success.
+ * @return  MP_VAL when m is 0.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 static int _sp_mulmod_tmp(const sp_int* a, const sp_int* b, const sp_int* m,
@@ -12300,7 +12301,15 @@ static int _sp_mulmod_tmp(const sp_int* a, const sp_int* b, const sp_int* m,
     int err = MP_OKAY;
 
     if (sp_iszero(a) || sp_iszero(b)) {
-        _sp_zero(r);
+        /* Only reached from sp_mulmod() when the result aliases the modulus.
+         * The zero-operand short-circuit would otherwise bypass the sp_mod()
+         * validation that the non-zero operand path relies on. */
+        if (sp_iszero(m)) {
+            err = MP_VAL;
+        }
+        else {
+            _sp_zero(r);
+        }
     }
     else {
         /* Create temporary for multiplication result. */
@@ -12334,6 +12343,7 @@ static int _sp_mulmod_tmp(const sp_int* a, const sp_int* b, const sp_int* m,
  * @param [out] r  SP integer result.
  *
  * @return  MP_OKAY on success.
+ * @return  MP_VAL when m is 0.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 static int _sp_mulmod(const sp_int* a, const sp_int* b, const sp_int* m,
@@ -17501,6 +17511,7 @@ int sp_sqr(const sp_int* a, sp_int* r)
  * @param [out] r  SP integer result.
  *
  * @return  MP_OKAY on success.
+ * @return  MP_VAL when m is 0.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 static int _sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r)
@@ -17508,7 +17519,15 @@ static int _sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r)
     int err = MP_OKAY;
 
     if (sp_iszero(a)) {
-        _sp_zero(r);
+        /* Only reached from sp_sqrmod() when the result aliases the modulus.
+         * The zero-operand short-circuit would otherwise bypass the sp_mod()
+         * validation that the non-zero operand path relies on. */
+        if (sp_iszero(m)) {
+            err = MP_VAL;
+        }
+        else {
+            _sp_zero(r);
+        }
     }
     else {
         /* Create temporary for multiplication result. */
