@@ -41442,7 +41442,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 
 #if defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_QT)
-    #if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
+    #if !defined(NO_DH) && defined(HAVE_SUPPORTED_CURVES)
         if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) != NULL) {
             /* Set FFDHE parameters or clear DHE parameters if FFDH parameters
              * present and no matches in the server's list. */
