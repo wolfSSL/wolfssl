@@ -7138,6 +7138,15 @@ void bench_aesccm(int useDeviceID)
     static char encLabel[7][28], decLabel[7][28];
 
     for (nsz = 7; nsz <= 13; nsz++) {
+        /* CCM stores the message length in 15 - nonce bytes, so a long nonce
+         * cannot describe a large block. Skip those pairs, not the nonce. */
+        word32 lenSz = (word32)WC_AES_BLOCK_SIZE - 1U - nsz;
+        if ((lenSz < sizeof(bench_size)) &&
+            (bench_size >= ((word32)1 << (lenSz * 8)))) {
+            printf("AES-CCM-n%u (Skipped: block size needs a shorter nonce)\n",
+                (unsigned)nsz);
+            continue;
+        }
         (void)XSNPRINTF(encLabel[nsz - 7], sizeof(encLabel[0]),
             "AES-CCM-n%u-enc", (unsigned)nsz);
         (void)XSNPRINTF(decLabel[nsz - 7], sizeof(decLabel[0]),
