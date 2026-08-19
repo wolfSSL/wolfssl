@@ -4153,7 +4153,7 @@ static void* benchmarks_do(void* args)
     }
 #endif
 /* Key wrap rides on the AES engine, so it follows the AES-ECB selection. */
-#ifdef HAVE_AES_KEYWRAP
+#if defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (bench_all || (bench_cipher_algs & BENCH_AES_ECB)) {
     #ifndef NO_SW_BENCH
         bench_aeskeywrap(0);
@@ -7237,7 +7237,9 @@ void bench_aessiv(void)
 }
 #endif /* WOLFSSL_AES_SIV */
 
-#ifdef HAVE_AES_KEYWRAP
+/* The _ex calls take a keyed Aes, so they carry the device id. They are not in
+ * the FIPS or selftest headers, so the whole benchmark follows them. */
+#if defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 /* Wrap and unwrap one payload per operation. RFC 3394 needs a multiple of 8
  * and at least 16 bytes, so the payload is bench_size trimmed to fit. */
 static void bench_aeskeywrap_internal(int useDeviceID, const byte* key,
@@ -7391,7 +7393,7 @@ void bench_aeskeywrap_pad(int useDeviceID)
 #endif
 }
 #endif /* WOLFSSL_AES_KEYWRAP_PADDING */
-#endif /* HAVE_AES_KEYWRAP */
+#endif /* HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
 
 #ifdef WOLFSSL_AESGCM_SIV
 static void bench_aesgcmsiv_internal(const byte* key, word32 keySz, const char*
