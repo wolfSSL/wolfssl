@@ -2,6 +2,30 @@
 
 ## Behavioral Changes
 
+* **Behavioral change (loading a certificate or key on a context from inside a
+  callback)**: the sni callback set with `wolfSSL_CTX_set_servername_callback()`
+  and the certificate setup callback set with `wolfSSL_CTX_set_cert_cb()` run in
+  the middle of a handshake, at which point every session made from that context
+  is pointing at the context's certificate, chain and key.  Replacing one of
+  those frees what those handshakes are reading.  Such a load is now refused
+  while the calling thread is inside one of those callbacks, and the reason,
+  `BAD_STATE_E`, is left where `wolfSSL_get_error()` and the OpenSSL error queue
+  can report it.  The calls affected are `wolfSSL_CTX_use_certificate()`, its
+  `_file` and `_buffer` forms, `wolfSSL_CTX_use_PrivateKey_file()`, `_buffer`,
+  `_Id` and `_Label`, the `wolfSSL_CTX_use_AltPrivateKey_*` pair, the
+  `wolfSSL_CTX_use_certificate_chain_*` family, and
+  `wolfSSL_CTX_add0_chain_cert()`, `wolfSSL_CTX_add1_chain_cert()` and
+  `wolfSSL_CTX_add_extra_chain_cert()`.  An application that set a certificate
+  this way should set it on the session instead, with
+  `wolfSSL_use_certificate_file()` and its relatives, or hand the session a
+  different context with `wolfSSL_set_SSL_CTX()`; both are untouched, as are
+  loads into the trust store such as `wolfSSL_CTX_load_verify_locations()` and
+  anything called outside a callback.  The note that a callback is running is
+  kept per thread, so one thread's callback does not refuse another thread's
+  loads; on a build without thread local storage it is shared, where overlapping
+  callbacks can refuse a load that would have been allowed, or allow one that
+  would have been refused.
+
 * **Behavioral change (`wc_PufReadSram` health tests the raw SRAM readout)**:
   the raw readout is now health tested before the context accepts it, and a
   readout that cannot be SRAM power-on noise is rejected with `PUF_READ_E`
