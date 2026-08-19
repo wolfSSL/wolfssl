@@ -88,6 +88,7 @@ int test_dtls_client_hello_timeout(void);
 int test_dtls_dropped_ccs(void);
 int test_dtls_seq_num_downgrade(void);
 int test_dtls_old_seq_number(void);
+int test_dtls_sctp_app_data_size(void);
 int test_dtls12_missing_finished(void);
 int test_dtls12_cookie_secret_secondary(void);
 int test_dtls12_cookie_secret_secondary_dropped(void);
@@ -136,6 +137,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls13_new_connection_id_not_negotiated), \
         TEST_DECL_GROUP("dtls", test_dtls13_request_connection_id),            \
         TEST_DECL_GROUP("dtls", test_dtls13_cid_msg_malformed),                \
+        TEST_DECL_GROUP("dtls", test_dtls_sctp_app_data_size),          \
         TEST_DECL_GROUP("dtls", test_dtls_version_checking),                   \
         TEST_DECL_GROUP("dtls",                                                \
             test_dtls_drop_invalid_record_during_handshake),                   \

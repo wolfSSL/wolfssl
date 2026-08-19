@@ -29183,7 +29183,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
 #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls) {
-#if defined(WOLFSSL_DTLS_MTU)
+#if defined(WOLFSSL_DTLS_MTU) || defined(WOLFSSL_SCTP)
             int mtu = ssl->dtlsMtuSz;
 #else
             int mtu = MAX_MTU;
