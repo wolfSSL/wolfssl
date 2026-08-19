@@ -30,6 +30,15 @@ It requires `WC_RSA_PSS`, one of `WC_RSA_DIRECT`/`WC_RSA_NO_PADDING`/`OPENSSL_EX
 OAEP support, and at least one `USE_CERT_BUFFERS_2048/3072/4096`; if any is absent
 the sweep silently produces no rows.
 
+To make an argument-less `benchmark` run sweep every compiled-in ECC curve
+(instead of only the default curve), compile with:
+
+`-DWOLFSSL_BENCH_ECC_ALL`
+
+`-p256`/`-p384`/`-p521` still select a single curve, and the option has no effect
+in FIPS/SELFTEST builds. The `-ecc-all` runtime flag performs the same sweep
+without the macro.
+
 To track per-algorithm heap and stack usage in the output, configure wolfSSL with:
 
 ```

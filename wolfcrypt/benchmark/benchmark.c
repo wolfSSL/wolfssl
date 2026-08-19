@@ -160,6 +160,8 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+/* bench_ecc() needs the digest size limits from hash.h, so include it here. */
+#include <wolfssl/wolfcrypt/hash.h>
 #ifdef WOLFSSL_SM2
     #include <wolfssl/wolfcrypt/sm2.h>
 #endif
@@ -2186,6 +2188,18 @@ static const char* bench_result_words2[][6] = {
     #define BENCH_DEVID_GET_NAME(useDeviceID) ""
 #endif
 
+/* HW/SW column for the CSV. Empty with no device, so the header and the rows
+ * always have the same fields. */
+#ifdef BENCH_DEVID
+    #define BENCH_DEVID_CSV_HEADER  "HW/SW,"
+    #define BENCH_DEVID_CSV_FMT     "%s,"
+    #define BENCH_DEVID_CSV_ARG(useDeviceID) BENCH_DEVID_GET_NAME(useDeviceID),
+#else
+    #define BENCH_DEVID_CSV_HEADER
+    #define BENCH_DEVID_CSV_FMT
+    #define BENCH_DEVID_CSV_ARG(useDeviceID)
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static WOLF_EVENT_QUEUE eventQueue;
 
@@ -3504,11 +3518,12 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #else
             printf("\n%sAsymmetric Ciphers:\n\n", info_prefix);
     #ifdef HAVE_GET_CYCLES
-            printf("%sAlgorithm,key size,operation,ops/"
-                    WOLFSSL_FIXED_TIME_UNIT "ec,cycles/op,", info_prefix);
+            printf("%sAlgorithm,key size,operation," BENCH_DEVID_CSV_HEADER
+                    "ops/" WOLFSSL_FIXED_TIME_UNIT "ec,cycles/op,",
+                    info_prefix);
     #else
-            printf("%sAlgorithm,key size,operation,ops/"
-                    WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
+            printf("%sAlgorithm,key size,operation," BENCH_DEVID_CSV_HEADER
+                    "ops/" WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
     #endif
             printf("%s",
 #ifdef WC_BENCH_HEAP_TRACKING
@@ -3542,17 +3557,19 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     #endif
 #else
     #ifdef HAVE_GET_CYCLES
-        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s,"
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s," BENCH_DEVID_CSV_FMT
                         FLT_FMT_PREC "," FLT_FMT_PREC ","
                         STATS_CLAUSE_SEPARATOR,
                         algo, strength, desc, desc_extra,
+                        BENCH_DEVID_CSV_ARG(useDeviceID)
                         FLT_FMT_PREC_ARGS(digits, opsSec),
                         FLT_FMT_PREC_ARGS(2, (double)total_cycles /
                                              (double)count));
     #else
-        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s,"
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s," BENCH_DEVID_CSV_FMT
                         FLT_FMT_PREC "," STATS_CLAUSE_SEPARATOR,
                         algo, strength, desc, desc_extra,
+                        BENCH_DEVID_CSV_ARG(useDeviceID)
                         FLT_FMT_PREC_ARGS(digits, opsSec));
     #endif
 #endif
@@ -3632,8 +3649,8 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     #endif
 #else
             printf("\n%sAsymmetric Ciphers:\n\n", info_prefix);
-            printf("%sAlgorithm,key size,operation,avg ms,ops/"
-                    WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
+            printf("%sAlgorithm,key size,operation," BENCH_DEVID_CSV_HEADER
+                    "avg ms,ops/" WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
             printf("%s",
 #ifdef WC_BENCH_HEAP_TRACKING
                     "heap_bytes,heap_allocs,"
@@ -3667,9 +3684,11 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                         count, FLT_FMT_ARGS(total));
     #endif
 #else
-        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s," FLT_FMT_PREC ","
-                        FLT_FMT_PREC "," STATS_CLAUSE_SEPARATOR,
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s," BENCH_DEVID_CSV_FMT
+                        FLT_FMT_PREC "," FLT_FMT_PREC ","
+                        STATS_CLAUSE_SEPARATOR,
                         algo, strength, desc, desc_extra,
+                        BENCH_DEVID_CSV_ARG(useDeviceID)
                         FLT_FMT_PREC_ARGS(3, milliEach),
                         FLT_FMT_PREC_ARGS(digits, opsSec));
 #endif
@@ -4719,7 +4738,16 @@ static void* benchmarks_do(void* args)
             (bench_asym_algs & BENCH_ECC_ALL) ||
             (bench_asym_algs & BENCH_ECC_ENCRYPT)) {
 
+        /* Let a plain bench all run cover every curve in the build, not just
+         * P-256. FIPS builds stay on the default curve. */
+#if defined(WOLFSSL_BENCH_ECC_ALL) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+        if ((bench_asym_algs & BENCH_ECC_ALL) ||
+            (bench_all && !(bench_asym_algs &
+                (BENCH_ECC_P256 | BENCH_ECC_P384 | BENCH_ECC_P521)))) {
+#else
         if (bench_asym_algs & BENCH_ECC_ALL) {
+#endif
             #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
             printf("%snot supported in FIPS mode (no ending enum value)\n",
                    err_prefix);
@@ -6280,6 +6308,19 @@ void bench_aesgcm(int useDeviceID)
                           AES_GCM_STRING(256, enc), AES_GCM_STRING(256, dec));
 #endif
 #endif
+#ifdef WC_BENCH_AES_IV_SWEEP
+    /* Extra rows using a 16-byte IV alongside the 12-byte default above. */
+#ifdef WOLFSSL_AES_128
+    bench_aesgcm_internal(useDeviceID, bench_key, 16, bench_iv, 16,
+        AES_AAD_STRING("AES-128-GCM-iv16-enc"),
+        AES_AAD_STRING("AES-128-GCM-iv16-dec"));
+#endif
+#ifdef WOLFSSL_AES_256
+    bench_aesgcm_internal(useDeviceID, bench_key, 32, bench_iv, 16,
+        AES_AAD_STRING("AES-256-GCM-iv16-enc"),
+        AES_AAD_STRING("AES-256-GCM-iv16-dec"));
+#endif
+#endif /* WC_BENCH_AES_IV_SWEEP */
 #ifdef WOLFSSL_AESGCM_STREAM
 #undef AES_GCM_STRING
 #define AES_GCM_STRING(n, dir)  AES_AAD_STRING("AES-" #n "-GCM-STREAM-" #dir)
@@ -6303,28 +6344,14 @@ void bench_aesgcm(int useDeviceID)
 }
 
 /* GMAC */
-void bench_gmac(int useDeviceID)
+static void bench_gmac_internal(int useDeviceID, word32 ivSz,
+    const char* gmacStr)
 {
     int ret = 0, times, count = 0;
     Gmac gmac;
     double start;
     byte tag[AES_AUTH_TAG_SZ];
     DECLARE_MULTI_VALUE_STATS_VARS()
-
-    /* determine GCM GHASH method */
-#if defined(WOLFSSL_ARMASM)
-    const char* gmacStr = "GMAC ARM ASM";
-#elif defined(GCM_SMALL)
-    const char* gmacStr = "GMAC Small";
-#elif defined(GCM_TABLE)
-    const char* gmacStr = "GMAC Table";
-#elif defined(GCM_TABLE_4BIT)
-    const char* gmacStr = "GMAC Table 4-bit";
-#elif defined(GCM_WORD32)
-    const char* gmacStr = "GMAC Word32";
-#else
-    const char* gmacStr = "GMAC Default";
-#endif
 
     bench_stats_prepare();
 
@@ -6350,7 +6377,7 @@ void bench_gmac(int useDeviceID)
     bench_stats_start(&count, &start);
     do {
         for (times = 0; times < numBlocks; times++) {
-            ret = wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size,
+            ret = wc_GmacUpdate(&gmac, bench_iv, ivSz, bench_plain, bench_size,
                 tag, sizeof(tag));
 
         } /* for times */
@@ -6375,6 +6402,35 @@ void bench_gmac(int useDeviceID)
     }
     bench_size = BENCH_SIZE;
 #endif
+}
+
+void bench_gmac(int useDeviceID)
+{
+    /* determine GCM GHASH method */
+#if defined(WOLFSSL_ARMASM)
+    const char* gmacStr = "GMAC ARM ASM";
+#elif defined(GCM_SMALL)
+    const char* gmacStr = "GMAC Small";
+#elif defined(GCM_TABLE)
+    const char* gmacStr = "GMAC Table";
+#elif defined(GCM_TABLE_4BIT)
+    const char* gmacStr = "GMAC Table 4-bit";
+#elif defined(GCM_WORD32)
+    const char* gmacStr = "GMAC Word32";
+#else
+    const char* gmacStr = "GMAC Default";
+#endif
+
+    bench_gmac_internal(useDeviceID, 12, gmacStr);
+
+#ifdef WC_BENCH_AES_IV_SWEEP
+    /* Extra row using a 16-byte IV alongside the 12-byte default above. */
+    {
+        char gmacIvStr[40];
+        (void)XSNPRINTF(gmacIvStr, sizeof(gmacIvStr), "%s-iv16", gmacStr);
+        bench_gmac_internal(useDeviceID, 16, gmacIvStr);
+    }
+#endif /* WC_BENCH_AES_IV_SWEEP */
 }
 
 #endif /* HAVE_AESGCM */
@@ -6924,7 +6980,8 @@ void bench_aesctr(int useDeviceID)
 
 
 #ifdef HAVE_AESCCM
-void bench_aesccm(int useDeviceID)
+static void bench_aesccm_internal(int useDeviceID, word32 nonceSz,
+    const char* encLabel, const char* decLabel)
 {
     Aes    enc;
     int    enc_inited = 0;
@@ -6960,7 +7017,7 @@ void bench_aesccm(int useDeviceID)
     do {
         for (i = 0; i < numBlocks; i++) {
             ret |= wc_AesCcmEncrypt(&enc, bench_cipher, bench_plain, bench_size,
-                bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                bench_iv, nonceSz, bench_tag, AES_AUTH_TAG_SZ,
                 bench_additional, 0);
             RECORD_MULTI_VALUE_STATS();
         }
@@ -6971,7 +7028,7 @@ void bench_aesccm(int useDeviceID)
 #endif
            );
 
-    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-enc"), useDeviceID, count,
+    bench_stats_sym_finish(encLabel, useDeviceID, count,
         bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -6988,7 +7045,7 @@ void bench_aesccm(int useDeviceID)
     do {
         for (i = 0; i < numBlocks; i++) {
             ret |= wc_AesCcmDecrypt(&enc, bench_plain, bench_cipher, bench_size,
-                bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                bench_iv, nonceSz, bench_tag, AES_AUTH_TAG_SZ,
                 bench_additional, 0);
             RECORD_MULTI_VALUE_STATS();
         }
@@ -6999,7 +7056,7 @@ void bench_aesccm(int useDeviceID)
 #endif
            );
 
-    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-dec"), useDeviceID, count,
+    bench_stats_sym_finish(decLabel, useDeviceID, count,
         bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -7017,6 +7074,26 @@ void bench_aesccm(int useDeviceID)
 
     WC_FREE_VAR(bench_additional, HEAP_HINT);
     WC_FREE_VAR(bench_tag, HEAP_HINT);
+}
+
+void bench_aesccm(int useDeviceID)
+{
+#ifdef WC_BENCH_AES_IV_SWEEP
+    /* One enc/dec row per nonce length from 7 to 13 bytes. */
+    word32 nsz;
+    char encLabel[28], decLabel[28];
+
+    for (nsz = 7; nsz <= 13; nsz++) {
+        (void)XSNPRINTF(encLabel, sizeof(encLabel),
+            "AES-CCM-n%u-enc", (unsigned)nsz);
+        (void)XSNPRINTF(decLabel, sizeof(decLabel),
+            "AES-CCM-n%u-dec", (unsigned)nsz);
+        bench_aesccm_internal(useDeviceID, nsz, encLabel, decLabel);
+    }
+#else
+    bench_aesccm_internal(useDeviceID, 12,
+        AES_AAD_STRING("AES-CCM-enc"), AES_AAD_STRING("AES-CCM-dec"));
+#endif /* WC_BENCH_AES_IV_SWEEP */
 }
 #endif /* HAVE_AESCCM */
 
@@ -14015,8 +14092,14 @@ void bench_ecc_curve(int curveId)
     #endif
     }
     #ifdef HAVE_ECC_ENCRYPT
-    if (bench_all || (bench_asym_algs & BENCH_ECC_ENCRYPT))
-        bench_eccEncrypt(curveId);
+    if (bench_all || (bench_asym_algs & BENCH_ECC_ENCRYPT)) {
+    #ifndef NO_SW_BENCH
+        bench_eccEncrypt(0, curveId);
+    #endif
+    #if defined(BENCH_DEVID)
+        bench_eccEncrypt(1, curveId);
+    #endif
+    }
     #endif
 }
 
@@ -14156,7 +14239,9 @@ void bench_ecc(int useDeviceID, int curveId)
 
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     WC_ALLOC_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
-    WC_ALLOC_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+    /* digest[] is the largest size, so it still fits after the bump below. */
+    WC_ALLOC_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE,
+        HEAP_HINT);
 #endif
     deviceID = useDeviceID ? devId : INVALID_DEVID;
 
@@ -14183,6 +14268,12 @@ void bench_ecc(int useDeviceID, int curveId)
     }
     if (dgstSize > WC_MAX_DIGEST_SIZE) {
         dgstSize = WC_MAX_DIGEST_SIZE;
+    }
+    /* Small curves give a digest below the sign minimum, so bump it up and
+     * keep it inside the buffer. */
+    if ((WC_MIN_DIGEST_SIZE_FOR_SIGN <= WC_MAX_DIGEST_SIZE) &&
+            (dgstSize < WC_MIN_DIGEST_SIZE_FOR_SIGN)) {
+        dgstSize = WC_MIN_DIGEST_SIZE_FOR_SIGN;
     }
 
     /* init keys */
@@ -14448,11 +14539,19 @@ static int bench_ecies_prep(ecEncCtx* ctx, byte encAlgo, const byte* ownSalt,
     return ret;
 }
 
-void bench_eccEncrypt(int curveId)
+void bench_eccEncrypt(int useDeviceID, int curveId)
 {
 #define BENCH_ECCENCRYPT_MSG_SIZE 48
+#ifdef WOLFSSL_ECIES_GEN_IV
+    /* GEN_IV adds a nonce to the output, so leave room for one AES block or
+     * the call fails before the GCM rows run. */
+    #define BENCH_ECCENCRYPT_IV_ROOM 16
+#else
+    #define BENCH_ECCENCRYPT_IV_ROOM 0
+#endif
 #define BENCH_ECCENCRYPT_OUT_SIZE (BENCH_ECCENCRYPT_MSG_SIZE + \
                                    WC_SHA256_DIGEST_SIZE + \
+                                   BENCH_ECCENCRYPT_IV_ROOM + \
                                    (MAX_ECC_BITS+3)/4 + 2)
     word32   outSz = BENCH_ECCENCRYPT_OUT_SIZE;
 #ifdef WOLFSSL_SMALL_STACK
@@ -14490,13 +14589,13 @@ void bench_eccEncrypt(int curveId)
 #endif
 
     keySize = wc_ecc_get_curve_size_from_id(curveId);
-    ret = wc_ecc_init_ex(userA, HEAP_HINT, devId);
+    ret = wc_ecc_init_ex(userA, HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
     if (ret != 0) {
         printf("wc_ecc_encrypt make key A failed: %d\n", ret);
         goto exit;
     }
 
-    ret = wc_ecc_init_ex(userB, HEAP_HINT, devId);
+    ret = wc_ecc_init_ex(userB, HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
     if (ret != 0) {
         printf("wc_ecc_encrypt make key B failed: %d\n", ret);
         goto exit;
@@ -14561,8 +14660,12 @@ void bench_eccEncrypt(int curveId)
             { ecAES_256_CTR, "AES256CTR" },
             #endif
         #endif
+        /* GCM works with any of the three nonce sources, so allow all of them
+         * here and an older build still benchmarks GCM. */
         #if !defined(NO_AES) && defined(HAVE_AESGCM) && \
-            defined(WOLFSSL_ECIES_STATIC_GCM_NONCE)
+            (defined(WOLFSSL_ECIES_OLD) || \
+             defined(WOLFSSL_ECIES_STATIC_GCM_NONCE) || \
+             defined(WOLFSSL_ECIES_GEN_IV))
             #ifdef WOLFSSL_AES_128
             { ecAES_128_GCM, "AES128GCM" },
             #endif
@@ -14627,8 +14730,8 @@ void bench_eccEncrypt(int curveId)
                || runs < minimum_runs
 #endif
                );
-            bench_stats_asym_finish(name, keySize * 8, encDesc, 0, count, start,
-                                    ret);
+            bench_stats_asym_finish(name, keySize * 8, encDesc, useDeviceID,
+                                    count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
             bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -14657,8 +14760,8 @@ void bench_eccEncrypt(int curveId)
                || runs < minimum_runs
 #endif
                );
-            bench_stats_asym_finish(name, keySize * 8, decDesc, 0, count, start,
-                                    ret);
+            bench_stats_asym_finish(name, keySize * 8, decDesc, useDeviceID,
+                                    count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
             bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif

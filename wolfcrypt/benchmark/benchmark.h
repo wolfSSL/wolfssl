@@ -117,7 +117,7 @@ void bench_slhdsa(int param);
 void bench_ecc_curve(int curveId);
 void bench_eccMakeKey(int useDeviceID, int curveId);
 void bench_ecc(int useDeviceID, int curveId);
-void bench_eccEncrypt(int curveId);
+void bench_eccEncrypt(int useDeviceID, int curveId);
 void bench_sm2(int useDeviceID);
 void bench_curve25519KeyGen(int useDeviceID);
 void bench_curve25519KeyAgree(int useDeviceID);
