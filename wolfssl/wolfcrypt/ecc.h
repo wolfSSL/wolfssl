@@ -489,7 +489,22 @@ struct ecc_point {
 enum {
     WC_ECC_FLAG_NONE     = 0x00,
     WC_ECC_FLAG_COFACTOR = 0x01,
-    WC_ECC_FLAG_DEC_SIGN = 0x02
+    WC_ECC_FLAG_DEC_SIGN = 0x02,
+    /* Add key derivation to a PKCS#11 token-generated key, so the same key can
+     * do both ECDH and ECDSA on a token that grants only what was explicitly
+     * requested.
+     *
+     * Consumed ONLY by PKCS#11-backed key generation; it has no effect on any
+     * software or other hardware ECC path.
+     *
+     * IGNORED unless WC_ECC_FLAG_DEC_SIGN is also set. Setting it on its own
+     * changes nothing, because a generated key is already derive-only by
+     * default - so the meaningful use is:
+     *
+     *     wc_ecc_make_key_ex2(rng, keysize, key, curve_id,
+     *                         WC_ECC_FLAG_DEC_SIGN | WC_ECC_FLAG_DERIVE);
+     */
+    WC_ECC_FLAG_DERIVE   = 0x04
 };
 
 /* ECC non-blocking */

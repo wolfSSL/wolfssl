@@ -3374,8 +3374,22 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         { 0,           NULL,    0              },
         { 0,           NULL,    0              },
     };
+    /* As above but the key may derive as well. PKCS#11 leaves the defaults for
+     * CKA_SIGN and CKA_DERIVE up to the token, so a token that grants only what
+     * was asked for will refuse whichever operation was not requested. A TLS
+     * key generally needs both. Empty entries for optional label/ID. */
+    CK_ATTRIBUTE      privKeyTmplEncSignDerive[] = {
+        { CKA_SIGN,    &ckTrue, sizeof(ckTrue) },
+        { CKA_DECRYPT, &ckTrue, sizeof(ckTrue) },
+        { CKA_DERIVE,  &ckTrue, sizeof(ckTrue) },
+        { 0,           NULL,    0              },
+        { 0,           NULL,    0              },
+    };
     CK_ATTRIBUTE*     privKeyTmpl = privKeyTmplDerive;
-    /* Mandatory entries + 2 optional. */
+    /* Number of mandatory entries in whichever template is selected below:
+     * 1 for derive-only, 2 for sign+decrypt, 3 when derive is added to those.
+     * Every template also carries 2 trailing slots for the optional label
+     * and ID, which are filled in later if the key has them. */
     int               privTmplCnt = 1;
 
     ret = Pkcs11MechAvail(session, CKM_EC_KEY_PAIR_GEN, NULL);
@@ -3387,8 +3401,14 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         /* Default is to use for derivation. */
         if ((key->flags & WC_ECC_FLAG_DEC_SIGN) == WC_ECC_FLAG_DEC_SIGN) {
-            privKeyTmpl = privKeyTmplEncSign;
-            privTmplCnt = 2;
+            if ((key->flags & WC_ECC_FLAG_DERIVE) == WC_ECC_FLAG_DERIVE) {
+                privKeyTmpl = privKeyTmplEncSignDerive;
+                privTmplCnt = 3;
+            }
+            else {
+                privKeyTmpl = privKeyTmplEncSign;
+                privTmplCnt = 2;
+            }
             pubTmplCnt = 2;
         }
         if (key->labelLen != 0) {
