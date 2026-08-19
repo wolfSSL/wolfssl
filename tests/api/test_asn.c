@@ -1168,6 +1168,128 @@ int test_wolfssl_local_MatchBaseName(void)
             ExpectIntEQ(dirMatch(nm, 1, bs, 1), 1);
         }
 
+        /* RFC 4518 Sec. 2.2 maps a fixed set of code points to SPACE and
+         * another to nothing, so that names differing only in the width of
+         * a space or in characters that carry no meaning of their own are
+         * the same name. Leaving them unmapped would let a subordinate CA
+         * sidestep an excluded subtree with a name that renders the same as
+         * the excluded one. */
+        {
+            /* "For" + NO-BREAK SPACE (U+00A0) + "bid". */
+            static const byte forNbspBid[] =
+                { 'F','o','r', 0xc2,0xa0, 'b','i','d' };
+            /* "For" + CHARACTER TABULATION + "bid". */
+            static const byte forTabBid[] =
+                { 'F','o','r', 0x09, 'b','i','d' };
+            /* "For" + IDEOGRAPHIC SPACE (U+3000) + "bid". */
+            static const byte forIdeoBid[] =
+                { 'F','o','r', 0xe3,0x80,0x80, 'b','i','d' };
+            /* NO-BREAK SPACE either side of "Forbidden". */
+            static const byte nbspForbidden[] = {
+                0xc2,0xa0, 'F','o','r','b','i','d','d','e','n', 0xc2,0xa0
+            };
+            /* "For" SPACE SOFT HYPHEN (U+00AD) SPACE "bid": a code point
+             * that maps to nothing does not break the run of spaces. */
+            static const byte forShyBid[] =
+                { 'F','o','r', ' ', 0xc2,0xad, ' ', 'b','i','d' };
+            /* "Forbid" with a ZERO WIDTH SPACE (U+200B) in the middle,
+             * which maps to nothing rather than to a space. */
+            static const byte forZwspBid[] =
+                { 'F','o','r', 0xe2,0x80,0x8b, 'b','i','d' };
+            /* "Forbidden" with VARIATION SELECTOR-1 (U+FE00) in it. */
+            static const byte forbidVsDen[] = {
+                'F','o','r','b','i','d', 0xef,0xb8,0x80, 'd','e','n'
+            };
+            /* "For" + the octet 0xa0 + "bid". */
+            static const byte forA0Bid[] =
+                { 'F','o','r', 0xa0, 'b','i','d' };
+
+            /* base: O=For bid */
+            const DirTestAttr bForBid[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forBid, sizeof(forBid) }
+            };
+            /* base: O=Forbid */
+            const DirTestAttr bForbid[] = {
+                { DIR_OID_O, ASN_UTF8STRING, forbid, sizeof(forbid) }
+            };
+
+            /* Code points that stand in for a space. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forNbspBid,
+                      sizeof(forNbspBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+                ExpectIntEQ(dirMatch(bForBid, 1, nm, 1), 1);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forTabBid,
+                      sizeof(forTabBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forIdeoBid,
+                      sizeof(forIdeoBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+            }
+            /* They are insignificant leading and trailing, as a space is. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, nbspForbidden,
+                      sizeof(nbspForbidden) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 1);
+            }
+            /* Code points that map to nothing drop out, leaving the spaces
+             * on either side of them one run. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forShyBid,
+                      sizeof(forShyBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 1);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forbidVsDen,
+                      sizeof(forbidVsDen) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForbidden, 1), 1);
+            }
+            /* ZERO WIDTH SPACE maps to nothing and not to a space, whatever
+             * its name suggests: it joins the two halves rather than
+             * separating them. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forZwspBid,
+                      sizeof(forZwspBid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForbid, 1), 1);
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 0);
+            }
+            /* Only the Unicode string types are mapped beyond ASCII. The
+             * octet 0xa0 of a T61String is not NO-BREAK SPACE, and in a
+             * UTF8String it is not a character at all. */
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_T61STRING, forA0Bid, sizeof(forA0Bid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1), 0);
+            }
+            {
+                const DirTestAttr nm[] = {
+                    { DIR_OID_O, ASN_UTF8STRING, forA0Bid,
+                      sizeof(forA0Bid) }
+                };
+                ExpectIntEQ(dirMatch(nm, 1, bForBid, 1),
+                            WC_NO_ERR_TRACE(ASN_PARSE_E));
+            }
+        }
+
         /* Negative tests - should NOT match */
 
         /* Different value. */

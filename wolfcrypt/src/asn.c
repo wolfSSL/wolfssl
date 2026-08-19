@@ -18676,8 +18676,14 @@ exit_cs:
  * Yields code points rather than octets so that values holding the same
  * characters in different ASN.1 string types compare equal, and folds the
  * result as RFC 5280 Sec. 7.1 (via RFC 4518) requires: ASCII case is
- * ignored, leading and trailing spaces are dropped and an inner run of
+ * ignored, the code points RFC 4518 Sec. 2.2 maps to SPACE or to nothing
+ * are mapped, leading and trailing spaces are dropped and an inner run of
  * spaces collapses to one.
+ *
+ * The remaining steps of RFC 4518 -- Unicode normalization (Sec. 2.3) and
+ * case folding outside ASCII -- are not done, as they need character tables
+ * that this library does not carry. Values that differ only in those
+ * respects compare as different names.
  */
 typedef struct DirStringRdr {
     const byte* data;      /* Value content octets. */
@@ -18797,6 +18803,85 @@ static int DirStringRaw(DirStringRdr* s, word32* cp)
     return 1;
 }
 
+/* Result of mapping one code point per RFC 4518 Sec. 2.2. */
+#define DIR_STR_KEEP  0    /* Significant as it stands. */
+#define DIR_STR_SPACE 1    /* Maps to SPACE (U+0020). */
+#define DIR_STR_SKIP  2    /* Maps to nothing. */
+
+/* Map a code point as RFC 4518 Sec. 2.2 requires, so that names differing
+ * only in the width of a space or in characters that carry no meaning of
+ * their own do not compare as different names. Leaving these unmapped would
+ * let a subordinate CA sidestep an excluded subtree by issuing a name that
+ * renders the same as the excluded one.
+ *
+ * The lists here are the complete ones the section gives; in particular
+ * ZERO WIDTH SPACE (U+200B) and MONGOLIAN VOWEL SEPARATOR (U+180E) map to
+ * nothing rather than to SPACE, whatever their Unicode category.
+ *
+ * Returns one of DIR_STR_KEEP, DIR_STR_SPACE and DIR_STR_SKIP. */
+static int DirStringMap(byte tag, word32 c)
+{
+    /* Only the Unicode string types carry code points beyond ASCII. The
+     * octets of the single octet types are read as code points, which holds
+     * in the ASCII range alone, so nothing above it is mapped for them. */
+    if ((c > 0x7FU) && (tag != ASN_UTF8STRING) && (tag != ASN_BMPSTRING) &&
+            (tag != ASN_UNIVERSALSTRING)) {
+        return DIR_STR_KEEP;
+    }
+
+    switch (c) {
+        /* CHARACTER TABULATION, LINE FEED, LINE TABULATION, FORM FEED and
+         * CARRIAGE RETURN. */
+        case 0x0009: case 0x000A: case 0x000B: case 0x000C: case 0x000D:
+        /* NEXT LINE. */
+        case 0x0085:
+        /* SPACE itself and the other Separator (Zs, Zl, Zp) code points,
+         * the range 2000-200A aside. */
+        case 0x0020: case 0x00A0: case 0x1680: case 0x2028: case 0x2029:
+        case 0x202F: case 0x205F: case 0x3000:
+            return DIR_STR_SPACE;
+
+        /* SOFT HYPHEN and MONGOLIAN TODO SOFT HYPHEN. */
+        case 0x00AD: case 0x1806:
+        /* COMBINING GRAPHEME JOINER. */
+        case 0x034F:
+        /* ZERO WIDTH SPACE. */
+        case 0x200B:
+        /* OBJECT REPLACEMENT CHARACTER. */
+        case 0xFFFC:
+        /* Control code points listed on their own. */
+        case 0x06DD: case 0x070F: case 0x180E: case 0xFEFF: case 0xE0001:
+            return DIR_STR_SKIP;
+
+        default:
+            break;
+    }
+
+    /* EN QUAD through HAIR SPACE (Zs). */
+    if ((c >= 0x2000U) && (c <= 0x200AU)) {
+        return DIR_STR_SPACE;
+    }
+    /* The control code points given as ranges, and the VARIATION SELECTORs
+     * (U+180B-180D and U+FE00-FE0F). */
+    if ((c <= 0x0008U) ||
+            ((c >= 0x000EU) && (c <= 0x001FU)) ||
+            ((c >= 0x007FU) && (c <= 0x0084U)) ||
+            ((c >= 0x0086U) && (c <= 0x009FU)) ||
+            ((c >= 0x180BU) && (c <= 0x180DU)) ||
+            ((c >= 0x200CU) && (c <= 0x200FU)) ||
+            ((c >= 0x202AU) && (c <= 0x202EU)) ||
+            ((c >= 0x2060U) && (c <= 0x2063U)) ||
+            ((c >= 0x206AU) && (c <= 0x206FU)) ||
+            ((c >= 0xFE00U) && (c <= 0xFE0FU)) ||
+            ((c >= 0xFFF9U) && (c <= 0xFFFBU)) ||
+            ((c >= 0x1D173U) && (c <= 0x1D17AU)) ||
+            ((c >= 0xE0020U) && (c <= 0xE007FU))) {
+        return DIR_STR_SKIP;
+    }
+
+    return DIR_STR_KEEP;
+}
+
 /* Read the next folded code point. Returns 1 when cp was set, 0 at the end
  * of the value and ASN_PARSE_E when the encoding is malformed. */
 static int DirStringNext(DirStringRdr* s, word32* cp)
@@ -18811,13 +18896,21 @@ static int DirStringNext(DirStringRdr* s, word32* cp)
 
     for (;;) {
         int ret = DirStringRaw(s, &c);
+        int map;
 
         if (ret != 1) {
             /* End of value, where a buffered space run was trailing and is
              * dropped, or a malformed encoding. */
             return ret;
         }
-        if (c == (word32)' ') {
+        map = DirStringMap(s->tag, c);
+        if (map == DIR_STR_SKIP) {
+            /* Not part of the value at all. It neither starts nor ends a
+             * run of spaces, so a space either side of it still collapses
+             * to the one space. */
+            continue;
+        }
+        if (map == DIR_STR_SPACE) {
             /* Leading spaces are dropped, inner ones buffered until it is
              * known that a further code point follows. */
             if (s->started) {
