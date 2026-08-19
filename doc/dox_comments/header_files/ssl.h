@@ -5972,6 +5972,13 @@ void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb);
     application can inspect, set or clear certificates - for example to react
     to a CA list sent by the peer.
 
+    Set the certificate on the WOLFSSL object, with wolfSSL_use_certificate_file
+    and friends, or hand it a different context with wolfSSL_set_SSL_CTX.
+    Loading one on the WOLFSSL_CTX the handshake is running against is refused
+    from inside the callback and returns failure with BAD_STATE_E: sessions
+    already made from that context point at its certificate, and replacing it
+    would free what they are reading.
+
     \param ctx The WOLFSSL_CTX object.
     \param cb  The callback function for certificate setup.
     \param arg User argument to pass to the callback.
