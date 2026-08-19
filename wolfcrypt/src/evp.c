@@ -2853,16 +2853,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
          (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
 
             WC_RNG rng;
-            int ret;
-
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-            ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-            if (ret != 0)
-#endif
-            {
-                ret = wc_InitRng(&rng);
-            }
-            if (ret != 0) {
+            if (wc_InitRng(&rng) != MP_OKAY) {
                 WOLFSSL_MSG("Init RNG failed");
                 return WOLFSSL_FAILURE;
             }
@@ -6657,14 +6648,7 @@ void wolfSSL_EVP_init(void)
                     }
                     /* arg is 4...(ctx->ivSz - 8) */
                     XMEMCPY(ctx->iv, ptr, (size_t)arg);
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-                    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-                    if (ret != 0)
-#endif
-                    {
-                        ret = wc_InitRng(&rng);
-                    }
-                    if (ret != 0) {
+                    if (wc_InitRng(&rng) != 0) {
                         WOLFSSL_MSG("wc_InitRng failed");
                         break;
                     }
@@ -12408,17 +12392,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
         pkey->heap = heap;
         pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-        ret = wc_InitRng_BankRef(NULL /* bank */, &pkey->rng);
-        if (ret != 0)
-#endif
-        {
 #ifndef HAVE_FIPS
-            ret = wc_InitRng_ex(&pkey->rng, heap, INVALID_DEVID);
+        ret = wc_InitRng_ex(&pkey->rng, heap, INVALID_DEVID);
 #else
-            ret = wc_InitRng(&pkey->rng);
+        ret = wc_InitRng(&pkey->rng);
 #endif
-        }
         if (ret != 0){
             /* Free directly since mutex for ref count not set yet */
             XFREE(pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
