@@ -357,6 +357,33 @@ enum wc_RngHealthState {
     WOLF_ENUM_DUMMY_LAST_ELEMENT(wc_RngHealthState)
 };
 
+/* Thread-safe DRBG -- enabled by default.
+ *
+ * Serializes the generate and reseed path of a single WC_RNG so that one
+ * instance can be shared across threads without an external lock of its own.
+ *
+ * Define WC_NO_DRBG_THREAD_SAFE to opt out where an instance is only ever used
+ * by one thread at a time and the per-call atomic is not wanted.  This is an
+ * election, independent of SINGLE_THREADED -- a multi-threaded build that keeps
+ * its WC_RNGs thread-local can opt out and keep the smaller struct. */
+
+/* A build with no DRBG, no atomics, or no threads has nothing to implement
+ * this with, so elect it off here rather than making every use site restate
+ * the requirements. */
+#if (!defined(HAVE_HASHDRBG) || defined(CUSTOM_RAND_GENERATE_BLOCK) || \
+     defined(SINGLE_THREADED) || defined(WOLFSSL_NO_ATOMICS)) && \
+    !defined(WC_NO_DRBG_THREAD_SAFE)
+    #define WC_NO_DRBG_THREAD_SAFE
+#endif
+
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    #define WC_RNG_EXCL_FREE  0
+    #define WC_RNG_EXCL_HELD  1
+    /* Stored once by an owner that already supplies exclusivity for this
+     * instance, which then takes no flag of its own.  Nothing here sets it. */
+    #define WC_RNG_EXCL_OWNER 2
+#endif
+
 /* RNG context */
 struct WC_RNG {
     struct OS_Seed seed;
@@ -416,6 +443,12 @@ struct WC_RNG {
 #endif
 
 #endif /* WC_RNG_BANK_SUPPORT || HAVE_HASHDRBG */
+
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    /* Serializes this instance's DRBG generate/reseed path.  Outside the union
+     * above, and left FREE by the _InitRng() XMEMSET. */
+    wolfSSL_Atomic_Int excl;
+#endif
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     pid_t pid;

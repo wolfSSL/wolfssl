@@ -925,6 +925,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+#ifndef WC_NO_DRBG_THREAD_SAFE
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
@@ -2558,6 +2561,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RANDOM   test failed!\n", ret);
     else
         TEST_PASS("RANDOM   test passed!\n");
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    if ((ret = random_thread_test()) != 0)
+        TEST_FAIL("RNGTHRD  test failed!\n", ret);
+    else
+        TEST_PASS("RNGTHRD  test passed!\n");
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
     if ((ret = random_bank_test()) != 0)
         TEST_FAIL("RNGBANK  test failed!\n", ret);
@@ -26997,6 +27006,125 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 }
 
 #endif /* !HAVE_HASHDRBG || CUSTOM_RAND_GENERATE_BLOCK || HAVE_INTEL_RDRAND */
+
+#ifndef WC_NO_DRBG_THREAD_SAFE
+
+/* Exercises the thread-safe DRBG: concurrent draws from one shared WC_RNG.
+ * Skipped by a build that elects WC_NO_DRBG_THREAD_SAFE, along with the
+ * feature itself. */
+
+#ifndef WC_RNG_THREAD_TEST_THREADS
+    #define WC_RNG_THREAD_TEST_THREADS 8
+#endif
+#ifndef WC_RNG_THREAD_TEST_DRAWS
+    #define WC_RNG_THREAD_TEST_DRAWS   128
+#endif
+#ifndef WC_RNG_THREAD_TEST_BLKSZ
+    #define WC_RNG_THREAD_TEST_BLKSZ   32
+#endif
+
+#define WC_RNG_THREAD_TEST_BLOCKS \
+    (WC_RNG_THREAD_TEST_THREADS * WC_RNG_THREAD_TEST_DRAWS)
+
+struct rng_thread_test_args {
+    WC_RNG* rng;
+    byte*   out;    /* this worker's slice, DRAWS * BLKSZ bytes */
+    int     ret;
+};
+
+static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* argp)
+{
+    struct rng_thread_test_args* args = (struct rng_thread_test_args*)argp;
+    int i;
+
+    for (i = 0; i < WC_RNG_THREAD_TEST_DRAWS; i++) {
+        int ret = wc_RNG_GenerateBlock(args->rng,
+                      args->out + ((size_t)i * WC_RNG_THREAD_TEST_BLKSZ),
+                      WC_RNG_THREAD_TEST_BLKSZ);
+        if (ret != 0) {
+            args->ret = ret;
+            break;
+        }
+    }
+
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
+{
+    THREAD_TYPE threads[WC_RNG_THREAD_TEST_THREADS];
+    struct rng_thread_test_args args[WC_RNG_THREAD_TEST_THREADS];
+    WC_RNG rng;
+    byte* out = NULL;
+    int rng_inited = 0;
+    int started = 0;
+    int i, j;
+    wc_test_ret_t ret;
+
+    WOLFSSL_ENTER("random_thread_test");
+
+    out = (byte*)XMALLOC((size_t)WC_RNG_THREAD_TEST_BLOCKS *
+                         WC_RNG_THREAD_TEST_BLKSZ, HEAP_HINT,
+                         DYNAMIC_TYPE_TMP_BUFFER);
+    if (out == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_free);
+    rng_inited = 1;
+
+    for (i = 0; i < WC_RNG_THREAD_TEST_THREADS; i++) {
+        args[i].rng = &rng;
+        args[i].out = out + ((size_t)i * WC_RNG_THREAD_TEST_DRAWS *
+                             WC_RNG_THREAD_TEST_BLKSZ);
+        args[i].ret = 0;
+        if (wolfSSL_NewThread(&threads[i], &rng_thread_test_worker,
+                              &args[i]) != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_join);
+        }
+        started++;
+    }
+
+out_join:
+
+    for (i = 0; i < started; i++)
+        (void)wolfSSL_JoinThread(threads[i]);
+
+    if (ret != 0)
+        goto out_free;
+
+    for (i = 0; i < started; i++) {
+        if (args[i].ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(args[i].ret), out_free);
+    }
+
+    /* All-pairs rather than a sort: no XQSORT dependency, and the block count
+     * makes the quadratic scan negligible. */
+    for (i = 1; i < WC_RNG_THREAD_TEST_BLOCKS; i++) {
+        for (j = 0; j < i; j++) {
+            if (XMEMCMP(out + ((size_t)i * WC_RNG_THREAD_TEST_BLKSZ),
+                        out + ((size_t)j * WC_RNG_THREAD_TEST_BLKSZ),
+                        WC_RNG_THREAD_TEST_BLKSZ) == 0) {
+                ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
+            }
+        }
+    }
+
+out_free:
+
+    if (rng_inited) {
+        int free_ret = wc_FreeRng(&rng);
+        if ((ret == 0) && (free_ret != 0))
+            ret = WC_TEST_RET_ENC_EC(free_ret);
+    }
+
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+#endif /* !WC_NO_DRBG_THREAD_SAFE */
 
 #ifdef WC_RNG_BANK_SUPPORT
 

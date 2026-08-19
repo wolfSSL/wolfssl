@@ -687,9 +687,44 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
         *              and array_add_one (shared utility) which both must
         *              remain available to SHA-512-only builds */
 
+#ifndef WC_NO_DRBG_THREAD_SAFE
+/* Thread-safe DRBG support.  A compare-exchange flag
+ * rather than a lock, so it is legal in every context the DRBG runs in and
+ * contention waits with WC_RELAX_LONG_LOOP().  Returns 1 when this call took
+ * the flag and the caller must release it. */
+static int RngExclEnter(WC_RNG* rng)
+{
+    WC_ATOMIC_INT_ARG expected = WC_RNG_EXCL_FREE;
+
+    if (WOLFSSL_ATOMIC_LOAD(rng->excl) == WC_RNG_EXCL_OWNER) {
+        return 0;
+    }
+
+    while (! wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected,
+                                                WC_RNG_EXCL_HELD))
+    {
+        expected = WC_RNG_EXCL_FREE;
+        WC_RELAX_LONG_LOOP();
+    }
+
+    return 1;
+}
+
+/* Only ever called by the thread that got 1 from RngExclEnter(). */
+static void RngExclExit(WC_RNG* rng)
+{
+    WOLFSSL_ATOMIC_STORE(rng->excl, WC_RNG_EXCL_FREE);
+}
+#endif /* !WC_NO_DRBG_THREAD_SAFE */
+
 /* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    int ret;
+    int excl;
+#endif
+
     if (rng == NULL || seed == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -705,8 +740,19 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         #endif
             return BAD_FUNC_ARG;
         }
+#ifndef WC_NO_DRBG_THREAD_SAFE
+        /* Serialize against Generate on the same instance. */
+        excl = RngExclEnter(rng);
+        ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz,
+                               NULL, 0);
+        if (excl) {
+            RngExclExit(rng);
+        }
+        return ret;
+#else
         return Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz,
                                 NULL, 0);
+#endif
     }
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
@@ -720,8 +766,19 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         #endif
             return BAD_FUNC_ARG;
         }
+#ifndef WC_NO_DRBG_THREAD_SAFE
+        /* Serialize against Generate on the same instance. */
+        excl = RngExclEnter(rng);
+        ret = Hash512_DRBG_Reseed((DRBG_SHA512_internal *)rng->drbg512,
+                                  seed, seedSz, NULL, 0);
+        if (excl) {
+            RngExclExit(rng);
+        }
+        return ret;
+#else
         return Hash512_DRBG_Reseed((DRBG_SHA512_internal *)rng->drbg512,
                                    seed, seedSz, NULL, 0);
+#endif
     }
 #endif
 
@@ -1914,6 +1971,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     if (nonce == NULL && nonceSz != 0)
         return BAD_FUNC_ARG;
 
+    /* Also initializes rng->excl where the thread-safe DRBG is enabled. */
     XMEMSET(rng, 0, sizeof(*rng));
 
 #ifdef WOLFSSL_HEAP_TEST
@@ -2526,6 +2584,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif
 {
     int ret;
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    int excl = 0;
+#endif
 
     if (rng == NULL || output == NULL)
         return BAD_FUNC_ARG;
@@ -2584,12 +2645,31 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    /* Serialize the DRBG core for callers sharing this instance; the paths
+     * above touch no DRBG state and stay outside. */
+    excl = RngExclEnter(rng);
+
+    /* Re-check: the instance may have changed state while we waited. */
+    if (rng->status != DRBG_OK) {
+        if (excl) {
+            RngExclExit(rng);
+        }
+        return RNG_FAILURE_E;
+    }
+#endif
+
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     if (rng->pid != getpid()) {
         rng->pid = getpid();
         ret = PollAndReSeed(rng);
         if (ret != DRBG_SUCCESS) {
             rng->status = DRBG_FAILED;
+        #ifndef WC_NO_DRBG_THREAD_SAFE
+            if (excl) {
+                RngExclExit(rng);
+            }
+        #endif
             return RNG_FAILURE_E;
         }
     }
@@ -2637,6 +2717,12 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         ret = RNG_FAILURE_E;
         rng->status = DRBG_FAILED;
     }
+
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    if (excl) {
+        RngExclExit(rng);
+    }
+#endif
 #else
 
     /* if we get here then there is an RNG configuration error */
@@ -2790,6 +2876,11 @@ int wc_FreeRng(WC_RNG* rng)
         rng->seed.fd = XBADFD;
         rng->seed.seedFdOpen = 0;
     }
+#endif
+
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    /* Last, so a WC_RNG re-instantiated in place does not start out marked. */
+    WOLFSSL_ATOMIC_STORE(rng->excl, WC_RNG_EXCL_FREE);
 #endif
 
     return ret;

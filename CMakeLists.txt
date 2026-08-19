@@ -3721,6 +3721,14 @@ if(WOLFSSL_RNG_BANK)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_BANK_SUPPORT")
 endif()
 
+# Thread-safe DRBG (share one WC_RNG between threads)
+add_option("WOLFSSL_THREADSAFE_DRBG"
+    "Enable sharing one WC_RNG between threads (default: enabled)"
+    "yes" "yes;no")
+if(NOT WOLFSSL_THREADSAFE_DRBG)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_DRBG_THREAD_SAFE")
+endif()
+
 # Valgrind (for unit tests)
 add_option("WOLFSSL_VALGRIND"
     "Enable valgrind for unit tests (default: disabled)"

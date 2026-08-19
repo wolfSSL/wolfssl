@@ -38,6 +38,10 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifndef WC_NO_RNG
+    /* for WC_NO_DRBG_THREAD_SAFE, which random.h may elect on. */
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
@@ -251,6 +255,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+#ifndef WC_NO_DRBG_THREAD_SAFE
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
