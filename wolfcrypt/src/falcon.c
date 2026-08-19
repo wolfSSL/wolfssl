@@ -9046,6 +9046,15 @@ int wc_falcon_get_level(falcon_key* key, byte* level)
 void wc_falcon_free(falcon_key* key)
 {
     if (key != NULL) {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+        if (key->devId != INVALID_DEVID) {
+            (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                                   WC_PK_TYPE_PQC_SIG_KEYGEN,
+                                   WC_PQC_SIG_TYPE_FALCON,
+                                   (void*)key);
+            /* always continue to software cleanup */
+        }
+#endif
         ForceZero(key, sizeof(*key));
     }
 }
