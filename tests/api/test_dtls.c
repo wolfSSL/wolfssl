@@ -8097,3 +8097,74 @@ int test_wolfSSL_set_secret(void)
     return EXPECT_RESULT();
 }
 
+/* The DTLS send path has to bound application records by the configured MTU.
+ * WOLFSSL_SCTP raises that MTU well above MAX_MTU, so a build that ignores the
+ * configured value and falls back to MAX_MTU rejects records it should accept.
+ * The record between the two bounds is what catches that. */
+int test_dtls_sctp_app_data_size(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    /* Above MAX_MTU so the two branches of the size check differ, and below
+     * MAX_RECORD_SIZE so it is not the CTX default being observed. */
+    #define TEST_SCTP_MTU   3000
+    #define TEST_SCTP_FITS  2048
+    #define TEST_SCTP_OVER  4096
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte* msg = NULL;
+    byte* readBuf = NULL;
+    int   i;
+
+    wc_static_assert(TEST_SCTP_FITS > WOLFSSL_MAX_MTU);
+    wc_static_assert(TEST_SCTP_MTU < MAX_RECORD_SIZE);
+
+    ExpectNotNull(msg = (byte*)XMALLOC(TEST_SCTP_OVER, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(readBuf = (byte*)XMALLOC(TEST_SCTP_OVER, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (msg != NULL) {
+        for (i = 0; i < TEST_SCTP_OVER; i++)
+            msg[i] = (byte)(i & 0xFF);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.sctp = 1;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_dtls_set_sctp(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_sctp(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Set after the handshake so only the application record path is bound. */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, TEST_SCTP_MTU), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, TEST_SCTP_MTU), WOLFSSL_SUCCESS);
+
+    /* Within the configured MTU, beyond MAX_MTU: accepted. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, TEST_SCTP_FITS), TEST_SCTP_FITS);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, TEST_SCTP_FITS), TEST_SCTP_FITS);
+    ExpectIntEQ(XMEMCMP(msg, readBuf, TEST_SCTP_FITS), 0);
+
+    /* Beyond the configured MTU: still refused. CheckAvailableSize() bounds
+     * this independently, so this does not isolate the send path - it is here
+     * so a change that widens the limit instead of reading it is not silently
+     * accepted end to end. */
+    ExpectIntLT(wolfSSL_write(ssl_c, msg, TEST_SCTP_OVER), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #undef TEST_SCTP_MTU
+    #undef TEST_SCTP_FITS
+    #undef TEST_SCTP_OVER
+#endif
+    return EXPECT_RESULT();
+}
