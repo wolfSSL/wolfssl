@@ -2662,7 +2662,14 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
      * down to a whole second because stateful tickets only store second
      * resolution. */
     ctx->ticketStartTime = TimeNowInMilliseconds();
-    ctx->ticketStartTime -= ctx->ticketStartTime % 1000;
+    if (ctx->ticketStartTime == 0) {
+        /* TimeNowInMilliseconds() reports failure as 0. Without a reference
+         * point the check cannot run, so turn it off for this ctx. */
+        ctx->noFreshStartCheck = 1;
+    }
+    else {
+        ctx->ticketStartTime -= ctx->ticketStartTime % 1000;
+    }
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_TLS_READ_AHEAD)

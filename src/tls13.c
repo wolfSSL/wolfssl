@@ -6641,12 +6641,22 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
              * Flag tickets minted before this ctx was created. */
             if (!ssl->ctx->noFreshStartCheck) {
         #ifdef WOLFSSL_32BIT_MILLI_TIME
-                /* Wrap-safe: the max ticket age is far below half of the
-                 * 2^32 ms range. */
+                /* A 32 bit ms clock wraps every ~49.7 days, so the ctx age is
+                 * only exact while it stays below the max ticket age. Past
+                 * that point DoClientTicketCheck has already rejected
+                 * anything old enough to predate the ctx, so the check can be
+                 * skipped. A ctx that survives the wrap re-enters the window
+                 * for one max-ticket-age span and rejects 0-RTT until it
+                 * leaves again. */
+                word32 now = TimeNowInMilliseconds();
+                word32 ctxAge = now - ssl->ctx->ticketStartTime;
                 word32 delta = ssl->ctx->ticketStartTime -
                                ssl->session->ticketSeen;
                 ssl->options.ticketPredatesCtx =
-                    (delta != 0 && delta < 0x80000000U);
+                    (now != 0 &&
+                     ctxAge <= (word32)TLS13_MAX_TICKET_AGE * 1000 &&
+                     delta != 0 &&
+                     delta <= (word32)TLS13_MAX_TICKET_AGE * 1000);
         #else
                 ssl->options.ticketPredatesCtx =
                     (ssl->session->ticketSeen < ssl->ctx->ticketStartTime);
@@ -17146,6 +17156,10 @@ int wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx, unsigned int sz)
 /* Disable the RFC 8446 Section 8.2 fresh start protection. Early data is
  * then accepted for tickets minted before this ctx was created. Only use
  * this when the anti-replay state reliably survives server restarts.
+ *
+ * The check needs TimeNowInMilliseconds() to be comparable across restarts.
+ * On ports where it counts from boot the check never fires for tickets
+ * minted before a reboot.
  *
  * ctx  The SSL/TLS CTX object.
  * returns BAD_FUNC_ARG when ctx is NULL or not TLS v1.3, SIDE_ERROR when
