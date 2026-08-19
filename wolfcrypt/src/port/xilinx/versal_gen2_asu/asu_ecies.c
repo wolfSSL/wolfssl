@@ -307,9 +307,9 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
             WC_ASU_PRINTF("[ASU] ecies: GCM needs a non-empty KDF context\r\n");
             return CRYPTOCB_UNAVAILABLE;
         }
-        /* The ASU uses the first half of the derived key, so only the client
-         * side is allowed here. */
-        if (proto != REQ_RESP_CLIENT) {
+        /* The ASU always uses the first half of the derived key. Encrypt uses
+         * that half for the default context and for the client side. */
+        if (proto != 0 && proto != REQ_RESP_CLIENT) {
             return CRYPTOCB_UNAVAILABLE;
         }
     }
@@ -487,9 +487,9 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
             WC_ASU_PRINTF("[ASU] ecies: GCM needs a non-empty KDF context\r\n");
             return CRYPTOCB_UNAVAILABLE;
         }
-        /* The ASU uses the first half of the derived key, so only the server
-         * side is allowed here. */
-        if (proto != REQ_RESP_SERVER) {
+        /* The ASU always uses the first half of the derived key. Decrypt uses
+         * that half for the default context and for the server side. */
+        if (proto != 0 && proto != REQ_RESP_SERVER) {
             return CRYPTOCB_UNAVAILABLE;
         }
     }
