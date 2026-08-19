@@ -3905,12 +3905,14 @@ int TLSX_EncryptThenMac_Respond(WOLFSSL* ssl);
 #endif
 
 /* Largest cookie a client stores from a HelloRetryRequest to echo back in the
- * second ClientHello. RFC 8446 4.2.2 allows up to 2^16-1. */
+ * second ClientHello. RFC 8446 4.2.2 allows up to 2^16-1 bytes, but the cookie
+ * sits inside an extension body of that same size, so its own two byte length
+ * prefix leaves 65533. */
 #ifndef WOLFSSL_MAX_TLS13_COOKIE_SZ
     #define WOLFSSL_MAX_TLS13_COOKIE_SZ 4096
 #endif
-#if WOLFSSL_MAX_TLS13_COOKIE_SZ > 65535
-    #error "WOLFSSL_MAX_TLS13_COOKIE_SZ must be <= 65535 per RFC 8446 4.2.2"
+#if WOLFSSL_MAX_TLS13_COOKIE_SZ > 65533
+    #error "WOLFSSL_MAX_TLS13_COOKIE_SZ must be <= 65533"
 #endif
 
 /* Cookie extension information - cookie data. */

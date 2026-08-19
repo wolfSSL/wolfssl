@@ -7643,8 +7643,8 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return BUFFER_E;
 
     if (msgType == hello_retry_request) {
-        /* RFC 8446 4.2.2 puts no upper bound on the cookie. Limit how much a
-         * server can make us hold and echo back. */
+        /* RFC 8446 4.2.2 allows up to 2^16-1 bytes. Cap it lower to limit
+         * how much a server can make us hold and echo back. */
         if (len > WOLFSSL_MAX_TLS13_COOKIE_SZ) {
             WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
             return HRR_COOKIE_ERROR;
