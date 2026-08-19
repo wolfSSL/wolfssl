@@ -168,10 +168,12 @@
     #include "wolfssl/internal.h"
 #endif
 
-#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+#ifdef WOLFSSL_SNIFFER
     #include <wolfssl/sniffer.h>
     #include <wolfssl/sniffer_error.h>
-    #include <sys/uio.h>
+    #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+        #include <sys/uio.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_HAVE_MLDSA
@@ -39348,6 +39350,91 @@ static int test_sniffer_chain_input_overflow(void)
 }
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_CHAIN_INPUT */
 
+#if defined(WOLFSSL_SNIFFER) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+
+#define SNIFFER_IP_HDR_SZ   20
+#define SNIFFER_TCP_HDR_SZ  20
+
+/* Minimal IPv4/TCP packet, 10.0.0.9:50000 -> 127.0.0.1:443, with a filler
+ * payload. Allocated at exactly the captured length so that a read past the
+ * end of the frame faults under a sanitizer. */
+static byte* sniffer_tcp_packet(word32 seq, byte tcpFlags, int payloadSz,
+                                int* pktSz)
+{
+    int   total = SNIFFER_IP_HDR_SZ + SNIFFER_TCP_HDR_SZ + payloadSz;
+    byte* p     = (byte*)XMALLOC((size_t)total, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    int   i;
+
+    if (p == NULL)
+        return NULL;
+    XMEMSET(p, 0, (size_t)total);
+
+    p[0]  = 0x45;                       /* IPv4, 5 word header */
+    p[2]  = (byte)(total >> 8);
+    p[3]  = (byte)(total & 0xFF);
+    p[6]  = 0x40;                       /* don't fragment */
+    p[8]  = 64;                         /* ttl */
+    p[9]  = 6;                          /* TCP */
+    p[12] = 10;  p[13] = 0; p[14] = 0; p[15] = 9;   /* 10.0.0.9 */
+    p[16] = 127; p[17] = 0; p[18] = 0; p[19] = 1;   /* 127.0.0.1 */
+
+    p[20] = 0xC3; p[21] = 0x50;         /* source port 50000 */
+    p[22] = 0x01; p[23] = 0xBB;         /* destination port 443 */
+    c32toa(seq, p + 24);
+    p[32] = 0x50;                       /* data offset, 5 words */
+    p[33] = tcpFlags;
+    p[34] = 0xFF;                       /* window */
+
+    for (i = 0; i < payloadSz; i++)
+        p[SNIFFER_IP_HDR_SZ + SNIFFER_TCP_HDR_SZ + i] = (byte)(0xE0 + (i & 0xF));
+
+    *pktSz = total;
+    return p;
+}
+
+/* An in-order segment that overlaps a segment already held on the reassembly
+ * list is split into the part before the held segment and the part past it.
+ * Both parts have to be sourced from where they actually sit in the frame. */
+static int test_sniffer_reassembly_overlap(void)
+{
+    EXPECT_DECLS;
+    static const struct {
+        word32 seq;
+        byte   flags;
+        int    payloadSz;
+    } segs[] = {
+        {  999, 0x02,  0 },  /* SYN, relative sequence starts at 1000 */
+        { 1004, 0x18, 64 },  /* out of order, held as [4, 67]         */
+        { 1000, 0x18, 72 },  /* in order, runs from 0 past 67         */
+    };
+    char  error[WOLFSSL_MAX_ERROR_SZ];
+    byte* data = NULL;
+    byte* pkt;
+    int   pktSz = 0;
+    int   i;
+
+    ssl_InitSniffer();
+    XMEMSET(error, 0, sizeof(error));
+    ExpectIntEQ(ssl_SetPrivateKey("127.0.0.1", 443, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM, NULL, error), 0);
+
+    for (i = 0; i < (int)XELEM_CNT(segs); i++) {
+        pkt = sniffer_tcp_packet(segs[i].seq, segs[i].flags, segs[i].payloadSz,
+                                 &pktSz);
+        ExpectNotNull(pkt);
+        if (pkt != NULL) {
+            XMEMSET(error, 0, sizeof(error));
+            ExpectIntGE(ssl_DecodePacket(pkt, pktSz, &data, error), -1);
+            XFREE(pkt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+
+    ssl_FreeSniffer();
+
+    return EXPECT_RESULT();
+}
+#endif /* WOLFSSL_SNIFFER && !NO_RSA && !NO_FILESYSTEM */
+
 /* Test: wc_DhAgree must reject p-1 as peer public key.
  * ffdhe2048 p ends with ...FFFFFFFFFFFFFFFF so p-1 ends ...FFFFFFFFFFFFFFFE */
 static int test_DhAgree_rejects_p_minus_1(void)
@@ -41353,6 +41440,9 @@ TEST_CASE testCases[] = {
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     TEST_DECL(test_sniffer_chain_input_overflow),
+#endif
+#if defined(WOLFSSL_SNIFFER) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    TEST_DECL(test_sniffer_reassembly_overlap),
 #endif
 
     /* This test needs to stay at the end to clean up any caches allocated. */

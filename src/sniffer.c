@@ -6040,6 +6040,44 @@ static int AddFinCapture(SnifferSession* session, word32 sequence)
     return 1;
 }
 
+/* Trim an in-order frame against the head of the reassembly list and queue
+ * anything that reaches past it.
+ * On entry *sslFrame is positioned at 'expected' and holds *sslBytes bytes. */
+static void TrimAgainstReassembly(SnifferSession* session,
+                                  PacketBuffer* reassemblyList, word32 expected,
+                                  int* sslBytes, const byte** sslFrame,
+                                  char* error)
+{
+    word32 newEnd;
+
+    if (*sslBytes <= 0)
+        return;
+    /* newEnd is one past the frame's last byte, while a list entry's begin and
+     * end are both inclusive. */
+    newEnd = expected + (word32)*sslBytes;
+
+    if (newEnd > reassemblyList->begin) {
+        Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
+
+        /* keep only what comes before the list entry, the rest is already
+           held */
+        *sslBytes = (reassemblyList->begin > expected) ?
+                        (int)(reassemblyList->begin - expected) : 0;
+    }
+    if ((reassemblyList->end >= expected) &&
+            (newEnd - 1 > reassemblyList->end)) {
+        /* may be past reassembly list end (could have more on list)
+           so try to add what's past the front->end */
+        word32 offset = reassemblyList->end - expected + 1;
+
+        Trace(OVERLAP_REASSEMBLY_END_STR);
+
+        AddToReassembly(session->flags.side, reassemblyList->end + 1,
+                        *sslFrame + offset,
+                        (int)(newEnd - reassemblyList->end - 1), session, error);
+    }
+}
+
 /* Adjust incoming sequence based on side */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
@@ -6083,37 +6121,13 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 Trace(OVERLAP_DUPLICATE_STR);
             }
 
-            /* The following conditional block is duplicated below. It is the
-             * same action but for a different setup case. If changing this
-             * block be sure to also update the block below. */
             if (reassemblyList) {
-                word32 newEnd;
-
                 /* adjust to expected, remove duplicate */
                 *sslFrame += overlap;
                 *sslBytes = (*sslBytes > overlap) ? *sslBytes - overlap : 0;
 
-                newEnd = *expected + *sslBytes;
-                if (newEnd > reassemblyList->begin) {
-                    int covered_data_len;
-
-                    Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
-
-                    /* remove bytes already on reassembly list */
-                    covered_data_len = newEnd - reassemblyList->begin;
-                    *sslFrame += covered_data_len;
-                    *sslBytes = (*sslBytes > covered_data_len) ?
-                                 *sslBytes - covered_data_len : 0;
-                }
-                if ((*sslBytes  > 0) && (newEnd > reassemblyList->end)) {
-                    Trace(OVERLAP_REASSEMBLY_END_STR);
-
-                    /* may be past reassembly list end (could have more on list)
-                       so try to add what's past the front->end */
-                    AddToReassembly(session->flags.side, reassemblyList->end + 1,
-                             *sslFrame + (reassemblyList->end - *expected + 1),
-                                 newEnd - reassemblyList->end, session, error);
-                }
+                TrimAgainstReassembly(session, reassemblyList, *expected,
+                                      sslBytes, sslFrame, error);
             }
             else if (*sslBytes > 0) {
                 if ((sword32)(real + (word32)*sslBytes - 1 - *seqLast) > 0) {
@@ -6179,32 +6193,9 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                           *sslFrame, *sslBytes, session, error);
             ret = 0;
         }
-        /* The following conditional block is duplicated above. It is the
-         * same action but for a different setup case. If changing this
-         * block be sure to also update the block above. */
         else if (reassemblyList) {
-            word32 newEnd = *expected + *sslBytes;
-
-            if (newEnd > reassemblyList->begin) {
-                int covered_data_len;
-
-                Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
-
-                /* remove bytes already on reassembly list */
-                covered_data_len = newEnd - reassemblyList->begin;
-                *sslFrame += covered_data_len;
-                *sslBytes = (*sslBytes > covered_data_len) ?
-                             *sslBytes - covered_data_len : 0;
-            }
-            if ((*sslBytes > 0) && (newEnd > reassemblyList->end)) {
-                Trace(OVERLAP_REASSEMBLY_END_STR);
-
-                /* may be past reassembly list end (could have more on list)
-                   so try to add what's past the front->end */
-                AddToReassembly(session->flags.side, reassemblyList->end + 1,
-                         *sslFrame + (reassemblyList->end - *expected + 1),
-                             newEnd - reassemblyList->end, session, error);
-            }
+            TrimAgainstReassembly(session, reassemblyList, *expected, sslBytes,
+                                  sslFrame, error);
         }
     }
     else {
