@@ -206,6 +206,11 @@ int wc_AsuEcdh(wc_CryptoInfo* info)
         info->pk.ecdh.outlen == NULL) {
         return BAD_FUNC_ARG;
     }
+    /* wolfSSL checks this after the callback, so our side needs a private key
+     * here or the ASU would be handed a zero scalar. */
+    if (priv->type != ECC_PRIVATEKEY && priv->type != ECC_PRIVATEKEY_ONLY) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
 
     ret = wc_AsuEcdhCurve(priv, &curveType, &keyLen);
     if (ret != 0) {

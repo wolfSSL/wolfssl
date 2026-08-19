@@ -251,6 +251,11 @@ static int wc_AsuEccSign(wc_CryptoInfo* info)
     if (info->pk.eccsign.inlen == 0) {
         return CRYPTOCB_UNAVAILABLE;
     }
+    /* wolfSSL checks this after the callback, so signing needs a private key
+     * here or the ASU would be handed a zero scalar. */
+    if (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
     if (wc_AsuEccDigestIsZero(info->pk.eccsign.in, info->pk.eccsign.inlen)) {
         return CRYPTOCB_UNAVAILABLE;
     }

@@ -458,6 +458,12 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
     if (info->pk.eciesdecrypt.pubKey != NULL) {
         return CRYPTOCB_UNAVAILABLE;
     }
+    /* wolfSSL checks this after the callback, so our side needs a private key
+     * here or the ASU would be handed a zero scalar. */
+    if (privKey->type != ECC_PRIVATEKEY &&
+        privKey->type != ECC_PRIVATEKEY_ONLY) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
     /* Check the curve first, since reading the private key below needs it. */
     ret = wc_AsuEciesCurve(privKey, &curveType, &keyLen);
     if (ret != 0) {
