@@ -50,7 +50,7 @@ runs:
         # PRs read the public upstream image too rather than a nonexistent
         # ghcr.io/<fork>/wolfssl-ci-debs.
         IMG="ghcr.io/wolfssl/wolfssl-ci-debs:${{ inputs.ghcr-debs-tag }}"
-        if ! docker pull -q "$IMG" >/dev/null 2>&1; then
+        if ! timeout -k 10 300 docker pull -q "$IMG" >/dev/null 2>&1; then
           echo "::notice::ghcr bundle $IMG unavailable; using apt"
           exit 0
         fi
@@ -85,9 +85,21 @@ runs:
           NO_REC="--no-install-recommends"
         fi
 
+        # A wedged mirror hangs apt rather than failing it, so the retry loop
+        # below never fired and the job burned its whole budget instead.
+        # Defend in depth: apt drops a stalled connection after 30s and retries
+        # it (Acquire timeouts), `timeout` hard-kills an apt-get that wedged
+        # anyway, then the loop re-runs - re-reading apt-mirrors.txt, so a
+        # retry can land on a different mirror.
+        APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
+                  -o Acquire::https::Timeout=30)
+
         for i in $(seq 1 $RETRIES); do
-          if sudo apt-get update -q && \
-             sudo apt-get install -y $NO_REC ${{ inputs.packages }}; then
+          # A previous attempt killed mid-unpack leaves dpkg needing this.
+          sudo dpkg --configure -a >/dev/null 2>&1 || true
+          if sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q && \
+             sudo timeout -k 10 900 apt-get "${APT_OPTS[@]}" install -y \
+               $NO_REC ${{ inputs.packages }}; then
             exit 0
           fi
           if [ "$i" -eq "$RETRIES" ]; then

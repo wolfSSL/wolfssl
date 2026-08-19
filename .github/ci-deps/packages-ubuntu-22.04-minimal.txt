@@ -4,6 +4,7 @@
 autoconf
 automake
 build-essential
+ccache
 crossbuild-essential-arm64
 crossbuild-essential-armel
 crossbuild-essential-armhf

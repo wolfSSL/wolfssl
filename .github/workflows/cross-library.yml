@@ -64,10 +64,23 @@ jobs:
         run: |
           set -eux
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            build-essential autoconf automake libtool pkg-config \
-            git ca-certificates ${{ inputs.apt_packages }}
+          # A wedged mirror hangs apt instead of failing it. Acquire timeouts
+          # drop a stalled connection, `timeout` hard-kills apt-get if it
+          # wedges anyway, and the loop then retries against a fresh mirror.
+          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
+                    -o Acquire::https::Timeout=30)
+          for i in 1 2 3; do
+            if timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q && \
+               timeout -k 10 900 apt-get "${APT_OPTS[@]}" install -y \
+                 --no-install-recommends \
+                 build-essential autoconf automake libtool pkg-config \
+                 git ca-certificates ${{ inputs.apt_packages }}; then
+              break
+            fi
+            test "$i" -lt 3 || { echo "::error::apt-get failed after 3 attempts"; exit 1; }
+            echo "::warning::apt-get failed (attempt $i/3)"
+            sleep $((5 * i))
+          done
 
       # Building only needs the commit under test, not history. The break check
       # that needs history runs in the compile job, not here.
@@ -129,10 +142,23 @@ jobs:
         run: |
           set -eux
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            build-essential autoconf automake libtool pkg-config \
-            git ca-certificates ${{ inputs.apt_packages }}
+          # A wedged mirror hangs apt instead of failing it. Acquire timeouts
+          # drop a stalled connection, `timeout` hard-kills apt-get if it
+          # wedges anyway, and the loop then retries against a fresh mirror.
+          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
+                    -o Acquire::https::Timeout=30)
+          for i in 1 2 3; do
+            if timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q && \
+               timeout -k 10 900 apt-get "${APT_OPTS[@]}" install -y \
+                 --no-install-recommends \
+                 build-essential autoconf automake libtool pkg-config \
+                 git ca-certificates ${{ inputs.apt_packages }}; then
+              break
+            fi
+            test "$i" -lt 3 || { echo "::error::apt-get failed after 3 attempts"; exit 1; }
+            echo "::warning::apt-get failed (attempt $i/3)"
+            sleep $((5 * i))
+          done
 
       # This job does not build wolfSSL, but the latest leg still checks out
       # wolfSSL history because check-break.sh scans commit messages here. The

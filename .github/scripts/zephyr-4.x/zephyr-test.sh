@@ -201,7 +201,13 @@ echo "==> [container] Exporting Zephyr..."
 west zephyr-export
 
 echo "==> [container] Installing host packages (newlib, python3-venv)..."
-sudo apt-get update -qq && sudo apt-get install -y -qq python3-venv libnewlib-dev >/dev/null 2>&1 || true
+# `|| true` keeps this best-effort, but without a timeout a wedged mirror
+# stalls here silently until the job budget runs out.
+APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -qq >/dev/null 2>&1 \
+  && sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y -qq \
+       python3-venv libnewlib-dev >/dev/null 2>&1 \
+  || echo "==> [container] host package install skipped (apt unavailable)"
 python3 -m venv .venv
 source .venv/bin/activate
 pip3 install west
