@@ -4152,6 +4152,25 @@ static void* benchmarks_do(void* args)
     #endif
     }
 #endif
+/* Key wrap rides on the AES engine, so it follows the AES-ECB selection. */
+#ifdef HAVE_AES_KEYWRAP
+    if (bench_all || (bench_cipher_algs & BENCH_AES_ECB)) {
+    #ifndef NO_SW_BENCH
+        bench_aeskeywrap(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_aeskeywrap(1);
+    #endif
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        #ifndef NO_SW_BENCH
+        bench_aeskeywrap_pad(0);
+        #endif
+        #ifdef BENCH_DEVID
+        bench_aeskeywrap_pad(1);
+        #endif
+    #endif
+    }
+#endif
 #ifdef WOLFSSL_AES_SIV
     if (bench_all || (bench_cipher_algs & BENCH_AES_SIV))
         bench_aessiv();
@@ -7197,6 +7216,7 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
 #endif
 }
 
+
 void bench_aessiv(void)
 {
     bench_aessiv_internal(bench_key, 32, "AES-256-SIV-enc", "AES-256-SIV-dec");
@@ -7204,6 +7224,162 @@ void bench_aessiv(void)
     bench_aessiv_internal(bench_key, 64, "AES-512-SIV-enc", "AES-512-SIV-dec");
 }
 #endif /* WOLFSSL_AES_SIV */
+
+#ifdef HAVE_AES_KEYWRAP
+/* Wrap and unwrap one payload per operation. RFC 3394 needs a multiple of 8
+ * and at least 16 bytes, so the payload is bench_size trimmed to fit. */
+static void bench_aeskeywrap_internal(int useDeviceID, const byte* key,
+                                      word32 keySz, int pad,
+                                      const char* wrapLabel,
+                                      const char* unwrapLabel)
+{
+    Aes    aes;
+    word32 inSz  = (word32)((bench_size - 8) & ~7U);
+    word32 outSz = inSz + 8;
+    double start = 0;
+    int    ret = 0, count = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    if (bench_size < 24) {
+        printf("%s (Skipped: block size too small)\n", wrapLabel);
+        return;
+    }
+
+    bench_stats_prepare();
+
+    /* Wrap: the key encryption key is set for encrypt. */
+    ret = wc_AesInit(&aes, HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
+    if (ret != 0) {
+        printf("AesInit failed, ret = %d\n", ret);
+        return;
+    }
+    ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("AesSetKey failed, ret = %d\n", ret);
+        goto exit_wrap;
+    }
+
+    /* One wrap per pass so the timer stops this, not a block count. Key wrap
+     * makes six AES passes, so a byte scaled count runs far too long. */
+    bench_stats_start(&count, &start);
+    do {
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (pad) {
+            ret = wc_AesKeyWrap_Pad_ex(&aes, bench_plain, inSz,
+                                       bench_cipher, outSz, NULL);
+        }
+        else
+    #endif
+        {
+            ret = wc_AesKeyWrap_ex(&aes, bench_plain, inSz,
+                                   bench_cipher, outSz, NULL);
+        }
+        if (ret < 0) {
+            printf("%s failed, ret = %d\n", wrapLabel, ret);
+            goto exit_wrap;
+        }
+        RECORD_MULTI_VALUE_STATS();
+        count++;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    ret = 0;
+
+exit_wrap:
+    bench_stats_sym_finish(wrapLabel, useDeviceID, count, inSz, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    wc_AesFree(&aes);
+    if (ret != 0) {
+        return;
+    }
+
+    /* Unwrap: the same key encryption key, this time set for decrypt. */
+    RESET_MULTI_VALUE_STATS_VARS();
+    count = 0;
+    ret = wc_AesInit(&aes, HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
+    if (ret != 0) {
+        printf("AesInit failed, ret = %d\n", ret);
+        return;
+    }
+    ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_DECRYPTION);
+    if (ret != 0) {
+        printf("AesSetKey failed, ret = %d\n", ret);
+        goto exit_unwrap;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+    #ifdef WOLFSSL_AES_KEYWRAP_PADDING
+        if (pad) {
+            ret = wc_AesKeyUnWrap_Pad_ex(&aes, bench_cipher, outSz,
+                                         bench_plain, inSz, NULL);
+        }
+        else
+    #endif
+        {
+            ret = wc_AesKeyUnWrap_ex(&aes, bench_cipher, outSz,
+                                     bench_plain, inSz, NULL);
+        }
+        if (ret < 0) {
+            printf("%s failed, ret = %d\n", unwrapLabel, ret);
+            goto exit_unwrap;
+        }
+        RECORD_MULTI_VALUE_STATS();
+        count++;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+       || runs < minimum_runs
+#endif
+       );
+    ret = 0;
+
+exit_unwrap:
+    bench_stats_sym_finish(unwrapLabel, useDeviceID, count, inSz, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+    wc_AesFree(&aes);
+    (void)pad;
+}
+
+void bench_aeskeywrap(int useDeviceID)
+{
+#ifdef WOLFSSL_AES_128
+    bench_aeskeywrap_internal(useDeviceID, bench_key, 16, 0,
+        "AES-128-KW-wrap", "AES-128-KW-unwrap");
+#endif
+#ifdef WOLFSSL_AES_192
+    bench_aeskeywrap_internal(useDeviceID, bench_key, 24, 0,
+        "AES-192-KW-wrap", "AES-192-KW-unwrap");
+#endif
+#ifdef WOLFSSL_AES_256
+    bench_aeskeywrap_internal(useDeviceID, bench_key, 32, 0,
+        "AES-256-KW-wrap", "AES-256-KW-unwrap");
+#endif
+}
+
+#ifdef WOLFSSL_AES_KEYWRAP_PADDING
+void bench_aeskeywrap_pad(int useDeviceID)
+{
+#ifdef WOLFSSL_AES_128
+    bench_aeskeywrap_internal(useDeviceID, bench_key, 16, 1,
+        "AES-128-KWP-wrap", "AES-128-KWP-unwrap");
+#endif
+#ifdef WOLFSSL_AES_192
+    bench_aeskeywrap_internal(useDeviceID, bench_key, 24, 1,
+        "AES-192-KWP-wrap", "AES-192-KWP-unwrap");
+#endif
+#ifdef WOLFSSL_AES_256
+    bench_aeskeywrap_internal(useDeviceID, bench_key, 32, 1,
+        "AES-256-KWP-wrap", "AES-256-KWP-unwrap");
+#endif
+}
+#endif /* WOLFSSL_AES_KEYWRAP_PADDING */
+#endif /* HAVE_AES_KEYWRAP */
 
 #ifdef WOLFSSL_AESGCM_SIV
 static void bench_aesgcmsiv_internal(const byte* key, word32 keySz, const char*
