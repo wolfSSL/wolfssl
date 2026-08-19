@@ -32,6 +32,7 @@
     #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 #include <tests/api/api.h>
 #include <tests/api/test_mlkem.h>
 
@@ -4648,3 +4649,72 @@ int test_wc_mlkem_encode_key_len_decision(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_encode_key_len_decision */
+
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_FREE)
+    #define TEST_MLKEM_CB_FREE
+    #define TEST_MLKEM_CB_FREE_DEVID 0x4D4C4B4D
+    #ifndef WOLFSSL_NO_ML_KEM_512
+        #define TEST_MLKEM_CB_FREE_TYPE WC_ML_KEM_512
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+        #define TEST_MLKEM_CB_FREE_TYPE WC_ML_KEM_768
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024)
+        #define TEST_MLKEM_CB_FREE_TYPE WC_ML_KEM_1024
+    #else
+        #undef TEST_MLKEM_CB_FREE
+    #endif
+#endif
+
+#ifdef TEST_MLKEM_CB_FREE
+/* Stands in for a device holding state for the key. Counting the call proves
+ * wc_MlKemKey_Free told the device rather than only cleaning up in software,
+ * which would leave the device side of the key behind. */
+static int mlkem_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* frees = (int*)ctx;
+
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_PQC_KEM_KEYGEN) &&
+            (info->free.subType == WC_PQC_KEM_TYPE_MLKEM)) {
+        if (frees != NULL) {
+            (*frees)++;
+        }
+        return 0;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_MLKEM_CB_FREE */
+
+/* Freeing a key that names a device has to tell that device, so it can
+ * release what it holds. A key with no device must not. */
+int test_wc_mlkem_cb_free(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_MLKEM_CB_FREE
+    MlKemKey* key = NULL;
+    int frees = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLKEM_CB_FREE_DEVID,
+        mlkem_cb_free_cb, &frees), 0);
+
+    ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_FREE_TYPE, NULL,
+        TEST_MLKEM_CB_FREE_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Free(key), 0);
+    ExpectIntEQ(frees, 1);
+
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_FREE_TYPE, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKemKey_Free(key), 0);
+    ExpectIntEQ(frees, 1);
+
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_FREE_DEVID);
+#endif
+    return EXPECT_RESULT();
+}

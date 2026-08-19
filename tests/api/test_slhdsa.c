@@ -3871,3 +3871,63 @@ int test_slhdsa_get_sigalg_info(void)
 #endif /* WOLFSSL_HAVE_SLHDSA && OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_FREE)
+    #define TEST_SLHDSA_CB_FREE
+    #define TEST_SLHDSA_CB_FREE_DEVID 0x534C4844
+#endif
+
+#ifdef TEST_SLHDSA_CB_FREE
+/* Stands in for a device holding state for the key. Counting the call proves
+ * wc_SlhDsaKey_Free told the device rather than only cleaning up in software,
+ * which would leave the device side of the key behind. */
+static int slhdsa_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* frees = (int*)ctx;
+
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
+            (info->free.subType == WC_PQC_SIG_TYPE_SLHDSA)) {
+        if (frees != NULL) {
+            (*frees)++;
+        }
+        return 0;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_SLHDSA_CB_FREE */
+
+/* Freeing a key that names a device has to tell that device, so it can
+ * release what it holds. A key with no device must not. */
+int test_slhdsa_cb_free(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_CB_FREE
+    SlhDsaKey key;
+    int frees = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_SLHDSA_CB_FREE_DEVID,
+        slhdsa_cb_free_cb, &frees), 0);
+
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, WC_SLHDSA_DEFAULT_PARAM, NULL,
+        TEST_SLHDSA_CB_FREE_DEVID), 0);
+    wc_SlhDsaKey_Free(&key);
+    ExpectIntEQ(frees, 1);
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, WC_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), 0);
+    wc_SlhDsaKey_Free(&key);
+    ExpectIntEQ(frees, 1);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_SLHDSA_CB_FREE_DEVID);
+#endif
+    return EXPECT_RESULT();
+}

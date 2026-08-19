@@ -43,6 +43,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 #ifdef WOLFSSL_HAVE_MLDSA
     #include <wolfssl/wolfcrypt/wc_mldsa.h>
 #endif
@@ -31399,5 +31400,63 @@ int test_wc_MldsaDerDecisionCoverage(void)
 
     wc_MlDsaKey_Free(&key);
 #endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_NO_ASN1 && ... */
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_FREE)
+    #define TEST_MLDSA_CB_FREE
+    #define TEST_MLDSA_CB_FREE_DEVID 0x4D4C4453
+#endif
+
+#ifdef TEST_MLDSA_CB_FREE
+/* Stands in for a device holding state for the key. Counting the call proves
+ * wc_MlDsaKey_Free told the device rather than only cleaning up in software,
+ * which would leave the device side of the key behind. */
+static int mldsa_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* frees = (int*)ctx;
+
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
+            (info->free.subType == WC_PQC_SIG_TYPE_MLDSA)) {
+        if (frees != NULL) {
+            (*frees)++;
+        }
+        return 0;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_MLDSA_CB_FREE */
+
+/* Freeing a key that names a device has to tell that device, so it can
+ * release what it holds. A key with no device must not. */
+int test_mldsa_cb_free(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_MLDSA_CB_FREE
+    wc_MlDsaKey* key = NULL;
+    int frees = 0;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLDSA_CB_FREE_DEVID,
+        mldsa_cb_free_cb, &frees), 0);
+
+    ExpectNotNull(key = (wc_MlDsaKey*)XMALLOC(sizeof(wc_MlDsaKey), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, TEST_MLDSA_CB_FREE_DEVID), 0);
+    wc_MlDsaKey_Free(key);
+    ExpectIntEQ(frees, 1);
+
+    ExpectIntEQ(wc_MlDsaKey_Init(key, NULL, INVALID_DEVID), 0);
+    wc_MlDsaKey_Free(key);
+    ExpectIntEQ(frees, 1);
+
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_CryptoCb_UnRegisterDevice(TEST_MLDSA_CB_FREE_DEVID);
+#endif
     return EXPECT_RESULT();
 }
