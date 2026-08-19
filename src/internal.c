@@ -29013,10 +29013,17 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
 #if defined(WOLFSSL_DTLS)
         if (ssl->options.dtls) {
-#if defined(WOLFSSL_DTLS_MTU) || defined(WOLFSSL_SCTP)
-            int mtu = ssl->dtlsMtuSz;
+            int mtu;
+
+#if defined(WOLFSSL_DTLS_MTU)
+            mtu = ssl->dtlsMtuSz;
+#elif defined(WOLFSSL_SCTP)
+            /* An SCTP association is a reliable stream, so it is bounded by
+             * the configured record size rather than by a datagram MTU. A
+             * connection that never enabled SCTP still is. */
+            mtu = IsDtlsNotSctpMode(ssl) ? MAX_MTU : ssl->dtlsMtuSz;
 #else
-            int mtu = MAX_MTU;
+            mtu = MAX_MTU;
 #endif
             outputSz = wolfssl_local_GetRecordSize(ssl, (word32)buffSz, 1);
             if (outputSz > mtu) {
