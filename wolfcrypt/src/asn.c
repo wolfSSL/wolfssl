@@ -37502,17 +37502,11 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
     if (useNonce) {
         WC_RNG rng;
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-        ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-        if (ret != 0)
-#endif
-        {
-        #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
-            ret = wc_InitRng_ex(&rng, req->heap, INVALID_DEVID);
-        #else
-            ret = wc_InitRng(&rng);
-        #endif
-        }
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, req->heap, INVALID_DEVID);
+    #else
+        ret = wc_InitRng(&rng);
+    #endif
         if (ret != 0) {
             WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OCSP Nonce.");
         } else {
