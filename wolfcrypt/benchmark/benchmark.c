@@ -6476,9 +6476,10 @@ void bench_gmac(int useDeviceID)
     bench_gmac_internal(useDeviceID, 12, gmacStr);
 
 #ifdef WC_BENCH_AES_IV_SWEEP
-    /* Extra row using a 16-byte IV alongside the 12-byte default above. */
+    /* Extra row using a 16-byte IV alongside the 12-byte default above. The
+     * stats list keeps the label by pointer, so it must outlive this call. */
     {
-        char gmacIvStr[40];
+        static char gmacIvStr[40];
         (void)XSNPRINTF(gmacIvStr, sizeof(gmacIvStr), "%s-iv16", gmacStr);
         bench_gmac_internal(useDeviceID, 16, gmacIvStr);
     }
