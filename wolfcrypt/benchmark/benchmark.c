@@ -7131,16 +7131,18 @@ static void bench_aesccm_internal(int useDeviceID, word32 nonceSz,
 void bench_aesccm(int useDeviceID)
 {
 #ifdef WC_BENCH_AES_IV_SWEEP
-    /* One enc/dec row per nonce length from 7 to 13 bytes. */
+    /* One enc/dec row per nonce length from 7 to 13 bytes. The stats list
+     * keeps these labels by pointer, so they must outlive this call. */
     word32 nsz;
-    char encLabel[28], decLabel[28];
+    static char encLabel[7][28], decLabel[7][28];
 
     for (nsz = 7; nsz <= 13; nsz++) {
-        (void)XSNPRINTF(encLabel, sizeof(encLabel),
+        (void)XSNPRINTF(encLabel[nsz - 7], sizeof(encLabel[0]),
             "AES-CCM-n%u-enc", (unsigned)nsz);
-        (void)XSNPRINTF(decLabel, sizeof(decLabel),
+        (void)XSNPRINTF(decLabel[nsz - 7], sizeof(decLabel[0]),
             "AES-CCM-n%u-dec", (unsigned)nsz);
-        bench_aesccm_internal(useDeviceID, nsz, encLabel, decLabel);
+        bench_aesccm_internal(useDeviceID, nsz, encLabel[nsz - 7],
+            decLabel[nsz - 7]);
     }
 #else
     bench_aesccm_internal(useDeviceID, 12,
