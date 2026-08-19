@@ -4565,13 +4565,7 @@ int wc_PKCS7_EncodeSignedFPD(wc_PKCS7* pkcs7, byte* privateKey,
         content == NULL || contentSz == 0 || output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0)
         return ret;
 
@@ -4679,13 +4673,7 @@ int wc_PKCS7_EncodeSignedEncryptedFPD(wc_PKCS7* pkcs7, byte* encryptKey,
     XMEMCPY(encrypted, output, (word32)encryptedSz);
     ForceZero(output, outputSz);
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         ForceZero(encrypted, (word32)encryptedSz);
         XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4783,13 +4771,7 @@ int wc_PKCS7_EncodeSignedCompressedFPD(wc_PKCS7* pkcs7, byte* privateKey,
     XMEMCPY(compressed, output, compressedSz);
     ForceZero(output, outputSz);
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         ForceZero(compressed, compressedSz);
         XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4925,13 +4907,7 @@ int  wc_PKCS7_EncodeSignedEncryptedCompressedFPD(wc_PKCS7* pkcs7, byte* encryptK
     XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     ForceZero(output, outputSz);
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         ForceZero(encrypted, encryptedSz);
         XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -8463,13 +8439,7 @@ static int PKCS7_GenerateContentEncryptionKey(wc_PKCS7* pkcs7, word32 len)
 
     XMEMSET(tmpKey, 0, len);
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         XFREE(tmpKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
@@ -8812,13 +8782,7 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
 
     kari->senderKeyInit = 1;
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, kari->heap, kari->devId);
-    }
+    ret = wc_InitRng_ex(&rng, kari->heap, kari->devId);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
         kari->senderKeyExportSz = 0;
@@ -9694,13 +9658,7 @@ int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
         return PUBLIC_KEY_E;
     }
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         wc_FreeRsaKey(pubKey);
         FreeDecodedCert(decoded);
@@ -10493,13 +10451,7 @@ static int wc_PKCS7_GenerateBlock(wc_PKCS7* pkcs7, WC_RNG* rng, byte* out,
         if (rnd == NULL)
             return MEMORY_E;
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-        ret = wc_InitRng_BankRef(NULL /* bank */, rnd);
-        if (ret != 0)
-#endif
-        {
-            ret = wc_InitRng_ex(rnd, pkcs7->heap, pkcs7->devId);
-        }
+        ret = wc_InitRng_ex(rnd, pkcs7->heap, pkcs7->devId);
         if (ret != 0) {
             XFREE(rnd, pkcs7->heap, DYNAMIC_TYPE_RNG);
             return ret;
@@ -10779,13 +10731,7 @@ static int wc_PKCS7_PwriKek_KeyWrap(wc_PKCS7* pkcs7, const byte* kek,
     XMEMCPY(out + 4, cek, cekSz);
 
     /* random padding of size padSz */
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0)
         return ret;
 
@@ -11592,13 +11538,7 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 
     verSz = SetMyVersion((word32)kariVersion, ver, 0);
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
@@ -11926,13 +11866,7 @@ static int wc_PKCS7_KtriFakeCEK(wc_PKCS7* pkcs7, const byte* encryptedKey,
         WC_ALLOC_VAR_EX(localRng, WC_RNG, 1, pkcs7->heap, DYNAMIC_TYPE_RNG,
                         WC_FREE_VAR_EX(hmac, pkcs7->heap, DYNAMIC_TYPE_HMAC);
                         return MEMORY_E);
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-        ret = wc_InitRng_BankRef(NULL /* bank */, localRng);
-        if (ret != 0)
-#endif
-        {
-            ret = wc_InitRng_ex(localRng, pkcs7->heap, pkcs7->devId);
-        }
+        ret = wc_InitRng_ex(localRng, pkcs7->heap, pkcs7->devId);
         if (ret != 0) {
             WC_FREE_VAR_EX(localRng, pkcs7->heap, DYNAMIC_TYPE_RNG);
             WC_FREE_VAR_EX(hmac, pkcs7->heap, DYNAMIC_TYPE_HMAC);
@@ -12286,13 +12220,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
             /* decrypt encryptedKey */
             #ifdef WC_RSA_BLINDING
-        #if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-            ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-            if (ret != 0)
-        #endif
-            {
-                ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-            }
+            ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
             if (ret == 0) {
                 ret = wc_RsaSetRNG(privKey, &rng);
             }
@@ -15448,13 +15376,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
 #endif /* HAVE_AESCCM */
     }
 
-#if defined(WC_RNG_BANK_DEFAULT_SUPPORT) && defined(WC_HAVE_RNG_BANKREF)
-    ret = wc_InitRng_BankRef(NULL /* bank */, &rng);
-    if (ret != 0)
-#endif
-    {
-        ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    }
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
