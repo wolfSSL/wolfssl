@@ -15720,6 +15720,14 @@ int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
     call this function when the anti-replay state (session cache or
     external cache) reliably survives server restarts.
 
+    The check compares the ticket timestamp against the context creation
+    time, both taken from TimeNowInMilliseconds(). That clock is only
+    required to be millisecond accurate, not correlated to the epoch, so on
+    ports where it counts from boot (Windows QPC, Zephyr, FreeRTOS, Micrium,
+    Microchip) it restarts near zero and the check does not fire for tickets
+    minted before a reboot. Such deployments must rely on ticket key
+    rotation instead.
+
     \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created
     with wolfSSL_CTX_new().
 

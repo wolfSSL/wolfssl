@@ -5616,6 +5616,33 @@ int test_tls13_0rtt_fresh_start(void)
     return EXPECT_RESULT();
 }
 
+/* Error returns of wolfSSL_CTX_no_early_data_fresh_start_check(). */
+int test_tls13_0rtt_fresh_start_check_args(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+
+    ExpectIntEQ(wolfSSL_CTX_no_early_data_fresh_start_check(NULL),
+                BAD_FUNC_ARG);
+
+#ifndef WOLFSSL_NO_TLS12
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_no_early_data_fresh_start_check(ctx),
+                BAD_FUNC_ARG);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_no_early_data_fresh_start_check(ctx), SIDE_ERROR);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 /* Check that the client won't send the same CH after a HRR. An HRR without
  * a KeyShare or a Cookie extension will trigger the error. */
