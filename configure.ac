@@ -4810,6 +4810,41 @@ fi
 AC_SUBST([ENABLED_AESNI])
 AC_SUBST([ENABLED_AESNI_WITH_AVX])
 
+# INTEL ASM AS GENERATED C INTRINSICS
+# Builds the generated intrinsics translation of the x86-64 speedups instead
+# of the hand-generated assembly.  Both come from one generator, so the two
+# forms are interchangeable; the C form is visible to the optimiser, to LTO
+# and to the sanitisers, which the .S is not.  Coverage is per algorithm -
+# anything without an intrinsics translation keeps building from assembly.
+AC_ARG_ENABLE([intelasm-intrinsics],
+    [AS_HELP_STRING([--enable-intelasm-intrinsics],[Build the x86-64 speedups from generated C intrinsics rather than assembly (default: disabled)])],
+    [ ENABLED_INTELASM_INTRINSICS=$enableval ],
+    [ ENABLED_INTELASM_INTRINSICS=no ]
+    )
+
+if test "$ENABLED_INTELASM_INTRINSICS" = "yes"
+then
+    if test "$ENABLED_INTELASM" != "yes"
+    then
+        AC_MSG_ERROR([--enable-intelasm-intrinsics requires --enable-intelasm])
+    fi
+    if test "$host_cpu" != "x86_64" && test "$host_cpu" != "amd64"
+    then
+        AC_MSG_ERROR([--enable-intelasm-intrinsics is x86-64 only])
+    fi
+    # --enable-32bit leaves host_cpu as x86_64, so the test above passes for a
+    # -m32 build.  WOLFSSL_X86_64_BUILD is deliberately withheld there (see the
+    # host_cpu block earlier in this file) and is not inert: it selects the
+    # Poly1305 AVX-512 state layout, the ChaCha and Curve25519 x64 paths, and
+    # the FP_MAX_BITS/SP_INT_BITS defaults.  Reject the combination rather
+    # than build 32-bit code that claims to be 64-bit.
+    if test "$ENABLED_32BIT" = "yes"
+    then
+        AC_MSG_ERROR([--enable-intelasm-intrinsics is not supported with --enable-32bit])
+    fi
+fi
+AC_SUBST([ENABLED_INTELASM_INTRINSICS])
+
 AC_ARG_ENABLE([aligndata],
     [AS_HELP_STRING([--enable-aligndata],[align data for ciphers (default: enabled)])],
     [ ENABLED_ALIGN_DATA=$enableval ],
@@ -13266,6 +13301,7 @@ AM_CONDITIONAL([BUILD_PPC64_ASM_INLINE_REG],[test "x$ENABLED_PPC64_ASM_INLINE_RE
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
+AM_CONDITIONAL([BUILD_INTELASM_INTRINSICS],[test "x$ENABLED_INTELASM_INTRINSICS" = "xyes"])
 AM_CONDITIONAL([BUILD_X86_ASM],[test "x$ENABLED_X86_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_AFALG],[test "x$ENABLED_AFALG" = "xyes"])
 AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])

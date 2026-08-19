@@ -124,7 +124,15 @@ function(generate_build_flags)
     set(BUILD_ARMASM ${WOLFSSL_ARM_ASM} PARENT_SCOPE)
     set(BUILD_XILINX ${WOLFSSL_XILINX} PARENT_SCOPE)
     set(BUILD_AESNI ${WOLFSSL_AESNI} PARENT_SCOPE)
+    set(BUILD_AESXTS ${WOLFSSL_AESXTS} PARENT_SCOPE)
     set(BUILD_INTELASM ${WOLFSSL_INTEL_ASM} PARENT_SCOPE)
+    set(BUILD_INTELASM_INTRINSICS ${WOLFSSL_INTELASM_INTRINSICS} PARENT_SCOPE)
+    set(BUILD_FALCON_ASM ${WOLFSSL_FALCON_ASM} PARENT_SCOPE)
+    # 32-bit x86 with the Intel speedups: selects the x86-specific AES-GCM
+    # assembly over the x86-64 one, as ENABLED_X86_ASM does in autotools.
+    if(WOLFSSL_X86_BUILD AND (WOLFSSL_AESNI OR WOLFSSL_INTEL_ASM))
+        set(BUILD_X86_ASM "yes" PARENT_SCOPE)
+    endif()
     set(BUILD_AFALG ${WOLFSSL_AFALG} PARENT_SCOPE)
     set(BUILD_DEVCRYPTO ${WOLFSSL_DEVCRYPTO} PARENT_SCOPE)
     if(WOLFSSL_CAMELLIA OR WOLFSSL_USER_SETTINGS)
@@ -468,10 +476,40 @@ function(generate_lib_src_list LIB_SOURCES)
 
             if(BUILD_AESNI)
                 list(APPEND LIB_SOURCES wolfcrypt/src/aes_asm.S)
+            endif()
+
+            # 32-bit x86 takes its own AES-GCM assembly and none of the
+            # x86-64 sources; everything below the else is 64-bit only.
+            if(BUILD_AESNI AND BUILD_X86_ASM)
+                list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_x86_asm.S)
+            elseif(BUILD_AESNI)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/aes_x86_64_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES wolfcrypt/src/aes_x86_64_asm.S)
+                endif()
+                if(BUILD_AESXTS)
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/aes_xts_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES wolfcrypt/src/aes_xts_asm.S)
+                    endif()
+                endif()
 
                 if(BUILD_INTELASM)
-                    list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_asm.S)
-                    list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_asm.S)
+                    endif()
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/sha3_x86_64_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                    endif()
                 elseif(BUILD_ARMASM)
                     list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-sha3-asm_c.c)
                     list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-sha3-asm.S)
@@ -506,7 +544,10 @@ function(generate_lib_src_list LIB_SOURCES)
                 endif()
             endif()
 
-            if(BUILD_INTELASM)
+            if(BUILD_INTELASM_INTRINSICS)
+                list(APPEND LIB_SOURCES
+                    wolfcrypt/src/sha256_x86_64_intrin.c)
+            elseif(BUILD_INTELASM)
                 list(APPEND LIB_SOURCES wolfcrypt/src/sha256_asm.S)
             endif()
 
@@ -533,7 +574,10 @@ function(generate_lib_src_list LIB_SOURCES)
                     endif()
                 endif()
 
-                if(BUILD_INTELASM)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/sha512_x86_64_intrin.c)
+                elseif(BUILD_INTELASM)
                     list(APPEND LIB_SOURCES wolfcrypt/src/sha512_asm.S)
                 endif()
             endif()
@@ -562,7 +606,12 @@ function(generate_lib_src_list LIB_SOURCES)
                 endif()
 
                 if(BUILD_INTELASM)
-                    list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/sha3_x86_64_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                    endif()
                 endif()
             endif()
 
@@ -603,8 +652,16 @@ function(generate_lib_src_list LIB_SOURCES)
                 wolfcrypt/src/wolfcrypt_first.c
                 wolfcrypt/src/hmac.c
                 wolfcrypt/src/random.c
-                wolfcrypt/src/sha256.c
-                wolfcrypt/src/sha256_asm.S
+                wolfcrypt/src/sha256.c)
+
+            if(BUILD_INTELASM_INTRINSICS)
+                list(APPEND LIB_SOURCES
+                    wolfcrypt/src/sha256_x86_64_intrin.c)
+            else()
+                list(APPEND LIB_SOURCES wolfcrypt/src/sha256_asm.S)
+            endif()
+
+            list(APPEND LIB_SOURCES
                 wolfcrypt/src/fips.c
                 wolfcrypt/src/fips_test.c
                 wolfcrypt/src/wolfcrypt_last.c)
@@ -666,7 +723,10 @@ function(generate_lib_src_list LIB_SOURCES)
                 endif()
             else()
 
-                if(BUILD_INTELASM)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/sha256_x86_64_intrin.c)
+                elseif(BUILD_INTELASM)
                     list(APPEND LIB_SOURCES wolfcrypt/src/sha256_asm.S)
                 endif()
             endif()
@@ -700,7 +760,13 @@ function(generate_lib_src_list LIB_SOURCES)
             if(BUILD_SP_X86_64)
                 list(APPEND LIB_SOURCES wolfcrypt/src/sp_x86_64.c)
                 if(WOLFSSL_X86_64_BUILD_ASM)
-                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_x86_64_asm.S)
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/sp_x86_64_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/sp_x86_64_asm.S)
+                    endif()
                 endif()
             endif()
 
@@ -791,7 +857,10 @@ function(generate_lib_src_list LIB_SOURCES)
                 endif()
             else()
 
-                if(BUILD_INTELASM)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/sha512_x86_64_intrin.c)
+                elseif(BUILD_INTELASM)
                     list(APPEND LIB_SOURCES wolfcrypt/src/sha512_asm.S)
                 endif()
             endif()
@@ -821,7 +890,12 @@ function(generate_lib_src_list LIB_SOURCES)
             endif()
 
             if(BUILD_INTELASM)
-                list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/sha3_x86_64_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                endif()
             endif()
         endif()
     endif()
@@ -887,7 +961,11 @@ function(generate_lib_src_list LIB_SOURCES)
             list(APPEND LIB_SOURCES wolfcrypt/src/poly1305.c)
 
             if(BUILD_INTELASM)
-                list(APPEND LIB_SOURCES wolfcrypt/src/poly1305_asm.S)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/poly1305_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES wolfcrypt/src/poly1305_asm.S)
+                endif()
             endif()
         endif()
 
@@ -914,9 +992,28 @@ function(generate_lib_src_list LIB_SOURCES)
         endif()
 
         if(NOT BUILD_FIPS_V2 AND BUILD_AESNI)
-            list(APPEND LIB_SOURCES
-                wolfcrypt/src/aes_asm.S
-                wolfcrypt/src/aes_gcm_asm.S)
+            list(APPEND LIB_SOURCES wolfcrypt/src/aes_asm.S)
+            # 32-bit x86 has its OWN AES-GCM assembly rather than a 32-bit
+            # build of the x86-64 one, and none of the other x86-64 sources
+            # apply there - the same split autotools makes on BUILD_X86_ASM.
+            if(BUILD_X86_ASM)
+                list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_x86_asm.S)
+            else()
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_intrin.c)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/aes_x86_64_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES wolfcrypt/src/aes_gcm_asm.S)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/aes_x86_64_asm.S)
+                endif()
+                if(BUILD_AESXTS)
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES wolfcrypt/src/aes_xts_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES wolfcrypt/src/aes_xts_asm.S)
+                    endif()
+                endif()
+            endif()
         endif()
 
         if(BUILD_CAMELLIA)
@@ -1013,7 +1110,11 @@ function(generate_lib_src_list LIB_SOURCES)
             else()
 
                 if(BUILD_INTELASM)
-                    list(APPEND LIB_SOURCES wolfcrypt/src/chacha_asm.S)
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES wolfcrypt/src/chacha_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES wolfcrypt/src/chacha_asm.S)
+                    endif()
                 endif()
             endif()
 
@@ -1082,7 +1183,13 @@ function(generate_lib_src_list LIB_SOURCES)
                 list(APPEND LIB_SOURCES wolfcrypt/src/fe_low_mem.c)
             else()
                 if(BUILD_INTELASM)
-                    list(APPEND LIB_SOURCES wolfcrypt/src/fe_x25519_asm.S)
+                    if(BUILD_INTELASM_INTRINSICS)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/fe_x25519_intrin.c)
+                    else()
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/fe_x25519_asm.S)
+                    endif()
                 else()
                     list(APPEND LIB_SOURCES wolfcrypt/src/fe_operations.c)
                 endif()
@@ -1101,7 +1208,13 @@ function(generate_lib_src_list LIB_SOURCES)
 
                 if(NOT BUILD_FEMATH)
                     if(BUILD_INTELASM)
-                        list(APPEND LIB_SOURCES wolfcrypt/src/fe_x25519_asm.S)
+                        if(BUILD_INTELASM_INTRINSICS)
+                            list(APPEND LIB_SOURCES
+                                wolfcrypt/src/fe_x25519_intrin.c)
+                        else()
+                            list(APPEND LIB_SOURCES
+                                wolfcrypt/src/fe_x25519_asm.S)
+                        endif()
                     else()
                         list(APPEND LIB_SOURCES wolfcrypt/src/fe_operations.c)
                     endif()
@@ -1136,13 +1249,29 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(BUILD_FALCON)
             list(APPEND LIB_SOURCES wolfcrypt/src/falcon.c)
+
+            if(BUILD_FALCON_ASM)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_falcon_fpr_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_falcon_fpr_x86_64_asm.S)
+                endif()
+            endif()
         endif()
 
         if(BUILD_MLDSA)
             list(APPEND LIB_SOURCES wolfcrypt/src/wc_mldsa.c)
 
             if(BUILD_INTELASM)
-                list(APPEND LIB_SOURCES wolfcrypt/src/wc_mldsa_asm.S)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_mldsa_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_mldsa_asm.S)
+                endif()
             endif()
         endif()
 
@@ -1172,7 +1301,13 @@ function(generate_lib_src_list LIB_SOURCES)
             endif()
 
             if(BUILD_INTELASM)
-                list(APPEND LIB_SOURCES wolfcrypt/src/wc_mlkem_asm.S)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_mlkem_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_mlkem_asm.S)
+                endif()
             endif()
         endif()
 
@@ -1201,7 +1336,13 @@ function(generate_lib_src_list LIB_SOURCES)
             endif()
 
             if(BUILD_INTELASM)
-                list(APPEND LIB_SOURCES wolfcrypt/src/wc_frodokem_asm.S)
+                if(BUILD_INTELASM_INTRINSICS)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_frodokem_intrin.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/wc_frodokem_asm.S)
+                endif()
             endif()
         endif()
 
