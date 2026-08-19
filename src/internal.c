@@ -28222,8 +28222,10 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
         XMEMCPY(output + idx, status[i].buffer, status[i].length);
         idx += status[i].length;
     }
-    /* Send Message. Handled message fragmentation in the function if needed */
-    ret = SendHandshakeMsg(ssl, output, (sendSz - headerSz), certificate_status,
+    /* Send Message. Handled message fragmentation in the function if needed.
+     * idx is the fill cursor, so idx - headerSz is the body actually written.
+     * sendSz may carry the cipher expansion slack on top of it. */
+    ret = SendHandshakeMsg(ssl, output, (idx - headerSz), certificate_status,
                 "Certificate Status");
     XFREE(output, ssl->heap, DYNAMIC_TYPE_OCSP);
 
