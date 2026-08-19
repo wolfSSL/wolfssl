@@ -5092,7 +5092,8 @@ WOLFSSL_API int wolfSSL_CTX_set_scr_check_enabled(WOLFSSL_CTX* ctx,
         !defined(WOLFSSL_TICKET_ENC_AES256_GCM)
         #define WOLFSSL_TICKET_KEY_SZ       CHACHA20_POLY1305_AEAD_KEYSIZE
     #elif defined(WOLFSSL_TICKET_ENC_AES256_GCM) || \
-        (!defined(WOLFSSL_TICKET_ENC_AES128_GCM) && defined(WOLFSSL_AES_256))
+        (!defined(WOLFSSL_TICKET_ENC_AES128_GCM) && defined(HAVE_AESGCM) && \
+            defined(WOLFSSL_AES_256))
         #define WOLFSSL_TICKET_KEY_SZ       AES_256_KEY_SIZE
     #else
         #define WOLFSSL_TICKET_KEY_SZ       AES_128_KEY_SIZE
