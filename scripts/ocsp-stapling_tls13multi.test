@@ -2,8 +2,13 @@
 
 # timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
 # command unbounded (the flaky hang this guards against is Linux-only CI).
-if ! command -v timeout >/dev/null 2>&1; then
-    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
 fi
 
 
@@ -288,25 +293,33 @@ fi
 
 get_first_free_port() {
     local ret="$1"
+    local scanned=0
     while :; do
         if [[ "$ret" -ge 65536 ]]; then
             ret=1024
         fi
-        if ! nc -z ${LOCALHOST_FOR_NC} "$ret"; then
+        if ! nc -w 1 -z ${LOCALHOST_FOR_NC} "$ret"; then
             break
         fi
         ret=$((ret+1))
+        scanned=$((scanned+1))
+        if [ "$scanned" -ge 100 ]; then
+            echo "ERROR: no free port found after scanning 100 ports" 1>&2
+            # return, not exit: every caller runs this in a command
+            # substitution, where exit would only end the subshell.
+            return 1
+        fi
     done
     echo "$ret"
     return 0
 }
 
 base_port=$((((($$ + RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
-port1=$(get_first_free_port "$base_port")
-port2=$(get_first_free_port $((port1 + 1)))
-port3=$(get_first_free_port $((port2 + 1)))
-port4=$(get_first_free_port $((port3 + 1)))
-port5=$(get_first_free_port $((port4 + 1)))
+port1=$(get_first_free_port "$base_port") || exit 1
+port2=$(get_first_free_port $((port1 + 1))) || exit 1
+port3=$(get_first_free_port $((port2 + 1))) || exit 1
+port4=$(get_first_free_port $((port3 + 1))) || exit 1
+port5=$(get_first_free_port $((port4 + 1))) || exit 1
 
 # 1:
 ./examples/server/server -R "$ready_file1" -p "$port1" &
@@ -346,10 +359,10 @@ printf '%s' "Random ports selected: $port1 $port2"
 printf '%s\n' " $port3 $port4 $port5"
 printf '%s\n' "-----------------------------------"
 # Use client connections to cleanly shutdown the servers
-./examples/client/client -p "$port1"
-./examples/client/client -p "$port2"
-./examples/client/client -p "$port3"
-./examples/client/client -p "$port4"
+$TIMEOUT_KILL_2M ./examples/client/client -p "$port1"
+$TIMEOUT_KILL_2M ./examples/client/client -p "$port2"
+$TIMEOUT_KILL_2M ./examples/client/client -p "$port3"
+$TIMEOUT_KILL_2M ./examples/client/client -p "$port4"
 create_new_cnf "$port1" "$port2" "$port3" \
                "$port4"
 
@@ -413,7 +426,7 @@ if [ "$tls13" == "yes" ]; then
                             -p "$port5" -v 4 &
     server_pid5=$!
     wait_for_readyFile "$ready_file5" "$server_pid5" "$port5"
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
@@ -427,7 +440,7 @@ if [ "$tls13" == "yes" ]; then
                             -p "$port5" -v 4 &
     server_pid5=$!
     wait_for_readyFile "$ready_file5" "$server_pid5" "$port5"
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -439,7 +452,7 @@ if [ "$tls13" == "yes" ]; then
                             -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                             -p "$port5" &
     sleep 0.1
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -453,7 +466,7 @@ if [ "$tls13" == "yes" ]; then
                             -p "$port5" -v 4 &
     server_pid5=$!
     wait_for_readyFile "$ready_file5" "$server_pid5" "$port5"
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -466,7 +479,7 @@ if [ "$tls13" == "yes" ]; then
                             -p "$port5" -v 4 &
     server_pid5=$!
     wait_for_readyFile "$ready_file5" "$server_pid5" "$port5"
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -474,7 +487,7 @@ if [ "$tls13" == "yes" ]; then
 
     printf '%s\n\n' "------------- TEST CASE 6 LOAD CERT IN SSL -------------------"
     remove_single_rF "$ready_file5"
-    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server1-cert.pem \
+    $TIMEOUT_KILL_2M ./examples/server/server -c certs/ocsp/server1-cert.pem \
                             -k certs/ocsp/server1-key.pem -R "$ready_file5" -v 4 \
                             -p "$port5" -H loadSSL &
     server_pid5=$!
@@ -489,12 +502,12 @@ if [ "$tls13" == "yes" ]; then
     printf '%s\n\n' "Test successful"
     printf '%s\n\n' "------------- TEST CASE 7 SHOULD REVOKE ----------------------"
     remove_single_rF "$ready_file5"
-    timeout -s KILL 2m ./examples/server/server -c certs/ocsp/server4-cert.pem \
+    $TIMEOUT_KILL_2M ./examples/server/server -c certs/ocsp/server4-cert.pem \
                             -k certs/ocsp/server4-key.pem -R "$ready_file5" \
                             -p "$port5" -H loadSSL -v 4 &
     server_pid5=$!
     sleep 0.1
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -535,7 +548,7 @@ if [ "$dtls13" == "yes" ]; then
                             -p "$port5" -u -v 4 &
     server_pid5=$!
     sleep 0.2
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -u -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -u -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
@@ -549,7 +562,7 @@ if [ "$dtls13" == "yes" ]; then
                             -p "$port5" -v 4 &
     server_pid5=$!
     sleep 0.2
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
+    $TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 \
                             -p "$port5"
     RESULT=$?
     [ "$RESULT" -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1

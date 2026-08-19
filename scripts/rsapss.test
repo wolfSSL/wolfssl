@@ -2,6 +2,17 @@
 
 # rsapss.test
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
+fi
+
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
                                   && exit 1
 
@@ -109,14 +120,14 @@ WOLFSSL_SERVER=./examples/server/server
 start_wolfssl_server() {
     generate_port
     server_port=$port
-    $WOLFSSL_SERVER -p "$server_port" -v 4 -c "$CERT_DIR"/rsapss/server-rsapss.pem -k "$CERT_DIR"/rsapss/server-rsapss-priv.pem -A "$CERT_DIR"/rsapss/root-rsapss.pem -d &
+    $TIMEOUT_KILL_2M $WOLFSSL_SERVER -p "$server_port" -v 4 -c "$CERT_DIR"/rsapss/server-rsapss.pem -k "$CERT_DIR"/rsapss/server-rsapss-priv.pem -A "$CERT_DIR"/rsapss/root-rsapss.pem -d &
 }
 
 #
 # Run OpenSSL client against wolfSSL server
 #
 do_openssl_client() {
-    echo "test connection" | $OPENSSL s_client -connect 127.0.0.1:"$server_port" -cert "$CERT_DIR"/rsapss/client-rsapss.pem -key "$CERT_DIR"/rsapss/client-rsapss-priv.pem -CAfile "$CERT_DIR"/rsapss/root-rsapss.pem > rsapss.test.log
+    echo "test connection" | $TIMEOUT_KILL_2M $OPENSSL s_client -connect 127.0.0.1:"$server_port" -cert "$CERT_DIR"/rsapss/client-rsapss.pem -key "$CERT_DIR"/rsapss/client-rsapss-priv.pem -CAfile "$CERT_DIR"/rsapss/root-rsapss.pem > rsapss.test.log
     result=$?
     cat rsapss.test.log
     if [ "$result" != 0 ]

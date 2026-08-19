@@ -3,6 +3,23 @@
 # psk.test
 # copyright wolfSSL 2016
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
+fi
+
+# timeout(1) exits 124, or 128+signal when it must signal the child (137 for
+# the SIGKILL used here). Skip branches below turn a non-zero status into
+# "feature not compiled in" and exit 0, so a hang must be told apart from a
+# genuine failure or it lands in CI as a silent pass.
+timed_out() { [ "$1" -eq 124 ] || [ "$1" -eq 137 ]; }
+
 # if we can, isolate the network namespace to eliminate port collisions.
 if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
      if [[ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]]; then
@@ -102,9 +119,14 @@ port=0
 ./examples/server/server -s -R "$ready_file" -p $port &
 server_pid=$!
 create_port
-./examples/client/client -s -p $port
+$TIMEOUT_KILL_2M ./examples/client/client -s -p $port
 RESULT=$?
 remove_ready_file
+if timed_out $RESULT; then
+    echo -e "\n\nPSK probe client timed out"
+    do_cleanup
+    exit 1
+fi
 # if fail here then is a settings issue so return 0
 if [ $RESULT -ne 0 ]; then
     echo -e "\n\nPSK not enabled"
@@ -116,8 +138,13 @@ echo ""
 # client test against the server
 ###############################
 
-./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
-if [ $? -ne 0 ]; then
+$TIMEOUT_KILL_2M ./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+pipe_rc=("${PIPESTATUS[@]}")
+if timed_out "${pipe_rc[0]}"; then
+    echo "client version probe timed out"
+    exit 1
+fi
+if [ "${pipe_rc[1]}" -ne 0 ]; then
     # Usual server / client. This use case is tested in
     # tests/unit.test and is used here for just checking if cipher suite
     # is available (one case for example is with disable-asn)
@@ -125,9 +152,14 @@ if [ $? -ne 0 ]; then
     ./examples/server/server -R "$ready_file" -p $port -l DHE-RSA-AES128-SHA:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-DES-CBC3-SHA &
     server_pid=$!
     create_port
-    ./examples/client/client -p $port
+    $TIMEOUT_KILL_2M ./examples/client/client -p $port
     RESULT=$?
     remove_ready_file
+    if timed_out $RESULT; then
+        echo -e "\n\nnon PSK suite probe client timed out"
+        do_cleanup
+        exit 1
+    fi
     # if fail here then is a settings issue so return 0
     if [ $RESULT -ne 0 ]; then
         echo -e "\n\nIssue with chosen non PSK suites"
@@ -141,7 +173,7 @@ if [ $? -ne 0 ]; then
     ./examples/server/server -j -R "$ready_file" -p $port &
     server_pid=$!
     create_port
-    ./examples/client/client -p $port
+    $TIMEOUT_KILL_2M ./examples/client/client -p $port
     RESULT=$?
     remove_ready_file
     if [ $RESULT -ne 0 ]; then
@@ -158,9 +190,14 @@ if [ $? -ne 0 ]; then
         ./examples/server/server -j -R "$ready_file" -p $port &
         server_pid=$!
         create_port
-        ./examples/client/client -x -p $port
+        $TIMEOUT_KILL_2M ./examples/client/client -x -p $port
         RESULT=$?
         remove_ready_file
+        if timed_out $RESULT; then
+            echo -e "\n\nClient timed out, expected a connection failure"
+            do_cleanup
+            exit 1
+        fi
         if [ $RESULT -eq 0 ]; then
             echo -e "\n\nClient connected when supposed to fail"
             do_cleanup

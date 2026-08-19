@@ -2,8 +2,13 @@
 
 # timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
 # command unbounded (the flaky hang this guards against is Linux-only CI).
-if ! command -v timeout >/dev/null 2>&1; then
-    timeout() { while [ "${1:-}" = "-s" ] || [ "${1:-}" = "-k" ]; do shift 2; done; shift; "$@"; }
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
 fi
 
 
@@ -61,10 +66,10 @@ test_cid () {
     echo "Running test_cid"
     SERVER_FILE=$(mktemp)
     CLIENT_FILE=$(mktemp)
-    timeout -s KILL 2m $WOLFSSL_ROOT/examples/server/server -v4 -u --cid $SCID 1> $SERVER_FILE &
+    $TIMEOUT_KILL_2M $WOLFSSL_ROOT/examples/server/server -v4 -u --cid $SCID 1> $SERVER_FILE &
     SERVER_PID=$!
     sleep 0.2
-    $WOLFSSL_ROOT/examples/client/client -v4 -u --cid $CCID 1> $CLIENT_FILE
+    $TIMEOUT_KILL_2M $WOLFSSL_ROOT/examples/client/client -v4 -u --cid $CCID 1> $CLIENT_FILE
     wait $SERVER_PID
     SERVER_PID=
     grep "Sending CID is ${HEXSCID}" $CLIENT_FILE > /dev/null

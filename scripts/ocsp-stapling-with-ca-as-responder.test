@@ -2,6 +2,17 @@
 
 # ocsp-stapling-with-ca-as-responder.test
 
+# timeout(1) is GNU coreutils and absent on macOS; where it's missing, run the
+# command unbounded (the flaky hang this guards against is Linux-only CI).
+# A prefix variable rather than a shell function: backgrounding a function
+# makes $! the forked subshell, so a later "kill $server_pid" would stop the
+# wrapper and orphan the server it was meant to kill.
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_KILL_2M="timeout -s KILL 2m"
+else
+    TIMEOUT_KILL_2M=""
+fi
+
 SCRIPT_DIR="$(dirname "$0")"
 
 # if we can, isolate the network namespace to eliminate port collisions.
@@ -197,22 +208,30 @@ ca=certs/external/DigiCertGlobalRootCA.pem
 
 get_first_free_port() {
     local ret="$1"
+    local scanned=0
     while :; do
         if [[ "$ret" -ge 65536 ]]; then
             ret=1024
         fi
-        if ! nc -z 127.0.0.1 "$ret"; then
+        if ! nc -w 1 -z 127.0.0.1 "$ret"; then
             break
         fi
         ret=$((ret+1))
+        scanned=$((scanned+1))
+        if [ "$scanned" -ge 100 ]; then
+            echo "ERROR: no free port found after scanning 100 ports" 1>&2
+            # return, not exit: every caller runs this in a command
+            # substitution, where exit would only end the subshell.
+            return 1
+        fi
     done
     echo "$ret"
     return 0
 }
 
 base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
-port1=$(get_first_free_port $base_port)
-port2=$(get_first_free_port $((port1 + 1)))
+port1=$(get_first_free_port $base_port) || exit 1
+port2=$(get_first_free_port $((port1 + 1))) || exit 1
 
 
 # create a port to use with openssl ocsp responder
@@ -225,7 +244,7 @@ if [ ! -f "$ready_file" ]; then
 else
     printf '%s\n' "Random port selected: $port1"
     # Use client connection to shutdown the server cleanly
-    ./examples/client/client -p $port1
+    $TIMEOUT_KILL_2M ./examples/client/client -p $port1
     create_new_cnf $port1
 fi
 sleep 0.1
@@ -263,7 +282,7 @@ printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
                          -p $port2 &
 wolf_pid2=$!
 wait_for_readyFile "$ready_file2" $wolf_pid2 $port2
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
+$TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed" && exit 1
@@ -277,7 +296,7 @@ remove_single_rF "$ready_file2"
                          -p $port2 &
 wolf_pid2=$!
 wait_for_readyFile "$ready_file2" $wolf_pid2 $port2
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
+$TIMEOUT_KILL_2M ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
