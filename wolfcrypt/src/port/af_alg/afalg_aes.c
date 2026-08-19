@@ -150,8 +150,6 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 #endif
     aes->keylen = keylen;
     aes->rounds = keylen/4 + 6;
-    /* Mark key installed so the shared aes.c mode guards accept this context. */
-    aes->keyInstalled = 1;
 
 #ifdef WOLFSSL_AES_COUNTER
     aes->left = 0;
@@ -173,6 +171,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     /* save key until type is known i.e. CBC, ECB, ... */
     XMEMCPY((byte*)(aes->key), userKey, keylen);
     aes->dir = dir;
+    /* Mark key installed so the shared aes.c mode guards accept this
+     * context. Only after the key is copied, so a failed setup above does
+     * not leave a keyless context marked as keyed. */
+    aes->keyInstalled = 1;
 
     return wc_AesSetIV(aes, iv);
 }
@@ -197,6 +199,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             return BAD_LENGTH_E;
         }
 #endif
+
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            return MISSING_KEY;
+        }
 
         if (aes->dir != AES_ENCRYPTION) {
             return KEYUSAGE_E;
@@ -265,6 +271,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 #else
             return BAD_FUNC_ARG;
 #endif
+        }
+
+        if (!WC_AES_KEY_IS_SET(aes)) {
+            return MISSING_KEY;
         }
 
         if (aes->dir != AES_DECRYPTION) {
@@ -368,6 +378,10 @@ static int wc_Afalg_AesDirect(Aes* aes, byte* out, const byte* in, word32 sz)
 #if defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AFALG)
 int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
+    if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
+        return MISSING_KEY;
+    }
+
     if (aes && (aes->dir != AES_ENCRYPTION)) {
         return KEYUSAGE_E;
     }
@@ -378,6 +392,10 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 
 int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
+    if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
+        return MISSING_KEY;
+    }
+
     if (aes && (aes->dir != AES_DECRYPTION)) {
         return KEYUSAGE_E;
     }
@@ -418,6 +436,10 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
+            }
+
+            if (!WC_AES_KEY_IS_SET(aes)) {
+                return MISSING_KEY;
             }
 
             if (aes->dir != AES_ENCRYPTION) {
@@ -562,8 +584,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     aes->keylen = len;
     aes->rounds = len/4 + 6;
     aes->dir = AES_ENCRYPTION;
-    /* Mark key installed so the shared aes.c mode guards accept this context. */
-    aes->keyInstalled = 1;
 
     if (aes->rdFd > WC_SOCK_NOTSET) {
         (void)close(aes->rdFd);
@@ -585,6 +605,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #else
     XMEMCPY((byte*)(aes->key), key, len);
 #endif
+
+    /* Mark key installed so the shared aes.c mode guards accept this
+     * context. Only after the key is copied, so a failed setup above does
+     * not leave a keyless context marked as keyed. */
+    aes->keyInstalled = 1;
 
     return 0;
 }
@@ -629,6 +654,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ret = wc_local_AesGcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
+
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        return MISSING_KEY;
+    }
 
     if (aes->alFd == WC_SOCK_NOTSET) {
         WOLFSSL_MSG("AF_ALG GcmEncrypt called with alFd unset");
@@ -826,6 +855,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    if (!WC_AES_KEY_IS_SET(aes)) {
+        return MISSING_KEY;
+    }
+
     if (ivSz > WC_SYSTEM_AESGCM_IV)
         ivSz = WC_SYSTEM_AESGCM_IV;
 
@@ -999,6 +1032,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef HAVE_AES_ECB
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
+        return MISSING_KEY;
+    }
+
     if (aes && (aes->dir != AES_ENCRYPTION)) {
         return KEYUSAGE_E;
     }
@@ -1009,6 +1046,10 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    if ((aes != NULL) && !WC_AES_KEY_IS_SET(aes)) {
+        return MISSING_KEY;
+    }
+
     if (aes && (aes->dir != AES_DECRYPTION)) {
         return KEYUSAGE_E;
     }

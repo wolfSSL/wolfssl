@@ -196,7 +196,7 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     defined(HAVE_COLDFIRE_SEC) || \
     defined(FREESCALE_LTC) || \
     defined(FREESCALE_MMCAU) || \
-    defined(MAX3266X_AES) || \
+    (defined(MAX3266X_AES) && !defined(MAX3266X_CB)) || \
     (defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)) || \
     (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || \
