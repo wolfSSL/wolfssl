@@ -5344,6 +5344,18 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
                 if (ret != 0)
                     break;
             }
+#if defined(HAVE_FFDHE) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER)
+            /* RFC 7919 Section 4 (see comment above). */
+            else if (isRequest && WOLFSSL_NAMED_GROUP_IS_FFDHE(name) &&
+                    !TLSX_IsGroupSupported(name, ssl->options.side)) {
+                ret = commonCurves == NULL ?
+                      TLSX_SupportedCurve_New(&commonCurves, name, ssl->heap) :
+                      TLSX_SupportedCurve_Append(commonCurves, name, ssl->heap);
+                if (ret != 0)
+                    break;
+            }
+#endif /* HAVE_FFDHE && !WOLFSSL_NO_TLS12 && !NO_WOLFSSL_SERVER */
         }
         /* If no common curves return error. In TLS 1.3 we can still try to save
          * this by using HRR. */
