@@ -2171,6 +2171,13 @@ static const char* bench_result_words2[][6] = {
     static volatile int g_threadCount;
 #endif
 
+/* The software DRBG rows need a seed source that is not behind the device. */
+#if defined(WOLFSSL_GENSEED_FORTEST) || \
+    defined(CUSTOM_RAND_GENERATE_SEED) || \
+    defined(CUSTOM_RAND_GENERATE_BLOCK) || !defined(NO_DEV_RANDOM)
+    #define BENCH_HAVE_SW_SEED
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || \
     defined(WC_USE_DEVID) || \
     defined(WOLFSSL_MICROCHIP_TA100)
@@ -4049,14 +4056,26 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifndef WC_NO_RNG
-    if (bench_all || (bench_other_algs & BENCH_RNG))
-        bench_rng();
+    if (bench_all || (bench_other_algs & BENCH_RNG)) {
+    #if !defined(NO_SW_BENCH) && defined(BENCH_HAVE_SW_SEED)
+        bench_rng(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_rng(1);
+    #endif
+    }
 #endif /* WC_NO_RNG */
 #if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
     !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    if (bench_all || (bench_other_algs & BENCH_RNG_SHA512))
-        bench_rng_sha512();
+    if (bench_all || (bench_other_algs & BENCH_RNG_SHA512)) {
+    #if !defined(NO_SW_BENCH) && defined(BENCH_HAVE_SW_SEED)
+        bench_rng_sha512(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_rng_sha512(1);
+    #endif
+    }
 #endif
 #ifndef NO_AES
 #ifdef HAVE_AES_CBC
@@ -4859,10 +4878,22 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifdef HAVE_ED448
-    if (bench_all || (bench_asym_algs & BENCH_ED448_KEYGEN))
-        bench_ed448KeyGen();
-    if (bench_all || (bench_asym_algs & BENCH_ED448_SIGN))
-        bench_ed448KeySign();
+    if (bench_all || (bench_asym_algs & BENCH_ED448_KEYGEN)) {
+    #ifndef NO_SW_BENCH
+        bench_ed448KeyGen(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_ed448KeyGen(1);
+    #endif
+    }
+    if (bench_all || (bench_asym_algs & BENCH_ED448_SIGN)) {
+    #ifndef NO_SW_BENCH
+        bench_ed448KeySign(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_ed448KeySign(1);
+    #endif
+    }
 #endif
 
 #ifdef WOLFCRYPT_HAVE_ECCSI
@@ -5312,7 +5343,7 @@ int benchmark_test(void *args)
 
 
 #ifndef WC_NO_RNG
-void bench_rng(void)
+void bench_rng(int useDeviceID)
 {
     int    ret, i, count;
     double start;
@@ -5338,7 +5369,8 @@ void bench_rng(void)
     bench_stats_prepare();
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&myrng, HEAP_HINT, devId);
+    ret = wc_InitRng_ex(&myrng, HEAP_HINT,
+        useDeviceID ? devId : INVALID_DEVID);
 #else
     ret = wc_InitRng(&myrng);
 #endif
@@ -5378,8 +5410,8 @@ void bench_rng(void)
 #endif
            );
 exit_rng:
-    bench_stats_sym_finish("RNG SHA-256 DRBG", 0, count, bench_size, start,
-                           ret);
+    bench_stats_sym_finish("RNG SHA-256 DRBG", useDeviceID, count, bench_size,
+                           start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -5397,7 +5429,7 @@ exit_rng:
 #if defined(WOLFSSL_DRBG_SHA512) && !defined(WC_NO_RNG) && \
     !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-void bench_rng_sha512(void)
+void bench_rng_sha512(int useDeviceID)
 {
     int    ret, i, count;
     double start;
@@ -5417,7 +5449,8 @@ void bench_rng_sha512(void)
     bench_stats_prepare();
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&myrng, HEAP_HINT, devId);
+    ret = wc_InitRng_ex(&myrng, HEAP_HINT,
+        useDeviceID ? devId : INVALID_DEVID);
 #else
     ret = wc_InitRng(&myrng);
 #endif
@@ -5456,8 +5489,8 @@ void bench_rng_sha512(void)
 #endif
            );
 exit_rng_sha512:
-    bench_stats_sym_finish("RNG SHA-512 DRBG", 0, count, bench_size, start,
-                           ret);
+    bench_stats_sym_finish("RNG SHA-512 DRBG", useDeviceID, count, bench_size,
+                           start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -15501,7 +15534,7 @@ exit:
 #endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
-void bench_ed448KeyGen(void)
+void bench_ed448KeyGen(int useDeviceID)
 {
     ed448_key genKey;
     double start;
@@ -15515,7 +15548,8 @@ void bench_ed448KeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_ed448_init(&genKey);
+            (void)wc_ed448_init_ex(&genKey, HEAP_HINT,
+                useDeviceID ? devId : INVALID_DEVID);
             (void)wc_ed448_make_key(&gRng, ED448_KEY_SIZE, &genKey);
             wc_ed448_free(&genKey);
             RECORD_MULTI_VALUE_STATS();
@@ -15527,13 +15561,13 @@ void bench_ed448KeyGen(void)
 #endif
        );
 
-    bench_stats_asym_finish("ED", 448, desc[2], 0, count, start, 0);
+    bench_stats_asym_finish("ED", 448, desc[2], useDeviceID, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
-void bench_ed448KeySign(void)
+void bench_ed448KeySign(int useDeviceID)
 {
     int    ret;
     WC_DECLARE_VAR(genKey, ed448_key, 1, HEAP_HINT);
@@ -15551,7 +15585,12 @@ void bench_ed448KeySign(void)
 
     WC_ALLOC_VAR(genKey, ed448_key, 1, HEAP_HINT);
 
-    wc_ed448_init(genKey);
+    ret = wc_ed448_init_ex(genKey, HEAP_HINT,
+        useDeviceID ? devId : INVALID_DEVID);
+    if (ret != 0) {
+        printf("ed448_init_ex failed\n");
+        goto exit;
+    }
 
     ret = wc_ed448_make_key(&gRng, ED448_KEY_SIZE, genKey);
     if (ret != 0) {
@@ -15583,7 +15622,7 @@ void bench_ed448KeySign(void)
 #endif
        );
 
-    bench_stats_asym_finish("ED", 448, desc[4], 0, count, start, ret);
+    bench_stats_asym_finish("ED", 448, desc[4], useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -15610,7 +15649,7 @@ void bench_ed448KeySign(void)
 #endif
        );
 
-    bench_stats_asym_finish("ED", 448, desc[5], 0, count, start, ret);
+    bench_stats_asym_finish("ED", 448, desc[5], useDeviceID, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
