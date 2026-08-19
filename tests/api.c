@@ -41402,6 +41402,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_inject),
     TEST_DECL(test_wolfSSL_inject_partial_record),
     TEST_DECL(test_ocsp_status_callback),
+    TEST_DECL(test_ocsp_status_request_scr),
     TEST_DECL_GROUP("ocsp", test_ocsp_basic_verify),
     TEST_DECL_GROUP("ocsp", test_ocsp_ancestor_responder_rejected),
     TEST_DECL_GROUP("ocsp", test_ocsp_forged_responder_cert_rejected),
