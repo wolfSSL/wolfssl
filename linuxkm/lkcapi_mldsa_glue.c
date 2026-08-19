@@ -838,6 +838,19 @@ static int km_mldsa_verify(struct akcipher_request *req)
     sig_len = req->src_len;
     msg_len = req->dst_len;
 
+    /* Reject a wrong-size signature before allocating from the
+     * caller-supplied lengths (km_mldsa_verify_common() re-checks); a bare
+     * overflow check still admits a multi-GB allocation driven by
+     * req->src_len.
+     */
+    {
+        word32 exp_sig_len = 0;
+        if (km_mldsa_sizes(ctx->level, NULL, &exp_sig_len, NULL) != 0)
+            return -EINVAL;
+        if (sig_len != exp_sig_len)
+            return -EBADMSG;
+    }
+
     if ((sig_len + msg_len) != ((word64)sig_len + (word64)msg_len))
         return -EINVAL;
 
