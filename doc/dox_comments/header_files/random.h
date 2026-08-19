@@ -113,6 +113,13 @@ int  wc_InitRng(WC_RNG* rng);
     \param output buffer to which the block is copied
     \param sz size of output in bytes
 
+    \note One WC_RNG may be shared between threads: the DRBG generate and
+    reseed path is serialized per instance. Build with
+    --disable-threadsafe-drbg (WC_NO_DRBG_THREAD_SAFE) to opt out where each
+    instance is only used by one thread at a time. This covers generate and
+    reseed only -- wc_InitRng() and wc_FreeRng() must not run concurrently
+    with a generate on the same instance.
+
     _Example_
     \code
     RNG  rng;
