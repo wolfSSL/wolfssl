@@ -2347,6 +2347,17 @@ WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 
+/* Bracket a call out to an application callback, so that a certificate or key
+ * load reaching back into the same context can be refused. */
+WOLFSSL_LOCAL WOLFSSL_CTX* CtxCallbackEnter(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL void CtxCallbackExit(WOLFSSL_CTX* prev);
+
+#ifndef NO_CERTS
+/* Call before replacing a certificate or key on a context, to refuse the
+ * change while this thread is inside a callback on it. */
+WOLFSSL_LOCAL int CheckCtxCertLoad(WOLFSSL_CTX* ctx);
+#endif
+
 #ifdef HAVE_SNI
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
