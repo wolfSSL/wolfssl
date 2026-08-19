@@ -2412,8 +2412,36 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         struct wc_static_assert_dummy_struct
 #endif
 
+/* Hook run once per iteration of a long wait loop. On a preemptive
+ * general-purpose OS a bare spin merely wastes cycles, but on a uniprocessor
+ * RTOS a spinning higher-priority task can starve the lower-priority task it
+ * is waiting on, so map it to that RTOS's cooperative yield where one is in
+ * scope. Any port may define WC_RELAX_LONG_LOOP ahead of this. */
 #ifndef WC_RELAX_LONG_LOOP
-    #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
+    #if defined(WOLFSSL_ZEPHYR) && !defined(SINGLE_THREADED)
+        /* <zephyr/kernel.h> is included by wc_port.h whenever
+         * !SINGLE_THREADED, so k_yield() is declared here. */
+        #define WC_RELAX_LONG_LOOP() k_yield()
+    #elif (defined(FREERTOS) || defined(FREERTOS_TCP) || \
+           defined(WOLFSSL_SAFERTOS)) && defined(taskYIELD)
+        /* Same grouping wc_port.h uses for these three. taskYIELD() is a
+         * macro from FreeRTOS task.h, which none of these paths include
+         * themselves, so key off the macro rather than assume it: a build
+         * without task.h keeps the no-op. */
+        #define WC_RELAX_LONG_LOOP() taskYIELD()
+    #elif defined(THREADX)
+        /* <tx_api.h> is included by wc_port.h for every THREADX build. */
+        #define WC_RELAX_LONG_LOOP() tx_thread_relinquish()
+    #elif defined(WOLFSSL_TIRTOS)
+        /* <ti/sysbios/knl/Task.h> is included by wc_port.h for every TIRTOS
+         * translation unit. */
+        #define WC_RELAX_LONG_LOOP() Task_yield()
+    #elif defined(RTTHREAD) && !defined(SINGLE_THREADED)
+        /* "rtthread.h" is included by wc_port.h on the multi-threaded path. */
+        #define WC_RELAX_LONG_LOOP() rt_thread_yield()
+    #else
+        #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
+    #endif
 #endif
 #ifndef WC_CHECK_FOR_INTR_SIGNALS
     #define WC_CHECK_FOR_INTR_SIGNALS() 0

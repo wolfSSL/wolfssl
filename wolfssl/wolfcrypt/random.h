@@ -79,6 +79,20 @@
 
 
 /* avoid redefinition of structs */
+/* A build with no DRBG, no atomics, or no threads has nothing to implement
+ * this with, so elect it off here rather than making every use site restate
+ * the requirements.  Kept ahead of the FIPS-version guard below: the use
+ * sites test !defined(WC_NO_DRBG_THREAD_SAFE), so this must be evaluated on
+ * every path that reaches them, including the one where the WC_RNG defined
+ * below is not the struct in use. */
+#if (!defined(HAVE_HASHDRBG) || defined(CUSTOM_RAND_GENERATE_BLOCK) || \
+     defined(SINGLE_THREADED) || defined(WOLFSSL_NO_ATOMICS) || \
+     (defined(HAVE_FIPS) && \
+      !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))) && \
+    !defined(WC_NO_DRBG_THREAD_SAFE)
+    #define WC_NO_DRBG_THREAD_SAFE
+#endif
+
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
@@ -366,15 +380,6 @@ enum wc_RngHealthState {
  * by one thread at a time and the per-call atomic is not wanted.  This is an
  * election, independent of SINGLE_THREADED -- a multi-threaded build that keeps
  * its WC_RNGs thread-local can opt out and keep the smaller struct. */
-
-/* A build with no DRBG, no atomics, or no threads has nothing to implement
- * this with, so elect it off here rather than making every use site restate
- * the requirements. */
-#if (!defined(HAVE_HASHDRBG) || defined(CUSTOM_RAND_GENERATE_BLOCK) || \
-     defined(SINGLE_THREADED) || defined(WOLFSSL_NO_ATOMICS)) && \
-    !defined(WC_NO_DRBG_THREAD_SAFE)
-    #define WC_NO_DRBG_THREAD_SAFE
-#endif
 
 #ifndef WC_NO_DRBG_THREAD_SAFE
     #define WC_RNG_EXCL_FREE  0
