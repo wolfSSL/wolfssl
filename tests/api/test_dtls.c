@@ -8217,6 +8217,22 @@ int test_dtls_sctp_app_data_size(void)
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
+    ssl_c = NULL; ssl_s = NULL; ctx_c = NULL; ctx_s = NULL;
+
+    /* Same build, ordinary UDP DTLS object: compiling SCTP support in must not
+     * lift the datagram bound for a connection that never enabled SCTP. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntLT(wolfSSL_write(ssl_c, msg, TEST_SCTP_FITS), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
     XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #undef TEST_SCTP_MTU
