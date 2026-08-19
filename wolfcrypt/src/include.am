@@ -95,6 +95,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
               wolfcrypt/src/port/xilinx/xil-versal-glue.c \
               wolfcrypt/src/port/xilinx/xil-versal-trng.c \
+              wolfcrypt/src/port/xilinx/versal_gen2_asu/README.md \
               wolfcrypt/src/port/xilinx/versal_gen2_asu/asu_cipher.c \
               wolfcrypt/src/port/xilinx/versal_gen2_asu/asu_cmac.c \
               wolfcrypt/src/port/xilinx/versal_gen2_asu/asu_cryptocb.c \
