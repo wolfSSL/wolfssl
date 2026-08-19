@@ -40,6 +40,13 @@
  * and drives both operand-independence pairs are completed *within this
  * file* (masking MC/DC is computed per binary; coverage is unioned by
  * source line:col with tests/api and other unit-mcdc binaries centrally).
+ *
+ * RESIDUAL (structurally dead operand, argued from the source):
+ *   - wc_CreatePKCS8Key() :9474 2nd operand, the LENGTH_ONLY_E compare: under
+ *     WOLFSSL_ASN_TEMPLATE the only writers of ret before that line are the
+ *     argument check (BAD_FUNC_ARG), the PKCS#8-header sanity check
+ *     (ASN_PARSE_E), CALLOC_ASNSETDATA (MEMORY_E) and SizeASN_Items (0 /
+ *     BAD_FUNC_ARG / ASN_PARSE_E). LENGTH_ONLY_E is never produced.
  */
 
 #include <wolfcrypt/src/asn.c>
@@ -386,6 +393,29 @@ static void wb_to_traditional_inline_ex2(void)
     ret = ToTraditionalInline_ex2(der, &idx, sz, &algId, &eccOid);
     WB_CHECK(ret >= 0, "version==0, no [1] trailer (2nd operand false)");
 
+    /* version==1 (PKCS8v1): 1st operand false, so the trailer legality test
+     * is short-circuited and a [1] publicKey is accepted. */
+    sz = wb_build_pkcs8_algo_der(der, 1, rsaOid, sizeof(rsaOid), NULL, 0, 1);
+    idx = 0;
+    ret = ToTraditionalInline_ex2(der, &idx, sz, &algId, &eccOid);
+    WB_CHECK(ret >= 0, "version==1 (1st operand false)");
+
+    /* version==0 WITH a [1] publicKey trailer: both operands true -> the
+     * RFC 5958 rule that v1 is required for the trailer is enforced.
+     * The trailer is appended by hand (primitive context tag 0x81) and the
+     * two enclosing lengths are bumped by its size. */
+    sz = wb_build_pkcs8_algo_der(der, 0, rsaOid, sizeof(rsaOid), NULL, 0, 1);
+    der[sz + 0] = ASN_CONTEXT_SPECIFIC | 1;
+    der[sz + 1] = 0x02;
+    der[sz + 2] = 0xAA;
+    der[sz + 3] = 0xBB;
+    der[1] = (byte)(der[1] + 4);
+    sz += 4;
+    idx = 0;
+    ret = ToTraditionalInline_ex2(der, &idx, sz, &algId, &eccOid);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "version==0 with a [1] publicKey trailer (both operands true)");
+
     WB_NOTE("ToTraditionalInline_ex2(): RSAk NULL/curve-OID legality [:9148]");
     /* RSAk, NULL present, no curve OID -> both false (legal). */
     sz = wb_build_pkcs8_algo_der(der, 0, rsaOid, sizeof(rsaOid), NULL, 0, 1);
@@ -605,6 +635,35 @@ static void wb_check_private_key(void)
                 smallPub, sizeof(smallPub), RSAk, NULL);
         WB_CHECK(ret == WC_NO_ERR_TRACE(MP_CMP_E), "mismatching pair (n differs)");
     }
+    /* Same modulus, different public exponent: the n comparison's operand
+     * is false and the e comparison's is true. The public key's exponent is
+     * the trailing INTEGER 65537 (02 03 01 00 01); flipping its last byte
+     * changes e without touching n or any length. */
+    {
+        static byte pubEBad[512];
+        word32 pubSz = (word32)sizeof_client_keypub_der_2048;
+        word32 i;
+        int patched = 0;
+
+        if (pubSz <= sizeof(pubEBad)) {
+            XMEMCPY(pubEBad, client_keypub_der_2048, pubSz);
+            for (i = 0; i + 5 <= pubSz; i++) {
+                if (pubEBad[i] == ASN_INTEGER && pubEBad[i + 1] == 0x03 &&
+                        pubEBad[i + 2] == 0x01 && pubEBad[i + 3] == 0x00 &&
+                        pubEBad[i + 4] == 0x01) {
+                    pubEBad[i + 4] = 0x03;
+                    patched = 1;
+                }
+            }
+        }
+        WB_CHECK(patched, "public exponent located in the RSA public key");
+        if (patched) {
+            ret = wc_CheckPrivateKey(client_key_der_2048,
+                    sizeof_client_key_der_2048, pubEBad, pubSz, RSAk, NULL);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(MP_CMP_E),
+                    ":9567 1st operand false, 2nd true (same n, different e)");
+        }
+    }
     /* ks not RSAk/RSAPSSk: falls through to default ret=0 path, no crash
      * since neither buffer is dereferenced on that path. */
     ret = wc_CheckPrivateKey(client_key_der_2048, sizeof_client_key_der_2048,
@@ -716,8 +775,30 @@ static void wb_encrypt_pkcs8_key_ex(void)
     outSz = 0;
     ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
             PKCS5, PBES2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
+    WB_CHECK(ret != 0, "PBES2 (10735 version==PKCS5v2 true; the PBES2 path "
+            "reaches the CBC-IV RNG call even for a size-only request, so a "
+            "NULL rng is rejected rather than returning LENGTH_ONLY_E)");
+#endif
+
+    /* EncryptContent() directly: outSz==NULL sets ret before the PKCS#5
+     * version dispatch, driving :11531's leading operand false. The two
+     * calls above already supply its true rows through
+     * wc_EncryptPKCS8Key_ex(). */
+    WB_NOTE("EncryptContent(): ret==0 && version==PKCS5v2 [:11531]");
+    ret = EncryptContent(key, sizeof(key), NULL, NULL, "pw", 2, PKCS5,
+            PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+            ":11531 1st operand false (outSz==NULL)");
+    outSz = 0;
+    ret = EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
+            PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E),
-            "PBES2 (10735 version==PKCS5v2 true)");
+            ":11531 2nd operand false (PBES1)");
+#ifdef WOLFSSL_AES_128
+    outSz = 0;
+    ret = EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
+            PBES2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
+    WB_CHECK(ret != 0, ":11531 both operands true (PBES2 dispatch)");
 #endif
 }
 #else
@@ -752,18 +833,32 @@ static void wb_decrypt_content_oid_len(void)
 {
     /* OID length 9 (a real PBES2 OID: 1.2.840.113549.1.5.13) -> idx==9,
      * neither branch of the OR is true -> proceeds to CheckAlgo(). */
+    /* EncryptedPrivateKeyInfo ::= SEQUENCE { AlgorithmIdentifier, OCTET
+     * STRING }. GetASN_OID(oidPBEType) does not reject an unrecognized OID
+     * (GetOID() forgives a NULL table entry), so the length of the OID that
+     * reaches :11096 is under the fixture's control. */
+    /* 9-byte OID: pbeWithSHA1And3-KeyTripleDES-CBC (1.2.840.113549.1.5.3). */
     static const byte oidLen9[] = {
-        0x30, 0x14,
-          0x30, 0x0F,
-            0x06, 0x09, 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x05,0x0D,
+        0x30, 0x12,
+          0x30, 0x0D,
+            0x06, 0x09, 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x05,0x03,
             0x30, 0x00,
           0x04, 0x01, 0x00
     };
-    /* OID length 3 (arbitrary, unsupported PBE OID) -> idx!=9 && idx!=10:
-     * both operands true. */
+    /* 10-byte OID: pbeWithSHAAnd3-KeyTripleDES-CBC
+     * (1.2.840.113549.1.12.1.3) -- idx != 9 but idx == 10. */
+    static const byte oidLen10[] = {
+        0x30, 0x13,
+          0x30, 0x0E,
+            0x06, 0x0A, 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x0C,0x01,0x03,
+            0x30, 0x00,
+          0x04, 0x01, 0x00
+    };
+    /* 3-byte OID (Ed25519, not a PBE algorithm at all) -> both operands
+     * true. */
     static const byte oidLen3[] = {
-        0x30, 0x0E,
-          0x30, 0x09,
+        0x30, 0x0C,
+          0x30, 0x07,
             0x06, 0x03, 0x2B,0x65,0x70,
             0x30, 0x00,
           0x04, 0x01, 0x00
@@ -771,12 +866,21 @@ static void wb_decrypt_content_oid_len(void)
     int ret;
 
     WB_NOTE("DecryptContent(): OID length gate idx!=9&&idx!=10 [:11096]");
-    ret = wc_DecryptPKCS8Key((byte*)oidLen9, sizeof(oidLen9), "pw", 2);
-    WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
-            "OID length 9 (both operands false)");
-    ret = wc_DecryptPKCS8Key((byte*)oidLen3, sizeof(oidLen3), "pw", 2);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
-            "OID length 3 (both operands true)");
+    {
+        byte tmp[32];
+        XMEMCPY(tmp, oidLen9, sizeof(oidLen9));
+        ret = wc_DecryptPKCS8Key(tmp, (word32)sizeof(oidLen9), "pw", 2);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+                "OID length 9 (1st operand false)");
+        XMEMCPY(tmp, oidLen10, sizeof(oidLen10));
+        ret = wc_DecryptPKCS8Key(tmp, (word32)sizeof(oidLen10), "pw", 2);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+                "OID length 10 (1st operand true, 2nd false)");
+        XMEMCPY(tmp, oidLen3, sizeof(oidLen3));
+        ret = wc_DecryptPKCS8Key(tmp, (word32)sizeof(oidLen3), "pw", 2);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+                "OID length 3 (both operands true)");
+    }
 }
 #else
 static void wb_decrypt_content_oid_len(void) { WB_NOTE("HAVE_PKCS8/template off; DecryptContent skipped"); }
@@ -1003,6 +1107,30 @@ static void wb_dh_public_key_decode(void)
             sizeof_dh_pub_key_der_2048);
     WB_CHECK(ret == 0, "valid DH public key (oid==DHk, both operands false)");
     wc_FreeDhKey(&key);
+
+    /* 1st operand TRUE: a well-formed SEQUENCE { SEQUENCE { OID } } whose
+     * algorithm OID parses cleanly but is rsaEncryption, not dhKeyAgreement.
+     * GetObjectId() succeeds (ret >= 0) so the OR is decided entirely by
+     * oid != DHk.
+     *
+     * The 2nd operand (`ret < 0`) has no satisfiable independence pair:
+     * GetObjectId() leaves `oid` at its initialiser 0 on every failure and
+     * DHk is non-zero, so a failing GetObjectId() always makes the 1st
+     * operand true first and short-circuits before `ret < 0` is evaluated. */
+    {
+        static const byte seqRsaOid[] = {
+            0x30, 0x0F,             /* SEQUENCE (outer) */
+              0x30, 0x0D,           /* SEQUENCE (AlgorithmIdentifier) */
+                0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01,
+                0x01,               /* OID rsaEncryption */
+                0x05, 0x00          /* NULL */
+        };
+        (void)wc_InitDhKey(&key);
+        idx = 0;
+        ret = wc_DhPublicKeyDecode(seqRsaOid, &idx, &key, sizeof(seqRsaOid));
+        WB_CHECK(ret != 0, ":11907 1st operand true (oid != DHk)");
+        wc_FreeDhKey(&key);
+    }
 }
 
 static void wb_dh_key_decode(void)
@@ -1116,13 +1244,20 @@ static void wb_dh_key_to_der(void)
     (void)mp_set(&key.priv, 3);
     (void)mp_set(&key.pub, 4);
 
-    WB_NOTE("wc_DhKeyToDer(): *outSz<sz [:12148]");
+    WB_NOTE("wc_DhKeyToDer(): ret==0 operand [:12148]; *outSz<sz [:12148]");
+    /* output==NULL sets ret=LENGTH_ONLY_E before the "ret==0 && *outSz<sz"
+     * check runs, so this is the 1st operand's false side (holding *outSz
+     * unconstrained -- the 2nd operand is never reached, short-circuit). */
+    outSz = 0;
+    ret = wc_DhKeyToDer(&key, NULL, &outSz, 1);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E) && outSz > 0,
+            ":12148 1st operand false (output==NULL)");
     outSz = (word32)sizeof(out);
     ret = wc_DhKeyToDer(&key, out, &outSz, 1);
-    WB_CHECK(ret > 0, "buffer big enough (false)");
+    WB_CHECK(ret > 0, "buffer big enough (1st true, 2nd false)");
     outSz = 1;
     ret = wc_DhKeyToDer(&key, out, &outSz, 1);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "buffer too small (true)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "buffer too small (both true)");
 
     WB_NOTE("wc_DhParamsToDer(): key/outSz NULL OR [:12190]; "
             "output==NULL [:12205]; *outSz<sz [:12210]");
@@ -1432,8 +1567,136 @@ static void wb_store_ecc_dsa_sig(void)
 
     mp_clear(&r); mp_clear(&s);
 }
+
+/* StoreECC_DSA_Sig_Bin() has the same "ret==0 && *outLen < sz" shape but a
+ * different call site, so its own operand rows have to be issued here.
+ * DecodeECC_DSA_Sig_Ex() adds the strict trailing-length check.
+ *
+ * NOTE on the 1st operands of the two "ret == 0 && ..." size checks: ret is
+ * the result of SizeASN_Items() over a two-INTEGER template whose operands
+ * are caller-supplied buffers, which cannot fail here, so only their 2nd
+ * operands are driven. */
+static void wb_store_decode_ecc_dsa_sig_bin(void)
+{
+    static const byte rBin[] = { 0x01, 0x02, 0x03, 0x04 };
+    static const byte sBin[] = { 0x05, 0x06, 0x07, 0x08 };
+    byte out[64];
+    word32 outLen;
+    int ret;
+
+    WB_NOTE("StoreECC_DSA_Sig_Bin(): ret==0 && *outLen<sz -- 2nd operand "
+            "both ways [:32880]");
+    outLen = sizeof(out);
+    ret = StoreECC_DSA_Sig_Bin(out, &outLen, rBin, (word32)sizeof(rBin), sBin,
+            (word32)sizeof(sBin));
+    WB_CHECK(ret == 0 && outLen > 0, "buffer big enough (2nd operand false)");
+
+    {
+        word32 encSz = outLen;
+        word32 smallLen = 1;
+        byte small[64];
+
+        ret = StoreECC_DSA_Sig_Bin(small, &smallLen, rBin,
+                (word32)sizeof(rBin), sBin, (word32)sizeof(sBin));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+                "buffer too small (2nd operand true)");
+
+        WB_NOTE("DecodeECC_DSA_Sig_Ex(): ret==0 && idx!=sigLen [:32947]");
+        {
+            mp_int dr, ds;
+            byte padded[80];
+
+            /* DecodeECC_DSA_Sig() initialises r/s itself (init==1) and
+             * clears them on every failure, so the test only clears after a
+             * successful decode. */
+
+            /* (T,F): a well-formed signature consumed exactly. */
+            XMEMSET(&dr, 0, sizeof(dr)); XMEMSET(&ds, 0, sizeof(ds));
+            ret = DecodeECC_DSA_Sig(out, encSz, &dr, &ds);
+            WB_CHECK(ret == 0, ":32947 both operands false (exact length)");
+            if (ret == 0) {
+                mp_clear(&dr); mp_clear(&ds);
+            }
+
+            /* (T,T): same signature, but one trailing byte is included in
+             * sigLen, so the parse succeeds and idx stops short of sigLen. */
+            XMEMSET(&dr, 0, sizeof(dr)); XMEMSET(&ds, 0, sizeof(ds));
+            XMEMCPY(padded, out, (size_t)encSz);
+            padded[encSz] = 0x00;
+            ret = DecodeECC_DSA_Sig(padded, encSz + 1, &dr, &ds);
+            WB_CHECK(ret != 0, ":32947 2nd operand true (trailing byte)");
+            if (ret == 0) {
+                mp_clear(&dr); mp_clear(&ds);
+            }
+
+            /* (F,-): template match fails outright, so the strict-length
+             * check's 1st operand is false. */
+            {
+                static const byte bogusSig[] = { 0x30, 0x02, 0xFF, 0xFF };
+                XMEMSET(&dr, 0, sizeof(dr)); XMEMSET(&ds, 0, sizeof(ds));
+                ret = DecodeECC_DSA_Sig(bogusSig, (word32)sizeof(bogusSig),
+                        &dr, &ds);
+                WB_CHECK(ret != 0, ":32947 1st operand false (parse failed)");
+                if (ret == 0) {
+                    mp_clear(&dr); mp_clear(&ds);
+                }
+            }
+        }
+    }
+}
 #else
 static void wb_store_ecc_dsa_sig(void) { WB_NOTE("ECC/DSA+template off; StoreECC_DSA_Sig skipped"); }
+static void wb_store_decode_ecc_dsa_sig_bin(void)
+{
+    WB_NOTE("ECC/DSA+template off; StoreECC_DSA_Sig_Bin/DecodeECC_DSA_Sig skipped");
+}
+#endif
+
+/* ========================================================================
+ * Section B2c: CheckCurve() -- (ret < 0) || (oidSz == 0)  [:7368].
+ *
+ * 1st operand true: an OID sum that maps to no ECC curve, so
+ * wc_ecc_get_oid() returns a negative error.
+ * Both false: a real named curve.
+ * The 2nd operand (`oidSz == 0`) has no satisfiable pair in this build --
+ * every entry of ecc_sets[] that wc_ecc_get_oid() can return successfully
+ * carries a non-zero oidSz, so oidSz == 0 is only ever reachable together
+ * with ret < 0, which short-circuits first.
+ * ===================================================================== */
+#ifdef HAVE_ECC
+static void wb_check_curve(void)
+{
+    int ret;
+
+    WB_NOTE("CheckCurve(): (ret<0)||(oidSz==0) [:7368]");
+
+    ret = CheckCurve(0);
+    WB_CHECK(ret < 0, ":7368 1st operand true (unknown curve OID sum)");
+
+    /* ECC_SECP256R1's OID sum: look it up through the same table the
+     * production code uses so this stays correct across curve-table edits. */
+    {
+        word32 sum = 0;
+        int idx;
+        for (idx = 0; ecc_sets[idx].size != 0 && ecc_sets[idx].name != NULL;
+                idx++) {
+            if (ecc_sets[idx].oidSum != 0) {
+                sum = ecc_sets[idx].oidSum;
+                break;
+            }
+        }
+        if (sum != 0) {
+            ret = CheckCurve(sum);
+            WB_CHECK(ret >= 0, ":7368 both operands false (known curve)");
+        }
+        else {
+            WB_NOTE("no named curve with an OID sum compiled in; "
+                    ":7368 accepting row skipped");
+        }
+    }
+}
+#else
+static void wb_check_curve(void) { WB_NOTE("HAVE_ECC off; CheckCurve skipped"); }
 #endif
 
 /* ========================================================================
@@ -1487,7 +1750,10 @@ static word32 wb_build_ecc_specified_der(byte* out, byte version,
         out[idx++] = ASN_INTEGER; out[idx++] = 1; out[idx++] = 0x01;
     }
     if (withHash) {
-        out[idx++] = ASN_SEQUENCE | ASN_CONSTRUCTED; out[idx++] = 0;
+        /* eccSpecifiedASN's HASH_SEQ item is declared with constructed == 0
+         * (asn.c:33051), so the engine matches a bare ASN_SEQUENCE tag here;
+         * emitting 0x30 makes the whole parse fail before the version gate. */
+        out[idx++] = ASN_SEQUENCE; out[idx++] = 0;
     }
 
     return idx;
@@ -1501,6 +1767,11 @@ static void wb_ecc_specified_ec_domain_decode(void)
     int curveSz;
 
     WB_NOTE("EccSpecifiedECDomainDecode(): version<1||version>3 [:32969]");
+    /* Truncated encoding: GetASN_Items() fails, so every later step in the
+     * function runs with ret != 0 and their leading operands go false. */
+    sz = wb_build_ecc_specified_der(der, 2, 0, 0, 0, 0x04, 3);
+    ret = EccSpecifiedECDomainDecode(der, sz - 3, NULL, NULL, NULL);
+    WB_CHECK(ret != 0, ":32969 1st operand false (truncated encoding)");
     sz = wb_build_ecc_specified_der(der, 0, 0, 0, 0, 0x04, 3);
     ret = EccSpecifiedECDomainDecode(der, sz, NULL, NULL, NULL);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "version==0 (1st true)");
@@ -1622,6 +1893,18 @@ static void wb_ecc_public_key_decode(void)
     wc_ecc_free(&key);
 }
 
+/* RESIDUAL: wc_BuildEccKeyDer() :33569 `if ((ret == 0) && (output != NULL))`
+ * 2nd operand's false side (output==NULL while ret==0) is structurally
+ * unreachable. The immediately preceding statement is
+ * `if ((ret == 0) && (output == NULL)) { *outLen = sz; ret = LENGTH_ONLY_E; }`
+ * -- so any path that reaches :33569 with output==NULL must have already
+ * forced ret to LENGTH_ONLY_E there (ret is only ever set away from 0 in
+ * this run of ifs, never back to 0), making ret==0 false at :33569 too.
+ * Conversely, ret==0 at :33569 proves that branch did not fire, which (given
+ * ret was already 0 going in) requires output!=NULL. So ret==0 at :33569
+ * always implies output!=NULL -- the (ret==0, output==NULL) combination
+ * cannot occur, and no fixture can produce it.
+ */
 #ifdef HAVE_ECC_KEY_EXPORT
 static void wb_build_ecc_key_der(void)
 {
@@ -1670,6 +1953,13 @@ static void wb_build_ecc_key_der(void)
     ret = wc_BuildEccKeyDer(&key, NULL, &outLen, 1, 1);
     WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E) && outLen > 0,
             "output==NULL (size-only path)");
+    /* output!=NULL, outLen==NULL: allowed by the :33349 guard (only
+     * output==NULL&&outLen==NULL together is rejected) and skips the
+     * "sz > *outLen" check entirely (can't dereference outLen) -- isolates
+     * :33566's "outLen != NULL" operand (false side; ret==0 held from the
+     * prior "output==NULL" branch not firing since output!=NULL here). */
+    ret = wc_BuildEccKeyDer(&key, out, NULL, 1, 1);
+    WB_CHECK(ret > 0, ":33566 2nd operand false (outLen==NULL, size check skipped)");
 
     wc_ecc_free(&key);
 }
@@ -1773,6 +2063,132 @@ static void wb_decode_asym_key_assign_guard(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inOutKeyType==NULL");
 }
 
+/* ------------------------------------------------------------------------ *
+ * DecodeAsymKey_Assign() privateKey CHOICE arms.
+ *   :33978  else if (allowSeed && SEED_ONLY.length != 0)
+ *   :33986  else if (allowSeed && BOTH_SEQ.length != 0)
+ * RFC 8410 keys carry a bare CurvePrivateKey, so the two seed-bearing arms
+ * (added for ML-DSA) are never taken by any in-tree caller that passes a
+ * seed pointer. The four shapes below are hand-built OneAsymmetricKey
+ * encodings that differ only in the privateKey OCTET STRING's content, and
+ * each is offered both with and without a seed out-parameter.
+ * ------------------------------------------------------------------------ */
+#define WB_ASYM_PRIV_ONLY 0
+#define WB_ASYM_SEED_ONLY 1
+#define WB_ASYM_SEED_PRIV 2
+#define WB_ASYM_NEITHER   3
+#define WB_ASYM_EMPTY     4
+
+static word32 wb_asym_tlv(byte* out, byte tag, const byte* c, word32 cs)
+{
+    word32 i = 0;
+    out[i++] = tag;
+    i += SetLength(cs, out + i);
+    if (cs > 0) {
+        XMEMCPY(out + i, c, cs);
+    }
+    return i + cs;
+}
+
+/* OneAsymmetricKey ::= SEQUENCE { version, privateKeyAlgorithm, privateKey }
+ * with the privateKey OCTET STRING holding one of the CHOICE arms. */
+static word32 wb_asym_pkcs8(byte* out, int shape)
+{
+    static const byte ed25519Oid[] = { 0x2B, 0x65, 0x70 };
+    static const byte blob[32] = { 0x11 };
+    byte inner[128], algo[32], body[192];
+    word32 n = 0, a, b = 0;
+
+    switch (shape) {
+        case WB_ASYM_SEED_ONLY:
+            n = wb_asym_tlv(inner, ASN_CONTEXT_SPECIFIC | ASN_PKEY_SEED, blob,
+                    (word32)sizeof(blob));
+            break;
+        case WB_ASYM_SEED_PRIV: {
+            byte both[96];
+            word32 t = wb_asym_tlv(both, ASN_OCTET_STRING, blob,
+                    (word32)sizeof(blob));
+            t += wb_asym_tlv(both + t, ASN_OCTET_STRING, blob,
+                    (word32)sizeof(blob));
+            n = wb_asym_tlv(inner, ASN_SEQUENCE | ASN_CONSTRUCTED, both, t);
+            break;
+        }
+        case WB_ASYM_NEITHER:
+            n = 0;
+            break;
+        case WB_ASYM_EMPTY:
+            /* A present but zero-length CurvePrivateKey: the encoding parses,
+             * yet every CHOICE arm's length is 0, which is the only way to
+             * reach the trailing `else` and the only row where :33986's
+             * second operand is false with the first true. */
+            n = wb_asym_tlv(inner, ASN_OCTET_STRING, NULL, 0);
+            break;
+        default:
+            n = wb_asym_tlv(inner, ASN_OCTET_STRING, blob,
+                    (word32)sizeof(blob));
+            break;
+    }
+
+    b += wb_asym_tlv(body + b, ASN_INTEGER, (const byte*)"\0", 1);
+    a = wb_asym_tlv(algo, ASN_OBJECT_ID, ed25519Oid, (word32)sizeof(ed25519Oid));
+    b += wb_asym_tlv(body + b, ASN_SEQUENCE | ASN_CONSTRUCTED, algo, a);
+    b += wb_asym_tlv(body + b, ASN_OCTET_STRING, inner, n);
+
+    return wb_asym_tlv(out, ASN_SEQUENCE | ASN_CONSTRUCTED, body, b);
+}
+
+static void wb_decode_asym_key_seed_arms(void)
+{
+    static const int shapes[5] = {
+        WB_ASYM_PRIV_ONLY, WB_ASYM_SEED_ONLY, WB_ASYM_SEED_PRIV,
+        WB_ASYM_NEITHER, WB_ASYM_EMPTY
+    };
+    static const char* names[5] = {
+        "priv-only", "seed-only", "seed+priv", "neither", "empty CHOICE"
+    };
+    byte der[256];
+    int s;
+
+    WB_NOTE("DecodeAsymKey_Assign(): privateKey CHOICE arms [:33978,:33986]");
+
+    for (s = 0; s < 5; s++) {
+        word32 sz = wb_asym_pkcs8(der, shapes[s]);
+        const byte *seed = NULL, *priv = NULL, *pub = NULL;
+        word32 seedLen = 0, privLen = 0, pubLen = 0;
+        word32 idx;
+        int keyType;
+        int ret;
+
+        /* With a seed out-parameter: allowSeed is true. */
+        idx = 0;
+        keyType = ED25519k;
+        ret = DecodeAsymKey_Assign(der, &idx, sz, &seed, &seedLen, &priv,
+                &privLen, &pub, &pubLen, &keyType);
+        if ((shapes[s] == WB_ASYM_NEITHER) ||
+                (shapes[s] == WB_ASYM_EMPTY)) {
+            WB_CHECK(ret != 0, "no CHOICE arm with content, allowSeed "
+                    "(:33978/:33986 2nd operand false)");
+        }
+        else {
+            WB_CHECK(ret == 0, names[s]);
+        }
+
+        /* Without one: allowSeed is false, so both seed arms are skipped. */
+        idx = 0;
+        keyType = ED25519k;
+        priv = NULL; privLen = 0; pub = NULL; pubLen = 0;
+        ret = DecodeAsymKey_Assign(der, &idx, sz, NULL, NULL, &priv, &privLen,
+                &pub, &pubLen, &keyType);
+        if (shapes[s] == WB_ASYM_PRIV_ONLY) {
+            WB_CHECK(ret == 0, "priv-only without a seed out-parameter");
+        }
+        else {
+            WB_CHECK(ret != 0, "seed arms rejected without a seed "
+                    "out-parameter (:33978/:33986 1st operand false)");
+        }
+    }
+}
+
 /* Round-trips SetAsymKeyDer()/DecodeAsymKey() to exercise the "priv-only"
  * happy path plus the ANONk auto-detect and buffer-too-small checks
  * [:33695,:33797,:33881,:33884,:33887]. */
@@ -1814,6 +2230,25 @@ static void wb_decode_asym_key_roundtrip(void)
             &privPtr, &privLen, &pubPtr, &pubLen, &keyType);
     WB_CHECK(ret != 0, "wrong expected keyType rejected");
 
+    /* seed AND seedLen both non-NULL on an otherwise valid call. This is the
+     * only combination that makes the guard's two seed sub-terms evaluate to
+     * false ((seed==NULL && seedLen!=NULL) is false because seed!=NULL, and
+     * (seed!=NULL && seedLen==NULL) is false because seedLen!=NULL) while the
+     * decision as a whole is false -- the independence-pair partner for the
+     * two rejection rows in wb_decode_asym_key_assign_guard() above, and the
+     * only row that makes allowSeed at :33848 true. An Ed25519 key carries no
+     * seed, so the priv-only branch resets *seed/*seedLen. */
+    {
+        const byte* seedPtr = (const byte*)der; /* non-NULL on entry */
+        word32      seedLenOut = 0;
+
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKey_Assign(der, &idx, (word32)derLen, &seedPtr,
+                &seedLenOut, &privPtr, &privLen, &pubPtr, &pubLen, &keyType);
+        WB_CHECK(ret == 0 && seedPtr == NULL && seedLenOut == 0,
+                "seed!=NULL && seedLen!=NULL (guard false, allowSeed true)");
+    }
+
     WB_NOTE("DecodeAsymKey(): privKeyPtrLen>*privKeyLen [:33881]; "
             "pubKeyLen!=NULL&&pubKeyPtrLen>*pubKeyLen [:33884]; "
             "privKeyPtr!=NULL idx1 [:33887]");
@@ -1835,6 +2270,30 @@ static void wb_decode_asym_key_roundtrip(void)
     ret = DecodeAsymKey(der, &idx, (word32)derLen, outPriv, &outPrivLen,
             outPub, &outPubLen, keyType);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "pubKeyLen buffer too small (true)");
+
+    /* --- the "ret == 0" and "pubKeyLen != NULL" operands of the same three
+     * checks. The rows above only ever reach them with a successful
+     * DecodeAsymKey_Assign() and a non-NULL pubKeyLen, so both operands are
+     * pinned true there.
+     *   :34034 1st operand FALSE and :34037 1st operand FALSE: a malformed
+     *     encoding makes DecodeAsymKey_Assign() fail before either size
+     *     check.
+     *   :34037 2nd operand FALSE: the pubKey/pubKeyLen pair is optional --
+     *     wc_Ed25519PrivateKeyDecode()-style callers pass NULL for both. */
+    {
+        static const byte bogusKey[] = { 0x30, 0x02, 0xFF, 0xFF };
+        outPrivLen = sizeof(outPriv); outPubLen = sizeof(outPub);
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKey(bogusKey, &idx, (word32)sizeof(bogusKey), outPriv,
+                &outPrivLen, outPub, &outPubLen, keyType);
+        WB_CHECK(ret != 0, ":34034/:34037 1st operand false (decode failed)");
+
+        outPrivLen = sizeof(outPriv);
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKey(der, &idx, (word32)derLen, outPriv, &outPrivLen,
+                NULL, NULL, keyType);
+        WB_CHECK(ret == 0, ":34037 2nd operand false (pubKeyLen==NULL)");
+    }
 }
 
 /* DecodeAsymKeyPublic_Assign()/DecodeAsymKeyPublic() via SetAsymKeyDerPublic()
@@ -1918,12 +2377,31 @@ static void wb_decode_asym_key_public_roundtrip(void)
     ret = DecodeAsymKeyPublic(der, &idx, (word32)derLen, outPub, &outPubLen,
             keyType);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E), "buffer too small (true)");
+
+    /* 1st operand of the same size check: a malformed encoding makes
+     * DecodeAsymKeyPublic_Assign() fail, so `ret == 0` is false [:34168].
+     *
+     * The neighbouring "all the buffer was used" check
+     * (`(ret == 0) && (GetASNItem_Length(SEQ, input) != len)`) is NOT driven:
+     * the preceding `*inOutIdx != inSz` test already sets ret on any encoding
+     * that does not end exactly at inSz, so whenever the 1st operand is true
+     * the SEQUENCE necessarily spans the whole remaining input and the 2nd
+     * operand is false. Neither operand has a satisfiable pair. */
+    {
+        static const byte bogusPub[] = { 0x30, 0x02, 0xFF, 0xFF };
+        outPubLen = sizeof(outPub);
+        idx = 0; keyType = ED25519k;
+        ret = DecodeAsymKeyPublic(bogusPub, &idx, (word32)sizeof(bogusPub),
+                outPub, &outPubLen, keyType);
+        WB_CHECK(ret != 0, ":34168 1st operand false (decode failed)");
+    }
 }
 #else
 static void wb_decode_asym_key_public_roundtrip(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_EXPORT off; skipped"); }
 #endif
 #else
 static void wb_decode_asym_key_assign_guard(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
+static void wb_decode_asym_key_seed_arms(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
 static void wb_decode_asym_key_roundtrip(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
 static void wb_decode_asym_key_public_roundtrip(void) { WB_NOTE("WC_ENABLE_ASYM_KEY_IMPORT/template off; skipped"); }
 #endif
@@ -2127,6 +2605,8 @@ static void wb_curve448_decode_guards(void) { WB_NOTE("HAVE_CURVE448(_KEY_IMPORT
 
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("asn.c keys white-box MC/DC supplement\n");
 
     wb_get_algo_id_ex();
@@ -2155,13 +2635,16 @@ int main(void)
     wb_dsa_key_ints_to_der();
 
     wb_encode_policy_oid();
+    wb_check_curve();
     wb_store_ecc_dsa_sig();
+    wb_store_decode_ecc_dsa_sig_bin();
     wb_ecc_specified_ec_domain_decode();
     wb_ecc_private_key_decode();
     wb_ecc_public_key_decode();
     wb_build_ecc_key_der();
     wb_ecc_to_pkcs8();
     wb_decode_asym_key_assign_guard();
+    wb_decode_asym_key_seed_arms();
     wb_decode_asym_key_roundtrip();
     wb_decode_asym_key_public_roundtrip();
     wb_set_asym_key_der_output();

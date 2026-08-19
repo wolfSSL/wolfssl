@@ -37991,9 +37991,9 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
                 WOLFSSL_ERROR_VERBOSE(ret);
             }
         }
-    }
-    if (ret == 0) { /* in "no time" cases above "ret" is not set */
     #endif /* !NO_ASN_TIME && !WOLFSSL_NO_CRL_DATE_CHECK */
+    }
+    if (ret == 0) {
     #ifdef OPENSSL_EXTRA
         /* Parse and store the issuer name. */
         dcrl->issuerSz = GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER],

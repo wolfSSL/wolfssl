@@ -8391,6 +8391,13 @@ int test_wc_AesKeyWrapDecisionCoverage(void)
     /* wc_AesKeyWrap_ex / wc_AesKeyUnWrap_ex argument-check branches. */
     {
         Aes aes;
+        /* At least two blocks long, so a misaligned length taken from it
+         * gets past the shorter-than-two-blocks operand. */
+        static const byte longPlain[24] = {
+            0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
+            0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF,
+            0x0F,0x1E,0x2D,0x3C,0x4B,0x5A,0x69,0x78
+        };
         XMEMSET(&aes, 0, sizeof(aes));
         ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesSetKey(&aes, kek, sizeof(kek), NULL, AES_ENCRYPTION),
@@ -8411,6 +8418,23 @@ int test_wc_AesKeyWrapDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_AesKeyUnWrap_ex(&aes, wrapped, sizeof(wrapped),
             NULL, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Length operands past the too-short one: inSz is at least two
+         * (wrap) / three (unwrap) blocks, so the too-short operand is false
+         * and the alignment and overflow operands are the ones evaluated.
+         * Both are rejected before any input byte is read, which is why the
+         * oversized lengths may exceed the buffers. */
+        ExpectIntEQ(wc_AesKeyWrap_ex(&aes, longPlain, 17,
+            wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyWrap_ex(&aes, longPlain, 0x7FFFFFF8U,
+            wrapped, sizeof(wrapped), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(&aes, wrapped, 25,
+            unwrapped, sizeof(unwrapped), NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_AesKeyUnWrap_ex(&aes, wrapped, 0x80000000U,
+            unwrapped, sizeof(unwrapped), NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         wc_AesFree(&aes);

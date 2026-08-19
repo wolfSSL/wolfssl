@@ -71,14 +71,148 @@
  * "oversized" buffer, whose LENGTH argument (never its dereferenced past-end
  * content) is what trips the size guard - no OOB read ever happens.
  *
+ * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json).
+ * Three dh.c conditions are not driven here because no input produces the
+ * missing vector:
+ *
+ *   2205:0  `if (0` -- the WOLFSSL_HAVE_SP_DH dispatch is written as
+ *           `if (0 || bits == 2048 || bits == 3072 || bits == 4096)` so each
+ *           #if-selected arm can be added or removed without touching the
+ *           punctuation. clang records the literal 0 as condition 0 (the
+ *           MC/DC record carries four conditions, one per leaf) and a
+ *           literal 0 is false in every evaluation, so it has no
+ *           independence pair. Conditions 1..3 are covered by
+ *           test_agree_sp_dispatch().
+ *
+ *   2222:0  `if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) !=
+ *           MP_OKAY)` sits directly inside `if (ret == 0) {` (dh.c:2220),
+ *           with only a declaration and the mp_init(y) whose failure that
+ *           outer guard already filtered in between. The operand is true at
+ *           every evaluation; the trailing operand is covered by the
+ *           DhAgree/ffdhe2048 mp_* sweep.
+ *
+ *   3018:3  `qCmp != NULL` in wc_DhCmpNamedKey(). Every goodName case of the
+ *           switch assigns qCmp from the matching dh_ffdhe*_q table inside
+ *           #ifdef HAVE_FFDHE_Q, which configs/dh/user_settings.base.h
+ *           defines for all six variants; goodName == 0 skips the whole
+ *           expression. The operand is true wherever it is evaluated.
+ *
  * Invocation: ./test_dh_fault_whitebox (no args; always returns 0).
  */
 
+/* Installed BEFORE dh.c so its mp_* calls resolve to the fault wrappers.
+ * dh.c's residual class is the long big-integer success chain
+ *
+ *     if (ret == 0 && mp_copy(&key->p, p) != MP_OKAY) ...
+ *     if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY) ...
+ *     } while (ret == 0 && mp_cmp_d(tmp, 1) == MP_EQ);
+ *
+ * where BOTH operands are uncovered: on a healthy machine no mp_* call ever
+ * fails, so `mp_xxx(..) != MP_OKAY` is never TRUE and, with nothing upstream
+ * failing, `ret == 0` is never FALSE. The mp_int scratch here mostly lives on
+ * the stack, so the heap-fault lever has nothing to fault either.
+ * mcdc_fault_mp.h interposes the value-returning mp_* API for this TU only;
+ * mcdc_fm_arm(n) makes the n-th mp_* call (and every later one) return MP_VAL,
+ * so one sweep drives both operands of every guard in the chain. Predicates
+ * (mp_iszero/mp_cmp/mp_count_bits) and teardown (mp_clear/mp_forcezero) are
+ * NOT interposed, so cleanup keeps working and armed calls stay crash-safe. */
+#include "mcdc_fault_mp.h"
+
+/* EXPERIMENT (2026-08-11 flake hunt): dh.c:3359 `(ret == 0) && (primeCheckCount)`
+ * was the last non-deterministic condition campaign-wide -- covered in 2 of 3
+ * sweeps of an unchanged tree. primeCheckCount counts rejected prime
+ * candidates, so it is a direct function of the random draws. */
+#include "mcdc_seed_rng.h"
+
+#define WB_DH_SEED 0xd4f00d01UL
+
+/* ---- call-site-exact levers ---------------------------------------------
+ * mcdc_fault_mp.h arms by GLOBAL call index, which three dh.c decisions are
+ * out of reach of:
+ *
+ *   2771  `if (ret == 0 && mp_init(&key->g) != MP_OKAY)` - mp_init is opt-in
+ *         in that header (MCDC_FM_WITH_INIT) and deliberately left off,
+ *         because faulting initialisation is not crash-safe for every caller.
+ *         It is safe HERE: _DhSetKey's cleanup clears keyG only when the
+ *         mp_read_unsigned_bin that follows this init succeeded, so a faulted
+ *         run leaves nothing half-constructed. Keyed on the mp_init ordinal
+ *         within one _DhSetKey call (1 = &key->p at 2676, 2 = &key->g).
+ *
+ *   3365  `if ((ret == 0) && (mp_set(&dh->g, 1) != MP_OKAY))` - mp_set has
+ *         exactly ONE call site in dh.c, so "fail every mp_set" is already
+ *         call-site exact; a global index is not, because the index of this
+ *         call inside wc_DhGenerateParams moves with the random draws.
+ *
+ *   3374  `} while (ret == 0 && mp_cmp_d(tmp, 1) == MP_EQ);` - both operands
+ *         need the (TRUE,TRUE) row, which is mp_exptmod SUCCEEDING with a
+ *         result of 1, not failing. That is the outcome the loop exists for:
+ *         g^tmp2 mod p == 1 whenever the candidate g lands in a subgroup
+ *         whose order divides tmp2. It is a legitimate value of this
+ *         exptmod - just drawn with probability ~1/q, so it cannot be
+ *         reached by choosing inputs. Mode 2 substitutes it once, and the
+ *         next iteration computes the real result so the loop terminates.
+ *
+ * All three chain to mcdc_fault_mp.h's own wrappers, so its index sweeps
+ * still see every call, and all three are armed only while that lever is
+ * disarmed. Defined here, BEFORE the #undef/#define pairs below, so the
+ * bodies still reach the real entry points. */
+static int wb_lv_init_n    = 0;  /* mp_init calls seen since the counter reset */
+static int wb_lv_init_fail = 0;  /* fail the n-th mp_init; 0 = off */
+static int wb_lv_set_fail  = 0;  /* fail mp_set (one call site in dh.c) */
+static int wb_lv_exp_mode  = 0;  /* mp_exptmod: 1 = fail once, 2 = yield 1 once */
+
+MCDC_FM_MAYBE_UNUSED static int wb_mp_init(mp_int* a)
+{
+    wb_lv_init_n++;
+    if ((wb_lv_init_fail != 0) && (wb_lv_init_n == wb_lv_init_fail))
+        return MP_VAL;
+    return mp_init(a);
+}
+
+MCDC_FM_MAYBE_UNUSED static int wb_mp_set(mp_int* a, mp_digit d)
+{
+    if (wb_lv_set_fail)
+        return MP_VAL;
+    return mcdc_fm_set(a, d);
+}
+
+MCDC_FM_MAYBE_UNUSED static int wb_mp_exptmod(const mp_int* b, const mp_int* e,
+    const mp_int* m, mp_int* r)
+{
+    int mode = wb_lv_exp_mode;
+    int ret;
+
+    if (mode == 1) {
+        wb_lv_exp_mode = 0;
+        return MP_VAL;
+    }
+    ret = mcdc_fm_exptmod(b, e, m, r);
+    if ((mode == 2) && (ret == MP_OKAY)) {
+        wb_lv_exp_mode = 0;
+        /* mcdc_fm_set, not mp_set: the substitution stays visible to the
+         * index lever's counter. That lever is disarmed whenever this one
+         * is armed, so the extra tick changes nothing. */
+        ret = mcdc_fm_set(r, 1);
+    }
+    return ret;
+}
+
+#undef  mp_init
+#define mp_init(a)             wb_mp_init((a))
+#undef  mp_set
+#define mp_set(a, d)           wb_mp_set((a), (d))
+#undef  mp_exptmod
+#define mp_exptmod(a, b, c, d) wb_mp_exptmod((a), (b), (c), (d))
+
 #include <wolfcrypt/src/dh.c>
+
+#define MCDC_SR_IMPL
+#include "mcdc_seed_rng.h"
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -239,6 +373,18 @@ static void test_validate_and_pairwise(void)
      * cascade (dh.c:1596 mp_read_unsigned_bin fails first). */
     ret = wc_DhCheckPubKey_ex(&key, oversized, OVERSIZED_LEN, NULL, 0);
     WB_CHECK(ret != 0, "validate oversized pub should fail early");
+
+    /* 1653:0/1 - `if (ret == 0 && mp_cmp_d(y, 2) == MP_LT)`. Both operands
+     * need the (TRUE,TRUE) row, i.e. a pub that reads back below the
+     * SP 800-56Ar3 lower bound; a one-byte 0x01 is the smallest such value
+     * that still parses. The oversized cascade above is the FALSE row for
+     * operand 0, in this same binary. */
+    {
+        byte one[1] = { 0x01 };
+        ret = wc_DhCheckPubKey_ex(&key, one, sizeof(one), NULL, 0);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(MP_CMP_E),
+                 "a pub of 1 should fail the y >= 2 bound");
+    }
 
     /* 1675:1 - p-2 trick: in-range, non-subgroup-member. */
     {
@@ -410,6 +556,33 @@ static void test_dhkeycopy_null_guards(void)
     wc_FreeDhKey(&dst);
 }
 
+/* ---- wc_DhCheckPubValue, dh.c:1776 ---------------------------------------
+ * if (prime == NULL || pub == NULL) -> BAD_FUNC_ARG
+ * Both operands need their TRUE row against an all-false row in this same
+ * binary; every in-tree caller of wc_DhCheckPubValue() hands it two buffers
+ * it has already produced, so the API-level tests only ever build the
+ * all-false row. The guard short-circuits before either pointer is read. */
+static void test_check_pub_value_null_guards(void)
+{
+    static const byte prime[4] = { 0xFF, 0xFF, 0xFF, 0xFB };
+    static const byte pub[4]   = { 0x00, 0x00, 0x00, 0x02 };
+
+    /* idx0 TRUE: prime absent. */
+    WB_CHECK(wc_DhCheckPubValue(NULL, (word32)sizeof(prime), pub,
+                                (word32)sizeof(pub))
+             == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "prime==NULL");
+
+    /* idx0 FALSE, idx1 TRUE: pub absent. */
+    WB_CHECK(wc_DhCheckPubValue(prime, (word32)sizeof(prime), NULL,
+                                (word32)sizeof(pub))
+             == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "pub==NULL");
+
+    /* all-false baseline: pub == 2 is neither 0/1 nor prime/prime-1. */
+    WB_CHECK(wc_DhCheckPubValue(prime, (word32)sizeof(prime), pub,
+                                (word32)sizeof(pub)) == 0,
+             "valid prime/pub baseline");
+}
+
 /* ---- wc_DhExportParamsRaw, dh.c:3391/3400 ---------------------------------
  * if (p==NULL && q==NULL && g==NULL) ... LENGTH_ONLY_E          (3391)
  * if (p==NULL || q==NULL || g==NULL) ... BAD_FUNC_ARG           (3400)
@@ -487,10 +660,14 @@ static void test_export_params_null_guards(void)
  * sp_DhExp_2048's own "expLen > 256" guard before agree is touched, giving
  * ret != 0 (idx0's FALSE side) and cascading into 2210 (idx0's FALSE side,
  * ct's TRUE/FALSE independence already covered by ordinary agree/agree_ct
- * use elsewhere). *agreeSz==0 (idx1 TRUE) is NOT attempted here - reaching
- * it needs a degenerate (non-prime, repeated-factor) 2048-bit modulus with a
- * genuine zero-divisor element, which is not a reasonably constructible
- * black-box input; left as a residual (see report). */
+ * use elsewhere). *agreeSz==0 (idx1 TRUE) needs a shared secret of exactly
+ * zero: sp_DhExp_2048 writes 256 bytes and then strips leading zero bytes
+ * from the length, so an all-zero result reports *outLen == 0. Over a prime
+ * p that cannot happen for a peer key the SP 800-56A range check admits, but
+ * the modulus is only required to be odd and 2048 bits - it is never tested
+ * for primality when the key is set as trusted. p = m*m for an odd 1024-bit
+ * m is odd and exactly 2048 bits, y = m is in [2, p-2] (and q left at 0
+ * skips the subgroup check), and y^x mod p == 0 for every x >= 2. */
 static void test_agree_sp_dispatch(void)
 {
     DhKey key2048, key3072, key4096;
@@ -552,6 +729,45 @@ static void test_agree_sp_dispatch(void)
                       otherPub, sizeof(otherPub));
     WB_CHECK(ret == 0, "4096 dispatch/generic should succeed");
     wc_FreeDhKey(&key4096);
+
+    /* 2250:1 TRUE - the zero shared secret described in the block comment. */
+    {
+        DhKey  keySq;
+        mp_int m, psq;
+        byte   mbuf[128];        /* 1024 bits, all ones: odd, top bit set */
+        byte   pbuf[256];
+        byte   g2[1]    = { 0x02 };
+        byte   priv2[1] = { 0x02 };
+        word32 pSz2;
+
+        XMEMSET(mbuf, 0xFF, sizeof(mbuf));
+        if ((mp_init(&m) == MP_OKAY) && (mp_init(&psq) == MP_OKAY)) {
+            if ((mp_read_unsigned_bin(&m, mbuf, (word32)sizeof(mbuf))
+                     == MP_OKAY) &&
+                (mp_sqr(&m, &psq) == MP_OKAY)) {
+                pSz2 = (word32)mp_unsigned_bin_size(&psq);
+                WB_CHECK(pSz2 == sizeof(pbuf), "m*m should be 256 bytes");
+                if ((pSz2 == sizeof(pbuf)) &&
+                    (mp_to_unsigned_bin(&psq, pbuf) == MP_OKAY) &&
+                    (wc_InitDhKey(&keySq) == 0)) {
+                    /* trusted=1: p is deliberately composite, so the
+                     * primality test must not run. */
+                    ret = wc_DhSetCheckKey(&keySq, pbuf, pSz2, g2,
+                              (word32)sizeof(g2), NULL, 0, 1, NULL);
+                    WB_CHECK(ret == 0, "m*m modulus should be settable");
+                    agreeSz = sizeof(agree);
+                    ret = wc_DhAgree(&keySq, agree, &agreeSz, priv2,
+                              (word32)sizeof(priv2), mbuf,
+                              (word32)sizeof(mbuf));
+                    WB_CHECK(ret == WC_NO_ERR_TRACE(MP_VAL),
+                             "y=m against p=m*m gives a zero-length secret");
+                    wc_FreeDhKey(&keySq);
+                }
+            }
+            mp_clear(&psq);
+            mp_clear(&m);
+        }
+    }
 }
 #endif /* WOLFSSL_HAVE_SP_DH */
 
@@ -702,6 +918,33 @@ static void test_agree_nonblock(void)
     wc_DhSetNonBlock(&key, NULL);
     wc_FreeDhKey(&key);
 
+    /* 2162 idx1 FALSE with idx0 TRUE: a prime that is none of the three SP
+     * sizes leaves "dispatched" clear all the way through the chain, which
+     * is the only way the 4096 test is reached and false. */
+    XMEMSET(&nb, 0, sizeof(nb));
+    wc_InitDhKey(&key);
+    mcdc_sr_arm(WB_DH_SEED);
+    ret = wc_DhGenerateParams(&rng, 1024, &key);
+    mcdc_sr_disarm();
+    WB_CHECK(ret == 0, "nb non-SP-size params should generate");
+    if (ret == 0) {
+        wc_DhSetNonBlock(&key, &nb);
+        privSz = sizeof(priv); pubSz = sizeof(pub);
+        ret = wc_DhGenerateKeyPair_Sync(&key, &rng, priv, &privSz, pub,
+                &pubSz);
+        WB_CHECK(ret == 0, "nb non-SP-size keypair should succeed");
+        agreeSz = sizeof(agree);
+        for (n = 0; n < 20000; n++) {
+            ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, pub, pubSz);
+            if (ret != WC_NO_ERR_TRACE(MP_WOULDBLOCK))
+                break;
+        }
+        WB_CHECK(ret == 0, "nb non-SP-size agree should fall through to the "
+                  "generic path");
+        wc_DhSetNonBlock(&key, NULL);
+    }
+    wc_FreeDhKey(&key);
+
     wc_FreeRng(&rng);
 }
 #endif /* WC_DH_NONBLOCK */
@@ -716,14 +959,9 @@ static void test_agree_nonblock(void)
  * ordinary side effect of a real run, not anything crafted. rng==NULL
  * fails the very first guard (dh.c:3145), cascading ret != 0 all the way to
  * 3299 (its idx0 FALSE side) cheaply, without running the search at all.
- * mp_set(&dh->g,1) cannot itself fail here (see DEATHNOTE note), so 3299's
- * other operand is not attempted. dh.c:3280 (ret != 0 while still inside
- * the search loop) and 3308 (the g-search do-while actually repeating) are
- * NOT attempted: both need an internal math failure or an extremely
- * unlikely random coincidence (g candidate landing in a low-order
- * subgroup) that cannot be produced deterministically without a working
- * fault-injection hook into the prime.c/sp_int.c backends this campaign's
- * allocator hook does not reach - left as residuals (see report). */
+ * The rows this function cannot produce -- the mp_set guard actually
+ * failing, and the g-search do-while actually repeating -- are driven by
+ * test_generate_params_levers() below, in this same binary. */
 static void test_generate_params(void)
 {
     WC_RNG rng;
@@ -739,11 +977,331 @@ static void test_generate_params(void)
     wc_FreeDhKey(&dh);
 
     wc_InitDhKey(&dh);
+    mcdc_sr_arm(WB_DH_SEED);
     ret = wc_DhGenerateParams(&rng, 1024, &dh);
+    mcdc_sr_disarm();
     WB_CHECK(ret == 0, "modSz=1024 real generation should succeed");
     wc_FreeDhKey(&dh);
 
     wc_FreeRng(&rng);
+}
+
+/* ---- _DhSetKey init guard, dh.c:2771 --------------------------------------
+ * if (ret == 0 && mp_init(&key->g) != MP_OKAY)
+ * Both operands need the (TRUE,TRUE) row -- the init failing -- which no
+ * input produces: key->g is a fixed-capacity sp_int and mp_init on it cannot
+ * fail. The FALSE row for operand 0 is supplied by test_setkey_primality()'s
+ * composite candidate (a non-zero ret on arrival here) and the
+ * (TRUE,FALSE) row by every successful set, both in this binary. See the
+ * call-site-lever note at the top of this file for why faulting mp_init is
+ * crash-safe at exactly this site. */
+static void test_setkey_init_fault(void)
+{
+    DhKey key;
+    int ret;
+
+    if (wc_InitDhKey(&key) != 0)
+        return;
+
+    /* mp_init ordinal 1 is &key->p (dh.c:2676), ordinal 2 is &key->g. The
+     * named-table short-circuit skips the primality test for this p, and
+     * nothing between the two inits calls mp_init from dh.c. */
+    wb_lv_init_n = 0;
+    wb_lv_init_fail = 2;
+    ret = wc_DhSetKey_ex(&key, dh_ffdhe2048_p, sizeof(dh_ffdhe2048_p),
+                         dh_ffdhe2048_g, sizeof(dh_ffdhe2048_g), NULL, 0);
+    wb_lv_init_fail = 0;
+    WB_CHECK(ret == WC_NO_ERR_TRACE(MP_INIT_E),
+             "faulted mp_init(&key->g) should give MP_INIT_E");
+    wc_FreeDhKey(&key);
+}
+
+/* ---- wc_DhGenerateParams tail guards, dh.c:3365/3374 ----------------------
+ * if ((ret == 0) && (mp_set(&dh->g, 1) != MP_OKAY))                   (3365)
+ * } while (ret == 0 && mp_cmp_d(tmp, 1) == MP_EQ);                    (3374)
+ * Four vectors, all four rows in this binary; see the call-site-lever note
+ * at the top of this file for why each row needs its own lever. Every run
+ * is under the seeded RNG so the generated parameters are reproducible. */
+static void test_generate_params_levers(void)
+{
+    WC_RNG rng;
+    DhKey dh;
+    int ret;
+
+    if (wc_InitRng(&rng) != 0)
+        return;
+
+    /* 3365 (FALSE,-): fail the first interposed mp_* call of the function
+     * (the mp_read_unsigned_bin of the random multiplier), which cascades
+     * ret != 0 all the way down without running the prime search. */
+    if (wc_InitDhKey(&dh) == 0) {
+        mcdc_sr_arm(WB_DH_SEED);
+        mcdc_fm_arm(1);
+        ret = wc_DhGenerateParams(&rng, 1024, &dh);
+        mcdc_fm_disarm();
+        mcdc_sr_disarm();
+        WB_CHECK(ret != 0, "faulted first mp_* should fail DhGenerateParams");
+        wc_FreeDhKey(&dh);
+    }
+
+    /* 3365 (TRUE,TRUE): mp_set's single dh.c call site. */
+    if (wc_InitDhKey(&dh) == 0) {
+        mcdc_sr_arm(WB_DH_SEED);
+        wb_lv_set_fail = 1;
+        ret = wc_DhGenerateParams(&rng, 1024, &dh);
+        wb_lv_set_fail = 0;
+        mcdc_sr_disarm();
+        WB_CHECK(ret == WC_NO_ERR_TRACE(MP_ZERO_E),
+                 "faulted mp_set should give MP_ZERO_E");
+        wc_FreeDhKey(&dh);
+    }
+
+    /* 3374 (TRUE,TRUE): one substituted g^tmp2 == 1, so the generator
+     * search repeats; the next iteration computes the real value and the
+     * loop terminates with a usable generator. */
+    if (wc_InitDhKey(&dh) == 0) {
+        mcdc_sr_arm(WB_DH_SEED);
+        wb_lv_exp_mode = 2;
+        ret = wc_DhGenerateParams(&rng, 1024, &dh);
+        wb_lv_exp_mode = 0;
+        mcdc_sr_disarm();
+        WB_CHECK(ret == 0,
+                 "generator search should retry past a g of order dividing tmp2");
+        wc_FreeDhKey(&dh);
+    }
+
+    /* 3374 (FALSE,-): mp_exptmod failing inside the loop body. Its only
+     * call site in this function is the one at dh.c:3372. */
+    if (wc_InitDhKey(&dh) == 0) {
+        mcdc_sr_arm(WB_DH_SEED);
+        wb_lv_exp_mode = 1;
+        ret = wc_DhGenerateParams(&rng, 1024, &dh);
+        wb_lv_exp_mode = 0;
+        mcdc_sr_disarm();
+        WB_CHECK(ret == WC_NO_ERR_TRACE(MP_EXPTMOD_E),
+                 "faulted mp_exptmod should give MP_EXPTMOD_E");
+        wc_FreeDhKey(&dh);
+    }
+
+    wc_FreeRng(&rng);
+}
+
+/* ---- big-integer fault sweeps (mcdc_fault_mp.h) -------------------------
+ * Each entry point is run once DISARMED -- that is the all-true baseline row
+ * for every guard, in THIS binary (both halves in the same binary), and it
+ * also measures the sweep length K -- and then the fail index is swept over
+ * [1..K]. All inputs are built while disarmed; none of the swept calls
+ * mutates the shared key, and the ones that do (SetKey / GenerateParams) get
+ * a fresh key per iteration. Bounded by a VECTOR COUNT only: a wall-clock
+ * budget makes coverage a function of machine load, so the same source
+ * measures differently run to run (proved on wc_lms_impl.c, 2026-08-11). */
+#define WB_MP_MAX       400
+
+#ifndef WB_MAX_VECTORS
+    #define WB_MAX_VECTORS 20000
+#endif
+
+static long wb_mp_vectors = 0;
+
+static int wb_mp_expired(void)
+{
+    return (++wb_mp_vectors > (long)WB_MAX_VECTORS);
+}
+
+/* Sweep the fail index over the FIRST `cap` mp_* calls of the entry point. */
+#define WB_MP_SWEEP(lbl, cap, ...)                                       \
+    do {                                                                  \
+        long k_, i_;                                                      \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fm_seen();                                              \
+        if (k_ > (long)(cap))                                             \
+            k_ = (long)(cap);                                             \
+        for (i_ = 1; (i_ <= k_) && !wb_mp_expired(); i_++) {              \
+            mcdc_fm_arm(i_);                                              \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k_);                 \
+    } while (0)
+
+/* Sweep the fail index over the LAST `tail` mp_* calls of the entry point.
+ * wc_DhGenerateParams() spends the whole prefix in the prime search, so a
+ * head sweep never reaches the g-derivation chain at the end of it, which is
+ * where that function's residual guards live. */
+#define WB_MP_SWEEP_TAIL(lbl, tail, ...)                                 \
+    do {                                                                  \
+        long k_, i_, first_;                                              \
+        mcdc_fm_disarm();                                                 \
+        { __VA_ARGS__; }                                                  \
+        k_ = mcdc_fm_seen();                                              \
+        first_ = k_ - (long)(tail) + 1;                                   \
+        if (first_ < 1)                                                   \
+            first_ = 1;                                                   \
+        for (i_ = first_; (i_ <= k_) && !wb_mp_expired(); i_++) {         \
+            mcdc_fm_arm(i_);                                              \
+            { __VA_ARGS__; }                                              \
+            mcdc_fm_disarm();                                             \
+        }                                                                 \
+        printf("  [wb] mp tail sweep %s: K=%ld first=%ld\n", (lbl), k_,   \
+               first_);                                                   \
+    } while (0)
+
+static void test_mp_fault_sweeps(void)
+{
+    WC_RNG rng;
+    DhKey  dh;
+    byte   priv[512];
+    byte   pub[512];
+    byte   agree[512];
+    byte   p[512];
+    byte   g[512];
+    byte   q[512];
+    word32 privSz = (word32)sizeof(priv);
+    word32 pubSz  = (word32)sizeof(pub);
+    word32 agreeSz;
+    word32 pSz = (word32)sizeof(p);
+    word32 gSz = (word32)sizeof(g);
+    word32 qSz = (word32)sizeof(q);
+
+    mcdc_fm_disarm();
+
+    XMEMSET(priv, 0, sizeof(priv));
+    XMEMSET(pub, 0, sizeof(pub));
+    XMEMSET(agree, 0, sizeof(agree));
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; mp fault sweeps skipped");
+        return;
+    }
+    if (wc_InitDhKey(&dh) != 0) {
+        WB_NOTE("wc_InitDhKey failed; mp fault sweeps skipped");
+        wc_FreeRng(&rng);
+        return;
+    }
+    /* One real 1024-bit parameter set, generated DISARMED, is the fixture for
+     * every sweep below. */
+    if (wc_DhGenerateParams(&rng, 1024, &dh) != 0) {
+        WB_NOTE("wc_DhGenerateParams failed; mp fault sweeps skipped");
+        wc_FreeDhKey(&dh);
+        wc_FreeRng(&rng);
+        return;
+    }
+    if (wc_DhGenerateKeyPair(&dh, &rng, priv, &privSz, pub, &pubSz) != 0) {
+        WB_NOTE("wc_DhGenerateKeyPair failed; mp fault sweeps skipped");
+        wc_FreeDhKey(&dh);
+        wc_FreeRng(&rng);
+        return;
+    }
+    (void)wc_DhExportParamsRaw(&dh, p, &pSz, q, &qSz, g, &gSz);
+
+    {
+        byte   pv2[512];
+        byte   pb2[512];
+        word32 s1, s2;
+        s1 = (word32)sizeof(pv2); s2 = (word32)sizeof(pb2);
+        WB_MP_SWEEP("DhGenerateKeyPair", 200,
+            s1 = (word32)sizeof(pv2); s2 = (word32)sizeof(pb2);
+            (void)wc_DhGenerateKeyPair(&dh, &rng, pv2, &s1, pb2, &s2));
+    }
+
+    WB_MP_SWEEP("DhGeneratePublic", 200,
+        {
+            byte   pb2[512];
+            word32 s2 = (word32)sizeof(pb2);
+            (void)wc_DhGeneratePublic(&dh, priv, privSz, pb2, &s2);
+        });
+
+    WB_MP_SWEEP("DhCheckPubKey", 200,
+        (void)wc_DhCheckPubKey(&dh, pub, pubSz));
+
+    WB_MP_SWEEP("DhCheckPubKey_ex", 200,
+        (void)wc_DhCheckPubKey_ex(&dh, pub, pubSz, p, pSz));
+
+    WB_MP_SWEEP("DhCheckPrivKey", 200,
+        (void)wc_DhCheckPrivKey(&dh, priv, privSz));
+
+    WB_MP_SWEEP("DhCheckKeyPair", 200,
+        (void)wc_DhCheckKeyPair(&dh, pub, pubSz, priv, privSz));
+
+    WB_MP_SWEEP("DhAgree", 200,
+        {
+            agreeSz = (word32)sizeof(agree);
+            (void)wc_DhAgree(&dh, agree, &agreeSz, priv, privSz, pub, pubSz);
+        });
+
+    WB_MP_SWEEP("DhSetKey", 200,
+        {
+            DhKey k2;
+            if (wc_InitDhKey(&k2) == 0) {
+                (void)wc_DhSetKey(&k2, p, pSz, g, gSz);
+                wc_FreeDhKey(&k2);
+            }
+        });
+
+    WB_MP_SWEEP("DhExportParamsRaw", 200,
+        {
+            byte   pp[512], gg[512], qq[512];
+            word32 a1 = (word32)sizeof(pp), a2 = (word32)sizeof(qq),
+                   a3 = (word32)sizeof(gg);
+            (void)wc_DhExportParamsRaw(&dh, pp, &a1, qq, &a2, gg, &a3);
+        });
+
+    WB_MP_SWEEP("DhSetCheckKey", 200,
+        {
+            DhKey k2;
+            if (wc_InitDhKey(&k2) == 0) {
+                (void)wc_DhSetCheckKey(&k2, p, pSz, g, gSz, q, qSz, 0, &rng);
+                wc_FreeDhKey(&k2);
+            }
+        });
+
+    /* GenerateParams spends its whole prefix in the prime search; the
+     * residuals it owns (3365/3374) are in the g-derivation chain that runs
+     * after it, so this sweep arms the TAIL of the call sequence. The seeded
+     * RNG makes the sequence, and therefore the index range, reproducible. */
+    WB_MP_SWEEP_TAIL("DhGenerateParams", 150,
+        {
+            DhKey k2;
+            if (wc_InitDhKey(&k2) == 0) {
+                mcdc_sr_arm(WB_DH_SEED);
+                (void)wc_DhGenerateParams(&rng, 1024, &k2);
+                mcdc_sr_disarm();
+                wc_FreeDhKey(&k2);
+            }
+        });
+
+    /* The 1024-bit fixture never takes the WOLFSSL_HAVE_SP_DH dispatch, whose
+     * own mp_* chain (2222) only runs for an SP-supported prime size. Repeat
+     * the agree / public-key sweeps against a named FFDHE-2048 group. */
+    {
+        DhKey  k2;
+        byte   pv2[512];
+        byte   pb2[512];
+        byte   ag2[512];
+        word32 s1 = (word32)sizeof(pv2);
+        word32 s2 = (word32)sizeof(pb2);
+        word32 s3;
+
+        if (wc_InitDhKey(&k2) == 0) {
+            if ((wc_DhSetNamedKey(&k2, WC_FFDHE_2048) == 0) &&
+                (wc_DhGenerateKeyPair(&k2, &rng, pv2, &s1, pb2, &s2) == 0)) {
+                WB_MP_SWEEP("DhAgree/ffdhe2048", 200,
+                    {
+                        s3 = (word32)sizeof(ag2);
+                        (void)wc_DhAgree(&k2, ag2, &s3, pv2, s1, pb2, s2);
+                    });
+                WB_MP_SWEEP("DhCheckPubKey/ffdhe2048", 200,
+                    (void)wc_DhCheckPubKey(&k2, pb2, s2));
+            }
+            wc_FreeDhKey(&k2);
+        }
+    }
+
+    mcdc_fm_disarm();
+    wc_FreeDhKey(&dh);
+    wc_FreeRng(&rng);
+    WB_NOTE("big-integer fault sweeps done");
 }
 
 int main(void)
@@ -760,6 +1318,7 @@ int main(void)
     test_import_export_keypair();
     test_cmp_named_key();
     test_dhkeycopy_null_guards();
+    test_check_pub_value_null_guards();
     test_export_params_null_guards();
 #ifdef WOLFSSL_HAVE_SP_DH
     test_agree_sp_dispatch();
@@ -775,6 +1334,9 @@ int main(void)
             "(2070/2085/2098/2116) skipped");
 #endif
     test_generate_params();
+    test_setkey_init_fault();
+    test_generate_params_levers();
+    test_mp_fault_sweeps();
 
     printf("done (%s)\n", wb_fail ? "FAILURES" : "ok");
     return 0;

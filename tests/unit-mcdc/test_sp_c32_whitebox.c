@@ -98,7 +98,20 @@
  *    (1/order probability) with a real RNG and a real private key.
  */
 
+/* The FP-ECC cache lock is statically initialised on pthreads, which compiles
+ * out the lazy-init block above the guard and leaves its `err == MP_OKAY`
+ * operand structurally true. WOLFSSL_TEST_NO_MUTEX_INITIALIZER is wolfSSL's
+ * own knob for that; setting it here compiles the lazy path into this TU so
+ * both operands of the guard are reachable in this one binary, which is what
+ * MC/DC-per-binary requires. */
+#define WOLFSSL_TEST_NO_MUTEX_INITIALIZER
+
+#include "mcdc_fault_mutex.h"
+
 #include <wolfcrypt/src/sp_c32.c>
+
+#define MCDC_FM_IMPL
+#include "mcdc_fault_mutex.h"
 
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/rsa.h>
@@ -109,6 +122,14 @@
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+
+/* Crafted-input driver shared with the other two SP host-backend
+ * white-boxes: the SP entry points nothing in the wc_* API reaches on
+ * this configuration, plus the guards that only unlock once an earlier
+ * step has SUCCEEDED (a real key through sp_ecc_check_key_<n>, a
+ * failing sp_ecc_verify_<n>, an infinity verification point). See its
+ * header comment. */
+#include "test_sp_crafted_common.h"
 
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
     defined(WOLFSSL_HAVE_SP_DH)
@@ -1094,6 +1115,95 @@ static void wb_run_gap_521(void)
 }
 #endif /* WOLFSSL_SP_521 */
 
+/* FP-ECC cache guard, once per curve:
+ *
+ *     if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_<n>_lock) != 0))
+ *
+ * Three vectors: init refused (err operand false), lock refused (T,T), and the
+ * ordinary success path (T,F). The mutex init is one-shot per curve, so the
+ * init-failure vector has to be the first call that reaches the cache -- this
+ * runs before anything else in main(). */
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    defined(FP_ECC) && !defined(MCDC_FM_UNAVAILABLE)
+static void wb_run_cache_mutex(void)
+{
+    ecc_point* gm   = NULL;
+    ecc_point* rOut = NULL;
+    mp_int     k;
+    int        vec;
+
+    if (mp_init(&k) != MP_OKAY) {
+        WB_NOTE("mp_init failed (cache_mutex)");
+        wb_fail = 1;
+        return;
+    }
+    gm   = wc_ecc_new_point();
+    rOut = wc_ecc_new_point();
+    if (gm == NULL || rOut == NULL) {
+        WB_NOTE("wc_ecc_new_point failed (cache_mutex)");
+        wb_fail = 1;
+    }
+    else if (mp_set(&k, 3) != MP_OKAY) {
+        WB_NOTE("mp_set failed (cache_mutex)");
+        wb_fail = 1;
+    }
+    else {
+        for (vec = 0; vec < 3; vec++) {
+            int curveIdx;
+            const ecc_set_type* dp;
+
+            mcdc_fm_init_fail = (vec == 0);
+            mcdc_fm_lock_fail = (vec == 1);
+
+#ifndef WOLFSSL_SP_NO_256
+            curveIdx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+            dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+            if (dp != NULL && mp_read_radix(gm->x, dp->Gx, 16) == MP_OKAY &&
+                    mp_read_radix(gm->y, dp->Gy, 16) == MP_OKAY &&
+                    mp_set(gm->z, 1) == MP_OKAY) {
+                (void)sp_ecc_mulmod_256(&k, gm, rOut, 1, NULL);
+            }
+#endif
+#ifdef WOLFSSL_SP_384
+            curveIdx = wc_ecc_get_curve_idx(ECC_SECP384R1);
+            dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+            if (dp != NULL && mp_read_radix(gm->x, dp->Gx, 16) == MP_OKAY &&
+                    mp_read_radix(gm->y, dp->Gy, 16) == MP_OKAY &&
+                    mp_set(gm->z, 1) == MP_OKAY) {
+                (void)sp_ecc_mulmod_384(&k, gm, rOut, 1, NULL);
+            }
+#endif
+#ifdef WOLFSSL_SP_521
+            curveIdx = wc_ecc_get_curve_idx(ECC_SECP521R1);
+            dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+            if (dp != NULL && mp_read_radix(gm->x, dp->Gx, 16) == MP_OKAY &&
+                    mp_read_radix(gm->y, dp->Gy, 16) == MP_OKAY &&
+                    mp_set(gm->z, 1) == MP_OKAY) {
+                (void)sp_ecc_mulmod_521(&k, gm, rOut, 1, NULL);
+            }
+#endif
+            (void)curveIdx;
+            (void)dp;
+        }
+        mcdc_fm_init_fail = 0;
+        mcdc_fm_lock_fail = 0;
+    }
+
+    if (gm != NULL) {
+        wc_ecc_del_point(gm);
+    }
+    if (rOut != NULL) {
+        wc_ecc_del_point(rOut);
+    }
+    mp_free(&k);
+}
+#else
+static void wb_run_cache_mutex(void)
+{
+    WB_NOTE("FP_ECC cache mutex path not compiled; skipped");
+}
+#endif
+
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
 int main(void)
@@ -1102,12 +1212,14 @@ int main(void)
            "dispatch)\n");
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
     defined(WOLFSSL_HAVE_SP_DH)
+    wb_run_cache_mutex();
     wb_run_ecc();
     wb_run_rsa();
     wb_run_dh();
     wb_run_gap_256();
     wb_run_gap_384();
     wb_run_gap_521();
+    wb_spc_all();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else

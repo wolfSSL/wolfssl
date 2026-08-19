@@ -103,21 +103,35 @@
  * and the 2179/2188 tstInfo!=NULL/contentSz>0 rows that fall out of the real
  * token used for 2162).
  *
- * Documented as NOT attempted (out of this pass's scope):
- *   - tsp.c:808 idx0 (XSNPRINTF returning negative): no legitimate input
- *     drives this on a real libc snprintf; not claimed dead, just unreached.
- *   - tsp.c:1112/1854, 2167:3, 2179 idx2 true row (contentSz==0),
- *     2188/2230, and every asn_tsp.c-only decode-side item in GAPS.md
- *     (341/354/362/369/557/714/718/1021/1194/1343/1429/1445): each needs
- *     either a clock/libc fault this file's XGMTIME mock does not reach, a
- *     zero-length-content token this pass did not construct, or DER
- *     surgery on an encoded TSTInfo/TimeStampResp whose exact byte offsets
- *     were not worked out here - same class of residual test_tsp_whitebox.c
- *     already documents.
+ * Second pass added, via two further name-replacement mocks installed the
+ * same way as XGMTIME (both macros are defined only `#ifndef` / are plain
+ * extern declarations, so redefining them here rebinds tsp.c's call sites
+ * and nothing else):
+ *   tsp.c:808  idx0        - XSNPRINTF reporting an encoding error
+ *   tsp.c:1112 idx0,idx1   - CheckGenTime's two GetFormattedTime_ex bounds
+ *   tsp.c:1676 idx3        - Tsp_CheckTsaName inner Name shorter than the
+ *                            GeneralName (no mock needed)
+ *   tsp.c:2135 idx2        - TspResponse_Verify tokenSz==0 with a token
+ *
+ * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json):
+ *   - tsp.c:2167 idx3 `pkcs7->verifyCert == NULL`: this else-if only runs
+ *     with ret == 0, and wc_TspTstInfo_VerifyWithPKCS7() sets ret to
+ *     TSP_VERIFY_E whenever pkcs7->verifyCert is NULL, so the operand is
+ *     always false where it is evaluated.
+ *   - tsp.c:2179 idx0,idx1,idx2: the decision's true row needs a successful
+ *     verify with pkcs7->contentSz == 0, but wc_TspTstInfo_VerifyWithPKCS7()
+ *     reaches ret == 0 only after wc_TspTstInfo_Decode(.., pkcs7->content,
+ *     pkcs7->contentSz), which returns BAD_FUNC_ARG for inSz == 0. Without
+ *     that row none of the three operands has an independence pair.
+ *   - tsp.c:2188 idx2 `pkcs7->contentSz > 0`: the guard immediately above
+ *     (2179) sets ret non-zero when contentSz is 0, so this operand is only
+ *     ever evaluated when it is true.
  */
 
 #include <time.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 /* ---- XGMTIME mock: installed before tsp.c is compiled - see file header
  * technique (1). Mode is a plain int, not an enum, so tsp.c's own headers
@@ -157,7 +171,62 @@ static struct tm* wbXGMTIME(const time_t* clock, struct tm* tmpBuf)
 }
 #define XGMTIME(c, t) wbXGMTIME((c), (t))
 
+/* ---- XSNPRINTF mock: same installation rule as XGMTIME (types.h defines
+ * XSNPRINTF only `#ifndef XSNPRINTF`). tsp.c has exactly one call site,
+ * wc_TspTstInfo_SetGenTimeAsTime()'s GeneralizedTime formatting, whose
+ * `n < 0` operand no real libc snprintf produces for that format. ---- */
+static int wbSnprintfFail = 0; /* one-shot: next call returns -1 */
+
+static int wbXSNPRINTF(char* buf, size_t len, const char* fmt, ...)
+{
+    int n;
+    va_list ap;
+
+    if (wbSnprintfFail) {
+        wbSnprintfFail = 0;
+        return -1;
+    }
+    va_start(ap, fmt);
+    n = vsnprintf(buf, len, fmt, ap);
+    va_end(ap);
+    return n;
+}
+#define XSNPRINTF wbXSNPRINTF
+
+/* ---- GetFormattedTime_ex mock: the function lives in asn.c, so the XGMTIME
+ * mock above cannot reach it - it is replaced by name for tsp.c's two call
+ * sites in wc_TspTstInfo_CheckGenTime(). Declared by asn.h through the macro;
+ * defined after the include, where the wolfSSL types exist. ---- */
+static int wbGftCall = 0;     /* call counter, reset per case */
+static int wbGftFailCall = 0; /* which call fails: 0 none, 1 first, 2 second */
+#define GetFormattedTime_ex wbGetFormattedTime
+
 #include <wolfcrypt/src/tsp.c>
+
+WOLFSSL_LOCAL int wbGetFormattedTime(void* currTime, byte* buf, word32 len,
+    byte format)
+{
+    struct tm* ts;
+    int n;
+
+    wbGftCall++;
+    if (wbGftCall == wbGftFailCall) {
+        /* Caller treats <= 0 as a failure. */
+        return 0;
+    }
+    (void)format;
+    ts = gmtime((const time_t*)currTime);
+    if (ts == NULL) {
+        return 0;
+    }
+    n = snprintf((char*)buf, len, "%04d%02d%02d%02d%02d%02dZ",
+        ts->tm_year + 1900, ts->tm_mon + 1, ts->tm_mday, ts->tm_hour,
+        ts->tm_min, ts->tm_sec);
+    if ((n < 0) || (n >= (int)len)) {
+        return 0;
+    }
+    return n;
+}
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/certs_test.h>
@@ -243,10 +312,88 @@ static void wb_gentime_as_time_guards(void)
         wb_fail = 1;
     }
 
+    /* 808 idx0 true, 797 false: the formatting call itself reports an
+     * encoding error. See the XSNPRINTF mock at the top of this file. */
+    wbSnprintfFail = 1;
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+        sizeof(buf));
+    wbSnprintfFail = 0;
+    if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
+        WB_NOTE("SetGenTimeAsTime format-error case misbehaved");
+        wb_fail = 1;
+    }
+
     WB_NOTE("wc_TspTstInfo_SetGenTimeAsTime XGMTIME/format MC/DC pairs exercised");
 }
 #else
 static void wb_gentime_as_time_guards(void) { WB_NOTE("NO_ASN_TIME or WOLFSSL_TSP_RESPONDER off; SetGenTimeAsTime guards skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * tsp.c:1112 - wc_TspTstInfo_CheckGenTime() formats the two bounds of the
+ * acceptable period with GetFormattedTime_ex(). The `ret == 0` operand of the
+ * second call's guard needs the FIRST call to have failed, and the second
+ * call's own operand needs that call to fail; neither is reachable with a
+ * working clock. See the GetFormattedTime_ex mock at the top of this file.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES) && \
+    defined(WOLFSSL_TSP_VERIFIER)
+static void wb_check_gentime_bounds(void)
+{
+    TspTstInfo tst;
+    byte genTime[ASN_GENERALIZED_TIME_SIZE];
+    time_t now;
+    int ret;
+
+    XMEMSET(&tst, 0, sizeof(tst));
+    /* genTime is the current time, so the comparison after the bounds
+     * accepts it - the all-false row of the guard under test. */
+    now = wc_Time(0);
+    wbGftCall = 0;
+    wbGftFailCall = 0;
+    if (wbGetFormattedTime(&now, genTime, sizeof(genTime),
+            ASN_GENERALIZED_TIME) <= 0) {
+        WB_NOTE("CheckGenTime fixture formatting failed");
+        wb_fail = 1;
+        return;
+    }
+    tst.genTime = genTime;
+    tst.genTimeSz = ASN_GENERALIZED_TIME_SIZE - 1;
+
+    /* 1112 idx0 true, idx1 false: both bounds format. */
+    wbGftCall = 0;
+    wbGftFailCall = 0;
+    ret = wc_TspTstInfo_CheckGenTime(&tst, 60);
+    if (ret != 0) {
+        WB_NOTE("CheckGenTime baseline misbehaved");
+        wb_fail = 1;
+    }
+
+    /* 1112 idx0 false: the first bound failed to format, so the second
+     * call's guard short-circuits. */
+    wbGftCall = 0;
+    wbGftFailCall = 1;
+    ret = wc_TspTstInfo_CheckGenTime(&tst, 60);
+    wbGftFailCall = 0;
+    if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
+        WB_NOTE("CheckGenTime first-bound-failure case misbehaved");
+        wb_fail = 1;
+    }
+
+    /* 1112 idx1 true: the first bound formatted, the second did not. */
+    wbGftCall = 0;
+    wbGftFailCall = 2;
+    ret = wc_TspTstInfo_CheckGenTime(&tst, 60);
+    wbGftFailCall = 0;
+    if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
+        WB_NOTE("CheckGenTime second-bound-failure case misbehaved");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("wc_TspTstInfo_CheckGenTime bound-formatting MC/DC pairs exercised");
+}
+#else
+static void wb_check_gentime_bounds(void) { WB_NOTE("no real clock or WOLFSSL_TSP_VERIFIER off; CheckGenTime bounds skipped"); }
 #endif
 
 /* ------------------------------------------------------------------------- *
@@ -608,6 +755,21 @@ static void wb_check_tsa_name_extra(void)
     if (ret != 0) {
         WB_NOTE("Tsp_CheckTsaName match baseline misbehaved");
         wb_fail = 1;
+    }
+
+    /* 1676 idx3 true: the inner Name SEQUENCE is well formed but does not
+     * run to the end of the GeneralName. */
+    {
+        static const byte shortName[] = {
+            0xa4, 0x05,             /* directoryName [4] */
+            0x30, 0x02, 0x11, 0x22, /* Name SEQUENCE */
+            0xff                    /* trailing byte inside the [4] */
+        };
+        ret = Tsp_CheckTsaName(&dCert, shortName, (word32)sizeof(shortName));
+        if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
+            WB_NOTE("Tsp_CheckTsaName short-inner-name case misbehaved");
+            wb_fail = 1;
+        }
     }
 
     /* 1697 all-false baseline: an unsupported GeneralName tag (context
@@ -1106,6 +1268,18 @@ static void wb_response_verify_cm(void)
         wb_fail = 1;
     }
 
+    /* 2135 idx2 true, idx1 false: a token pointer with a zero length. The
+     * baseline above supplies the all-false row of the same guard. */
+    {
+        TspResponse emptyResp = resp;
+        emptyResp.tokenSz = 0;
+        ret = TspResponse_Verify(&emptyResp, NULL, 0, NULL, NULL);
+        if (ret != WC_NO_ERR_TRACE(TSP_VERIFY_E)) {
+            WB_NOTE("TspResponse_Verify tokenSz==0 case misbehaved");
+            wb_fail = 1;
+        }
+    }
+
     /* 2162 idx0 false: an earlier failure (bad status) short-circuits before
      * the cm check - cm's value does not matter here (never evaluated). */
     {
@@ -1148,6 +1322,7 @@ int main(void)
     printf("tsp.c fault/argument-guard white-box MC/DC supplement\n");
 
     wb_gentime_as_time_guards();
+    wb_check_gentime_bounds();
     wb_set_nonce_extra();
     wb_set_from_request_guards();
     wb_check_request_extra();

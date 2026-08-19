@@ -81,9 +81,19 @@
  *     the same #if guard under which wc_HashGetDigestSize() would otherwise
  *     return the negative HASH_TYPE_E for that hash type (e.g. MD5h maps to
  *     WC_HASH_TYPE_NONE unless !NO_MD5, and WC_HASH_TYPE_MD5 maps to
- *     HASH_TYPE_E unless !NO_MD5) -- so a hashT that survives the
- *     WC_HASH_TYPE_NONE check can never make wc_HashGetDigestSize() return
- *     a negative value. Dead code.
+ *     HASH_TYPE_E unless !NO_MD5) -- with one asymmetry: the four SHA3 OIDs
+ *     map on a plain `#ifdef WOLFSSL_SHA3`, while the matching
+ *     wc_HashGetDigestSize() arms additionally require
+ *     !WOLFSSL_NOSHA3_224/256/384/512. Those four macros are defined in
+ *     exactly one place in the tree, the WOLFSSL_XILINX_CRYPT /
+ *     WOLFSSL_AFALG_XILINX block of settings.h (~:3019, "only SHA3-384 is
+ *     supported"), and neither pkcs12 variant selects that port: both build
+ *     plain WOLFSSL_SHA3 with no NOSHA3_* set. So in every build this module
+ *     is measured in, a hashT that survives the WC_HASH_TYPE_NONE check can
+ *     never make wc_HashGetDigestSize() return a negative value. Dead code
+ *     as compiled here (it is live only on a Xilinx-offload build, where an
+ *     attacker-chosen SHA3-224/256/512 MAC OID would reach it -- so the
+ *     guard itself must stay).
  *   - pkcs12.c:886 cond2 (wc_d2i_PKCS12_fp() cleanup guard, `*pkcs12 !=
  *     NULL` false side): callerAlloc starts at 1 and is set to 0 in exactly
  *     the branch that also assigns `*pkcs12 = tmpPkcs12` (non-NULL); the

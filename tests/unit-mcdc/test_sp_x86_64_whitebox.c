@@ -165,10 +165,30 @@
  * before the .c below pulls in any wolfSSL header -- routes every
  * SAVE_VECTOR_REGISTERS2() site through a variable this file controls. Same
  * arrangement as test_wc_mlkem_poly_whitebox.c. */
+/* Sweep depth for the allocation-failure pass. Each index repeats the
+ * whole dispatch+crafted driving, and TEST_TIMEOUT is wall clock under
+ * MAXPAR, so this stays modest. */
+#define WB_FAULT_MAX_N 20
+
 static int wb_intr_ret = 0;
 #define WC_CHECK_FOR_INTR_SIGNALS() (wb_intr_ret)
 
+/* The FP-ECC cache lock is statically initialised on pthreads, which compiles
+ * out the lazy-init block above the guard and leaves its `err == MP_OKAY`
+ * operand structurally true. WOLFSSL_TEST_NO_MUTEX_INITIALIZER is wolfSSL's
+ * own knob for that; setting it here compiles the lazy path into this TU so
+ * both operands of the guard are reachable in this one binary, which is what
+ * MC/DC-per-binary requires. */
+#define WOLFSSL_TEST_NO_MUTEX_INITIALIZER
+
+#include "mcdc_fault_mutex.h"
+
 #include <wolfcrypt/src/sp_x86_64.c>
+#define MCDC_FM_IMPL
+#include "mcdc_fault_mutex.h"
+
+
+#include "mcdc_fault_alloc.h"
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -180,6 +200,13 @@ static int wb_intr_ret = 0;
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+
+/* Crafted-input driver shared with the sp_c64.c/sp_c32.c white-boxes: the
+ * SP entry points nothing in the wc_* API reaches on this configuration,
+ * plus the guards that only unlock once an earlier step has SUCCEEDED (a
+ * real key through sp_ecc_check_key_<n>, a failing sp_ecc_verify_<n>, an
+ * infinity verification point). See its header comment. */
+#include "test_sp_crafted_common.h"
 
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
     defined(WOLFSSL_HAVE_SP_DH)
@@ -1536,6 +1563,7 @@ static void wb_run_crafted_curve(int curve_id, int fieldSz,
     byte       bigbuf[80]; /* fieldSz+1 <= 67 (P-521); comfortably fits */
     int        inMont;
     int        map;
+    int        fa;
     int        ok = 1;
 
     XMEMSET(&keyA, 0, sizeof(keyA));
@@ -1592,6 +1620,18 @@ static void wb_run_crafted_curve(int curve_id, int fieldSz,
                         (void)mulmod_add(&km, &keyA.pubkey, &keyB.pubkey,
                             inMont, r, map, NULL);
                     }
+                }
+                /* The `(err == MP_OKAY) && (!inMont)` triples above only ever
+                 * see err holding. err can only move when SP_ALLOC_VAR is a
+                 * real allocation (WOLFSSL_SP_SMALL_STACK), and only for THIS
+                 * function's own two allocations -- so the arming has to hug
+                 * the call. Anything wider and the failure lands in the setup
+                 * and the target is never entered. */
+                for (fa = 1; fa <= 4; fa++) {
+                    mcdc_fa_arm(fa);
+                    (void)mulmod_add(&km, &keyA.pubkey, &keyB.pubkey, 0, r, 1,
+                        NULL);
+                    mcdc_fa_disarm();
                 }
                 mp_clear(&km);
             }
@@ -1763,6 +1803,108 @@ static void wb_run_crafted(void)
 }
 #endif /* WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
+/* FP-ECC cache guard, once per curve:
+ *
+ *     if ((err == MP_OKAY) && (wc_LockMutex(&sp_cache_<n>_lock) != 0))
+ *
+ * Three vectors: init refused (err operand false), lock refused (T,T), and the
+ * ordinary success path (T,F). The mutex init is one-shot per curve, so the
+ * init-failure vector has to be the first call that reaches the cache -- this
+ * runs before anything else in main(). */
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    defined(FP_ECC) && !defined(MCDC_FM_UNAVAILABLE)
+static void wb_run_cache_mutex(void)
+{
+    ecc_point* gm   = NULL;
+    ecc_point* rOut = NULL;
+    mp_int     k;
+    int        vec;
+
+    if (mp_init(&k) != MP_OKAY) {
+        WB_NOTE("mp_init failed (cache_mutex)");
+        wb_fail = 1;
+        return;
+    }
+    gm   = wc_ecc_new_point();
+    rOut = wc_ecc_new_point();
+    if (gm == NULL || rOut == NULL) {
+        WB_NOTE("wc_ecc_new_point failed (cache_mutex)");
+        wb_fail = 1;
+    }
+    else if (mp_set(&k, 3) != MP_OKAY) {
+        WB_NOTE("mp_set failed (cache_mutex)");
+        wb_fail = 1;
+    }
+    else {
+        cpuid_flags_t real = cpuid_get_flags();
+        int mask;
+
+        for (vec = 0; vec < 3; vec++) {
+          /* Each curve carries the guard twice, once in sp_<n>_ecc_mulmod_<w>
+           * and once in its _avx2_ sibling, behind one shared init atomic.
+           * Sweeping the mask inside the vector loop reaches both copies while
+           * the atomic is still in the state that vector needs -- the other
+           * order would leave the second copy's init already done. */
+          for (mask = 0; mask < 2; mask++) {
+            int curveIdx;
+            const ecc_set_type* dp;
+
+            cpuid_select_flags((mask == 0) ?
+                (real & ~(cpuid_flags_t)CPUID_AVX2) : real);
+            mcdc_fm_init_fail = (vec == 0);
+            mcdc_fm_lock_fail = (vec == 1);
+
+#ifndef WOLFSSL_SP_NO_256
+            curveIdx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+            dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+            if (dp != NULL && mp_read_radix(gm->x, dp->Gx, 16) == MP_OKAY &&
+                    mp_read_radix(gm->y, dp->Gy, 16) == MP_OKAY &&
+                    mp_set(gm->z, 1) == MP_OKAY) {
+                (void)sp_ecc_mulmod_256(&k, gm, rOut, 1, NULL);
+            }
+#endif
+#ifdef WOLFSSL_SP_384
+            curveIdx = wc_ecc_get_curve_idx(ECC_SECP384R1);
+            dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+            if (dp != NULL && mp_read_radix(gm->x, dp->Gx, 16) == MP_OKAY &&
+                    mp_read_radix(gm->y, dp->Gy, 16) == MP_OKAY &&
+                    mp_set(gm->z, 1) == MP_OKAY) {
+                (void)sp_ecc_mulmod_384(&k, gm, rOut, 1, NULL);
+            }
+#endif
+#ifdef WOLFSSL_SP_521
+            curveIdx = wc_ecc_get_curve_idx(ECC_SECP521R1);
+            dp = (curveIdx >= 0) ? wc_ecc_get_curve_params(curveIdx) : NULL;
+            if (dp != NULL && mp_read_radix(gm->x, dp->Gx, 16) == MP_OKAY &&
+                    mp_read_radix(gm->y, dp->Gy, 16) == MP_OKAY &&
+                    mp_set(gm->z, 1) == MP_OKAY) {
+                (void)sp_ecc_mulmod_521(&k, gm, rOut, 1, NULL);
+            }
+#endif
+            (void)curveIdx;
+            (void)dp;
+          }
+        }
+        mcdc_fm_init_fail = 0;
+        mcdc_fm_lock_fail = 0;
+        cpuid_select_flags(real);
+    }
+
+    if (gm != NULL) {
+        wc_ecc_del_point(gm);
+    }
+    if (rOut != NULL) {
+        wc_ecc_del_point(rOut);
+    }
+    mp_free(&k);
+}
+#else
+static void wb_run_cache_mutex(void)
+{
+    WB_NOTE("FP_ECC cache mutex path not compiled; skipped");
+}
+#endif
+
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
 int main(void)
@@ -1790,6 +1932,12 @@ int main(void)
      * TT+FT+TF => full MC/DC of each BMI2&&ADX dispatch within this binary. */
     {
         cpuid_flags_t real = cpuid_get_flags();
+        int wb_n;
+
+        /* Installed before the first pass: the drivers below arm the injector
+         * around individual calls themselves, and an arm() with no allocators
+         * installed is a no-op. */
+        mcdc_fa_install();
 
         /* Many dispatches live inside data-dependent blocks (e.g.
          * sp_<size>_calc_vfy_point / ecc_is_point / calc_s), only reached with
@@ -1804,12 +1952,14 @@ int main(void)
          * mulmod_add/check_key/is_point inputs) is likewise fast and runs
          * under every mask. */
         cpuid_select_flags(real);
+        wb_run_cache_mutex();
         wb_run_ecc();
         wb_run_rsa_keygen();
         wb_run_rsa_signverify();
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
+        wb_spc_all();
 
         cpuid_select_flags(real & ~(cpuid_flags_t)CPUID_BMI2);
         wb_run_ecc();
@@ -1817,6 +1967,7 @@ int main(void)
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
+        wb_spc_all();
 
         cpuid_select_flags(real & ~(cpuid_flags_t)CPUID_ADX);
         wb_run_ecc();
@@ -1824,6 +1975,7 @@ int main(void)
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
+        wb_spc_all();
 
         cpuid_select_flags(real & ~(cpuid_flags_t)CPUID_MOVBE);
         wb_run_ecc();
@@ -1831,6 +1983,7 @@ int main(void)
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
+        wb_spc_all();
 
         /* AVX2 is the third operand of the four-operand chains; clearing it
          * with BMI2 and ADX left on is that operand's own flip. */
@@ -1840,6 +1993,7 @@ int main(void)
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
+        wb_spc_all();
 
         /* Fourth operand: every feature present but the vector-register save
          * refused, so each chain falls through on its last condition. */
@@ -1850,9 +2004,47 @@ int main(void)
         wb_run_dh();
         wb_run_dispatch();
         wb_run_crafted();
+        wb_spc_all();
         wb_intr_ret = 0;
 
         wb_run_rsa_free();
+
+        /* Allocation-failure pass.
+         *
+         * Under WOLFSSL_SP_SMALL_STACK, SP_ALLOC_VAR is a real XMALLOC whose
+         * result is checked, so a failed allocation is the only thing that can
+         * put `err` anywhere other than MP_OKAY -- which is what every
+         * `if ((err == MP_OKAY) && ...)` in this file needs to see its first
+         * operand go false. Without the macro those temporaries are stack
+         * arrays and the operand is dead by construction; the sweep then costs
+         * one pass and proves nothing, which is why it runs last.
+         *
+         * It reuses wb_run_dispatch()/wb_run_crafted() rather than the public
+         * API on purpose: the chains live in the file-static
+         * sp_*_ecc_mulmod_add/calc_vfy_point/calc_s family, and those two are
+         * already written to call every one of them.
+         *
+         * mcdc_fa_arm(n) fails allocation n AND every later one, so each pass
+         * gets its own arming with the setup done disarmed. */
+        cpuid_select_flags(real);
+        for (wb_n = 1; wb_n <= WB_FAULT_MAX_N; wb_n++) {
+            mcdc_fa_arm(wb_n);
+            wb_run_dispatch();
+            mcdc_fa_disarm();
+
+            mcdc_fa_arm(wb_n);
+            wb_run_rsa_signverify();
+            mcdc_fa_disarm();
+
+            mcdc_fa_arm(wb_n);
+            wb_run_dh();
+            mcdc_fa_disarm();
+        }
+        /* wb_run_crafted() is deliberately NOT wrapped: a blanket arming makes
+         * its own key setup fail, so it returns before reaching the targets.
+         * Its mulmod_add sweep is armed around the call itself instead. */
+        mcdc_fa_disarm();
+        mcdc_fa_restore();
     }
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");

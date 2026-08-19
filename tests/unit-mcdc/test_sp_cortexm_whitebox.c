@@ -157,12 +157,25 @@ static mp_int wb2_p256_prime, wb2_gy_neg;
 static mp_int wb2_zero, wb2_five, wb2_one, wb2_e65537;
 static mp_int wb2_base, wb2_r, wb2_s, wb2_rlarge, wb2_negr, wb2_kval;
 static mp_int wb2_rm_out, wb2_sm_out;
+static mp_int wb2_kfix, wb2_scr, wb2_e2;
 static ecc_point wb2_t;
 static byte wb2_in[400];
 static byte wb2_out[400];
 static byte wb2_hash[32];
 static const byte wb2_dh_exp_65537[3] = { 0x01, 0x00, 0x01 };
 static const byte wb2_dh_exp_3[1] = { 0x03 };
+/* Nine bytes = 72 bits = three 32-bit exponent words. sp_3072_mod_exp_96()
+ * enters its window loop with `i = (bits - 1) / 32` already decremented once,
+ * so every exponent that fits in ONE word (the two above, and the KAT's) puts
+ * i at -1 before the loop is ever tested and `for (; i >= 0 || c >= 4; )` can
+ * only ever see its first operand false -- no true row, no pair. A three-word
+ * exponent gives that operand its true rows and still leaves the false ones at
+ * the end of the scan. Kept to 72 bits (not a full-width exponent) because
+ * every extra window step is four more 3072-bit Montgomery squarings on an
+ * emulated Cortex-M. */
+static const byte wb2_dh_exp_wide[9] = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01
+};
 
 static int wb_mp_hex(mp_int* a, const char* s)
 {
@@ -279,7 +292,8 @@ static void sp_cortexm_whitebox_drive(void)
         mp_init(&wb2_r) != MP_OKAY || mp_init(&wb2_s) != MP_OKAY ||
         mp_init(&wb2_rlarge) != MP_OKAY || mp_init(&wb2_negr) != MP_OKAY ||
         mp_init(&wb2_kval) != MP_OKAY || mp_init(&wb2_rm_out) != MP_OKAY ||
-        mp_init(&wb2_sm_out) != MP_OKAY) {
+        mp_init(&wb2_sm_out) != MP_OKAY || mp_init(&wb2_kfix) != MP_OKAY ||
+        mp_init(&wb2_scr) != MP_OKAY || mp_init(&wb2_e2) != MP_OKAY) {
         return;
     }
     XMEMSET(&wb2_t, 0, sizeof(wb2_t));
@@ -420,6 +434,14 @@ static void sp_cortexm_whitebox_drive(void)
         ret = sp_DhExp_3072(&wb2_zero, wb2_dh_exp_3, sizeof(wb2_dh_exp_3),
             &wb2_mm3072, wb2_out, &outLen);
         wb_note(ret, MP_OKAY);
+
+        /* Three-word exponent: gives sp_3072_mod_exp_96()'s window loop
+         * `for (; i >= 0 || c >= 4; )` its first operand's true rows (see the
+         * comment on wb2_dh_exp_wide). */
+        outLen = sizeof(wb2_out);
+        ret = sp_DhExp_3072(&wb2_base, wb2_dh_exp_wide,
+            sizeof(wb2_dh_exp_wide), &wb2_mm3072, wb2_out, &outLen);
+        wb_note(ret, MP_OKAY);
     }
 
     /* --- sp_ecc_mulmod_add_256 / sp_ecc_mulmod_base_add_256: each has
@@ -511,6 +533,61 @@ static void sp_cortexm_whitebox_drive(void)
     ret = sp_ecc_verify_256(wb2_hash, sizeof(wb2_hash), wb_g.x, wb_g.y,
         wb_g.z, &wb2_rlarge, &wb2_s, &res, NULL);
     wb_note(ret, MP_OKAY);
+
+    /* V6: s = order. sp_256_calc_vfy_point_8() hands s straight to
+     * sp_256_mod_inv_8(), which starts from u = modulus, v = s; with v equal
+     * to u the very first subtraction makes u zero, and that is the only way
+     * the inner `while (ut > 0 && (u[0] & 1) == 0)` sees its FIRST operand
+     * false -- the else arm's v = v - u is always positive, so the mirrored
+     * `vt > 0` operand has no such vector at all. s = 0 is deliberately never
+     * passed here: v would stay zero and mod_inv's even-operand pre-shift
+     * loop would spin forever. */
+    XMEMSET(wb2_hash, 0x44, sizeof(wb2_hash));
+    (void)mp_set(&wb2_r, 9);
+    ret = sp_ecc_verify_256(wb2_hash, sizeof(wb2_hash), wb_g.x, wb_g.y,
+        wb_g.z, &wb2_r, &wb_n, &res, NULL);
+    wb_note(ret, MP_OKAY);
+
+    /* --- sp_ecc_sign_256's `(err == MP_OKAY) && (!sp_256_iszero_8(s))`
+     * guard, second operand false. s = (e + r*x)/k mod order, so s == 0
+     * needs e == -r*x, which needs the private scalar. It is reachable
+     * indirectly by using the signer as its own oracle, exploiting the fact
+     * that r depends only on the supplied k:
+     *   SGN3 signs e1 = 1 with a fixed k = K, so the returned s1 satisfies
+     *        r*x == s1*K - e1  (mod order);
+     *   SGN4 signs e2 = e1 - s1*K with the SAME K, so r is identical and
+     *        e2 + r*x == 0, i.e. s == 0 on the first loop iteration.
+     * sp_ecc_sign_256() zeroes the supplied km after use, so the retry falls
+     * through to the generated-k branch; with rng == NULL that fails at once
+     * and the call returns instead of spinning through the retry budget. */
+    (void)mp_set(&wb2_kfix, 0x5A5A5);
+    (void)mp_copy(&wb2_kfix, &wb2_kval);
+    XMEMSET(wb2_hash, 0, sizeof(wb2_hash));
+    wb2_hash[sizeof(wb2_hash) - 1] = 1;                  /* e1 = 1 */
+    ret = sp_ecc_sign_256(wb2_hash, sizeof(wb2_hash), NULL, &wb_k,
+        &wb2_rm_out, &wb2_sm_out, &wb2_kval, NULL);
+    wb_note(ret, MP_OKAY);
+    if (ret == MP_OKAY) {
+        /* e2 = 1 + (order - (s1*K mod order)) mod order. Spelled out with
+         * mp_mul / mp_mod / mp_sub / mp_add rather than mp_mulmod and
+         * mp_submod: those two are not compiled in every SP math
+         * configuration, and every intermediate here stays non-negative,
+         * which builds without WOLFSSL_SP_INT_NEGATIVE require. */
+        (void)mp_set(&wb2_one, 1);
+        if ((mp_mul(&wb2_sm_out, &wb2_kfix, &wb2_scr) == MP_OKAY) &&
+                (mp_mod(&wb2_scr, &wb_n, &wb2_e2) == MP_OKAY) &&
+                (mp_sub(&wb_n, &wb2_e2, &wb2_scr) == MP_OKAY) &&
+                (mp_add(&wb2_scr, &wb2_one, &wb2_scr) == MP_OKAY) &&
+                (mp_mod(&wb2_scr, &wb_n, &wb2_e2) == MP_OKAY)) {
+            wb2_mp_to_hash(&wb2_e2);
+            (void)mp_copy(&wb2_kfix, &wb2_kval);
+            ret = sp_ecc_sign_256(wb2_hash, sizeof(wb2_hash), NULL, &wb_k,
+                &wb2_rm_out, &wb2_sm_out, &wb2_kval, NULL);
+            /* Expected to fail: after the zero s the retry needs the NULL
+             * rng. Only the branch taken matters, not the return value. */
+            (void)ret;
+        }
+    }
 
     /* --- sp_ecc_check_key_256: the quick length guard is
      * A||B||(C&&D) with A=pX>256 bits, B=pY>256 bits, C=privm!=NULL,

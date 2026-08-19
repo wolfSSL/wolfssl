@@ -462,6 +462,10 @@ int test_wc_DhSetNamedKey_and_helpers(void)
             p2048->p_len, p2048->g, p2048->g_len, qOut, p2048->q_len), 0);
         ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 1, p2048->p,
             p2048->p_len, p2048->g, p2048->g_len, qOut, p2048->q_len), 1);
+        /* q of the wrong length, with p and g matching and q not skipped. */
+        ExpectIntEQ(wc_DhCmpNamedKey(WC_FFDHE_2048, 0, p2048->p,
+            p2048->p_len, p2048->g, p2048->g_len, p2048->q,
+            p2048->q_len - 1), 0);
 #else
         ExpectIntEQ(wc_DhCmpNamedKey(9999, 1, p2048->p, p2048->p_len,
             p2048->g, p2048->g_len, NULL, 0), 0);

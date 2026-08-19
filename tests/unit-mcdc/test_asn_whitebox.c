@@ -46,7 +46,7 @@
  *      constructed-basic-type / IndefItems bookkeeping ............ :4125,:4243,
  *                                                                     :4297,:4322,:4399
  *   7. SizeASN_Items()/SetASN_Items() template engine (custom
- *      encode template) ............................................ :866,:899,
+ *      encode template) ............................................ :811,:866,:899,
  *                                                                     :987,:999,:1085,
  *                                                                     :1260,:1266,:1278
  *   8. GetASN_Items()/GetASN_StoreData()/GetASN_Integer()/
@@ -72,6 +72,29 @@
  *     operands false) structurally unreachable. Both operands' "other"
  *     value is driven below (headerOnly true and false) but the decision
  *     itself cannot show a false outcome.
+ *   - GetOID() :7960 first operand (`ret == 0`): ret is a local initialised
+ *     to 0 at asn.c:7873 and assigned only inside `#ifdef ASN_DUMP_OID`
+ *     (:7952), which settings.h never defines and no campaign variant sets.
+ *     Constant true. The other three operands are driven below with two
+ *     hand-computed wc_oid_sum() collisions.
+ *   - wc_Asn1_PrintAll() :39680 both operands: every path through
+ *     wc_Asn1_Print() that returns 0 leaves asn1->part == ASN_PART_TAG (the
+ *     constructed branch sets it at :39598; the primitive branch sets
+ *     ASN_PART_DATA at :39587 and then runs the data block at :39605-:39625,
+ *     which resets it in the same call), and the loop at :39675 exits with
+ *     ret == 0 only when all input is consumed. The decision is never true.
+ *   - PrintAsn1Text() :39331 3rd/4th operands: the function is called only
+ *     from wc_Asn1_Print()'s ASN_PART_DATA block (:39608), and part becomes
+ *     ASN_PART_DATA only in the `if (!asn1->item.cons)` branch at :39585.
+ *     asn1->item.cons is therefore 0 here, so the 4th operand is constant
+ *     false and the 3rd can never determine the outcome.
+ *   - PrintObjectIdText() :39187 2nd operand (`idx >= 2`): idx is a local
+ *     initialised to 0 and written only by the GetObjectId() call at :39171,
+ *     which is passed oidIgnoreType -- for that type GetOID() skips its
+ *     verification block, so it returns 0 or ASN_PARSE_E. ASN_PARSE_E takes
+ *     the `known = 0` branch, so the else-if chain is reached only after a
+ *     successful decode, which has already advanced idx past the tag and
+ *     length bytes.
  */
 
 #include <wolfcrypt/src/asn.c>
@@ -441,10 +464,15 @@ static const ASNItem wbEncASN[] = {
 /* W8P  */   { 1, ASN_INTEGER,      0, 0, 0 }, /* Int8Bit, MSB clear (SetASN_Num) */
 /* INTNODATA */ { 1, ASN_INTEGER,   0, 0, 0 }, /* no buffer: ASNIntMSBSet data!=NULL false */
 /* INTZEROLEN */ { 1, ASN_INTEGER,  0, 0, 0 }, /* buffer, length==0: ASNIntMSBSet length>0 false */
+/* W8OCT */  { 1, ASN_OCTET_STRING, 0, 0, 0 }, /* Int8Bit, MSB set, tag!=INTEGER (isolates
+                                                 * SizeASN_Num/SetASN_Num's "tag==ASN_INTEGER"
+                                                 * operand against WBENC_W8N: same 0xFF value,
+                                                 * only the tag differs) */
 };
 enum {
     WBENC_SEQ = 0, WBENC_OCT, WBENC_INTN, WBENC_INTP, WBENC_BIT,
-    WBENC_W8N, WBENC_W8P, WBENC_INTNODATA, WBENC_INTZEROLEN, WBENC_COUNT
+    WBENC_W8N, WBENC_W8P, WBENC_INTNODATA, WBENC_INTZEROLEN, WBENC_W8OCT,
+    WBENC_COUNT
 };
 
 static void wb_size_set_asn_items(void)
@@ -484,6 +512,11 @@ static void wb_size_set_asn_items(void)
      * ASNIntMSBSet's "data!=NULL" operand (false) against WBENC_INTZEROLEN
      * below (same length==0, data!=NULL true). */
     SetASN_Buffer(&dataASN[WBENC_INTZEROLEN], octBuf, 0); /* data!=NULL, length==0 */
+    /* Same 0xFF value as WBENC_W8N but tag==ASN_OCTET_STRING (not
+     * ASN_INTEGER, not ASN_BIT_STRING): isolates SizeASN_Num()/SetASN_Num()'s
+     * "tag == ASN_INTEGER" operand -- MSB-set stays true in both, only the
+     * tag differs, so the extra zero-pad byte is skipped here. */
+    SetASN_Int8Bit(&dataASN[WBENC_W8OCT], 0xFFU);
     /* dataASN[WBENC_SEQ] left all-zero: headerOnly=1, data==NULL -> :866
      * false side (SizeASN_CalcDataLength sums children); :999 false side
      * (!headerOnly||data!=NULL -> F||F). */
@@ -504,6 +537,7 @@ static void wb_size_set_asn_items(void)
     SetASN_Int8Bit(&dataASN[WBENC_W8N], 0xFFU);
     SetASN_Int8Bit(&dataASN[WBENC_W8P], 0x05U);
     SetASN_Buffer(&dataASN[WBENC_INTZEROLEN], octBuf, 0);
+    SetASN_Int8Bit(&dataASN[WBENC_W8OCT], 0xFFU);
     SetASN_Buffer(&dataASN[WBENC_SEQ], octBuf, sizeof(octBuf));
     {
         word32 encSz2 = 0;
@@ -523,6 +557,8 @@ static void wb_size_set_asn_items(void)
             " same data!=NULL) isolates the length>0 operand");
 
     WB_NOTE("SetASN_Num(): INTEGER MSB check [:1085] via WBENC_W8N/W8P above (0xFF vs 0x05)");
+    WB_NOTE("SizeASN_Num()/SetASN_Num(): tag==ASN_INTEGER operand [:811,:1085] via"
+            " WBENC_W8N (tag INTEGER, 0xFF) vs WBENC_W8OCT (tag OCTET_STRING, 0xFF)");
 
     /* :866/:867 SizeASN_CalcDataLength()'s per-child check
      *   asn[j].headerOnly && data[j].data.buffer.data==NULL && dataType!=REPLACE
@@ -673,10 +709,22 @@ static void wb_get_asn_items_utf8(void)
 {
     static const ASNItem utf8Item[] = { { 0, ASN_UTF8STRING, 0, 0, 0 } };
     /* 'A' (valid ASCII), then an invalid lead byte (0xFF matches none of the
-     * continuation-count masks), then a trailing byte never reached --
-     * demonstrates the while(ret==0 && i<length) [:1416] exiting via the
-     * ret==0 operand (error mid-string) rather than only via i<length. */
+     * continuation-count masks): the "invalid character" arm hits its own
+     * `break` directly inside the while body, so the while's own condition
+     * is never re-evaluated with ret!=0 -- this exercises GetASN_UTF8String
+     * itself returning an error, but does NOT pair :1416's ret==0 operand
+     * (see the loopExit case below for that). */
     byte der[] = { 0x0c, 0x03, 0x41, 0xFF, 0x42 };
+    /* Lead byte 0xC2 announces one continuation byte (cnt==1); the next byte
+     * 0x41 has its top bit clear, which is invalid for a continuation byte.
+     * That failure is detected inside the nested `for (; cnt > 0; cnt--)`
+     * loop, whose `break` only exits the *for*, falling through to the
+     * bottom of the while body. Because one more byte (0x42) remains
+     * in-range, i (1) is still < length (3) when the while condition is
+     * re-checked -- so THIS re-check is the one where ret==0 is false while
+     * i<length is true, independently determining the (now-false) outcome:
+     * the MC/DC pair for the while's ret==0 operand. */
+    byte derLoopExit[] = { 0x0c, 0x03, 0xC2, 0x41, 0x42 };
     ASNGetData d[1];
     word32 idx;
     int ret;
@@ -685,7 +733,13 @@ static void wb_get_asn_items_utf8(void)
     XMEMSET(d, 0, sizeof(d));
     idx = 0;
     ret = GetASN_Items(utf8Item, d, 1, 0, der, &idx, sizeof(der));
-    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":1416 loop exits via ret!=0 mid-string");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), "invalid lead byte (while's own break)");
+
+    XMEMSET(d, 0, sizeof(d));
+    idx = 0;
+    ret = GetASN_Items(utf8Item, d, 1, 0, derLoopExit, &idx, sizeof(derLoopExit));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            ":1416 ret==0 operand false (i<length still true, for-loop break path)");
 }
 
 static void wb_get_asn_items_word8(void)
@@ -817,16 +871,34 @@ static void wb_get_asn_items_word32(void)
         ret = GetASN_Items(ctxItem, d, 1, 0, der, &idx, sizeof(der));
         WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":1563 len>4");
     }
+    { /* Non-BIT_STRING (ctx) tag, MSB-set data byte, not zero-padded ->
+       * :1569 all 3 operands true (tag!=BIT_STRING, !zeroPadded,
+       * input[idx]>=0x80): outcome true (ASN_EXPECT_0_E). This is the
+       * cond0==true counterpart of the BIT_STRING case below -- both use
+       * the SAME 0x90 data byte, so cond1/cond2 are pinned to the same
+       * (true,true) values in both calls and only cond0 differs. */
+        byte der[] = { 0x85, 0x01, 0x90 };
+        XMEMSET(d, 0, sizeof(d)); GetASN_Int32Bit(&d[0], &n32);
+        idx = 0;
+        ret = GetASN_Items(ctxItem, d, 1, 0, der, &idx, sizeof(der));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_EXPECT_0_E),
+                ":1569 all true (tag!=BIT_STRING, MSB set, not zero-padded)");
+    }
     { /* BIT_STRING tag with WORD32 dataType -> :1569 1st operand false
        * (tag==BIT_STRING), short-circuits regardless of zero-pad/MSB. Data
-       * byte (0x2B) kept MSB-clear, matching the ctx-tag baseline above, so
-       * only the 1st operand differs between the two calls (clean
-       * independence pair: 2nd/3rd operands held at the same values). */
-        byte der[] = { 0x03, 0x02, 0x00, 0x2B };
+       * byte kept MSB-SET (0x90, same value as the ctx-tag case just above)
+       * so cond1/cond2 would also have been true had cond0 not
+       * short-circuited them -- a prior version of this vector used an
+       * MSB-CLEAR byte (0x2B), which left cond2 false in both calls and
+       * masked cond0's effect on the outcome entirely (outcome was false
+       * either way): that vector proved nothing about :1569's 1st operand.
+       * With MSB set here, the outcome flips true->false (EXPECT_0_E -> 0),
+       * giving a real independence pair. */
+        byte der[] = { 0x03, 0x02, 0x00, 0x90 };
         XMEMSET(d, 0, sizeof(d)); GetASN_Int32Bit(&d[0], &n32);
         idx = 0;
         ret = GetASN_Items(bitItem, d, 1, 0, der, &idx, sizeof(der));
-        WB_CHECK(ret == 0, ":1569 1st operand false (tag==BIT_STRING)");
+        WB_CHECK(ret == 0 && n32 == 0x90u, ":1569 1st operand false (tag==BIT_STRING)");
     }
 }
 #else
@@ -891,6 +963,256 @@ static void wb_get_asn_sequence(void)
 static void wb_get_asn_sequence(void) { WB_NOTE("non-template GetASN_Sequence; skipped"); }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * Section 10: GetOID() OID-data cross-check (:7960).
+ *   if ((ret == 0) && (checkOid != NULL) && ((checkOidSz != actualOidSz) ||
+ *           (XMEMCMP(actualOid, checkOid, checkOidSz) != 0)))
+ * The OID *id* is wc_oid_sum() of the encoded bytes, a 4-byte rolling XOR
+ * fold (asn.c:7841-7851), so a byte string that is not the real OID can
+ * still hash to a known id. Two such collisions are used here:
+ *   - swapping two bytes 4 apart leaves the fold unchanged (they land on
+ *     the same shift), giving a same-length mismatch -> 3rd operand false,
+ *     4th true;
+ *   - the 5-byte string below folds to the same value as the 9-byte
+ *     rsaEncryption OID, giving a length mismatch -> 3rd operand true.
+ * The real OID gives both false, and an id with no table entry gives
+ * checkOid == NULL (2nd operand false).
+ * ------------------------------------------------------------------------- */
+#ifndef NO_VERIFY_OID
+static void wb_get_oid_check(void)
+{
+    /* 1.2.840.113549.1.1.1 (rsaEncryption) content octets. */
+    static const byte rsaOid[]   = {
+        0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x01 };
+    /* bytes 0 and 4 swapped: same fold, same length, different content. */
+    static const byte rsaSwap[]  = {
+        0xF7,0x86,0x48,0x86,0x2A,0x0D,0x01,0x01,0x01 };
+    /* folds to the same id as rsaOid but is 5 bytes, not 9. */
+    static const byte rsaShort[] = { 0xDC,0x8B,0xB6,0x87,0xFF };
+    /* 1.2.3.4: no oidKeyType table entry, so OidFromId() returns NULL. */
+    static const byte unkOid[]   = { 0x2A,0x03,0x04 };
+    word32 idx;
+    word32 oid;
+    int ret;
+
+    WB_NOTE("GetOID(): checkOid NULL / size / content mismatch [:7960]");
+
+    /* Sanity: the three fixtures really do share one OID id. */
+    WB_CHECK(wc_oid_sum(rsaOid, (int)sizeof(rsaOid)) ==
+             wc_oid_sum(rsaSwap, (int)sizeof(rsaSwap)),
+             "same-length collision folds to the rsaEncryption id");
+    WB_CHECK(wc_oid_sum(rsaOid, (int)sizeof(rsaOid)) ==
+             wc_oid_sum(rsaShort, (int)sizeof(rsaShort)),
+             "short collision folds to the rsaEncryption id");
+
+    /* 3rd and 4th operands both false: the genuine OID matches its entry. */
+    idx = 0; oid = 0;
+    ret = GetOID(rsaOid, &idx, &oid, oidKeyType, (int)sizeof(rsaOid));
+    WB_CHECK(ret == 0 && oid == RSAk, "genuine OID (3rd/4th operand false)");
+
+    /* 2nd operand false: no table entry for this id. */
+    idx = 0; oid = 0;
+    ret = GetOID(unkOid, &idx, &oid, oidKeyType, (int)sizeof(unkOid));
+    WB_CHECK(ret == 0, "unknown id, checkOid==NULL (2nd operand false)");
+
+    /* 3rd operand false, 4th true: sizes agree, bytes do not. */
+    idx = 0; oid = 0;
+    ret = GetOID(rsaSwap, &idx, &oid, oidKeyType, (int)sizeof(rsaSwap));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+             "same-length collision (4th operand true)");
+
+    /* 3rd operand true: sizes disagree. */
+    idx = 0; oid = 0;
+    ret = GetOID(rsaShort, &idx, &oid, oidKeyType, (int)sizeof(rsaShort));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),
+             "short collision (3rd operand true)");
+}
+#else
+static void wb_get_oid_check(void) { WB_NOTE("NO_VERIFY_OID; skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Section 11: wc_BerToDer() nested indefinite length inside a constructed
+ * basic type (:4322).
+ *   if (indef || tag != basic)
+ * The pre-existing coverage only shows the tag-mismatch half. An OCTET
+ * STRING with indefinite length whose first child is itself an indefinite
+ * OCTET STRING drives the first operand true instead.
+ * ------------------------------------------------------------------------- */
+#ifdef ASN_BER_TO_DER
+static void wb_ber_to_der_nested_indef(void)
+{
+    /* [constructed OCTET STRING, indefinite]
+     *     [constructed OCTET STRING, indefinite]  <- indef child
+     *         EOC
+     *     EOC   */
+    static const byte berNested[] = {
+        0x24, 0x80,
+              0x24, 0x80,
+                    0x00, 0x00,
+              0x00, 0x00
+    };
+    /* Same shape but the child is a definite OCTET STRING of a different
+     * tag (INTEGER): first operand false, second true. */
+    static const byte berWrongTag[] = {
+        0x24, 0x80,
+              0x02, 0x01, 0x01,
+              0x00, 0x00
+    };
+    /* Well-formed: definite child with the matching basic tag. */
+    static const byte berOk[] = {
+        0x24, 0x80,
+              0x04, 0x02, 0xAA, 0xBB,
+              0x00, 0x00
+    };
+    byte der[64];
+    word32 derSz;
+    int ret;
+
+    WB_NOTE("wc_BerToDer(): indefinite child of constructed basic type [:4322]");
+
+    derSz = (word32)sizeof(der);
+    ret = wc_BerToDer(berOk, (word32)sizeof(berOk), der, &derSz);
+    WB_CHECK(ret == 0, "definite matching child (both operands false)");
+
+    derSz = (word32)sizeof(der);
+    ret = wc_BerToDer(berWrongTag, (word32)sizeof(berWrongTag), der, &derSz);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+             "tag mismatch (2nd operand true)");
+
+    derSz = (word32)sizeof(der);
+    ret = wc_BerToDer(berNested, (word32)sizeof(berNested), der, &derSz);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+             "indefinite child (1st operand true)");
+}
+#else
+static void wb_ber_to_der_nested_indef(void) { WB_NOTE("ASN_BER_TO_DER off; skipped"); }
+#endif
+
+/* ------------------------------------------------------------------------- *
+ * Section 12: wc_Asn1_PrintAll() / CheckDepth() / PrintAsn1Text() /
+ * PrintObjectIdText() (:39400, :39684, :39331, :39187).
+ *   :39400  for (i = 0; (ret == 0) && (i < asn1->depth); i++)
+ *   :39684  if ((ret == 0) && (asn1->depth != 0))
+ *   :39331  if ((tag == ASN_INTEGER) || (tag == ASN_OCTET_STRING) || ...)
+ *   :39187  else if ((asn1->nameCb != NULL) && (idx >= 2) && ((ln = ...)))
+ * Output goes to /dev/null so the fixtures stay silent; only the parse
+ * bookkeeping matters here.
+ * ------------------------------------------------------------------------- */
+#ifdef WOLFSSL_ASN_PRINT
+static int wb_asn1_name_cb_hits = 0;
+static const char* wb_asn1_name_cb(unsigned char* oid, word32 len)
+{
+    (void)oid;
+    (void)len;
+    wb_asn1_name_cb_hits++;
+    /* Alternate between a name and "unknown" so the callback result operand
+     * is driven both ways. */
+    return (wb_asn1_name_cb_hits & 1) ? "wb-oid" : NULL;
+}
+
+static void wb_asn1_print_all(void)
+{
+    /* Complete: SEQUENCE { INTEGER 1 }. */
+    static byte derOk[] = { 0x30, 0x03, 0x02, 0x01, 0x01 };
+    /* SEQUENCE whose content is an empty SEQUENCE ending exactly at the end
+     * of the buffer: nothing after it drives UpdateDepth(), so the parse
+     * finishes with depth == 2. */
+    static byte derOpen[] = { 0x30, 0x02, 0x30, 0x00 };
+    /* Inner SEQUENCE whose end index runs past its parent's (the buffer is
+     * longer than the outer item): CheckDepth() rejects it on i == 0, so the
+     * loop re-tests with ret != 0 on i == 1. */
+    static byte derDeep[] = {
+        0x30, 0x02, 0x30, 0x02, 0x00, 0x00, 0x00, 0x00 };
+    /* Bad length encoding: GetLength() fails, so ret != 0 on arrival. */
+    static byte derBadLen[] = { 0x30, 0x84, 0x00 };
+    /* Primitive items that reach the dump-text dispatch with different
+     * tags: NULL (all operands false), OCTET STRING (2nd operand true). */
+    static byte derNull[] = { 0x05, 0x00 };
+    static byte derOct[]  = { 0x04, 0x02, 0xAA, 0xBB };
+    /* OBJECT_ID 1.2.3.4.5: not in any known-name table, so the name
+     * callback decides. */
+    static byte derOid[]  = { 0x06, 0x04, 0x2A, 0x03, 0x04, 0x05 };
+    Asn1 asn1;
+    Asn1PrintOptions opts;
+    XFILE devnull;
+    int ret;
+
+    WB_NOTE("wc_Asn1_PrintAll(): depth bookkeeping [:39400,:39684]");
+
+    devnull = XFOPEN("/dev/null", "w");
+    if (devnull == XBADFILE) {
+        WB_NOTE("/dev/null unavailable; skipped");
+        return;
+    }
+
+    ret = wc_Asn1PrintOptions_Init(&opts);
+    WB_CHECK(ret == 0, "wc_Asn1PrintOptions_Init");
+
+    ret = wc_Asn1_Init(&asn1);
+    WB_CHECK(ret == 0, "wc_Asn1_Init");
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derOk, (word32)sizeof(derOk));
+    WB_CHECK(ret == 0, "complete DER (:39684 2nd operand false, :39400 both "
+             "operands true then loop exit; :39331 1st operand true)");
+
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derOpen, (word32)sizeof(derOpen));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_DEPTH_E),
+             "unclosed constructed items (:39684 both operands true)");
+
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derDeep, (word32)sizeof(derDeep));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_DEPTH_E),
+             "child end index past parent's (:39400 1st operand false)");
+
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derBadLen, (word32)sizeof(derBadLen));
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_LEN_E),
+             "bad length encoding (:39684 1st operand false)");
+
+    WB_NOTE("PrintAsn1Text(): dump-text tag dispatch [:39331]");
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derNull, (word32)sizeof(derNull));
+    WB_CHECK(ret == 0, "NULL item (:39331 1st/2nd/3rd operand false)");
+
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derOct, (word32)sizeof(derOct));
+    WB_CHECK(ret == 0, "OCTET STRING item (:39331 2nd operand true)");
+
+    WB_NOTE("PrintObjectIdText(): OID name callback [:39187]");
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derOid, (word32)sizeof(derOid));
+    WB_CHECK(ret == 0, "unknown OID, no name callback (1st operand false)");
+
+    wb_asn1_name_cb_hits = 0;
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    (void)wc_Asn1_SetOidToNameCb(&asn1, wb_asn1_name_cb);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derOid, (word32)sizeof(derOid));
+    WB_CHECK(ret == 0 && wb_asn1_name_cb_hits == 1,
+             "name callback returns a name (all operands true)");
+
+    (void)wc_Asn1_Init(&asn1);
+    (void)wc_Asn1_SetFile(&asn1, devnull);
+    (void)wc_Asn1_SetOidToNameCb(&asn1, wb_asn1_name_cb);
+    ret = wc_Asn1_PrintAll(&asn1, &opts, derOid, (word32)sizeof(derOid));
+    WB_CHECK(ret == 0 && wb_asn1_name_cb_hits == 2,
+             "name callback returns NULL (3rd operand false)");
+
+    XFCLOSE(devnull);
+}
+#else
+static void wb_asn1_print_all(void) { WB_NOTE("WOLFSSL_ASN_PRINT off; skipped"); }
+#endif
+
 int main(void)
 {
     printf("asn.c white-box MC/DC supplement\n");
@@ -908,6 +1230,9 @@ int main(void)
     wb_get_asn_items_word16();
     wb_get_asn_items_word32();
     wb_get_asn_sequence();
+    wb_get_oid_check();
+    wb_ber_to_der_nested_indef();
+    wb_asn1_print_all();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage

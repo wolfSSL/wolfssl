@@ -329,8 +329,15 @@ static void wb_decode_single_response_dates(void)
     sz = wb_build_single_response(buf, futureDate, futureDate);
     idx = 0;
     ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+    /* Without a clock the date range is not validated at all, so the
+     * out-of-range fixtures are accepted in that variant. */
+#if !defined(NO_ASN_TIME) && !defined(NO_ASN_TIME_CHECK) && \
+    !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E),
             ":34986/:34987 both true (thisUpdate in the future)");
+#else
+    WB_CHECK(ret == 0, "thisUpdate in the future, no clock (not validated)");
+#endif
 
     /* nextUpdate in the past (thisUpdate still valid) -> :35006/:35007 both
      * true (present), :35012/:35013 both true -> ASN_AFTER_DATE_E. Also
@@ -342,8 +349,37 @@ static void wb_decode_single_response_dates(void)
     sz = wb_build_single_response(buf, pastDate, pastDate);
     idx = 0;
     ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+#if !defined(NO_ASN_TIME) && !defined(NO_ASN_TIME_CHECK) && \
+    !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E),
             ":35012/:35013 both true (nextUpdate in the past)");
+#else
+    WB_CHECK(ret == 0, "nextUpdate in the past, no clock (not validated)");
+#endif
+
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+    /* Same two rejecting fixtures with the runtime skip flag set: the
+     * AsnSkipDateCheck operand goes false and neither date is validated. */
+    (void)wc_AsnSetSkipDateCheck(1);
+
+    XMEMSET(&status, 0, sizeof(status));
+    XMEMSET(&single, 0, sizeof(single));
+    single.status = &status;
+    sz = wb_build_single_response(buf, futureDate, futureDate);
+    idx = 0;
+    ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+    WB_CHECK(ret == 0, ":34986 1st operand false (AsnSkipDateCheck set)");
+
+    XMEMSET(&status, 0, sizeof(status));
+    XMEMSET(&single, 0, sizeof(single));
+    single.status = &status;
+    sz = wb_build_single_response(buf, pastDate, pastDate);
+    idx = 0;
+    ret = DecodeSingleResponse(buf, &idx, sz, 0, &single);
+    WB_CHECK(ret == 0, ":35012 1st operand false (AsnSkipDateCheck set)");
+
+    (void)wc_AsnSetSkipDateCheck(0);
+#endif
 }
 #else
 static void wb_decode_single_response_dates(void) { WB_NOTE("non-template DecodeSingleResponse; skipped"); }
@@ -656,48 +692,43 @@ static void wb_ocsp_check_cert(void)
         XMEMSET(mismatchHash, 0xEE, KEYID_SIZE);
         FreeDecodedCert(&cert);
 
-        /* ret==0 true, OcspRespIdMatch()==0 true (matching id) -> both
-         * true -> BAD_OCSP_RESPONDER (goto err). noVerify=1 so :35633 is
-         * never reached this call. */
+        /* OcspRespIdMatch() returns 0 when the hashes DO NOT match (its
+         * XMEMCMP == 0 test is inverted from the name): the reject at
+         * :35624 (ret == 0 && OcspRespIdMatch(...) == 0) fires when the
+         * embedded cert's subject hash does NOT correspond to the claimed
+         * responder id, not when it does. noVerify=1 -> NO_VERIFY parse
+         * succeeds (op0=true) without needing a CertManager; a mismatching
+         * nameHash makes OcspRespIdMatch() return 0 (op1=true) -> both
+         * operands true -> BAD_OCSP_RESPONDER (goto err). Paired with the
+         * garbage-cert vector above (op0=false), this is the independence
+         * pair for :35624's 1st operand; it is also the only vector in this
+         * binary where the 2nd operand is true. */
+        XMEMSET(&resp, 0, sizeof(resp));
+        resp.cert = root_ca_cert_pem;
+        resp.certSz = (word32)sizeof(root_ca_cert_pem);
+        resp.responderIdType = OCSP_RESPONDER_ID_NAME;
+        XMEMCPY(resp.responderId.nameHash, mismatchHash, KEYID_SIZE);
+        ret = OcspCheckCert(&resp, 1 /* noVerify=1 -> NO_VERIFY parse */,
+                1 /* noVerifySignature */, NULL, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_OCSP_RESPONDER),
+                ":35624 both true (mismatching responder id -> rejected)");
+
+        /* ret==0 true, OcspRespIdMatch()==0 false (matching id: hashes are
+         * equal, so XMEMCMP==0 and OcspRespIdMatch() returns 1) -- the
+         * :35624 if-body is skipped, so parsing continues past it with
+         * ret==0 still. noVerify=1 keeps :35633's 2nd operand (!noVerify)
+         * false; noVerifySignature=1 likewise keeps :35643's 2nd operand
+         * false, so this call returns cleanly. */
         XMEMSET(&resp, 0, sizeof(resp));
         resp.cert = root_ca_cert_pem;
         resp.certSz = (word32)sizeof(root_ca_cert_pem);
         resp.responderIdType = OCSP_RESPONDER_ID_NAME;
         XMEMCPY(resp.responderId.nameHash, matchingHash, KEYID_SIZE);
         ret = OcspCheckCert(&resp, 1, 1, NULL, NULL);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_OCSP_RESPONDER),
-                ":35624 both true (matching responder id -> rejected)");
-
-        /* ret==0 true, OcspRespIdMatch()==0 false (mismatching id): the
-         * :35624 if-body is skipped, so parsing continues. With
-         * noVerify=0 the WOLFSSL_NO_OCSP_ISSUER_CHECK-off branch at
-         * :35633 is reached with ret==0 && !noVerify both true. */
-        XMEMSET(&resp, 0, sizeof(resp));
-        resp.cert = root_ca_cert_pem;
-        resp.certSz = (word32)sizeof(root_ca_cert_pem);
-        resp.responderIdType = OCSP_RESPONDER_ID_NAME;
-        XMEMCPY(resp.responderId.nameHash, mismatchHash, KEYID_SIZE);
-        ret = OcspCheckCert(&resp, 0 /* noVerify=0 -> VERIFY_OCSP_CERT */,
-                0 /* noVerifySignature=0 */, NULL, NULL);
-        /* Outcome depends on whether NO_VERIFY-vs-VERIFY_OCSP_CERT parsing
-         * of a self-signed root without a populated CertManager succeeds;
-         * either way the :35624/:35633/:35643 decisions above it have now
-         * been exercised with noVerify==0, !noVerifySignature==1 -- that is
-         * the coverage goal of this vector, not a specific final ret. */
-        WB_NOTE(":35633/:35643 reached with noVerify=0, noVerifySignature=0 "
-                "(mismatching responder id skips the :35624 reject)");
-        (void)ret;
-
-        /* noVerifySignature=1 with the same mismatching id and noVerify=0:
-         * :35643 2nd operand false (skips ConfirmSignature call). */
-        XMEMSET(&resp, 0, sizeof(resp));
-        resp.cert = root_ca_cert_pem;
-        resp.certSz = (word32)sizeof(root_ca_cert_pem);
-        resp.responderIdType = OCSP_RESPONDER_ID_NAME;
-        XMEMCPY(resp.responderId.nameHash, mismatchHash, KEYID_SIZE);
-        ret = OcspCheckCert(&resp, 0, 1 /* noVerifySignature */, NULL, NULL);
-        WB_NOTE(":35643 2nd operand false (noVerifySignature=1)");
-        (void)ret;
+        WB_CHECK(ret == 0,
+                ":35624 1st true, 2nd false (matching responder id -> "
+                "proceeds); noVerify=1/noVerifySignature=1 skip the two "
+                "checks below it");
     }
     else {
         FreeDecodedCert(&cert);
@@ -723,6 +754,99 @@ static void wb_decode_basic_ocsp_response(void)
 
     WB_NOTE("OcspResponseDecode()/DecodeBasicOcspResponse(): certs/sig-chain "
             "decisions [:35831,:35839,:35849,:35856,:35862]");
+
+#ifdef WC_RSA_PSS
+    /* Section 7a: hand-build a BasicOCSPResponse whose signatureAlgorithm
+     * carries a trailing parameters SEQUENCE (as RSA-PSS signatures do), to
+     * drive :35979's SIGNATURE_PARAMS.tag != 0 operand true -- no committed
+     * OCSP response fixture in this corpus is RSA-PSS signed. Called
+     * directly (DecodeBasicOcspResponse is file-static): a genuine OID +
+     * trailing SEQUENCE is all the template requires at this position, no
+     * real PSS semantics needed for MC/DC purposes. */
+    {
+        byte tbs[700];
+        word32 tbsSz;
+        byte sigAlgo[64];
+        word32 sigAlgoSz;
+        byte sig[16];
+        byte content[900];
+        word32 idx = 0;
+        byte full[950];
+        word32 fullSz;
+        word32 didx = 0;
+        OcspResponse rr;
+        OcspEntry ee;
+        CertStatus ss;
+        int dret;
+        /* sha256WithRSAEncryption (1.2.840.113549.1.1.11) OID content. */
+        static const byte rsaSha256Oid[] =
+            { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b };
+        byte inner[32];
+        word32 innerIdx = 0;
+
+        innerIdx += wb_tlv(inner + innerIdx, ASN_OBJECT_ID, rsaSha256Oid,
+                sizeof(rsaSha256Oid));
+        innerIdx += WB_SEQ(inner + innerIdx, NULL, 0); /* empty PARAMS SEQ */
+        sigAlgoSz = WB_SEQ(sigAlgo, inner, innerIdx);
+
+        XMEMSET(sig, 0xAA, sizeof(sig));
+        tbsSz = wb_build_response_data(tbs, 0, 0);
+
+        XMEMCPY(content + idx, tbs, tbsSz); idx += tbsSz;
+        XMEMCPY(content + idx, sigAlgo, sigAlgoSz); idx += sigAlgoSz;
+        {
+            byte sigHdr[8];
+            word32 sigHdrSz = SetBitString(sizeof(sig), 0, sigHdr);
+            XMEMCPY(content + idx, sigHdr, sigHdrSz); idx += sigHdrSz;
+            XMEMCPY(content + idx, sig, sizeof(sig)); idx += sizeof(sig);
+        }
+        fullSz = WB_SEQ(full, content, idx);
+
+        XMEMSET(&rr, 0, sizeof(rr));
+        XMEMSET(&ee, 0, sizeof(ee));
+        XMEMSET(&ss, 0, sizeof(ss));
+        rr.single = &ee;
+        ee.status = &ss;
+        dret = DecodeBasicOcspResponse(full, &didx, &rr, fullSz, NULL, NULL,
+                1, 1);
+        WB_CHECK(dret == 0 && rr.sigParamsSz > 0,
+                ":35979 both true (hand-built response, sigAlgo params "
+                "SEQUENCE present)");
+    }
+#endif
+
+    /* Corrupt a byte deep inside the BasicOCSPResponse content (well past
+     * the outer OCSPResponse/ResponseBytes wrapper, which only takes a
+     * byte-range reference and does not deeply parse it) so
+     * DecodeBasicOcspResponse()'s own top-level GetASN_Items() call fails --
+     * ret!=0 from the very start, cascading false through every subsequent
+     * "ret==0 && ..." guard in the function -- the independence pair for
+     * :35996/:36004's ret==0 operand (every other vector in this function
+     * reaches those lines with ret==0 already true). */
+    {
+        byte corrupt[sizeof(resp)];
+        word32 off;
+        int corrupted = 0;
+        XMEMCPY(corrupt, resp, sizeof(resp));
+        for (off = 40; off < sizeof(corrupt); off += 7) {
+            byte save = corrupt[off];
+            corrupt[off] = (byte)~save;
+            XMEMSET(&r, 0, sizeof(r));
+            XMEMSET(&entry, 0, sizeof(entry));
+            XMEMSET(&status, 0, sizeof(status));
+            InitOcspResponse(&r, &entry, &status, corrupt,
+                    (word32)sizeof(corrupt), NULL);
+            ret = OcspResponseDecode(&r, NULL, NULL, 1, 1);
+            if (ret != 0) {
+                corrupted = 1;
+                break;
+            }
+            corrupt[off] = save;
+        }
+        WB_CHECK(corrupted,
+                ":35996/:36004 ret==0 operand false (top-level GetASN_Items "
+                "fails on a corrupted BasicOCSPResponse)");
+    }
 
     /* noVerifySignature=1: :35849/:35856/:35862 all false via their 2nd
      * operand (!noVerifySignature), regardless of certs/sigValid state.
@@ -754,13 +878,54 @@ static void wb_decode_basic_ocsp_response(void)
             "\"resp_nocert\" blob, noVerifySignature=0, cm=NULL "
             "(:35831/:35839 false; :35849 all-true; :35856 ret operand false)");
 
-    /* Attempt the same blob against a CertManager loaded with the matching
-     * root CA: if OcspFindSigner() locates a signer this additionally
-     * exercises :35856's true side (ca != NULL) and :35862. Best-effort --
-     * the exact outcome depends on whether the response's responder-id
-     * hash resolves directly in the CA table (GetCA/GetCAByName do a
-     * direct table lookup, no chain walking), so only the reachable-state
-     * note is asserted, not a specific ret. */
+    /* Attempt the same blob against a CertManager loaded with every CA/
+     * responder cert in the OCSP test corpus: "resp_nocert" strips the
+     * embedded responder cert but keeps the same responderId, which turns
+     * out to resolve via ocsp_responder_cert_pem's subject hash (loaded here
+     * as a trust anchor alongside the CA chain). This makes OcspFindSigner()
+     * locate a signer (ca != NULL) -- exercising :35856's true side and
+     * :35862 -- and the subsequent OcspRespCheck()/ConfirmSignature() calls
+     * succeed, giving ret==0 end to end. */
+    {
+        WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+        if (cm != NULL) {
+            (void)wolfSSL_CertManagerLoadCABuffer(cm, root_ca_cert_pem,
+                    (word32)sizeof(root_ca_cert_pem), WOLFSSL_FILETYPE_ASN1);
+            (void)wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_pem,
+                    (word32)sizeof(ca_cert_pem), WOLFSSL_FILETYPE_ASN1);
+            (void)wolfSSL_CertManagerLoadCABuffer(cm, intermediate1_ca_cert_pem,
+                    (word32)sizeof(intermediate1_ca_cert_pem),
+                    WOLFSSL_FILETYPE_ASN1);
+            (void)wolfSSL_CertManagerLoadCABuffer(cm, ocsp_responder_cert_pem,
+                    (word32)sizeof(ocsp_responder_cert_pem),
+                    WOLFSSL_FILETYPE_ASN1);
+            XMEMSET(&r, 0, sizeof(r));
+            XMEMSET(&entry, 0, sizeof(entry));
+            XMEMSET(&status, 0, sizeof(status));
+            InitOcspResponse(&r, &entry, &status, resp_nocert,
+                    (word32)sizeof(resp_nocert), NULL);
+            ret = OcspResponseDecode(&r, cm, NULL, 1, 0);
+            WB_CHECK(ret == 0,
+                    "\"resp_nocert\" with the full CA/responder set loaded "
+                    "(:35856 ca!=NULL, :35862 both true; OcspRespCheck() and "
+                    "ConfirmSignature() both succeed)");
+            wolfSSL_CertManagerFree(cm);
+        }
+    }
+
+    /* Every vector above passes noVerifyCert=1 (OcspCheckCert's "noVerify"),
+     * so the OcspCheckCert-internal issuer-check/signature-check decisions
+     * gated by "!noVerify" (WOLFSSL_NO_OCSP_ISSUER_CHECK off) never see that
+     * operand true. Drive noVerifyCert=0/noVerifySignature=0 -- mirroring
+     * the production call in src/ocsp.c's CheckCertOCSP() -- with the "resp"
+     * blob (embedded responder cert whose subject genuinely matches the
+     * response's responderId) against a CertManager holding the issuing
+     * root CA, exactly as tests/api/test_ocsp.c's test_ocsp_response_parsing
+     * does through the public wolfSSL_CertManagerCheckOCSP() path. This
+     * reaches OcspCheckCert()'s ret==0 && OcspRespIdMatch()==0 decision
+     * with a genuine match (2nd operand false, so no reject) and carries
+     * ret==0 forward into the !noVerify / !noVerifySignature checks with
+     * both operands true. */
     {
         WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
         if (cm != NULL) {
@@ -769,11 +934,14 @@ static void wb_decode_basic_ocsp_response(void)
             XMEMSET(&r, 0, sizeof(r));
             XMEMSET(&entry, 0, sizeof(entry));
             XMEMSET(&status, 0, sizeof(status));
-            InitOcspResponse(&r, &entry, &status, resp_nocert,
-                    (word32)sizeof(resp_nocert), NULL);
-            ret = OcspResponseDecode(&r, cm, NULL, 1, 0);
-            WB_NOTE("\"resp_nocert\" with root CA loaded in a CertManager "
-                    "(best-effort :35856/:35862 true-side attempt)");
+            InitOcspResponse(&r, &entry, &status, resp, (word32)sizeof(resp),
+                    NULL);
+            ret = OcspResponseDecode(&r, cm, NULL, 0 /* noVerifyCert=0 */,
+                    0 /* noVerifySignature=0 */);
+            WB_NOTE("\"resp\" blob with issuing root CA loaded, "
+                    "noVerifyCert=0, noVerifySignature=0 (OcspCheckCert(): "
+                    "responder id matches -> proceeds into !noVerify / "
+                    "!noVerifySignature with ret==0)");
             (void)ret;
             wolfSSL_CertManagerFree(cm);
         }
@@ -813,9 +981,12 @@ static void wb_encode_ocsp_request(void)
     need = EncodeOcspRequestExtensions(&req, NULL, 0);
     WB_CHECK(need > 0, ":36155 both true (size-only pass)");
 
-    /* output!=NULL, sz>size (buffer too small) -> :36172 both/all true. */
+    /* output!=NULL, sz>size (buffer too small) -> :36172 all true ->
+     * ret = BUFFER_E (not 0: the size-check block sets ret to an error, it
+     * does not return early). */
     ret = (int)EncodeOcspRequestExtensions(&req, tooSmall, sizeof(tooSmall));
-    WB_CHECK(ret == 0, ":36172 all true (output!=NULL, buffer too small)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
+            ":36172 all true (output!=NULL, buffer too small)");
 
     /* output!=NULL, buffer big enough -> :36172 false via 3rd operand,
      * :36175 both true (encode happens). */
@@ -985,6 +1156,35 @@ static void wb_compare_ocsp_req_resp(void)
     resp.nonce = NULL;
     ret = CompareOcspReqResp(&req, &resp);
     WB_CHECK(ret == 0, ":36619 2nd operand false (resp->nonce==NULL)");
+
+    /* The identity chain is `serial || issuerHash || issuerKeyHash`; the two
+     * trailing comparisons only decide the outcome when every earlier one is
+     * zero, which a response built from a different issuer never produces.
+     * Two single-entry responses isolate them: one whose serial matches but
+     * whose issuer name hash does not, and one where both match but the
+     * issuer key hash does not. */
+    req.nonceSz = 0;
+    resp.nonce = NULL;
+    single1.next = NULL;
+    status1.serialSz = 1;
+    status1.serial[0] = 0xBB;                   /* serial now matches */
+    XMEMSET(single1.issuerHash, 0x03, sizeof(single1.issuerHash));
+    XMEMSET(single1.issuerKeyHash, 0x04, sizeof(single1.issuerKeyHash));
+    resp.single = &single1;
+    ret = CompareOcspReqResp(&req, &resp);
+    WB_CHECK(ret == 0, "serial/issuer/key hashes all match (all three "
+            "comparisons zero)");
+
+    XMEMSET(single1.issuerHash, 0x77, sizeof(single1.issuerHash));
+    resp.single = &single1;
+    ret = CompareOcspReqResp(&req, &resp);
+    WB_CHECK(ret != 0, ":36812 2nd operand true (issuer name hash differs)");
+
+    XMEMSET(single1.issuerHash, 0x03, sizeof(single1.issuerHash));
+    XMEMSET(single1.issuerKeyHash, 0x77, sizeof(single1.issuerKeyHash));
+    resp.single = &single1;
+    ret = CompareOcspReqResp(&req, &resp);
+    WB_CHECK(ret != 0, ":36812 3rd operand true (issuer key hash differs)");
 }
 
 #if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
@@ -997,23 +1197,33 @@ static void wb_compare_ocsp_req_resp(void)
  * callback-dispatch branch is live, not compiled out.
  * ------------------------------------------------------------------------- */
 static int wbEntryCbCalls = 0;
+static int wbEntryCbRet = 0;
 static int wb_entry_ext_cb(const word16* oid, word32 oidSz, int crit,
         const unsigned char* der, word32 derSz)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
     wbEntryCbCalls++;
-    return 0;
+    return wbEntryCbRet;
+}
+
+static int wbEntryCbExCalls = 0;
+static int wbEntryCbExRet = 0;
+static int wb_entry_ext_cb_ex(const word16* oid, word32 oidSz, int crit,
+        const unsigned char* der, word32 derSz, void* ctx)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz; (void)ctx;
+    wbEntryCbExCalls++;
+    return wbEntryCbExRet;
 }
 
 /* Build one CRL-entry-extension SEQUENCE (reason code) or a generic one. */
 static word32 wb_build_reason_ext(byte* out, byte reasonVal)
 {
     byte enumTlv[3];
-    byte octet[5];
     word32 enumSz = wb_tlv(enumTlv, ASN_ENUMERATED, &reasonVal, 1);
-    word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, enumTlv, enumSz);
     static const byte reasonOid[] = { 0x55, 0x1d, 0x15 }; /* 2.5.29.21 */
-    return wb_ext(out, reasonOid, sizeof(reasonOid), 0, 0, octet, octetSz);
+    /* Bare ENUMERATED TLV: wb_ext() supplies the extension's OCTET STRING. */
+    return wb_ext(out, reasonOid, sizeof(reasonOid), 0, 0, enumTlv, enumSz);
 }
 
 static void wb_parse_crl_entry_extensions(void)
@@ -1041,21 +1251,148 @@ static void wb_parse_crl_entry_extensions(void)
      * optional-critical probe's tag==ASN_BOOLEAN branch [:36863,:36864]
      * true this time (probe found a BOOLEAN). */
     {
-        byte enumTlv[3], octet[5], seq[64];
+        byte enumTlv[3], seq[64];
         byte critB = 0x00;
         word32 idx = 0;
         static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
         word32 enumSz = wb_tlv(enumTlv, ASN_ENUMERATED, (byte*)"\x02", 1);
-        word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, enumTlv, enumSz);
         idx += wb_tlv(seq + idx, ASN_OBJECT_ID, reasonOid, sizeof(reasonOid));
         idx += wb_tlv(seq + idx, ASN_BOOLEAN, &critB, 1);
-        idx += wb_tlv(seq + idx, ASN_OCTET_STRING, octet, octetSz);
+        /* extnValue: OCTET STRING wrapping the ENUMERATED, once. */
+        idx += wb_tlv(seq + idx, ASN_OCTET_STRING, enumTlv, enumSz);
         sz = WB_SEQ(list, seq, idx);
     }
     reasonCode = -1;
     ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
     WB_CHECK(ret == 0 && reasonCode == 2,
             "reason-code extension with explicit critical=FALSE");
+
+    /* --- malformed entry-extension shapes ------------------------------- *
+     * The tokeniser walks each extension by hand (tag / length / content)
+     * and every probe is an AND whose second operand only shows its other
+     * value on a deliberately broken encoding. Real CRLs are well-formed, so
+     * these are white-box only. Each shape is parsed on its own; a break out
+     * of the loop is the expected outcome and reasonCode simply stays unset.
+     */
+    {
+        byte  seqBuf[64];
+        word32 idx2;
+        byte  b;
+
+        /* (a) first item is not an OBJECT IDENTIFIER -> the "tag !=
+         *     ASN_OBJECT_ID" operand true with a successful tag read. */
+        idx2 = 0;
+        b = 0x01;
+        idx2 += wb_tlv(seqBuf + idx2, ASN_INTEGER, &b, 1);
+        sz = WB_SEQ(list, seqBuf, idx2);
+        reasonCode = -1;
+        ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+        WB_CHECK(reasonCode == -1, "extension whose first item is not an OID");
+
+        /* (b) an empty extension SEQUENCE -> the tag read itself fails. */
+        sz = WB_SEQ(list, seqBuf, 0);
+        reasonCode = -1;
+        ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+        WB_CHECK(reasonCode == -1, "empty extension SEQUENCE (tag read fails)");
+
+        /* (c) reason OID with NOTHING after it -> the optional-critical
+         *     probe's tag read fails (1st operand false). */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1, "reason OID with no value (probe fails)");
+        }
+
+        /* (c2) reason OID with a ZERO-LENGTH OCTET STRING: GetOctetString()
+         *      succeeds but there is no tag byte left, so the value probe's
+         *      1st operand (GetASNTag() == 0) goes false. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte octet[4];
+            word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, NULL, 0);
+
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1,
+                    ":37042 1st operand false (empty reason OCTET STRING)");
+        }
+
+        /* (c3) reason OID whose OCTET STRING holds only the ENUMERATED tag
+         *      byte: the tag probe succeeds, then GetLength() runs off the
+         *      end, driving :37046's 1st operand false. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte tagOnly = ASN_ENUMERATED;
+            byte octet[8];
+            word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, &tagOnly, 1);
+
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1,
+                    ":37046 1st operand false (truncated reason length)");
+        }
+
+        /* (d) reason OID whose OCTET STRING holds an INTEGER instead of an
+         *     ENUMERATED -> the value probe's "tag == ASN_ENUMERATED"
+         *     operand false. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte inner[8], octet[16];
+            word32 innerSz, octetSz;
+
+            b = 0x02;
+            innerSz = wb_tlv(inner, ASN_INTEGER, &b, 1);
+            octetSz = wb_tlv(octet, ASN_OCTET_STRING, inner, innerSz);
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1, "reason value is INTEGER, not ENUMERATED");
+        }
+
+        /* (e) reason ENUMERATED carrying TWO content bytes -> the
+         *     "reasonLen == 1" operand false, so no reason is recorded. */
+        {
+            static const byte reasonOid[] = { 0x55, 0x1d, 0x15 };
+            byte two[2] = { 0x00, 0x02 };
+            byte inner[8], octet[16];
+            word32 innerSz, octetSz;
+
+            innerSz = wb_tlv(inner, ASN_ENUMERATED, two, sizeof(two));
+            octetSz = wb_tlv(octet, ASN_OCTET_STRING, inner, innerSz);
+            idx2 = 0;
+            idx2 += wb_tlv(seqBuf + idx2, ASN_OBJECT_ID, reasonOid,
+                    sizeof(reasonOid));
+            XMEMCPY(seqBuf + idx2, octet, octetSz);
+            idx2 += octetSz;
+            sz = WB_SEQ(list, seqBuf, idx2);
+            reasonCode = -1;
+            ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, NULL);
+            WB_CHECK(reasonCode == -1, "reason ENUMERATED with length != 1");
+        }
+        (void)ret;
+    }
 
     /* Unknown (non-reason) OID, not critical, dcrl==NULL (no callback
      * dispatch possible) -> :36891 1st operand false (short-circuit);
@@ -1083,6 +1420,24 @@ static void wb_parse_crl_entry_extensions(void)
             ":36935 both true (unknown critical extension, no callback)");
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    /* Unknown OID, non-critical, dcrl != NULL but NEITHER callback
+     * registered -> :36891 1st operand true, both callback operands false,
+     * so the whole dispatch decision is false. Every other dcrl!=NULL row
+     * below registers at least one callback, and every no-callback row above
+     * passes dcrl==NULL (which short-circuits on the 1st operand), so this
+     * is the only row that can pair with them on the 2nd operand. */
+    dcrl.unknownExtCallback = NULL;
+    dcrl.unknownExtCallbackEx = NULL;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(list, wbOidOther, sizeof(wbOidOther), 1, 0, val,
+                sizeof(val));
+    }
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(ret == 0,
+            ":36891 dcrl!=NULL with no callbacks (2nd/3rd operands false)");
+
     /* Unknown OID, CRITICAL, dcrl!=NULL with a registered callback that
      * accepts it (returns 0) -> :36891/:36892 both true (via the 1st
      * disjunct), :36917 both true, :36935 not reached (handled=1). */
@@ -1100,10 +1455,72 @@ static void wb_parse_crl_entry_extensions(void)
             ":36891/:36892 true via unknownExtCallback!=NULL; :36917 both true");
 
     /* Same, but only unknownExtCallbackEx registered -> :36891/:36892 true
-     * via the 2nd disjunct; :36917 2nd operand false (unknownExtCallback ==
-     * NULL); :36921 both true. */
+     * via the 2nd disjunct (unknownExtCallback == NULL is the FALSE half of
+     * that operand); :36917 2nd operand false (unknownExtCallback == NULL);
+     * :36921 both true. */
     dcrl.unknownExtCallback = NULL;
-    dcrl.unknownExtCallbackEx = NULL; /* set below via a plain function ptr */
+    dcrl.unknownExtCallbackEx = wb_entry_ext_cb_ex;
+    wbEntryCbExCalls = 0;
+    wbEntryCbExRet = 0;
+    dcrl.unknownExtCallbackExCtx = NULL;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(list, wbOidOther, sizeof(wbOidOther), 1, 1, val,
+                sizeof(val));
+    }
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(ret == 0 && wbEntryCbExCalls == 1,
+            "Ex-only callback: :36891 1st disjunct false, :36917 2nd false, "
+            ":36921 both true");
+
+    /* First callback registered and REJECTING (returns non-zero): the
+     * cbRet==0 operand of the second dispatch decision (:36921) is then
+     * false, which no accepting-callback run can produce. Both callbacks are
+     * registered so the Ex operand stays true-capable but is never reached. */
+    dcrl.unknownExtCallback = wb_entry_ext_cb;
+    dcrl.unknownExtCallbackEx = wb_entry_ext_cb_ex;
+    wbEntryCbCalls = 0;
+    wbEntryCbExCalls = 0;
+    wbEntryCbRet = -1;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(list, wbOidOther, sizeof(wbOidOther), 1, 0, val,
+                sizeof(val));
+    }
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(ret != 0 && wbEntryCbCalls == 1 && wbEntryCbExCalls == 0,
+            ":36921 1st operand false (first callback rejected)");
+    wbEntryCbRet = 0;
+
+    /* An OID with more sub-identifiers than DecodeObjectId()'s output buffer
+     * holds: GetASN_ObjectId() still accepts the encoding, so the dispatch
+     * block is entered, but DecodeObjectId() returns BUFFER_E -- the only way
+     * to make the cbRet==0 operand of the FIRST dispatch decision (:36917)
+     * false. */
+    {
+        byte longOid[MAX_OID_SZ + 4];
+        byte val[2] = { 0xAA, 0xBB };
+        word32 i;
+
+        /* Every octet < 0x80 is a complete single-octet sub-identifier, so
+         * this is a well-formed OID body with MAX_OID_SZ+4 arcs. */
+        for (i = 0; i < (word32)sizeof(longOid); i++) {
+            longOid[i] = (byte)(0x2A + (i & 0x1F));
+        }
+        sz = wb_ext(list, longOid, (word32)sizeof(longOid), 1, 0, val,
+                sizeof(val));
+    }
+    dcrl.unknownExtCallback = wb_entry_ext_cb;
+    dcrl.unknownExtCallbackEx = wb_entry_ext_cb_ex;
+    wbEntryCbCalls = 0;
+    wbEntryCbExCalls = 0;
+    reasonCode = -1;
+    ret = ParseCRL_EntryExtensions(list, 0, sz, &reasonCode, &dcrl);
+    WB_CHECK(wbEntryCbCalls == 0 && wbEntryCbExCalls == 0,
+            ":36917/:36921 1st operand false (DecodeObjectId overflow)");
+    (void)ret;
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
     FreeDecodedCRL(&dcrl);
@@ -1117,16 +1534,39 @@ static void wb_parse_crl_entry_extensions(void) { WB_NOTE("HAVE_CRL off or WOLFC
  * Section 12: ParseCRL_Extensions() duplicate-extension / CRL-number checks
  * [:37284,:37285(idx 2,3),:37325,:37326,:37335,:37349,:37358,:37359,:37384,
  * :37407(idx1)]
+ *
+ * Two adjacent conditions are ARGUED UNREACHABLE (not attempted below):
+ *   - the CRL-number branch's "if (ret == 0 && (INIT_MP_INT_SIZE(...) !=
+ *     MP_OKAY))" guard: outside WOLFSSL_SMALL_STACK, DECL_MP_INT_SIZE_DYN
+ *     stack-allocates `m` unconditionally (MP_INT_SIZE_CHECK_NULL is only
+ *     defined under WOLFSSL_SMALL_STACK), so ret==0 never goes false here
+ *     without a heap-allocation fault injector; INIT_MP_INT_SIZE() on that
+ *     buffer is a plain mp_init() that cannot itself fail. Both operands
+ *     are therefore compile-time constant in every variant this white-box
+ *     runs under.
+ *   - "if (ret == 0 && mp_toradix(m, dcrl->crlNumber, MP_RADIX_HEX) !=
+ *     MP_OKAY)": dcrl->crlNumber is CRL_MAX_NUM_HEX_STR_SZ bytes
+ *     (CRL_MAX_NUM_SZ*2+1 = 41), which is exactly the space a maximum-size
+ *     (20-byte, CRL_MAX_NUM_SZ) positive CRL number's hex-radix conversion
+ *     needs -- verified empirically with a 20-byte value (0x7F followed by
+ *     19 bytes of 0xFF, the largest positive value the preceding size/sign
+ *     checks admit): mp_toradix() still succeeds. ret==0 is also always
+ *     true reaching this line (nothing between the two checks can set it
+ *     nonzero without the residual above already applying), so this
+ *     decision's operands are constant too.
  * ------------------------------------------------------------------------- */
 static word32 wb_build_crl_number_ext(byte* out, const byte* intContent,
         word32 intContentSz)
 {
     byte intTlv[32];
-    byte octet[36];
     word32 intSz = wb_tlv(intTlv, ASN_INTEGER, intContent, intContentSz);
-    word32 octetSz = wb_tlv(octet, ASN_OCTET_STRING, intTlv, intSz);
-    return wb_ext(out, wbOidCrlNumber, sizeof(wbOidCrlNumber), 0, 0, octet,
-            octetSz);
+
+    /* wb_ext() already wraps its value argument in the extension's OCTET
+     * STRING, so the INTEGER TLV is handed over bare -- wrapping it here as
+     * well produced an OCTET STRING inside an OCTET STRING, which the
+     * decoder rejected before ever reaching the CRL-number logic. */
+    return wb_ext(out, wbOidCrlNumber, sizeof(wbOidCrlNumber), 0, 0, intTlv,
+            intSz);
 }
 
 static void wb_parse_crl_extensions(void)
@@ -1151,7 +1591,11 @@ static void wb_parse_crl_extensions(void)
             "valid small CRL number (baseline)");
     FreeDecodedCRL(&dcrl);
 
-    /* CRL number content > CRL_MAX_NUM_SZ(20) bytes -> :37335 both true. */
+    /* CRL number content > CRL_MAX_NUM_SZ(20) bytes -> the inner check sets
+     * ret = BUFFER_E, but ParseCRL_Extensions()'s own tail normalizes any
+     * negative ret (other than ASN_CRIT_EXT_E) to ASN_PARSE_E before
+     * returning, so the value observed here is ASN_PARSE_E even though the
+     * decision itself went both-true on BUFFER_E. */
     InitDecodedCRL(&dcrl, NULL);
     {
         byte big[21];
@@ -1159,8 +1603,9 @@ static void wb_parse_crl_extensions(void)
         sz = wb_build_crl_number_ext(extList, big, sizeof(big));
     }
     ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BUFFER_E),
-            ":37335 both true (CRL number too long)");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "CRL number too long (inner check both true -> BUFFER_E, "
+            "normalized to ASN_PARSE_E on return)");
     FreeDecodedCRL(&dcrl);
 
     /* CRL number with MSB set and no leading-zero pad -> negative ->
@@ -1173,6 +1618,46 @@ static void wb_parse_crl_extensions(void)
     ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             ":37349 both true (negative CRL number)");
+    FreeDecodedCRL(&dcrl);
+
+    /* CRL number whose value is not an INTEGER at all (a BOOLEAN in its
+     * place) -> GetASNInt()'s own GetASNHeader(ASN_INTEGER, ...) call fails
+     * before the crlNumLen>CRL_MAX_NUM_SZ / negative-value checks ever run
+     * -> ret!=0 reaches both of those checks with its own operand false:
+     * the independence pair for their ret==0 operand (every vector above
+     * reaches them with ret==0 still true). */
+    InitDecodedCRL(&dcrl, NULL);
+    {
+        byte boolTlv[3];
+        byte b = 0x00;
+        word32 boolSz = wb_tlv(boolTlv, ASN_BOOLEAN, &b, 1);
+        sz = wb_ext(extList, wbOidCrlNumber, sizeof(wbOidCrlNumber), 0, 0,
+                boolTlv, boolSz);
+    }
+    ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "CRL number value is not an INTEGER (GetASNInt() fails; ret==0 "
+            "operand false at both the size and negative-value checks)");
+    FreeDecodedCRL(&dcrl);
+
+    /* CRL number with zero-length INTEGER content -> crlNumLen==0, so the
+     * size check's 2nd operand is false and control reaches the negative-
+     * value check with rawLen==0 -> its 1st operand (rawLen>0) false, the
+     * independence pair for a check that is otherwise always seen with
+     * rawLen>0 (every non-empty CRL number above). GetInt() on an empty
+     * INTEGER also fails, so ret is non-zero by the time mp_toradix() would
+     * run -- also exercises :37523's ret==0 operand false. */
+    InitDecodedCRL(&dcrl, NULL);
+    {
+        byte intTlv[2];
+        word32 intSz = wb_tlv(intTlv, ASN_INTEGER, NULL, 0);
+        sz = wb_ext(extList, wbOidCrlNumber, sizeof(wbOidCrlNumber), 0, 0,
+                intTlv, intSz);
+    }
+    ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+    WB_CHECK(ret != 0,
+            "CRL number with zero-length INTEGER content (:37514 1st "
+            "operand false; GetInt() fails on empty content)");
     FreeDecodedCRL(&dcrl);
 
     /* Duplicate CRL_NUMBER_OID extensions -> :37284/:37285 CRL_NUMBER_OID
@@ -1237,10 +1722,211 @@ static void wb_parse_crl_extensions(void)
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E),
             ":37407 both true (unknown critical, no callback registered)");
     FreeDecodedCRL(&dcrl);
+
+    /* Unknown, non-critical extension with a callback registered that
+     * accepts it (returns 0) -> :37549 both true (ret==0 from a successful
+     * DecodeObjectId(), unknownExtCallback!=NULL) -- the "true" side needed
+     * to pair against the DecodeObjectId()-overflow vector below (every
+     * other vector in this function either carries no callback at all, or
+     * a known OID that never reaches this "unknown extension" branch). */
+    InitDecodedCRL(&dcrl, NULL);
+    dcrl.unknownExtCallback = wb_entry_ext_cb;
+    dcrl.unknownExtCallbackEx = NULL;
+    wbEntryCbCalls = 0;
+    wbEntryCbRet = 0;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(extList, wbOidOther, sizeof(wbOidOther), 1, 0, val,
+                sizeof(val));
+    }
+    ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+    WB_CHECK(ret == 0 && wbEntryCbCalls == 1,
+            ":37549 both true (unknown non-critical extension, callback "
+            "accepts it)");
+    FreeDecodedCRL(&dcrl);
+
+    /* Only unknownExtCallbackEx registered (unknownExtCallback stays NULL)
+     * -> the outer "unknownExtCallback!=NULL || unknownExtCallbackEx!=NULL"
+     * dispatch guard is still true (2nd disjunct), so this branch is
+     * entered, but :37549 itself -- gated on unknownExtCallback specifically
+     * -- sees its 2nd operand false (short-circuits without invoking
+     * wb_entry_ext_cb). */
+    InitDecodedCRL(&dcrl, NULL);
+    dcrl.unknownExtCallback = NULL;
+    dcrl.unknownExtCallbackEx = wb_entry_ext_cb_ex;
+    dcrl.unknownExtCallbackExCtx = NULL;
+    wbEntryCbExCalls = 0;
+    wbEntryCbExRet = 0;
+    {
+        byte val[2] = { 0xAA, 0xBB };
+        sz = wb_ext(extList, wbOidOther, sizeof(wbOidOther), 1, 0, val,
+                sizeof(val));
+    }
+    ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+    WB_CHECK(ret == 0 && wbEntryCbExCalls == 1,
+            ":37549 2nd operand false (Ex-only callback registered)");
+    FreeDecodedCRL(&dcrl);
+
+    /* An unknown extension OID with more sub-identifiers than
+     * DecodeObjectId()'s output buffer holds, with a callback registered so
+     * the dispatch block is entered: GetASN_OID()/GetASN_Items() still
+     * accept the encoding, but DecodeObjectId() itself returns BUFFER_E,
+     * setting ret!=0 before the ":37549 ret==0 && unknownExtCallback!=NULL"
+     * check runs -- the independence pair for its 1st operand, paired
+     * against the accepting-callback vector above. Mirrors the identical
+     * technique already used for ParseCRL_EntryExtensions() above. */
+    {
+        byte longOid[MAX_OID_SZ + 4];
+        byte val[2] = { 0xAA, 0xBB };
+        word32 i;
+
+        for (i = 0; i < (word32)sizeof(longOid); i++) {
+            longOid[i] = (byte)(0x2A + (i & 0x1F));
+        }
+        InitDecodedCRL(&dcrl, NULL);
+        dcrl.unknownExtCallback = wb_entry_ext_cb;
+        dcrl.unknownExtCallbackEx = NULL;
+        wbEntryCbCalls = 0;
+        sz = wb_ext(extList, longOid, (word32)sizeof(longOid), 1, 0, val,
+                sizeof(val));
+        ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+        WB_CHECK(ret != 0 && wbEntryCbCalls == 0,
+                ":37549 1st operand false (DecodeObjectId() overflow, "
+                "callback never reached)");
+        FreeDecodedCRL(&dcrl);
+    }
 #endif /* !WC_ASN_UNKNOWN_EXT_CB */
 }
 #else
 static void wb_parse_crl_extensions(void) { WB_NOTE("HAVE_CRL/ASN_TEMPLATE off; ParseCRL_Extensions skipped"); }
+#endif
+
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_ASN_TEMPLATE)
+/* ------------------------------------------------------------------------- *
+ * Section 12b: PaseCRL_CheckSignature() AKID/issuer-hash CA lookup
+ * [:37330,:37338] (called directly; it is file-static). A real CertManager
+ * loaded with ca_cert_der_2048 provides a genuine Signer, so GetCA()'s AKID
+ * lookup and GetCAByName()'s issuer-hash lookup both have something to find;
+ * VerifyCRL_Signature() itself is never reached with a valid signature here
+ * (dcrl->signature/sigLength are left zeroed), so only the CA-lookup
+ * decisions above it are the coverage goal.
+ * ------------------------------------------------------------------------- */
+static void wb_parse_crl_check_signature(void)
+{
+    WOLFSSL_CERT_MANAGER* cm;
+    DecodedCert cacert;
+    Signer* signer;
+    int ret;
+    byte matchingIssuerHash[SIGNER_DIGEST_SIZE];
+    byte mismatchIssuerHash[SIGNER_DIGEST_SIZE];
+    static const byte tbsBuf[4] = { 0x30, 0x02, 0x05, 0x00 };
+
+    WB_NOTE("PaseCRL_CheckSignature(): GetCA()/GetCAByName() CA-lookup "
+            "decisions [:37330,:37338]");
+
+    cm = wolfSSL_CertManagerNew();
+    if (cm == NULL) {
+        return;
+    }
+    (void)wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+            (word32)sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
+
+    XMEMSET(&cacert, 0, sizeof(cacert));
+    InitDecodedCert(&cacert, ca_cert_der_2048,
+            (word32)sizeof_ca_cert_der_2048, NULL);
+    ret = ParseCertRelative(&cacert, CA_TYPE, NO_VERIFY, NULL, NULL);
+    WB_CHECK(ret == 0, "pre-parse of ca_cert_der_2048 (fixture sanity)");
+    if (ret == 0) {
+        XMEMCPY(matchingIssuerHash, cacert.subjectHash, SIGNER_DIGEST_SIZE);
+        XMEMSET(mismatchIssuerHash, 0xEE, SIGNER_DIGEST_SIZE);
+        FreeDecodedCert(&cacert);
+
+        signer = GetCAByName(cm, matchingIssuerHash);
+        WB_CHECK(signer != NULL, "GetCAByName() finds the loaded CA "
+                "(fixture sanity)");
+        if (signer != NULL) {
+            DecodedCRL dcrl;
+
+            /* extAuthKeyIdSet==0: the AKID GetCA() lookup is skipped, so ca
+             * stays NULL going into :37330 -> 1st operand false. Falls to
+             * GetCAByName() with a matching issuerHash, which finds the
+             * signer: :37338 1st operand true (ca!=NULL), 2nd operand false
+             * (extAuthKeyIdSet==0) -> ca kept, ret stays 0 into
+             * VerifyCRL_Signature(). */
+            InitDecodedCRL(&dcrl, NULL);
+            dcrl.extAuthKeyIdSet = 0;
+            XMEMCPY(dcrl.issuerHash, matchingIssuerHash, SIGNER_DIGEST_SIZE);
+            ret = PaseCRL_CheckSignature(&dcrl, NULL, 0, tbsBuf, cm);
+            WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E),
+                    ":37330 1st operand false (no AKID); :37338 both true "
+                    "-> false via 2nd operand (extAuthKeyIdSet==0)");
+
+            /* extAuthKeyIdSet==1 with extAuthKeyId set to the signer's own
+             * subjectKeyIdHash -> GetCA() finds it: :37330 1st operand true.
+             * issuerHash deliberately mismatched -> XMEMCMP!=0 -> :37330
+             * both true -> ca reset to NULL. GetCAByName() is then tried
+             * with the same mismatched hash and finds nothing, so ca stays
+             * NULL and :37338 is never reached this call (its "false"
+             * side -- ca==NULL -- is exercised by the malformed-cert-style
+             * failure below instead). */
+            InitDecodedCRL(&dcrl, NULL);
+            dcrl.extAuthKeyIdSet = 1;
+            XMEMCPY(dcrl.extAuthKeyId, signer->subjectKeyIdHash,
+                    SIGNER_DIGEST_SIZE);
+            XMEMCPY(dcrl.issuerHash, mismatchIssuerHash, SIGNER_DIGEST_SIZE);
+            ret = PaseCRL_CheckSignature(&dcrl, NULL, 0, tbsBuf, cm);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E),
+                    ":37330 both true (AKID hit, issuerHash mismatch -> ca "
+                    "reset); GetCAByName() on the mismatched hash also "
+                    "fails -> ASN_CRL_NO_SIGNER_E");
+
+            /* extAuthKeyIdSet==1 with extAuthKeyId AND issuerHash both
+             * matching the same signer -> :37330 1st operand true, XMEMCMP
+             * 2nd operand false (matches) -> ca is kept (not reset); the
+             * outer "if (ca == NULL)" is then false, so :37338 is skipped
+             * on this call -- its ca!=NULL,extAuthKeyIdSet==1 combination is
+             * not otherwise reachable (that pairing never resets ca, so the
+             * GetCAByName() branch guarding :37338 never runs), which is
+             * fine: :37338 only needs its OWN two operands independently
+             * paired, both already exercised above. */
+            InitDecodedCRL(&dcrl, NULL);
+            dcrl.extAuthKeyIdSet = 1;
+            XMEMCPY(dcrl.extAuthKeyId, signer->subjectKeyIdHash,
+                    SIGNER_DIGEST_SIZE);
+            XMEMCPY(dcrl.issuerHash, matchingIssuerHash, SIGNER_DIGEST_SIZE);
+            ret = PaseCRL_CheckSignature(&dcrl, NULL, 0, tbsBuf, cm);
+            WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E),
+                    ":37330 1st true, 2nd false (AKID hit, issuerHash "
+                    "matches -> ca kept, VerifyCRL_Signature() reached)");
+
+            /* extAuthKeyIdSet==1 with a bogus extAuthKeyId (GetCA() via AKID
+             * finds nothing, so ca is still NULL going into the ":37330"
+             * check -- 1st operand false, decision false, ca untouched) but
+             * a matching issuerHash (GetCAByName() finds the signer) ->
+             * :37338 1st operand true (ca!=NULL) AND 2nd operand true
+             * (extAuthKeyIdSet==1) -> both true -> ca reset to NULL ("CA
+             * SKID doesn't match AKID") -> ASN_CRL_NO_SIGNER_E. This is the
+             * independence pair for :37338's 1st operand: the earlier
+             * extAuthKeyIdSet==0 vector showed ca!=NULL with the decision
+             * false (via the 2nd operand); this one shows ca!=NULL with the
+             * decision true, isolating the 1st operand's effect. */
+            InitDecodedCRL(&dcrl, NULL);
+            dcrl.extAuthKeyIdSet = 1;
+            XMEMSET(dcrl.extAuthKeyId, 0x77, SIGNER_DIGEST_SIZE);
+            XMEMCPY(dcrl.issuerHash, matchingIssuerHash, SIGNER_DIGEST_SIZE);
+            ret = PaseCRL_CheckSignature(&dcrl, NULL, 0, tbsBuf, cm);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E),
+                    ":37338 both true (bogus AKID, issuerHash matches -> "
+                    "CA found by name but rejected for AKID mismatch)");
+        }
+    }
+    else {
+        FreeDecodedCert(&cacert);
+    }
+    wolfSSL_CertManagerFree(cm);
+}
+#else
+static void wb_parse_crl_check_signature(void) { WB_NOTE("HAVE_CRL/ASN_TEMPLATE off; PaseCRL_CheckSignature skipped"); }
 #endif
 
 #if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_ASN_TEMPLATE)
@@ -1311,6 +1997,76 @@ static word32 wb_build_crl_tbs(byte* out, int version,
             XMEMCPY(out + o, fakeSig, sizeof(fakeSig)); o += sizeof(fakeSig);
             return o;
         }
+    }
+}
+
+/* A CRL whose two AlgorithmIdentifiers carry explicit parameters, which
+ * SetAlgoID() cannot emit. `pssOid` selects id-RSASSA-PSS (the only algorithm
+ * allowed to carry them) or sha256WithRSAEncryption. */
+static word32 wb_build_crl_params(byte* out, const byte* tbsParams,
+        word32 tbsParamsSz, const byte* sigParams, word32 sigParamsSz,
+        int pssOid)
+{
+    static const byte oidPss[]    = {
+        0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0A };
+    static const byte oidRsaSha[] = {
+        0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x0B };
+    static const byte pastDate[15]   = "20200101000000Z";
+    static const byte futureDate[15] = "20991231235959Z";
+    const byte* oid = pssOid ? oidPss : oidRsaSha;
+    byte algo[64];
+    byte content[400];
+    byte issuer[2] = { 0x30, 0x00 };
+    word32 idx = 0;
+    word32 a1Sz, a2Sz;
+
+    /* tbsCertList.signature */
+    {
+        byte inner[64];
+        word32 n = wb_tlv(inner, ASN_OBJECT_ID, oid, 9);
+        XMEMCPY(inner + n, tbsParams, tbsParamsSz);
+        n += tbsParamsSz;
+        a1Sz = WB_SEQ(algo, inner, n);
+    }
+    XMEMCPY(content + idx, algo, a1Sz);
+    idx += a1Sz;
+
+    XMEMCPY(content + idx, issuer, sizeof(issuer));
+    idx += sizeof(issuer);
+    idx += wb_tlv(content + idx, ASN_GENERALIZED_TIME, pastDate, 15);
+    idx += wb_tlv(content + idx, ASN_GENERALIZED_TIME, futureDate, 15);
+
+    /* signatureAlgorithm */
+    {
+        byte inner[64];
+        word32 n = wb_tlv(inner, ASN_OBJECT_ID, oid, 9);
+        XMEMCPY(inner + n, sigParams, sigParamsSz);
+        n += sigParamsSz;
+        a2Sz = WB_SEQ(algo, inner, n);
+    }
+    {
+        byte sigHdr[8];
+        byte fakeSig[16];
+        word32 sigHdrSz;
+        byte tbsSeqBuf[8];
+        word32 tbsSeqSz;
+        byte outer[8];
+        word32 outerSz;
+        word32 total;
+        word32 o = 0;
+
+        XMEMSET(fakeSig, 0xAA, sizeof(fakeSig));
+        sigHdrSz = SetBitString(sizeof(fakeSig), 0, sigHdr);
+        tbsSeqSz = SetSequence(idx, tbsSeqBuf);
+        total = tbsSeqSz + idx + a2Sz + sigHdrSz + (word32)sizeof(fakeSig);
+        outerSz = SetSequence(total, outer);
+        XMEMCPY(out + o, outer, outerSz); o += outerSz;
+        XMEMCPY(out + o, tbsSeqBuf, tbsSeqSz); o += tbsSeqSz;
+        XMEMCPY(out + o, content, idx); o += idx;
+        XMEMCPY(out + o, algo, a2Sz); o += a2Sz;
+        XMEMCPY(out + o, sigHdr, sigHdrSz); o += sigHdrSz;
+        XMEMCPY(out + o, fakeSig, sizeof(fakeSig)); o += (word32)sizeof(fakeSig);
+        return o;
     }
 }
 
@@ -1416,9 +2172,81 @@ static void wb_parse_crl(void)
     InitDecodedCRL(&dcrl, NULL);
     XMEMSET(rcertArr, 0, sizeof(rcertArr));
     ret = ParseCRL(rcertArr, &dcrl, der, sz, VERIFY, NULL);
+#if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
     WB_CHECK(ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
             ":37630-:37632 all true (verify!=NO_VERIFY, expired nextUpdate)");
+#else
+    WB_CHECK(ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
+            "expired nextUpdate, no clock (date check compiled out)");
+#endif
     FreeDecodedCRL(&dcrl);
+
+    /* --- signature-parameter agreement [:37713,:37773,:37778] ---------- *
+     * SetAlgoID() cannot emit explicit parameters, so these rows use the
+     * dedicated builder above. */
+#ifdef WC_RSA_PSS
+    {
+        static const byte paramsA[] = { 0x30, 0x01, 0x01 };
+        static const byte paramsB[] = { 0x30, 0x01, 0x02 };
+
+        InitDecodedCRL(&dcrl, NULL);
+        XMEMSET(rcertArr, 0, sizeof(rcertArr));
+        sz = wb_build_crl_params(der, paramsA, (word32)sizeof(paramsA),
+                paramsA, (word32)sizeof(paramsA), 1);
+        ret = ParseCRL(rcertArr, &dcrl, der, sz, NO_VERIFY, NULL);
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":37773 2nd operand false, :37778 2nd operand false "
+                "(matching PSS parameters)");
+        FreeDecodedCRL(&dcrl);
+
+        InitDecodedCRL(&dcrl, NULL);
+        XMEMSET(rcertArr, 0, sizeof(rcertArr));
+        sz = wb_build_crl_params(der, paramsA, (word32)sizeof(paramsA),
+                paramsA, (word32)sizeof(paramsA), 0);
+        ret = ParseCRL(rcertArr, &dcrl, der, sz, NO_VERIFY, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":37773 both operands true (parameters under a non-PSS "
+                "algorithm)");
+        FreeDecodedCRL(&dcrl);
+
+        InitDecodedCRL(&dcrl, NULL);
+        XMEMSET(rcertArr, 0, sizeof(rcertArr));
+        sz = wb_build_crl_params(der, paramsA, (word32)sizeof(paramsA),
+                paramsB, (word32)sizeof(paramsB), 1);
+        ret = ParseCRL(rcertArr, &dcrl, der, sz, NO_VERIFY, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":37778 both operands true (PSS parameters differ)");
+        FreeDecodedCRL(&dcrl);
+    }
+#endif /* WC_RSA_PSS */
+
+    /* Truncated CRL: GetASN_Items() fails, so the version gate at :37713
+     * runs with ret != 0. */
+    InitDecodedCRL(&dcrl, NULL);
+    XMEMSET(rcertArr, 0, sizeof(rcertArr));
+    sz = wb_build_crl_tbs(der, 2, pastDate, 15, ASN_GENERALIZED_TIME,
+            futureDate, 15, ASN_GENERALIZED_TIME, 0);
+    ret = ParseCRL(rcertArr, &dcrl, der, sz - 4, NO_VERIFY, NULL);
+    WB_CHECK(ret != 0, ":37713 1st operand false (truncated CRL)");
+    FreeDecodedCRL(&dcrl);
+
+#if defined(WC_ASN_RUNTIME_DATE_CHECK_CONTROL) && !defined(NO_ASN_TIME)
+    /* Expired nextUpdate with verify != NO_VERIFY and the runtime skip flag
+     * set: the 2nd operand goes false while the 1st stays true. The CRL must
+     * be rebuilt expired here - the truncation vector above left der/sz
+     * holding a future nextUpdate, against which this assertion would hold
+     * whether or not the flag is honoured. */
+    (void)wc_AsnSetSkipDateCheck(1);
+    InitDecodedCRL(&dcrl, NULL);
+    XMEMSET(rcertArr, 0, sizeof(rcertArr));
+    sz = wb_build_crl_tbs(der, 2, pastDate, 15, ASN_GENERALIZED_TIME,
+            pastDate, 15, ASN_GENERALIZED_TIME, 0);
+    ret = ParseCRL(rcertArr, &dcrl, der, sz, VERIFY, NULL);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR),
+            ":37630 2nd operand false (AsnSkipDateCheck set)");
+    FreeDecodedCRL(&dcrl);
+    (void)wc_AsnSetSkipDateCheck(0);
+#endif
 }
 #else
 static void wb_parse_crl(void) { WB_NOTE("HAVE_CRL/ASN_TEMPLATE off; ParseCRL skipped"); }
@@ -1470,7 +2298,10 @@ static void wb_encode_crl_serial(void)
     {
         byte sn[1] = { 0 };
         ret = EncodeCrlSerial(sn, 0, out, sizeof(out));
-        WB_CHECK(ret == 2, ":37733 1st operand false (snSzInt==0 from the start)");
+        /* SetASNInt(1, 0x00, output) writes a 2-byte header (tag+length),
+         * then the snSzInt==0 special case appends one content byte itself
+         * (output[i]=0x00) -> total 3, not the header size alone. */
+        WB_CHECK(ret == 3, ":37733 1st operand false (snSzInt==0 from the start)");
     }
 
     /* :37751 1st operand true: output buffer too small for a normal
@@ -1536,6 +2367,21 @@ static void wb_make_crl_ex(void)
             ASN_GENERALIZED_TIME, nextDate, ASN_GENERALIZED_TIME, NULL, NULL,
             0, CTC_SHA256wRSA, 1, NULL, 0);
     WB_CHECK(ret > need, ":37906 both true (nextDate present, larger encoding)");
+
+    /* nextDate present but nextDateFmt == 0 -> :37906 2nd operand false
+     * (the encoding matches the no-nextDate baseline). Without this row the
+     * 2nd operand is only ever seen true. */
+    ret = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
+            ASN_GENERALIZED_TIME, nextDate, 0 /* no format */, NULL, NULL,
+            0, CTC_SHA256wRSA, 1, NULL, 0);
+    WB_CHECK(ret == need, ":37906 2nd operand false (nextDateFmt==0)");
+
+    /* crlNumber present, version >= 2, but crlNumberSz == 0 -> :37924 2nd
+     * operand false. */
+    ret = wc_MakeCRL_ex(issuer, sizeof(issuer), lastDate,
+            ASN_GENERALIZED_TIME, NULL, 0, NULL, crlNum, 0 /* zero size */,
+            CTC_SHA256wRSA, 2 /* v2 */, NULL, 0);
+    WB_CHECK(ret > 0, ":37924 2nd operand false (crlNumberSz==0)");
 
     /* crlNumber present but version < 2 -> :37924 3rd operand false
      * (version>=2 required); crlNumber ignored. */
@@ -1695,6 +2541,7 @@ static void wb_init_ocsp_request(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_compare_ocsp_req_resp(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_parse_crl_entry_extensions(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_parse_crl_extensions(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
+static void wb_parse_crl_check_signature(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_parse_crl(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_encode_crl_serial(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_make_crl_ex(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
@@ -1717,6 +2564,7 @@ int main(void)
     wb_compare_ocsp_req_resp();
     wb_parse_crl_entry_extensions();
     wb_parse_crl_extensions();
+    wb_parse_crl_check_signature();
     wb_parse_crl();
     wb_encode_crl_serial();
     wb_make_crl_ex();
