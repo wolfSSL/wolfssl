@@ -9645,7 +9645,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+    if test "x$ENABLED_ECH" = "xyes"
+    then
+        AC_MSG_NOTICE([ECH is incompatible with middlebox compatibility - not enabling middlebox compatibility for JNI])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
 
     # Enable openssl compat layer AES-CTS to maintain FIPS compatibility
