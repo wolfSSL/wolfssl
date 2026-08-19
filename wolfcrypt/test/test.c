@@ -32924,7 +32924,7 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
     }
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DH_GEN_PARAMS)
     wc_FreeDhKey(key);
     ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
     if (ret != 0)
@@ -32943,7 +32943,7 @@ static wc_test_ret_t dh_fips_generate_test(WC_RNG *rng)
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && !WOLFSSL_NO_DH_GEN_PARAMS */
 #endif /* HAVE_SELFTEST */
 
     ret = 0;
@@ -33022,7 +33022,8 @@ static wc_test_ret_t dh_generate_test(WC_RNG *rng)
     ret = 0;
 #endif
 
-#if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186)
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186) && \
+    !defined(WOLFSSL_NO_DH_GEN_PARAMS)
     {
         byte   priv[260];
         byte   pub[260];
@@ -79259,6 +79260,9 @@ typedef struct {
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
 #endif
+#ifndef NO_DH
+    int dhAgreeCount;      /* DH agree callback invocations */
+#endif
 } myCryptoDevCtx;
 
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
@@ -80219,6 +80223,28 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         WOLFSSL_MSG_EX("CryptoDevCb: Pk Type %d\n", info->pk.type);
     #endif
 
+    #ifndef NO_DH
+        if (info->pk.type == WC_PK_TYPE_DH) {
+            DhKey* dhKey = info->pk.dh.key;
+            int    dhSaveDevId;
+
+            if (dhKey == NULL)
+                return BAD_FUNC_ARG;
+
+            myCtx->dhAgreeCount++;
+
+            /* Perform the agreement in software, with the device detached so
+             * wc_DhAgree() does not dispatch straight back here. */
+            dhSaveDevId = dhKey->devId;
+            dhKey->devId = INVALID_DEVID;
+            ret = wc_DhAgree(dhKey, info->pk.dh.agree, info->pk.dh.agreeSz,
+                info->pk.dh.priv, info->pk.dh.privSz,
+                info->pk.dh.otherPub, info->pk.dh.pubSz);
+            dhKey->devId = dhSaveDevId;
+
+            return ret;
+        }
+    #endif /* !NO_DH */
     #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
         !defined(WOLF_CRYPTO_CB_ONLY_RSA)
         if (info->pk.type == WC_PK_TYPE_RSA_PSS_VERIFY) {
@@ -82766,6 +82792,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     myCtx.rsaPssVerifyCount = 0;
 #endif
+#ifndef NO_DH
+    myCtx.dhAgreeCount = 0;
+#endif
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
@@ -82791,6 +82820,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = rsa_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
+#endif
+#ifndef NO_DH
+    /* Run the DH suite through the device. wc_DhAgree() validates the group
+     * and the peer public value before it dispatches, so what reaches the
+     * callback has already been checked; the counter below confirms the
+     * agreement really crossed the callback boundary rather than quietly
+     * staying in software. */
+    if (ret == 0)
+        ret = dh_test();
+    if (ret == 0 && myCtx.dhAgreeCount == 0)
+        ret = WC_TEST_RET_ENC_NC;
 #endif
 #if defined(HAVE_ECC)
     PRIVATE_KEY_UNLOCK();

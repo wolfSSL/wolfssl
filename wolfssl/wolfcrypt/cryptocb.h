@@ -35,6 +35,9 @@
 
 #ifdef WOLF_CRYPTO_CB
 
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
@@ -219,6 +222,20 @@ typedef struct wc_CryptoInfo {
                 word32*          outLen;
             } rsa_pss_verify;
         #endif
+        #endif
+        #ifndef NO_DH
+            /* Finite field Diffie-Hellman shared secret. Key generation is
+             * deliberately not routed: the private exponent should come from
+             * the caller's WC_RNG, not from a device. */
+            struct {
+                DhKey*      key;
+                const byte* priv;
+                word32      privSz;
+                const byte* otherPub;
+                word32      pubSz;
+                byte*       agree;
+                word32*     agreeSz;
+            } dh;
         #endif
         #ifdef HAVE_ECC
             #ifdef HAVE_ECC_DHE
@@ -889,6 +906,11 @@ WOLFSSL_LOCAL int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
     word32 pubKeySz);
 WOLFSSL_LOCAL int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize);
 #endif /* !NO_RSA */
+
+#ifndef NO_DH
+WOLFSSL_LOCAL int wc_CryptoCb_Dh(DhKey* key, const byte* priv, word32 privSz,
+    const byte* otherPub, word32 pubSz, byte* agree, word32* agreeSz);
+#endif
 
 #ifdef HAVE_ECC
 WOLFSSL_LOCAL int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize,

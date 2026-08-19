@@ -3207,6 +3207,39 @@
     #define WOLFSSL_NO_CAAM_HASH
 #endif
 
+/* NXP QorIQ SEC, the T-series PowerPC security engine. Shares the CAAM
+ * descriptor architecture but is a separate, self-contained port. */
+#ifdef WOLFSSL_SEC_QORIQ
+    /* The engine is normally reached through the crypto callback layer.
+     * A minimal build (bring-up harness, boot loader) can call the driver
+     * API directly and skip that layer entirely. */
+    #ifndef WOLFSSL_SEC_QORIQ_NO_CRYPTOCB
+        #undef  WOLF_CRYPTO_CB
+        #define WOLF_CRYPTO_CB
+    #endif
+
+    /* devId must be visible to every translation unit, not just the ones
+     * that include the port header: wolfcrypt/test/test.c and the benchmark
+     * select their device from WC_USE_DEVID and never include sec_qoriq.h.
+     * Defining it only there left the port registered but never called. */
+    #ifndef WOLFSSL_SEC_QORIQ_DEVID
+        #define WOLFSSL_SEC_QORIQ_DEVID 0x53454351 /* "SECQ" */
+    #endif
+    #if !defined(WC_USE_DEVID) && !defined(WOLFSSL_SEC_QORIQ_NO_CRYPTOCB)
+        #define WC_USE_DEVID WOLFSSL_SEC_QORIQ_DEVID
+    #endif
+
+    /* pick a backend if the build did not name one */
+    #if !defined(WOLFSSL_SEC_QORIQ_BAREMETAL) && \
+        !defined(WOLFSSL_SEC_QORIQ_LINUX)
+        #define WOLFSSL_SEC_QORIQ_BAREMETAL
+    #endif
+    #if defined(WOLFSSL_SEC_QORIQ_BAREMETAL) && \
+        defined(WOLFSSL_SEC_QORIQ_LINUX)
+        #error "Select only one WOLFSSL_SEC_QORIQ backend"
+    #endif
+#endif /* WOLFSSL_SEC_QORIQ */
+
 #ifdef WOLFSSL_CAAM
     /* switch for all AES type algos */
     #undef  WOLFSSL_CAAM_CIPHER

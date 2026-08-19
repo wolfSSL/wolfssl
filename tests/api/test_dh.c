@@ -1006,6 +1006,7 @@ int test_wc_DhGenerateParams_and_ExportRaw(void)
  * generate-and-export flow below is only valid with the full SP math
  * (WOLFSSL_SP_MATH_ALL), fastmath or heapmath backends. */
 #if !defined(NO_DH) && defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLFSSL_NO_DH_GEN_PARAMS) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey dh;
     WC_RNG rng;
