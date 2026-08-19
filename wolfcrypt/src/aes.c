@@ -5323,8 +5323,13 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
-        int ret = wc_Psoc6_Aes_SetKey(aes, userKey, keylen, iv, dir);
-        if (ret == 0 && aes != NULL)
+        int ret;
+
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+        ret = wc_Psoc6_Aes_SetKey(aes, userKey, keylen, iv, dir);
+        if (ret == 0)
             aes->keyInstalled = 1;
         return ret;
     }
@@ -5599,8 +5604,34 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
 #endif /* NEED_AES_TABLES */
 
-    /* AES - SetKey (block schedule via generated asm on RISC-V) */
+    static WARN_UNUSED_RESULT int AesSetKeyLocal_body(
+        Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
+        int checkKeyLen);
+
+    /* AES - SetKey (block schedule via generated asm on RISC-V)
+     *
+     * keyInstalled is derived from the return value here rather than set
+     * inside the body. The body has failure returns after the point where the
+     * key material is accepted (AES-NI SAVE_VECTOR_REGISTERS2/BAD_ALIGN_E, the
+     * hardware key installs), and marking the context keyed on those paths
+     * would let it pass WC_AES_KEY_IS_SET with an all-zero key schedule. */
     static WARN_UNUSED_RESULT int wc_AesSetKeyLocal(
+        Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
+        int checkKeyLen)
+    {
+        int ret;
+
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
+        aes->keyInstalled = 0;
+        ret = AesSetKeyLocal_body(aes, userKey, keylen, iv, dir, checkKeyLen);
+        aes->keyInstalled = (ret == 0) ? 1 : 0;
+
+        return ret;
+    }
+
+    static WARN_UNUSED_RESULT int AesSetKeyLocal_body(
         Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
         int checkKeyLen)
     {
@@ -5649,7 +5680,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             if (ret == 0) {
                 /* Callback succeeded - SE owns the key */
                 aes->keylen = (int)keylen;
-                aes->keyInstalled = 1;
                 if (iv != NULL)
                     XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
                 else
@@ -5669,10 +5699,10 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 (iv != NULL) ? WC_AES_BLOCK_SIZE : 0, dir);
             if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                 if (cbRet == 0) {
-                    /* Callback succeeded - the device owns the key, so mark it
-                     * installed like the AES_SETKEY path above. */
+                    /* Callback succeeded - the device owns the key. rounds is
+                     * left at 0: there is no software key schedule, and the
+                     * XTS entry points use that to reject the context. */
                     aes->keylen = (int)keylen;
-                    aes->keyInstalled = 1;
                 }
                 return cbRet;
             }
@@ -5745,7 +5775,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 return WC_HW_E;
             }
             aes->blackKey = keyIdOut;
-            aes->keyInstalled = 1;
             return 0;
         }
     #endif
@@ -5774,7 +5803,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
          * reads it as the source of truth for the configured key size. */
         aes->keylen = (int)keylen;
         aes->rounds = (keylen / 4) + 6;
-        aes->keyInstalled = 1;
         #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
             defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
             defined(WOLFSSL_AES_CTS)
@@ -5804,7 +5832,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
         aes->keylen = (int)keylen;
         aes->rounds = (keylen/4) + 6;
-        aes->keyInstalled = 1;
         ret = wc_AesSetIV(aes, iv);
         if (ret != 0)
             return ret;
@@ -7090,13 +7117,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (aes == NULL)
             return BAD_FUNC_ARG;
 
-        if (sz == 0)
-            return 0;
-
         if (!WC_AES_KEY_IS_SET(aes)) {
             WOLFSSL_MSG("AES key not set");
             return MISSING_KEY;
         }
+
+        if (sz == 0)
+            return 0;
 
         /* hardware fails on input that is not a multiple of AES block size */
         if (sz % WC_AES_BLOCK_SIZE != 0) {
@@ -7128,13 +7155,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (aes == NULL)
             return BAD_FUNC_ARG;
 
-        if (sz == 0)
-            return 0;
-
         if (!WC_AES_KEY_IS_SET(aes)) {
             WOLFSSL_MSG("AES key not set");
             return MISSING_KEY;
         }
+
+        if (sz == 0)
+            return 0;
 
         /* hardware fails on input that is not a multiple of AES block size */
         if (sz % WC_AES_BLOCK_SIZE != 0) {
@@ -16796,12 +16823,12 @@ static WARN_UNUSED_RESULT int AesCfbEncrypt_C(Aes* aes, byte* out,
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-    if (sz == 0) {
-        return 0;
-    }
     if (!WC_AES_KEY_IS_SET(aes)) {
         WOLFSSL_MSG("AES key not set");
         return MISSING_KEY;
+    }
+    if (sz == 0) {
+        return 0;
     }
 
     if (aes->left > 0) {
@@ -16883,12 +16910,12 @@ static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-    if (sz == 0) {
-        return 0;
-    }
     if (!WC_AES_KEY_IS_SET(aes)) {
         WOLFSSL_MSG("AES key not set");
         return MISSING_KEY;
+    }
+    if (sz == 0) {
+        return 0;
     }
 
     if (aes->left > 0) {
@@ -17115,12 +17142,12 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(
         return BAD_FUNC_ARG;
     }
 
-    if (sz == 0) {
-        return 0;
-    }
     if (!WC_AES_KEY_IS_SET(aes)) {
         WOLFSSL_MSG("AES key not set");
         return MISSING_KEY;
+    }
+    if (sz == 0) {
+        return 0;
     }
 
     VECTOR_REGISTERS_PUSH;
@@ -17179,12 +17206,12 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
         return BAD_FUNC_ARG;
     }
 
-    if (sz == 0) {
-        return 0;
-    }
     if (!WC_AES_KEY_IS_SET(aes)) {
         WOLFSSL_MSG("AES key not set");
         return MISSING_KEY;
+    }
+    if (sz == 0) {
+        return 0;
     }
 
     VECTOR_REGISTERS_PUSH;
@@ -17341,12 +17368,12 @@ static WARN_UNUSED_RESULT int AesOfbCrypt_C(Aes* aes, byte* out, const byte* in,
     if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-    if (sz == 0) {
-        return 0;
-    }
     if (!WC_AES_KEY_IS_SET(aes)) {
         WOLFSSL_MSG("AES key not set");
         return MISSING_KEY;
+    }
+    if (sz == 0) {
+        return 0;
     }
 
     if (aes->left > 0) {
@@ -17510,12 +17537,16 @@ static int AesKeyWrapRaw(Aes* aes, word32 inSz, byte* out, const byte* aiv)
         return BAD_FUNC_ARG;
     }
 
+#ifndef HAVE_AES_ECB
     /* The block loop below uses the wc_AesEncryptDirect macro, which bypasses
-     * the public function's guard. */
+     * the public function's guard. With HAVE_AES_ECB the loop calls
+     * wc_AesEcbEncrypt instead, whose own guard sits after the crypto
+     * callback dispatch, so a device-held key still reaches the device. */
     if (!WC_AES_KEY_IS_SET(aes)) {
         WOLFSSL_MSG("AES key not set");
         return MISSING_KEY;
     }
+#endif
 
     r = out + KEYWRAP_BLOCK_SIZE;
     XMEMSET(t, 0, sizeof(t));
@@ -17672,12 +17703,16 @@ static int AesKeyUnWrapRaw(Aes* aes, const byte* in, word32 inSz, byte* out,
         return BAD_FUNC_ARG;
     }
 
+#ifndef HAVE_AES_ECB
     /* The block loop below uses the wc_AesDecryptDirect macro, which bypasses
-     * the public function's guard. */
+     * the public function's guard. With HAVE_AES_ECB the loop calls
+     * wc_AesEcbDecrypt instead, whose own guard sits after the crypto
+     * callback dispatch, so a device-held key still reaches the device. */
     if (!WC_AES_KEY_IS_SET(aes)) {
         WOLFSSL_MSG("AES key not set");
         return MISSING_KEY;
     }
+#endif
 
     /* A = C[0], R[i] = C[i]; XMEMMOVE so in-place unwrap (in == out) is safe */
     XMEMCPY(tmp, in, KEYWRAP_BLOCK_SIZE);
@@ -18735,7 +18770,9 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     aes = &xaes->aes;
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsEncrypt called with unset encryption key.");
         return BAD_FUNC_ARG;
     }
@@ -18885,7 +18922,9 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
 
     aes = &xaes->aes;
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsEncrypt called with unset encryption key.");
         return BAD_FUNC_ARG;
     }
@@ -19296,7 +19335,9 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  * not a sequence of complete blocks.
  */
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsDecrypt called with unset decryption key.");
         return BAD_FUNC_ARG;
     }
@@ -19448,7 +19489,9 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, const byte* i, word32 iSz,
     aes = &xaes->aes;
 #endif
 
-    if (aes->keylen == 0) {
+    /* rounds == 0 means no software key schedule: XTS has no crypto
+     * callback dispatch, so a device-owned key is unusable here. */
+    if ((aes->keylen == 0) || (aes->rounds == 0)) {
         WOLFSSL_MSG("wc_AesXtsDecrypt called with unset decryption key.");
         return BAD_FUNC_ARG;
     }
