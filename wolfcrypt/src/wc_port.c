@@ -574,8 +574,7 @@ int wolfCrypt_Init(void)
     #endif
 
     /* Register the Versal Gen2 ASU device so wolfCrypt operations route to the
-     * ASU hardware. The ASU client must already be initialized by the
-     * application with XAsu_ClientInit. */
+     * ASU hardware. Registering also brings the ASU client up. */
     #if defined(WOLFSSL_VERSAL_GEN2_ASU) && defined(WOLF_CRYPTO_CB)
         ret = wc_AsuCryptoCb_RegisterDevice(WOLFSSL_VERSAL_GEN2_ASU_DEVID);
         if (ret != 0) {

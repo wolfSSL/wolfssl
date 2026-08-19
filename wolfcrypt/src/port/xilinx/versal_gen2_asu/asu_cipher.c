@@ -54,8 +54,7 @@ typedef struct {
     XAsu_AesKeyObject keyObj;
 } AsuCipherReq;
 
-/* Hands one AES request to the ASU queue. wc_AsuTransact calls this while it
- * holds the submit lock, so this must only queue the request and return. */
+/* Queue one ASU AES operation. The lock is held here, so only queue it. */
 static int wc_AsuCipherSubmit(XAsu_ClientParams* params, void* ctx)
 {
     AsuCipherReq* req = (AsuCipherReq*)ctx;
@@ -138,8 +137,8 @@ static int wc_AsuCipherOneShot(Aes* aes, byte* out, const byte* in, word32 sz,
     WC_ASU_PRINTF("[ASU] cipher mode=%d enc=%d keyLen=%u sz=%u\r\n",
         (int)engineMode, enc, (unsigned int)aes->keylen, (unsigned int)sz);
 
-    /* The ASU reads the key object, key, IV and input straight from RAM, so
-     * flush our cached copies out first; drop the cached output after the op. */
+    /* The ASU reads the key, IV and input from memory, so push them out first,
+     * then reload the output afterward. */
     wc_AsuCacheFlush(aes->devKey, aes->keylen);
     wc_AsuCacheFlush(&req.keyObj, sizeof(req.keyObj));
     if (iv != NULL) {
@@ -166,7 +165,7 @@ static int wc_AsuCipherCbc(wc_CryptoInfo* info)
     int   ret;
     byte  lastBlock[WC_AES_BLOCK_SIZE];
 
-    /* Reference info->cipher.aescbc fields directly; no aliasing locals. */
+    /* Read the info fields directly, no copies into locals. */
     if (info == NULL || info->cipher.aescbc.aes == NULL ||
         info->cipher.aescbc.out == NULL || info->cipher.aescbc.in == NULL) {
         return BAD_FUNC_ARG;
@@ -203,6 +202,7 @@ static int wc_AsuCipherCbc(wc_CryptoInfo* info)
     return 0;
 }
 
+#ifdef HAVE_AES_ECB
 /* AES-ECB. No IV and no chaining state. */
 static int wc_AsuCipherEcb(wc_CryptoInfo* info)
 {
@@ -215,6 +215,7 @@ static int wc_AsuCipherEcb(wc_CryptoInfo* info)
         info->cipher.aesecb.in, info->cipher.aesecb.sz, info->cipher.enc,
         (u8)XASU_AES_ECB_MODE, NULL);
 }
+#endif /* HAVE_AES_ECB */
 
 #ifdef WOLFSSL_AES_COUNTER
 /* Add n to the 16-byte counter, starting at the last byte and carrying toward
@@ -478,7 +479,7 @@ static int wc_AsuCipherGcm(wc_CryptoInfo* info)
         (unsigned int)info->cipher.aesgcm_enc.authInSz,
         (unsigned int)info->cipher.aesgcm_enc.authTagSz);
 
-    /* The ASU DMAs key, IV, AAD, input (and the tag on decrypt) from memory. */
+    /* The ASU reads the key, IV, AAD and input from memory. */
     wc_AsuCacheFlush(info->cipher.aesgcm_enc.aes->devKey,
         info->cipher.aesgcm_enc.aes->keylen);
     wc_AsuCacheFlush(&req.keyObj, sizeof(req.keyObj));
@@ -504,7 +505,7 @@ static int wc_AsuCipherGcm(wc_CryptoInfo* info)
 
     status = wc_AsuTransact(wc_AsuCipherSubmit, &req, &addl);
 
-    /* Invalidate the CPU's view of the ASU-written output (and the tag on encrypt). */
+    /* Reload the output the ASU wrote. */
     if (info->cipher.aesgcm_enc.sz != 0) {
         wc_AsuCacheInvalidate(info->cipher.aesgcm_enc.out,
             info->cipher.aesgcm_enc.sz);
@@ -571,12 +572,12 @@ static int wc_AsuCipherCcm(wc_CryptoInfo* info)
         return BAD_FUNC_ARG;
     }
 
-    /* Tag-only (no data, no AAD) is not something the engine accepts; software. */
+    /* The engine needs some data or AAD, so a tag on its own runs in software. */
     if (info->cipher.aesccm_enc.sz == 0 && info->cipher.aesccm_enc.authInSz == 0) {
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    /* Oversized transfers exceed the ASU DMA limit; software handles them. */
+    /* Transfers too big for the ASU run in software. */
     if (info->cipher.aesccm_enc.sz > XASU_ASU_DMA_MAX_TRANSFER_LENGTH ||
         info->cipher.aesccm_enc.authInSz > XASU_ASU_DMA_MAX_TRANSFER_LENGTH) {
         return CRYPTOCB_UNAVAILABLE;
@@ -635,7 +636,7 @@ static int wc_AsuCipherCcm(wc_CryptoInfo* info)
         (unsigned int)info->cipher.aesccm_enc.authInSz,
         (unsigned int)info->cipher.aesccm_enc.authTagSz);
 
-    /* The ASU DMAs key, nonce, AAD, input (and the tag on decrypt) from memory. */
+    /* The ASU reads the key, nonce, AAD and input from memory. */
     wc_AsuCacheFlush(info->cipher.aesccm_enc.aes->devKey,
         info->cipher.aesccm_enc.aes->keylen);
     wc_AsuCacheFlush(&req.keyObj, sizeof(req.keyObj));
@@ -661,7 +662,7 @@ static int wc_AsuCipherCcm(wc_CryptoInfo* info)
 
     status = wc_AsuTransact(wc_AsuCipherSubmit, &req, &addl);
 
-    /* Invalidate the CPU's view of the ASU-written output (and the tag on encrypt). */
+    /* Reload the output the ASU wrote. */
     if (info->cipher.aesccm_enc.sz != 0) {
         wc_AsuCacheInvalidate(info->cipher.aesccm_enc.out,
             info->cipher.aesccm_enc.sz);
@@ -692,8 +693,7 @@ static int wc_AsuCipherCcm(wc_CryptoInfo* info)
 }
 #endif /* HAVE_AESCCM */
 
-/* Single entry point for the cipher engine, reached through the crypto callback
- * dispatcher. */
+/* Entry point for the AES engine. */
 int wc_AsuCipher(wc_CryptoInfo* info)
 {
     if (info == NULL) {
