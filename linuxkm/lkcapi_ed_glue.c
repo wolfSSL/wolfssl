@@ -1004,7 +1004,7 @@ static int km_ed448_set_priv(struct eddsa_tfm_type *tfm, const void *key,
         return -EINVAL;
     }
 
-    /* Ed25519 signing binds the public key into the hash (RFC 8032
+    /* Ed448 signing binds the public key into the hash (RFC 8032
      * section 5.2.6 step 2), so derive and install it.  The derived
      * key is trusted by construction. */
     err = wc_ed448_make_public(ctx->key, pub, (word32)sizeof(pub));
