@@ -695,7 +695,10 @@ int wolfSSL_process_quic_post_handshake(WOLFSSL* ssl)
         }
     }
     while (ssl->buffers.outputBuffer.length > 0) {
-        SendBuffered(ssl);
+        if ((nret = SendBuffered(ssl)) < 0) {
+            ret = nret;
+            break;
+        }
     }
 
 cleanup:

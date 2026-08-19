@@ -5289,6 +5289,33 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
             if (ret != WOLFSSL_SUCCESS &&
                     ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
                 break;
+#if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER)
+            /* RFC 7919 Section 4: any codepoint in the FFDHE range (256..511)
+             * restricts DHE to named groups even when the exact group is
+             * unknown. Keep it so TLSX_SupportedFFDHE_Set() sees the offer;
+             * an unsupported name can never match a server group. */
+            if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG) && isRequest &&
+                    WOLFSSL_NAMED_GROUP_IS_FFDHE(name)) {
+                TLSX* ext = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+                if (ext == NULL) {
+                    SupportedCurve* curve = NULL;
+                    ret = TLSX_SupportedCurve_New(&curve, name, ssl->heap);
+                    if (ret == 0) {
+                        ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS,
+                                        curve, ssl->heap);
+                        if (ret != 0)
+                            XFREE(curve, ssl->heap, DYNAMIC_TYPE_TLSX);
+                    }
+                }
+                else {
+                    ret = TLSX_SupportedCurve_Append(
+                        (SupportedCurve*)ext->data, name, ssl->heap);
+                }
+                if (ret != 0)
+                    break;
+            }
+#endif /* !NO_DH && !WOLFSSL_NO_TLS12 && !NO_WOLFSSL_SERVER */
             ret = 0;
         }
         /* All advertised groups are unsupported, so no node was added above.
@@ -5317,6 +5344,18 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
                 if (ret != 0)
                     break;
             }
+#if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER)
+            /* RFC 7919 Section 4 (see comment above). */
+            else if (isRequest && WOLFSSL_NAMED_GROUP_IS_FFDHE(name) &&
+                    !TLSX_IsGroupSupported(name, ssl->options.side)) {
+                ret = commonCurves == NULL ?
+                      TLSX_SupportedCurve_New(&commonCurves, name, ssl->heap) :
+                      TLSX_SupportedCurve_Append(commonCurves, name, ssl->heap);
+                if (ret != 0)
+                    break;
+            }
+#endif /* !NO_DH && !WOLFSSL_NO_TLS12 && !NO_WOLFSSL_SERVER */
         }
         /* If no common curves return error. In TLS 1.3 we can still try to save
          * this by using HRR. */
@@ -5401,7 +5440,8 @@ int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl)
 
 #endif /* WOLFSSL_TLS13 && !WOLFSSL_NO_SERVER_GROUPS_EXT */
 
-#if defined(HAVE_FFDHE) && !defined(WOLFSSL_NO_TLS12)
+#if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12)
+#ifdef HAVE_FFDHE
 #ifdef HAVE_PUBLIC_FFDHE
 static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
     SupportedCurve* serverGroup)
@@ -5571,6 +5611,7 @@ static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
     return ret;
 }
 #endif
+#endif /* HAVE_FFDHE */
 
 /* Set the highest priority common FFDHE group on the server as compared to
  * client extensions.
@@ -5580,9 +5621,11 @@ static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
  */
 int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
 {
-    int ret;
+    int ret = 0;
+#ifdef HAVE_FFDHE
     TLSX* priority = NULL;
     TLSX* ext = NULL;
+#endif
     TLSX* extension;
     SupportedCurve* clientGroup;
     SupportedCurve* group;
@@ -5615,6 +5658,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     ssl->buffers.weOwnDH = 0;
     ssl->options.haveDH = 0;
 
+#ifdef HAVE_FFDHE
     ret = TLSX_PopulateSupportedGroups(ssl, &priority);
     if (ret == WOLFSSL_SUCCESS) {
         SupportedCurve* serverGroup;
@@ -5631,10 +5675,11 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     }
 
     TLSX_FreeAll(priority, ssl->heap);
+#endif /* HAVE_FFDHE */
 
     return ret;
 }
-#endif /* HAVE_FFDHE && !WOLFSSL_NO_TLS12 */
+#endif /* !NO_DH && !WOLFSSL_NO_TLS12 */
 #endif /* !NO_WOLFSSL_SERVER */
 
 /* Check if the given curve is present in the supported groups extension.

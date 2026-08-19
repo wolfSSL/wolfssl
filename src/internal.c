@@ -89,9 +89,9 @@
  * WOLFSSL_TICKET_ENC_CHACHA20_POLY1305:
  *                  ChaCha20-Poly1305 for ticket encryption            default: auto
  * WOLFSSL_TICKET_ENC_AES128_GCM:
- *                  AES128-GCM for ticket encryption                   default: auto
+ *                  AES128-GCM for ticket encryption                   default: off
  * WOLFSSL_TICKET_ENC_AES256_GCM:
- *                  AES256-GCM for ticket encryption                   default: off
+ *                  AES256-GCM for ticket encryption                   default: auto
  * WOLFSSL_TICKET_DECRYPT_NO_CREATE:
  *                  No new ticket on successful decryption             default: off
  * WOLFSSL_TICKET_ENC_CBC_HMAC:
@@ -137,7 +137,7 @@
  * WOLFSSL_MAXQ10XX_TLS:       Maxim MAXQ10xx secure element           default: off
  * WOLFSSL_IOTSAFE:            IoTSAFE (GSMA) applet support           default: off
  * WOLFSSL_QNX_CAAM:           QNX CAAM crypto module support          default: off
- * HAVE_DH_DEFAULT_PARAMS:     Include default DH parameters           default: off
+ * HAVE_DH_DEFAULT_PARAMS:     No effect; kept for build compatibility
  * HAVE_EXT_CACHE:             External session cache callbacks        default: off
  *
  * Hardening:
@@ -41618,8 +41618,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
 
-#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_DH_DEFAULT_PARAMS)
-    #if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
+#if defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_QT)
+    #if !defined(NO_DH) && defined(HAVE_SUPPORTED_CURVES)
         if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) != NULL) {
             /* Set FFDHE parameters or clear DHE parameters if FFDH parameters
              * present and no matches in the server's list. */
