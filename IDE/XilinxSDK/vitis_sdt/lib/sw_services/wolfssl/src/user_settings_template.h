@@ -80,9 +80,9 @@
 /* #define WOLFSSL_ARMASM */
 /* #define WOLFSSL_ARMASM_INLINE */
 
-/* Uncomment for Versal Gen 2 ASU hardware crypto offload. Also enable
- * the xilasu library in this BSP, then register in the app with
- * wc_AsuCryptoCb_RegisterDevice(devId). */
+/* Uncomment for Versal Gen 2 ASU hardware crypto offload. Also enable the
+ * xilasu and xilmailbox libraries in this BSP. wolfCrypt_Init registers the
+ * device, so the app needs no ASU calls of its own. */
 /* #define WOLFSSL_VERSAL_GEN2_ASU */
 
 #endif /* USER_SETTINGS_H */

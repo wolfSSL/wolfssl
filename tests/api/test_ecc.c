@@ -1637,7 +1637,7 @@ int test_wc_ecc_ctx_getters(void)
 
     /* Setting the KDF salt and info must leave the MAC salt empty. The ASU
      * ECIES offload only runs when that salt is empty. */
-    got = NULL; gotSz = 123;
+    got = salt; gotSz = 123;
     ExpectIntEQ(wc_ecc_ctx_get_mac_salt(ctx, &got, &gotSz), 0);
     ExpectIntEQ(gotSz, 0);
     ExpectNull(got);
@@ -1651,7 +1651,10 @@ int test_wc_ecc_ctx_getters(void)
 
         ExpectNotNull(ctx2 = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
         /* Before the salt exchange the MAC salt is empty, which is the state
-         * the ASU offload looks for. */
+         * the ASU offload looks for. Both out-parameters are set to something
+         * else first, so the checks fail if the getter never writes. */
+        macGot = salt;
+        macGotSz = 0xFFFFFFFFU;
         ExpectIntEQ(wc_ecc_ctx_get_mac_salt(ctx2, &macGot, &macGotSz), 0);
         ExpectIntEQ(macGotSz, 0);
         ExpectNull(macGot);

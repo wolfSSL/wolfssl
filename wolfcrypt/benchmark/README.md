@@ -39,6 +39,17 @@ To make an argument-less `benchmark` run sweep every compiled-in ECC curve
 in FIPS/SELFTEST builds. The `-ecc-all` runtime flag performs the same sweep
 without the macro.
 
+To add an extra ECIES run keyed with a KDF salt and context instead of the
+client and server salt exchange, compile with:
+
+`-DWC_BENCH_ECIES_KDF`
+
+The salt exchange also sets a MAC salt, which wolfSSL passes to the cipher as
+extra authenticated data. A crypto callback backend that cannot take that data
+declines the operation, so the normal ECIES rows measure software even when a
+device id is given. The extra rows are tagged `-kdf`, use a context with no MAC
+salt, and run as their own pass so the two can be compared side by side.
+
 To track per-algorithm heap and stack usage in the output, configure wolfSSL with:
 
 ```

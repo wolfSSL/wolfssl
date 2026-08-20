@@ -53,7 +53,13 @@ WOLFSSL_VERSAL_GEN2_ASU_HMAC      WOLFSSL_VERSAL_GEN2_ASU_ECC
 WOLFSSL_VERSAL_GEN2_ASU_CIPHER
 ```
 
-`_ECC` also covers ECDH and ECIES when those features are built.
+`_ECC` also covers ECDH, ECIES, Ed25519 and Ed448 when those features are
+built.
+
+Ed25519 and Ed448 offload needs classic ECC turned on as well, because the
+EdDSA handlers live in the same file as ECDSA and that file is built only when
+`HAVE_ECC` is set. A build with EdDSA but no classic ECC still works, it just
+runs EdDSA in software.
 
 Other switches:
 
@@ -78,8 +84,61 @@ the unmodified wolfCrypt test and benchmark route through it.
 client caps it at 64 bytes, which is short of the 66 P-521 needs. Turn it on
 only with firmware that front-pads.
 
-**ECIES is narrow.** Only the default AES-GCM scheme with HKDF-SHA256 offloads,
-the KDF context must be non-empty, and a MAC salt sends it to software.
+**ECIES needs the KDF context path.** See below.
+
+## ECIES on hardware
+
+The ASU runs ECIES as one command: ECDH, then HKDF, then AES-GCM. It has no
+input for extra authenticated data, so the context has to be keyed in the way
+that leaves the MAC salt empty.
+
+Use `wc_ecc_ctx_set_kdf_salt`, not `wc_ecc_ctx_set_peer_salt`:
+
+```c
+ecEncCtx* ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+
+wc_ecc_ctx_set_algo(ctx, ecAES_256_GCM, ecHKDF_SHA256, ecHMAC_SHA256);
+wc_ecc_ctx_set_kdf_salt(ctx, salt, saltSz);
+wc_ecc_ctx_set_info(ctx, info, infoSz);
+
+wc_ecc_encrypt(privKey, peerPubKey, msg, msgSz, out, &outSz, ctx);
+```
+
+The other side does the same with `REQ_RESP_SERVER` and the same salt and
+context bytes, then calls `wc_ecc_decrypt`.
+
+The wolfCrypt benchmark keys ECIES the other way by default, so its ECIES rows
+run in software. Build the benchmark with `WC_BENCH_ECIES_KDF` to add a second
+set of rows, tagged `-kdf`, that use the context shown above and reach the ASU.
+
+What the offload requires:
+
+| Setting | Value |
+| --- | --- |
+| Scheme | `ecAES_128_GCM` or `ecAES_256_GCM` with `ecHKDF_SHA256` |
+| KDF salt | `wc_ecc_ctx_set_kdf_salt`, passed through as given |
+| KDF context | `wc_ecc_ctx_set_info`, must not be empty |
+| MAC salt | must be empty, so no `wc_ecc_ctx_set_peer_salt` |
+| Protocol | `REQ_RESP_CLIENT` to encrypt, `REQ_RESP_SERVER` to decrypt |
+| Curves | P-256, P-384, Brainpool P-256, Brainpool P-384 |
+
+`wc_ecc_ctx_set_peer_salt` is the usual wolfSSL way to key ECIES, and it sets a
+MAC salt as a side effect. wolfSSL feeds that salt to AES-GCM as extra
+authenticated data, which the ASU cannot accept, so the port declines and
+wolfSSL runs ECIES in software. There is no way around this from the port.
+
+Declining is not the same as running with no hardware. The software ECIES path
+still passes the device id to the AES and HMAC underneath, so those operations
+go to the ASU one at a time. Only the single-command ECIES is lost.
+
+**The private key passed to encrypt is not used.** `wc_ecc_encrypt` takes a
+private key, and software derives the shared secret from it and puts its public
+point in the output. The ASU cannot be given that scalar: it generates its own
+ephemeral key pair inside the single ECIES command and returns that public key
+in the output instead. The peer decrypts against the returned key, so the
+exchange works and matches software on the wire, but the key you passed in does
+not appear in the result. Decrypt is not affected, and uses the private key you
+supply.
 
 ## Files
 

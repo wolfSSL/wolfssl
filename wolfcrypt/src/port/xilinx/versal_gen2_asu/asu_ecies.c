@@ -307,9 +307,9 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
             WC_ASU_PRINTF("[ASU] ecies: GCM needs a non-empty KDF context\r\n");
             return CRYPTOCB_UNAVAILABLE;
         }
-        /* The ASU always uses the first half of the derived key. Encrypt uses
-         * that half for the default context and for the client side. */
-        if (proto != 0 && proto != REQ_RESP_CLIENT) {
+        /* The ASU always uses the first half of the derived key, which is the
+         * client half. A context is never built with protocol zero. */
+        if (proto != REQ_RESP_CLIENT) {
             return CRYPTOCB_UNAVAILABLE;
         }
     }
@@ -326,6 +326,10 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
         return CRYPTOCB_UNAVAILABLE;
     }
 
+    /* The ASU client turns down a zero data length, so let software do it. */
+    if (msgSz == 0U) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
     /* uncompressed point: 0x04 then Qx and Qy */
     pubKeySz = 1U + (2U * (word32)keyLen);
     /* Check the length first so the size math below cannot overflow. */
@@ -469,8 +473,6 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
     if (ret != 0) {
         return ret;
     }
-    /* Read the private key and check it using the exported bytes, which keeps
-     * the timing steady. */
     ret = wc_AsuEciesScheme(ctx, &aesKeySize, &shaType, &shaMode);
     if (ret != 0) {
         return ret;
@@ -493,9 +495,9 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
             WC_ASU_PRINTF("[ASU] ecies: GCM needs a non-empty KDF context\r\n");
             return CRYPTOCB_UNAVAILABLE;
         }
-        /* The ASU always uses the first half of the derived key. Decrypt uses
-         * that half for the default context and for the server side. */
-        if (proto != 0 && proto != REQ_RESP_SERVER) {
+        /* The ASU always uses the first half of the derived key, which is the
+         * server half here. A context is never built with protocol zero. */
+        if (proto != REQ_RESP_SERVER) {
             return CRYPTOCB_UNAVAILABLE;
         }
     }
@@ -511,6 +513,10 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
     }
     ctLen = msgSz - pubKeySz - (word32)WC_ASU_ECIES_NONCE_SZ -
         (word32)WC_ASU_ECIES_TAG_SZ;
+    /* Same as encrypt: a zero data length is turned down by the client. */
+    if (ctLen == 0U) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
     if (*info->pk.eciesdecrypt.outSz < ctLen) {
         return BUFFER_E;
     }

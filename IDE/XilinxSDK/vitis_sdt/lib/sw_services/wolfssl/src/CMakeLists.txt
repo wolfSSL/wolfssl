@@ -108,11 +108,23 @@ set(_wolfssl_probe_src ${CMAKE_BINARY_DIR}/wolfssl_config_probe.c)
 file(WRITE ${_wolfssl_probe_src}
   "#include \"user_settings.h\"\n"
   "#ifdef WOLFSSL_ARMASM\n\"@CFG_ARMASM@\"\n#endif\n"
+  "#ifdef WOLFSSL_ARMASM_INLINE\n\"@CFG_ARMASM_INLINE@\"\n#endif\n"
   "#ifdef HAVE_POLY1305\n\"@CFG_POLY1305@\"\n#endif\n"
   "#ifdef HAVE_CHACHA\n\"@CFG_CHACHA@\"\n#endif\n")
+# Give the probe the same includes and defines as the library target below.
+# A user_settings.h that pulls in BSP headers has to preprocess here too.
+set(_wolfssl_probe_inc)
+foreach(_wolfssl_dir
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_INCLUDE_PATH}
+    ${WOLFSSL_REPO_ROOT})
+  list(APPEND _wolfssl_probe_inc -I${_wolfssl_dir})
+endforeach()
 execute_process(
   COMMAND ${CMAKE_C_COMPILER} -E -P
-    -I${CMAKE_BINARY_DIR}/include -I${CMAKE_CURRENT_SOURCE_DIR}
+    -DWOLFSSL_USER_SETTINGS
+    ${_wolfssl_probe_inc}
     ${_wolfssl_probe_src}
   OUTPUT_VARIABLE _wolfssl_probe
   RESULT_VARIABLE _wolfssl_probe_rc
@@ -123,7 +135,7 @@ if(NOT _wolfssl_probe_rc EQUAL 0)
     "named by wolfssl_user_settings_path. Compiler output:\n"
     "${_wolfssl_probe_err}")
 endif()
-foreach(_wolfssl_flag ARMASM POLY1305 CHACHA)
+foreach(_wolfssl_flag ARMASM ARMASM_INLINE POLY1305 CHACHA)
   string(FIND "${_wolfssl_probe}" "@CFG_${_wolfssl_flag}@" _wolfssl_pos)
   if(_wolfssl_pos EQUAL -1)
     set(_wolfssl_cfg_${_wolfssl_flag} FALSE)
@@ -161,8 +173,8 @@ file(GLOB WOLFSSL_ASU_SOURCES
 list(APPEND _sources ${WOLFSSL_ASU_SOURCES})
 
 # ARM assembly: built when the settings define WOLFSSL_ARMASM and the
-# CPU is AArch64. The armv8-*_c.c files are inline assembly compiled as
-# plain C, so no .S files are needed.
+# CPU is AArch64. With WOLFSSL_ARMASM_INLINE the armv8-*_c.c files hold
+# the assembly as inline C; without it the .S files are used instead.
 set(_wolfssl_arm_dir ${WOLFSSL_REPO_ROOT}/wolfcrypt/src/port/arm)
 set(_wolfssl_build_armasm_a64 FALSE)
 if(_wolfssl_cfg_ARMASM)
@@ -182,16 +194,36 @@ if(_wolfssl_build_armasm_a64)
   if(_wolfssl_armasm_32)
     list(REMOVE_ITEM WOLFSSL_ARMASM_SOURCES ${_wolfssl_armasm_32})
   endif()
+  # Without inline mode the armv8-*_c.c files carry no assembly, so drop
+  # them and build the matching .S files instead.
+  if(NOT _wolfssl_cfg_ARMASM_INLINE)
+    file(GLOB _wolfssl_armasm_inline_c ${_wolfssl_arm_dir}/armv8-*_c.c)
+    if(_wolfssl_armasm_inline_c)
+      list(REMOVE_ITEM WOLFSSL_ARMASM_SOURCES ${_wolfssl_armasm_inline_c})
+    endif()
+    enable_language(ASM)
+    file(GLOB _wolfssl_armasm_s ${_wolfssl_arm_dir}/armv8-*.S)
+    file(GLOB _wolfssl_armasm_s32 ${_wolfssl_arm_dir}/armv8-32-*.S)
+    if(_wolfssl_armasm_s32)
+      list(REMOVE_ITEM _wolfssl_armasm_s ${_wolfssl_armasm_s32})
+    endif()
+    list(APPEND WOLFSSL_ARMASM_SOURCES ${_wolfssl_armasm_s})
+  endif()
+
   # ChaCha and Poly1305 assembly assume their algorithm is on; drop
   # them when the settings leave it off.
   if(NOT _wolfssl_cfg_POLY1305)
-    file(GLOB _wolfssl_armasm_poly ${_wolfssl_arm_dir}/armv8-poly1305*.c)
+    file(GLOB _wolfssl_armasm_poly
+      ${_wolfssl_arm_dir}/armv8-poly1305*.c
+      ${_wolfssl_arm_dir}/armv8-poly1305*.S)
     if(_wolfssl_armasm_poly)
       list(REMOVE_ITEM WOLFSSL_ARMASM_SOURCES ${_wolfssl_armasm_poly})
     endif()
   endif()
   if(NOT _wolfssl_cfg_CHACHA)
-    file(GLOB _wolfssl_armasm_chacha ${_wolfssl_arm_dir}/armv8-chacha*.c)
+    file(GLOB _wolfssl_armasm_chacha
+      ${_wolfssl_arm_dir}/armv8-chacha*.c
+      ${_wolfssl_arm_dir}/armv8-chacha*.S)
     if(_wolfssl_armasm_chacha)
       list(REMOVE_ITEM WOLFSSL_ARMASM_SOURCES ${_wolfssl_armasm_chacha})
     endif()

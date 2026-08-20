@@ -636,6 +636,12 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
     #define WC_BENCH_TRACK_STATS
 #endif
 
+/* The IV sweep builds its row labels into shared buffers at run time, which
+ * several benchmark threads would write at once. Refuse the pair for now. */
+#if defined(WC_BENCH_AES_IV_SWEEP) && defined(WC_ENABLE_BENCH_THREADING)
+    #error "WC_BENCH_AES_IV_SWEEP cannot be used with threaded benchmarks"
+#endif
+
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     static const char info_prefix[] = "###, ";
     static const char err_prefix[] = "!!!, ";
@@ -4060,7 +4066,9 @@ static void* benchmarks_do(void* args)
     #if !defined(NO_SW_BENCH) && defined(BENCH_HAVE_SW_SEED)
         bench_rng(0);
     #endif
-    #ifdef BENCH_DEVID
+    /* A FIPS build takes no device id when it starts the RNG, so a second row
+     * would repeat the first one under a hardware label. */
+    #if defined(BENCH_DEVID) && !defined(HAVE_FIPS)
         bench_rng(1);
     #endif
     }
@@ -4072,7 +4080,8 @@ static void* benchmarks_do(void* args)
     #if !defined(NO_SW_BENCH) && defined(BENCH_HAVE_SW_SEED)
         bench_rng_sha512(0);
     #endif
-    #ifdef BENCH_DEVID
+    /* Same as above: no device id reaches the RNG in a FIPS build. */
+    #if defined(BENCH_DEVID) && !defined(HAVE_FIPS)
         bench_rng_sha512(1);
     #endif
     }
@@ -4899,10 +4908,7 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_ED448
     if (bench_all || (bench_asym_algs & BENCH_ED448_KEYGEN)) {
     #ifndef NO_SW_BENCH
-        bench_ed448KeyGen(0);
-    #endif
-    #ifdef BENCH_DEVID
-        bench_ed448KeyGen(1);
+        bench_ed448KeyGen();
     #endif
     }
     if (bench_all || (bench_asym_algs & BENCH_ED448_SIGN)) {
@@ -14322,6 +14328,14 @@ void bench_ecc_curve(int curveId)
     #if defined(BENCH_DEVID)
         bench_eccEncrypt(1, curveId);
     #endif
+    #ifdef WC_BENCH_ECIES_KDF
+        #ifndef NO_SW_BENCH
+        bench_eccEncryptKdf(0, curveId);
+        #endif
+        #if defined(BENCH_DEVID)
+        bench_eccEncryptKdf(1, curveId);
+        #endif
+    #endif
     }
     #endif
 }
@@ -14741,8 +14755,26 @@ exit:
  * per-cipher benchmark loops reset and re-prime the context before each op.
  * Fixed salts let the encrypt/decrypt directions agree (required for GCM's
  * authentication tag to verify). */
-static int bench_ecies_prep(ecEncCtx* ctx, byte encAlgo, const byte* ownSalt,
-                            const byte* peerSalt)
+/* The two ways to key an ECIES context. SALTX is the client/server salt
+ * exchange, which also sets a MAC salt. KDF sets the salt and context. */
+#define BENCH_ECIES_MODE_SALTX 0
+#define BENCH_ECIES_MODE_KDF   1
+
+#ifdef WC_BENCH_ECIES_KDF
+/* KDF salt and context for BENCH_ECIES_MODE_KDF. Both sides use the same
+ * values, so the derived keys match without the salt exchange. */
+static const byte bench_eciesKdfSalt[EXCHANGE_SALT_SZ] = {
+    0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+    0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f
+};
+static const byte bench_eciesKdfInfo[] = {
+    0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,
+    0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f
+};
+#endif
+
+static int bench_ecies_prep(ecEncCtx* ctx, byte encAlgo, int ctxMode,
+                            const byte* ownSalt, const byte* peerSalt)
 {
     int   ret;
     byte* own;
@@ -14750,19 +14782,30 @@ static int bench_ecies_prep(ecEncCtx* ctx, byte encAlgo, const byte* ownSalt,
     ret = wc_ecc_ctx_reset(ctx, &gRng);
     if (ret == 0)
         ret = wc_ecc_ctx_set_algo(ctx, encAlgo, ecHKDF_SHA256, ecHMAC_SHA256);
-    if (ret == 0) {
-        own = (byte*)wc_ecc_ctx_get_own_salt(ctx);
-        if (own == NULL)
-            ret = BAD_FUNC_ARG;
-        else {
-            XMEMCPY(own, ownSalt, EXCHANGE_SALT_SZ);
-            ret = wc_ecc_ctx_set_peer_salt(ctx, peerSalt);
-        }
+    if (ret != 0)
+        return ret;
+
+#ifdef WC_BENCH_ECIES_KDF
+    if (ctxMode == BENCH_ECIES_MODE_KDF) {
+        ret = wc_ecc_ctx_set_kdf_salt(ctx, bench_eciesKdfSalt,
+                                      EXCHANGE_SALT_SZ);
+        if (ret == 0)
+            ret = wc_ecc_ctx_set_info(ctx, bench_eciesKdfInfo,
+                                      (int)sizeof(bench_eciesKdfInfo));
+        return ret;
     }
-    return ret;
+#else
+    (void)ctxMode;
+#endif
+
+    own = (byte*)wc_ecc_ctx_get_own_salt(ctx);
+    if (own == NULL)
+        return BAD_FUNC_ARG;
+    XMEMCPY(own, ownSalt, EXCHANGE_SALT_SZ);
+    return wc_ecc_ctx_set_peer_salt(ctx, peerSalt);
 }
 
-void bench_eccEncrypt(int useDeviceID, int curveId)
+static void bench_eccEncryptEx(int useDeviceID, int curveId, int ctxMode)
 {
 #define BENCH_ECCENCRYPT_MSG_SIZE 48
 #ifdef WOLFSSL_ECIES_GEN_IV
@@ -14925,18 +14968,21 @@ void bench_eccEncrypt(int useDeviceID, int curveId)
 
         for (c = 0; eciesCiphers[c].label != NULL; c++) {
             byte algo = eciesCiphers[c].algo;
+            /* Tag the KDF rows so they do not read as the default ones. */
+            const char* modeTag =
+                (ctxMode == BENCH_ECIES_MODE_KDF) ? "-kdf" : "";
 
-            (void)XSNPRINTF(encDesc, sizeof(encDesc), "%s-%s", desc[6],
-                            eciesCiphers[c].label);
-            (void)XSNPRINTF(decDesc, sizeof(decDesc), "%s-%s", desc[7],
-                            eciesCiphers[c].label);
+            (void)XSNPRINTF(encDesc, sizeof(encDesc), "%s-%s%s", desc[6],
+                            eciesCiphers[c].label, modeTag);
+            (void)XSNPRINTF(decDesc, sizeof(decDesc), "%s-%s%s", desc[7],
+                            eciesCiphers[c].label, modeTag);
 
             /* encrypt msg to B */
             bench_stats_start(&count, &start);
             do {
                 for (i = 0; i < ntimes; i++) {
                     outSz = BENCH_ECCENCRYPT_OUT_SIZE;
-                    ret = bench_ecies_prep(cliCtx, algo, fixedCliSalt,
+                    ret = bench_ecies_prep(cliCtx, algo, ctxMode, fixedCliSalt,
                                            fixedSrvSalt);
                     if (ret == 0)
                         ret = wc_ecc_encrypt(userA, userB, msg,
@@ -14966,7 +15012,7 @@ void bench_eccEncrypt(int useDeviceID, int curveId)
             do {
                 for (i = 0; i < ntimes; i++) {
                     bench_plainSz = bench_size;
-                    ret = bench_ecies_prep(srvCtx, algo, fixedSrvSalt,
+                    ret = bench_ecies_prep(srvCtx, algo, ctxMode, fixedSrvSalt,
                                            fixedCliSalt);
                     if (ret == 0)
                         ret = wc_ecc_decrypt(userB, decPubKey, out, outSz,
@@ -15015,6 +15061,20 @@ exit:
     wc_ecc_free(userA);
 #endif
 }
+
+void bench_eccEncrypt(int useDeviceID, int curveId)
+{
+    bench_eccEncryptEx(useDeviceID, curveId, BENCH_ECIES_MODE_SALTX);
+}
+
+#ifdef WC_BENCH_ECIES_KDF
+/* Same ECIES run, keyed with a KDF salt and context instead of the client and
+ * server salt swap. That context carries no MAC salt, so hardware can take it. */
+void bench_eccEncryptKdf(int useDeviceID, int curveId)
+{
+    bench_eccEncryptEx(useDeviceID, curveId, BENCH_ECIES_MODE_KDF);
+}
+#endif
 #endif
 
 #ifdef WOLFSSL_SM2
@@ -15724,7 +15784,7 @@ exit:
 #endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
-void bench_ed448KeyGen(int useDeviceID)
+void bench_ed448KeyGen(void)
 {
     ed448_key genKey;
     double start;
@@ -15738,8 +15798,7 @@ void bench_ed448KeyGen(int useDeviceID)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            (void)wc_ed448_init_ex(&genKey, HEAP_HINT,
-                useDeviceID ? devId : INVALID_DEVID);
+            (void)wc_ed448_init_ex(&genKey, HEAP_HINT, INVALID_DEVID);
             (void)wc_ed448_make_key(&gRng, ED448_KEY_SIZE, &genKey);
             wc_ed448_free(&genKey);
             RECORD_MULTI_VALUE_STATS();
@@ -15751,7 +15810,7 @@ void bench_ed448KeyGen(int useDeviceID)
 #endif
        );
 
-    bench_stats_asym_finish("ED", 448, desc[2], useDeviceID, count, start, 0);
+    bench_stats_asym_finish("ED", 448, desc[2], 0, count, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif

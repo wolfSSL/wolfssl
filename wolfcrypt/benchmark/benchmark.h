@@ -120,6 +120,9 @@ void bench_ecc_curve(int curveId);
 void bench_eccMakeKey(int useDeviceID, int curveId);
 void bench_ecc(int useDeviceID, int curveId);
 void bench_eccEncrypt(int useDeviceID, int curveId);
+#ifdef WC_BENCH_ECIES_KDF
+void bench_eccEncryptKdf(int useDeviceID, int curveId);
+#endif
 void bench_sm2(int useDeviceID);
 void bench_curve25519KeyGen(int useDeviceID);
 void bench_curve25519KeyAgree(int useDeviceID);
@@ -127,7 +130,7 @@ void bench_ed25519KeyGen(int useDeviceID);
 void bench_ed25519KeySign(int useDeviceID);
 void bench_curve448KeyGen(void);
 void bench_curve448KeyAgree(void);
-void bench_ed448KeyGen(int useDeviceID);
+void bench_ed448KeyGen(void);
 void bench_ed448KeySign(int useDeviceID);
 void bench_eccsiKeyGen(void);
 void bench_eccsiPairGen(void);

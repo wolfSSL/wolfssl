@@ -81,6 +81,17 @@ typedef struct {
     AsuEccReq* req;   /* the aligned request the operation uses */
 } AsuEccMem;
 
+
+/* ECDSA and EdDSA both use the request helpers below, so build them when
+ * either one is on. Without this they compile with no callers. */
+#if ((defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)) && !defined(NO_ASN)) \
+    || (defined(HAVE_ED25519) && \
+        !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_ED25519)) \
+    || (defined(HAVE_ED448) && !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_ED448))
+    #define WC_ASU_ECC_REQ_USED
+#endif
+
+#ifdef WC_ASU_ECC_REQ_USED
 /* Align the request to 64 bytes so the sign buffer gets its own cache line.
  * Returns 0 or MEMORY_E. */
 static int wc_AsuEccReqNew(AsuEccMem* mem)
@@ -134,6 +145,7 @@ static int wc_AsuEccSubmit(XAsu_ClientParams* params, void* ctx)
             return XST_FAILURE;
     }
 }
+#endif /* WC_ASU_ECC_REQ_USED */
 
 /* The DER helpers are gone under NO_ASN, so ECDSA runs in software there.
  * EdDSA uses raw signatures and still works. */
