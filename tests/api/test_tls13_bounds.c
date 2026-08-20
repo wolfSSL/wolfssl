@@ -338,6 +338,85 @@ static int test_tls13b_client_frag_round(int at)
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+/* Rewrite a ServerHello record so it carries a present-but-EMPTY extensions
+ * block. That is the only shape that reaches DoTls13ServerHello()'s
+ * post-negotiation code with args->totalExtSz == 0: a ServerHello with no
+ * extensions FIELD at all returns earlier, at the truncated-length branch.
+ * Returns the new record length. */
+static int test_tls13b_sh_empty_exts(byte* rec, int rec_sz)
+{
+    int off, sessIdSz, bodySz;
+
+    if (rec_sz < TLS13B_LEGACY_OFF + 2 + RAN_LEN + 1)
+        return -1;
+    if (rec[0] != handshake || rec[TLS13B_REC_HDR_SZ] != server_hello)
+        return -1;
+
+    off = TLS13B_LEGACY_OFF + OPAQUE16_LEN + RAN_LEN;
+    sessIdSz = rec[off];
+    off += 1 + sessIdSz;
+    off += OPAQUE16_LEN + OPAQUE8_LEN;      /* cipher suite + compression */
+    if (off + OPAQUE16_LEN > rec_sz)
+        return -1;
+
+    rec[off] = 0;
+    rec[off + 1] = 0;
+    off += OPAQUE16_LEN;
+
+    bodySz = off - (TLS13B_REC_HDR_SZ + TLS13B_HS_HDR_SZ);
+    rec[6] = (byte)(bodySz >> 16);
+    rec[7] = (byte)(bodySz >> 8);
+    rec[8] = (byte)bodySz;
+    rec[3] = (byte)((off - TLS13B_REC_HDR_SZ) >> 8);
+    rec[4] = (byte)(off - TLS13B_REC_HDR_SZ);
+    return off;
+}
+
+/* Find the first extension of the given type in a ClientHello record and
+ * return the offset of its body, or -1. */
+static int test_tls13b_ch_find_ext(const byte* rec, int rec_sz, word16 type,
+    int* bodySz)
+{
+    int off, sessIdSz, suiteSz, compSz, extEnd;
+    int extTotal;
+
+    if (rec_sz < TLS13B_LEGACY_OFF + 2 + RAN_LEN + 1)
+        return -1;
+    if (rec[0] != handshake || rec[TLS13B_REC_HDR_SZ] != client_hello)
+        return -1;
+
+    off = TLS13B_LEGACY_OFF + OPAQUE16_LEN + RAN_LEN;
+    sessIdSz = rec[off];
+    off += 1 + sessIdSz;
+    if (off + OPAQUE16_LEN > rec_sz)
+        return -1;
+    suiteSz = ((int)rec[off] << 8) | rec[off + 1];
+    off += OPAQUE16_LEN + suiteSz;
+    if (off + 1 > rec_sz)
+        return -1;
+    compSz = rec[off];
+    off += 1 + compSz;
+    if (off + OPAQUE16_LEN > rec_sz)
+        return -1;
+    extTotal = ((int)rec[off] << 8) | rec[off + 1];
+    off += OPAQUE16_LEN;
+    extEnd = off + extTotal;
+    if (extEnd > rec_sz)
+        return -1;
+
+    while (off + 4 <= extEnd) {
+        word16 t = (word16)(((word16)rec[off] << 8) | rec[off + 1]);
+        int l = ((int)rec[off + 2] << 8) | rec[off + 3];
+        if (off + 4 + l > extEnd)
+            return -1;
+        if (t == type) {
+            *bodySz = l;
+            return off + 4;
+        }
+        off += 4 + l;
+    }
+    return -1;
+}
 #endif /* guards */
 
 /* tls13.c:7645 - "args->pv.major == SSLv3_MAJOR && args->pv.minor >=
@@ -485,4 +564,237 @@ int test_tls13_client_cert_fragment_want_write(void)
 #else
     return TEST_SKIPPED;
 #endif
+}
+
+/* tls13.c:5719 cond 0 - "args->totalExtSz > 0" in DoTls13ServerHello().
+ * Every ordinary ServerHello supplies the (both operands true, decision true)
+ * row; this vector supplies the missing (cond 0 false) row by handing a
+ * downgrade-capable client a ServerHello whose extensions block is present but
+ * empty. The client then takes the !foundVersion downgrade path and arrives at
+ * :5719 with totalExtSz == 0. The handshake cannot complete (no key_share), so
+ * only the failure is asserted. */
+int test_tls13_sh_empty_extensions_block(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte sh[TLS13B_CH_BUF_SZ];
+    int sh_sz = 0;
+    int new_sz = -1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* SSLv23 client: downgrade enabled, which the !foundVersion branch needs. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_tls13b_take_record(&test_ctx, 1, sh, (int)sizeof(sh),
+        &sh_sz), 0);
+    if (EXPECT_SUCCESS())
+        new_sz = test_tls13b_sh_empty_exts(sh, sh_sz);
+    ExpectIntGT(new_sz, 0);
+
+    test_memio_clear_buffer(&test_ctx, 1);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)sh,
+            new_sz), 0);
+    }
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* tls13.c:7425 cond 1 - "!IsAtLeastTLSv1_3(ssl->version)" in
+ * DoTls13SupportedVersions(). Ordinary handshakes give the (foundVersion set,
+ * version still 1.3, decision false) row. This vector rewrites the single
+ * version in the ClientHello's supported_versions extension from 0x0304 to
+ * 0x0303 - same length, so no other field moves - and hands it to a
+ * downgrade-capable server, which negotiates TLS 1.2 and makes the operand
+ * true with foundVersion still set. */
+int test_tls13_ch_supported_versions_tls12_only(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte ch[TLS13B_CH_BUF_SZ];
+    int ch_sz = 0;
+    int svOff = -1, svSz = 0, i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13b_take_record(&test_ctx, 0, ch, (int)sizeof(ch),
+        &ch_sz), 0);
+    if (EXPECT_SUCCESS())
+        svOff = test_tls13b_ch_find_ext(ch, ch_sz, TLSX_SUPPORTED_VERSIONS,
+            &svSz);
+    ExpectIntGT(svOff, 0);
+    /* body is: 1-byte list length, then <major,minor> pairs */
+    ExpectIntGE(svSz, 3);
+    if (EXPECT_SUCCESS()) {
+        for (i = svOff + 1; i + 1 < svOff + svSz; i += 2) {
+            if (ch[i] == SSLv3_MAJOR && ch[i + 1] == TLSv1_3_MINOR)
+                ch[i + 1] = TLSv1_2_MINOR;
+        }
+    }
+
+    test_memio_clear_buffer(&test_ctx, 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)ch,
+            ch_sz), 0);
+    }
+    /* The server downgrades; the TLS 1.3-only client cannot follow, so the
+     * handshake must not complete. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A complete Encrypted ClientHello handshake in the tls13 group. The group's
+ * existing tests never build an ECHConfig, so every ssl->ctx->echConfigs and
+ * echX operand in DoTls13ClientHello(), DoTls13HandShakeMsgType() and
+ * SendTls13ClientHello() sits on its "no ECH" row only. This supplies the
+ * accepting row for all of them; the ordinary handshakes supply the other. */
+int test_tls13_ech_accepted_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SNI) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static const char pubName[] = "ech-public-name.com";
+    static const char privName[] = "ech-private-name.com";
+    byte configs[512];
+    word32 configsLen = (word32)sizeof(configs);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+
+    /* The handshake reads ssl->ctx->echConfigs, so generating on the CTX
+     * after wolfSSL_new() is still in time for this connection. */
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, pubName, 0, 0, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx_s, configs, &configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, configs, configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, privName,
+        (word16)XSTRLEN(privName)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_s, WOLFSSL_SNI_HOST_NAME, privName,
+        (word16)XSTRLEN(privName)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 16, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Same handshake with the ECHConfig's public key corrupted, so the server
+ * cannot open the outer ClientHello and answers with retry_configs. That is
+ * the ECH-rejected arm of the same decisions - notably EchCheckAcceptance()
+ * and the acceptance-confirmation compare in DoTls13HandShakeMsgType(). */
+int test_tls13_ech_rejected_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SNI) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static const char pubName[] = "ech-public-name.com";
+    static const char privName[] = "ech-private-name.com";
+    byte configs[512];
+    word32 configsLen = (word32)sizeof(configs);
+    word16 idx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, pubName, 0, 0, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx_s, configs, &configsLen),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        /* skip list length, version, length, config id, kem id and public
+         * key length to land on the first byte of the public key */
+        idx = OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE8_LEN +
+            OPAQUE16_LEN + OPAQUE16_LEN;
+        ExpectIntLT((word32)idx, configsLen);
+        if (EXPECT_SUCCESS())
+            configs[idx] ^= 0xFF;
+    }
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, configs, configsLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, privName,
+        (word16)XSTRLEN(privName)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_s, WOLFSSL_SNI_HOST_NAME, pubName,
+        (word16)XSTRLEN(pubName)), WOLFSSL_SUCCESS);
+
+    /* The server cannot open the outer ClientHello, so it completes the
+     * handshake against the public name and returns retry_configs; RFC 9849
+     * 6.1.7 then makes the client abort with ECH_REQUIRED_E. Both sides run
+     * their full ECH code paths first, which is the point of the vector. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(ECH_REQUIRED_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
 }

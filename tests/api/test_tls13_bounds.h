@@ -31,6 +31,10 @@ int test_tls13_sh_legacy_version_below_tls12(void);
 int test_tls13_sh_legacy_version_major_mismatch(void);
 int test_tls13_server_cert_fragment_want_write(void);
 int test_tls13_client_cert_fragment_want_write(void);
+int test_tls13_sh_empty_extensions_block(void);
+int test_tls13_ch_supported_versions_tls12_only(void);
+int test_tls13_ech_accepted_handshake(void);
+int test_tls13_ech_rejected_handshake(void);
 
 #define TEST_TLS13_BOUNDS_DECLS                                             \
     TEST_DECL_GROUP("tls13", test_tls13_ch_legacy_version_is_tls13),        \
@@ -39,6 +43,10 @@ int test_tls13_client_cert_fragment_want_write(void);
     TEST_DECL_GROUP("tls13", test_tls13_sh_legacy_version_below_tls12),     \
     TEST_DECL_GROUP("tls13", test_tls13_sh_legacy_version_major_mismatch),  \
     TEST_DECL_GROUP("tls13", test_tls13_server_cert_fragment_want_write),   \
-    TEST_DECL_GROUP("tls13", test_tls13_client_cert_fragment_want_write)
+    TEST_DECL_GROUP("tls13", test_tls13_client_cert_fragment_want_write),   \
+    TEST_DECL_GROUP("tls13", test_tls13_sh_empty_extensions_block),         \
+    TEST_DECL_GROUP("tls13", test_tls13_ch_supported_versions_tls12_only),  \
+    TEST_DECL_GROUP("tls13", test_tls13_ech_accepted_handshake),            \
+    TEST_DECL_GROUP("tls13", test_tls13_ech_rejected_handshake)
 
 #endif /* WOLFCRYPT_TEST_TLS13_BOUNDS_H */
