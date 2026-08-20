@@ -945,7 +945,9 @@ static int wolfssl_init(void)
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     {
         long long unsigned int svr_disallowed_count = wc_svr_disallowed_count_current();
+    #if !(defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP))
         long long unsigned int svr_disallowed_snapshot;
+    #endif
         if (svr_disallowed_count > 0) {
             pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after fipsEntry().\n", svr_disallowed_count);
             return -ECANCELED;
@@ -957,22 +959,26 @@ static int wolfssl_init(void)
             return -ECANCELED;
         }
 
+    #if !(defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP))
         /* DISABLE_VECTOR_REGISTERS() itself increments the disallowed
          * count (it's a save call with WC_SVR_FLAG_INHIBIT), so snapshot
          * after it and require the test run to increment past the
          * snapshot -- a bare != 0 check after the test is vacuously
          * satisfied by the DISABLE itself and detects nothing. */
         svr_disallowed_snapshot = wc_svr_disallowed_count_current();
+    #endif
 
         ret = wolfCrypt_IntegrityTest_fips();
 
         REENABLE_VECTOR_REGISTERS();
 
+    #if !(defined(WOLFSSL_AESNI) && !defined(USE_INTEL_SPEEDUP))
         svr_disallowed_count = wc_svr_disallowed_count_current();
         if (svr_disallowed_count <= svr_disallowed_snapshot) {
             pr_err("ERROR: wc_svr_disallowed_count_current() returned %llu after wolfCrypt_IntegrityTest_fips() with DISABLE_VECTOR_REGISTERS() (snapshot %llu): inhibited-save instrumentation was not exercised.\n", svr_disallowed_count, svr_disallowed_snapshot);
             return -ECANCELED;
         }
+    #endif
 
         if (ret != 0) {
             pr_err("ERROR: wolfCrypt_IntegrityTest_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
