@@ -27473,11 +27473,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-#endif
 
     ret = wc_rng_bank_default_clear(bank);
     if (ret != 0)
