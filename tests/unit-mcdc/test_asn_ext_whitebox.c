@@ -640,6 +640,17 @@ static void wb_permitted_excluded_lists(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS
  *   :19366-:19368  URI-without-DNS-host rejection under uriConstraintsApply
  *   :19392  subjectDnsName fallback len>0 && name!=NULL
  *   :19414-:19415  critical + unsupported GeneralName form -> fail closed
+ *
+ * RESIDUAL (argued unreachable, recorded in EXCLUSIONS.md under
+ * "Condition-level exclusions"): the SECOND operand of the subjectDnsName
+ * fallback, `subjectDnsName.name != NULL`. subjectDnsName is XMEMSET to zero
+ * at the top of every nameTypes[] iteration and only three switch arms ever
+ * write it -- ASN_DNS_TYPE inside `cert->subjectCN != NULL`, ASN_RFC822_TYPE
+ * inside `cert->subjectEmail != NULL` and ASN_DIR_TYPE inside
+ * `cert->subjectRaw != NULL` -- each assigning the length and the pointer
+ * from the same object it has just tested. A non-zero .len therefore implies
+ * a non-NULL .name: the operand is fixed by the branch that reaches it and
+ * has no independence pair.
  * ------------------------------------------------------------------------- */
 #ifndef IGNORE_NAME_CONSTRAINTS
 static void wb_confirm_name_constraints(void)
@@ -736,6 +747,29 @@ static void wb_confirm_name_constraints(void)
     WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
             "no URI constraints in force (2nd operand false, skipped)");
 
+    /* Same URI constraints in force, but the SAN is a dNSName. The
+     * nameTypes[] sweep reaches ASN_DNS_TYPE with cert->altNames holding an
+     * entry whose type matches, so the per-entry body IS entered with
+     * nameType != ASN_URI_TYPE -- the only shape that makes the URI check's
+     * FIRST operand false. Every vector above enters that body only for
+     * ASN_URI_TYPE, which pins it true. */
+    XMEMSET(&signer, 0, sizeof(signer));
+    XMEMSET(&cert, 0, sizeof(cert));
+    signer.permittedNames = wb_mk_base(NULL, ".good.com", 9, ASN_URI_TYPE);
+    cert.isCA = 1;              /* suppresses the subjectCN fallback */
+    altName = wb_mk_dns("sub.good.com", 12, ASN_DNS_TYPE);
+    cert.altNames = altName;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
+            ":19505 1st operand false (dNSName SAN under URI constraints)");
+
+    /* The `subjectDnsName.name != NULL` operand of the subject fallback is a
+     * justified residual, not an untried row: subjectDnsName is memset to
+     * zero at the top of every nameTypes[] iteration and only three switch
+     * arms ever write it -- ASN_DNS_TYPE under `cert->subjectCN != NULL`,
+     * ASN_RFC822_TYPE under `cert->subjectEmail != NULL` and ASN_DIR_TYPE
+     * under `cert->subjectRaw != NULL` -- and each of those assigns the
+     * length and the pointer from the same object it has just tested. A
+     * non-zero .len therefore implies a non-NULL .name; see EXCLUSIONS.md. */
     WB_NOTE("ConfirmNameConstraints(): subjectDnsName fallback len/name [:19392]");
     /* subjectEmail present -> synthetic RFC822 name len>0 && name!=NULL,
      * both true, checked against an excluded email base. */

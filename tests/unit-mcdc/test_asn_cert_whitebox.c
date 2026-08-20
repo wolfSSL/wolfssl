@@ -2334,6 +2334,143 @@ static Signer* wb_make_signer(const WbFix* fix)
     return signer;
 }
 
+/* Build a certificate request whose serialNumber ATTRIBUTE is a single 0x00
+ * byte, and run it through ParseCertRelative() as a CERTREQ_TYPE. Returns
+ * nothing: the point is the decisions evaluated on the way. */
+#ifdef WOLFSSL_CERT_REQ
+static void wb_zero_serial_csr(void)
+{
+    /* Attribute ::= SEQUENCE { type OBJECT IDENTIFIER, values SET OF ANY }
+     * type = 2.5.4.5 (id-at-serialNumber), value = UTF8String { 0x00 }.
+     * UTF8String is one of DecodeCertReqAttrValue()'s accepted choices
+     * (strAttrChoice, asn.c:23082) and the decoder does not validate the
+     * code points, so a single NUL byte is carried through verbatim. */
+    static const byte serialAttr[] = {
+        0x30, 0x0A,
+            0x06, 0x03, 0x55, 0x04, 0x05,
+            0x31, 0x03,
+                0x0C, 0x01, 0x00
+    };
+    byte*        req = NULL;
+    Cert*        cert = NULL;
+    DecodedCert* dc = NULL;
+    word32       sz;
+    word32       co, cl, lo, lw;
+    word32       infoOff, child, attrsOff = 0;
+    int          n;
+    int          ret;
+    const word32 cap = WB_FIX_DER_SZ;
+
+    if (!wbKeysOk || !wbRngOk) {
+        return;
+    }
+
+    req = (byte*)XMALLOC(cap, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    cert = (Cert*)XMALLOC(sizeof(Cert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    dc = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+    if ((req == NULL) || (cert == NULL) || (dc == NULL)) {
+        XFREE(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(dc, NULL, DYNAMIC_TYPE_DCERT);
+        return;
+    }
+
+    ret = wc_InitCert(cert);
+    if (ret == 0) {
+        wb_fill_name(&cert->subject, "MCDC ZS CSR");
+        cert->sigType = CTC_SHA256wRSA;
+        /* Non-empty attributes: the structural insert below needs the [0]
+         * set to have a content region of its own. */
+        XSTRNCPY(cert->challengePw, "mcdc", CTC_NAME_SIZE);
+        ret = wc_MakeCertReq(cert, req, (int)cap, &wbKeyLeaf, NULL);
+        if (ret > 0) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_SignCert(cert->bodySz, cert->sigType, req, (int)cap,
+                &wbKeyRoot, NULL, &wbRng);
+        if (ret > 0) {
+            sz = (word32)ret;
+            ret = 0;
+        }
+        else {
+            ret = -1;
+        }
+    }
+    WB_CHECK(ret == 0, "manufacture the challengePassword CSR");
+
+    /* CertificationRequest ::= SEQ { CertificationRequestInfo, ... };
+     * CertificationRequestInfo ::= SEQ { version, subject, spki, [0] attrs }
+     * -- walk to the fourth child of the second-level SEQUENCE. */
+    if (ret == 0) {
+        if (mcdc_der_hdr(req, sz, 0, &co, &cl, &lo, &lw) == 0) {
+            ret = -1;
+        }
+        else {
+            infoOff = co;
+            if (mcdc_der_hdr(req, sz, infoOff, &co, &cl, &lo, &lw) == 0) {
+                ret = -1;
+            }
+            else {
+                child = co;
+                for (n = 0; (ret == 0) && (n < 3); n++) {
+                    if (mcdc_der_hdr(req, sz, child, &co, &cl, &lo, &lw) == 0) {
+                        ret = -1;
+                    }
+                    else {
+                        child = co + cl;
+                    }
+                }
+                if ((ret == 0) &&
+                        (mcdc_der_hdr(req, sz, child, &co, &cl, &lo, &lw)
+                            != 0) &&
+                        (req[child] ==
+                            (byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+                                   0)) && (cl > 0)) {
+                    attrsOff = co;
+                }
+                else {
+                    ret = -1;
+                }
+            }
+        }
+    }
+    WB_CHECK(ret == 0, "located the CSR [0] attributes set");
+
+    if ((ret == 0) && (mcdc_der_grow(req, &sz, cap, attrsOff, serialAttr,
+            (word32)sizeof(serialAttr)) != 0)) {
+        WB_NOTE("splicing the serialNumber attribute was refused; "
+                ":24630 2nd-operand row skipped");
+        ret = -1;
+    }
+
+    if (ret == 0) {
+        wc_InitDecodedCert(dc, req, sz, NULL);
+        ret = ParseCertRelative(dc, CERTREQ_TYPE, NO_VERIFY, NULL, NULL);
+        /* The spliced attribute invalidates the signature, and a CSR is
+         * always self-verified, so the call ends in a signature failure --
+         * long after :24622/:24630. What is asserted is that the serial
+         * attribute was picked up at all; without it the guard is not even
+         * entered. */
+        WB_CHECK(dc->serialSz == 1 && dc->serial[0] == 0 && dc->isCSR == 1,
+                ":24630 2nd operand false (CSR with a zero serialNumber "
+                "attribute)");
+        wc_FreeDecodedCert(dc);
+    }
+
+    wc_SetCert_Free(cert);
+    XFREE(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dc, NULL, DYNAMIC_TYPE_DCERT);
+}
+#else
+static void wb_zero_serial_csr(void)
+{
+    WB_NOTE("WOLFSSL_CERT_REQ off; :24630 2nd-operand row skipped");
+}
+#endif
+
 /* The fixture set. File-scope so the small_stack variant does not put ~80KB
  * of certificate DER on the stack. */
 static WbFix wbRootA;        /* self-signed CA, pathLen 1, keyCertSign      */
@@ -2736,6 +2873,32 @@ static void wb_fixture_parse_matrix(void)
     wb_parse_one(&wbZeroSerialLeaf, CERT_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbZeroSerialSubCA, CA_TYPE, VERIFY, cm, NULL);
     wb_parse_one(&wbZeroSerialSubCA, TRUSTED_PEER_TYPE, VERIFY, cm, NULL);
+
+    /* ---- :24630 `!isTrustAnchorLoad && !isCsr`, second operand -------- *
+     * A certificate can never take the isCsr arm and no certificate can
+     * make either of :24624's trailing operands false: DecodeCertInternal()
+     * (asn.c:23007) already rejects serial 0 for anything that is not
+     * `isCA && selfSigned`, and ParseCertRelative() returns immediately on a
+     * negative DecodeCert(), so `ret == 0` at :24622 implies both.
+     *
+     * A certificate REQUEST is the exception, and the only one. It is parsed
+     * by DecodeCertReq(), which does not carry that check, and it CAN carry a
+     * serial number: DecodeCertReqAttrValue()'s SERIAL_NUMBER_OID arm
+     * (asn.c:23145) copies a serialNumber ATTRIBUTE into cert->serial. A CSR
+     * whose attribute value is a single 0x00 byte therefore reaches :24622
+     * with serialSz == 1, serial[0] == 0, isTrustAnchorLoad == 0 (the type is
+     * CERTREQ_TYPE) and isCsr == 1.
+     *
+     * wc_MakeCertReq() has no way to emit that attribute, so it is inserted
+     * structurally: the request is generated with a challengePassword (which
+     * makes the [0] attributes set non-empty, so it has a content region to
+     * insert into) and mcdc_der_grow() then splices an
+     *     SEQUENCE { OID 2.5.4.5, SET { UTF8String 0x00 } }
+     * in at the START of that set's content, rewriting the enclosing
+     * CertificationRequest / CertificationRequestInfo / [0] lengths. The
+     * signature is invalidated by the edit, which does not matter: :24630 is
+     * evaluated well before the CERTREQ_TYPE ConfirmSignature() call. */
+    wb_zero_serial_csr();
 
     /* ---- basicConstraints / keyUsage consistency [:24464] ------------- */
     wb_parse_one(&wbLeafKuCertSign, CERT_TYPE, VERIFY, cm, NULL);

@@ -48,6 +48,11 @@
  * (masking MC/DC is computed per binary, then ORed across binaries by key).
  */
 
+/* Installed BEFORE asn.c is #included: it interposes the two scratch-mp_int
+ * lifecycle macros so ParseCRL_Extensions()'s CRL-number branch can be made
+ * to fail its NEW_MP_INT_SIZE()/INIT_MP_INT_SIZE() pair. See section 12. */
+#include "mcdc_fault_mpint.h"
+
 #include <wolfcrypt/src/asn.c>
 
 #include "mcdc_fault_alloc.h"
@@ -1537,25 +1542,40 @@ static void wb_parse_crl_entry_extensions(void) { WB_NOTE("HAVE_CRL off or WOLFC
  * [:37284,:37285(idx 2,3),:37325,:37326,:37335,:37349,:37358,:37359,:37384,
  * :37407(idx1)]
  *
- * Two adjacent conditions are ARGUED UNREACHABLE (not attempted below):
- *   - the CRL-number branch's "if (ret == 0 && (INIT_MP_INT_SIZE(...) !=
- *     MP_OKAY))" guard: outside WOLFSSL_SMALL_STACK, DECL_MP_INT_SIZE_DYN
- *     stack-allocates `m` unconditionally (MP_INT_SIZE_CHECK_NULL is only
- *     defined under WOLFSSL_SMALL_STACK), so ret==0 never goes false here
- *     without a heap-allocation fault injector; INIT_MP_INT_SIZE() on that
- *     buffer is a plain mp_init() that cannot itself fail. Both operands
- *     are therefore compile-time constant in every variant this white-box
- *     runs under.
- *   - "if (ret == 0 && mp_toradix(m, dcrl->crlNumber, MP_RADIX_HEX) !=
- *     MP_OKAY)": dcrl->crlNumber is CRL_MAX_NUM_HEX_STR_SZ bytes
- *     (CRL_MAX_NUM_SZ*2+1 = 41), which is exactly the space a maximum-size
- *     (20-byte, CRL_MAX_NUM_SZ) positive CRL number's hex-radix conversion
- *     needs -- verified empirically with a 20-byte value (0x7F followed by
- *     19 bytes of 0xFF, the largest positive value the preceding size/sign
- *     checks admit): mp_toradix() still succeeds. ret==0 is also always
- *     true reaching this line (nothing between the two checks can set it
- *     nonzero without the residual above already applying), so this
- *     decision's operands are constant too.
+ * The CRL-number branch's scratch-mp_int guard
+ *   NEW_MP_INT_SIZE(m, ...);
+ *   #ifdef MP_INT_SIZE_CHECK_NULL
+ *       if (m == NULL) ret = MEMORY_E;
+ *   #endif
+ *   if (ret == 0 && (INIT_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT)
+ *                    != MP_OKAY)) ret = MP_INIT_E;                  [:37680]
+ * was previously recorded here as unreachable in both operands, on the
+ * grounds that outside WOLFSSL_SMALL_STACK `m` is stack storage that cannot
+ * be NULL and INIT_MP_INT_SIZE() on it cannot fail. Both halves of that are
+ * true of the PRODUCT, and neither is a reason the operands have no
+ * independence pair -- they are exactly what a fault injector exists for.
+ * mcdc_fault_mpint.h (included above, before asn.c) interposes both macros:
+ *   - mcdc_fmi_arm_new(1) leaves `m` NULL and, because the header also
+ *     defines MP_INT_SIZE_CHECK_NULL, compiles the caller's own NULL guard,
+ *     so ret carries the memory-allocation error on arrival and cond 0
+ *     goes false;
+ *   - mcdc_fmi_arm_init(1) makes INIT_MP_INT_SIZE() report MP_VAL, which is
+ *     the decision's only true row and therefore the partner BOTH operands
+ *     need;
+ *   - the unarmed vector at the top of this section supplies cond 1's false
+ *     row. All three are in this binary.
+ *
+ * The following guard
+ *   if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber, MP_RADIX_HEX)
+ *                   != MP_OKAY)                                     [:37713]
+ * IS argued unreachable, and now from the source rather than empirically:
+ * mp_toradix() is sp_toradix() (sp_int.h:1437), which for MP_RADIX_HEX
+ * returns anything other than MP_OKAY only when `a` or `str` is NULL
+ * (sp_int.c:18962 and sp_tohex() at :18782 -- the conversion itself has no
+ * other failure path). `m` is non-NULL on every arrival (the NULL case sets
+ * ret at :37676, so cond 0 short-circuits) and dcrl->crlNumber is an array
+ * member of DecodedCRL, so the decision is never true and neither operand
+ * pairs. Recorded in EXCLUSIONS.md.
  * ------------------------------------------------------------------------- */
 static word32 wb_build_crl_number_ext(byte* out, const byte* intContent,
         word32 intContentSz)
@@ -1798,6 +1818,51 @@ static void wb_parse_crl_extensions(void)
         FreeDecodedCRL(&dcrl);
     }
 #endif /* !WC_ASN_UNKNOWN_EXT_CB */
+
+    /* :37680 -- the scratch-mp_int lifecycle guard. The valid small CRL
+     * number at the top of this function is the unarmed partner (cond 1
+     * false); these two are the faulted rows. Both use the same fixture so
+     * nothing but the injector differs. */
+    {
+        byte val = 0x05;
+
+        sz = wb_build_crl_number_ext(extList, &val, 1);
+
+        /* INIT_MP_INT_SIZE() reports failure -> the decision's only true
+         * row, which is the partner both operands need. */
+        if (mcdc_fmi_init_available()) {
+            InitDecodedCRL(&dcrl, NULL);
+            mcdc_fmi_arm_init(1);
+            ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+            mcdc_fmi_disarm();
+            WB_CHECK(ret != 0 && dcrl.crlNumberSet == 0,
+                    ":37680 both operands true (INIT_MP_INT_SIZE faulted)");
+            FreeDecodedCRL(&dcrl);
+        }
+        else {
+            WB_NOTE("INIT_MP_INT_SIZE lever unavailable; :37680 true row "
+                    "skipped");
+        }
+
+        /* NEW_MP_INT_SIZE() leaves `m` NULL, the caller's own guard sets
+         * ret = MEMORY_E, so cond 0 is false. Only available where
+         * DECL_MP_INT_SIZE_DYN declares an assignable pointer -- under
+         * WOLFSSL_SMALL_STACK the allocation is real and this row is
+         * contributed by the other variants. */
+        if (mcdc_fmi_new_available()) {
+            InitDecodedCRL(&dcrl, NULL);
+            mcdc_fmi_arm_new(1);
+            ret = ParseCRL_Extensions(&dcrl, extList, 0, sz);
+            mcdc_fmi_disarm();
+            WB_CHECK(ret != 0 && dcrl.crlNumberSet == 0,
+                    ":37680 1st operand false (NEW_MP_INT_SIZE faulted)");
+            FreeDecodedCRL(&dcrl);
+        }
+        else {
+            WB_NOTE("NEW_MP_INT_SIZE lever unavailable in this build; "
+                    ":37680 1st-operand row skipped");
+        }
+    }
 }
 #else
 static void wb_parse_crl_extensions(void) { WB_NOTE("HAVE_CRL/ASN_TEMPLATE off; ParseCRL_Extensions skipped"); }

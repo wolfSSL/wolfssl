@@ -1331,6 +1331,47 @@ static void wb_set_subject_issuer_raw(void)
      * BAD_FUNC_ARG guard); shown here for completeness of the wrapper. */
     ret = wc_SetSubjectRaw(&cert, client_cert_der_2048, -1);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "wc_SetSubjectRaw derSz<0 guard");
+
+    /* Second operand false: a subject Name whose raw encoding is longer than
+     * sizeof(CertName). No certificate in the corpus has one -- the whole
+     * struct is over a kilobyte -- and the generator cannot produce one
+     * either, because every CertName field is a fixed CTC_NAME_SIZE buffer.
+     * The guard is reached with such a length by loading a real certificate
+     * with wc_SetCert_LoadDer() (the same file-static wc_SetSubjectRaw()
+     * itself calls), writing the length into the cached DecodedCert, and
+     * then calling the public entry point with the SAME der pointer: the
+     * `cert->der != der` test at asn.c:32707 is false, so the reload is
+     * skipped, ret stays 0 and the enclosing `if (ret >= 0)` is entered with
+     * the oversized length in place. The XMEMCPY the guard protects is
+     * exactly what does NOT run, so nothing is overrun. */
+    {
+        DecodedCert* dc;
+
+        WB_CHECK(wc_InitCert(&cert) == 0, "wc_InitCert (raw C)");
+        ret = wc_SetCert_LoadDer(&cert, client_cert_der_2048,
+                (word32)sizeof_client_cert_der_2048, INVALID_DEVID);
+        WB_CHECK(ret >= 0, "wc_SetCert_LoadDer (oversized-subject fixture)");
+        if (ret >= 0) {
+            dc = (DecodedCert*)cert.decodedCert;
+            dc->subjectRawLen = (int)sizeof(CertName) + 1;
+            ret = wc_SetSubjectRaw(&cert, client_cert_der_2048,
+                    (int)sizeof_client_cert_der_2048);
+            WB_CHECK(ret >= 0,
+                    ":32713 2nd operand false (subjectRawLen > sizeof(CertName))");
+        }
+
+        WB_CHECK(wc_InitCert(&cert) == 0, "wc_InitCert (raw D)");
+        ret = wc_SetCert_LoadDer(&cert, client_cert_der_2048,
+                (word32)sizeof_client_cert_der_2048, INVALID_DEVID);
+        if (ret >= 0) {
+            dc = (DecodedCert*)cert.decodedCert;
+            dc->subjectRawLen = (int)sizeof(CertName) + 1;
+            ret = wc_SetIssuerRaw(&cert, client_cert_der_2048,
+                    (int)sizeof_client_cert_der_2048);
+            WB_CHECK(ret >= 0,
+                    ":32750 2nd operand false (subjectRawLen > sizeof(CertName))");
+        }
+    }
 }
 #else
 static void wb_set_subject_issuer_raw(void)
@@ -2763,6 +2804,169 @@ static void wb_acert_general_names(void)
 #endif
     FreeAltNames(entries, NULL);
 }
+
+/* wc_ParseX509Acert()'s AttCertIssuer dispatch
+ *   i_issuer = (dataASN[ACERT_IDX_ACINFO_ISSUER_V2].tag != 0) ?
+ *               ACERT_IDX_ACINFO_ISSUER_V2 : ACERT_IDX_ACINFO_ISSUER_V1;
+ *   ...
+ *   if (i_issuer == ACERT_IDX_ACINFO_ISSUER_V2 && issuer_len > 0) { ... }
+ * [:40879]
+ *
+ * AcertASN declares the two issuer forms as one CHOICE group (asn.c:40594 and
+ * :40596): `[0] IMPLICIT V2Form` (tag 0xA0) and the bare `GeneralNames`
+ * SEQUENCE (tag 0x30). Both corpus attribute certificates carry the v2Form,
+ * so every existing vector arrives with i_issuer == ..._ISSUER_V2 and a
+ * non-empty content -- the decision is always true and neither operand has an
+ * independence pair.
+ *
+ * Two edits of certs/acert/acert.pem produce the two missing rows, and the
+ * unmodified certificate supplies the true row in the same binary:
+ *
+ *   - retag the AttCertIssuer element from 0xA0 to 0x30. Nothing else moves
+ *     (the tag is one byte and the length field is untouched), the CHOICE
+ *     then matches the v1Form alternative, and cond 0 goes false.
+ *   - delete the whole content of the [0] element with mcdc_der_shrink(), so
+ *     the encoding still carries an `A0 00` -- tag present, length zero. The
+ *     template records the tag, i_issuer stays ..._ISSUER_V2, and cond 1 goes
+ *     false with cond 1's partner (the untouched cert) true.
+ *
+ * The AttCertIssuer element is located by walking the encoding rather than by
+ * scanning for 0xA0: Holder itself contains [0]/[1]/[2] members, so a linear
+ * search would find the wrong item. AttributeCertificate ::= SEQUENCE {
+ * acinfo, ... }, AttributeCertificateInfo ::= SEQUENCE { version, holder,
+ * issuer, ... }, so the issuer is the third child of the second child of the
+ * root.
+ */
+#if defined(WOLFSSL_ACERT) && defined(WOLFSSL_ASN_TEMPLATE)
+/* Offset of the AttCertIssuer element, or 0 when the walk fails. */
+static word32 wb_acert_issuer_off(const byte* der, word32 sz)
+{
+    word32 co, cl, lo, lw;
+    word32 acinfo;
+    word32 child;
+    int    n;
+
+    if (mcdc_der_hdr(der, sz, 0, &co, &cl, &lo, &lw) == 0) {
+        return 0;                       /* AttributeCertificate SEQUENCE */
+    }
+    acinfo = co;
+    if (mcdc_der_hdr(der, sz, acinfo, &co, &cl, &lo, &lw) == 0) {
+        return 0;                       /* AttributeCertificateInfo SEQUENCE */
+    }
+    child = co;
+    for (n = 0; n < 2; n++) {           /* skip version, then holder */
+        if (mcdc_der_hdr(der, sz, child, &co, &cl, &lo, &lw) == 0) {
+            return 0;
+        }
+        child = co + cl;
+    }
+    if (mcdc_der_hdr(der, sz, child, &co, &cl, &lo, &lw) == 0) {
+        return 0;
+    }
+    return child;
+}
+
+static void wb_acert_issuer_form(void)
+{
+    static const char* path = "./certs/acert/acert.pem";
+    byte*      pem;
+    long       pemSz = 0;
+    DerBuffer* der = NULL;
+    byte       edit[2048];
+    word32     sz;
+    word32     issuerOff;
+    word32     co, cl, lo, lw;
+    int        ret;
+    int        v;
+
+    WB_NOTE("wc_ParseX509Acert(): AttCertIssuer v2Form/v1Form dispatch "
+            "[:40879]");
+
+    pem = wb_read_file(path, &pemSz);
+    if (pem == NULL) {
+        WB_NOTE("corpus ACERT PEM not found at runtime cwd; skipping");
+        return;
+    }
+    ret = wc_PemToDer(pem, pemSz, ACERT_TYPE, &der, NULL, NULL, NULL);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if ((ret != 0) || (der == NULL)) {
+        WB_CHECK(0, "wc_PemToDer ACERT (issuer-form fixture)");
+        if (der != NULL) {
+            FreeDer(&der);
+        }
+        return;
+    }
+    if (der->length > (word32)sizeof(edit)) {
+        WB_NOTE("acert larger than the edit buffer; skipped");
+        FreeDer(&der);
+        return;
+    }
+
+    issuerOff = wb_acert_issuer_off(der->buffer, der->length);
+    WB_CHECK(issuerOff != 0, "located the AttCertIssuer element");
+    if (issuerOff == 0) {
+        FreeDer(&der);
+        return;
+    }
+    WB_CHECK(der->buffer[issuerOff] ==
+                (byte)(ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0),
+            "corpus AttCertIssuer is the v2Form [0]");
+
+    /* v == 0: untouched (both operands true).
+     * v == 1: [0] retagged to SEQUENCE -> v1Form chosen, cond 0 false.
+     * v == 2: [0] emptied -> tag present, issuer_len == 0, cond 1 false. */
+    for (v = 0; v < 3; v++) {
+        WC_DECLARE_VAR(acert, DecodedAcert, 1, 0);
+
+        sz = der->length;
+        XMEMCPY(edit, der->buffer, sz);
+        if (v == 1) {
+            edit[issuerOff] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+        }
+        else if (v == 2) {
+            if (mcdc_der_hdr(edit, sz, issuerOff, &co, &cl, &lo, &lw) == 0) {
+                WB_CHECK(0, "AttCertIssuer header re-read");
+                break;
+            }
+            if (mcdc_der_shrink(edit, &sz, co, cl) != 0) {
+                WB_NOTE("emptying the AttCertIssuer was refused "
+                        "(length width change); row skipped");
+                continue;
+            }
+        }
+
+#ifdef WOLFSSL_SMALL_STACK
+        acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), NULL,
+                DYNAMIC_TYPE_DCERT);
+        if (acert == NULL) {
+            WB_CHECK(0, "alloc DecodedAcert (issuer-form fixture)");
+            break;
+        }
+#else
+        XMEMSET(acert, 0, sizeof(DecodedAcert));
+#endif
+        wc_InitDecodedAcert(acert, edit, sz, NULL);
+        ret = wc_ParseX509Acert(acert, NO_VERIFY);
+        if (v == 0) {
+            WB_CHECK(ret == 0, ":40879 both operands true (corpus v2Form)");
+        }
+        else if (v == 1) {
+            WB_CHECK(ret == 0,
+                    ":40879 1st operand false (v1Form GeneralNames)");
+        }
+        else {
+            WB_CHECK(ret == 0,
+                    ":40879 2nd operand false (empty v2Form, issuer_len 0)");
+        }
+        wc_FreeDecodedAcert(acert);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+    }
+
+    FreeDer(&der);
+}
+#endif /* WOLFSSL_ACERT && WOLFSSL_ASN_TEMPLATE */
 #else
 static void wb_decode_holder_issuer_guards(void)
 {
@@ -2787,6 +2991,10 @@ static void wb_parse_x509_acert(void)
 static void wb_parse_acert_bad_dates(void)
 {
     WB_NOTE("wc_ParseX509Acert bad-date gates (no WOLFSSL_ACERT); skipped");
+}
+static void wb_acert_issuer_form(void)
+{
+    WB_NOTE("wc_ParseX509Acert issuer form (no WOLFSSL_ACERT); skipped");
 }
 #endif
 
@@ -3136,6 +3344,7 @@ int main(void)
     wb_parse_acert_bad_dates();
     wb_acert_rsapss_params();
     wb_acert_general_names();
+    wb_acert_issuer_form();
 
     wb_pem_to_der_guards();
     wb_encrypted_info_parse_guards();
