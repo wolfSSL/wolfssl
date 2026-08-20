@@ -23,6 +23,16 @@ inputs:
     description: 'Per-job ccache max size (passed to ccache -M).'
     required: false
     default: '500M'
+  ghcr-debs-tag:
+    description: >
+      Bundle to install ccache from offline (see install-apt-deps).
+      'auto' resolves to the runner's ubuntu-<version>-minimal bundle,
+      which already carries ccache and which most callers pull earlier in
+      the same job, making the second pull free. 'none' skips the bundle
+      and uses apt - for callers whose job pulls a different bundle,
+      where fetching this one costs more than it saves.
+    required: false
+    default: 'auto'
   read-only:
     description: >
       When 'true', restore the cache but do NOT save it (no post-job
@@ -36,26 +46,73 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install ccache
+    - name: Check for ccache
+      id: check
       shell: bash
       run: |
         if command -v ccache >/dev/null 2>&1; then
           echo "ccache already installed: $(ccache --version | head -1)"
-        elif [ "${{ runner.os }}" = "Linux" ]; then
-          sudo apt-get update -q
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            --no-install-recommends ccache
-        elif [ "${{ runner.os }}" = "macOS" ]; then
-          brew install ccache
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        echo "present=false" >> "$GITHUB_OUTPUT"
+        case "${{ runner.os }}" in
+          Linux|macOS) ;;
+          *) echo "::error::ccache install not supported on ${{ runner.os }}"
+             exit 1 ;;
+        esac
+        tag=""
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          tag="${{ inputs.ghcr-debs-tag }}"
+          if [ "$tag" = "auto" ]; then
+            # os-release rather than lsb_release: no package needed.
+            . /etc/os-release
+            tag="ubuntu-$VERSION_ID-minimal"
+          elif [ "$tag" = "none" ]; then
+            tag=""
+          fi
+        fi
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+    # Offline from the ghcr bundle when it has ccache, apt otherwise -
+    # bounded either way. See install-apt-deps. ccache only makes the
+    # build faster, so the apt path gives up early and the job carries on
+    # without it rather than failing; the caps below are per attempt, so
+    # the wall is roughly their sum.
+    - name: Install ccache (Linux)
+      if: steps.check.outputs.present != 'true' && runner.os == 'Linux'
+      uses: ./.github/actions/install-apt-deps
+      with:
+        packages: ccache
+        no-install-recommends: 'true'
+        ghcr-debs-tag: ${{ steps.check.outputs.tag }}
+        apt-budget: '120'
+        apt-update-timeout: '120'
+        apt-install-timeout: '120'
+        optional: 'true'
+
+    - name: Install ccache (macOS)
+      if: steps.check.outputs.present != 'true' && runner.os == 'macOS'
+      shell: bash
+      run: brew install ccache || true
+
+    # Everything below needs a working ccache, so settle that once here
+    # rather than assuming the install worked.
+    - name: Confirm ccache is usable
+      id: have
+      shell: bash
+      run: |
+        if ccache --version >/dev/null 2>&1; then
+          echo "ccache=true" >> "$GITHUB_OUTPUT"
         else
-          echo "::error::ccache install not supported on ${{ runner.os }}"
-          exit 1
+          echo "ccache=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::ccache unavailable; building without it"
         fi
 
     # read-only=false (default): restore + post-job save (the run_id in the
     # key never hits, so it always saves its contribution).
     - name: Restore + save ccache
-      if: inputs.read-only != 'true'
+      if: inputs.read-only != 'true' && steps.have.outputs.ccache == 'true'
       uses: actions/cache@v5
       with:
         path: ~/.ccache
@@ -68,7 +125,7 @@ runs:
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
     # read-only=true: restore the shared cache but never upload (PR runs).
     - name: Restore ccache (read-only)
-      if: inputs.read-only == 'true'
+      if: inputs.read-only == 'true' && steps.have.outputs.ccache == 'true'
       uses: actions/cache/restore@v5
       with:
         path: ~/.ccache
@@ -81,6 +138,7 @@ runs:
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Configure ccache and PATH
+      if: steps.have.outputs.ccache == 'true'
       shell: bash
       run: |
         # Set CCACHE_DIR for the commands below too, not only via
@@ -118,10 +176,11 @@ runs:
     # (read-only is false on schedule), and PR/push runs are unaffected -
     # they keep their warm hits. Cost: the scheduled jobs recompile fully.
     - name: Force fresh compiles on scheduled reseed
-      if: github.event_name == 'schedule'
+      if: github.event_name == 'schedule' && steps.have.outputs.ccache == 'true'
       shell: bash
       run: echo "CCACHE_RECACHE=1" >> "$GITHUB_ENV"
 
     - name: Show ccache stats (initial)
+      if: steps.have.outputs.ccache == 'true'
       shell: bash
       run: ccache -s
