@@ -22,9 +22,37 @@
 #ifndef TESTS_API_TEST_TLS_PARSE_H
 #define TESTS_API_TEST_TLS_PARSE_H
 
-int test_tls_parse_placeholder(void);
+int test_TLSX_ALPN_parse(void);
+int test_TLSX_TCA_parse(void);
+int test_TLSX_certtype_parse(void);
+int test_TLSX_Cookie_parse(void);
+int test_TLSX_EncryptThenMac_parse(void);
+int test_TLSX_MFL_parse(void);
+int test_TLSX_THM_parse(void);
+int test_TLSX_SessionTicket_parse(void);
+int test_TLSX_SecureRenegotiation_parse(void);
+int test_TLSX_SupportedVersions_parse(void);
+int test_TLSX_SignatureAlgorithms_parse(void);
+int test_TLSX_CSR_parse(void);
+int test_TLSX_PointFormat_parse(void);
+int test_TLSX_SNI_parse(void);
+int test_TLSX_ValidateSupportedCurves(void);
 
-#define TEST_TLS_PARSE_DECLS                                                \
-        TEST_DECL_GROUP("tls", test_tls_parse_placeholder)
+#define TEST_TLS_PARSE_DECLS                                               \
+        TEST_DECL_GROUP("tls", test_TLSX_ALPN_parse),                     \
+        TEST_DECL_GROUP("tls", test_TLSX_TCA_parse),                      \
+        TEST_DECL_GROUP("tls", test_TLSX_certtype_parse),                 \
+        TEST_DECL_GROUP("tls", test_TLSX_Cookie_parse),                   \
+        TEST_DECL_GROUP("tls", test_TLSX_EncryptThenMac_parse),           \
+        TEST_DECL_GROUP("tls", test_TLSX_MFL_parse),                      \
+        TEST_DECL_GROUP("tls", test_TLSX_THM_parse),                      \
+        TEST_DECL_GROUP("tls", test_TLSX_SessionTicket_parse),            \
+        TEST_DECL_GROUP("tls", test_TLSX_SecureRenegotiation_parse),      \
+        TEST_DECL_GROUP("tls", test_TLSX_SupportedVersions_parse),        \
+        TEST_DECL_GROUP("tls", test_TLSX_SignatureAlgorithms_parse),      \
+        TEST_DECL_GROUP("tls", test_TLSX_CSR_parse),                      \
+        TEST_DECL_GROUP("tls", test_TLSX_PointFormat_parse),              \
+        TEST_DECL_GROUP("tls", test_TLSX_SNI_parse),                      \
+        TEST_DECL_GROUP("tls", test_TLSX_ValidateSupportedCurves)
 
 #endif /* TESTS_API_TEST_TLS_PARSE_H */
