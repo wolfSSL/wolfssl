@@ -220,9 +220,10 @@ int wc_AsuEcdh(wc_CryptoInfo* info)
     if (pub->dp == NULL || pub->dp->id != priv->dp->id) {
         return CRYPTOCB_UNAVAILABLE;
     }
-    /* If the peer point is all zeros, let software return the proper error
-     * instead of the ASU failing. */
+    /* A zero peer point goes to software, which answers with ECC_INF_E. The
+     * ASU only reports a generic bad point, so the error would be worse. */
     if (mp_iszero(pub->pubkey.x) && mp_iszero(pub->pubkey.y)) {
+        WC_ASU_PRINTF("[ASU] ecdh: zero peer point, software will do it\r\n");
         return CRYPTOCB_UNAVAILABLE;
     }
     /* This call hands back the plain private key. */

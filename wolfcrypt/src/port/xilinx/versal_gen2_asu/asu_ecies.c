@@ -38,6 +38,13 @@
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+/* The ASU takes raw x and y only, so a compressed key always runs in software.
+ * Define WOLFSSL_VERSAL_GEN2_ASU_NO_COMP_KEY_WARN to silence this. */
+#if defined(HAVE_COMP_KEY) && \
+    !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_COMP_KEY_WARN)
+    #warning "ASU ECIES cannot offload compressed keys, software handles them"
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -279,6 +286,8 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
     }
     /* The ASU only writes uncompressed keys, so turn down compressed. */
     if (info->pk.eciesencrypt.compressed != 0) {
+        WC_ASU_PRINTF("[ASU] ecies enc: compressed key asked for, "
+            "software will do it\r\n");
         return CRYPTOCB_UNAVAILABLE;
     }
     ret = wc_AsuEciesCurve(pubKey, &curveType, &keyLen);
@@ -321,8 +330,10 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
     if (privKey->dp == NULL || privKey->dp->id != pubKey->dp->id) {
         return CRYPTOCB_UNAVAILABLE;
     }
-    /* If the peer point is all zeros, let software return the proper error. */
+    /* A zero peer point goes to software, which answers with ECC_INF_E. The
+     * ASU only reports a generic bad point, so the error would be worse. */
     if (mp_iszero(pubKey->pubkey.x) && mp_iszero(pubKey->pubkey.y)) {
+        WC_ASU_PRINTF("[ASU] ecies: zero peer point, software will do it\r\n");
         return CRYPTOCB_UNAVAILABLE;
     }
 
@@ -504,6 +515,8 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
 
     /* The sender key must be uncompressed, so turn down compressed. */
     if (msgSz < 1U || msg[0] != (byte)ECC_POINT_UNCOMP) {
+        WC_ASU_PRINTF("[ASU] ecies dec: sender key is not uncompressed, "
+            "software will do it\r\n");
         return CRYPTOCB_UNAVAILABLE;
     }
     pubKeySz = 1U + (2U * (word32)keyLen);
@@ -580,8 +593,8 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
         (unsigned int)status, (unsigned int)addl);
 
     if (status != XST_SUCCESS) {
-        /* A bad tag and a hardware fault look the same here, so wipe the
-         * output and never hand back unchecked plaintext. */
+        /* Wipe the output whatever went wrong, so no unchecked plaintext is
+         * ever handed back. */
         ForceZero(out, ctLen);
         /* Push the zeros out to memory, or only the cache copy is cleared. */
         wc_AsuCacheFlush(out, ctLen);
