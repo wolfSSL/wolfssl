@@ -87,6 +87,25 @@
  * is known to depend on RNG-driven key diversity across variants; nothing
  * here pins or perturbs any RNG, so that diversity is untouched.)
  *
+ * WHAT THIS FILE DELIBERATELY DOES NOT COVER
+ * ------------------------------------------
+ * `2254:...:1` and `2414:...:4` are the SAME operand text,
+ *
+ *     ((i >> (h-1)) != ((i + 1) >> (h - 1)))
+ *
+ * in wc_lms_treehash_init() and wc_lms_treehash_update(). It is a tautology
+ * at every evaluation, so no vector can pair it. Both sites reach it only
+ * from inside
+ *
+ *     while ((ret == 0) && ((j & 0x1) == 1)) { ...; j >>= 1; h++; ... }
+ *
+ * whose k-th entry requires the pre-shift value i >> (k-1) to be odd. On
+ * arrival with a given h, bits 0 .. h-1 of i are therefore all set, i.e.
+ * i == (i >> (h-1)) * 2^(h-1) + (2^(h-1) - 1). Adding one carries out of
+ * bit h-1, so (i + 1) >> (h - 1) == (i >> (h - 1)) + 1: the two sides differ
+ * by exactly one on every evaluation and the `!=` is never false. Recorded
+ * in campaign/db/exclusions.json and EXCLUSIONS.md.
+ *
  * COST: no keygen and no signing. The most expensive driver computes 8 WOTS
  * leaves; the whole program is a few hundred thousand SHA-256 blocks, orders
  * of magnitude inside the campaign's 600 s TEST_TIMEOUT.
@@ -500,8 +519,10 @@ static void wb_treehash_init_fault(const WbFam* f)
  * 2414:...:2  wc_lms_treehash_update():
  *   if ((ret == 0) && (q == 0) && (!useRoot) &&
  *           (h > params->height - params->rootLevels) && ...)
+ * 2414:...:0  and 2424:...:0  wc_lms_treehash_update(): the `ret == 0`
+ *   operand of the same root copy and of the auth-path store below it.
  *
- * Three direct calls over the same fixed leaf range, all with q == 0:
+ * Four direct calls over the same fixed leaf range, all with q == 0:
  *
  *   1. useRoot = 0, leaves [0 .. 3]  -> 2414 all-true row (accepting).
  *   2. useRoot = 1, leaves [0 .. 3]  -> 2414 with `!useRoot` false while
@@ -516,9 +537,21 @@ static void wb_treehash_init_fault(const WbFam* f)
  *      it. Every buffer here is sized WB_NODES nodes, well past what the
  *      over-long climb indexes.
  *
+ *   4. useRoot = 0, leaves [0 .. 3], armed at primitive call 1 -> the two
+ *      `ret == 0` operands (2414 cond 0, 2424 cond 0) go false, paired with
+ *      call 1's all-true rows. The fault index needs no arithmetic here:
+ *      leaves 0..3 are served from the leaf cache, so wc_lms_treehash_update
+ *      issues NO primitive call until the carry chain of leaf 1 reaches
+ *      wc_lms_interior_hash() -- primitive call 1 IS that node hash.
+ *      These two conditions are the pair the campaign's 2026-08-11 flake
+ *      hunt recorded as non-deterministic (they depend on where the global
+ *      strided hash-fault sweep in test_lms_hash_fault_whitebox.c happens to
+ *      land, which moves with the RNG-drawn key). This vector pins them.
+ *
  * leaf.idx starts at 0 with cacheBits = 2, so leaves 0..3 are served from
  * the (zeroed) leaf cache -- the tree content is irrelevant to these
- * decisions and this keeps calls 1 and 2 nearly free.
+ * decisions, it keeps calls 1, 2 and 4 nearly free, and it is what makes
+ * call 4's fault index exact.
  ******************************************************************/
 static void wb_treehash_update_roots(const WbFam* f)
 {
@@ -531,11 +564,14 @@ static void wb_treehash_update_roots(const WbFam* f)
     byte leaf_cache[WB_NODES * WB_HLEN_MAX];
     int  ret;
     int  i;
-    static const struct { word32 max_idx; int useRoot; const char* what; }
-    calls[] = {
-        { 3, 0, "q=0 useRoot=0 (2414 accepting row)" },
-        { 3, 1, "q=0 useRoot=1 (2414 cond-2 rejecting row)" },
-        { 7, 1, "leaf 7 on a height-2 tree (2397 cond-2 rejecting row)" },
+    static const struct {
+        word32 max_idx; int useRoot; long arm; const char* what;
+    } calls[] = {
+        { 3, 0, 0, "q=0 useRoot=0 (2414/2424 accepting rows)" },
+        { 3, 1, 0, "q=0 useRoot=1 (2414 cond-2 rejecting row)" },
+        { 7, 1, 0, "leaf 7 on a height-2 tree (2397 cond-2 rejecting row)" },
+        { 3, 0, 1, "q=0 useRoot=0, node hash faulted "
+                   "(2414/2424 cond-0 rejecting rows)" },
     };
 
     wb_params(&params, f, 1, WB_HEIGHT);
@@ -560,11 +596,20 @@ static void wb_treehash_update_roots(const WbFam* f)
         priv.leaf.idx    = 0;
         priv.leaf.offset = 0;
 
+        if (calls[i].arm != 0) {
+            mcdc_fh_arm(calls[i].arm);
+        }
         ret = wc_lms_treehash_update(&state, &priv, wb_id, wb_seed, 0,
             calls[i].max_idx, 0, calls[i].useRoot);
-        if (ret != 0) {
+        mcdc_fh_disarm();
+        if ((calls[i].arm == 0) && (ret != 0)) {
             printf("  [wb] treehash_update %s returned %d\n", calls[i].what,
                 ret);
+            wb_fail = 1;
+        }
+        else if ((calls[i].arm != 0) && (ret == 0)) {
+            printf("  [wb] treehash_update %s did NOT propagate the faulted "
+                "node hash\n", calls[i].what);
             wb_fail = 1;
         }
     }
