@@ -4551,6 +4551,9 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_evp.c
         tests/api/test_tls_ext.c
         tests/api/test_tls.c
+        tests/api/test_tls_bounds.c
+        tests/api/test_tls_msgtype.c
+        tests/api/test_tls_parse.c
         tests/api/test_session.c
         tests/api/test_x509.c
         tests/api/test_asn.c
