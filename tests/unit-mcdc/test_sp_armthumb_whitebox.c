@@ -106,6 +106,8 @@
 #include "mcdc_fault_mutex.h"
 
 
+#include "mcdc_fault_alloc.h"
+
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/dh.h>
@@ -115,6 +117,18 @@
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+
+/* Crafted-input driver shared with the SP host-backend white-boxes. The four
+ * ARM backends implement the SAME public API (sp_ecc_verify_<n>,
+ * sp_ecc_sign_<n>, sp_ecc_check_key_<n>, sp_ModExp_<n>, ...), so the same
+ * body drives them. It supplies two vectors this file's own drivers cannot:
+ * a verify whose public point is the Jacobian point at infinity (pZ == 0),
+ * which is the only way `(err == MP_OKAY) && sp_<n>_iszero_<w>(p2->z)` goes
+ * true, and a sign with a zero private scalar against an all-zero hash,
+ * which makes s == 0 on EVERY attempt so the SP_ECC_MAX_SIG_GEN retry loop
+ * runs to exhaustion and leaves its `i > 0` operand false. Both are
+ * deterministic -- no RNG luck is involved, contrary to the note above. */
+#include "test_sp_crafted_common.h"
 
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
     defined(WOLFSSL_HAVE_SP_DH)
@@ -1845,6 +1859,7 @@ int main(void)
     wb_run_gap_521();
     wb_run_residual_extra_all();
     wb_run_mod_inv();
+    wb_spc_all();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else
