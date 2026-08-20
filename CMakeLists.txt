@@ -3768,6 +3768,14 @@ if(WOLFSSL_ECC AND WOLFSSL_ECC_MIN_KEY_SZ)
     list(APPEND WOLFSSL_DEFINITIONS "-DECC_MIN_KEY_SZ=${WOLFSSL_ECC_MIN_KEY_SZ}")
 endif()
 
+# RNG seed device (best effort, falls back to the default sources)
+set(WOLFSSL_RNG_SEED_DEVICE "" CACHE STRING
+    "Seed the RNG from this device before the default sources, e.g. /dev/hwrng (default: disabled)")
+if(WOLFSSL_RNG_SEED_DEVICE)
+    list(APPEND WOLFSSL_DEFINITIONS
+         "-DWC_RNG_SEED_DEVICE=\"${WOLFSSL_RNG_SEED_DEVICE}\"")
+endif()
+
 
 ####################################################
 # Additional crypto/TLS feature options (parity with configure.ac)
