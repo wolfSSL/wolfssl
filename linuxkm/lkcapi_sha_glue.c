@@ -2312,6 +2312,9 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                     u8 *dst, unsigned int dlen)
 {
     int ret, retried = 0;
+    /* can_block() is false whenever the affinity lock is held -- blockability
+     * must be sampled before checkout. */
+    int can_wait = wc_linuxkm_can_block();
     struct wc_rng_bank_inst *drbg = linuxkm_get_drbg(ctx);
 
     if (! drbg) {
@@ -2329,13 +2332,46 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
     }
     else if ((! WC_RNG_BANK_DRBG_NULL(WC_RNG_BANK_INST_TO_RNG(drbg))) &&
              (WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg)) > WC_RESEED_INTERVAL / 2) &&
-             wc_linuxkm_can_block())
+             can_wait)
     {
         byte scratch[4];
         word64 cur_counter = WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg));
         WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), WC_RESEED_INTERVAL);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+        /* carefully restore preemptibility for the reseed operation. */
+
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        migrate_disable();
+        #endif
+
+        /* note, no need to use formal atomic accessors on drbg->lock --
+         * WC_RNG_BANK_INST_LOCK_HELD is held invariantly across the span, and
+         * is the only bit considered by contending threads. */
+        if (drbg->lock & (WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH))
+            RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
+#endif
+
         ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(drbg), scratch,
                                    (word32)sizeof scratch);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+            int ret2 = DISABLE_VECTOR_REGISTERS();
+            if (ret2 != 0)
+                drbg->lock &= ~(WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH);
+        }
+        else if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+            int ret2 = SAVE_VECTOR_REGISTERS2();
+            if (ret2 != 0)
+                drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+        }
+
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        migrate_enable();
+        #endif
+#endif
+
         if ((ret != 0) && (WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg)) >= WC_RESEED_INTERVAL)) {
             WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), cur_counter + 1);
         }
@@ -2372,12 +2408,40 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                 break;
             retried = 1;
 
-            if (! wc_linuxkm_can_block())
+            if (! can_wait)
                 break;
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+            /* carefully restore preemptibility for the reinit operation. */
+
+            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+            migrate_disable();
+            #endif
+
+            if (drbg->lock & (WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH))
+                RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
+#endif
 
             ret = wc_rng_bank_inst_reinit(NULL, drbg,
                                           WC_LINUXKM_INITRNG_TIMEOUT_SEC,
                                           WC_RNG_BANK_FLAG_CAN_WAIT);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+                int ret2 = DISABLE_VECTOR_REGISTERS();
+                if (ret2 != 0)
+                    drbg->lock &= ~(WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH);
+            }
+            else if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+                int ret2 = SAVE_VECTOR_REGISTERS2();
+                if (ret2 != 0)
+                    drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+            }
+
+            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+            migrate_enable();
+            #endif
+#endif
 
             if (ret == 0) {
                 pr_warn_ratelimited("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E from wc_RNG_GenerateBlock().\n", raw_smp_processor_id());
