@@ -27094,15 +27094,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     for (i = 0; i < started; i++)
         (void)wolfSSL_JoinThread(threads[i]);
 
-    /* Fewer than two workers means nothing ran concurrently, so there was
-     * nothing for this test to observe.  Skip rather than report failure. */
-    if (started < 2)
-        goto out_free;
-
+    /* A generate failure is a real failure however many workers ran, so it is
+     * inspected before the concurrency check below can skip out. */
     for (i = 0; i < started; i++) {
         if (args[i].ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(args[i].ret), out_free);
     }
+
+    /* Fewer than two workers means nothing ran concurrently, so there was
+     * nothing for this test to observe.  Skip rather than report failure. */
+    if (started < 2)
+        goto out_free;
 
     /* All-pairs rather than a sort: no XQSORT dependency, and the block count
      * makes the quadratic scan negligible. */

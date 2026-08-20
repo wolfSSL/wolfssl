@@ -702,6 +702,15 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
  * exclusivity comes from the owner, or a negative error code. */
 static int RngExclEnter(WC_RNG* rng)
 {
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    /* The lock word carries the owner's pid, so a hold inherited through
+     * fork() (the parent's pid, which no thread here can match) is told apart
+     * from a live hold by this process without a second variable to race
+     * against. */
+    WC_ATOMIC_INT_ARG self = (WC_ATOMIC_INT_ARG)getpid();
+#else
+    WC_ATOMIC_INT_ARG self = WC_RNG_EXCL_HELD;
+#endif
     WC_ATOMIC_INT_ARG expected = WC_RNG_EXCL_FREE;
 #ifdef WC_RNG_EXCL_TIMEOUT_SEC
     time_t ts1 = XTIME(0);
@@ -711,19 +720,25 @@ static int RngExclEnter(WC_RNG* rng)
         return 0;
     }
 
-    while (! wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected,
-                                                WC_RNG_EXCL_HELD))
+    while (! wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected, self))
     {
         int intr_ret;
 
     #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
-        /* fork() copies excl as ordinary memory, so a flag another thread held
-         * at fork time is inherited HELD with no owner left to release it, and
-         * the pid recovery further down is never reached.  Checked only after a
-         * failed acquire, so the uncontended path is unchanged; the child is
-         * single-threaded here, so clearing it is safe. */
-        if (rng->pid != getpid()) {
-            WOLFSSL_ATOMIC_STORE(rng->excl, WC_RNG_EXCL_FREE);
+        /* A failed exchange leaves the observed value in expected.  Reclaim
+         * only a hold stamped with a different pid, and only by exchanging
+         * from that exact value, so a live holder -- including a sibling
+         * thread of this process, which stamps this same pid -- is never
+         * displaced. */
+        if ((expected != WC_RNG_EXCL_FREE) &&
+            (expected != WC_RNG_EXCL_OWNER) &&
+            (expected != self))
+        {
+            if (wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected,
+                                                   self))
+            {
+                return 1;
+            }
         }
     #endif
 

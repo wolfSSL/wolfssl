@@ -383,10 +383,14 @@ enum wc_RngHealthState {
 
 #ifndef WC_NO_DRBG_THREAD_SAFE
     #define WC_RNG_EXCL_FREE  0
+    /* Value stored while held.  Where getpid() is available the holder stores
+     * its pid instead, so a hold inherited through fork() carries the parent's
+     * pid and is distinguishable from a live one by the lock word alone. */
     #define WC_RNG_EXCL_HELD  1
     /* Stored once by an owner that already supplies exclusivity for this
-     * instance, which then takes no flag of its own.  Nothing here sets it. */
-    #define WC_RNG_EXCL_OWNER 2
+     * instance, which then takes no flag of its own.  Nothing here sets it.
+     * Negative so it can never collide with a pid. */
+    #define WC_RNG_EXCL_OWNER (-1)
 #endif
 
 /* RNG context */

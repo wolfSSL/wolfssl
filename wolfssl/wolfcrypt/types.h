@@ -2445,6 +2445,14 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define WC_SPIN_RELAX() Task_yield()
     #elif defined(RTTHREAD)
         #define WC_SPIN_RELAX() rt_thread_yield()
+    #elif defined(WOLFSSL_PTHREADS)
+        /* wc_port.h includes <pthread.h> on this path, which carries
+         * <sched.h>; wolfentropy.c and async.c already call sched_yield()
+         * under the same assumption. */
+        #define WC_SPIN_RELAX() (void)sched_yield()
+    #elif defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)
+        /* <windows.h> is included by wc_port.h on this path. */
+        #define WC_SPIN_RELAX() (void)SwitchToThread()
     #else
         /* Ports that supply a real relax hook (linuxkm) keep it here. */
         #define WC_SPIN_RELAX() WC_RELAX_LONG_LOOP()

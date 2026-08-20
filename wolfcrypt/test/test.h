@@ -49,6 +49,8 @@
  *     a subset of targets (notably not WOLFSSL_LINUXKM, which builds this file
  *     into the kernel module), so require one that has them rather than
  *     assuming !SINGLE_THREADED is enough;
+ *   - an RNG at all: WC_NO_RNG both removes wc_FreeRng() and stops test.h
+ *     from including random.h, so WC_NO_DRBG_THREAD_SAFE would not be seen;
  *   - a general-purpose heap for the comparison buffer, which rules out
  *     WOLFSSL_NO_MALLOC and WOLFSSL_STATIC_MEMORY;
  *   - a random.c/random.h pair that actually carries the feature.  A FIPS or
@@ -56,7 +58,7 @@
  *     and those predate it, so HAVE_FIPS and HAVE_SELFTEST are excluded
  *     outright.  Note the locked random.h also never defines
  *     WC_NO_DRBG_THREAD_SAFE, so the test above cannot detect this itself. */
-#if !defined(WC_NO_DRBG_THREAD_SAFE) && \
+#if !defined(WC_NO_RNG) && !defined(WC_NO_DRBG_THREAD_SAFE) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
     (defined(WOLFSSL_PTHREADS) || \
