@@ -674,6 +674,9 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #ifdef LINUXKM_RBGC
 
+/* cpus_read_lock()/cpus_read_unlock() around the per-CPU work setup. */
+#include <linux/cpu.h>
+
 /* The boundary cannot schedule work itself, so the glue drives it.
  *
  * One delayed work PER CPU, queued with queue_delayed_work_on() so it runs on
@@ -713,8 +716,17 @@ static void wc_grb_cpu_work_fn(struct work_struct *work)
     }
 
     if (READ_ONCE(wc_grb_maint_running)) {
-        queue_delayed_work_on(cw->cpu, system_wq, &cw->dw,
-                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+        /* queue_delayed_work_on() WARNs on an offline CPU (workqueue.c
+         * WARN_ON_ONCE !cpu_online).  Tick unbound while it is down; the
+         * leaf's guard defers the reseed, and this re-pins when it returns. */
+        if (cpu_online(cw->cpu)) {
+            queue_delayed_work_on(cw->cpu, system_wq, &cw->dw,
+                                  msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+        }
+        else {
+            queue_delayed_work(system_wq, &cw->dw,
+                               msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+        }
     }
 }
 
@@ -856,11 +868,15 @@ static int wc_grb_maint_start(void)
     }
 
     /* Only online CPUs get a worker.  A CPU brought up later is covered by
-     * the service path's self-help, which reseeds the leaf it is running on. */
+     * the service path's self-help, which reseeds the leaf it is running on.
+     * Held across the walk so a CPU cannot go down between the iteration and
+     * the queue, which would WARN exactly as an offline requeue does. */
+    cpus_read_lock();
     for_each_online_cpu(cpu) {
         queue_delayed_work_on((int) cpu, system_wq, &wc_grb_cpu_works[cpu].dw,
                               msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
     }
+    cpus_read_unlock();
 
     return 0;
 }
