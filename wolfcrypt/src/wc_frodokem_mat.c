@@ -581,8 +581,8 @@ void frodokem_key_decode(byte* msg, const word16* c, const FrodoKemParams* p)
     int nElem = FRODOKEM_NBAR_SQ;
     int shift = p->d - p->b;
     /* Rounding constant: q / 2^(B+1) = 2^(D - B - 1). */
-    unsigned int rnd = 1u << (shift - 1);
-    unsigned int mask = (1u << p->b) - 1;
+    unsigned int rnd = 1U << (shift - 1);
+    unsigned int mask = (1U << p->b) - 1;
 
     XMEMSET(msg, 0, (size_t)p->lenSec);
 
