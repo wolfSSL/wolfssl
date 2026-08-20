@@ -26,6 +26,7 @@ This module provides a Rust wrapper for the wolfCrypt library's EdDSA Curve
 #![cfg(ed448)]
 
 use crate::sys;
+#[cfg(random)]
 use crate::random::RNG;
 use core::mem::MaybeUninit;
 
@@ -66,11 +67,15 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate(rng: &RNG) -> Result<Self, i32> {
         Self::generate_ex(rng, None, None)
     }
@@ -91,11 +96,15 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed448::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
+    /// }
     /// ```
+    #[cfg(random)]
     pub fn generate_ex(rng: &RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<sys::ed448_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -197,11 +206,14 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// ed.check_key().expect("Error with check_key()");
+    /// }
     /// ```
     pub fn check_key(&mut self) -> Result<(), i32> {
         let rc = unsafe { sys::wc_ed448_check_key(&mut self.ws_key) };
@@ -228,7 +240,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_export)]
+    /// #[cfg(all(ed448_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -269,7 +281,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_export)]
+    /// #[cfg(all(ed448_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -307,7 +319,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_export)]
+    /// #[cfg(all(ed448_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -345,7 +357,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_export)]
+    /// #[cfg(all(ed448_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -386,7 +398,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_import)]
+    /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -430,7 +442,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_import)]
+    /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -470,7 +482,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_import)]
+    /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -514,7 +526,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_import)]
+    /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -565,7 +577,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_import)]
+    /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -614,6 +626,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(all(ed448_export, ed448_import, random))]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -624,6 +638,7 @@ impl Ed448 {
     /// ed.import_private_only(&private).expect("Error with import_private_only()");
     /// let mut public = [0u8; Ed448::KEY_SIZE];
     /// ed.make_public(&mut public).expect("Error with make_public()");
+    /// }
     /// ```
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
         let pubkey_size = crate::buffer_len_to_u32(pubkey.len())?;
@@ -656,7 +671,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_sign)]
+    /// #[cfg(all(ed448_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -712,7 +727,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_sign)]
+    /// #[cfg(all(ed448_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -777,7 +792,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_sign)]
+    /// #[cfg(all(ed448_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -833,7 +848,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_sign)]
+    /// #[cfg(all(ed448_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -887,7 +902,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_verify)]
+    /// #[cfg(all(ed448_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -951,7 +966,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_verify)]
+    /// #[cfg(all(ed448_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -1023,7 +1038,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_verify)]
+    /// #[cfg(all(ed448_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -1086,7 +1101,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_verify)]
+    /// #[cfg(all(ed448_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -1146,7 +1161,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_streaming_verify)]
+    /// #[cfg(all(ed448_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -1199,7 +1214,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_streaming_verify)]
+    /// #[cfg(all(ed448_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -1243,7 +1258,7 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(ed448_streaming_verify)]
+    /// #[cfg(all(ed448_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
@@ -1289,12 +1304,15 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let key_size = ed.size().expect("Error with size()");
     /// assert_eq!(key_size, Ed448::KEY_SIZE);
+    /// }
     /// ```
     pub fn size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed448_size(&self.ws_key) };
@@ -1314,12 +1332,15 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let priv_size = ed.priv_size().expect("Error with priv_size()");
     /// assert_eq!(priv_size, Ed448::PRV_KEY_SIZE);
+    /// }
     /// ```
     pub fn priv_size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed448_priv_size(&self.ws_key) };
@@ -1339,12 +1360,15 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let pub_size = ed.pub_size().expect("Error with pub_size()");
     /// assert_eq!(pub_size, Ed448::PUB_KEY_SIZE);
+    /// }
     /// ```
     pub fn pub_size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed448_pub_size(&self.ws_key) };
@@ -1364,12 +1388,15 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(random)]
+    /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let sig_size = ed.sig_size().expect("Error with sig_size()");
     /// assert_eq!(sig_size, Ed448::SIG_SIZE);
+    /// }
     /// ```
     pub fn sig_size(&self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_ed448_sig_size(&self.ws_key) };
