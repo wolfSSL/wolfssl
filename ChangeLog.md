@@ -170,6 +170,19 @@
   configuration now sees neither the prototype nor the `client_cert_cb`
   typedef instead of failing to build; no other configuration changes.
 
+* **Behavioral change (`wolfSSL_write_early_data` and the AEAD key usage
+  limit)**: RFC 9846, Section 5.5 adds that "it is not possible to perform a
+  KeyUpdate for early data; therefore, implementations MUST NOT exceed the
+  limits when sending early data".  Reaching the limit mid-early-data
+  previously drove the ordinary rekey path, which emitted a KeyUpdate while
+  the client was still in `CLIENT_HELLO_COMPLETE` - before the handshake had
+  finished, where a conforming peer must reject it.  The write now fails
+  instead, returning `WOLFSSL_FATAL_ERROR` with `wolfSSL_get_error()`
+  reporting `TOO_MUCH_EARLY_DATA`.  Callers that hit it should complete the
+  handshake and send the remainder with `wolfSSL_write()`, which rekeys
+  normally.  Reaching the limit needs roughly 23.7 million early data records
+  on one connection, so no practical caller is affected.
+
 ## Fixes
 
 * **Fix (certificate manager left pointing at a released store)**:
@@ -197,6 +210,43 @@
   An allocation failure while unmasking leaves the capabilities alone rather
   than withdrawing them, matching what a failure to allocate the `ecc_key`
   already did.  Only affects builds with `WOLFSSL_BLIND_PRIVATE_KEY`.
+
+* **Fix (fatal-level `user_canceled` closed a TLS 1.3 connection)**: RFC 9846,
+  Section 6.1 states that this alert "generally has AlertLevel=warning" and
+  that "receiving implementations SHOULD continue to read data from the peer
+  until a 'close_notify' is received".  wolfSSL already exempted
+  `user_canceled` from the TLS 1.3 rule that all error alerts are fatal, but
+  both `DoAlert()` and `DoProcessAlertRecord()` acted on the AlertLevel byte
+  before reaching those exemptions, so a peer sending the alert at fatal level
+  tore the connection down and invalidated the session.  The level byte
+  carries no meaning in TLS 1.3, and the alert is now ignored whichever level
+  the peer used.  TLS 1.2 and earlier are unchanged: a fatal-level alert
+  remains fatal there.
+
+* **Fix (key update cap turned a peer's `update_requested` into a fatal
+  error)**: RFC 9846, Section 4.7.3 adds that a sender at the 2^48-1 key
+  update cap "MUST NOT send its own KeyUpdate ... and SHOULD instead ignore
+  the 'update_requested' flag".  Responding to a peer's request went through
+  the ordinary send path, which refuses at the cap with `BAD_STATE_E`, and
+  that error propagated out and killed the connection.  The request is now
+  dropped and the connection continues on its current keys until the Section
+  5.5 data limits force it closed.  An application-initiated
+  `wolfSSL_update_keys()` at the cap still reports `BAD_STATE_E`; the rule
+  applies only to responding to a peer.
+
+* **Fix (malformed extension aborted without sending `decode_error`)**: RFC
+  9846, Section 4.3 adds that trailing data in an extension is forbidden and
+  that "receivers MUST abort the handshake with a 'decode_error' alert if
+  there is data left over after parsing the structure".  The extension parsers
+  detect malformed structures, but around a third of them report it as the
+  wolfCrypt `BUFFER_E` rather than `BUFFER_ERROR`, and only `BUFFER_ERROR` was
+  mapped to an alert.  `TranslateErrorToAlert()` returned `invalid_alert` for
+  `BUFFER_E`, which every caller treats as "send nothing", so the handshake
+  aborted correctly but silently and the peer saw only a dropped connection.
+  Both codes now map to `decode_error`.  This affects `pre_shared_key`,
+  `psk_key_exchange_modes`, `early_data`, `cookie`, `post_handshake_auth` and
+  the certificate type extensions, and more generally any malformed handshake
+  message reported with `BUFFER_E`.
 
 # wolfSSL Release 5.9.2 (Jun 23, 2026)
 

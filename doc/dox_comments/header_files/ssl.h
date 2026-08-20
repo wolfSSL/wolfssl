@@ -2584,6 +2584,11 @@ int  wolfSSL_shutdown(WOLFSSL* ssl);
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
 
+    \note RFC 9846, Section 6.1 requires this alert to be followed by a
+    close notify, which is why the shutdown is part of this call. On the
+    receiving side the alert is not itself an error: a TLS 1.3 peer keeps
+    reading until the close notify arrives, whatever AlertLevel was used.
+
     _Example_
     \code
     int ret = 0;
@@ -14770,6 +14775,13 @@ int  wolfSSL_require_psk(WOLFSSL* ssl);
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
     \return WANT_WRITE if the writing is not ready.
+    \return BAD_STATE_E if the connection has already performed the maximum
+    number of key updates. RFC 9846, Section 4.7.3 caps a TLS 1.3 sender at
+    2^48-1 key updates; beyond that the connection must be closed rather than
+    rekeyed. Note that a KeyUpdate arriving from the peer with
+    request_update set is ignored once this cap is reached, rather than
+    failing the connection, so only an application-initiated update reports
+    this error.
     \return WOLFSSL_SUCCESS if successful.
 
     _Example_
@@ -14800,7 +14812,8 @@ int  wolfSSL_update_keys(WOLFSSL* ssl);
     is received.
 
     \param [in] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param [out] required   0 when no key update response required. 1 when no key update response required.
+    \param [out] required   0 when no key update response is required. 1 when
+    a key update response from the peer is still outstanding.
 
     \return 0 on successful.
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
@@ -15622,7 +15635,12 @@ int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
     \return SIDE_ERROR if called with a server.
     \return BAD_STATE_E if invoked without a valid session or without a valid
     PSK cb
-    \return WOLFSSL_FATAL_ERROR if the connection is not made.
+    \return WOLFSSL_FATAL_ERROR if the connection is not made, or if the
+    AEAD key usage limit would be exceeded by this write, in which case
+    wolfSSL_get_error() reports TOO_MUCH_EARLY_DATA. A KeyUpdate cannot be
+    performed while sending early data (RFC 9846, Section 5.5), so no further
+    early data can be sent on this connection; complete the handshake with
+    wolfSSL_connect_TLSv13() and send the remainder with wolfSSL_write().
     \return the amount of early data written in bytes if successful.
 
     _Example_
