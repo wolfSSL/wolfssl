@@ -640,7 +640,8 @@ static void wbn_setup_ocsp_resp_guards(void)
 /* ------------------------------------------------------------------------- *
  * GROUP 7 -- BuildTls13Message()'s non-sizeOnly argument guard.
  *
- *   else if (output == NULL || input == NULL)               [tls13.c ~:3345]
+ *   if (sizeOnly) { if (output || input)      ... }         [tls13.c ~:3339]
+ *   else if (output == NULL || input == NULL)                        [~:3345]
  *
  * BuildTls13Message is WOLFSSL_LOCAL with seventeen in-library call sites, and
  * every one of them that passes sizeOnly = 0 hands it a record buffer it has
@@ -671,6 +672,7 @@ static void wbn_build_message_arg_guard(void)
     XMEMSET(out, 0, sizeof(out));
     XMEMSET(in, 0, sizeof(in));
 
+    /* :3345, the sizeOnly == 0 arm. */
     /* (T,-) */
     (void)BuildTls13Message(wbn_ssl, NULL, 0, in, 0, application_data, 0, 0, 0);
     /* (F,T) */
@@ -678,12 +680,24 @@ static void wbn_build_message_arg_guard(void)
     /* (F,F) -- stops at the `args->sz > outSz` check with BUFFER_E. */
     (void)BuildTls13Message(wbn_ssl, out, 0, in, 0, application_data, 0, 0, 0);
 
+    /* :3339, the sizeOnly == 1 arm -- `if (output || input)`. Its (F,F) row is
+     * the ordinary size probe, which returns args->sz without writing
+     * anything; the two true rows are the mistaken-caller shapes the guard
+     * exists to catch. Driven here as well so this decision does not depend on
+     * a size-probe caller existing in some other test file. */
+    /* (T,-) */
+    (void)BuildTls13Message(wbn_ssl, out, 0, NULL, 0, application_data, 0, 1, 0);
+    /* (F,T) */
+    (void)BuildTls13Message(wbn_ssl, NULL, 0, in, 0, application_data, 0, 1, 0);
+    /* (F,F) */
+    (void)BuildTls13Message(wbn_ssl, NULL, 0, NULL, 0, application_data, 0, 1, 0);
+
     /* The probe wrote ssl->options.buildMsgState; put it back so nothing
      * downstream inherits a half-built record state. */
     wbn_ssl->options.buildMsgState = BUILD_MSG_BEGIN;
 
-    WB_NOTE("BuildTls13Message: output/input argument guard driven with all "
-            "three vectors");
+    WB_NOTE("BuildTls13Message: both output/input argument guards driven with "
+            "all three vectors each");
 }
 
 
