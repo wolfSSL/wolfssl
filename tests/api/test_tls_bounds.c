@@ -1797,18 +1797,21 @@ int test_TLSX_PopulateExtensions_bounds(void)
      * reached through the plain client_psk_cb path. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
 
+#ifndef OPENSSL_EXTRA
+    /* An over-long key is rejected with PSK_KEY_ERROR. Under OPENSSL_EXTRA the
+     * assignment is compiled out and the handshake carries on with a key size
+     * larger than the buffer holding it, so this case is not driven there. */
     mode = 0;
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         wolfSSL_set_psk_client_callback(ssl,
                 test_TLSX_PopulateExtensions_psk_cb);
         wolfSSL_set_psk_callback_ctx(ssl, &mode);
-        /* Both operands true: PSK_KEY_ERROR (no OPENSSL_EXTRA in this
-         * build, so the 0-length special case does not apply). */
         ExpectIntEQ(TLSX_PopulateExtensions(ssl, 0),
                     WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+#endif
 
     mode = 1;
     ExpectNotNull(ssl = wolfSSL_new(ctx));
