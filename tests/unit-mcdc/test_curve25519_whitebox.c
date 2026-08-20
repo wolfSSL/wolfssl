@@ -51,9 +51,53 @@
  * scope and instrumented in THIS binary. curve25519.c includes settings.h
  * (which picks up user_settings.h via -DWOLFSSL_USER_SETTINGS) and
  * curve25519.h itself. */
+/* ---- wc_RNG_GenerateBlock() interposer ----------------------------------
+ *
+ * curve25519_smul_blind()'s blinding-value rejection loop (:279-:293) draws a
+ * fresh rz until it is acceptable. Its guard
+ *
+ *     if ((i >= 0) || (rz[0] <= 0xec)) break;
+ *
+ * only takes "i >= 0" FALSE when EVERY byte of rz is 0xff -- a 2^-256 event
+ * that no seeded stream can be relied on to produce (and rule 3 of this
+ * campaign forbids evidence that depends on a live draw). Interposing
+ * wc_RNG_GenerateBlock() for THIS translation unit lets one scripted draw
+ * return 32 x 0xff, so the loop's first iteration evaluates the guard with
+ * i == -1, while the second (unscripted) draw ends the loop normally -- both
+ * halves of the idx0 pair in one call, and cnt never reaches
+ * WOLFSSL_CURVE25519_BLINDING_RAND_CNT, so no RNG_FAILURE_E bail-out.
+ *
+ * random.h is included and the hook declared FIRST so the macro never has to
+ * rewrite random.h's own prototype (see the same note in mcdc_seed_rng.h: an
+ * undeclared hook is a compile failure, which the campaign scores as a silent
+ * skip). The hook's body sits after the #undef, so it still reaches the real
+ * RNG when the script is idle.
+ */
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/random.h>
+
+static int wb_c25519_rng_block(WC_RNG* rng, byte* out, word32 sz);
+
+#define wc_RNG_GenerateBlock(rng, out, sz) wb_c25519_rng_block((rng), (out), (sz))
+
 #include <wolfcrypt/src/curve25519.c>
 
+#undef wc_RNG_GenerateBlock
+
 #include <stdio.h>
+
+/* Number of remaining draws to answer with all-0xff instead of real random. */
+static int wb_ff_draws = 0;
+
+static int wb_c25519_rng_block(WC_RNG* rng, byte* out, word32 sz)
+{
+    if (wb_ff_draws > 0) {
+        wb_ff_draws--;
+        XMEMSET(out, 0xff, sz);
+        return 0;
+    }
+    return wc_RNG_GenerateBlock(rng, out, sz);
+}
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -278,8 +322,83 @@ static void wb_generic_arg_guards(void)
 }
 #endif /* HAVE_CURVE25519 && WOLFSSL_CURVE25519_BLINDING */
 
+/* ------------------------------------------------------------------------- *
+ * curve25519.c:288  if ((i >= 0) || (rz[0] <= 0xec))
+ *
+ * idx0 ("i >= 0") needs a draw whose every byte is 0xff, so the scan at
+ * :283-:286 falls off the bottom with i == -1. One scripted draw does that;
+ * the loop then goes round once more with a real draw, which breaks at some
+ * i >= 0 and gives the TRUE partner in the same call and the same binary.
+ *
+ * idx1 ("rz[0] <= 0xec") stays EXCLUDED and is not attempted here: reaching
+ * it at all requires i < 0, which the loop bound (i >= 0, not i >= 1) makes
+ * synonymous with rz[0] == 0xff, so the operand is unreachable-as-true. That
+ * is a product defect, filed in the campaign's DEATHNOTE.md; if the loop bound
+ * is ever corrected the exclusion must be withdrawn and BOTH operands
+ * re-measured from this same interposer.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_CURVE25519_BLINDING) && \
+    !defined(FREESCALE_LTC_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
+static void wb_blind_rz_all_ff(void)
+{
+    byte   pub[CURVE25519_KEYSIZE];
+    byte   priv[CURVE25519_KEYSIZE];
+    WC_RNG rng;
+    int    ret;
+
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng failed; skipping blinding rz vectors");
+        return;
+    }
+
+    XMEMSET(pub, 0, sizeof(pub));
+    XMEMSET(priv, 0x5a, sizeof(priv));
+    if (curve25519_priv_clamp(priv) != 0) {
+        WB_NOTE("curve25519_priv_clamp failed; skipping blinding rz vectors");
+        wc_FreeRng(&rng);
+        return;
+    }
+
+    /* Unscripted: every draw is real, so the guard is only ever evaluated
+     * with i >= 0 (idx0 TRUE, decision TRUE). */
+    ret = wc_curve25519_make_pub_blind(CURVE25519_KEYSIZE, pub,
+                                       CURVE25519_KEYSIZE, priv, &rng);
+    if (ret != 0) {
+        WB_NOTE("wc_curve25519_make_pub_blind failed unscripted");
+        wb_fail = 1;
+    }
+
+    /* Scripted: exactly one all-0xff draw, so the first iteration evaluates
+     * the guard with i == -1 and rz[0] == 0xff -- (F,F), decision FALSE --
+     * and the retry draws real bytes and breaks normally. */
+    XMEMSET(pub, 0, sizeof(pub));
+    wb_ff_draws = 1;
+    ret = wc_curve25519_make_pub_blind(CURVE25519_KEYSIZE, pub,
+                                       CURVE25519_KEYSIZE, priv, &rng);
+    if (wb_ff_draws != 0) {
+        WB_NOTE("scripted all-0xff draw was never consumed");
+        wb_fail = 1;
+        wb_ff_draws = 0;
+    }
+    if (ret != 0) {
+        WB_NOTE("wc_curve25519_make_pub_blind failed after an all-0xff rz");
+        wb_fail = 1;
+    }
+
+    wc_FreeRng(&rng);
+    WB_NOTE("curve25519_smul_blind rz rejection-loop guard exercised");
+}
+#else
+static void wb_blind_rz_all_ff(void)
+{
+    (void)&wb_c25519_rng_block;
+    WB_NOTE("curve25519 blinding not compiled in; rz vectors skipped");
+}
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("curve25519.c white-box supplement\n");
 #ifndef HAVE_CURVE25519
     printf("  HAVE_CURVE25519 not defined; nothing to exercise\n");
@@ -288,6 +407,7 @@ int main(void)
     wb_make_pub_nb();
     wb_make_key_nb();
     wb_generic_arg_guards();
+    wb_blind_rz_all_ff();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
      * campaign treats a nonzero exit as a failed variant and discards its
