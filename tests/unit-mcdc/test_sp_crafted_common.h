@@ -211,9 +211,17 @@
  * register quadruple that is identically zero and re-tests bit 0, so it
  * cannot terminate -- while appending a byte per iteration to a fixed
  * 0x208-byte stack buffer. It is not MC/DC-instrumented (it is assembly),
- * so there is nothing to gain by driving it. See DEATHNOTE.md; the same
- * defect is already recorded for sp_arm64.c. */
-#if defined(WOLFSSL_SP_X86_64_ASM)
+ * so there is nothing to gain by driving it. See DEATHNOTE.md.
+ *
+ * EVERY assembly backend has this shape, not just x86-64: the ARM lanes
+ * (sp_arm64.c, sp_arm32.c, sp_armthumb.c, sp_cortexm.c) hand-write the
+ * P-256 modular inverse for the same reason and the same defect is already
+ * recorded for sp_arm64.c. The guard therefore lists all of them -- a
+ * backend that reaches the `1` arm must have a C sp_256_mod_inv_<w>(). Do
+ * NOT narrow this back to x86-64: the a == m vector does not return. */
+#if defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_ARM64_ASM) || \
+    defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM_THUMB_ASM) || \
+    defined(WOLFSSL_SP_ARM_CORTEX_M_ASM)
     #define WB_SPC_MODINV_AM_256   0
 #else
     #define WB_SPC_MODINV_AM_256   1
