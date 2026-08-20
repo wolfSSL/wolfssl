@@ -8828,6 +8828,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->ctx = ctx;
 
 #ifndef NO_CERTS
+#if defined(OPENSSL_EXTRA) && defined(KEEP_OUR_CERT)
+    /* X509 chain built on this object describes the old context, so drop it */
+    if (ssl->ourCertChain != NULL) {
+        wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
+        ssl->ourCertChain = NULL;
+    }
+#endif
 #ifdef WOLFSSL_COPY_CERT
     /* If WOLFSSL_COPY_CERT defined, always make new copy of cert from ctx */
     if (ctx->certificate != NULL) {
@@ -8908,12 +8915,12 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.key      = ctx->privateKey;
 #endif
 #else
+    if (ssl->buffers.weOwnKey) {
+        FreeDer(&ssl->buffers.key);
+        FreeDer(&ssl->buffers.keyMask);
+        ssl->buffers.weOwnKey = 0;
+    }
     if (ctx->privateKey != NULL) {
-        if (ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
-            FreeDer(&ssl->buffers.keyMask);
-            ssl->buffers.weOwnKey = 0;
-        }
         ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,
             ctx->privateKey->heap);
@@ -8952,12 +8959,12 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
     ssl->buffers.altKey   = ctx->altPrivateKey;
 #else
+    if (ssl->buffers.weOwnAltKey) {
+        FreeDer(&ssl->buffers.altKey);
+        FreeDer(&ssl->buffers.altKeyMask);
+        ssl->buffers.weOwnAltKey = 0;
+    }
     if (ctx->altPrivateKey != NULL) {
-        if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
-            FreeDer(&ssl->buffers.altKeyMask);
-            ssl->buffers.weOwnAltKey = 0;
-        }
         ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,
             ctx->altPrivateKey->length, ctx->altPrivateKey->type,
             ctx->altPrivateKey->heap);
