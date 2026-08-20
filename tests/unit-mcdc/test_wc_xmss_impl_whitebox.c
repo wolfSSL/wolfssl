@@ -254,12 +254,14 @@ static void wb_exhausted_index(WC_RNG* rng, const char* paramStr, int doSign)
 
     /* The FALSE row for this parameter set: one ordinary signature, so the
      * decision is evaluated with a valid index and the same idx_len. Under
-     * WOLFSSL_WC_XMSS_SMALL a height-40 signature recomputes every subtree and
-     * does not fit the campaign's TEST_TIMEOUT -- a timed-out white-box is
-     * scored as a SILENT SKIP and would lose the whole file -- so that one row
-     * is skipped there. wc_XmssKey_SigsLeft() is cheap in every build and
-     * still supplies the live-index row for wc_xmss_sigsleft()'s copy of the
-     * same macro. */
+     * WOLFSSL_WC_XMSS_SMALL a height-40 signature recomputes every subtree, so
+     * it is a single signature per key here and the four-vector allocator
+     * sweep below (which has nothing to fail in the small build) is compiled
+     * out; the measured white-box runtime is in the run log. This row is what
+     * pairs IDX64_INVALID inside the small build's own wc_xmssmt_sign()
+     * (2455): its retired-index partner alone shows only the true side.
+     * wc_XmssKey_SigsLeft() is cheap in every build and still supplies the
+     * live-index row for wc_xmss_sigsleft()'s copy of the same macro. */
     if (doSign) {
         sigSz = sigLen;
         if (wc_XmssKey_Sign(&key, sig, &sigSz, msg, (int)sizeof(msg)) != 0) {
@@ -283,6 +285,7 @@ static void wb_exhausted_index(WC_RNG* rng, const char* paramStr, int doSign)
      * wc_xmssmt_sign() reach the guard with ret != 0. A short dense sweep --
      * a vector count, not a clock -- covers the handful of allocations the
      * sign path makes. */
+#ifndef WOLFSSL_WC_XMSS_SMALL
     if (doSign) {
         int n;
 
@@ -294,7 +297,22 @@ static void wb_exhausted_index(WC_RNG* rng, const char* paramStr, int doSign)
             mcdc_fa_disarm();
         }
         mcdc_fa_restore();
+        /* The first injected failure moves the XmssKey to WC_XMSS_STATE_BAD
+         * and wc_XmssKey_Sign()/_SigsLeft() then short-circuit in wc_xmss.c
+         * WITHOUT calling into this file - which silently dropped every
+         * retired-index row below (measured: the 64-bit arm of the macro at
+         * 2455/4117 was left unpaired in each non-small variant). The
+         * injected failures happen before any secret-key mutation, so the
+         * persisted key is still consistent; put the handle back in a good
+         * state so the rows that follow actually reach wc_xmss_impl.c. */
+        key.state = WC_XMSS_STATE_OK;
     }
+#else
+    /* wc_xmss_impl.c's only XMALLOC is the BDS-state allocation, which lives
+     * in the non-small block, so the injector has nothing to fail here: the
+     * sweep would only burn four height-40 recompute signatures. */
+    (void)0;
+#endif
 
     /* The TRUE row: retire the persisted index. Both entry points reload the
      * secret key through the read callback, so this is all that is needed. */
@@ -371,11 +389,7 @@ static void wb_run(void)
 #endif
 #if defined(WC_XMSS_SHA256) && (WOLFSSL_XMSS_MAX_HEIGHT >= 40) && \
     (!defined(WOLFSSL_XMSS_MIN_HEIGHT) || (WOLFSSL_XMSS_MIN_HEIGHT <= 40))
-#ifdef WOLFSSL_WC_XMSS_SMALL
-    wb_exhausted_index(&rng, "XMSSMT-SHA2_40/8_256", 0);
-#else
     wb_exhausted_index(&rng, "XMSSMT-SHA2_40/8_256", 1);
-#endif
 #endif
 
     wc_FreeRng(&rng);
@@ -1217,6 +1231,219 @@ static void wb_full_cycle_d1(void)
 }
 #endif /* !WOLFSSL_XMSS_VERIFY_ONLY && !WOLFSSL_WC_XMSS_SMALL */
 
+/********************************************
+ * 3981-3983: wc_xmssmt_sign_next_idx()'s
+ *   "if ((ret == 0) && (i > 0) && (updates > 0) &&
+ *        (idx_tree < ((XmssIdx)1 << (h - (hs * (i + 1))))) &&
+ *        (bds[alt_i].next < ((XmssIdx)1 << h)))"
+ *
+ * condIndex 0 ("ret == 0") and condIndex 4 ("bds[alt_i].next < (1 << h)")
+ * have no independence pair from ordinary signing:
+ *
+ *  - condIndex 4: BdsState.next is a *sub*tree leaf counter. It is reset to 0
+ *    at a subtree boundary and wc_xmss_bds_update() itself stops incrementing
+ *    it at (1 << sub_h), while the bound tested here is (1 << h) with h the
+ *    FULL tree height. On every reachable signing vector next <= 2^sub_h <=
+ *    2^h, so the operand is true. It is only false when the value loaded out
+ *    of the persisted secret key (a 24-bit big-endian field, wc_xmss_bds_
+ *    state_load() at 2729) is already >= 2^h - i.e. a corrupted/forged
+ *    private key, which is exactly the case this defensive guard exists for.
+ *    Here that state is forged directly: the BDS array is loaded from a COPY
+ *    of a good secret key and every state's "next" is set to 1 << h before
+ *    wc_xmssmt_sign_next_idx() is called. Memory-safe: "next" is read in
+ *    exactly two places - this guard, and wc_xmss_bds_update()'s own
+ *    "next < (1 << sub_h)" entry test, which the forged value turns into a
+ *    no-op. It indexes nothing.
+ *
+ *  - condIndex 0: reaching this guard with ret != 0 needs the *same* loop
+ *    iteration's wc_xmss_bds_auth_path() (or wc_xmss_bds_treehash_updates())
+ *    to have failed; a failure in any earlier iteration leaves through the
+ *    for-header instead. Both only fail on a NULL BDS sub-buffer or a digest
+ *    failure. Forged the same way: bds[BDS_IDX(...)].keep is NULLed, so
+ *    wc_xmss_bds_auth_path() takes its "(bds->keep == NULL) ||
+ *    (bds->authPath == NULL)" bail-out, sets state->ret = WC_FAILURE and
+ *    returns before touching anything.
+ *
+ * Both forged rows are driven against the ORDINARY, all-operands-true row
+ * from a real wc_xmssmt_sign() at the same index, in this same binary, so
+ * the independence pairs are complete here and do not lean on any other
+ * build. Parameters are hand-built with the same per-layer geometry as
+ * XMSSMT-SHA2_40/8_256 (sub_h = 5, bds_k = 0, so updates = 2) but only
+ * h = 20 / d = 4, which keeps keygen and eight signatures cheap.
+ ********************************************/
+#if !defined(WOLFSSL_XMSS_VERIFY_ONLY) && !defined(WOLFSSL_WC_XMSS_SMALL) && \
+    defined(WC_XMSS_SHA256)
+static byte wb_ni_sk[16384];
+static byte wb_ni_skCopy[16384];
+static byte wb_ni_sig[16384];
+
+static void wb_sign_next_idx_rows(void)
+{
+    XmssParams  params;
+    XmssState   state;
+    byte        seed[3 * 32];
+    byte        pk[160];
+    static const byte msg[] = "xmss whitebox next-idx message";
+    int         ret;
+    int         k;
+
+    wb_params_init(&params, WC_HASH_TYPE_SHA256, 32, 32, 20, 4, 4, 0);
+    if ((params.sk_len > (word32)sizeof(wb_ni_sk)) ||
+            (params.sig_len > (word32)sizeof(wb_ni_sig))) {
+        WB_NOTE("next-idx rows: scratch too small; skipped");
+        return;
+    }
+    if (wb_state_init(&state, &params) != 0) {
+        WB_NOTE("next-idx rows: state init failed; skipped");
+        return;
+    }
+
+    XMEMSET(seed, 0x33, sizeof(seed));
+    XMEMSET(wb_ni_sk, 0, sizeof(wb_ni_sk));
+    XMEMSET(pk, 0, sizeof(pk));
+
+    ret = wc_xmssmt_keygen(&state, seed, wb_ni_sk, pk);
+    if (ret != 0) {
+        WB_NOTE("next-idx rows: keygen failed; skipped");
+        wb_state_free(&state);
+        return;
+    }
+
+    for (k = 0; k < 8; k++) {
+        BdsState* bds;
+        byte*     wots_sigs;
+        int       j;
+
+        /* Row A - forged BDS state: every state's next is already past the
+         * full-tree bound, so condIndex 4 is false with condIndex 0..3 true. */
+        XMEMCPY(wb_ni_skCopy, wb_ni_sk, sizeof(wb_ni_skCopy));
+        bds = NULL;
+        wots_sigs = NULL;
+        if (wc_xmss_bds_state_alloc(&params, &bds, state.heap) == 0) {
+            if (wc_xmss_bds_state_load(&state, wb_ni_skCopy, bds,
+                    &wots_sigs) == 0) {
+                for (j = 0; j < 2 * (int)params.d - 1; j++) {
+                    bds[j].next = (word32)1U << params.h;
+                }
+                state.ret = 0;
+                (void)wc_xmssmt_sign_next_idx(&state, bds, (XmssIdx)k,
+                    wots_sigs, wb_ni_skCopy);
+                state.ret = 0;
+            }
+            wc_xmss_bds_state_free(bds, state.heap);
+        }
+
+        /* Row B - forged BDS state: the working state's keep buffer is NULL,
+         * so this iteration's wc_xmss_bds_auth_path() fails and the guard is
+         * reached with ret != 0 (condIndex 0 false). */
+        XMEMCPY(wb_ni_skCopy, wb_ni_sk, sizeof(wb_ni_skCopy));
+        bds = NULL;
+        wots_sigs = NULL;
+        if (wc_xmss_bds_state_alloc(&params, &bds, state.heap) == 0) {
+            if (wc_xmss_bds_state_load(&state, wb_ni_skCopy, bds,
+                    &wots_sigs) == 0) {
+                bds[BDS_IDX((XmssIdx)k, 0, params.sub_h, params.d)].keep =
+                    NULL;
+                state.ret = 0;
+                (void)wc_xmssmt_sign_next_idx(&state, bds, (XmssIdx)k,
+                    wots_sigs, wb_ni_skCopy);
+                state.ret = 0;
+            }
+            wc_xmss_bds_state_free(bds, state.heap);
+        }
+
+        /* Row C - the ordinary all-true row: a real signature at the same
+         * index, whose wc_xmssmt_sign() runs wc_xmssmt_sign_next_idx()
+         * unforged. */
+        XMEMSET(wb_ni_sig, 0, sizeof(wb_ni_sig));
+        ret = wc_xmssmt_sign(&state, msg, (word32)sizeof(msg), wb_ni_sk,
+            wb_ni_sig);
+        if (ret != 0) {
+            WB_NOTE("next-idx rows: ordinary sign failed");
+            wb_fail = 1;
+            break;
+        }
+    }
+
+    wb_state_free(&state);
+    WB_NOTE("next-idx forged-BDS rows exercised");
+}
+#else
+static void wb_sign_next_idx_rows(void)
+{
+    WB_NOTE("BDS signing path not compiled in; wb_sign_next_idx_rows "
+        "skipped");
+}
+#endif /* !WOLFSSL_XMSS_VERIFY_ONLY && !WOLFSSL_WC_XMSS_SMALL &&
+        * WC_XMSS_SHA256 */
+
+/********************************************
+ * 2455 (WOLFSSL_WC_XMSS_SMALL's wc_xmssmt_sign() only):
+ *   "if ((ret == 0) && (WC_IDX_INVALID(idx, params->idx_len, params->h)))"
+ * condIndex 0's false side. The only assignment to ret before the guard is
+ * WC_IDX_DECODE's trailing "else { ret = NOT_COMPILED_IN; }", which fires
+ * only when params->idx_len is none of 3, 4, 5 and 8 - and every set in
+ * wc_xmss_alg[] uses one of those four, so no key can produce it. A
+ * hand-built parameter set with idx_len == 2 does, exactly as
+ * wb_full_cycle_d1() already does for wc_xmss_sigsleft()'s copy of the same
+ * macro.
+ *
+ * Memory-safe: before the guard the function only zeroes state->addr and
+ * copies idx_len (2) bytes sk->sig; sk_seed/pk_seed/sig_r are pointer
+ * arithmetic that is never dereferenced on this path, and with ret != 0
+ * every later block is gated by "if (ret == 0)" down to "return ret", so
+ * nothing is allocated or hashed. The buffers are still sized past
+ * params.sk_len so even the unused interior pointers stay in-object.
+ *
+ * Only built for WOLFSSL_WC_XMSS_SMALL: the non-small wc_xmssmt_sign()
+ * (4041) allocates and loads the BDS state from sk *before* its own index
+ * check and decodes with xmss_idx_decode(), which has no NOT_COMPILED_IN
+ * arm - it would neither reach this decision nor be memory-safe with a
+ * forged parameter set.
+ ********************************************/
+#if defined(WOLFSSL_WC_XMSS_SMALL) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    defined(WC_XMSS_SHA256)
+static void wb_smallmt_bad_idx_len(void)
+{
+    XmssParams  params;
+    XmssState   state;
+    byte        sk[1024];
+    byte        sig[1024];
+    static const byte msg[] = "xmss whitebox bad idx_len message";
+    int         ret;
+
+    wb_params_init(&params, WC_HASH_TYPE_SHA256, 32, 32, 4, 1, 2, 0);
+    if (params.sk_len > (word32)sizeof(sk)) {
+        WB_NOTE("bad idx_len row: scratch too small; skipped");
+        return;
+    }
+    if (wb_state_init(&state, &params) != 0) {
+        WB_NOTE("bad idx_len row: state init failed; skipped");
+        return;
+    }
+
+    XMEMSET(sk, 0, sizeof(sk));
+    XMEMSET(sig, 0, sizeof(sig));
+
+    ret = wc_xmssmt_sign(&state, msg, (word32)sizeof(msg), sk, sig);
+    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+        WB_NOTE("bad idx_len row: wc_xmssmt_sign did not reject an "
+            "unsupported idx_len");
+        wb_fail = 1;
+    }
+
+    wb_state_free(&state);
+    WB_NOTE("small-path unsupported idx_len row exercised");
+}
+#else
+static void wb_smallmt_bad_idx_len(void)
+{
+    WB_NOTE("small XMSS^MT signing path not compiled in; "
+        "wb_smallmt_bad_idx_len skipped");
+}
+#endif /* WOLFSSL_WC_XMSS_SMALL && !WOLFSSL_XMSS_VERIFY_ONLY &&
+        * WC_XMSS_SHA256 */
+
 #else /* WOLFSSL_HAVE_XMSS */
 
 static void wb_hash_family_pairs(void)
@@ -1243,6 +1470,14 @@ static void wb_full_cycle_d1(void)
 {
     WB_NOTE("WOLFSSL_HAVE_XMSS not compiled in; skipped");
 }
+static void wb_sign_next_idx_rows(void)
+{
+    WB_NOTE("WOLFSSL_HAVE_XMSS not compiled in; skipped");
+}
+static void wb_smallmt_bad_idx_len(void)
+{
+    WB_NOTE("WOLFSSL_HAVE_XMSS not compiled in; skipped");
+}
 
 #endif /* WOLFSSL_HAVE_XMSS */
 
@@ -1256,6 +1491,8 @@ int main(void)
     wb_bds_auth_path();
     wb_full_cycle_d2();
     wb_full_cycle_d1();
+    wb_sign_next_idx_rows();
+    wb_smallmt_bad_idx_len();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     return 0;
 }
