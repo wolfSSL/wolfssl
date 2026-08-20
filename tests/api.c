@@ -31146,6 +31146,7 @@ static int test_wolfSSL_set_SSL_CTX_alt_key(void)
     !defined(NO_CERTS)
     WOLFSSL_CTX* ctx1 = NULL;
     WOLFSSL_CTX* ctx2 = NULL;
+    WOLFSSL_CTX* ctx3 = NULL;
     WOLFSSL* ssl = NULL;
     byte* altKey = NULL;
     size_t altKeySz = 0;
@@ -31169,6 +31170,11 @@ static int test_wolfSSL_set_SSL_CTX_alt_key(void)
     ExpectTrue(wolfSSL_CTX_use_AltPrivateKey_file(ctx2, svrKeyFile,
         WOLFSSL_FILETYPE_PEM));
 
+    /* a certificate but no private key and no alternate key */
+    ExpectNotNull(ctx3 = wolfSSL_CTX_new(wolfTLS_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx3, svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+
     ExpectNotNull(ssl = wolfSSL_new(ctx1));
 
     /* the session takes an alternate key of its own */
@@ -31190,11 +31196,69 @@ static int test_wolfSSL_set_SSL_CTX_alt_key(void)
     ExpectTrue(ssl->buffers.altKey == ctx2->altPrivateKey);
 #endif
 
+    /* switching to a context that carries no keys of its own must still let
+     * go, so that what is left agrees with the key details taken from it */
+    ExpectNotNull(wolfSSL_set_SSL_CTX(ssl, ctx3));
+    ExpectIntEQ(ssl->buffers.weOwnKey, 0);
+    ExpectNull(ssl->buffers.key);
+    ExpectIntEQ(ssl->buffers.weOwnAltKey, 0);
+    ExpectNull(ssl->buffers.altKey);
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx1);
     wolfSSL_CTX_free(ctx2);
+    wolfSSL_CTX_free(ctx3);
     XFREE(altKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif /* WOLFSSL_DUAL_ALG_CERTS && WOLFSSL_INT_H && OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
+
+/* The chain an object builds for itself describes the context it was built
+ * against, so switching context must not leave it on show. */
+static int test_wolfSSL_set_SSL_CTX_chain(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_INT_H) && defined(KEEP_OUR_CERT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx1 = NULL;
+    WOLFSSL_CTX* ctx2 = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
+
+    ExpectNotNull(ctx1 = wolfSSL_CTX_new(wolfTLS_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx1, svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx1, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM));
+
+    ExpectNotNull(ctx2 = wolfSSL_CTX_new(wolfTLS_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx2, svrCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx2, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM));
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx1));
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_add1_chain_cert(ssl, x509), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get0_chain_certs(ssl, &chain), WOLFSSL_SUCCESS);
+    ExpectNotNull(chain);
+
+    ExpectNotNull(wolfSSL_set_SSL_CTX(ssl, ctx2));
+
+    chain = NULL;
+    ExpectIntEQ(wolfSSL_get0_chain_certs(ssl, &chain), WOLFSSL_SUCCESS);
+    ExpectNull(chain);
+
+    wolfSSL_X509_free(x509);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx1);
+    wolfSSL_CTX_free(ctx2);
+#endif /* WOLFSSL_INT_H && KEEP_OUR_CERT && OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
 
@@ -40729,6 +40793,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_alt_key_ownership),
     TEST_DECL(test_wolfSSL_set_SSL_CTX_alt_key),
+    TEST_DECL(test_wolfSSL_set_SSL_CTX_chain),
     TEST_DECL(test_wolfSSL_CTX_get_min_proto_version),
     TEST_DECL(test_wolfSSL_security_level),
     TEST_DECL(test_wolfSSL_crypto_policy),
