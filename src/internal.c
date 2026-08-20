@@ -2669,6 +2669,15 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
     else {
         ctx->ticketStartTime -= ctx->ticketStartTime % 1000;
+    #ifdef WOLFSSL_32BIT_MILLI_TIME
+        /* A 32 bit ms clock is truncated mod 2^32, which is not a multiple
+         * of 1000, so the modulo above does not remove the true sub-second
+         * part. Drop a whole further second so a ticket minted in the same
+         * second as this ctx is never flagged as predating it. */
+        if (ctx->ticketStartTime > 1000) {
+            ctx->ticketStartTime -= 1000;
+        }
+    #endif
     }
 #endif
 
