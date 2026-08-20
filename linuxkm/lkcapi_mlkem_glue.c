@@ -172,7 +172,8 @@ wc_static_assert(WC_ML_KEM_1024_CIPHER_TEXT_SIZE <=
 /* Bound on unclaimed encapsulations per tfm; oldest evicted at
  * capacity. */
 #ifdef WC_LINUXKM_MLKEM_PENDING_MAX
-    wc_static_assert_if_const(WC_LINUXKM_MLKEM_PENDING_MAX > 0);
+    wc_static_assert_if_const(WC_LINUXKM_MLKEM_PENDING_MAX > 0,
+                          "WC_LINUXKM_MLKEM_PENDING_MAX must be positive");
 #else
     #define WC_LINUXKM_MLKEM_PENDING_MAX 16
 #endif
@@ -340,7 +341,7 @@ static int km_mlkem_set_secret(struct crypto_kpp *tfm, const void *buffer,
             wc_FreeRng(&rng);
         }
         else {
-            err = -ENODEV;
+            err = ENODEV; /* negatized at exit */
             goto out;
         }
         if (err == 0) {
@@ -395,7 +396,7 @@ out:
         #ifdef WOLFKM_DEBUG_MLKEM
         pr_err("error: km_mlkem_set_secret (len %u): %d\n", len, err);
         #endif
-        return (err < -1000 || err > 0) ? err : -EINVAL;
+        return (err > 0) ? -err : -EINVAL;
     }
 
     #ifdef WOLFKM_DEBUG_MLKEM
@@ -447,6 +448,7 @@ static int km_mlkem_generate_ek(struct km_mlkem_ctx *ctx,
     }
 
     if (req->dst_len < ek_len) {
+        req->dst_len = ek_len;
         km_mlkem_del_wc_key(wc_key);
         return -EOVERFLOW;
     }
@@ -501,6 +503,7 @@ static int km_mlkem_generate_ct(struct km_mlkem_ctx *ctx,
     }
 
     if (req->dst_len < ct_len) {
+        req->dst_len = ct_len;
         km_mlkem_del_wc_key(wc_key);
         return -EOVERFLOW;
     }
@@ -637,6 +640,7 @@ static int km_mlkem_ss_decap(struct km_mlkem_ctx *ctx,
         return -EINVAL;
     }
     if (req->dst_len < ss_len) {
+        req->dst_len = ss_len;
         km_mlkem_del_wc_key(wc_key);
         return -EOVERFLOW;
     }
@@ -705,8 +709,10 @@ static int km_mlkem_ss_claim(struct km_mlkem_ctx *ctx,
     /* Check dst space BEFORE claiming, so a short dst doesn't consume
      * the node.
      */
-    if (req->dst_len < ss_len)
+    if (req->dst_len < ss_len) {
+        req->dst_len = ss_len;
         return -EOVERFLOW;
+    }
 
     ct = (byte *)malloc(ct_len);
     if (! ct)
