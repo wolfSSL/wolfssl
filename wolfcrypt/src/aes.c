@@ -244,6 +244,33 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WOLFSSL_ARM32_AES_DISPATCH
 #endif
 
+#if defined(STM32_CRYPTO) && !defined(WOLFSSL_STM32_BARE) && \
+    !defined(WOLFSSL_STM32_CUBEMX)
+/* Push one AES block through CRYP. CRYP_DataIn/Out work in 32-bit words,
+ * so stage the caller's byte buffers through an aligned local. */
+static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
+{
+    uint32_t tmp[WC_AES_BLOCK_SIZE / sizeof(uint32_t)];
+
+    XMEMCPY(tmp, in, WC_AES_BLOCK_SIZE);
+
+    CRYP_DataIn(tmp[0]);
+    CRYP_DataIn(tmp[1]);
+    CRYP_DataIn(tmp[2]);
+    CRYP_DataIn(tmp[3]);
+
+    /* wait until the complete message has been processed */
+    while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+    tmp[0] = CRYP_DataOut();
+    tmp[1] = CRYP_DataOut();
+    tmp[2] = CRYP_DataOut();
+    tmp[3] = CRYP_DataOut();
+
+    XMEMCPY(out, tmp, WC_AES_BLOCK_SIZE);
+}
+#endif
+
 /* Define AES implementation includes and functions */
 #if defined(STM32_CRYPTO) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
      /* STM32F2/F4/F7/L4/L5/H7/WB55 hardware AES support for ECB, CBC, CTR and GCM modes */
@@ -335,18 +362,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         /* flush IN/OUT FIFOs */
         CRYP_FIFOFlush();
 
-        CRYP_DataIn(*(uint32_t*)&inBlock[0]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[4]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[8]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[12]);
-
-        /* wait until the complete message has been processed */
-        while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-        *(uint32_t*)&outBlock[0]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[4]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[8]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[12] = CRYP_DataOut();
+        wc_Stm32_CrypAesBlock(inBlock, outBlock);
 
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
@@ -450,18 +466,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         /* flush IN/OUT FIFOs */
         CRYP_FIFOFlush();
 
-        CRYP_DataIn(*(uint32_t*)&inBlock[0]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[4]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[8]);
-        CRYP_DataIn(*(uint32_t*)&inBlock[12]);
-
-        /* wait until the complete message has been processed */
-        while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-        *(uint32_t*)&outBlock[0]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[4]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[8]  = CRYP_DataOut();
-        *(uint32_t*)&outBlock[12] = CRYP_DataOut();
+        wc_Stm32_CrypAesBlock(inBlock, outBlock);
 
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
@@ -1440,57 +1445,62 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     static WARN_UNUSED_RESULT int AES_ECB_encrypt(
         Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
-        word32 ret;
+        word32 ret = SSP_SUCCESS;
+        /* The SCE driver needs 32-bit words: stage the caller's byte
+         * buffers through aligned locals, leaving the input untouched. */
+        word32 in32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        word32 out32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        int bigEndian = (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG);
+        int i;
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+        if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+            return BAD_FUNC_ARG;
         }
 
-        switch (aes->keylen) {
+        for (i = 0; i < sz; i += WC_AES_BLOCK_SIZE) {
+            XMEMCPY(in32, inBlock + i, WC_AES_BLOCK_SIZE);
+            if (bigEndian) {
+                ByteReverseWords(in32, in32, WC_AES_BLOCK_SIZE);
+            }
+
+            switch (aes->keylen) {
         #ifdef WOLFSSL_AES_128
-            case AES_128_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->encrypt(
-                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key,
-                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_128_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES128_HANDLE.p_api->encrypt(
+                            WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key, NULL,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_192
-            case AES_192_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->encrypt(
-                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key,
-                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_192_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES192_HANDLE.p_api->encrypt(
+                            WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key, NULL,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_256
-            case AES_256_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->encrypt(
-                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key,
-                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_256_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES256_HANDLE.p_api->encrypt(
+                            WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key, NULL,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
-            default:
-                WOLFSSL_MSG("Unknown key size");
-                return BAD_FUNC_ARG;
-        }
-
-        if (ret != SSP_SUCCESS) {
-            /* revert input */
-            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
-            return WC_HW_E;
-        }
-
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
-            if (inBlock != outBlock) {
-                /* revert input */
-                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+                default:
+                    WOLFSSL_MSG("Unknown key size");
+                    return BAD_FUNC_ARG;
             }
+
+            if (ret != SSP_SUCCESS) {
+                return WC_HW_E;
+            }
+
+            if (bigEndian) {
+                ByteReverseWords(out32, out32, WC_AES_BLOCK_SIZE);
+            }
+            XMEMCPY(outBlock + i, out32, WC_AES_BLOCK_SIZE);
         }
+
         return 0;
     }
 
@@ -1498,53 +1508,63 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
     static WARN_UNUSED_RESULT int AES_ECB_decrypt(
         Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
-        word32 ret;
+        word32 ret = SSP_SUCCESS;
+        /* The SCE driver needs 32-bit words: stage the caller's byte
+         * buffers through aligned locals, leaving the input untouched. */
+        word32 in32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        word32 out32[WC_AES_BLOCK_SIZE / sizeof(word32)];
+        int bigEndian = (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG);
+        int i;
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+        if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+            return BAD_FUNC_ARG;
         }
 
-        switch (aes->keylen) {
+        for (i = 0; i < sz; i += WC_AES_BLOCK_SIZE) {
+            XMEMCPY(in32, inBlock + i, WC_AES_BLOCK_SIZE);
+            if (bigEndian) {
+                ByteReverseWords(in32, in32, WC_AES_BLOCK_SIZE);
+            }
+
+            switch (aes->keylen) {
         #ifdef WOLFSSL_AES_128
-            case AES_128_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->decrypt(
-                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key, aes->reg,
-                        (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_128_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES128_HANDLE.p_api->decrypt(
+                            WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key,
+                            aes->reg,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_192
-            case AES_192_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->decrypt(
-                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key, aes->reg,
-                        (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_192_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES192_HANDLE.p_api->decrypt(
+                            WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key,
+                            aes->reg,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
         #ifdef WOLFSSL_AES_256
-            case AES_256_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->decrypt(
-                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key, aes->reg,
-                        (sz / sizeof(word32)), (word32*)inBlock,
-                        (word32*)outBlock);
-                break;
+                case AES_256_KEY_SIZE:
+                    ret = WOLFSSL_SCE_AES256_HANDLE.p_api->decrypt(
+                            WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key,
+                            aes->reg,
+                            (WC_AES_BLOCK_SIZE / sizeof(word32)), in32, out32);
+                    break;
         #endif
-            default:
-                WOLFSSL_MSG("Unknown key size");
-                return BAD_FUNC_ARG;
-        }
-        if (ret != SSP_SUCCESS) {
-            return WC_HW_E;
-        }
-
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
-                CRYPTO_WORD_ENDIAN_BIG) {
-            ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
-            if (inBlock != outBlock) {
-                /* revert input */
-                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+                default:
+                    WOLFSSL_MSG("Unknown key size");
+                    return BAD_FUNC_ARG;
             }
+
+            if (ret != SSP_SUCCESS) {
+                return WC_HW_E;
+            }
+
+            if (bigEndian) {
+                ByteReverseWords(out32, out32, WC_AES_BLOCK_SIZE);
+            }
+            XMEMCPY(outBlock + i, out32, WC_AES_BLOCK_SIZE);
         }
 
         return 0;
@@ -3339,15 +3359,24 @@ static void bs_ke_sub_bytes(unsigned char* out, unsigned char *in) {
 }
 
 static void bs_ke_transform(unsigned char* out, unsigned char *in, word8 i) {
-    /* Rotate the input 8 bits to the left */
+    /* Rotate left 8 bits. The key schedule is a byte array, so use the
+     * unaligned accessors. */
 #ifdef LITTLE_ENDIAN_ORDER
-    *(word32*)out = rotrFixed(*(word32*)in, 8);
+    (void)writeUnalignedWord32(out, rotrFixed(readUnalignedWord32(in), 8));
 #else
-    *(word32*)out = rotlFixed(*(word32*)in, 8);
+    (void)writeUnalignedWord32(out, rotlFixed(readUnalignedWord32(in), 8));
 #endif
     bs_ke_sub_bytes(out, out);
     /* On just the first byte, add 2^i to the byte */
     out[0] ^= bs_rcon[i];
+}
+
+/* r = a ^ b, on schedule words in byte arrays of unknown alignment. */
+static void bs_ke_xor(unsigned char* r, const unsigned char* a,
+    const unsigned char* b)
+{
+    (void)writeUnalignedWord32(r,
+        readUnalignedWord32(a) ^ readUnalignedWord32(b));
 }
 
 static void bs_expand_key(unsigned char *in, word32 sz) {
@@ -3360,14 +3389,10 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
         for (o = 16; o < sz; o += 16) {
             bs_ke_transform(t, in + o - 4, i);
             i++;
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 16) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 12) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o -  8) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o -  4) ^
-                                      *(word32*)(in + o +  8);
+            bs_ke_xor(in + o +  0, in + o - 16, t);
+            bs_ke_xor(in + o +  4, in + o - 12, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o -  8, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o -  4, in + o +  8);
         }
     }
     else if (sz == 208) {
@@ -3375,18 +3400,12 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
         for (o = 24; o < sz; o += 24) {
             bs_ke_transform(t, in + o - 4, i);
             i++;
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 24) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 20) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o - 16) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o - 12) ^
-                                      *(word32*)(in + o +  8);
-            *(word32*)(in + o + 16) = *(word32*)(in + o -  8) ^
-                                      *(word32*)(in + o + 12);
-            *(word32*)(in + o + 20) = *(word32*)(in + o -  4) ^
-                                      *(word32*)(in + o + 16);
+            bs_ke_xor(in + o +  0, in + o - 24, t);
+            bs_ke_xor(in + o +  4, in + o - 20, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o - 16, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o - 12, in + o +  8);
+            bs_ke_xor(in + o + 16, in + o -  8, in + o + 12);
+            bs_ke_xor(in + o + 20, in + o -  4, in + o + 16);
         }
     }
     else if (sz == 240) {
@@ -3399,14 +3418,10 @@ static void bs_expand_key(unsigned char *in, word32 sz) {
             else {
                 bs_ke_sub_bytes(t, in + o - 4);
             }
-            *(word32*)(in + o +  0) = *(word32*)(in + o - 32) ^
-                                      *(word32*) t;
-            *(word32*)(in + o +  4) = *(word32*)(in + o - 28) ^
-                                      *(word32*)(in + o +  0);
-            *(word32*)(in + o +  8) = *(word32*)(in + o - 24) ^
-                                      *(word32*)(in + o +  4);
-            *(word32*)(in + o + 12) = *(word32*)(in + o - 20) ^
-                                      *(word32*)(in + o +  8);
+            bs_ke_xor(in + o +  0, in + o - 32, t);
+            bs_ke_xor(in + o +  4, in + o - 28, in + o +  0);
+            bs_ke_xor(in + o +  8, in + o - 24, in + o +  4);
+            bs_ke_xor(in + o + 12, in + o - 20, in + o +  8);
         }
     }
 }
@@ -6619,18 +6634,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-            CRYP_DataIn(*(uint32_t*)&in[8]);
-            CRYP_DataIn(*(uint32_t*)&in[12]);
-
-            /* wait until the complete message has been processed */
-            while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
-            *(uint32_t*)&out[8]  = CRYP_DataOut();
-            *(uint32_t*)&out[12] = CRYP_DataOut();
+            wc_Stm32_CrypAesBlock(in, out);
 
             /* store iv for next call */
             XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
@@ -6715,18 +6719,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-            CRYP_DataIn(*(uint32_t*)&in[8]);
-            CRYP_DataIn(*(uint32_t*)&in[12]);
-
-            /* wait until the complete message has been processed */
-            while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
-            *(uint32_t*)&out[8]  = CRYP_DataOut();
-            *(uint32_t*)&out[12] = CRYP_DataOut();
+            wc_Stm32_CrypAesBlock(in, out);
 
             /* store iv for next call */
             XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
@@ -7905,18 +7898,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
-            CRYP_DataIn(*(uint32_t*)&in[8]);
-            CRYP_DataIn(*(uint32_t*)&in[12]);
-
-            /* wait until the complete message has been processed */
-            while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
-
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
-            *(uint32_t*)&out[8]  = CRYP_DataOut();
-            *(uint32_t*)&out[12] = CRYP_DataOut();
+            wc_Stm32_CrypAesBlock(in, out);
 
             /* disable crypto processor */
             CRYP_Cmd(DISABLE);

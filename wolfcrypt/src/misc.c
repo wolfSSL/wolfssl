@@ -309,7 +309,17 @@ WC_MISC_STATIC WC_INLINE word32 readUnalignedWord32(const byte *in)
 
 WC_MISC_STATIC WC_INLINE word32 writeUnalignedWord32(void *out, word32 in)
 {
-#ifndef WOLFSSL_RW_UNALIGNED_32
+#ifdef WOLFSSL_WIDE_BYTE
+    /* CHAR_BIT != 8 (e.g. TI C28x): one octet per cell, so store 4 octets
+     * little-endian rather than aliasing cells as a word32. Mirrors
+     * readUnalignedWord32() so a read/write pair spans the same cells. */
+    byte* out8 = (byte*)out;
+
+    out8[0] = (byte)( in        & 0xFF);
+    out8[1] = (byte)((in >>  8) & 0xFF);
+    out8[2] = (byte)((in >> 16) & 0xFF);
+    out8[3] = (byte)((in >> 24) & 0xFF);
+#elif !defined(WOLFSSL_RW_UNALIGNED_32)
     if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0) {
         *(word32 *)out = in;
     }
