@@ -29,12 +29,16 @@ int test_tls13_ch_legacy_version_major_above_ssl3(void);
 int test_tls13_ch_legacy_version_below_tls12(void);
 int test_tls13_sh_legacy_version_below_tls12(void);
 int test_tls13_sh_legacy_version_major_mismatch(void);
+int test_tls13_server_cert_fragment_want_write(void);
+int test_tls13_client_cert_fragment_want_write(void);
 
 #define TEST_TLS13_BOUNDS_DECLS                                             \
     TEST_DECL_GROUP("tls13", test_tls13_ch_legacy_version_is_tls13),        \
     TEST_DECL_GROUP("tls13", test_tls13_ch_legacy_version_major_above_ssl3),\
     TEST_DECL_GROUP("tls13", test_tls13_ch_legacy_version_below_tls12),     \
     TEST_DECL_GROUP("tls13", test_tls13_sh_legacy_version_below_tls12),     \
-    TEST_DECL_GROUP("tls13", test_tls13_sh_legacy_version_major_mismatch)
+    TEST_DECL_GROUP("tls13", test_tls13_sh_legacy_version_major_mismatch),  \
+    TEST_DECL_GROUP("tls13", test_tls13_server_cert_fragment_want_write),   \
+    TEST_DECL_GROUP("tls13", test_tls13_client_cert_fragment_want_write)
 
 #endif /* WOLFCRYPT_TEST_TLS13_BOUNDS_H */

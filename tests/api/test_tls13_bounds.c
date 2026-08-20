@@ -205,6 +205,139 @@ static int test_tls13b_sh_legacy_version(byte major, byte minor, int expErr)
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+/* --- WANT_WRITE resumption harness -----------------------------------------
+ *
+ * SendTls13Certificate() only fragments (and only takes its ssl->fragOffset
+ * resume path) when a send is interrupted part way through a multi-record
+ * Certificate. test_memio's own simulate_want_write is all-or-nothing from the
+ * start of the flight, so instead a counting send callback is layered over
+ * test_memio_write_cb: write number tls13b_ww_at fails with WANT_WRITE once,
+ * every other write goes through. Sweeping tls13b_ww_at across the whole
+ * flight interrupts each record in turn, and the handshake is still required
+ * to complete, so the resume paths are exercised without a rejection vector.
+ */
+static int tls13b_ww_at = -1;
+static int tls13b_ww_n = 0;
+
+static int test_tls13b_send_cb(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    if (tls13b_ww_n++ == tls13b_ww_at)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return test_memio_write_cb(ssl, buf, sz, ctx);
+}
+
+/* Build a memio pair whose server presents a certificate CHAIN (the default
+ * test_memio_setup loads the leaf only, which leaves certChainSz == 0 and the
+ * whole chain-walk block in SendTls13Certificate unreachable).
+ *
+ * The pre-made ctx_s makes test_memio_setup_ex skip its own certificate load
+ * AND its IO callback installation, so both are done here. */
+static int test_tls13b_setup_chain(struct test_memio_ctx* tc,
+    WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c, WOLFSSL** ssl_s,
+    int wantWriteSide)
+{
+    *ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    if (*ctx_s == NULL)
+        return -1;
+    if (wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile, CERT_FILETYPE)
+            != WOLFSSL_SUCCESS)
+        return -1;
+    if (wolfSSL_CTX_use_certificate_chain_file(*ctx_s, svrCertFile)
+            != WOLFSSL_SUCCESS)
+        return -1;
+    if (wolfSSL_CTX_load_verify_locations(*ctx_s, caCertFile, 0)
+            != WOLFSSL_SUCCESS)
+        return -1;
+    wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(*ctx_s, wantWriteSide == 0 ? test_tls13b_send_cb
+                                                 : test_memio_write_cb);
+
+    if (test_memio_setup_ex(tc, ctx_c, ctx_s, ssl_c, ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+            NULL, 0, NULL, 0, NULL, 0) != 0)
+        return -1;
+
+    /* Per-SSL, not per-CTX: wolfSSL_new() has already copied ctx_c's
+     * callbacks into ssl_c by this point, so setting it on the CTX would be
+     * a no-op for this connection. */
+    if (wantWriteSide == 1)
+        wolfSSL_SSLSetIOSend(*ssl_c, test_tls13b_send_cb);
+    return 0;
+}
+
+/* One handshake with the server's write number 'at' interrupted by
+ * WANT_WRITE. Small max_fragment_length forces the Certificate across several
+ * records so at least one 'at' lands inside it. */
+static int test_tls13b_server_frag_round(int at)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    tls13b_ww_at = at;
+    tls13b_ww_n = 0;
+
+    ExpectIntEQ(test_tls13b_setup_chain(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+        &ssl_s, 0), 0);
+#ifdef HAVE_MAX_FRAGMENT
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 64, NULL), 0);
+
+    tls13b_ww_at = -1;
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* Same, with the client holding a certificate chain and the interrupt on the
+ * client's writes, so the client-side resume path in wolfSSL_connect_TLSv13()
+ * runs too. */
+static int test_tls13b_client_frag_round(int at)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    tls13b_ww_at = at;
+    tls13b_ww_n = 0;
+
+    ExpectIntEQ(test_tls13b_setup_chain(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+        &ssl_s, 1), 0);
+    /* Ask for the client's certificate so the client also fragments one.
+     * client-cert.pem is its own issuer, so it has to be added to the
+     * server's store for the verify to succeed. */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, 0),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_c, cliCertFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+#ifdef HAVE_MAX_FRAGMENT
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 64, NULL), 0);
+
+    tls13b_ww_at = -1;
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
 #endif /* guards */
 
 /* tls13.c:7645 - "args->pv.major == SSLv3_MAJOR && args->pv.minor >=
@@ -298,6 +431,57 @@ int test_tls13_sh_legacy_version_major_mismatch(void)
     !defined(WOLFSSL_NO_TLS12)
     return test_tls13b_sh_legacy_version(SSLv3_MAJOR + 1, TLSv1_2_MINOR,
         WC_NO_ERR_TRACE(VERSION_ERROR));
+#else
+    return TEST_SKIPPED;
+#endif
+}
+
+/* Interrupt every write of the server's flight in turn with WANT_WRITE while
+ * it sends a fragmented Certificate built from a real chain.
+ *
+ * Drives SendTls13Certificate()'s resume block: :10019 (certChainSz > 0 &&
+ * fragOffset >= certSz + extSz[0]), :10061 cond 1 (the fragment loop leaving
+ * with length still > 0 because SendBuffered() answered WANT_WRITE, which is
+ * the row an uninterrupted send can never produce), :10143, :10156, :10187 and
+ * :9655, plus wolfSSL_accept_TLSv13()'s :16693 buffered-fragment resume.
+ * Every round must still complete the handshake, so each vector has its
+ * accepting partner in the same run. */
+int test_tls13_server_cert_fragment_want_write(void)
+{
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_TLS12)
+    EXPECT_DECLS;
+    int at;
+
+    for (at = 0; at < 16 && EXPECT_SUCCESS(); at++)
+        ExpectIntEQ(test_tls13b_server_frag_round(at), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
+}
+
+/* Client-side counterpart: the client sends its own fragmented Certificate
+ * and its writes are interrupted in turn, which drives
+ * wolfSSL_connect_TLSv13()'s :15347 buffered-fragment resume. */
+int test_tls13_client_cert_fragment_want_write(void)
+{
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_TLS12)
+    EXPECT_DECLS;
+    int at;
+
+    for (at = 0; at < 12 && EXPECT_SUCCESS(); at++)
+        ExpectIntEQ(test_tls13b_client_frag_round(at), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
 #else
     return TEST_SKIPPED;
 #endif
