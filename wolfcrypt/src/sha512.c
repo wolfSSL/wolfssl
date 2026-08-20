@@ -142,7 +142,8 @@
     #undef WC_C_DYNAMIC_FALLBACK
 #endif
 
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC)
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
         #undef  NO_AVX2_SUPPORT
@@ -193,6 +194,7 @@
     defined(WOLFSSL_ARMASM) || \
     defined(WOLFSSL_RISCV_ASM) || \
     (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
     #error "WOLF_CRYPTO_CB_ONLY_SHA512 is incompatible with SHA-512 hardware" \
            " acceleration backends"
@@ -915,6 +917,7 @@ int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags)
  * a do-nothing macro there rather than a function.  Defined here, ahead of
  * its first call site below. */
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
        (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
       defined(WOLFSSL_ARMASM)
 static void Sha512_SetTransform(void);
@@ -940,6 +943,7 @@ static int InitSha512(wc_Sha512* sha512)
     sha512->hiLen   = 0;
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
     defined(WOLFSSL_ARMASM)
     Sha512_SetTransform();
@@ -991,6 +995,7 @@ static int InitSha512_224(wc_Sha512* sha512)
     sha512->hiLen   = 0;
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
     defined(WOLFSSL_ARMASM)
     Sha512_SetTransform();
@@ -1044,6 +1049,7 @@ static int InitSha512_256(wc_Sha512* sha512)
     sha512->hiLen   = 0;
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
     defined(WOLFSSL_ARMASM)
     Sha512_SetTransform();
@@ -1073,6 +1079,7 @@ static int InitSha512_256(wc_Sha512* sha512)
 
 /* Hardware Acceleration */
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
     /* SHA-512 transforms compiled here: unpinned that is AVX1 and AVX2, each
@@ -2075,6 +2082,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
             !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
             !defined(WOLFSSL_RISCV_ASM)
         #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
                 (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
             if (WC_SHA512_REV_BLOCK())
         #endif
@@ -2132,6 +2140,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     }
 #else
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
 #if defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
@@ -2166,6 +2175,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
             len  -= WC_SHA512_BLOCK_SIZE;
 
         #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
             (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)) && \
             !defined(WC_SHA512_RAW_BE_BUFFER)
             if (WC_SHA512_REV_BLOCK())
@@ -2315,6 +2325,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
         sha512->buffLen += WC_SHA512_BLOCK_SIZE - sha512->buffLen;
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
     #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (WC_SHA512_REV_BLOCK())
     #endif
@@ -2402,6 +2413,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 #else
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
     #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (WC_SHA512_REV_BLOCK())
     #endif
@@ -2424,6 +2436,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 #endif /* WOLFSSL_WIDE_BYTE */
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     #ifdef WC_SHA512_RAW_BE_BUFFER
     /* raw-buffer convention -- the length words must be big-endian in the
@@ -2717,6 +2730,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WC_SHA512_RAW_BE_BUFFER)
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     if (WC_SHA512_REV_BLOCK())
 #endif
@@ -2905,6 +2919,7 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->hiLen   = 0;
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(LINUXKM_RBGC) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
     defined(WOLFSSL_ARMASM)
     Sha512_SetTransform();

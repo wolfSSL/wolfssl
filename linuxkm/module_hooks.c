@@ -51,6 +51,9 @@
     #include <wolfssl/wolfcrypt/wolfentropy.h>
 #endif
 #include <wolfssl/wolfcrypt/random.h>
+#ifdef LINUXKM_RBGC
+    #include <wolfssl/wolfcrypt/linuxkm_get_entropy.h>
+#endif
 #include <wolfssl/wolfcrypt/sha256.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -395,6 +398,33 @@ MODULE_PARM_DESC(rodata_dump_path,
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+#ifdef LINUXKM_RBGC
+
+/* Out here in non-PIE glue so the arm64 ALTERNATIVE asm in local_irq_save()
+ * compiles; see the declarations in linuxkm_wc_port.h. */
+unsigned long wc_linuxkm_irq_save(void)
+{
+    unsigned long flags;
+
+    local_irq_save(flags);
+
+    return flags;
+}
+
+void wc_linuxkm_irq_restore(unsigned long flags)
+{
+    local_irq_restore(flags);
+}
+
+/* raw_ because every caller is already non-preemptible: the service path holds
+ * interrupts off, and NMI cannot be preempted at all. */
+int wc_linuxkm_cpu_id(void)
+{
+    return (int) raw_smp_processor_id();
+}
+
+#endif /* LINUXKM_RBGC */
+
 int wc_linuxkm_can_block(void) {
     /* We can't use preemptible() for this, because we need an accurate test
      * even in !CONFIG_PREEMPT_COUNT configs where preemptible() is always 0.
@@ -634,6 +664,59 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
     static int installed_sysfs_FIPS_optest_trig_files = 0;
 #endif
+
+#ifdef LINUXKM_RBGC
+
+/* The boundary cannot schedule work itself, so the glue polls
+ * wc_grb_reseed_due() and drives wc_grb_maintain() from process context. */
+#define WC_GRB_MAINT_POLL_MS 50
+
+static void wc_grb_maint_work_fn(struct work_struct *work);
+/* Runtime INIT_DELAYED_WORK, not DECLARE_DELAYED_WORK: the static initializer
+ * expands TIMER_ENTRY_STATIC, whose void* arithmetic trips pointer-arith. */
+static struct delayed_work wc_grb_maint_work;
+static int wc_grb_maint_running;
+
+static void wc_grb_maint_work_fn(struct work_struct *work)
+{
+    int ret;
+
+    (void)work;
+    if (wc_grb_reseed_due()) {
+        ret = wc_grb_maintain();
+        if (ret != 0) {
+            pr_err("WCGRB: wc_grb_maintain() failed: %d\n", ret);
+        }
+    }
+
+    /* The root refresh from noise keeps its own schedule: it is the entropy
+     * gather and must never be coupled to leaf demand. */
+    ret = wc_grb_root_tick();
+    if (ret != 0) {
+        pr_err("WCGRB: wc_grb_root_tick() failed: %d\n", ret);
+    }
+
+    if (READ_ONCE(wc_grb_maint_running)) {
+        schedule_delayed_work(&wc_grb_maint_work,
+                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+    }
+}
+
+static void wc_grb_maint_start(void)
+{
+    INIT_DELAYED_WORK(&wc_grb_maint_work, wc_grb_maint_work_fn);
+    WRITE_ONCE(wc_grb_maint_running, 1);
+    schedule_delayed_work(&wc_grb_maint_work,
+                          msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+}
+
+static void wc_grb_maint_stop(void)
+{
+    WRITE_ONCE(wc_grb_maint_running, 0);
+    cancel_delayed_work_sync(&wc_grb_maint_work);
+}
+
+#endif /* LINUXKM_RBGC */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
@@ -1199,6 +1282,34 @@ static int wolfssl_init(void)
         );
 #endif
 
+#ifdef LINUXKM_RBGC
+    /* Hand get_random_bytes() to the in-boundary service.  A failure here is
+     * reported but does not fail the module load: the kernel's own CRNG keeps
+     * answering, so the rest of the module is still usable. */
+    {
+        int grb_ret = wc_grb_init(num_possible_cpus());
+
+        if (grb_ret != 0) {
+            pr_err("WCGRB: wc_grb_init() failed: %d\n", grb_ret);
+        }
+        else {
+            grb_ret = wc_grb_hook_register(wc_grb_service);
+            if (grb_ret != 0) {
+                pr_err("WCGRB: wc_grb_hook_register() failed: %d\n", grb_ret);
+                wc_grb_cleanup();
+            }
+            else {
+                wc_grb_set_registered(1);
+                wc_grb_maint_start();
+                pr_info("WCGRB: get_random_bytes() hook registered\n");
+                /* Module init has finished, so all further demand is the
+                 * running system rather than bring-up. */
+                wc_grb_mark_boot_done();
+            }
+        }
+    }
+#endif /* LINUXKM_RBGC */
+
     return 0;
 }
 
@@ -1210,6 +1321,18 @@ static void __exit wolfssl_exit(void)
 static void wolfssl_exit(void)
 #endif
 {
+#ifdef LINUXKM_RBGC
+    /* Unregister the hook before anything else is torn down, so no in-flight
+     * caller can reach a half-freed DRBG.  wc_grb_hook_unregister() NULLs the
+     * pointer then synchronize_rcu()s, which drains callers already inside. */
+    if (wc_grb_service_active()) {
+        wc_grb_hook_unregister();
+        wc_grb_set_registered(0);
+    }
+    wc_grb_maint_stop();
+    wc_grb_cleanup();
+#endif /* LINUXKM_RBGC */
+
 #ifdef HAVE_FIPS
     int ret;
 
@@ -1828,6 +1951,11 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_end = wc_linuxkm_sig_ignore_end;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_relax_long_loop = wc_linuxkm_relax_long_loop;
+#ifdef LINUXKM_RBGC
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_save = wc_linuxkm_irq_save;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_restore = wc_linuxkm_irq_restore;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_cpu_id = wc_linuxkm_cpu_id;
+#endif
 
 #ifdef CONFIG_KASAN
     wolfssl_linuxkm_pie_redirect_table.kasan_disable_current = kasan_disable_current;

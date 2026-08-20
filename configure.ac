@@ -914,6 +914,25 @@ then
 fi
 AC_SUBST([ENABLED_LINUXKM_PIE])
 
+# LINUXKM_RBGC: SP 800-90C Sec. 7 DRBG tree for the kernel module, serving
+# get_random_bytes() from inside the boundary.  A root RBGC construction seeds
+# per-CPU leaves; those are separate instantiations, so SP 800-90A Sec. 8.6.9
+# self-seeding does not apply.  Compiles one SHA-512, the portable C one, so no
+# transform is selected at run time.
+ENABLED_LINUXKM_RBGC=no
+AC_ARG_ENABLE([linuxkm-rbgc],
+    [AS_HELP_STRING([--enable-linuxkm-rbgc],[Enable the SP 800-90C chained DRBG construction for the Linux kernel module (default: disabled)])],
+    [ENABLED_LINUXKM_RBGC=$enableval])
+if test "$ENABLED_LINUXKM_RBGC" = "yes"
+then
+    if test "$ENABLED_LINUXKM" != "yes"
+    then
+        AC_MSG_ERROR([--enable-linuxkm-rbgc requires --enable-linuxkm.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_RBGC"
+fi
+AC_SUBST([ENABLED_LINUXKM_RBGC])
+
 AC_ARG_ENABLE([linuxkm-benchmarks],
     [AS_HELP_STRING([--enable-linuxkm-benchmarks],[Enable crypto benchmarking autorun at module load time for Linux kernel module (default: disabled)])],
     [ENABLED_KERNEL_BENCHMARKS=$enableval])
@@ -13680,6 +13699,7 @@ AM_CONDITIONAL([BUILD_TSP],[test "x$ENABLED_TSP" = "xyes" || test "x$ENABLED_USE
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
+AM_CONDITIONAL([BUILD_LINUXKM_RBGC],[test "$ENABLED_LINUXKM_RBGC" = "yes"])
 AM_CONDITIONAL([BUILD_KERNEL_MODE_DEFAULTS],[test "$KERNEL_MODE_DEFAULTS" != "no"])
 AM_CONDITIONAL([BUILD_BSDKM],[test "$ENABLED_BSDKM" = "yes"])
 AM_CONDITIONAL([BUILD_KERNEL_MODULE],[test "$ENABLED_BSDKM" = "yes" || test "$ENABLED_LINUXKM" = "yes"])
