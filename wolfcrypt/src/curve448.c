@@ -65,8 +65,18 @@ static WC_INLINE int curve448_priv_clamp_check(const byte* priv)
     return ret;
 }
 
-int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
-    const byte* priv)
+/* Compute pub = priv * basepoint(5).
+ *
+ * devId  [in]  Device to offload to, INVALID_DEVID for the caller's choice.
+ * cbOk   [in]  Whether the private scalar may be offered to a crypto
+ *              callback at all.  The keyless public API sets this, since it
+ *              has no key to take a devId from; a key-owned scalar only sets
+ *              it when the key is actually bound to a device, so an unbound
+ *              key is never offloaded to whichever device happens to be
+ *              registered first.
+ */
+static int curve448_make_pub_ex(int public_size, byte* pub, int private_size,
+    const byte* priv, int devId, int cbOk)
 {
     int ret;
 #ifndef WOLF_CRYPTO_CB_ONLY_CURVE448
@@ -87,10 +97,16 @@ int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
         return ret;
 
 #ifdef WOLF_CRYPTO_CB
-    ret = wc_CryptoCb_Curve448MakePub(public_size, pub, private_size, priv);
-    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
-        return ret;
-    /* fall-through when unavailable */
+    if (cbOk) {
+        ret = wc_CryptoCb_Curve448MakePub(devId, public_size, pub,
+            private_size, priv);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#else
+    (void)devId;
+    (void)cbOk;
 #endif
 
 #ifdef WOLF_CRYPTO_CB_ONLY_CURVE448
@@ -103,6 +119,33 @@ int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
 
     return ret;
+}
+
+/* Derive a key's public point from its own private scalar. */
+static int curve448_key_make_pub(curve448_key* key)
+{
+#ifdef WOLF_CRYPTO_CB
+    #ifdef WOLF_CRYPTO_CB_FIND
+    /* the find callback gets to route unbound keys */
+    const int cbOk = 1;
+    #else
+    const int cbOk = (key->devId != INVALID_DEVID);
+    #endif
+
+    return curve448_make_pub_ex((int)sizeof(key->p), key->p,
+        (int)sizeof(key->k), key->k, key->devId, cbOk);
+#else
+    return curve448_make_pub_ex((int)sizeof(key->p), key->p,
+        (int)sizeof(key->k), key->k, INVALID_DEVID, 0);
+#endif
+}
+
+int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
+    const byte* priv)
+{
+    /* no key, so no device was selected: any registered one may serve it */
+    return curve448_make_pub_ex(public_size, pub, private_size, priv,
+        INVALID_DEVID, 1);
 }
 
 /* Is every byte of the curve448 result zero? Only reached when the caller's
@@ -146,8 +189,9 @@ int wc_curve448_generic(int public_size, byte* pub,
         return ret;
 
 #ifdef WOLF_CRYPTO_CB
-    ret = wc_CryptoCb_Curve448Generic(public_size, pub, private_size, priv,
-        basepoint_size, basepoint);
+    /* no key, so no device was selected: any registered one may serve it */
+    ret = wc_CryptoCb_Curve448Generic(INVALID_DEVID, public_size, pub,
+        private_size, priv, basepoint_size, basepoint);
     if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
     #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
         /* RFC 7748: reject an all-zero result from the callback too */
@@ -232,8 +276,7 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
         key->k[CURVE448_KEY_SIZE-1] |= 0x80;
 
         /* compute public */
-        ret = wc_curve448_make_pub((int)sizeof(key->p), key->p,
-                                   (int)sizeof(key->k), key->k);
+        ret = curve448_key_make_pub(key);
         if (ret == 0) {
             key->pubSet = 1;
         }
@@ -435,8 +478,7 @@ int wc_curve448_export_public_ex(curve448_key* key, byte* out, word32* outLen,
     if (ret == 0) {
         /* calculate public if missing */
         if (!key->pubSet) {
-            ret = wc_curve448_make_pub((int)sizeof(key->p), key->p,
-                                       (int)sizeof(key->k), key->k);
+            ret = curve448_key_make_pub(key);
             key->pubSet = (ret == 0);
         }
     }

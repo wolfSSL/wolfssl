@@ -953,6 +953,7 @@ int test_wc_curve448_make_pub_generic(void)
 typedef struct curve448SpyCtx {
     int kgSeen;
     int ssSeen;
+    int mpSeen;
     int decline;
     int forceErr;
     int zeroSecret;
@@ -983,6 +984,10 @@ static int curve448_test_crypto_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             ret = wc_curve448_make_key(info->pk.curve448kg.rng,
                 info->pk.curve448kg.size, info->pk.curve448kg.key);
             info->pk.curve448kg.key->devId = save;
+        }
+        if (info->pk.type == WC_PK_TYPE_CURVE448_MAKE_PUB) {
+            /* count, then decline so the software path produces the point */
+            spy->mpSeen++;
         }
         if (info->pk.type == WC_PK_TYPE_CURVE448) {
             int save = info->pk.curve448.private_key->devId;
@@ -1022,6 +1027,7 @@ int test_wc_curve448_cryptocb(void)
     curve448_key keyB;
     byte   ssAB[CURVE448_PUB_KEY_SIZE];
     byte   ssBA[CURVE448_PUB_KEY_SIZE];
+    byte   pubTmp[CURVE448_PUB_KEY_SIZE];
     word32 ssABLen = (word32)sizeof(ssAB);
     word32 ssBALen = (word32)sizeof(ssBA);
 #ifndef WC_NO_CONSTRUCTORS
@@ -1098,6 +1104,28 @@ int test_wc_curve448_cryptocb(void)
             EC448_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
     }
     spy.zeroSecret = 0;
+#endif
+
+#if !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE448)
+    /* a key bound to no device must not have its private scalar handed to
+     * whichever device happens to be registered: keygen derives the public
+     * point in software without dispatching make_pub */
+    {
+        curve448_key unbound;
+        int mpBefore = spy.mpSeen;
+
+        XMEMSET(&unbound, 0, sizeof(unbound));
+        ExpectIntEQ(wc_curve448_init(&unbound), 0);
+        ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &unbound),
+            0);
+        ExpectIntEQ(spy.mpSeen, mpBefore);
+        /* the keyless public API has no devId to respect, so it still
+         * reaches the device */
+        ExpectIntEQ(wc_curve448_make_pub((int)sizeof(pubTmp), pubTmp,
+            (int)sizeof(unbound.k), unbound.k), 0);
+        ExpectIntGT(spy.mpSeen, mpBefore);
+        wc_curve448_free(&unbound);
+    }
 #endif
 
     /* constructor arg checks */

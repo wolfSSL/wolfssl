@@ -1516,7 +1516,7 @@ int wc_CryptoCb_Curve448(curve448_key* private_key,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_Curve448MakePub(int public_size, byte* pub,
+int wc_CryptoCb_Curve448MakePub(int devId, int public_size, byte* pub,
     int private_size, const byte* priv)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -1525,9 +1525,11 @@ int wc_CryptoCb_Curve448MakePub(int public_size, byte* pub,
     if (pub == NULL || priv == NULL)
         return ret;
 
-    /* try the find callback first, else grab the first registered device */
-    dev = wc_CryptoCb_FindDevice(INVALID_DEVID, WC_ALGO_TYPE_PK);
-    if (dev == NULL || dev->cb == NULL)
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    /* only a caller that selected no device settles for the first registered
+     * one; a devId names the single device allowed to see the scalar */
+    if ((dev == NULL || dev->cb == NULL) && (devId == INVALID_DEVID))
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
@@ -1545,7 +1547,7 @@ int wc_CryptoCb_Curve448MakePub(int public_size, byte* pub,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_Curve448Generic(int public_size, byte* pub,
+int wc_CryptoCb_Curve448Generic(int devId, int public_size, byte* pub,
     int private_size, const byte* priv, int basepoint_size,
     const byte* basepoint)
 {
@@ -1555,9 +1557,11 @@ int wc_CryptoCb_Curve448Generic(int public_size, byte* pub,
     if (pub == NULL || priv == NULL || basepoint == NULL)
         return ret;
 
-    /* try the find callback first, else grab the first registered device */
-    dev = wc_CryptoCb_FindDevice(INVALID_DEVID, WC_ALGO_TYPE_PK);
-    if (dev == NULL || dev->cb == NULL)
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    /* only a caller that selected no device settles for the first registered
+     * one; a devId names the single device allowed to see the scalar */
+    if ((dev == NULL || dev->cb == NULL) && (devId == INVALID_DEVID))
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;

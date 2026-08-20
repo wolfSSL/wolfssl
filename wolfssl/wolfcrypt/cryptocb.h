@@ -989,10 +989,10 @@ WOLFSSL_LOCAL int wc_CryptoCb_Curve448Gen(WC_RNG* rng, int keySize,
     curve448_key* key);
 WOLFSSL_LOCAL int wc_CryptoCb_Curve448(curve448_key* private_key,
     curve448_key* public_key, byte* out, word32* outlen, int endian);
-WOLFSSL_LOCAL int wc_CryptoCb_Curve448MakePub(int public_size, byte* pub,
-    int private_size, const byte* priv);
-WOLFSSL_LOCAL int wc_CryptoCb_Curve448Generic(int public_size, byte* pub,
-    int private_size, const byte* priv, int basepoint_size,
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448MakePub(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv);
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448Generic(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv, int basepoint_size,
     const byte* basepoint);
 #endif /* HAVE_CURVE448 */
 
