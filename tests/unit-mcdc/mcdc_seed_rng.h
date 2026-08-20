@@ -79,6 +79,15 @@
  * implementation half for why that matters.
  */
 
+/* The availability test below reads feature macros, so the configuration has
+ * to be in scope before it runs. A driver that includes this header as its
+ * FIRST wolfSSL include otherwise evaluates the test against an empty macro
+ * environment, silently selects the inert stubs, and pins nothing -- which
+ * builds, links and runs, so the campaign scores it as a pass. Pull the
+ * switchboard in here rather than relying on every caller's include order.
+ * It is idempotent, so callers that already included it are unaffected. */
+#include <wolfssl/wolfcrypt/settings.h>
+
 /* SHAKE-256 is gated positively by WOLFSSL_SHAKE256; there is no NO_SHA3. */
 #if !defined(WOLFSSL_SHAKE256) || defined(WOLFSSL_NO_SHAKE256) || \
     defined(WC_NO_RNG)

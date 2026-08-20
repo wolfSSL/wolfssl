@@ -1283,6 +1283,33 @@ static void wb_octet_accum(word32 seedAccum)
     wc_PKCS7_FreeStream(&pkcs7);
 }
 
+/* The "another OCTET STRING follows" branch, :6689. Its trailing operand needs
+ * an 0x04 tag whose length field is itself malformed -- a shape no encoder
+ * emits, since every OCTET STRING wolfSSL writes carries a well-formed length.
+ * Seeded directly, like wb_octet_accum() above, with currContRmnSz == 0 so the
+ * branch is entered on the first pass. */
+static int wb_octet_next_len(byte* in, word32 inSz)
+{
+    wc_PKCS7 pkcs7;
+    word32   idx = 0, tmpIdx = 0;
+    int      ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+
+    if (wc_PKCS7_CreateStream(&pkcs7) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    pkcs7.stream->currContSz    = 0;
+    pkcs7.stream->currContRmnSz = 0;
+    pkcs7.stream->expected      = 1;
+    pkcs7.stream->noContent     = 0;
+    pkcs7.stream->maxLen        = inSz;
+
+    ret = wc_PKCS7_HandleOctetStrings(&pkcs7, in, inSz, &tmpIdx, &idx, 1);
+    wc_PKCS7_FreeStream(&pkcs7);
+    return ret;
+}
+
 static void wb_octet_accum_chains(void)
 {
     WB_NOTE("wc_PKCS7_HandleOctetStrings(): existing content buffer with a"
@@ -1291,6 +1318,25 @@ static void wb_octet_accum_chains(void)
     WB_NOTE("wc_PKCS7_HandleOctetStrings(): existing content buffer with a"
             " non-zero accumulated size [:6817 trailing operand true]");
     wb_octet_accum(4);
+
+    {
+        static byte okLen[]  = { 0x04, 0x02, 0xAA, 0xBB };
+        static byte badLen[] = { 0x04 };
+        int ret;
+
+        WB_NOTE("wc_PKCS7_HandleOctetStrings(): a following OCTET STRING whose"
+                " length parses [:6689 trailing operand false]");
+        ret = wb_octet_next_len(okLen, (word32)sizeof(okLen));
+        WB_CHECK(ret != WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":6689 well-formed following OCTET STRING length");
+
+        WB_NOTE("wc_PKCS7_HandleOctetStrings(): a following OCTET STRING tag"
+                " with no length byte behind it [:6689 trailing operand"
+                " true]");
+        ret = wb_octet_next_len(badLen, (word32)sizeof(badLen));
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                ":6689 malformed following OCTET STRING length");
+    }
 }
 #else
 static void wb_octet_accum_chains(void)
@@ -1427,6 +1473,327 @@ static void wb_verify_outer_shapes(void)
 }
 
 /* ------------------------------------------------------------------------- *
+ * Section 16: identity- and version-dispatch operands that neither a sweep
+ * nor any public encoder can produce, because no encoder in the tree ever
+ * emits the shape the operand tests.
+ *
+ *   :6398 cond 1/2  wc_PKCS7_ParseSignerInfo()'s noDegenerate guard. The
+ *                   inner OR is `inSz == 0 || degenerate == 1`; both operands
+ *                   need a call with noDegenerate set, which the public
+ *                   decode path only ever makes with the *same* (inSz,
+ *                   degenerate) pair for a given bundle. Called directly with
+ *                   the three combinations instead.
+ *   :5166 cond 1    wc_PKCS7_RsaVerify()'s `keyOID != RSAk && keyOID !=
+ *   :5298 cond 1    RSAPSSk` defence-in-depth guard, and the same guard in
+ *                   wc_PKCS7_RsaPssVerify(). The false row needs an
+ *                   RSASSA-PSS SubjectPublicKeyInfo (keyOID == RSAPSSk) in
+ *                   pkcs7->cert[], which no bundle this module builds carries;
+ *                   the true row needs a non-RSA-family cert in the same
+ *                   binary. Both are supplied here from certs/.
+ *   :14106 cond 2   wc_PKCS7_ParseToRecipientInfoSet()'s BER marker test
+ *                   `ret == 0 && length == 0 && pkiMsg[(*idx)-1] == 0x80`.
+ *                   A zero-length *definite* outer SEQUENCE (`30 00`) is the
+ *                   only input that reaches the third operand with a false
+ *                   value; the `30 80` companion in the same binary supplies
+ *                   the true row.
+ *   :14215 cond 4   the ECDSA arm of the envelopedData version dispatch,
+ *                   `publicKeyOID == ECDSAk && (version != 0 && ...)`. The
+ *                   false row needs an ECC signer key with version 0, the
+ *                   true row the same key with a version that is none of
+ *                   0/2/3 -- one field of one hand-built header apart.
+ * ------------------------------------------------------------------------- */
+
+/* ContentInfo/EnvelopedData header, parsed as far as the RecipientInfo SET.
+ * Padded well past MAX_OID_SZ + MAX_LENGTH_SZ so that the streaming
+ * wc_PKCS7_AddDataToStream() never has to ask for more input. */
+static byte wbRisHdr[96];
+/* the same prefix with a zero-length definite outer SEQUENCE, and with the
+ * indefinite-length marker, so :14106's third operand sees both values */
+static byte wbRisEmptyDef[96];
+static byte wbRisEmptyIndef[96];
+
+static word32 wb_build_ris_hdr(byte* buf, word32 bufSz, byte version)
+{
+    word32 i = 0;
+
+    XMEMSET(buf, 0, bufSz);
+    buf[i++] = 0x30; buf[i++] = 0x16;              /* ContentInfo SEQUENCE */
+    buf[i++] = 0x06; buf[i++] = 0x09;              /* envelopedData OID */
+    buf[i++] = 0x2A; buf[i++] = 0x86; buf[i++] = 0x48; buf[i++] = 0x86;
+    buf[i++] = 0xF7; buf[i++] = 0x0D; buf[i++] = 0x01; buf[i++] = 0x07;
+    buf[i++] = 0x03;
+    buf[i++] = 0xA0; buf[i++] = 0x09;              /* [0] EXPLICIT */
+    buf[i++] = 0x30; buf[i++] = 0x07;              /* EnvelopedData SEQUENCE */
+    buf[i++] = 0x02; buf[i++] = 0x01; buf[i++] = version;
+    buf[i++] = 0x31; buf[i++] = 0x02;              /* RecipientInfo SET */
+    buf[i++] = 0x30; buf[i++] = 0x00;
+    return bufSz;
+}
+
+static int wb_parse_ris(byte* buf, word32 bufSz, word32 pubKeyOID)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    word32    idx = 0;
+    int       ret;
+
+    if (p == NULL) {
+        return MEMORY_E;
+    }
+    if (wc_PKCS7_InitWithCert(p, NULL, 0) != 0) {
+        wc_PKCS7_Free(p);
+        return BAD_FUNC_ARG;
+    }
+    p->publicKeyOID = pubKeyOID;
+    ret = wc_PKCS7_ParseToRecipientInfoSet(p, buf, bufSz, &idx, ENVELOPED_DATA);
+    wc_PKCS7_Free(p);
+    return ret;
+}
+
+static void wb_recipient_info_set_shapes(void)
+{
+    int ret;
+
+    WB_NOTE("wc_PKCS7_ParseToRecipientInfoSet(): zero-length outer SEQUENCE,"
+            " definite vs indefinite, isolates the 0x80 marker operand"
+            " [:14106 cond 2]");
+    XMEMSET(wbRisEmptyDef, 0, sizeof(wbRisEmptyDef));
+    wbRisEmptyDef[0] = 0x30;
+    wbRisEmptyDef[1] = 0x00;
+    ret = wb_parse_ris(wbRisEmptyDef, (word32)sizeof(wbRisEmptyDef), RSAk);
+    WB_CHECK(ret != 0, ":14106 definite zero-length SEQUENCE (marker false)");
+
+    XMEMSET(wbRisEmptyIndef, 0, sizeof(wbRisEmptyIndef));
+    wbRisEmptyIndef[0] = 0x30;
+    wbRisEmptyIndef[1] = 0x80;
+    ret = wb_parse_ris(wbRisEmptyIndef, (word32)sizeof(wbRisEmptyIndef), RSAk);
+    WB_CHECK(ret != 0, ":14106 indefinite-length SEQUENCE (marker true)");
+
+#ifdef HAVE_ECC
+    WB_NOTE("wc_PKCS7_ParseToRecipientInfoSet(): ECDSA signer key with"
+            " envelopedData version 0 and version 1 [:14215 cond 4]");
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x00);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), ECDSAk);
+    /* the success return is the RecipientInfo SET length, not 0 */
+    WB_CHECK(ret > 0, ":14215 ECDSAk with version 0 is accepted");
+
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x01);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), ECDSAk);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_VERSION_E),
+            ":14215 ECDSAk with version 1 is rejected");
+#endif
+
+    /* RSA companion rows, so the RSAk arm's operands are decided by the same
+     * two headers rather than only by real bundles. */
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x00);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), RSAk);
+    WB_CHECK(ret > 0, ":14215 RSAk with version 0 is accepted");
+    (void)wb_build_ris_hdr(wbRisHdr, (word32)sizeof(wbRisHdr), 0x01);
+    ret = wb_parse_ris(wbRisHdr, (word32)sizeof(wbRisHdr), RSAk);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_VERSION_E),
+            ":14215 RSAk with version 1 is rejected");
+}
+
+/* wc_PKCS7_ParseSignerInfo() with pkcs7->noDegenerate set, across the three
+ * (inSz, degenerate) combinations the inner OR needs. */
+static int wb_parse_signer_info_nodeg(byte* in, word32 inSz, int degenerate)
+{
+    wc_PKCS7 pkcs7;
+    word32   idx = 0;
+    byte*    signedAttrib = NULL;
+    int      signedAttribSz = 0;
+    int      ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    pkcs7.version = 1;
+    pkcs7.noDegenerate = 1;
+    ret = wc_PKCS7_ParseSignerInfo(&pkcs7, in, inSz, &idx, degenerate,
+            &signedAttrib, &signedAttribSz);
+    wc_PKCS7_SignerInfoFree(&pkcs7);
+    return ret;
+}
+
+static void wb_parse_signer_info_nodegenerate(void)
+{
+    int ret;
+
+    WB_NOTE("wc_PKCS7_ParseSignerInfo(): noDegenerate matrix, each operand of"
+            " `inSz == 0 || degenerate == 1` isolated [:6398]");
+
+    /* (T,T,-): inSz == 0 decides the OR */
+    ret = wb_parse_signer_info_nodeg(wbSiNoSeq, 0, 0);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E),
+            ":6398 inSz == 0 with noDegenerate set");
+
+    /* (T,F,T): degenerate decides the OR */
+    ret = wb_parse_signer_info_nodeg(wbSiNoSeq, (word32)sizeof(wbSiNoSeq), 1);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E),
+            ":6398 degenerate == 1 with noDegenerate set");
+
+    /* (T,F,F): the guard does not fire and the parse runs on */
+    ret = wb_parse_signer_info_nodeg(wbSiNoSeq, (word32)sizeof(wbSiNoSeq), 0);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E),
+            ":6398 neither OR operand true, parse proceeds");
+}
+
+/* ------------------------------------------------------------------------- *
+ * The RSA-family SPKI guards. Both verifiers walk pkcs7->cert[] themselves,
+ * so the vector is just "put this DER in cert[0] and call".
+ * ------------------------------------------------------------------------- */
+#ifndef NO_RSA
+static byte wbSpkiCert[2048];
+
+static void wb_rsa_spki_guards(void)
+{
+    byte  sig[256];
+    byte  hash[32];
+    word32 certSz;
+    wc_PKCS7* p;
+
+    XMEMSET(sig, 0x5A, sizeof(sig));
+    XMEMSET(hash, 0x5B, sizeof(hash));
+
+    /* (a) keyOID is neither RSAk nor RSAPSSk: an ECDSA certificate. */
+    certSz = wb_load_file("./certs/client-ecc-cert.der", wbSpkiCert,
+            (word32)sizeof(wbSpkiCert));
+    if (certSz > 0) {
+        WB_NOTE("wc_PKCS7_RsaVerify(): non-RSA-family SPKI rejected"
+                " [:5166 both operands true]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+                p->cert[0]   = wbSpkiCert;
+                p->certSz[0] = certSz;
+                p->hashOID   = SHA256h;
+                WB_CHECK(wc_PKCS7_RsaVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5166 ECDSA cert is skipped");
+#ifdef WC_RSA_PSS
+                WB_CHECK(wc_PKCS7_RsaPssVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5298 ECDSA cert is skipped");
+#endif
+            }
+            wc_PKCS7_Free(p);
+        }
+    }
+
+    /* (b) keyOID == RSAPSSk: the second operand alone decides the guard. */
+    certSz = wb_load_file("./certs/rsapss/client-rsapss.der", wbSpkiCert,
+            (word32)sizeof(wbSpkiCert));
+    if (certSz > 0) {
+        WB_NOTE("wc_PKCS7_RsaVerify(): RSASSA-PSS SPKI accepted by the guard"
+                " [:5166 second operand false]");
+        p = wc_PKCS7_New(NULL, INVALID_DEVID);
+        if (p != NULL) {
+            if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+                p->cert[0]   = wbSpkiCert;
+                p->certSz[0] = certSz;
+                p->hashOID   = SHA256h;
+                /* the signature is garbage, so the call still fails -- but it
+                 * fails *after* the guard, which is the point. */
+                WB_CHECK(wc_PKCS7_RsaVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5166 RSAPSS cert passes the guard, signature fails");
+#ifdef WC_RSA_PSS
+                WB_CHECK(wc_PKCS7_RsaPssVerify(p, sig, (int)sizeof(sig), hash,
+                            (word32)sizeof(hash)) != 0,
+                        ":5298 RSAPSS cert passes the guard, signature fails");
+#endif
+            }
+            wc_PKCS7_Free(p);
+        }
+    }
+}
+#else
+static void wb_rsa_spki_guards(void)
+{
+    WB_NOTE("NO_RSA; RSA-family SPKI guards skipped");
+}
+#endif /* !NO_RSA */
+
+/* ------------------------------------------------------------------------- *
+ * Section 17: the KTRI key-encryption-algorithm dispatch, :12114
+ *   `encOID != RSAk && encOID != RSAESOAEPk`
+ * Every KTRI this tree can *emit* carries rsaEncryption, which short-circuits
+ * on the first operand. The two rows the second operand needs are one byte
+ * apart from that: the last arc of the 9-byte algorithm OID inside the
+ * KeyTransRecipientInfo is rewritten in place -- 0x07 for id-RSAES-OAEP (the
+ * guard's false row) and 0x0A for id-RSASSA-PSS, which is in neither arm (the
+ * true row). Both replacements are the same length as rsaEncryption, so no
+ * enclosing ASN.1 length changes.
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+static const byte wbRsaEncOid[] = {
+    0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01
+};
+
+static void wb_ktri_alg_call(byte* buf, word32 len)
+{
+    wc_PKCS7* p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    static byte out[WB_SCRATCH_SZ];
+
+    if (p == NULL) {
+        return;
+    }
+    if (wc_PKCS7_InitWithCert(p, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) == 0 &&
+        wc_PKCS7_SetKey(p, (byte*)client_key_der_2048,
+            sizeof_client_key_der_2048) == 0) {
+        (void)wc_PKCS7_DecodeEnvelopedData(p, buf, len, out, sizeof(out));
+    }
+    wc_PKCS7_Free(p);
+}
+
+static void wb_ktri_key_alg_dispatch(void)
+{
+    word32 fullLen, i;
+    int    found = -1;
+
+    fullLen = wb_load_file("./certs/test/ktri-keyid-cms.msg", wbScratch,
+            sizeof(wbScratch));
+    if (fullLen < sizeof(wbRsaEncOid)) {
+        WB_NOTE("ktri-keyid-cms.msg unavailable; KTRI algorithm dispatch"
+                " skipped");
+        return;
+    }
+    /* the LAST rsaEncryption OID in the message is the KTRI's
+     * keyEncryptionAlgorithm (the earlier one is the certificate's SPKI) */
+    for (i = 0; i + (word32)sizeof(wbRsaEncOid) <= fullLen; i++) {
+        if (XMEMCMP(wbScratch + i, wbRsaEncOid, sizeof(wbRsaEncOid)) == 0) {
+            found = (int)i;
+        }
+    }
+    if (found < 0) {
+        WB_NOTE("no rsaEncryption OID found in ktri-keyid-cms.msg; KTRI"
+                " algorithm dispatch skipped");
+        return;
+    }
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): rsaEncryption (first operand false)"
+            " [:12114]");
+    wb_ktri_alg_call(wbScratch, fullLen);
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): id-RSAES-OAEP (second operand false)"
+            " [:12114 cond 1]");
+    wbScratch[(word32)found + 10] = 0x07;
+    wb_ktri_alg_call(wbScratch, fullLen);
+
+    WB_NOTE("wc_PKCS7_DecryptKtri(): an OID in neither arm (both operands"
+            " true) [:12114]");
+    wbScratch[(word32)found + 10] = 0x0A;
+    wb_ktri_alg_call(wbScratch, fullLen);
+
+    wbScratch[(word32)found + 10] = 0x01;
+}
+#else
+static void wb_ktri_key_alg_dispatch(void)
+{
+    WB_NOTE("NO_RSA or no 2048-bit cert buffers; KTRI algorithm dispatch"
+            " skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
  * main -- always returns 0 so the campaign harness keeps this variant's
  * coverage even if an individual sub-section's build config disables it.
  * ------------------------------------------------------------------------- */
@@ -1434,6 +1801,7 @@ int main(void)
 {
     int rngRet;
 
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== pkcs7 decode-chain white-box (Part 5) ===\n");
 
     rngRet = wc_InitRng(&wbRng);
@@ -1454,6 +1822,10 @@ int main(void)
     wb_octet_accum_chains();
     wb_ecdsa_verify_results();
     wb_verify_outer_shapes();
+    wb_recipient_info_set_shapes();
+    wb_parse_signer_info_nodegenerate();
+    wb_rsa_spki_guards();
+    wb_ktri_key_alg_dispatch();
 
     if (rngRet == 0) {
         wc_FreeRng(&wbRng);
