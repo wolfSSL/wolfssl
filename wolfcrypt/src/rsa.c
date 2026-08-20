@@ -2884,6 +2884,7 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
     mp_digit mp = 0;
     DECL_MP_INT_SIZE_DYN(rnd, mp_bitsused(&key->n), RSA_MAX_SIZE);
     DECL_MP_INT_SIZE_DYN(rndi, mp_bitsused(&key->n), RSA_MAX_SIZE);
+    DECL_MP_INT_SIZE_DYN(mask, mp_bitsused(&key->n), RSA_MAX_SIZE);
 #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
 
     if (MP_BITS_OVER_MAX(mp_bitsused(&key->n), RSA_MAX_SIZE)) {
@@ -2895,16 +2896,19 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
 #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
     NEW_MP_INT_SIZE(rnd, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
     NEW_MP_INT_SIZE(rndi, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
+    NEW_MP_INT_SIZE(mask, mp_bitsused(&key->n), key->heap, DYNAMIC_TYPE_RSA);
 #ifdef MP_INT_SIZE_CHECK_NULL
-    if ((rnd == NULL) || (rndi == NULL)) {
+    if ((rnd == NULL) || (rndi == NULL) || (mask == NULL)) {
         FREE_MP_INT_SIZE(rnd, key->heap, DYNAMIC_TYPE_RSA);
         FREE_MP_INT_SIZE(rndi, key->heap, DYNAMIC_TYPE_RSA);
+        FREE_MP_INT_SIZE(mask, key->heap, DYNAMIC_TYPE_RSA);
         return MEMORY_E;
     }
 #endif
 
     if ((INIT_MP_INT_SIZE(rnd, mp_bitsused(&key->n)) != MP_OKAY) ||
-            (INIT_MP_INT_SIZE(rndi, mp_bitsused(&key->n)) != MP_OKAY)) {
+            (INIT_MP_INT_SIZE(rndi, mp_bitsused(&key->n)) != MP_OKAY) ||
+            (INIT_MP_INT_SIZE(mask, mp_bitsused(&key->n)) != MP_OKAY)) {
         ret = MP_INIT_E;
     }
 
@@ -2912,16 +2916,36 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
         /* blind */
         ret = mp_rand(rnd, mp_get_digit_count(&key->n), rng);
     }
+    /* rndi = 1/rnd mod n
+     *
+     * mp_invmod() is a binary extended Euclidean variant whose iteration
+     * count and branches track its input, and rnd is secret. Invert rnd*mask
+     * for a fresh random mask and divide it back out afterwards:
+     * (rnd*mask)^-1 * mask == rnd^-1 mod n. The inversion then sees a value
+     * independent of rnd. */
     if (ret == 0) {
-        /* rndi = 1/rnd mod n */
-        if (mp_invmod(rnd, &key->n, rndi) != MP_OKAY) {
+        ret = mp_rand(mask, mp_get_digit_count(&key->n), rng);
+    }
+    if (ret == 0) {
+        if (mp_mulmod(rnd, mask, &key->n, rndi) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+        }
+    }
+    if (ret == 0) {
+        if (mp_invmod(rndi, &key->n, rndi) != MP_OKAY) {
             ret = MP_INVMOD_E;
+        }
+    }
+    if (ret == 0) {
+        if (mp_mulmod(rndi, mask, &key->n, rndi) != MP_OKAY) {
+            ret = MP_MULMOD_E;
         }
     }
     if (ret == 0) {
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         mp_memzero_add("RSA Private rnd", rnd);
         mp_memzero_add("RSA Private rndi", rndi);
+        mp_memzero_add("RSA Private mask", mask);
     #endif
 
         /* rnd = rnd^e */
@@ -3050,13 +3074,16 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
         ret = MP_MULMOD_E;
     }
 
+    mp_forcezero(mask);
     mp_forcezero(rndi);
     mp_forcezero(rnd);
+    FREE_MP_INT_SIZE(mask, key->heap, DYNAMIC_TYPE_RSA);
     FREE_MP_INT_SIZE(rndi, key->heap, DYNAMIC_TYPE_RSA);
     FREE_MP_INT_SIZE(rnd, key->heap, DYNAMIC_TYPE_RSA);
 #if !defined(MP_INT_SIZE_CHECK_NULL) && defined(WOLFSSL_CHECK_MEM_ZERO)
     mp_memzero_check(rnd);
     mp_memzero_check(rndi);
+    mp_memzero_check(mask);
 #endif
 #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
     return ret;

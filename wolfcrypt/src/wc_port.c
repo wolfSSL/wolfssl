@@ -2547,6 +2547,58 @@ int wolfSSL_HwPkMutexUnLock(void)
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) */
 
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+/* Initialize a static mutex exactly once.
+ *
+ * Backstop for callers that reach a subsystem without wolfCrypt_Init(). One
+ * atomic with three states: 0 = uninitialized, 1 = in progress, 2 = ready.
+ * Losers of the race wait for the winner rather than failing, so callers do
+ * not need a retry path. Same pattern as the SP ECC cache locks.
+ *
+ * @param [in]      m     Mutex to initialize.
+ * @param [in, out] flag  Election state, statically zero initialized.
+ * @return  0 on success, or when the mutex is already initialized.
+ * @return  Error from wc_InitMutex() otherwise.
+ */
+int wc_local_InitMutexOnce(wolfSSL_Mutex* m, wc_MutexOnceFlag* flag)
+{
+    int ret = 0;
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+    WC_ATOMIC_UINT_ARG expected;
+
+    if (WOLFSSL_ATOMIC_LOAD(*flag) == 2) {
+        return 0;
+    }
+
+    for (;;) {
+        expected = 0;
+        if (wolfSSL_Atomic_Uint_CompareExchange(flag, &expected, 1) == 1) {
+            /* Won the race. On failure reset to 0 so a later call retries. */
+            ret = wc_InitMutex(m);
+            WOLFSSL_ATOMIC_STORE(*flag, (ret == 0) ? 2U : 0U);
+            break;
+        }
+        if (expected == 2) {
+            /* Another thread completed the initialization. */
+            break;
+        }
+        /* Initialization in progress in another thread. */
+        WC_RELAX_LONG_LOOP();
+    }
+#else
+    /* No atomics to elect with: single-threaded cannot race, and opt-out
+     * builds keep their existing behavior. */
+    if (*flag != 2) {
+        ret = wc_InitMutex(m);
+        if (ret == 0) {
+            *flag = 2;
+        }
+    }
+#endif
+    return ret;
+}
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
+
 #if defined(WC_MUTEX_OPS_INLINE)
 
     /* defined in headers */

@@ -1512,7 +1512,7 @@ size_t wc_ecc_get_sets_count(void) {
     static wolfSSL_Mutex ecc_oid_cache_lock
         WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_oid_cache_lock);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    static volatile int eccOidLockInit = 0;
+    static wc_MutexOnceFlag eccOidLockInit = WOLFSSL_ATOMIC_INITIALIZER(0);
 #endif
 #endif /* HAVE_OID_ENCODING */
 
@@ -12123,6 +12123,71 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_KEY_IMPORT
+/* Check an imported private scalar is in [1, n-1] for the key's curve.
+ *
+ * Cheap by design - reads the order and compares, with no curve spec load or
+ * point arithmetic, so it runs on every import. The expensive public key
+ * consistency check stays behind WOLFSSL_VALIDATE_ECC_IMPORT.
+ *
+ * @param [in] key  ECC key with k and dp set.
+ * @return  0 when the scalar is in range.
+ * @return  ECC_PRIV_KEY_E when it is zero, negative or >= the order.
+ * @return  BAD_FUNC_ARG, MEMORY_E or a math error otherwise.
+ */
+static int ecc_check_privkey_range(ecc_key* key)
+{
+    int ret = 0;
+    mp_int* k;
+    WC_DECLARE_VAR(order, mp_int, 1, 0);
+
+    if ((key == NULL) || (key->dp == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* ecc_get_k() - not key->k - so this is correct on either side of
+     * ecc_blind_k_rng() under WOLFSSL_ECC_BLIND_K. */
+    k = ecc_get_k(key);
+
+#ifdef WOLFSSL_SE050
+    /* A zero scalar is how a key held in the secure element looks to
+     * software: se050_ecc_create_key() fills in only the public part, so the
+     * DER it round-trips through carries a zero private value. Range
+     * checking still applies to a scalar that is actually present. */
+    if (mp_iszero(k)) {
+        return 0;
+    }
+#endif
+
+    /* SP 800-56Ar3, section 5.6.2.1.2 - private keys are in [1, n-1]. */
+    if (mp_iszero(k) || mp_isneg(k)) {
+        return ECC_PRIV_KEY_E;
+    }
+
+    WC_ALLOC_VAR_EX(order, mp_int, 1, key->heap, DYNAMIC_TYPE_ECC,
+        ret=MEMORY_E);
+
+    if (ret == 0) {
+        ret = mp_init(order);
+    }
+    if (ret == 0) {
+        ret = mp_read_radix(order, key->dp->order, MP_RADIX_HEX);
+    #ifdef WOLFSSL_SM2
+        /* SM2 curve: private key must be less than order-1. */
+        if ((ret == 0) && (key->idx != ECC_CUSTOM_IDX) &&
+                (ecc_sets[key->idx].id == ECC_SM2P256V1)) {
+            ret = mp_sub_d(order, 1, order);
+        }
+    #endif
+        if ((ret == 0) && (mp_cmp(k, order) != MP_LT)) {
+            ret = ECC_PRIV_KEY_E;
+        }
+        mp_clear(order);
+    }
+    WC_FREE_VAR_EX(order, key->heap, DYNAMIC_TYPE_ECC);
+
+    return ret;
+}
+
 /* Software-only import of private key, public part optional.
  * This internal helper avoids recursion when called from the SETKEY path. */
 static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
@@ -12255,6 +12320,12 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
     }
 #else
 
+#ifdef WOLFSSL_ECC_BLIND_K
+    /* Drop any blind left over from a previous use of this key: the new
+     * scalar is read in unblinded and ecc_blind_k_rng() below installs a
+     * fresh one. Matches the x963 and raw import paths. */
+    mp_forcezero(key->kb);
+#endif
     ret = mp_read_unsigned_bin(key->k, priv, privSz);
 #ifdef HAVE_WOLF_BIGINT
     if (ret == 0 && wc_bigint_from_unsigned_bin(&key->k->raw, priv,
@@ -12263,34 +12334,9 @@ static int _ecc_import_private_key_ex(const byte* priv, word32 privSz,
         ret = ASN_GETINT_E;
     }
 #endif /* HAVE_WOLF_BIGINT */
-#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if (ret == 0) {
-        WC_DECLARE_VAR(order, mp_int, 1, 0);
-
-        WC_ALLOC_VAR_EX(order, mp_int, 1, key->heap, DYNAMIC_TYPE_ECC,
-            ret=MEMORY_E);
-
-        if (ret == 0) {
-            ret = mp_init(order);
-        }
-        if (ret == 0) {
-            ret = mp_read_radix(order, key->dp->order, MP_RADIX_HEX);
-        }
-    #ifdef WOLFSSL_SM2
-        /* SM2 curve: private key must be less than order-1. */
-        if ((ret == 0) && (key->idx != ECC_CUSTOM_IDX) &&
-                (ecc_sets[key->idx].id == ECC_SM2P256V1)) {
-            ret = mp_sub_d(order, 1, order);
-        }
-    #endif
-        if ((ret == 0) && (mp_cmp(key->k, order) != MP_LT)) {
-            ret = ECC_PRIV_KEY_E;
-        }
-
-        mp_clear(order);
-        WC_FREE_VAR_EX(order, key->heap, DYNAMIC_TYPE_ECC);
+        ret = ecc_check_privkey_range(key);
     }
-#endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 #ifdef WOLFSSL_ECC_BLIND_K
     if (ret == 0) {
         ret = ecc_blind_k_rng(key, NULL);
@@ -12773,6 +12819,15 @@ static int _ecc_import_raw_private(ecc_key* key, const char* qx,
                     err = BAD_FUNC_ARG;
                 }
             }
+        #if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+            /* A black key holds an encrypted blob, not a scalar. */
+            if ((err == MP_OKAY) && (key->blackKey == 0))
+        #else
+            if (err == MP_OKAY)
+        #endif
+            {
+                err = ecc_check_privkey_range(key);
+            }
         } else {
             key->type = ECC_PUBLICKEY;
         }
@@ -13109,7 +13164,8 @@ static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 #ifndef HAVE_THREAD_LS
     static wolfSSL_Mutex ecc_fp_lock WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_fp_lock);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    static volatile int initMutex = 0;  /* prevent multiple mutex inits */
+    /* Elects a single initializer for ecc_fp_lock. */
+    static wc_MutexOnceFlag initMutex = WOLFSSL_ATOMIC_INITIALIZER(0);
 #endif
 #endif /* HAVE_THREAD_LS */
 
@@ -14401,9 +14457,11 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0) {
+       mp_clear(mu);
+       WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+       return BAD_MUTEX_E;
    }
 #endif
 
@@ -14549,9 +14607,10 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0) {
+      err = BAD_MUTEX_E;
+      goto out;
    }
 #endif
 
@@ -14708,9 +14767,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0) {
+      err = BAD_MUTEX_E;
+      goto out;
    }
 #endif
 
@@ -14856,10 +14916,8 @@ void wc_ecc_fp_init(void)
 #ifndef WOLFSSL_SP_MATH
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) {
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
+   /* Losing the election is fine - the winner finishes the init. */
+   (void)wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex);
 #endif
 #endif
 #endif
@@ -14873,10 +14931,9 @@ void wc_ecc_fp_free(void)
 #if !defined(WOLFSSL_SP_MATH)
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
+   /* extra sanity check if wolfCrypt_Init not called */
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0)
+       return;
 #endif
 
    if (wc_LockMutex(&ecc_fp_lock) == 0) {
@@ -14888,7 +14945,7 @@ void wc_ecc_fp_free(void)
        wc_UnLockMutex(&ecc_fp_lock);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
        wc_FreeMutex(&ecc_fp_lock);
-       initMutex = 0;
+       WOLFSSL_ATOMIC_STORE(initMutex, 0);
 #endif
    }
 #endif /* HAVE_THREAD_LS */
@@ -16925,12 +16982,7 @@ int wc_ecc_oid_cache_init(void)
 {
     int ret = 0;
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-    if (eccOidLockInit == 0) {
-        ret = wc_InitMutex(&ecc_oid_cache_lock);
-        if (ret == 0) {
-            eccOidLockInit = 1;
-        }
-    }
+    ret = wc_local_InitMutexOnce(&ecc_oid_cache_lock, &eccOidLockInit);
 #endif
     return ret;
 }
@@ -16939,7 +16991,7 @@ void wc_ecc_oid_cache_free(void)
 {
 #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
     wc_FreeMutex(&ecc_oid_cache_lock);
-    eccOidLockInit = 0;
+    WOLFSSL_ATOMIC_STORE(eccOidLockInit, 0);
 #endif
 }
 #endif /* HAVE_OID_ENCODING */
@@ -16959,12 +17011,9 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
 #ifdef HAVE_OID_ENCODING
     #ifndef WOLFSSL_MUTEX_INITIALIZER
         /* extra sanity check if wolfCrypt_Init not called */
-        if (eccOidLockInit == 0) {
-            ret = wc_InitMutex(&ecc_oid_cache_lock);
-            if (ret != 0) {
-                return BAD_MUTEX_E;
-            }
-            eccOidLockInit = 1;
+        if (wc_local_InitMutexOnce(&ecc_oid_cache_lock,
+                &eccOidLockInit) != 0) {
+            return BAD_MUTEX_E;
         }
     #endif
 

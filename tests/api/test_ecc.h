@@ -47,6 +47,7 @@ int test_wc_ecc_import_private_key(void);
 int test_wc_ecc_export_private_only(void);
 int test_wc_ecc_rs_to_sig(void);
 int test_wc_ecc_import_raw(void);
+int test_wc_ecc_import_privkey_range(void);
 int test_wc_ecc_import_unsigned(void);
 int test_wc_ecc_sig_size(void);
 int test_wc_ecc_ctx_new(void);
@@ -96,6 +97,7 @@ int test_wc_EccDecisionCoverage4(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_export_private_only),            \
     TEST_DECL_GROUP("ecc", test_wc_ecc_rs_to_sig),                      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_raw),                     \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_import_privkey_range),           \
     TEST_DECL_GROUP("ecc", test_wc_ecc_import_unsigned),                \
     TEST_DECL_GROUP("ecc", test_wc_ecc_sig_size),                       \
     TEST_DECL_GROUP("ecc", test_wc_ecc_ctx_new),                        \

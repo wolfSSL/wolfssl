@@ -89,7 +89,12 @@ silence."
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
-/* TODO: Consider linked list with mutex */
+/* Fixed table, read without a lock on every offloaded operation. Lookups
+ * match on devId, so an entry is filled before devId is stored and cleared
+ * after devId is retired, with a WC_BARRIER() between the two so the
+ * compiler cannot reorder them. Serializing register/unregister against each
+ * other, and against operations already dispatched to that device, remains
+ * the caller's job. */
 
 typedef struct CryptoCb {
     int devId;
@@ -381,8 +386,13 @@ static CryptoCb* wc_CryptoCb_GetDevice(int devId)
 {
     int i;
     for (i = 0; i < MAX_CRYPTO_DEVID_CALLBACKS; i++) {
-        if (gCryptoDev[i].devId == devId)
+        if (gCryptoDev[i].devId == devId) {
+            /* Pairs with the publish barrier in wc_CryptoCb_RegisterDevice():
+             * cb and ctx must not be read before the devId that selected
+             * this entry. */
+            WC_BARRIER();
             return &gCryptoDev[i];
+        }
     }
     return NULL;
 }
@@ -435,8 +445,11 @@ static WC_INLINE int wc_CryptoCb_TranslateErrorCode(int ret)
 /* Helper function to reset a device entry to invalid */
 static WC_INLINE void wc_CryptoCb_ClearDev(CryptoCb *dev)
 {
-    XMEMSET(dev, 0, sizeof(*dev));
+    /* Retire the entry, then clear the rest of it. */
     dev->devId = INVALID_DEVID;
+    WC_BARRIER();
+    dev->cb    = NULL;
+    dev->ctx   = NULL;
 }
 
 void wc_CryptoCb_Init(void)
@@ -528,7 +541,7 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
     if (dev == NULL)
         return BUFFER_E; /* out of devices */
 
-    dev->devId = devId;
+    /* Fill the entry before publishing it - see the note on gCryptoDev. */
     dev->cb    = cb;
     dev->ctx   = ctx;
 
@@ -554,9 +567,17 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
         else {
             /* Error in callback register cmd. Don't register */
             wc_CryptoCb_ClearDev(dev);
+            return rc;
         }
     }
 #endif
+
+    /* Publish the entry last, after everything it points at is in place.
+     * The slot is therefore not discoverable from the register command
+     * itself - a handler must not dispatch through its own devId. */
+    WC_BARRIER();
+    dev->devId = devId;
+
     return rc;
 }
 

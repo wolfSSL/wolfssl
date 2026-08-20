@@ -648,7 +648,6 @@ int test_wc_ecc_shared_secret(void)
     !defined(HAVE_SELFTEST) && \
     defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
@@ -666,8 +665,10 @@ static int ecc_shared_secret_inf_case(const char* qx, const char* qy,
     ecc_key key;
     ecc_key pubKey;
     WC_RNG  rng;
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_BLIND_K)
     byte    out[MAX_ECC_BYTES];
     word32  outlen = (word32)sizeof(out);
+#endif
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&pubKey, 0, sizeof(pubKey));
@@ -679,8 +680,25 @@ static int ecc_shared_secret_inf_case(const char* qx, const char* qy,
     ExpectIntEQ(wc_ecc_init(&pubKey), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, order, curveName), 0);
+    /* A scalar equal to the order is out of range - the import must reject
+     * it. */
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, order, curveName),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_BLIND_K)
+    /* Plant the order past the import check so the identity check inside
+     * wc_ecc_shared_secret() stays covered. Needs direct mp access because
+     * the import above now rejects the only input that reaches it, and a
+     * stable k, so it is skipped where the scalar is kept blinded. The
+     * all-public-mp CI entry exists to keep this arm compiled in. */
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, NULL, curveName), 0);
+    ExpectIntEQ(mp_read_radix(wc_ecc_key_get_priv(&key), order,
+        MP_RADIX_HEX), 0);
+    if (EXPECT_SUCCESS()) {
+        key.type = ECC_PRIVATEKEY;
+    }
     ExpectIntEQ(wc_ecc_import_raw(&pubKey, qx, qy, NULL, curveName), 0);
+#endif
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
@@ -688,8 +706,10 @@ static int ecc_shared_secret_inf_case(const char* qx, const char* qy,
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_BLIND_K)
     ExpectIntEQ(wc_ecc_shared_secret(&key, &pubKey, out, &outlen),
         WC_NO_ERR_TRACE(ECC_INF_E));
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&pubKey);
@@ -1268,6 +1288,98 @@ int test_wc_ecc_rs_to_sig(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_rs_to_sig */
+
+/*
+ * A private scalar must be in [1, n-1] (SP 800-56Ar3 5.6.2.1.2). The check is
+ * cheap - no scalar multiply - so it runs on every import, not just under
+ * WOLFSSL_VALIDATE_ECC_IMPORT: these cases hold in a default build too.
+ */
+int test_wc_ecc_import_privkey_range(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(NO_ECC256) && \
+    defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_IMXRT1170_CAAM)
+    ecc_key     key;
+    const char* qx =
+        "bb33ac4c27504ac64aa504c33cde9f36db722dce94ea2bfacb2009392c16e861";
+    const char* qy =
+        "02e9af4dd302939a315b9792217ff0cf18da9111023486e82058330b803489d8";
+    const char* d  =
+        "45b66902739c6c85a1385b72e8e8c7acc4038d533504fa6c28dc348de1a8098c";
+    /* n for SECP256R1 */
+    const char* order =
+        "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551";
+    const char* curveName = "SECP256R1";
+    /* Binary form of d above - in range. */
+    static const byte dBin[] = {
+        0x45, 0xb6, 0x69, 0x02, 0x73, 0x9c, 0x6c, 0x85,
+        0xa1, 0x38, 0x5b, 0x72, 0xe8, 0xe8, 0xc7, 0xac,
+        0xc4, 0x03, 0x8d, 0x53, 0x35, 0x04, 0xfa, 0x6c,
+        0x28, 0xdc, 0x34, 0x8d, 0xe1, 0xa8, 0x09, 0x8c
+    };
+    /* Above n for every 256-bit curve. */
+    static const byte dTooBig[] = {
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+    };
+    static const byte dZero[sizeof(dBin)] = { 0 };
+
+    /* A scalar equal to the order is out of range. */
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, order, curveName),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    wc_ecc_free(&key);
+
+    /* A zero scalar is out of range at the other end. */
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntLT(wc_ecc_import_raw(&key, qx, qy, "0", curveName), 0);
+    wc_ecc_free(&key);
+
+    /* The matching in-range key still imports. */
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_raw(&key, qx, qy, d, curveName), 0);
+    wc_ecc_free(&key);
+
+    /* Same three through the unsigned-binary import. */
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_unsigned(&key, (byte*)dTooBig, (byte*)dTooBig,
+        (byte*)dTooBig, ECC_SECP256R1), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    wc_ecc_free(&key);
+
+    /* Same path with no public key to check against, so the range check is
+     * the only guard. */
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_private_key_ex(dTooBig, (word32)sizeof(dTooBig),
+        NULL, 0, &key, ECC_SECP256R1), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    wc_ecc_free(&key);
+
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_private_key_ex(dZero, (word32)sizeof(dZero),
+        NULL, 0, &key, ECC_SECP256R1), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    wc_ecc_free(&key);
+
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_private_key_ex(dBin, (word32)sizeof(dBin),
+        NULL, 0, &key, ECC_SECP256R1), 0);
+    wc_ecc_free(&key);
+#endif
+    return EXPECT_RESULT();
+}
 
 int test_wc_ecc_import_raw(void)
 {
@@ -2368,17 +2480,20 @@ int test_wc_ecc_mulmod(void)
     ecc_key     key1;
     ecc_key     key2;
     ecc_key     key3;
+    ecc_key     key4;
     WC_RNG      rng;
     int         ret;
 
     XMEMSET(&key1, 0, sizeof(ecc_key));
     XMEMSET(&key2, 0, sizeof(ecc_key));
     XMEMSET(&key3, 0, sizeof(ecc_key));
+    XMEMSET(&key4, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
     ExpectIntEQ(wc_ecc_init(&key1), 0);
     ExpectIntEQ(wc_ecc_init(&key2), 0);
     ExpectIntEQ(wc_ecc_init(&key3), 0);
+    ExpectIntEQ(wc_ecc_init(&key4), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ret = wc_ecc_make_key(&rng, KEY32, &key1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -2387,32 +2502,39 @@ int test_wc_ecc_mulmod(void)
     ExpectIntEQ(ret, 0);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 
+    /* key2/key3 carry the base point and the result point; key4 carries the
+     * curve parameter A and the prime. Those two are curve constants, not
+     * private keys, so they ride in as public coordinates - the private key
+     * import path rejects values outside [1, n-1]. */
     ExpectIntEQ(wc_ecc_import_raw_ex(&key2, key1.dp->Gx, key1.dp->Gy,
-        key1.dp->Af, ECC_SECP256R1), 0);
+        NULL, ECC_SECP256R1), 0);
     ExpectIntEQ(wc_ecc_import_raw_ex(&key3, key1.dp->Gx, key1.dp->Gy,
-        key1.dp->prime, ECC_SECP256R1), 0);
+        NULL, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_import_raw_ex(&key4, key1.dp->Af, key1.dp->prime,
+        NULL, ECC_SECP256R1), 0);
 
     ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
-        &key3.pubkey, wc_ecc_key_get_priv(&key2), wc_ecc_key_get_priv(&key3),
+        &key3.pubkey, key4.pubkey.x, key4.pubkey.y,
         1), 0);
 
     /* Test bad args. */
     ExpectIntEQ(ret = wc_ecc_mulmod(NULL, &key2.pubkey, &key3.pubkey,
-        wc_ecc_key_get_priv(&key2), wc_ecc_key_get_priv(&key3), 1),
+        key4.pubkey.x, key4.pubkey.y, 1),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), NULL, &key3.pubkey,
-        wc_ecc_key_get_priv(&key2), wc_ecc_key_get_priv(&key3), 1),
+        key4.pubkey.x, key4.pubkey.y, 1),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey, NULL,
-        wc_ecc_key_get_priv(&key2), wc_ecc_key_get_priv(&key3), 1),
+        key4.pubkey.x, key4.pubkey.y, 1),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
-        &key3.pubkey, wc_ecc_key_get_priv(&key2), NULL, 1),
+        &key3.pubkey, key4.pubkey.x, NULL, 1),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
 
     wc_ecc_free(&key1);
     wc_ecc_free(&key2);
     wc_ecc_free(&key3);
+    wc_ecc_free(&key4);
 
 #ifdef FP_ECC
     wc_ecc_fp_free();
