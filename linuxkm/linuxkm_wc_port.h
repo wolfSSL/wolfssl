@@ -35,6 +35,19 @@
         #error Unsupported kernel.
     #endif
 
+    /* in_hardirq() is the 5.11 name for in_irq(); both expand to
+     * hardirq_count() and 5.11 kept in_irq() as well, so this is a rename and
+     * nothing more:
+     *   5.10 include/linux/preempt.h:99   #define in_irq() (hardirq_count())
+     *   5.11 include/linux/preempt.h:94   #define in_hardirq() (hardirq_count())
+     *   5.11 include/linux/preempt.h:104  #define in_irq() (hardirq_count())
+     * Without this, module_hooks.c fails to build on every kernel before 5.11
+     * with "implicit declaration of function 'in_hardirq'".  Verified against
+     * the 5.6/5.7/5.8/5.9/5.10 and 5.11 trees, 2026-08-20. */
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+        #define in_hardirq() in_irq()
+    #endif
+
     #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
         #if defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
             #define WC_LINUX_CONFIG_SELFTESTS
