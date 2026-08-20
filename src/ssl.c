@@ -5660,6 +5660,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
+        ssl->options.sentUserCanceled = 0;
         ssl->options.closeNotify = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;

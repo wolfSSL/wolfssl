@@ -5441,6 +5441,8 @@ struct Options {
     word16            isClosed:1;         /* if we consider conn closed */
     word16            closeNotify:1;      /* we've received a close notify */
     word16            sentNotify:1;       /* we've sent a close notify */
+    word16            sentUserCanceled:1; /* we've sent a user_canceled and
+                                           * owe the peer a close notify */
     word16            usingCompression:1; /* are we using compression */
     word16            haveRSA:1;          /* RSA available */
     word16            haveECC:1;          /* ECC available */
