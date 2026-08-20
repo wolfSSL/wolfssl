@@ -671,7 +671,14 @@ CLEANFILES += advisories/out/*.csaf.json advisories/out/*.cdx.json
 # downstream `make advisory`.
 EXTRA_DIST += advisories/vex-overlay.json
 
+# The FIPS bundle manifest is written by fips-check.sh and so exists only in an
+# assembled FIPS source tree.  It cannot go in EXTRA_DIST, because automake
+# requires those files unconditionally and `make dist` would then fail for
+# every ordinary non-FIPS release.
 dist-hook:
+	@if test -f $(srcdir)/.wolfssl-fips-bundle; then \
+	    cp -p $(srcdir)/.wolfssl-fips-bundle $(distdir)/.wolfssl-fips-bundle; \
+	fi
 	$(MKDIR_P) $(distdir)/advisories/records
 	@for f in $(srcdir)/advisories/records/*.json; do \
 	    test -f "$$f" || continue; \

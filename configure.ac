@@ -479,6 +479,29 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
 
+# The FIPS bundle manifest is written by fips-check.sh when a FIPS source tree
+# is assembled. It records which --enable-fips option matches the FIPS module
+# sources actually present in this tree. It is not compiled, and sits outside
+# the FIPS module boundary.
+#
+# A bare --enable-fips (or --enable-fips=auto) takes its version from the
+# manifest. An explicit --enable-fips=<version> is cross-checked against it
+# further below.
+WOLFSSL_FIPS_BUNDLE_FILE=".wolfssl-fips-bundle"
+FIPS_BUNDLE_OPTION=
+AS_IF([test -r "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE"],
+      [FIPS_BUNDLE_OPTION=`sed -n 's/^FIPS_OPTION=//p' "$srcdir/$WOLFSSL_FIPS_BUNDLE_FILE" 2>/dev/null | head -1`])
+
+AS_CASE([$ENABLED_FIPS],
+    [yes|auto],[
+        AC_MSG_CHECKING([which FIPS module this source tree contains])
+        AS_IF([test "x$FIPS_BUNDLE_OPTION" != "x"],
+              [ENABLED_FIPS="$FIPS_BUNDLE_OPTION"
+               AC_MSG_RESULT([$ENABLED_FIPS (from $WOLFSSL_FIPS_BUNDLE_FILE)])],
+              [AC_MSG_RESULT([unknown])
+               AC_MSG_ERROR([--enable-fips cannot auto-detect the FIPS version of this source tree: no $WOLFSSL_FIPS_BUNDLE_FILE manifest was found. Either this tree predates the manifest, or it is not a FIPS bundle. Pass the version explicitly, for example --enable-fips=v5 or --enable-fips=ready.])])
+    ])
+
 FIPS_FLAVOR="$ENABLED_FIPS"
 AC_SUBST([FIPS_FLAVOR])
 
@@ -575,6 +598,25 @@ AS_CASE([$ENABLED_WOLFENGINE],
 FIPS_DEVREADY_MAJOR=7
 FIPS_DEVREADY_MINOR=0
 FIPS_DEVREADY_PATCH=0
+
+# If this tree carries a FIPS bundle manifest and a FIPS version was named
+# explicitly, require that the two agree. Configuring a FIPS bundle with the
+# wrong --enable-fips version otherwise fails much later, deep in the compile,
+# with hundreds of errors that look like library bugs rather than like a
+# mismatched build option.
+AS_CASE([$ENABLED_FIPS],
+    [no|disabled],[],
+    [
+        FIPS_REQUESTED_NORM="$ENABLED_FIPS"
+        AS_CASE([$FIPS_REQUESTED_NORM],
+            [cert2425],[FIPS_REQUESTED_NORM="v1"],
+            [cert3389],[FIPS_REQUESTED_NORM="v2"],
+            [cert4718],[FIPS_REQUESTED_NORM="v5"],
+            [v7-ready],[FIPS_REQUESTED_NORM="ready"],
+            [v7-dev],[FIPS_REQUESTED_NORM="dev"])
+        AS_IF([test "x$FIPS_BUNDLE_OPTION" != "x" && test "x$FIPS_REQUESTED_NORM" != "x$FIPS_BUNDLE_OPTION"],
+              [AC_MSG_ERROR([--enable-fips=$ENABLED_FIPS does not match the FIPS module sources in this tree, which are $FIPS_BUNDLE_OPTION according to $WOLFSSL_FIPS_BUNDLE_FILE. Use --enable-fips=$FIPS_BUNDLE_OPTION, or a bare --enable-fips to auto-detect.])])
+    ])
 
 AS_CASE([$ENABLED_FIPS],
     [no],[
@@ -797,7 +839,7 @@ AS_CASE([$FIPS_VERSION],
     [],
     [
       AS_IF([ ! test -s $srcdir/wolfcrypt/src/fips.c],
-            [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])])
+            [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$FIPS_REQUESTED_NORM])])
     ]
 )
 
