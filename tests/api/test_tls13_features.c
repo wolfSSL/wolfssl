@@ -911,10 +911,15 @@ static int test_tls13_feat_ech_round(int echEnabled)
     ExpectIntEQ(ssl_s->options.havePeerCert, 1);
 
     /* Drain the post-handshake NewSessionTicket so DoTls13NewSessionTicket()
-     * runs with the ECH state still attached. */
+     * runs with the ECH state still attached. A build can enable ECH without
+     * session tickets (--enable-ech alone leaves "Session Ticket: no"), and
+     * then the server sends nothing after the handshake: the read still
+     * reports WANT_READ, but there is no ticket to have received. */
     ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+#ifdef HAVE_SESSION_TICKET
     ExpectIntEQ(ssl_c->msgsReceived.got_session_ticket, 1);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
