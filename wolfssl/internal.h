@@ -7010,14 +7010,15 @@ struct SystemCryptoPolicy {
 do {                                                                           \
     (err) = wolfSSL_ERR_peek_last_error();                                     \
     if (wolfSSL_ERR_GET_LIB(err) == WOLFSSL_ERR_LIB_PEM &&                     \
-        wolfSSL_ERR_GET_REASON(err) == -WOLFSSL_PEM_R_NO_START_LINE_E) {       \
+        wolfSSL_ERR_GET_REASON(err) ==                                         \
+            -WC_NO_ERR_TRACE(WOLFSSL_PEM_R_NO_START_LINE_E)) {                 \
         unsigned long peekErr;                                                 \
         do {                                                                   \
             wc_RemoveErrorNode(-1);                                            \
             peekErr = wolfSSL_ERR_peek_last_error();                           \
         } while (wolfSSL_ERR_GET_LIB(peekErr) == WOLFSSL_ERR_LIB_PEM &&        \
                  wolfSSL_ERR_GET_REASON(peekErr) ==                            \
-                                              -WOLFSSL_PEM_R_NO_START_LINE_E); \
+                 -WC_NO_ERR_TRACE(WOLFSSL_PEM_R_NO_START_LINE_E));             \
     }                                                                          \
 } while(0)
 #else
