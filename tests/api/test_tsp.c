@@ -117,7 +117,9 @@ int test_wc_TspRequest_SetHashType(void)
 #if defined(WOLFSSL_TSP) && !defined(NO_SHA256) && \
     defined(WOLFSSL_TSP_REQUESTER)
     TspRequest req;
+    byte zeros[WC_SHA256_DIGEST_SIZE];
 
+    XMEMSET(zeros, 0, sizeof(zeros));
     ExpectIntEQ(wc_TspRequest_Init(&req), 0);
 
     /* Bad argument. */
@@ -126,18 +128,36 @@ int test_wc_TspRequest_SetHashType(void)
     /* Hash type that is not a usable algorithm. */
     ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_NONE),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
+#if !defined(NO_MD5) && !defined(NO_SHA)
+    /* MD5_SHA has no OID of its own - it maps to the MD5 OID. */
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_MD5_SHA),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+#endif
+#ifndef NO_MD5
+    /* Plain MD5 has its own OID and is still accepted. */
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_MD5), 0);
+    ExpectIntEQ(req.imprint.hashAlgOID, MD5h);
+#endif
 
-    /* SHA-256 sets the algorithm OID and the digest size. */
+    /* SHA-256 sets the algorithm OID - the digest is set separately. */
     ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
     ExpectIntEQ(req.imprint.hashAlgOID, SHA256h);
-    ExpectIntEQ(req.imprint.hashSz, WC_SHA256_DIGEST_SIZE);
+    ExpectIntEQ(req.imprint.hashSz, 0);
 
 #ifdef WOLFSSL_SHA384
-    /* A different algorithm sets a different OID and size. */
+    /* A different algorithm sets a different OID. */
     ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA384), 0);
     ExpectIntEQ(req.imprint.hashAlgOID, SHA384h);
-    ExpectIntEQ(req.imprint.hashSz, WC_SHA384_DIGEST_SIZE);
+    ExpectIntEQ(req.imprint.hashSz, 0);
 #endif
+
+    /* Setting the algorithm discards a digest already set. */
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, tsHashedMsg,
+        (word32)sizeof(tsHashedMsg)), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(req.imprint.hashSz, 0);
+    ExpectBufEQ(req.imprint.hash, zeros, (int)sizeof(zeros));
 #endif
     return EXPECT_RESULT();
 }
@@ -199,6 +219,14 @@ int test_wc_TspRequest_GetSetHash(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Hash too big for the message imprint. */
     ExpectIntEQ(wc_TspRequest_SetHash(&req, hash, WC_TSP_MAX_HASH_SZ + 1),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    /* Hash algorithm not set yet. */
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, hash, (word32)sizeof(hash)),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    /* One byte short of the algorithm's digest size. */
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, hash, (word32)sizeof(hash) - 1),
         WC_NO_ERR_TRACE(BUFFER_E));
 
     /* Set the hash and length. */
@@ -434,7 +462,22 @@ int test_wc_TspRequest_Encode(void)
     req.imprint.hashSz = WC_TSP_MAX_HASH_SZ + 1;
     ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    req.imprint.hashSz = (word32)sizeof(tsHashedMsg);
+    /* Hash length that is not the algorithm's digest size. */
+    req.imprint.hashSz = (word32)sizeof(tsHashedMsg) - 1;
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Algorithm set but the digest never supplied - not encoded. */
+    ExpectIntEQ(wc_TspRequest_Init(&req), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Setting the algorithm after the digest discards the digest. */
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, tsHashedMsg,
+        (word32)sizeof(tsHashedMsg)), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    test_tsp_set_hash(&req.imprint);
     /* Policy too long. */
     req.policySz = MAX_OID_SZ + 1;
     ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &encSz),
@@ -483,6 +526,19 @@ int test_wc_TspRequest_Encode(void)
     sz = (word32)sizeof(enc);
     ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &sz), 0);
     ExpectIntGT(sz, (word32)sizeof(tsMinReqDer));
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && defined(WOLFSSL_SHA512) && \
+    !defined(WOLFSSL_NOSHA512_224)
+    /* SHA-512/224 imprint - the OID maps back to the algorithm. */
+    ExpectIntEQ(wc_TspRequest_Init(&req), 0);
+    ExpectIntEQ(wc_TspRequest_SetHashType(&req, WC_HASH_TYPE_SHA512_224), 0);
+    ExpectIntEQ(req.imprint.hashAlgOID, SHA512_224h);
+    ExpectIntEQ(wc_TspRequest_SetHash(&req, tsHashedMsg,
+        WC_SHA512_224_DIGEST_SIZE), 0);
+    sz = (word32)sizeof(enc);
+    ExpectIntEQ(wc_TspRequest_Encode(&req, enc, &sz), 0);
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -867,7 +923,8 @@ int test_wc_TspTstInfo_Setters(void)
     static const byte policy[] = {
         0x2b, 0x06, 0x01, 0x04, 0x01, 0x87, 0x67, 0x01
     };
-    static const byte hash[] = { 0xde, 0xad, 0xbe, 0xef };
+    /* SHA-256 sized hash - the length must match the algorithm. */
+    static const byte hash[32] = { 0xde, 0xad, 0xbe, 0xef };
     static const byte genTime[] = "20260610120000Z";
     static const byte nonce[] = { 0x12, 0x34 };
     /* Name of TSA: dNSName GeneralName. */
@@ -876,7 +933,9 @@ int test_wc_TspTstInfo_Setters(void)
     byte bigHash[WC_TSP_MAX_HASH_SZ + 1];
     const byte* out = NULL;
     word32 outSz = 0;
+#ifndef NO_SHA256
     word32 hashOID = 0;
+#endif
     word32 seconds = 0;
     word16 millis = 0;
     word16 micros = 0;
@@ -906,12 +965,22 @@ int test_wc_TspTstInfo_Setters(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, SHA256h, bigHash,
         (word32)sizeof(bigHash)), WC_NO_ERR_TRACE(BUFFER_E));
+#ifndef NO_SHA256
+    /* One byte short of the digest size of the algorithm. */
+    ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, SHA256h, hash,
+        (word32)sizeof(hash) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+    /* An unknown algorithm has no digest size to check the length against. */
+    ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, 1, hash,
+        (word32)sizeof(hash) - 1), WC_NO_ERR_TRACE(HASH_TYPE_E));
+#ifndef NO_SHA256
     ExpectIntEQ(wc_TspTstInfo_SetMsgImprint(&tst, SHA256h, hash,
         (word32)sizeof(hash)), 0);
     ExpectIntEQ(wc_TspTstInfo_GetMsgImprint(&tst, &hashOID, &out, &outSz), 0);
     ExpectIntEQ(hashOID, SHA256h);
     ExpectIntEQ(outSz, (word32)sizeof(hash));
     ExpectBufEQ(out, hash, (int)sizeof(hash));
+#endif
 
     /* Time of the time-stamp - referenced, round trips. */
     ExpectIntEQ(wc_TspTstInfo_SetGenTime(NULL, genTime,
@@ -1063,6 +1132,10 @@ int test_wc_TspTstInfo_Encode(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Hash too long. */
     tst.imprint.hashSz = WC_TSP_MAX_HASH_SZ + 1;
+    ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Hash length that is not the algorithm's digest size. */
+    tst.imprint.hashSz = (word32)sizeof(tsHashedMsg) - 1;
     ExpectIntEQ(wc_TspTstInfo_Encode(&tst, enc, &encSz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     tst.imprint.hashSz = (word32)sizeof(tsHashedMsg);

@@ -103,14 +103,14 @@ int wc_TspRequest_GetHashType(const TspRequest* req, enum wc_HashType* hashType)
 #ifdef WOLFSSL_TSP_REQUESTER
 /* Set the message imprint hash algorithm of a TimeStampReq.
  *
- * Sets the hash algorithm OID and hash size from the hash type. The caller
- * fills req->imprint.hash with the digest of the data to be time-stamped.
+ * Sets the hash algorithm OID and discards any digest already set.
  *
  * @param [in, out] req       TimeStampReq object.
  * @param [in]      hashType  Hash algorithm to use - e.g. WC_HASH_TYPE_SHA256.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when req is NULL.
- * @return  HASH_TYPE_E when the hash algorithm is not available.
+ * @return  HASH_TYPE_E when the hash algorithm is not available or is not
+ *          identified by its OID.
  * @return  BUFFER_E when the digest is too big for the message imprint.
  */
 int wc_TspRequest_SetHashType(TspRequest* req, enum wc_HashType hashType)
@@ -130,6 +130,11 @@ int wc_TspRequest_SetHashType(TspRequest* req, enum wc_HashType hashType)
         if (oid <= 0) {
             ret = HASH_TYPE_E;
         }
+        /* The OID must name the same algorithm - WC_HASH_TYPE_MD5_SHA shares
+         * the MD5 OID and cannot be identified in an imprint. */
+        else if (wc_OidGetHash(oid) != hashType) {
+            ret = HASH_TYPE_E;
+        }
     }
     if (ret == 0) {
         /* The digest size is the length of the message imprint hash. */
@@ -143,7 +148,9 @@ int wc_TspRequest_SetHashType(TspRequest* req, enum wc_HashType hashType)
     }
     if (ret == 0) {
         req->imprint.hashAlgOID = (word32)oid;
-        req->imprint.hashSz = (word32)digestSz;
+        /* A digest of the previous algorithm is no longer valid. */
+        XMEMSET(req->imprint.hash, 0, sizeof(req->imprint.hash));
+        req->imprint.hashSz = 0;
     }
 
     return ret;
@@ -188,18 +195,22 @@ int wc_TspRequest_GetHash(const TspRequest* req, byte* hash, word32* hashSz)
 /* Set the message imprint hash of a TimeStampReq.
  *
  * Copies the hash and its length into the message imprint. The hash algorithm
- * is set separately - see wc_TspRequest_SetHashType().
+ * must be set first with wc_TspRequest_SetHashType() and hashSz must be its
+ * digest size.
  *
  * @param [in, out] req     TimeStampReq object.
  * @param [in]      hash    Hash of the data to be time-stamped.
  * @param [in]      hashSz  Length of hash in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when req or hash is NULL or hashSz is 0.
- * @return  BUFFER_E when hashSz is too big for the message imprint.
+ * @return  HASH_TYPE_E when the hash algorithm is not set or not available.
+ * @return  BUFFER_E when hashSz is not the algorithm's digest size or is too
+ *          big for the message imprint.
  */
 int wc_TspRequest_SetHash(TspRequest* req, const byte* hash, word32 hashSz)
 {
     int ret = 0;
+    int digestSz = 0;
 
     /* Validate parameters. */
     if ((req == NULL) || (hash == NULL) || (hashSz == 0)) {
@@ -209,6 +220,17 @@ int wc_TspRequest_SetHash(TspRequest* req, const byte* hash, word32 hashSz)
         ret = BUFFER_E;
     }
 
+    if (ret == 0) {
+        /* The digest must be the length of the algorithm already set. */
+        digestSz = wc_HashGetDigestSize(
+            wc_OidGetHash((int)req->imprint.hashAlgOID));
+        if (digestSz <= 0) {
+            ret = HASH_TYPE_E;
+        }
+        else if (hashSz != (word32)digestSz) {
+            ret = BUFFER_E;
+        }
+    }
     if (ret == 0) {
         XMEMCPY(req->imprint.hash, hash, hashSz);
         req->imprint.hashSz = hashSz;
@@ -594,16 +616,29 @@ int wc_TspTstInfo_GetMsgImprint(const TspTstInfo* tstInfo, word32* hashOID,
  * @param [in]      hashSz   Length of hash in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when tstInfo or hash is NULL or hashSz is 0.
- * @return  BUFFER_E when hashSz is too big for the message imprint.
+ * @return  HASH_TYPE_E when the hash algorithm is not known or not available.
+ * @return  BUFFER_E when hashSz is too big for the message imprint or not
+ *          the digest size of hashOID.
  */
 int wc_TspTstInfo_SetMsgImprint(TspTstInfo* tstInfo, word32 hashOID,
     const byte* hash, word32 hashSz)
 {
+    int digestSz;
+
     /* Validate parameters. */
     if ((tstInfo == NULL) || (hash == NULL) || (hashSz == 0)) {
         return BAD_FUNC_ARG;
     }
     if (hashSz > sizeof(tstInfo->imprint.hash)) {
+        return BUFFER_E;
+    }
+    /* The algorithm must be one with a known digest size and the imprint
+     * must be that length. */
+    digestSz = wc_HashGetDigestSize(wc_OidGetHash((int)hashOID));
+    if (digestSz <= 0) {
+        return HASH_TYPE_E;
+    }
+    if (hashSz != (word32)digestSz) {
         return BUFFER_E;
     }
 

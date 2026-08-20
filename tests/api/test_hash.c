@@ -780,6 +780,15 @@ int test_wc_OidGetHash(void)
     #endif
     #ifdef WOLFSSL_SHA512
         SHA512h,
+        #if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+            !defined(HAVE_SELFTEST)
+        #ifndef WOLFSSL_NOSHA512_224
+        SHA512_224h,
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+        SHA512_256h,
+        #endif
+        #endif
     #endif
     #ifdef WOLFSSL_SHA3
         SHA3_224h,
@@ -813,6 +822,19 @@ int test_wc_OidGetHash(void)
     #endif
     #ifndef WOLFSSL_SHA512
         SHA512h,
+        SHA512_224h,
+        SHA512_256h,
+    #elif defined(HAVE_SELFTEST) || \
+          (defined(HAVE_FIPS) && !FIPS_VERSION3_GE(7,0,0))
+        SHA512_224h,
+        SHA512_256h,
+    #else
+        #ifdef WOLFSSL_NOSHA512_224
+        SHA512_224h,
+        #endif
+        #ifdef WOLFSSL_NOSHA512_256
+        SHA512_256h,
+        #endif
     #endif
     #ifndef WOLFSSL_SHA3
         SHA3_224h,
@@ -1088,11 +1110,7 @@ int test_wc_HashFeatureCoverage(void)
         {
             int oid = wc_HashGetOID(supportedHash[i]);
             ExpectIntGT(oid, 0);
-            /* wc_OidGetHash() has no case for SHA512_224h/SHA512_256h (no
-             * OID assigned upstream for those two truncated variants), so
-             * the round trip only holds for the other digests. */
-            if (oid > 0 && supportedHash[i] != WC_HASH_TYPE_SHA512_224 &&
-                supportedHash[i] != WC_HASH_TYPE_SHA512_256) {
+            if (oid > 0) {
                 enum wc_HashType rtType = wc_OidGetHash(oid);
                 ExpectIntEQ((int)rtType, (int)supportedHash[i]);
             }

@@ -325,6 +325,24 @@ enum wc_HashType wc_OidGetHash(int oid)
             hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
         #endif
             break;
+        case SHA512_224h:
+        #if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+            !defined(HAVE_SELFTEST) && defined(WOLFSSL_SHA512) && \
+            !defined(WOLFSSL_NOSHA512_224)
+            hash_type = WC_HASH_TYPE_SHA512_224;
+        #else
+            hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
+        #endif
+            break;
+        case SHA512_256h:
+        #if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+            !defined(HAVE_SELFTEST) && defined(WOLFSSL_SHA512) && \
+            !defined(WOLFSSL_NOSHA512_256)
+            hash_type = WC_HASH_TYPE_SHA512_256;
+        #else
+            hash_type = WC_ERR_TRACE(WC_HASH_TYPE_NONE);
+        #endif
+            break;
         case SHA3_224h:
         #ifdef WOLFSSL_SHA3
             hash_type = WC_HASH_TYPE_SHA3_224;
