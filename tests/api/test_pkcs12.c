@@ -1133,6 +1133,7 @@ int test_wc_PKCS12DecisionCoverage(void)
         if (ca != NULL) wc_FreeCertList(ca, NULL);
     }
 
+    XFREE(out, NULL, DYNAMIC_TYPE_PKCS);
     wc_PKCS12_free(pkcs12);
     /* wc_PKCS12_free tolerates NULL: the guard's true half. */
     wc_PKCS12_free(NULL);
