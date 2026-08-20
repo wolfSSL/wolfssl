@@ -133,12 +133,14 @@ void wc_linuxkm_free_svr_states(void) {
         i_pid = __atomic_load_n(&i->pid, __ATOMIC_CONSUME);
         if (i_pid == WC_SVR_FREE_SLOT_PID)
             continue;
-        if (i->fpu_state != 0) {
-            pr_err("ERROR: wc_linuxkm_free_svr_states called"
-                   " with nonzero state 0x%x for PID %d, age %ld ms.\n", i->fpu_state, i_pid,
-                   WC_SVR_SLOT_AGE_MS(i));
-            ++seen_errors;
-        }
+        /* Any occupied slot blocks deallocation.  A slot with fpu_state
+         * still zero is a claim in flight (pid published, state not yet
+         * stored) -- freeing under it is a use-after-free for the
+         * claimant, so it is no safer than a nonzero state. */
+        pr_err("ERROR: wc_linuxkm_free_svr_states called"
+               " with occupied slot: state 0x%x for PID %d, age %ld ms.\n", i->fpu_state, i_pid,
+               WC_SVR_SLOT_AGE_MS(i));
+        ++seen_errors;
     }
 
     if (seen_errors > 0) {
