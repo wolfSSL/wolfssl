@@ -697,9 +697,17 @@ static void wb_TfmExptModDecisionCoverage(void)
      * point complete both operands' independence pairs:
      *   call A: G=3, X=-3, P=7  (invmod succeeds: err==0 T; P ZPOS: F)
      *   call B: G=3, X=-3, P=-7 (invmod succeeds: err==0 T; P NEG: T)
-     *   call C: G=7, X=-3, P=-7 (invmod fails (gcd=7): err==0 F; P NEG: T)
-     * Pair (A,B) isolates the P->sign operand (err==0 held true);
-     * pair (B,C) isolates the err==0 operand (P->sign held negative). */
+     *   call C: G=7, X=-3, P=-7 (invmod fails (gcd=7))
+     * Pair (A,B) isolates the P->sign operand (err==0 held true).
+     *
+     * CORRECTION (step 7): call C does NOT isolate the err==0 operand. The
+     * decision sits inside `if (err == FP_OKAY) { ... }`, so an fp_invmod
+     * failure skips the whole block and never reaches the test - `err` there
+     * can only come from _fp_exptmod_ct/_nct. Call C is kept because it does
+     * cover the invmod-failure return path, but the err==0 operand's FALSE
+     * half is closed in test_tfm_fault_whitebox.c, by an even |P| that lets
+     * fp_invmod succeed (via fp_invmod_slow) and then makes
+     * fp_montgomery_setup reject the modulus inside the engine. */
     fp_set(&g, 3);
     fp_set(&x, 3);
     fp_setneg(&x);
@@ -909,6 +917,7 @@ static void wb_entry_arg_guards(void)
 
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("tfm.c white-box MC/DC supplement\n");
 #if !defined(USE_FAST_MATH)
     printf("  USE_FAST_MATH not defined; nothing to exercise\n");
