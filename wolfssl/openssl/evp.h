@@ -382,6 +382,8 @@ typedef union {
 #define WC_NID_ffdhe2048                   1126
 #define WC_NID_ffdhe3072                   1127
 #define WC_NID_ffdhe4096                   1128
+#define WC_NID_ffdhe6144                   1129
+#define WC_NID_ffdhe8192                   1130
 #define WC_NID_rc4                         5
 #define WC_NID_bf_cbc                      91
 #define WC_NID_bf_ecb                      92
@@ -664,6 +666,8 @@ enum {
 #define NID_ffdhe2048 WC_NID_ffdhe2048
 #define NID_ffdhe3072 WC_NID_ffdhe3072
 #define NID_ffdhe4096 WC_NID_ffdhe4096
+#define NID_ffdhe6144 WC_NID_ffdhe6144
+#define NID_ffdhe8192 WC_NID_ffdhe8192
 #define NID_rc4 WC_NID_rc4
 #define NID_bf_cbc WC_NID_bf_cbc
 #define NID_bf_ecb WC_NID_bf_ecb
