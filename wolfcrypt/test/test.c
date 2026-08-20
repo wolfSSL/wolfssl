@@ -23767,46 +23767,40 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
     /* Drive wc_AesKeyWrap_ex/wc_AesKeyUnWrap_ex directly with a caller Aes; the
      * KAT loop above already covers every vector via the key-based wrappers. */
     {
-        Aes* aes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
-        if (aes == NULL)
-            return WC_TEST_RET_ENC_NC;
+        /* Aes must not come from XMALLOC here: struct Aes carries ALIGN16
+         * members, so _Alignof(Aes) is 16 under the default --enable-aligndata,
+         * while malloc() only guarantees 8 on 32-bit targets. A local gets the
+         * type's alignment from the compiler. See wc_AesSetIV(), which clang
+         * lowers to an alignment-qualified NEON store on armv8-a+crypto. */
+        Aes aes[1];
 
         XMEMSET(output, 0, sizeof(output));
         XMEMSET(plain,  0, sizeof(plain));
 
-        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+        if (wc_AesInit(aes, HEAP_HINT, devId) != 0)
             return WC_TEST_RET_ENC_NC;
-        }
         if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
                          AES_ENCRYPTION) != 0) {
             wc_AesFree(aes);
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
             return WC_TEST_RET_ENC_NC;
         }
         wrapSz = wc_AesKeyWrap_ex(aes, test_wrap[0].data, test_wrap[0].dataLen,
                                   output, sizeof(output), NULL);
         wc_AesFree(aes);
         if ( (wrapSz < 0) || (wrapSz != (int)test_wrap[0].verifyLen) ||
-             XMEMCMP(output, test_wrap[0].verify, test_wrap[0].verifyLen) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+             XMEMCMP(output, test_wrap[0].verify, test_wrap[0].verifyLen) != 0)
             return WC_TEST_RET_ENC_NC;
-        }
 
-        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+        if (wc_AesInit(aes, HEAP_HINT, devId) != 0)
             return WC_TEST_RET_ENC_NC;
-        }
         if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
                          AES_DECRYPTION) != 0) {
             wc_AesFree(aes);
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
             return WC_TEST_RET_ENC_NC;
         }
         plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz,
                                      plain, sizeof(plain), NULL);
         wc_AesFree(aes);
-        XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
         if ( (plainSz < 0) || (plainSz != (int)test_wrap[0].dataLen) ||
              XMEMCMP(plain, test_wrap[0].data, test_wrap[0].dataLen) != 0)
             return WC_TEST_RET_ENC_NC;
