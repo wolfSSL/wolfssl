@@ -516,10 +516,14 @@ static int km_mldsa_set_priv(struct mldsa_tfm_type *tfm, const void *key,
         #ifdef WOLFKM_DEBUG_MLDSA
         pr_err("%s: mldsa_set_priv failed: %d\n", "mldsa", err);
         #endif
-        /* don't leave the key half-set. */
+        /* don't leave the key half-set.  Only the seed branch writes
+         * ctx->pub, so only a seed-form failure invalidates pub_set -- a
+         * failed raw import must not clobber a public key previously
+         * installed by km_mldsa_set_pub(). */
         ForceZero(ctx->priv, sizeof(ctx->priv));
         ctx->priv_set = 0;
-        ctx->pub_set = 0;
+        if (keylen == MLDSA_SEED_SZ)
+            ctx->pub_set = 0;
         return -EINVAL;
     }
 
