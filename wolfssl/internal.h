@@ -53,7 +53,10 @@
 #ifdef HAVE_POLY1305
     #include <wolfssl/wolfcrypt/poly1305.h>
 #endif
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && defined(OPENSSL_EXTRA)
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    /* Not OPENSSL_EXTRA-only: the TLS record layer calls the persistent-key
+     * helpers wc_ChaCha20Poly1305_{Encrypt,Decrypt}_ex(), so this header has
+     * to be visible whenever the ChaCha20-Poly1305 suites are built. */
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #endif
 #ifdef HAVE_ARIA
