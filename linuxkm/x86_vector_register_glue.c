@@ -1329,15 +1329,69 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
  * critical sections, it must implement its own reference counting".
  * https://docs.kernel.org/core-api/floating-point.html */
 
-/* That reference count, and nothing else.  One count per CPU is exact for a
- * section's whole life because kernel_fpu_begin() takes fpregs_lock(), so an
- * open section can neither be preempted nor migrate.
- * https://docs.kernel.org/core-api/local_ops.html */
-struct wc_svr_cpu_state {
+/* WHY THE COUNT IS PER CONTEXT AND NOT PER CPU.
+ *
+ * kernel_fpu_begin() takes fpregs_lock(), which disables softirqs, only from
+ * 6.15 (d02198550423).  On every earlier kernel it takes a plain
+ * preempt_disable():
+ *
+ *   6.14.11 arch/x86/kernel/fpu/core.c kernel_fpu_begin_mask() -> preempt_disable()
+ *   6.15.11 arch/x86/kernel/fpu/core.c kernel_fpu_begin_mask() -> fpregs_lock()
+ *
+ * preempt_disable() adds to PREEMPT_MASK, and irq_exit() gates softirq
+ * processing on in_interrupt(), which reads NMI_MASK|HARDIRQ_MASK|SOFTIRQ_MASK
+ * and not PREEMPT_MASK (include/linux/preempt.h).  So on a pre-6.15 kernel a
+ * softirq runs on top of an open section, and a hard interrupt can do so on
+ * any kernel.
+ *
+ * A single per-CPU count cannot describe that.  An interrupting context would
+ * read the interrupted context's nonzero count, conclude a section is already
+ * open, and use the vector registers the interrupted context is holding data
+ * in.  One count per context per CPU is exact: task, softirq and hardirq nest
+ * in that order and never interleave, and a context that owns a section cannot
+ * be preempted or migrate out of it. */
+enum {
+    WC_SVR_CTX_TASK    = 0,
+    WC_SVR_CTX_SOFTIRQ = 1,
+    WC_SVR_CTX_HARDIRQ = 2,
+    WC_SVR_NCTX        = 3
+};
+
+struct wc_svr_ctx_state {
     unsigned int depth;
     unsigned int inhibited;
+    unsigned int nested;
+};
+struct wc_svr_cpu_state {
+    struct wc_svr_ctx_state c[WC_SVR_NCTX];
 };
 static DEFINE_PER_CPU(struct wc_svr_cpu_state, wc_svr_state);
+
+/* raw_cpu_ptr(), not this_cpu_ptr(): the speculative reads below happen before
+ * the CPU is pinned, and this_cpu_ptr() has a CONFIG_DEBUG_PREEMPT check that
+ * would fire on every one of them.  What makes the read sound is the same thing
+ * that makes it sound in the kernel's own this_cpu_ops guidance: a nonzero
+ * depth can only be read on a CPU whose section holds it there, so a zero read
+ * stays zero and a nonzero read is ours.
+ * Taking the pointer also avoids this_cpu_read() with a RUNTIME index, which on
+ * x86 becomes a %gs-relative memory operand with a register base. */
+static inline struct wc_svr_ctx_state *wc_svr_here(int ctx)
+{
+    return &raw_cpu_ptr(&wc_svr_state)->c[ctx];
+}
+
+/* in_serving_softirq() tests SOFTIRQ_OFFSET, one unit, set by __do_softirq().
+ * WC_SVR_PIN_CPU()'s local_bh_disable() adds SOFTIRQ_DISABLE_OFFSET, two units,
+ * and leaves that bit alone (include/linux/preempt.h), so a bracket cannot
+ * change its own answer between save and restore. */
+static inline int wc_svr_ctx(void)
+{
+    if (preempt_count() & (NMI_MASK | HARDIRQ_MASK))
+        return WC_SVR_CTX_HARDIRQ;
+    if (in_serving_softirq())
+        return WC_SVR_CTX_SOFTIRQ;
+    return WC_SVR_CTX_TASK;
+}
 
 /* fpregs_lock()'s rule (arch/x86/include/asm/fpu/api.h), needed only by the
  * inhibited path, which begins no FPU section and so must pin the CPU itself.
@@ -1350,14 +1404,217 @@ static DEFINE_PER_CPU(struct wc_svr_cpu_state, wc_svr_state);
     #define WC_SVR_UNPIN_CPU() local_bh_enable()
 #endif
 
-/* The one context question the kernel cannot answer for us: a hard interrupt
- * can land inside an open section, and its nested save would otherwise share
- * the interrupted context's count and its vector registers.  Everything else
- * about context belongs to may_use_simd(). */
-static inline int wc_svr_context_ok(void)
+/* ---- taking the registers when the kernel says they are in use ------------
+ *
+ * may_use_simd() reports whether kernel_fpu_begin() may be called, and on x86
+ * that is irq_fpu_usable(): false when this CPU is inside a kernel-mode FPU
+ * section, and, in a hard interrupt, when softirqs are disabled.  The reason it
+ * is false is always the same one: the vector registers hold live state and
+ * kernel_fpu_begin() has nowhere to put it.  kernel_fpu_begin() saves the
+ * interrupted TASK's user registers, into current->thread.fpu; it has no place
+ * for a kernel section's.
+ *
+ * That is a missing save area, not a property of the hardware.  Bring one and
+ * the constraint is gone: XSAVE the live state into per-CPU, per-context
+ * storage, use the registers, XRSTOR it back.  The interrupted context resumes
+ * with its registers byte for byte, which is the entire promise
+ * kernel_fpu_begin() made it.
+ *
+ * This is NOT a second implementation and NOT a fallback.  The same wolfCrypt
+ * code runs on the same vector registers either way; only the place the
+ * previous occupant's bytes are parked differs.  There is one implementation of
+ * every algorithm in this module, and it is the one that runs here.
+ *
+ * ONLY EVER WHEN may_use_simd() IS FALSE, and that restriction is load-bearing.
+ * While it is false, no other context on this CPU can start a kernel_fpu
+ * section on top of us, because irq_fpu_usable() is false for them too, for the
+ * same reason.  When it is true we call kernel_fpu_begin() and the kernel's own
+ * in_kernel_fpu flag keeps everyone else out.  Either way exactly one context
+ * on this CPU owns the registers.
+ *
+ * NMI is excluded, here as before.  irq_fpu_usable() WARNs on NMI on every
+ * kernel in range and the DRBG's NMI path is not this module's to change.
+ *
+ * 6.15 and later reach this path far less often -- kernel_fpu_begin() disables
+ * softirqs there, so a softirq cannot land inside a section at all -- but the
+ * mechanism is not version-gated, because the hardirq case is not fixed by
+ * that commit on any kernel. */
+#if defined(CONFIG_X86) && !defined(WC_LINUXKM_NO_NESTED_VECTOR_SAVE)
+    #define WC_SVR_HAVE_NESTED_SAVE
+#endif
+
+#ifdef WC_SVR_HAVE_NESTED_SAVE
+
+#include <asm/cpufeature.h>
+#include <asm/processor.h>
+
+/* x87, SSE, AVX, AVX-512 opmask, ZMM_Hi256 and Hi16_ZMM: every component a
+ * wolfCrypt vector routine can write, and nothing else.  AMX is deliberately
+ * absent, which is also what keeps XFD out of this: a component that is never
+ * requested can never fault on being requested. */
+#define WC_SVR_XFEATURE_MASK 0x00e7ULL
+
+/* Byte-encoded so this does not depend on the assembler being built with
+ * -mxsave, exactly as arch/x86/include/asm/fpu/xstate.h does it.  modrm 0x27 is
+ * XSAVE (%rdi), 0x2f is XRSTOR (%rdi); the REX.W prefix selects the 64-bit
+ * forms.  0f 01 d0 is XGETBV. */
+#ifdef CONFIG_X86_64
+    #define WC_SVR_REX "0x48, "
+    #define WC_SVR_FXSAVE  "fxsave64 (%0)"
+    #define WC_SVR_FXRSTOR "fxrstor64 (%0)"
+#else
+    #define WC_SVR_REX ""
+    #define WC_SVR_FXSAVE  "fxsave (%0)"
+    #define WC_SVR_FXRSTOR "fxrstor (%0)"
+#endif
+#define WC_SVR_XSAVE_INSN  ".byte " WC_SVR_REX "0x0f,0xae,0x27"
+#define WC_SVR_XRSTOR_INSN ".byte " WC_SVR_REX "0x0f,0xae,0x2f"
+
+static u8         **wc_svr_save_area;      /* [nr_cpu_ids][WC_SVR_NCTX][sz] */
+static u8         **wc_svr_save_alloc;     /* the unaligned allocations */
+static unsigned int wc_svr_save_size;      /* per context, 64-byte multiple */
+static u64          wc_svr_save_mask;
+static int          wc_svr_use_xsave;
+static int          wc_svr_nested_ready;
+
+static inline u64 wc_svr_xgetbv0(void)
 {
-    return (preempt_count() & (NMI_MASK | HARDIRQ_MASK)) == 0;
+    u32 lo, hi;
+    asm volatile(".byte 0x0f,0x01,0xd0" : "=a"(lo), "=d"(hi) : "c"(0));
+    return ((u64)hi << 32) | (u64)lo;
 }
+
+static inline void wc_svr_regs_save(u8 *area)
+{
+    if (wc_svr_use_xsave) {
+        u32 lo = (u32)wc_svr_save_mask, hi = (u32)(wc_svr_save_mask >> 32);
+        asm volatile(WC_SVR_XSAVE_INSN
+                     : : "D"(area), "a"(lo), "d"(hi) : "memory");
+    }
+    else {
+        asm volatile(WC_SVR_FXSAVE : : "r"(area) : "memory");
+    }
+}
+
+static inline void wc_svr_regs_restore(const u8 *area)
+{
+    if (wc_svr_use_xsave) {
+        u32 lo = (u32)wc_svr_save_mask, hi = (u32)(wc_svr_save_mask >> 32);
+        asm volatile(WC_SVR_XRSTOR_INSN
+                     : : "D"(area), "a"(lo), "d"(hi) : "memory");
+    }
+    else {
+        asm volatile(WC_SVR_FXRSTOR : : "r"(area) : "memory");
+    }
+}
+
+/* kernel_fpu_begin() puts a known MXCSR under the section it opens
+ * (kfpu_mask & KFPU_MXCSR, arch/x86/kernel/fpu/core.c).  A section opened by
+ * saving inherits whatever the interrupted context left, so give it the same
+ * starting point.  MXCSR_DEFAULT, arch/x86/include/asm/fpu/types.h. */
+static inline void wc_svr_load_default_mxcsr(void)
+{
+    static const u32 wc_svr_mxcsr_default = 0x1f80U;
+    if (boot_cpu_has(X86_FEATURE_XMM))
+        asm volatile("ldmxcsr %0" : : "m"(wc_svr_mxcsr_default));
+}
+
+static inline u8 *wc_svr_area(int ctx)
+{
+    return wc_svr_save_area[raw_smp_processor_id()] + ((size_t)ctx * wc_svr_save_size);
+}
+
+static void wc_svr_nested_free(void)
+{
+    unsigned int cpu;
+
+    wc_svr_nested_ready = 0;
+    if (wc_svr_save_alloc) {
+        for (cpu = 0; cpu < (unsigned int)nr_cpu_ids; ++cpu)
+            kfree(wc_svr_save_alloc[cpu]);
+        kfree(wc_svr_save_alloc);
+        wc_svr_save_alloc = NULL;
+    }
+    kfree(wc_svr_save_area);
+    wc_svr_save_area = NULL;
+}
+
+static int wc_svr_nested_init(void)
+{
+    unsigned int cpu;
+    u32 eax, ebx, ecx, edx;
+
+    /* X86_FEATURE_XSAVE is cleared by the kernel when it will not use XSAVE
+     * (setup_clear_cpu_cap on "noxsave"), and OSXSAVE reports CR4.OSXSAVE,
+     * without which XGETBV faults.  Require both before executing either. */
+    if (boot_cpu_has(X86_FEATURE_XSAVE) && boot_cpu_has(X86_FEATURE_OSXSAVE)) {
+        cpuid_count(0x0d, 0, &eax, &ebx, &ecx, &edx);
+        wc_svr_save_mask = wc_svr_xgetbv0() & WC_SVR_XFEATURE_MASK;
+        /* ECX is the largest standard-format area for everything XCR0 can
+         * enable, so it bounds any subset of it. */
+        wc_svr_save_size = ecx;
+        wc_svr_use_xsave = 1;
+        if ((wc_svr_save_mask == 0) || (wc_svr_save_size < 576))
+            return 0;
+    }
+    else if (boot_cpu_has(X86_FEATURE_FXSR)) {
+        /* No XSAVE means no AVX on any x86 part, so x87 and SSE, which is all
+         * FXSAVE covers, is also all wolfCrypt can be using. */
+        wc_svr_save_mask = 0;
+        wc_svr_save_size = 512;
+        wc_svr_use_xsave = 0;
+    }
+    else {
+        return 0;
+    }
+
+    wc_svr_save_size = (wc_svr_save_size + 63U) & ~63U;
+
+    wc_svr_save_area  = (u8 **)kcalloc(nr_cpu_ids, sizeof(u8 *), GFP_KERNEL);
+    wc_svr_save_alloc = (u8 **)kcalloc(nr_cpu_ids, sizeof(u8 *), GFP_KERNEL);
+    if ((wc_svr_save_area == NULL) || (wc_svr_save_alloc == NULL)) {
+        wc_svr_nested_free();
+        return -ENOMEM;
+    }
+
+    for (cpu = 0; cpu < (unsigned int)nr_cpu_ids; ++cpu) {
+        /* Zeroed, and never zeroed again: XSAVE writes XSTATE_BV but not
+         * XCOMP_BV, and XCOMP_BV must stay 0 for the area to be read back as
+         * standard format (SDM Vol. 1, 13.4.2). */
+        size_t need = (size_t)wc_svr_save_size * WC_SVR_NCTX;
+        u8 *p = (u8 *)kzalloc(need + 64, GFP_KERNEL);
+        if (p == NULL) {
+            wc_svr_nested_free();
+            return -ENOMEM;
+        }
+        wc_svr_save_alloc[cpu] = p;
+        wc_svr_save_area[cpu] = (u8 *)(((uintptr_t)p + 63U) & ~(uintptr_t)63U);
+    }
+
+    wc_svr_nested_ready = 1;
+    return 0;
+}
+
+#else /* !WC_SVR_HAVE_NESTED_SAVE */
+
+#define wc_svr_nested_ready 0
+static int wc_svr_nested_init(void) { return 0; }
+static void wc_svr_nested_free(void) { }
+
+#endif /* WC_SVR_HAVE_NESTED_SAVE */
+
+/* The nested-save path decides and claims in two steps, and both halves are
+ * per-CPU, so the CPU has to stay put across them.  kernel_fpu_begin() pins for
+ * the same reason.  Without nested save compiled in, nothing between the test
+ * and the claim is per-CPU and this stays out of the way -- notably on ARM,
+ * where kernel_neon_begin() does its own pinning. */
+#ifdef WC_SVR_HAVE_NESTED_SAVE
+    #define WC_SVR_DECIDE_PIN()   preempt_disable()
+    #define WC_SVR_DECIDE_UNPIN() preempt_enable()
+#else
+    #define WC_SVR_DECIDE_PIN()   WC_DO_NOTHING
+    #define WC_SVR_DECIDE_UNPIN() WC_DO_NOTHING
+#endif
 
 /* Nonzero when this CPU is inside one of this module's sections, so the lock
  * primitives can refuse to run there.  this_cpu ops are preemption-safe, and a
@@ -1365,14 +1622,18 @@ static inline int wc_svr_context_ok(void)
  * https://docs.kernel.org/core-api/this_cpu_ops.html */
 static int wc_linuxkm_in_svr_bracket(void)
 {
-    return this_cpu_read(wc_svr_state.depth) > 0;
+    const struct wc_svr_cpu_state *st = raw_cpu_ptr(&wc_svr_state);
+
+    return (st->c[WC_SVR_CTX_TASK].depth |
+            st->c[WC_SVR_CTX_SOFTIRQ].depth |
+            st->c[WC_SVR_CTX_HARDIRQ].depth) > 0;
 }
 
-/* Nothing to allocate: the counters are static per-CPU storage.  Both are kept
- * because wolfCrypt_Init() and wolfCrypt_Cleanup() call them. */
+/* The counters are static per-CPU storage; the save areas are not.  Both are
+ * kept because wolfCrypt_Init() and wolfCrypt_Cleanup() call them. */
 WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
 {
-    return 0;
+    return wc_svr_nested_init();
 }
 
 void free_wolfcrypt_linuxkm_fpu_states(void)
@@ -1381,49 +1642,70 @@ void free_wolfcrypt_linuxkm_fpu_states(void)
      * small_cpumask_bits, which is unsigned, and this build is
      * -Wsign-compare -Werror (include/linux/find.h). */
     unsigned int cpu;
+    int ctx;
 
     for_each_possible_cpu(cpu) {
-        if (per_cpu(wc_svr_state, cpu).depth != 0) {
-            pr_err("ERROR: free_wolfcrypt_linuxkm_fpu_states called with"
-                   " depth %u on CPU %u.\n",
-                   per_cpu(wc_svr_state, cpu).depth, cpu);
-            per_cpu(wc_svr_state, cpu).depth = 0;
-            per_cpu(wc_svr_state, cpu).inhibited = 0;
+        for (ctx = 0; ctx < WC_SVR_NCTX; ++ctx) {
+            struct wc_svr_ctx_state *st = &per_cpu(wc_svr_state, cpu).c[ctx];
+            if (st->depth != 0) {
+                pr_err("ERROR: free_wolfcrypt_linuxkm_fpu_states called with"
+                       " depth %u in context %d on CPU %u.\n",
+                       st->depth, ctx, cpu);
+                st->depth = 0;
+                st->inhibited = 0;
+                st->nested = 0;
+            }
         }
     }
+
+    wc_svr_nested_free();
 }
 
 /* Ask the architecture, do not answer for it.  may_use_simd() is
  * irq_fpu_usable() on x86 and adds system_supports_fpsimd() on arm64, and it is
- * the precondition kernel_fpu_begin_mask() itself asserts on. */
+ * the precondition kernel_fpu_begin_mask() itself asserts on.  A false answer
+ * is not the end of it here: with a save area of our own, "in use" is a state
+ * this module can take over and hand back. */
 WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
 {
-    if (! wc_svr_context_ok())
+    const struct wc_svr_ctx_state *st;
+    int ctx;
+
+    if (in_nmi())
         return 0;
 
-    if (this_cpu_read(wc_svr_state.depth) > 0)
-        return this_cpu_read(wc_svr_state.inhibited) ? 0 : 1;
+    ctx = wc_svr_ctx();
+    st = wc_svr_here(ctx);
+    if (st->depth > 0)
+        return st->inhibited ? 0 : 1;
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
     if (SAVE_VECTOR_REGISTERS2_fuzzer() != 0)
         return 0;
 #endif
 
-    return may_use_simd() ? 1 : 0;
+    if (may_use_simd())
+        return 1;
+
+    return wc_svr_nested_ready ? 1 : 0;
 }
 
 WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 {
-    struct wc_svr_cpu_state *st;
+    struct wc_svr_ctx_state *st;
+    int ctx;
 
-    if (! wc_svr_context_ok())
+    if (in_nmi())
         return WC_ACCEL_INHIBIT_E;
 
-    /* A nonzero depth means a section is open here, so this CPU is pinned and
-     * the count needs no locking.  Nesting is the caller obligation the kernel
-     * documentation names, and this branch is all of it. */
-    if (this_cpu_read(wc_svr_state.depth) > 0) {
-        st = this_cpu_ptr(&wc_svr_state);
+    ctx = wc_svr_ctx();
+
+    /* A nonzero depth means a section is open in THIS context on this CPU, so
+     * the CPU is pinned and the count needs no locking.  Nesting is the caller
+     * obligation the kernel documentation names, and this branch is all of
+     * it. */
+    st = wc_svr_here(ctx);
+    if (st->depth > 0) {
         if (st->inhibited)
             return WC_ACCEL_INHIBIT_E;
         if (flags & WC_SVR_FLAG_MAYBE_INHIBIT)
@@ -1467,48 +1749,82 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         if (irqs_disabled())
             return WC_ACCEL_INHIBIT_E;
         WC_SVR_PIN_CPU();
-        st = this_cpu_ptr(&wc_svr_state);
+        st = &this_cpu_ptr(&wc_svr_state)->c[ctx];   /* pinned now */
         st->depth = 1;
         st->inhibited = 1;
+        st->nested = 0;
         return 0;
     }
 
-    if (! may_use_simd())
-        return WC_ACCEL_INHIBIT_E;
+    /* Pin before asking, because the answer and the storage are both per-CPU
+     * and a task-context caller is otherwise free to migrate between the two.
+     * Nothing below sleeps. */
+    WC_SVR_DECIDE_PIN();
 
-    /* No irqs_disabled() test here.  kernel_fpu_begin_mask() takes
-     * preempt_disable(), NOT fpregs_lock(), and kernel_fpu_end() takes
-     * preempt_enable() (arch/x86/kernel/fpu/core.c, checked in 4.18.9, 6.1.62
-     * and 6.12.59), so no local_bh_disable()/enable() runs inside with
-     * interrupts off.  preempt_enable() cannot schedule here either:
-     * preemptible() is false while irqs_disabled().  The INHIBIT branch above
-     * still needs its test because it calls local_bh_enable() itself. */
-    WC_LINUXKM_FPU_BEGIN();
-    st = this_cpu_ptr(&wc_svr_state);
-    st->depth = 1;
-    st->inhibited = 0;
+    /* raw while only DECIDE_PIN holds the CPU -- it is a no-op in builds
+     * without nested save, and this_cpu_ptr() would then be a
+     * CONFIG_DEBUG_PREEMPT splat in plain task context. */
+    if (unlikely(wc_svr_here(ctx)->depth != 0)) {
+        /* Only reachable by migrating onto a CPU whose same-context slot is
+         * open, which cannot happen while that section holds that CPU.  Refuse
+         * rather than share a register file on the strength of a count. */
+        WC_SVR_DECIDE_UNPIN();
+        return BAD_STATE_E;
+    }
 
-    return 0;
+    if (may_use_simd()) {
+        WC_LINUXKM_FPU_BEGIN();
+        st = &this_cpu_ptr(&wc_svr_state)->c[ctx];  /* pinned by FPU_BEGIN */
+        st->depth = 1;
+        st->inhibited = 0;
+        st->nested = 0;
+        /* FPU_BEGIN holds the CPU for the life of the section. */
+        WC_SVR_DECIDE_UNPIN();
+        return 0;
+    }
+
+#ifdef WC_SVR_HAVE_NESTED_SAVE
+    if (wc_svr_nested_ready) {
+        wc_svr_regs_save(wc_svr_area(ctx));
+        wc_svr_load_default_mxcsr();
+        st = &this_cpu_ptr(&wc_svr_state)->c[ctx];  /* pinned by DECIDE_PIN */
+        st->depth = 1;
+        st->inhibited = 0;
+        st->nested = 1;
+        /* The pin IS this section's pin, and is released by the restore. */
+        return 0;
+    }
+#endif
+
+    WC_SVR_DECIDE_UNPIN();
+    return WC_ACCEL_INHIBIT_E;
 }
 
 void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 {
-    struct wc_svr_cpu_state *st;
+    struct wc_svr_ctx_state *st;
+    int ctx;
 
-    if (! wc_svr_context_ok()) {
-        pr_err_once("BUG: wc_restore_vector_registers_x86() in NMI or hard"
-                    " interrupt context on CPU %d.\n", raw_smp_processor_id());
+    if (in_nmi()) {
+        pr_err_once("BUG: wc_restore_vector_registers_x86() in NMI context on"
+                    " CPU %d.\n", raw_smp_processor_id());
         return;
     }
 
-    if (unlikely(this_cpu_read(wc_svr_state.depth) == 0)) {
+    ctx = wc_svr_ctx();
+
+    /* Every path that opened a section left this CPU pinned -- FPU_BEGIN,
+     * PIN_CPU or the nested save's preempt_disable() -- so once depth is known
+     * nonzero this is the same CPU that opened it.  Until then nothing pins it,
+     * which is why the read is raw. */
+    st = wc_svr_here(ctx);
+
+    if (unlikely(st->depth == 0)) {
         pr_err_once("BUG: wc_restore_vector_registers_x86() with no open"
-                    " section for pid %d on CPU %d.\n",
-                    task_pid_nr(current), raw_smp_processor_id());
+                    " section in context %d for pid %d on CPU %d.\n",
+                    ctx, task_pid_nr(current), raw_smp_processor_id());
         return;
     }
-
-    st = this_cpu_ptr(&wc_svr_state);
 
     if (st->depth > 1) {
         --st->depth;
@@ -1524,6 +1840,15 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
         st->inhibited = 0;
         WC_SVR_UNPIN_CPU();
     }
+#ifdef WC_SVR_HAVE_NESTED_SAVE
+    else if (st->nested) {
+        st->nested = 0;
+        /* Hand the interrupted context its registers back before letting
+         * anything else run on this CPU. */
+        wc_svr_regs_restore(wc_svr_area(ctx));
+        WC_SVR_DECIDE_UNPIN();
+    }
+#endif
     else {
         WC_LINUXKM_FPU_END();
     }
