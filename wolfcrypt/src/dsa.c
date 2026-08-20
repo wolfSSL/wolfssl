@@ -278,7 +278,16 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 
     if (err == MP_OKAY)
 #endif
+    {
+        /* Map an init failure to MP_INIT_E, the code the cleanup below uses to
+         * mean "nothing here was constructed".  mp_init_multi() reports the
+         * backend's own error (MP_MEM from the heap backends) and, on failure,
+         * leaves every argument either cleared or never touched, so the
+         * cleanup must not mp_clear() any of them. */
         err = mp_init_multi(&dsa->x, &dsa->y, tmpQ, NULL, NULL, NULL);
+        if (err != MP_OKAY)
+            err = MP_INIT_E;
+    }
 
     if (err == MP_OKAY) {
         do {
@@ -320,7 +329,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     if (err == MP_OKAY)
         dsa->type = DSA_PRIVATE;
 
-    if (err != MP_OKAY) {
+    if ((err != MP_OKAY) && (err != WC_NO_ERR_TRACE(MP_INIT_E))) {
         mp_forcezero(&dsa->x);
         mp_clear(&dsa->y);
     }
@@ -333,11 +342,13 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpQ != NULL) {
-        mp_clear(tmpQ);
+        if (err != WC_NO_ERR_TRACE(MP_INIT_E))
+            mp_clear(tmpQ);
         XFREE(tmpQ, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else
-    mp_clear(tmpQ);
+    if (err != WC_NO_ERR_TRACE(MP_INIT_E))
+        mp_clear(tmpQ);
 #endif
 
     return err;
@@ -420,7 +431,15 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     if (err == MP_OKAY)
 #endif
+    {
+        /* Map an init failure to MP_INIT_E: the cleanup below already keys off
+         * that code to skip mp_clear() on objects the failed init never
+         * constructed, but mp_init_multi() returns the backend's own error
+         * (MP_MEM from the heap backends), so the guard never fired. */
         err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, &dsa->g, 0);
+        if (err != MP_OKAY)
+            err = MP_INIT_E;
+    }
 
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(tmp2, buf, (word32)(msize - qsize));
