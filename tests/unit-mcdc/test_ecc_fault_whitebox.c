@@ -1374,7 +1374,7 @@ int main(void)
     mcdc_fa_disarm();
     mcdc_fa_restore();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

@@ -20,7 +20,7 @@
  */
 
 /*
- * mcdc_seed_rng.h -- deterministic RNG for the per-module MC/DC campaign.
+ * mcdc_seed_rng.h -- deterministic RNG for the per-module MC/DC suite.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -83,7 +83,7 @@
  * to be in scope before it runs. A driver that includes this header as its
  * FIRST wolfSSL include otherwise evaluates the test against an empty macro
  * environment, silently selects the inert stubs, and pins nothing -- which
- * builds, links and runs, so the campaign scores it as a pass. Pull the
+ * builds, links and runs, so the harness scores it as a pass. Pull the
  * switchboard in here rather than relying on every caller's include order.
  * It is idempotent, so callers that already included it are unaffected. */
 #include <wolfssl/wolfcrypt/settings.h>
@@ -108,7 +108,7 @@ static int mcdc_sr_active = 0;
      * before anything else drags random.h in; when it is not, the include
      * guard skips the prototype, the hook is never declared, and every call
      * site inside the .c under test fails with "use of undeclared
-     * identifier". That is a compile failure, which the campaign scores as a
+     * identifier". That is a compile failure, which the harness scores as a
      * SILENT SKIP -- the dh module read 107/173 with 6 of 12 variants
      * aggregating instead of 158/173, and still reported success.
      *
@@ -220,7 +220,7 @@ int mcdc_sr_block(WC_RNG* rng, byte* out, word32 sz)
 #else /* MCDC_SR_UNAVAILABLE */
 
 /* Inert stubs. Without these a TU that calls mcdc_sr_arm() fails to COMPILE in
- * any variant lacking SHAKE -- and the campaign scores a white-box that fails
+ * any variant lacking SHAKE -- and the harness scores a white-box that fails
  * to compile as a SILENT SKIP, losing the whole file's coverage rather than
  * reporting an error. (Observed on the dh module: 12 variants aggregated
  * became 6, and dh.c read 107/173 instead of 158/173.) A header that is

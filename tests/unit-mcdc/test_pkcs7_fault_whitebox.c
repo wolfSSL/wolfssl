@@ -1037,7 +1037,7 @@ static void wb_alloc_fault_encodestream(void)
  * Only compiled when the streaming state machine exists at all
  * (wc_PKCS7_CreateStream/GrowStream/FreeStream are themselves inside
  * `#ifndef NO_PKCS7_STREAM` in pkcs7.c, so they are simply not there to
- * call under the no_stream campaign variant).
+ * call under the no_stream suite variant).
  * ------------------------------------------------------------------------- */
 #ifndef NO_PKCS7_STREAM
 static void wb_growstream_bufsz(void)
@@ -1080,7 +1080,7 @@ static void wb_growstream_bufsz(void)
 /* ------------------------------------------------------------------------- *
  * Section 11: wc_PKCS7_AddRecipient_KTRI() WOLFSSL_SMALL_STACK alloc-guard
  * `decoded == NULL || serial == NULL || keyAlgArray == NULL` [:9371]. This
- * guard only exists in the WOLFSSL_SMALL_STACK build (small_stack campaign
+ * guard only exists in the WOLFSSL_SMALL_STACK build (small_stack suite
  * variant) -- in every other variant these three locals are plain stack
  * arrays and the line is not even compiled, so the sweep below is inert
  * (still safe) elsewhere. Allocation order is fixed by source order: serial
@@ -1268,7 +1268,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

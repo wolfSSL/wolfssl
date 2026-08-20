@@ -39,7 +39,7 @@
  * DH_MAX_SIZE expands to WC_BITS_FULL_BYTES(SP_INT_BITS), and
  * WC_BITS_FULL_BYTES(x) is defined as (WC_BITS_TO_BYTES(x) << 3) - i.e. it
  * returns SP_INT_BITS itself (rounded up to a byte multiple), NOT
- * SP_INT_BITS/8 as its name suggests. With this campaign's SP_INT_BITS 4096,
+ * SP_INT_BITS/8 as its name suggests. With this suite's SP_INT_BITS 4096,
  * DH_MAX_SIZE is therefore 4096 (bytes!), not the 512 a caller would
  * reasonably expect. Passing that value as *privSz (a requested private-key
  * size, not just a buffer capacity) to wc_DhGenerateKeyPair overflows the

@@ -30,10 +30,10 @@
  *   else                           { chacha_encrypt_x64(...);  return 0; }
  *
  * Each of these is a single-condition branch (not a compound MC/DC decision:
- * chacha.c's own db/modules.json-measured MC/DC total is unaffected by which
+ * chacha.c's own the module registry-measured MC/DC total is unaffected by which
  * of these paths a given build takes), so this white-box does not change the
- * campaign's covered/total counts. It is kept anyway, matching the intel-
- * dispatch technique used by the aes/sha3 white-boxes and this campaign's
+ * suite's covered/total counts. It is kept anyway, matching the intel-
+ * dispatch technique used by the aes/sha3 white-boxes and this suite's
  * poly1305 sibling, for FEATURE/branch-coverage evidence that the AVX2-false
  * sides (AVX1-only and the generic x64 fallback) are reachable and correct:
  * on an AVX2-capable CI host, cpuid_get_flags_ex()'s real detection always
@@ -46,7 +46,7 @@
  * before calling wc_Chacha_Process() makes it trust our forced value instead
  * of re-detecting. Crash-safety: we only ever CLEAR capability bits the real
  * host does not actually have removed either -- this host has both AVX1 and
- * AVX2 hardware (see db/modules.json chacha notes), so forcing cpuidFlags to
+ * AVX2 hardware (see the module registry chacha notes), so forcing cpuidFlags to
  * "AVX1 only" or "neither" and letting the dispatch call the real
  * chacha_encrypt_avx1/chacha_encrypt_x64 asm is always safe: we never claim
  * a capability the CPU lacks, only hide one it has.
@@ -307,7 +307,7 @@ int main(void)
     wb_chacha_predicate();
     wb_chacha_avx512_dispatch();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

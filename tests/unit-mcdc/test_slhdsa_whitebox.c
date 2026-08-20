@@ -23,12 +23,12 @@
  *     mid-sign. Called directly on a stack HashAddress.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage by
- * source line:col in the per-module campaign (iso26262/mcdc-per-module):
+ * source line:col in the per-module suite:
  * llvm-cov computes MC/DC independence PER BINARY, and aggregate.sh ORs the
  * "independence shown" bit across binaries by key. Every pair below is
  * therefore completed *within this file*.
  *
- * Build: compiled by run-mcdc-par.sh's white-box step with the SAME MC/DC
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC
  * CFLAGS, -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then
  * linked against that variant's libwolfssl.a with its wc_slhdsa.o removed
  * (this TU supplies the instrumented wc_slhdsa.c). NOT part of the wolfSSL
@@ -145,11 +145,11 @@ static void wb_ha_encode(void)
 }
 
 /* ------------------------------------------------------------------------- *
- * SHA-2 message-hash static functions: gap-closing supplement (see GAPS.md).
+ * SHA-2 message-hash static functions: gap-closing supplement (see the uncovered-condition report).
  *
  * The tests/api DecisionCoverage additions close every arg-check reachable
  * from the public API. What's left needs either a real n>16 SHA-2 param
- * (every campaign variant restricts to 128-bit only, see config_base's
+ * (every suite variant restricts to 128-bit only, see config_base's
  * notes) or a ctx/ctxSz combination the public API itself rejects before
  * ever reaching these static functions (ctx==NULL with ctxSz>0 is BAD_FUNC_ARG at
  * the wc_SlhDsaKey_Sign/Verify layer). Both are driven directly here.
@@ -433,7 +433,7 @@ int main(void)
     wb_sign_internal_msg_argchecks();
 #endif
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

@@ -113,7 +113,7 @@
  *     caller passes a sigCpy of at least sigSz bytes, so both
  *     mp_to_unsigned_bin() calls write inside the buffer and cannot fail.
  *
- * GAPS.md rows in the deep certificate chain-verification internals
+ * the uncovered-condition report rows in the deep certificate chain-verification internals
  * (name-constraint enforcement, X.509 extension decoding/verification,
  * CRL/OCSP responder verification, ASN.1 dump/print) were left untouched by
  * this file -- they need a fully valid, parsed DecodedCert/Signer/chain
@@ -3071,7 +3071,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

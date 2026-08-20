@@ -16,13 +16,13 @@
  * the public API).
  *
  * Coverage from this binary is unioned with the tests/api variant coverage
- * by source line:col in the per-module campaign: llvm-cov computes MC/DC
- * independence PER BINARY, and the campaign's aggregate.sh ORs the
+ * by source line:col in the per-module suite: llvm-cov computes MC/DC
+ * independence PER BINARY, and the aggregate.sh ORs the
  * "independence shown" bit across binaries by key. That is why every pair
  * below is completed *within this file* rather than relying on the API
  * tests to supply the other half.
  *
- * Build: compiled by run-mcdc-par.sh's white-box step with the SAME MC/DC
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC
  * CFLAGS and -I<workspace> as the instrumented library, then linked against
  * that variant's libwolfssl.a with its sp_int.o removed (this TU supplies
  * the instrumented sp_int.c). NOT part of the wolfSSL build; not registered
@@ -194,7 +194,7 @@ static void wb_set_d(sp_int* a, sp_int_digit v)
 /* a = 2^bits, written straight into the digit array.
  *
  * sp_mul_2d() would be the natural way to build these operands, but it is not
- * compiled in every campaign variant (the reduced backend drops it), and this
+ * compiled in every suite variant (the reduced backend drops it), and this
  * TU has to build under all of them. Returns MP_VAL when the requested width
  * does not fit the compile-time digit ceiling so callers can skip that row. */
 static int wb_pow2(sp_int* a, int bits)
@@ -649,7 +649,7 @@ static void wb_invmod_negative(void)
  *   if ((err == MP_OKAY) && (!sp_iszero(y))) err = MP_VAL;
  *
  * sp_invmod() only selects _sp_invmod_div() for a modulus of at least 1024
- * bits, and the campaign's API tests only ever ask for an inverse that
+ * bits, and the API tests only ever ask for an inverse that
  * exists, so the loop's leftover is always zero there. Ask for the inverse
  * of a value that shares a factor with the modulus instead.
  * ------------------------------------------------------------------------- */
@@ -813,7 +813,7 @@ static void wb_sp_backend_dispatch_one(int bits)
      * `(mBits == W) && sp_isodd(m) && (bBits <= W) && (eBits <= W)` the
      * indices are mBits, bBits, eBits, then sp_isodd's two halves. Index 3
      * is therefore `m->used != 0`, which sp_exptmod_ex() has already
-     * rejected via sp_iszero(m); see EXCLUSIONS.md. */
+     * rejected via sp_iszero(m); see the exclusion record. */
     if ((wb_pow2(&b, bits) == MP_OKAY) && (sp_add_d(&b, 5, &b) == MP_OKAY)) {
         _sp_init_size(&r, SP_INT_DIGITS);
         (void)sp_exptmod_ex(&b, &e, 1, &m, &r);
@@ -1839,7 +1839,7 @@ int main(void)
     wb_gcd_r_small_b();
     wb_prime_trial_alloc();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

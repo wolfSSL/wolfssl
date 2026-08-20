@@ -32,7 +32,7 @@
  *       <generic C path>
  *
  * On any BMI2+ADX host (which is effectively every build/CI machine this
- * campaign runs on) only the accelerated half of each such decision is ever
+ * suite runs on) only the accelerated half of each such decision is ever
  * taken by the ordinary tests/api-driven asm run, leaving the generic half
  * permanently uncovered -- roughly 374 decisions across the file.
  *
@@ -48,11 +48,11 @@
  *
  * Coverage from this binary is unioned with the tests/api variant coverage
  * (and with the normal, accelerated, asm run of this same file) by source
- * line:col in the per-module campaign (iso26262/mcdc-per-module):
- * llvm-cov computes MC/DC independence PER BINARY, and the campaign's
+ * line:col in the per-module suite:
+ * llvm-cov computes MC/DC independence PER BINARY, and the
  * aggregate.sh ORs the "independence shown" bit across binaries by key.
  *
- * Build: compiled by run-mcdc.sh's white-box step with the SAME MC/DC CFLAGS,
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC CFLAGS,
  * -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then linked
  * against that variant's libwolfssl.a with its sp_x86_64.o removed (this TU
  * supplies the instrumented sp_x86_64.c). NOT part of the wolfSSL build; not
@@ -110,7 +110,7 @@
  * would require calling the avx2 variant directly while ALSO forcing
  * cpuid_get_flags() to report BMI2/ADX absent for that one call, which
  * doesn't correspond to any state the real dispatch logic can reach. These
- * are left uncovered here and logged as a residual/DEATHNOTE class rather
+ * are left uncovered here and logged as a residual class rather
  * than driven via an impossible-state call.
  *
  * -------------------------------------------------------------------------
@@ -557,7 +557,7 @@ static void wb_run_rsa_free(void)
  * "Group 15" 3072-bit prime from memory risks a transcription error, and
  * generating one at runtime via wc_DhGenerateParams(3072) is a slow
  * probable-safe-prime search that would meaningfully slow this binary
- * down for a size this campaign only asks for "if convenient". The
+ * down for a size this suite only asks for "if convenient". The
  * generic sp_ModExp_3072/sp_DhExp_3072 decisions are still covered via
  * the RSA-3072 path above (same underlying generic Montgomery modexp
  * routines), so 2048-bit alone still exercises the DH-specific
@@ -1458,7 +1458,7 @@ static void wb_run_dispatch_521(void)
 
 /* ----------------------------------------------------------------------- *
  * SAKKE (1024-bit): sp_1024_div_16/from_bin/to_mp. Niche feature, almost
- * certainly not enabled in this campaign's builds -- WB_NOTE-skip if not.
+ * certainly not enabled in this suite's builds -- WB_NOTE-skip if not.
  * ----------------------------------------------------------------------- */
 static void wb_run_dispatch_1024(void)
 {
@@ -1506,7 +1506,7 @@ static void wb_run_dispatch(void)
  *
  * sp_ecc_mulmod_add_256/384/521(): each has
  *   if ((err == MP_OKAY) && (!inMont)) { ... sp_<n>_mod_mul_norm_<n> ... }
- * repeated for x/y/z (the ~36-conditions-across-3-curves the campaign
+ * repeated for x/y/z (the ~36-conditions-across-3-curves the harness
  * counts), plus a final `if (map) { ... }`. Driving all 4 (inMont, map)
  * combinations with a real curve point (from wc_ecc_make_key_ex()) as both
  * the multiplicand and the point to add covers every operand of both
@@ -1529,7 +1529,7 @@ static void wb_run_dispatch(void)
  *     from the file-static p<n>_mod array, visible in this TU because
  *     sp_x86_64.c is #included, not linked); false via a real coordinate
  *     (which is always < the modulus).
- * privm is passed as NULL throughout (this campaign only needs the public-
+ * privm is passed as NULL throughout (this suite only needs the public-
  * point guards, not the private-scalar-matches-point path, which is
  * already exercised for real keys by wb_run_ecc()).
  *
@@ -1915,7 +1915,7 @@ int main(void)
     /* The dispatch decisions in sp_x86_64.c are `IS_INTEL_BMI2(f) &&
      * IS_INTEL_ADX(f)` (two conditions) plus single-condition
      * `IS_INTEL_MOVBE(f)` checks. CRITICAL: llvm-cov computes MC/DC
-     * independence PER BINARY, and the campaign only ORs the resulting
+     * independence PER BINARY, and the harness only ORs the resulting
      * covered-bit across binaries -- it does NOT reconstruct an independence
      * pair from vectors spread over different binaries. So THIS binary must
      * itself observe all three vectors of `A && B` (TT, FT, TF). The ordinary

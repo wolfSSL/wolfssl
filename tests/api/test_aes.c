@@ -8520,7 +8520,7 @@ int test_wc_AesFeatureCoverage(void)
  * GCM/GMAC block works on all of them, so it only excludes HAVE_SELFTEST; the
  * CCM block additionally excludes old FIPS (its AAD-only case diverges there,
  * see the per-block note); the key-wrap block excludes all FIPS + self-test.
- * The open MC/DC campaign builds are unaffected. */
+ * The open MC/DC builds are unaffected. */
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST)
     /* ---- AES-GCM streaming API: multi-chunk AAD and data ---- */
     /* Uses a hardcoded 256-bit key, so requires AES-256. */

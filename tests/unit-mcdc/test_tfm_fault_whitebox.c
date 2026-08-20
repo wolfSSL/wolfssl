@@ -28,7 +28,7 @@
  * step 7 relabelled away from the (retired) "32-bit axis" residual class.
  *
  * Every section supplies BOTH halves of the targeted independence pair inside
- * THIS binary - llvm-cov computes MC/DC per binary and the campaign only
+ * THIS binary - llvm-cov computes MC/DC per binary and the harness only
  * unions the "independence shown" bit by source line:col, so a rejection
  * vector without its accepting partner in the same binary proves nothing.
  *
@@ -137,7 +137,7 @@
  * It #includes tfm.c directly (like every other unit-mcdc white-box) to be the
  * single instrumented definition; the library's tfm.o is trimmed from the
  * archive at link time. main() always returns 0 - a nonzero exit makes the
- * campaign discard the whole variant.
+ * suite discard the whole variant.
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -486,7 +486,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures surface as skips, not failures: a nonzero exit makes the
-     * campaign discard this variant's coverage. */
+     * suite discard this variant's coverage. */
     return 0;
 }
 

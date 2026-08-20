@@ -23,7 +23,7 @@
  * ENTROPY / SEED-DERIVATION FAULT white-box supplement for
  * wolfcrypt/src/random.c.
  *
- * This is the campaign's first RNG-failure injection driver. Two independent
+ * This is the first RNG-failure injection driver. Two independent
  * levers are combined here, and both generalise to any module that consumes
  * randomness -- see "REUSING THIS" at the bottom of this comment.
  *
@@ -132,7 +132,7 @@
  * generation, blinding, nonce derivation): install a staged/failing seed
  * callback and drive the module's public entry point twice.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with random.o removed. Not part of the wolfSSL build.
  */

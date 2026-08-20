@@ -42,7 +42,7 @@
  * driven and paired for MC/DC.
  *
  * NOT COMPILED IN THIS MODULE'S CONFIG (verified against
- * campaign/configs/asn/user_settings.base.h):
+ * suite/configs/asn/user_settings.base.h):
  *   - WOLFSSL_ACERT: attribute-certificate parsing (ParseX509Acert,
  *     DecodeAcertGeneralName(s), VerifyX509Acert, ...) is entirely gated
  *     behind "#if defined(WOLFSSL_ACERT) && defined(WOLFSSL_ASN_TEMPLATE)"
@@ -592,7 +592,7 @@ static void wb_set_name_ex(void)
 #endif
 
 /* ========================================================================
- * ARGUED UNREACHABLE, do not re-open (campaign EXCLUSIONS.md +
+ * ARGUED UNREACHABLE, do not re-open (suite the exclusion record +
  * db/exclusions.json): wc_SetSubjectRaw() :32713 cond 0 and wc_SetIssuerRaw()
  * :32750 cond 0 (`decodedCert->subjectRaw` non-NULL). GetCertName() assigns
  * cert->subjectRaw = &input[srcIdx] (asn.c:15513) on every path where the
@@ -1963,7 +1963,7 @@ static void wb_rsa_public_key_decode_raw(void)
  * RESIDUAL: :40397/:40411/:40542's "badDate" arm is only taken when
  * CheckDate() actually reports the acert as expired/not-yet-valid. The
  * corpus certs (certs/acert/acert.pem, acert_ietf.pem) are fixed test
- * vectors not guaranteed to straddle "today" for the life of this campaign,
+ * vectors not guaranteed to straddle "today" for the life of this suite,
  * so only the verify-mode short-circuits (NO_VERIFY / VERIFY_SKIP_DATE)
  * are driven below, not a genuine bad-date trigger; doing so safely would
  * need a deliberately-expired ACERT DER fixture, which is left for a
@@ -3352,7 +3352,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

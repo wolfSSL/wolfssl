@@ -11,13 +11,13 @@
  * MC/DC independence pair.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage by
- * source line:col in the per-module campaign (iso26262/mcdc-per-module):
- * llvm-cov computes MC/DC independence PER BINARY, and the campaign's
+ * source line:col in the per-module suite:
+ * llvm-cov computes MC/DC independence PER BINARY, and the
  * aggregate.sh ORs the "independence shown" bit across binaries by key. That is
  * why every pair below is completed *within this file* rather than relying on
  * the API tests to supply the other half.
  *
- * Build: compiled by run-mcdc.sh's white-box step with the SAME MC/DC CFLAGS,
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC CFLAGS,
  * -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then linked
  * against that variant's libwolfssl.a with its aes.o removed (this TU supplies
  * the instrumented aes.c). NOT part of the wolfSSL build; not registered in
@@ -39,7 +39,7 @@
  *   Class 10 AArch64 CTR leftover-keystream loop (WOLFSSL_ARMASM,
  *            __aarch64__, qemu-aarch64 lane only) .. exclusion demonstration
  * Classes 4, 5 and 10 only compile in the qemu-aarch64 emulator lane (see
- * iso26262/mcdc-per-module campaign, db/lanes.json); on every other build
+ * iso26262/mcdc-per-module suite, db/lanes.json); on every other build
  * they reduce to a no-op stub so this file still compiles+runs natively.
  * The remaining union residuals are structurally uncoverable even here
  * (complementary-operand decisions where unique-cause MC/DC is unsatisfiable,
@@ -47,7 +47,7 @@
  * loop above, and AesCfbDecrypt_C's `ret == 0` loop guard: the only build
  * axis that compiles that block, WOLFSSL_ARMASM, also selects a
  * wc_AesEncrypt() with no failure path). Those stay justified in
- * campaign/db/exclusions.json + EXCLUSIONS.md and reports/aes/RESIDUALS.md.
+ * the exclusion record + the exclusion record and reports/aes/RESIDUALS.md.
  */
 
 /* Pull aes.c in verbatim so the file-static and WOLFSSL_LOCAL helpers below are
@@ -275,7 +275,7 @@ static void wb_aesnew_common(void)
 /* ------------------------------------------------------------------------- *
  * Class 3: AES-NI internal pointer guards (WOLFSSL_AESNI).
  *
- * When aes.c is compiled with AES-NI (the campaign's "aesni" variant), the
+ * When aes.c is compiled with AES-NI (the "aesni" variant), the
  * AES-NI code paths add file-static helpers whose NULL/size guards every public
  * caller pre-rejects, exactly like the classic GHASH guards:
  *
@@ -601,7 +601,7 @@ static void wb_aarch64_gcm_ptr_guards(void)
  *   iv == NULL, ivSz  > 0  -> idx3 F (group false), idx5 T, idx6 T -> reject
  * and idx3 flips with idx5 in both, so neither row isolates idx5. The calls
  * below still run (they pair idx3/idx4/idx6); idx5 is recorded in
- * campaign/db/exclusions.json. wc_AesGcmSetIV's idx5 ("ivFixed != NULL",
+ * the exclusion record. wc_AesGcmSetIV's idx5 ("ivFixed != NULL",
  * ~14858) is excluded on the identical argument against its idx3
  * ("ivFixed == NULL").
  * ------------------------------------------------------------------------- */
@@ -1123,7 +1123,7 @@ static void wb_ccm_aesni_dispatch(void)
  * so on arrival either left == 0 (left <= sz) or sz == 0 (left > sz), never
  * both non-zero. The loop below is a duplicate of that drain and its body is
  * dead. With the decision never true, neither operand has an independence
- * pair, so both conditions are recorded in campaign/db/exclusions.json. The
+ * pair, so both conditions are recorded in the exclusion record. The
  * calls stay so the argument is demonstrated rather than only asserted.
  * ------------------------------------------------------------------------- */
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
@@ -1196,7 +1196,7 @@ int main(void)
     wb_ccm_aesni_dispatch();
     wb_aarch64_ctr_leftover();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

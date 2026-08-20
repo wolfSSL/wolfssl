@@ -1043,7 +1043,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. */
+     * entirely in the test harness. */
     (void)wb_fail;
     return 0;
 }

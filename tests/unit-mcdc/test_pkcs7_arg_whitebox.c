@@ -34,8 +34,7 @@
  * accepting vector only has to make the guard evaluate false; failing
  * deeper in is fine and expected.
  *
- * ARGUED UNREACHABLE, do not re-open (also in the campaign's EXCLUSIONS.md
- * and db/exclusions.json):
+ * ARGUED UNREACHABLE, do not re-open:
  *
  *   :4183 cond 1 (`pkcs7->sidType != DEGENERATE_SID`). PKCS7_EncodeSigned's
  *     only assignment of a non-zero flatSignedAttribsSz is at :3836, inside
@@ -1597,7 +1596,7 @@ static void wb_small_matrices(void)
     /* all-false baseline: the 3 operand-true rows above never pair against
      * a call that gets past the guard, so the guard's independence pairs
      * were never actually closed (mirrors the arg-guard trap noted in the
-     * campaign brief -- an operand-true-only batch without the baseline). */
+     * suite brief -- an operand-true-only batch without the baseline). */
     {
         wc_PKCS7 hp;
         int ret;
@@ -1994,7 +1993,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

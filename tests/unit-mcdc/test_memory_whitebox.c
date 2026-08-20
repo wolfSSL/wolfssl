@@ -55,7 +55,7 @@
  * Verified against a throwaway library built with:
  *      ./configure --enable-usersettings --enable-static --disable-shared \
  *          --enable-staticmemory
- *      (CC=clang, CFLAGS/LDFLAGS carrying the campaign's
+ *      (CC=clang, CFLAGS/LDFLAGS carrying the
  *      -fprofile-instr-generate -fcoverage-mapping -fcoverage-mcdc, plus
  *      -Wno-error=unused-function: wc_MemFailCount_AllocMem/FreeMem (memory.c
  *      :150/:165) are `static` helpers whose only OTHER caller is the

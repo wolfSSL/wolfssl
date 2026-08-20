@@ -16,17 +16,17 @@
  * buffer) -- none of them ever construct the "in == NULL && inLen > 0"
  * combination or pass key/hash as NULL. This translation unit reaches all
  * three operands' TRUE sides (and completes the FALSE-side pairing within this
- * same binary, per the campaign's cross-binary MC/DC lesson) by compiling
+ * same binary, per the cross-binary MC/DC lesson) by compiling
  * ed448.c directly (#include) and calling the static helper directly.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage by
- * source line:col in the per-module campaign (iso26262/mcdc-per-module):
- * llvm-cov computes MC/DC independence PER BINARY, and the campaign's
+ * source line:col in the per-module suite:
+ * llvm-cov computes MC/DC independence PER BINARY, and the
  * aggregate.sh ORs the "independence shown" bit across binaries by key. That
  * is why every pair below is completed *within this file* rather than relying
  * on the API tests to supply the other half.
  *
- * Build: compiled by run-mcdc-par.sh's white-box step with the SAME MC/DC
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC
  * CFLAGS, -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then
  * linked against that variant's libwolfssl.a with its ed448.o removed (this TU
  * supplies the instrumented ed448.c). NOT part of the wolfSSL build; not
@@ -276,7 +276,7 @@ int main(void)
     wb_ed448_hash();
     wb_ed448_verify_key_null();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

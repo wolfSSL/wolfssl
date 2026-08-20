@@ -50,8 +50,8 @@
  * The "ret == 0 && Get*(...)" idiom in this file produces a large number of
  * operands that have no MC/DC independence pair for a reason in the source,
  * not for want of a test. They fall into four provable families. Recording
- * them here so the next pass does not re-spend effort on them; the campaign
- * EXCLUSIONS.md carries the same arguments.
+ * them here so the next pass does not re-spend effort on them; the harness
+ * the exclusion record carries the same arguments.
  *
  * (1) LEADING OPERAND OF THE FIRST LINK IN A SWITCH CASE. `ret` is a local
  *     initialised to 0, and the only statement before the link is a
@@ -122,7 +122,7 @@
  *                        never 0 on arrival at VERIFY_STAGE3.
  *
  * Added by the 2026-08-20 streaming-state wave (Sections 18-19 below), both
- * filed in campaign/db/exclusions.json:
+ * filed in the exclusion record:
  *
  *       :7516 cond 2  -- family (4). stream->content is freed and NULLed at
  *                        :7501-:7502 before VERIFY_STAGE3 runs, so it is
@@ -1856,7 +1856,7 @@ static void wb_ktri_key_alg_dispatch(void)
  *     the call answers WC_PKCS7_WANT_READ_E.
  *
  * cond 1 (`stream->length < stream->expected`) has no false row and is filed
- * in EXCLUSIONS.md: `expected` was just assigned `sz + MAX_ALGO_SZ +
+ * in the exclusion record: `expected` was just assigned `sz + MAX_ALGO_SZ +
  * ASN_TAG_SZ + MAX_LENGTH_SZ + 512` (>= 538) two statements above, while
  * stream->length can never exceed the largest `expected` ever passed to
  * wc_PKCS7_AddDataToStream() on the way here -- MAX_OID_SZ + MAX_LENGTH_SZ +
@@ -2033,7 +2033,7 @@ static void wb_stage7_signature_rows(void)
 #endif /* !NO_PKCS7_STREAM && !NO_RSA && !NO_SHA256 */
 
 /* ------------------------------------------------------------------------- *
- * main -- always returns 0 so the campaign harness keeps this variant's
+ * main -- always returns 0 so the test harness keeps this variant's
  * coverage even if an individual sub-section's build config disables it.
  * ------------------------------------------------------------------------- */
 int main(void)

@@ -28,7 +28,7 @@
  * (--target=arm-linux-gnueabihf -mthumb) and run under an ARM emulator
  * (qemu-arm). That is why this white-box is a LANE-only supplement (the
  * "qemu-armthumb" lane in db/lanes.json / the sp-arm-lanes "armthumb" variant
- * in db/modules.json), never a native host build: the host x86-64 toolchain
+ * in the module registry), never a native host build: the host x86-64 toolchain
  * cannot even assemble the file.
  *
  * Unlike the asm-dispatch backends (sp_x86_64.c, the AArch64 armasm files),
@@ -675,7 +675,7 @@ static void wb_mod_top_bit_odd(mp_int* m, int bits)
  *      false; base=2 with a non-all-ones modulus forces the shape
  *      operand false; base=2 with an all-ones modulus gives the
  *      all-true baseline (self-contained -- not relying on real DH
- *      traffic elsewhere in the campaign for this size).
+ *      traffic elsewhere in the harness for this size).
  *   3. Leading-zero-strip loop: base=1 gives a result of 1 (every byte
  *      but the last is 0, closing the "out[i]==0" operand's both
  *      sides in one call); base=0 gives an all-zero result (closing

@@ -20,7 +20,7 @@
  */
 
 /*
- * mcdc_fault_mutex.h -- mutex-fault injector for the per-module MC/DC campaign.
+ * mcdc_fault_mutex.h -- mutex-fault injector for the per-module MC/DC suite.
  *
  * PURPOSE
  * -------

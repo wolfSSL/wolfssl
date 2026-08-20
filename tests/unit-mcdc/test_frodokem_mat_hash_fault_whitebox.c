@@ -73,7 +73,7 @@
  * only set with qMask != 0xffff, and the 976/1344 sets run the identical code
  * with a bigger n at several times the cost. The larger sets still get their
  * baseline pass. Everything is bounded by a point budget AND a CPU deadline so
- * the binary can never hit the campaign's 600 s TEST_TIMEOUT (a timeout is a
+ * the binary can never hit the 600 s TEST_TIMEOUT (a timeout is a
  * SILENT SKIP that would lose the whole file).
  */
 
@@ -462,7 +462,7 @@ int main(void)
     }
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
-    /* A non-zero exit makes the campaign discard this binary's coverage. */
+    /* A non-zero exit makes the harness discard this binary's coverage. */
     return 0;
 }
 

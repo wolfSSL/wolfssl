@@ -126,7 +126,7 @@
  *     words in hand when the windowed loop's bit counter runs out, which is
  *     the only vector of that loop's `i >= 0` operand.
  *
- * NOT REACHABLE -- arguments, mirrored in EXCLUSIONS.md families A-G
+ * NOT REACHABLE -- arguments, mirrored in the exclusion record families A-G
  * -----------------------------------------------------------------
  *  A. `for (j=0; j<N && x<BITS; j++)` in sp_<n>_ecc_mulmod_stripe_<w>.
  *     Both bounds are compile-time arithmetic on the comb geometry, not
@@ -211,7 +211,7 @@
  * register quadruple that is identically zero and re-tests bit 0, so it
  * cannot terminate -- while appending a byte per iteration to a fixed
  * 0x208-byte stack buffer. It is not MC/DC-instrumented (it is assembly),
- * so there is nothing to gain by driving it. See DEATHNOTE.md.
+ * so there is nothing to gain by driving it.
  *
  * EVERY assembly backend has this shape, not just x86-64: the ARM lanes
  * (sp_arm64.c, sp_arm32.c, sp_armthumb.c, sp_cortexm.c) hand-write the
@@ -484,7 +484,7 @@ static void wb_spc_ecc_##BITS(void)                                         \
                 key.pubkey.y, &one, &one, &smv, &res, NULL);                \
         }                                                                   \
     }
-/* Three degenerate-operand vectors nothing else in the campaign produces.
+/* Three degenerate-operand vectors nothing else in the harness produces.
  *
  * 1. sign with a zero private scalar and an all-zero hash. s is
  *    (e + r*d) / k mod order, so e == 0 and d == 0 make s == 0 on EVERY
@@ -822,7 +822,7 @@ static void wb_spc_all(void)
 {
     /* Referenced unconditionally: which of these the preprocessor leaves
      * with a live use depends on the variant, and an unused static is a
-     * warning this campaign's builds treat as noise to be avoided. */
+     * warning this suite's builds treat as noise to be avoided. */
     (void)wb_spc_digest;
     (void)wb_spc_zdigest;
     (void)wb_spc_make_modulus;

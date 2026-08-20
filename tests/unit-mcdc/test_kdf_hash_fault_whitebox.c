@@ -95,7 +95,7 @@
  * targets, with an #else stub, so this TU builds under kdf_default,
  * small_stack, ticket_nonce_malloc and crypto_cb alike.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with kdf.o removed. Not part of the wolfSSL build.
  */

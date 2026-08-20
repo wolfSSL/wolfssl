@@ -72,7 +72,7 @@
  * s == the curve order). test_sp_crafted_common.h already gates it off for
  * every assembly backend, WOLFSSL_SP_ARM_CORTEX_M_ASM included --
  * sp_256_mod_inv_8() is hand-written Thumb assembly whose halving loop does
- * not terminate on that input. See DEATHNOTE.md.
+ * not terminate on that input.
  */
 
 #ifdef HAVE_CONFIG_H

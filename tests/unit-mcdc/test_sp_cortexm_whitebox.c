@@ -22,7 +22,7 @@
 /*
  * MC/DC white-box supplement for the Cortex-M SP backend
  * (wolfcrypt/src/sp_cortexm.c), driven under the bare-metal m33mu emulator
- * lane (campaign lane "m33mu", config configs/sp-arm-lanes/user_settings.cortexm.h).
+ * lane (the m33mu lane).
  *
  * LANE CONTRACT / WHY A CONSTRUCTOR (not the usual #include-the-.c whitebox):
  *   The m33mu lane instruments sp_cortexm.c as its own clang TU and links it

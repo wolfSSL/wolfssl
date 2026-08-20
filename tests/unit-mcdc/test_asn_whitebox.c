@@ -33,7 +33,7 @@
  * minimal custom ASNItem templates.
  *
  * Coverage is unioned by source line:col with the tests/api asn/x509/... run
- * in the per-module campaign; every pair below is completed *within this
+ * in the per-module suite; every pair below is completed *within this
  * file* (masking MC/DC is computed per binary).
  *
  * Sections (asn.c line numbers as of this writing):
@@ -74,7 +74,7 @@
  *     itself cannot show a false outcome.
  *   - GetOID() :7960 first operand (`ret == 0`): ret is a local initialised
  *     to 0 at asn.c:7873 and assigned only inside `#ifdef ASN_DUMP_OID`
- *     (:7952), which settings.h never defines and no campaign variant sets.
+ *     (:7952), which settings.h never defines and no suite variant sets.
  *     Constant true. The other three operands are driven below with two
  *     hand-computed wc_oid_sum() collisions.
  *   - wc_Asn1_PrintAll() :39680 both operands: every path through
@@ -1237,7 +1237,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

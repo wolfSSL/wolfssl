@@ -36,9 +36,9 @@
  * sized for the tall parameter set and roundtrips that would exceed it are
  * skipped cleanly.
  *
- * What this file deliberately does NOT cover - both are in the campaign's
- * exclusion ledger (campaign/db/exclusions.json,
- * EXCLUSIONS.md#condition-level-exclusions):
+ * What this file deliberately does NOT cover - both are in the
+ * exclusion ledger (the exclusion record,
+ * the exclusion record#condition-level-exclusions):
  *
  *   2465:2 and 4131:2 - the "c <= 4" operand of WC_IDX_INVALID's mixed
  *   32/64-bit arm, i.e. "((c > 4) && IDX64_INVALID(..)) || ((c <= 4) &&
@@ -216,7 +216,7 @@ static void wb_param_roundtrip(WC_RNG* rng, const char* paramStr)
  *
  * `(idx_len > 4)` and `(idx_len <= 4)` are exact logical complements of one
  * parameter, so the second of them has no independence pair by construction;
- * that residual is recorded in campaign/db/exclusions.json.
+ * that residual is recorded in the exclusion record.
  */
 static void wb_exhausted_index(WC_RNG* rng, const char* paramStr, int doSign)
 {
@@ -1193,7 +1193,7 @@ static void wb_full_cycle_d1(void)
      * reject and is the one this test is after. (The all-0xFF marker used to
      * read back as "valid" because IDX32_INVALID's "(idx+1)>>h" overflowed to
      * 0 - a real defect, fixed in "wolfcrypt: xmss exhausted-key index marker
-     * wrapped and re-enabled signing" and recorded in DEATHNOTE.md.) */
+     * wrapped and re-enabled signing".) */
     if (exhausted) {
         byte idxSk[2048];
 

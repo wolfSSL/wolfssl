@@ -78,7 +78,7 @@
  *   ./wb.test            default: baseline valid ops + the full fault sweep
  *   ./wb.test baseline   only the unarmed valid ops (measure sweep as a delta)
  *   ./wb.test probe      print per-entry-point allocation counts (sizes K)
- * The campaign's run_whitebox harness runs the binary with NO args, so the
+ * The suite's run_whitebox harness runs the binary with NO args, so the
  * default action is the full sweep.
  */
 

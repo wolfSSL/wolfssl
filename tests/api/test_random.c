@@ -297,7 +297,7 @@ int test_wc_GenerateSeed(void)
     /* Different configurations have different paths and different errors or
      * no error at all. */
 #ifdef TEST_WC_GENERATE_SEED_PARAMS
-    /* NOTE (GAPS.md residual, line ~5525 "os == NULL || output == NULL"):
+    /* NOTE (the uncovered-condition report residual, line ~5525 "os == NULL || output == NULL"):
      * TEST_WC_GENERATE_SEED_PARAMS is not defined by any variant in
      * configs/random/ today. Its header comment cites a real historical
      * bug -- the generic Linux getrandom()/dev-urandom wc_GenerateSeed()
@@ -312,7 +312,7 @@ int test_wc_GenerateSeed(void)
      * configs/random/user_settings.base.h (none of this module's variants
      * select a different OS/HW entropy backend) would safely close this
      * residual; left undefined here since gap-closing tasks don't modify
-     * the shared campaign config headers -- flagged for the orchestrator. */
+     * the shared suite config headers -- flagged for the orchestrator. */
     /* Bad parameters. */
     ExpectIntEQ(wc_GenerateSeed(NULL, NULL  , 16),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -1088,7 +1088,7 @@ int test_wc_RNG_SeedCb(void)
  * skipped, since it is guarded by
  * "defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)"). Not
  * gated on HAVE_HASHDRBG since this path is intentionally independent of
- * it -- see configs/random/user_settings.custom_rand.h in the campaign for
+ * it -- see configs/random/user_settings.custom_rand.h in the harness for
  * why forcing both together is unsafe. */
 int test_wc_RNG_CustomRandBlock(void)
 {

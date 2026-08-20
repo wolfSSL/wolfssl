@@ -53,7 +53,7 @@
  * exactly one earlier op returns MP_MEM, so exactly one operand of one chain is
  * driven TRUE (short-circuiting the rest) per call. The unarmed baseline call
  * supplies the all-FALSE half of every pair in the SAME binary (llvm-cov
- * computes MC/DC per binary; the campaign unions the "independence shown" bit
+ * computes MC/DC per binary; the harness unions the "independence shown" bit
  * across binaries by line:col).
  *
  * Which operands are alloc-closable: mp_abs (grows a fresh temp from NULL),

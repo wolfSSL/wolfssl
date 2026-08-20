@@ -35,16 +35,16 @@
  * helpers below, rather than typed-out byte arrays) plus a few real
  * certificate/key buffers borrowed from existing test fixtures.
  *
- * NOTE on HAVE_OCSP_RESPONDER: the asn campaign's config_base
+ * NOTE on HAVE_OCSP_RESPONDER: the asn suite's config_base
  * (configs/asn/user_settings.base.h) never defines HAVE_OCSP_RESPONDER, so
  * EncodeCertID/EncodeSingleResponse/EncodeResponseData/EncodeBasicOcspResponse/
  * OcspResponseEncode are compiled out for every variant of this module and
- * GAPS.md carries no lines inside them -- this file does not attempt to
+ * the uncovered-condition report carries no lines inside them -- this file does not attempt to
  * cover that side and never needs it to build test input (all decode-side
  * buffers below are constructed by hand instead of via a round trip).
  *
  * Coverage is unioned by source line:col with the tests/api asn/ocsp run in
- * the per-module campaign; every pair below is completed *within this file*
+ * the per-module suite; every pair below is completed *within this file*
  * (masking MC/DC is computed per binary, then ORed across binaries by key).
  */
 
@@ -286,7 +286,7 @@ static word32 wb_build_single_response(byte* out,
  *   :35012/35013  if ((!AsnSkipDateCheck) && !XVALIDATE_DATE(nextDate, ..., ASN_AFTER, ...))
  *   :35021/35022  (WOLFSSL_OCSP_PARSE_STATUS) duplicate of :35006/35007
  * AsnSkipDateCheck is a compile-time constant 0 unless
- * WC_ASN_RUNTIME_DATE_CHECK_CONTROL is defined (not set for this campaign),
+ * WC_ASN_RUNTIME_DATE_CHECK_CONTROL is defined (not set for this suite),
  * so its "true" (skip) value is a structural residual here; only the
  * XVALIDATE_DATE operand is driven both ways.
  * ------------------------------------------------------------------------- */
@@ -1199,7 +1199,7 @@ static void wb_compare_ocsp_req_resp(void)
  * Section 11: ParseCRL_EntryExtensions() [:36841,:36842,:36854-:36856,
  * :36863,:36864,:36877,:36878,:36881,:36882,:36891,:36892,:36917,:36921,
  * :36935]
- * WC_ASN_UNKNOWN_EXT_CB is active for this campaign (WOLFSSL_ASN_ALL pulls
+ * WC_ASN_UNKNOWN_EXT_CB is active for this suite (WOLFSSL_ASN_ALL pulls
  * in WOLFSSL_CUSTOM_OID + HAVE_OID_DECODING + WOLFSSL_ASN_TEMPLATE), so the
  * callback-dispatch branch is live, not compiled out.
  * ------------------------------------------------------------------------- */
@@ -1575,7 +1575,7 @@ static void wb_parse_crl_entry_extensions(void) { WB_NOTE("HAVE_CRL off or WOLFC
  * other failure path). `m` is non-NULL on every arrival (the NULL case sets
  * ret at :37676, so cond 0 short-circuits) and dcrl->crlNumber is an array
  * member of DecodedCRL, so the decision is never true and neither operand
- * pairs. Recorded in EXCLUSIONS.md.
+ * pairs. Recorded in the exclusion record.
  * ------------------------------------------------------------------------- */
 static word32 wb_build_crl_number_ext(byte* out, const byte* intContent,
         word32 intContentSz)
@@ -1684,7 +1684,7 @@ static void wb_parse_crl_extensions(void)
 
     /* Duplicate CRL_NUMBER_OID extensions -> :37284/:37285 CRL_NUMBER_OID
      * term both true on the 2nd occurrence (WOLFSSL_NO_ASN_STRICT is not
-     * defined for this campaign, so strict duplicate rejection applies). */
+     * defined for this suite, so strict duplicate rejection applies). */
     InitDecodedCRL(&dcrl, NULL);
     {
         byte ext1[64], ext2[64];
@@ -1716,7 +1716,7 @@ static void wb_parse_crl_extensions(void)
 
 #ifndef WC_ASN_UNKNOWN_EXT_CB
     /* Only reachable as "handled==0" residual note when the callback
-     * feature is compiled out; this campaign has it on (see below), kept
+     * feature is compiled out; this suite has it on (see below), kept
      * here for portability to a variant that does not. */
     InitDecodedCRL(&dcrl, NULL);
     {
@@ -2710,7 +2710,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

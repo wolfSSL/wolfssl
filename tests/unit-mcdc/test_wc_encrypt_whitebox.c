@@ -60,7 +60,7 @@
  *          if (version == PKCS5v2 || version == PKCS12v1)
  *              desIv = cbcIv;
  *      Both operands need three rows in one binary, and the row that never
- *      occurs in the campaign's API-level runs is the all-false one, because
+ *      occurs in the API-level runs is the all-false one, because
  *      the PBE_*_DES ids are only ever reached with a PKCS#12 or PKCS#5 v2.0
  *      encoding. The third version value has to be one the version switch
  *      above still accepts, otherwise ret != 0 and the cipher switch is never
@@ -76,7 +76,7 @@
  *      both inside the range wc_PBKDF1() just wrote, so no uninitialised or
  *      out-of-bounds read. Input is 32 bytes, a whole number of DES blocks.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with wc_encrypt.o removed. Not part of the wolfSSL build.
  */

@@ -40,7 +40,7 @@
  * Both halves therefore hang off the same lever: the randomness mp_rand()
  * consumes. Waiting for the real RNG to hand out an all-zero top digit is not
  * an option for ASIL-D evidence (it is a 2^-64 lottery, and rule 3 of this
- * campaign forbids evidence that depends on a live draw), so this TU scripts
+ * suite forbids evidence that depends on a live draw), so this TU scripts
  * the stream instead.
  *
  * HOW -- MACRO INTERPOSITION ON wc_RNG_GenerateBlock()
@@ -64,10 +64,10 @@
  *
  * (T,T) against (F,.) is idx0's independence pair; (T,T) against (T,F) is
  * idx1's. Both are completed inside this binary, which is what MC/DC needs:
- * llvm-cov computes independence per binary and the campaign only ORs the
+ * llvm-cov computes independence per binary and the harness only ORs the
  * resulting bits by line:col.
  *
- * Build: compiled by run-mcdc-par.sh's white-box step with the SAME MC/DC
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC
  * CFLAGS, -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then
  * linked against that variant's libwolfssl.a with its wolfmath.o removed
  * (this TU supplies the instrumented wolfmath.c). NOT part of the wolfSSL
@@ -80,7 +80,7 @@
 /* Declare the hook explicitly rather than relying on the macro to rewrite
  * random.h's own prototype: if anything drags random.h in first, the include
  * guard skips that prototype, the hook is never declared, and every call site
- * inside wolfmath.c fails to compile -- which the campaign scores as a SILENT
+ * inside wolfmath.c fails to compile -- which the harness scores as a SILENT
  * SKIP (see the same note in mcdc_seed_rng.h). */
 static int wb_wm_rng_block(WC_RNG* rng, byte* out, word32 sz);
 
@@ -208,6 +208,6 @@ int main(void)
     wb_mp_rand_top_digit();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
-     * campaign discard this variant's coverage. */
+     * suite discard this variant's coverage. */
     return 0;
 }

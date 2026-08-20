@@ -2,7 +2,7 @@
  *
  * White-box MC/DC supplement for src/tls13.c.
  *
- * This is the FIRST white-box driver in the campaign that targets a src/ file
+ * This is the FIRST white-box driver in the harness that targets a src/ file
  * rather than wolfcrypt/src/*.c. The build contract is identical (see
  * tests/unit-mcdc/README.md): this TU #includes the target .c verbatim, is
  * compiled with the exact flags the instrumented library used for it, and is
@@ -19,12 +19,12 @@
  * without editing library source.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage by
- * source line:col by the campaign's aggregate.sh, which ORs the "independence
+ * source line:col by the aggregate.sh, which ORs the "independence
  * shown" bit across binaries. llvm-cov derives independence PER BINARY, so
  * every MC/DC pair below is completed WITHIN THIS FILE; nothing here leans on
  * the API tests to supply the other half of a pair.
  *
- * main() always returns 0: the campaign treats a nonzero exit as a failed
+ * main() always returns 0: the harness treats a nonzero exit as a failed
  * white-box and discards its coverage, so setup problems are printed as skips.
  */
 

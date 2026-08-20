@@ -3,15 +3,15 @@
  * White-box MC/DC supplement for the POINTER-PRESENCE GUARDS of src/tls13.c.
  *
  * Companion to tests/unit-mcdc/test_tls13_whitebox.c, kept as a separate TU so
- * the two can be extended independently; the campaign unions their coverage by
+ * the two can be extended independently; the harness unions their coverage by
  * source line:col exactly as it unions the variant builds.
  *
  * SCOPE. Every decision driven here is a NULL / presence check on a pointer.
- * The campaign's disposition rule for that family is:
+ * The suite's disposition rule for that family is:
  *
  *   - if the operand cannot vary even for a DIRECT caller, because a
  *     constructor or a callee postcondition fixes it, it is an entry in
- *     campaign/db/exclusions.json and NOT a test (e.g. `ssl->ctx != NULL`:
+ *     the exclusion record and NOT a test (e.g. `ssl->ctx != NULL`:
  *     wolfSSL_new() is the only constructor and rejects a NULL CTX);
  *   - if the operand cannot vary only because every IN-LIBRARY caller has
  *     already established it, it is reachable from a white-box and belongs
@@ -26,7 +26,7 @@
  * wolfSSL_new() itself consumes. Every vector is a direct call with
  * hand-supplied arguments, so consecutive runs are byte-identical.
  *
- * main() always returns 0: the campaign scores a nonzero exit as a failed
+ * main() always returns 0: the harness scores a nonzero exit as a failed
  * white-box and discards its whole coverage, so setup problems print a skip.
  */
 
