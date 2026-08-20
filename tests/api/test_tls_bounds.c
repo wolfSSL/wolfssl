@@ -62,10 +62,21 @@
     #define TEST_TLS_BOUNDS_SESSION_TICKET_FF
 #endif
 
+/* Each helper below is called only from test bodies whose feature guards differ
+ * from one another, so no single condition describes "some caller is compiled
+ * in" -- a shared build, for instance, compiles out every WOLFSSL_TEST_STATIC_BUILD
+ * body at once. Mark them instead of trying to track the union by hand. */
+#if defined(__GNUC__) || defined(__clang__)
+    #define TEST_TLS_BOUNDS_UNUSED __attribute__((unused))
+#else
+    #define TEST_TLS_BOUNDS_UNUSED
+#endif
+
 /* c32to24() (wolfcrypt/src/misc.c) is only externally linkable when NO_INLINE
  * is defined; this build inlines it into each translation unit that already
  * needs it, so it is not visible here. Same 3-byte big-endian length write,
  * spelled out locally. */
+TEST_TLS_BOUNDS_UNUSED
 static void test_tls_bounds_c32to24(word32 in, byte* out)
 {
     out[0] = (byte)(in >> 16);
@@ -80,6 +91,7 @@ static void test_tls_bounds_c32to24(word32 in, byte* out)
  * fallback, so every server-side ssl created only to unit-test a WOLFSSL_LOCAL
  * function directly (never running a real handshake) still needs a loaded
  * cert/key to get past wolfSSL_new() at all. */
+TEST_TLS_BOUNDS_UNUSED
 static int test_tls_bounds_load_server_cert(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
