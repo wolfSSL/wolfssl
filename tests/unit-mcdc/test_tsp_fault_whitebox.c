@@ -97,6 +97,18 @@
  *   tsp.c:1763 idx0,idx3   - Tsp_CheckSignerCert no-EKU / EKU-not-critical
  *   tsp.c:1773 idx0,idx2   - Tsp_CheckSignerCert no-KU / KU-zero-bits
  *   tsp.c:2162 idx0,idx1   - TspResponse_Verify cm != NULL
+ *   tsp.c:2167 idx1        - TspResponse_Verify cert != NULL. The public
+ *                            entry points make this operand invariantly true:
+ *                            wc_TspResponse_Verify() rejects a NULL cert up
+ *                            front, and wc_TspResponse_VerifyWithCm() -- the
+ *                            only caller that passes cert == NULL -- passes a
+ *                            non-NULL cm, so the cm arm above consumes the
+ *                            ret == 0 arrival. Called directly (this TU has
+ *                            the static in scope) the operand pairs: cm ==
+ *                            NULL with cert == NULL gives the decision's
+ *                            false row, and cm == NULL with a *different*
+ *                            trusted certificate gives its true row, both on
+ *                            the same verified token.
  * Plus allocation err-chain coverage (mcdc_fault_alloc.h fault sweep) over
  * wc_TspTstInfo_SignWithPkcs7()'s tstDer/attribs XMALLOC calls, and two cheap
  * bonus rows opportunistic with the above (tsp.c:939 SetNonce loop entry,
@@ -1290,6 +1302,19 @@ static void wb_response_verify_cm(void)
             WB_NOTE("TspResponse_Verify bad-status case unexpectedly succeeded");
             wb_fail = 1;
         }
+    }
+
+    /* 2167 idx1 true row: cm==NULL and a non-NULL trusted certificate that
+     * is NOT the signer. The token carries the TSA's own certificate, so
+     * wc_TspTstInfo_VerifyWithPKCS7() still returns 0 and the else-if is
+     * reached with ret==0; the pin comparison then fails on the length
+     * operand. Paired with the cert==NULL calls above, which reach the same
+     * else-if with ret==0 and take its false side on this very operand. */
+    ret = TspResponse_Verify(&resp, client_cert_der_2048,
+        (word32)sizeof_client_cert_der_2048, NULL, NULL);
+    if (ret != WC_NO_ERR_TRACE(TSP_VERIFY_E)) {
+        WB_NOTE("TspResponse_Verify(wrong trusted cert) did not reject");
+        wb_fail = 1;
     }
 
     /* 2162 idx1 true: ret==0 with cm != NULL. An empty (no trust anchors)
