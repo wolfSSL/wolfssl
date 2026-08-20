@@ -2412,35 +2412,42 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         struct wc_static_assert_dummy_struct
 #endif
 
-/* Hook run once per iteration of a long wait loop. On a preemptive
- * general-purpose OS a bare spin merely wastes cycles, but on a uniprocessor
- * RTOS a spinning higher-priority task can starve the lower-priority task it
- * is waiting on, so map it to that RTOS's cooperative yield where one is in
- * scope. Any port may define WC_RELAX_LONG_LOOP ahead of this. */
 #ifndef WC_RELAX_LONG_LOOP
-    #if defined(WOLFSSL_ZEPHYR) && !defined(SINGLE_THREADED)
-        /* <zephyr/kernel.h> is included by wc_port.h whenever
-         * !SINGLE_THREADED, so k_yield() is declared here. */
-        #define WC_RELAX_LONG_LOOP() k_yield()
+    #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
+#endif
+
+/* Yield hook for the DRBG acquire spin in RngExclEnter().  Deliberately
+ * separate from WC_RELAX_LONG_LOOP(), which also backs the
+ * SAVE_/RESTORE_NO_VECTOR_REGISTERS fallbacks below and must stay a no-op
+ * there -- those expand at hundreds of crypto call sites, and a scheduler
+ * yield does not belong in them.
+ *
+ * On a preemptive general-purpose OS a bare spin only wastes cycles, but on a
+ * uniprocessor RTOS a spinning higher-priority task can starve the
+ * lower-priority task it waits on, so use that RTOS's cooperative yield where
+ * one is in scope.  SINGLE_THREADED is excluded first: wc_port.h omits these
+ * kernel headers in that configuration, so the yields have no declaration.
+ * Any port may define WC_SPIN_RELAX ahead of this. */
+#ifndef WC_SPIN_RELAX
+    #if defined(SINGLE_THREADED)
+        #define WC_SPIN_RELAX() WC_DO_NOTHING
+    #elif defined(WOLFSSL_ZEPHYR)
+        #define WC_SPIN_RELAX() k_yield()
     #elif (defined(FREERTOS) || defined(FREERTOS_TCP) || \
            defined(WOLFSSL_SAFERTOS)) && defined(taskYIELD)
-        /* Same grouping wc_port.h uses for these three. taskYIELD() is a
-         * macro from FreeRTOS task.h, which none of these paths include
-         * themselves, so key off the macro rather than assume it: a build
-         * without task.h keeps the no-op. */
-        #define WC_RELAX_LONG_LOOP() taskYIELD()
+        /* taskYIELD() is a macro from FreeRTOS task.h, which none of these
+         * paths include themselves, so key off the macro rather than assume
+         * it: a build without task.h falls through to the default. */
+        #define WC_SPIN_RELAX() taskYIELD()
     #elif defined(THREADX)
-        /* <tx_api.h> is included by wc_port.h for every THREADX build. */
-        #define WC_RELAX_LONG_LOOP() tx_thread_relinquish()
+        #define WC_SPIN_RELAX() tx_thread_relinquish()
     #elif defined(WOLFSSL_TIRTOS)
-        /* <ti/sysbios/knl/Task.h> is included by wc_port.h for every TIRTOS
-         * translation unit. */
-        #define WC_RELAX_LONG_LOOP() Task_yield()
-    #elif defined(RTTHREAD) && !defined(SINGLE_THREADED)
-        /* "rtthread.h" is included by wc_port.h on the multi-threaded path. */
-        #define WC_RELAX_LONG_LOOP() rt_thread_yield()
+        #define WC_SPIN_RELAX() Task_yield()
+    #elif defined(RTTHREAD)
+        #define WC_SPIN_RELAX() rt_thread_yield()
     #else
-        #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
+        /* Ports that supply a real relax hook (linuxkm) keep it here. */
+        #define WC_SPIN_RELAX() WC_RELAX_LONG_LOOP()
     #endif
 #endif
 #ifndef WC_CHECK_FOR_INTR_SIGNALS
