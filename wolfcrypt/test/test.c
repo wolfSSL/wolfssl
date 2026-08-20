@@ -27180,6 +27180,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    /* A duplicate (stale-copy) check-in must be rejected with BAD_STATE_E --
+     * the instance's HELD flag is already clear -- without mutating the
+     * bank, through both entry points. */
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 3, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    {
+        struct wc_rng_bank_inst *stale_inst = rng_inst;
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_checkin(bank, &stale_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_inst_checkin(&stale_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    }
+
     rng_bank_affinity_get_id_id = 3;
     ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != 0)
@@ -27324,6 +27343,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    /* seedSz == 0 short-circuits: no-op success for an explicit inited
+     * bank, and for the default form while a default is set.  (The
+     * seed pointer is never read on these paths.) */
+    ret = wc_rng_bank_seed(bank, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -27446,9 +27472,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+
     ret = wc_rng_bank_default_clear(bank);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* seedSz == 0 probe with no default bank set: NO_DEFAULT_FOUND_E. */
+    ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
 
