@@ -592,6 +592,17 @@ static void wb_set_name_ex(void)
 #endif
 
 /* ========================================================================
+ * ARGUED UNREACHABLE, do not re-open (campaign EXCLUSIONS.md +
+ * db/exclusions.json): wc_SetSubjectRaw() :32713 cond 0 and wc_SetIssuerRaw()
+ * :32750 cond 0 (`decodedCert->subjectRaw` non-NULL). GetCertName() assigns
+ * cert->subjectRaw = &input[srcIdx] (asn.c:15513) on every path where the
+ * subject Name SEQUENCE parses, and DecodeCertInternal() only calls it once
+ * the template walk has succeeded; if either fails, DecodeCert() returns
+ * negative, wc_SetCert_LoadDer() propagates that, and the enclosing
+ * `if (ret >= 0)` is never entered. Cond 1 (subjectRawLen <= sizeof(CertName))
+ * is NOT excluded -- a subject longer than sizeof(CertName) is constructible
+ * in principle, just not from any corpus certificate.
+ *
  * SECTION I: EncodeExtensions() direct call.
  *   :~28792  if (cert->pathLenSet && ((keyUsage & KEYUSE_KEY_CERT_SIGN) || (!keyUsage)))
  *   :~29126  else if ((output!=NULL) && (sz>maxSz))
@@ -628,6 +639,18 @@ static void wb_encode_extensions(void)
     sz = EncodeExtensions(&cert, NULL, 0, 0);
     WB_CHECK(sz > 0,
             ":28792 pathLenSet true, (keyUsage&CERT_SIGN)||!keyUsage both false");
+
+    /* :28792 third operand (!keyUsage) true: pathLenSet with NO keyUsage at
+     * all, which is the case the `|| (!keyUsage)` arm exists for. Row (B)
+     * above is its false partner (keyUsage non-zero without KEY_CERT_SIGN),
+     * and both live in this binary. */
+    WB_CHECK(wc_InitCert(&cert) == 0, "wc_InitCert (B2)");
+    cert.isCA = 1;
+    cert.pathLenSet = 1;
+    cert.pathLen = 2;
+    cert.keyUsage = 0;
+    sz = EncodeExtensions(&cert, NULL, 0, 0);
+    WB_CHECK(sz > 0, ":28792 pathLenSet true, keyUsage == 0 (third operand)");
 
     /* :28792 pathLenSet false -> whole AND short-circuits false. */
     WB_CHECK(wc_InitCert(&cert) == 0, "wc_InitCert (C)");

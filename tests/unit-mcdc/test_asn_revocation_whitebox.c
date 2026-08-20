@@ -50,6 +50,8 @@
 
 #include <wolfcrypt/src/asn.c>
 
+#include "mcdc_fault_alloc.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -2548,8 +2550,78 @@ static void wb_make_crl_ex(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 static void wb_sign_crl(void) { WB_NOTE("HAVE_OCSP off; skipped"); }
 #endif /* HAVE_OCSP && !WOLFCRYPT_ONLY */
 
+/* ------------------------------------------------------------------------- *
+ * GetRevoked(): the cleanup guard [:37416]
+ *   `if ((ret != 0) && (rc != NULL)) { ... free rc ... }`
+ *
+ * The second operand's false row needs a failure in which `rc` was never
+ * allocated, i.e. the RevokedCert XMALLOC at :37337 itself returning NULL.
+ * No input can produce that, so the allocator is faulted for exactly that
+ * one allocation. The paired true row is an ordinary parse failure with the
+ * allocation intact.
+ * ------------------------------------------------------------------------- */
+#ifndef CRL_STATIC_REVOKED_LIST
+static void wb_get_revoked_cleanup(void)
+{
+    /* Revoked ::= SEQUENCE { userCertificate INTEGER, revocationDate Time } */
+    static byte revoked[] = {
+        0x30, 0x12,
+          0x02, 0x01, 0x01,
+          0x17, 0x0D, '2','5','0','1','0','1','0','0','0','0','0','0','Z'
+    };
+    DecodedCRL dcrl;
+    word32     idx;
+    int        ret;
+
+    WB_NOTE("GetRevoked(): parse failure with the RevokedCert allocated"
+            " [:37416 both operands true]");
+    XMEMSET(&dcrl, 0, sizeof(dcrl));
+    idx = 0;
+    /* maxIdx cuts the entry in half, so GetASN_Items fails after the
+     * allocation has already succeeded. */
+    ret = GetRevoked(NULL, revoked, &idx, &dcrl, (word32)sizeof(revoked) / 2);
+    WB_CHECK(ret != 0, ":37416 truncated Revoked entry rejected");
+
+    WB_NOTE("GetRevoked(): the RevokedCert allocation itself fails, so the"
+            " cleanup guard sees a NULL pointer [:37416 second operand"
+            " false]");
+    mcdc_fa_install();
+    mcdc_fa_disarm();
+    mcdc_fa_arm_only(1);
+    XMEMSET(&dcrl, 0, sizeof(dcrl));
+    idx = 0;
+    ret = GetRevoked(NULL, revoked, &idx, &dcrl, (word32)sizeof(revoked));
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
+    WB_CHECK(ret == WC_NO_ERR_TRACE(MEMORY_E),
+            ":37416 RevokedCert allocation failed");
+
+    WB_NOTE("GetRevoked(): a well-formed entry, so the guard's leading"
+            " operand is false [:37416]");
+    XMEMSET(&dcrl, 0, sizeof(dcrl));
+    idx = 0;
+    ret = GetRevoked(NULL, revoked, &idx, &dcrl, (word32)sizeof(revoked));
+    WB_CHECK(ret == 0, ":37416 well-formed Revoked entry accepted");
+    if (ret == 0) {
+        RevokedCert* rc = dcrl.certs;
+        while (rc != NULL) {
+            RevokedCert* next = rc->next;
+            XFREE(rc, dcrl.heap, DYNAMIC_TYPE_CRL);
+            rc = next;
+        }
+        dcrl.certs = NULL;
+    }
+}
+#else
+static void wb_get_revoked_cleanup(void)
+{
+    WB_NOTE("CRL_STATIC_REVOKED_LIST; GetRevoked cleanup guard skipped");
+}
+#endif
+
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("asn.c revocation (OCSP/CRL) white-box MC/DC supplement\n");
 
     wb_ocsp_decode_certid();
@@ -2569,6 +2641,7 @@ int main(void)
     wb_encode_crl_serial();
     wb_make_crl_ex();
     wb_sign_crl();
+    wb_get_revoked_cleanup();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage

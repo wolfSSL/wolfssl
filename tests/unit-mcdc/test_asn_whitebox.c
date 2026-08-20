@@ -1215,6 +1215,7 @@ static void wb_asn1_print_all(void) { WB_NOTE("WOLFSSL_ASN_PRINT off; skipped");
 
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("asn.c white-box MC/DC supplement\n");
 
     wb_get_asn_tag();

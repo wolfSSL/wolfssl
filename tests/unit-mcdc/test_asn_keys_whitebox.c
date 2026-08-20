@@ -728,6 +728,13 @@ static void wb_get_key_oid(void) { WB_NOTE("HAVE_PKCS8/12 off; wc_GetKeyOID skip
 
 /* ========================================================================
  * Section A10: wc_EncryptPKCS8Key_ex() argument/salt/version checks.
+ *
+ * ARGUED UNREACHABLE, do not re-open (campaign EXCLUSIONS.md +
+ * db/exclusions.json): :10805 BOTH operands. GetAlgoV2() (asn.c:10713-10748)
+ * assigns *oid on every switch arm that returns 0 and leaves the caller's
+ * initialiser untouched only on the default arm, which returns ALGO_ID_E.
+ * encOid == NULL at :10805 therefore implies ret != 0, so the AND is never
+ * true: cond 1 has no true row and cond 0 has no (true, true) row.
  *   :10724  key==NULL||outSz==NULL||password==NULL
  *   :10731  ret==0 && (salt==NULL||saltSz==0)
  *   :10735  ret==0 && version==PKCS5v2
@@ -737,6 +744,7 @@ static void wb_encrypt_pkcs8_key_ex(void)
 {
     byte key[16];
     byte salt[8];
+    static byte encOut[512];
     word32 outSz;
     int ret;
 
@@ -800,7 +808,50 @@ static void wb_encrypt_pkcs8_key_ex(void)
             PBES2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
     WB_CHECK(ret != 0, ":11531 both operands true (PBES2 dispatch)");
 #endif
+
+    /* :10799 third operand (`saltSz == 0`). Every public caller passes a
+     * salt pointer together with its real length, or neither; a non-NULL
+     * pointer with a zero length is the combination the OR's second operand
+     * exists for. The salt-provided call above is the row it pairs against. */
+    WB_NOTE("wc_EncryptPKCS8Key_ex(): salt pointer with saltSz==0 [:10799"
+            " third operand]");
+    outSz = 0;
+    ret = wc_EncryptPKCS8Key_ex(key, sizeof(key), NULL, &outSz, "pw", 2,
+            PKCS5, PBES1_SHA1_DES, 0, salt, 0, 1000, 0, NULL, NULL);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E),
+            ":10799 salt != NULL with saltSz == 0 still generates a salt");
+
+    /* :11650 second operand's false row. The size-only calls above all set
+     * ret to LENGTH_ONLY_E at the preceding `out == NULL` branch, so they
+     * never reach this check with ret == 0; only a real encode with a large
+     * enough buffer does. PBES1 needs no RNG (the CBC IV is derived from the
+     * password), so this runs with rng == NULL. */
+    WB_NOTE("EncryptContent(): full encode into a big-enough buffer [:11650"
+            " second operand false]");
+    outSz = 0;
+    (void)EncryptContent(key, sizeof(key), NULL, &outSz, "pw", 2, PKCS5,
+            PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
+    if (outSz > 1 && outSz <= sizeof(encOut)) {
+        word32 room = outSz - 1;
+
+        /* Both halves of :11650's second operand have to be in THIS binary:
+         * the too-small row lives in test_asn_fault_whitebox.c as well, but
+         * a pair completed across two binaries proves nothing. */
+        ret = EncryptContent(key, sizeof(key), encOut, &room, "pw", 2, PKCS5,
+                PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
+        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+                ":11650 second operand true (one byte short)");
+
+        room = (word32)sizeof(encOut);
+        ret = EncryptContent(key, sizeof(key), encOut, &room, "pw", 2, PKCS5,
+                PBES1_SHA1_DES, 0, salt, sizeof(salt), 1000, 0, NULL, NULL);
+        WB_CHECK(ret > 0, ":11650 PBES1 encode succeeds with room to spare");
+    }
+    else {
+        WB_NOTE("PBES1 size query out of range; :11650 row skipped");
+    }
 }
+
 #else
 static void wb_encrypt_pkcs8_key_ex(void) { WB_NOTE("HAVE_PKCS8/PWDBASED off; wc_EncryptPKCS8Key_ex skipped"); }
 #endif
@@ -968,6 +1019,35 @@ static void wb_encrypt_content_pbes2(void)
                 "pw", 2, AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 "out!=NULL, *outSz too small (11378 false, 11383 true)");
+    }
+
+    /* :11466's second operand also needs the row where the buffer IS big
+     * enough, i.e. a completed encode. That is the only call in this section
+     * that gets past the size check, and it is also the only one that needs
+     * a WC_RNG: the PBES2 path draws the CBC IV before the check. The random
+     * bytes are written straight into the output and steer no decision, so
+     * the coverage this row produces is reproducible. */
+    {
+        static byte bigOut[1024];
+        word32 bigOutSz;
+        WC_RNG rng;
+
+        outSz = 0;
+        (void)EncryptContentPBES2(input, sizeof(input), NULL, &outSz, "pw", 2,
+                AES128CBCb, salt, sizeof(salt), 1000, 0, NULL, NULL);
+        if (outSz > 0 && outSz <= sizeof(bigOut) && wc_InitRng(&rng) == 0) {
+            WB_NOTE("EncryptContentPBES2(): buffer large enough, encode runs"
+                    " [:11466 second operand false]");
+            bigOutSz = (word32)sizeof(bigOut);
+            ret = EncryptContentPBES2(input, sizeof(input), bigOut, &bigOutSz,
+                    "pw", 2, AES128CBCb, salt, sizeof(salt), 1000, 0, &rng,
+                    NULL);
+            WB_CHECK(ret > 0, ":11466 PBES2 encode completes");
+            wc_FreeRng(&rng);
+        }
+        else {
+            WB_NOTE("no RNG or size out of range; :11466 encode row skipped");
+        }
     }
 #endif
 }
@@ -1960,6 +2040,61 @@ static void wb_build_ecc_key_der(void)
      * prior "output==NULL" branch not firing since output!=NULL here). */
     ret = wc_BuildEccKeyDer(&key, out, NULL, 1, 1);
     WB_CHECK(ret > 0, ":33566 2nd operand false (outLen==NULL, size check skipped)");
+
+    /* :33780's leading operand (`ret == 0`) can only go false when the
+     * private-value export at :33772 itself errors, which no key that got
+     * this far normally does. A key decoded from a public-key SPKI has a dp
+     * and a public point but no private scalar, so the export fails while
+     * every earlier step succeeds. The successful build above is the row it
+     * pairs against. */
+    WB_NOTE("wc_BuildEccKeyDer(): public-only key, private export fails"
+            " before the public-point export [:33780 leading operand]");
+    {
+        ecc_key pubOnly;
+        word32  pubIdx = 0;
+
+        if (wc_ecc_init(&pubOnly) == 0) {
+            if (wc_EccPublicKeyDecode(ecc_key_pub_der_256, &pubIdx, &pubOnly,
+                        (word32)sizeof_ecc_key_pub_der_256) == 0) {
+                outLen = sizeof(out);
+                ret = wc_BuildEccKeyDer(&pubOnly, out, &outLen, 1, 1);
+                WB_CHECK(ret != 0,
+                        ":33780 private-value export fails on a public-only"
+                        " key");
+            }
+            else {
+                WB_NOTE("ecc_key_pub_der_256 decode failed; :33780 row"
+                        " skipped");
+            }
+            wc_ecc_free(&pubOnly);
+        }
+    }
+
+    /* :33537's second operand (`dataASN[ECCKEYASN_IDX_PARAMS].tag != 0`).
+     * Every ECC private key in certs_test.h carries the [0] parameters, so
+     * the operand only ever reads true. Building one with curveIn == 0 emits
+     * exactly the same structure minus the parameters, and decoding it in
+     * this binary supplies the false row. */
+    WB_NOTE("wc_EccPrivateKeyDecode(): key DER built without the [0] curve"
+            " parameters [:33537 second operand false]");
+    outLen = sizeof(out);
+    ret = wc_BuildEccKeyDer(&key, out, &outLen, 1, 0);
+    if (ret > 0) {
+        ecc_key noParams;
+        word32  npIdx = 0;
+        word32  derSz = (word32)ret;
+
+        if (wc_ecc_init(&noParams) == 0) {
+            /* The decode cannot succeed without a curve to attach the key
+             * to; reaching the guard with the PARAMS tag clear is the
+             * point. */
+            (void)wc_EccPrivateKeyDecode(out, &npIdx, &noParams, derSz);
+            wc_ecc_free(&noParams);
+        }
+    }
+    else {
+        WB_NOTE("wc_BuildEccKeyDer(curveIn==0) failed; :33537 row skipped");
+    }
 
     wc_ecc_free(&key);
 }
