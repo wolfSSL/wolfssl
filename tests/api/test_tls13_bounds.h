@@ -35,6 +35,10 @@ int test_tls13_sh_empty_extensions_block(void);
 int test_tls13_ch_supported_versions_tls12_only(void);
 int test_tls13_ech_accepted_handshake(void);
 int test_tls13_ech_rejected_handshake(void);
+int test_tls13_mutual_auth_ecdsa(void);
+int test_tls13_mutual_auth_ed25519(void);
+int test_tls13_mutual_auth_ed448(void);
+int test_tls13_mutual_auth_rsa(void);
 
 #define TEST_TLS13_BOUNDS_DECLS                                             \
     TEST_DECL_GROUP("tls13", test_tls13_ch_legacy_version_is_tls13),        \
@@ -47,6 +51,10 @@ int test_tls13_ech_rejected_handshake(void);
     TEST_DECL_GROUP("tls13", test_tls13_sh_empty_extensions_block),         \
     TEST_DECL_GROUP("tls13", test_tls13_ch_supported_versions_tls12_only),  \
     TEST_DECL_GROUP("tls13", test_tls13_ech_accepted_handshake),            \
-    TEST_DECL_GROUP("tls13", test_tls13_ech_rejected_handshake)
+    TEST_DECL_GROUP("tls13", test_tls13_ech_rejected_handshake),            \
+    TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_ecdsa),                 \
+    TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_ed25519),               \
+    TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_ed448),                 \
+    TEST_DECL_GROUP("tls13", test_tls13_mutual_auth_rsa)
 
 #endif /* WOLFCRYPT_TEST_TLS13_BOUNDS_H */
