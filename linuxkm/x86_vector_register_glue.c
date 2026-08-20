@@ -71,6 +71,12 @@ struct wc_thread_svr_count_ent *wc_linuxkm_svr_states = NULL;
                                       -1L)
 #endif
 
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+/* separately tracked count of softirq-contention events (contrast with
+ * wc_svr_disallowed_count, below). */
+static atomic_long_t softirq_WC_ACCEL_INHIBIT_E_count;
+#endif
+
 WARN_UNUSED_RESULT int wc_linuxkm_allocate_svr_states(void)
 {
     if (wc_linuxkm_svr_states != NULL) {
@@ -114,6 +120,10 @@ void wc_linuxkm_free_svr_states(void) {
 
     if (wc_linuxkm_svr_states == NULL)
         return;
+
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    pr_info("IRQ INFO: softirq_WC_ACCEL_INHIBIT_E_count at module shutdown: %ld\n", atomic_long_read(&softirq_WC_ACCEL_INHIBIT_E_count));
+#endif
 
     for (i = wc_linuxkm_svr_states,
              i_endptr = &wc_linuxkm_svr_states[wc_linuxkm_svr_states_n_tracked];
@@ -674,12 +684,45 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
         return 0;
     } else {
+        static DEFINE_RATELIMIT_STATE(vrg_contend_rs, HZ, 1);
+
+        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        atomic_long_inc(&softirq_WC_ACCEL_INHIBIT_E_count);
+        #endif
+
         if (preempt_count() != 0) {
-            VRG_PR_WARN_X("WARNING: wc_save_vector_registers_x86 called with no saved state and nonzero preempt_count 0x%x on CPU %d.\n", preempt_count(), raw_smp_processor_id());
+            /* this path is normal on pre-6.15 kernels, where kernel_fpu_begin()
+             * doesn't local_bh_disable(), but on 6.15+ it's a warnable
+             * anomaly. */
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
+
             #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            dump_stack();
+            if (__ratelimit(&vrg_contend_rs)) {
+                pr_info("INFO: !may_use_simd() in wc_save_vector_registers_x86() on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, preempt_count());
+                dump_stack();
+            }
+            #endif /* WOLFSSL_LINUXKM_VERBOSE_DEBUG */
+
+            #else /* >=6.15.0 */
+
+            if (__ratelimit(&vrg_contend_rs)) {
+                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, preempt_count());
+            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                dump_stack();
             #endif
+            }
+
+            #endif /* >=6.15.0 */
         }
+        else {
+            if (__ratelimit(&vrg_contend_rs)) {
+                pr_warn("WARNING: !may_use_simd() in wc_save_vector_registers_x86 called with no saved state on CPU %d PID %d (%s) with preempt_count 0x%x.\n", raw_smp_processor_id(), task_pid_nr(current), current->comm, preempt_count());
+            #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                dump_stack();
+            #endif
+            }
+        }
+
         wc_svr_disallowed_count_increment();
         return WC_ACCEL_INHIBIT_E;
     }
