@@ -486,7 +486,13 @@ int test_tls13_feat_optional_psk_falls_back_to_cert(void)
  * status_request extension held on the CTX.
  * ---------------------------------------------------------------------- */
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP)
+/* Guard must match test_tls13_feat_pha_ctx_status_request() below exactly: these
+ * are its only callers, and a narrower guard leaves them defined-but-unused
+ * under -Werror=unused-function. */
+#if defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+    defined(KEEP_PEER_CERT) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
 static int test_tls13_feat_ocsp_io_cb(void* ioCtx, const char* url, int urlSz,
     unsigned char* req, int reqSz, unsigned char** resp)
 {
