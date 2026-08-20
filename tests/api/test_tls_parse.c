@@ -185,7 +185,9 @@ static void test_tls_parse_free_kse(WOLFSSL* ssl, KeyShareEntry* kse)
 int test_TLSX_ALPN_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ALPN) && defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS) && \
+/* TLSX_ALPN_GetRequest() below is WOLFSSL_LOCAL: needs the static library. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_ALPN) && \
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
