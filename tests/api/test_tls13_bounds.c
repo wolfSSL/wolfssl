@@ -417,6 +417,62 @@ static int test_tls13b_ch_find_ext(const byte* rec, int rec_sz, word16 type,
     }
     return -1;
 }
+/* A mutually authenticated TLS 1.3 handshake with a chosen key type on both
+ * ends. DoTls13CertificateVerify()'s peer-key / peerSigAlgo dispatch has one
+ * arm per algorithm and the group only ever ran the RSA one, so each arm's
+ * operands sat on a single row. */
+/* The ECC, Ed25519 and Ed448 client certificates in certs/ are self-signed,
+ * so cliCa is the client certificate itself rather than a separate CA. */
+static int test_tls13b_mutual_auth_round(const char* srvCa,
+    const char* srvCert, const char* srvKey,
+    const char* cliCa, const char* cliCert, const char* cliKey)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, srvCa, 0),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s, srvCert),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, srvKey, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCa, 0),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_PEER |
+            WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        /* Pre-made CTXs make test_memio_setup_ex skip its own IO callback
+         * install as well as its cert load. */
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
+
+    ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
+        NULL, 0, NULL, 0, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_c, cliCert),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKey, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 16, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
 #endif /* guards */
 
 /* tls13.c:7645 - "args->pv.major == SSLv3_MAJOR && args->pv.minor >=
@@ -797,4 +853,67 @@ int test_tls13_ech_rejected_handshake(void)
     wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
+}
+
+/* ECDSA on both ends: drives DoTls13CertificateVerify()'s
+ * peerEccDsaKey / ecc_dsa_sa_algo arms. */
+int test_tls13_mutual_auth_ecdsa(void)
+{
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECC) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    return test_tls13b_mutual_auth_round(caEccCertFile, eccCertFile,
+        eccKeyFile, cliEccCertFile, cliEccCertFile, cliEccKeyFile);
+#else
+    return TEST_SKIPPED;
+#endif
+}
+
+/* Ed25519 on both ends: drives the peerEd25519Key / ed25519_sa_algo arms. */
+int test_tls13_mutual_auth_ed25519(void)
+{
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_VERIFY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_ED25519_CLIENT_AUTH) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    return test_tls13b_mutual_auth_round(caEdCertFile, edCertFile,
+        edKeyFile, cliEdCertFile, cliEdCertFile, cliEdKeyFile);
+#else
+    return TEST_SKIPPED;
+#endif
+}
+
+/* Ed448 on both ends: drives the peerEd448Key / ed448_sa_algo arms. */
+int test_tls13_mutual_auth_ed448(void)
+{
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_ED448_CLIENT_AUTH) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    return test_tls13b_mutual_auth_round(caEd448CertFile, ed448CertFile,
+        ed448KeyFile, cliEd448CertFile, cliEd448CertFile, cliEd448KeyFile);
+#else
+    return TEST_SKIPPED;
+#endif
+}
+
+/* RSA on both ends, mutually authenticated. The group already runs one-sided
+ * RSA handshakes; this adds the client-authenticating rows for the RSA arm of
+ * the same dispatch. */
+int test_tls13_mutual_auth_rsa(void)
+{
+#if defined(WOLFSSL_TLS13) && !defined(NO_RSA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    return test_tls13b_mutual_auth_round(caCertFile, svrCertFile,
+        svrKeyFile, cliCertFile, cliCertFile, cliKeyFile);
+#else
+    return TEST_SKIPPED;
+#endif
 }
