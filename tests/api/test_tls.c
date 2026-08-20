@@ -533,7 +533,15 @@ int test_tls_get_negotiated_group(void)
 #endif
 #if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
     ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_FFDHE_2048), "ffdhe2048");
+    /* ...or by their NID, which RFC 7919 groups have just like curves do. */
+    ExpectStrEQ(wolfSSL_group_to_name(NULL, WC_NID_ffdhe2048), "ffdhe2048");
+    /* But they are not EC curves, so the EC lookups must not resolve them. */
+    ExpectNull(wolfSSL_EC_curve_nid2nist(WC_NID_ffdhe2048));
+    ExpectIntEQ(wolfSSL_EC_curve_nist2nid("ffdhe2048"), 0);
 #endif
+    /* A non-curve NID must not name a curve. WOLFSSL_FFDHE_3072 (257) is
+     * WC_NID_md4, which is what made this table's NID column ambiguous. */
+    ExpectNull(wolfSSL_EC_curve_nid2nist(WC_NID_md4));
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
     !defined(WOLFSSL_NO_ML_KEM_768)
     /* OpenSSL spells the standalone ML-KEM groups without underscores. */
