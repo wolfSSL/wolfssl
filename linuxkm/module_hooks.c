@@ -744,12 +744,68 @@ static void wc_grb_maint_stop(void)
     }
 }
 
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS
+
+/* Userspace half of the service: /dev/urandom, /dev/random and getrandom(2)
+ * all land here.  A bounce buffer is required because wc_grb_service() fills a
+ * kernel buffer while copy_to_iter() may fault or sleep. */
+static ssize_t wc_grb_user(struct iov_iter *iter)
+{
+    u8     buf[256];
+    size_t done = 0;
+
+    while (iov_iter_count(iter)) {
+        size_t want = min_t(size_t, iov_iter_count(iter), sizeof(buf));
+        size_t got;
+
+        if (wc_grb_service(buf, want) != 0)
+            break;
+
+        got = copy_to_iter(buf, want, iter);
+        done += got;
+        if (got != want) {
+            memzero_explicit(buf, sizeof(buf));
+
+            return done ? (ssize_t)done : -EFAULT;
+        }
+
+        cond_resched();
+    }
+
+    memzero_explicit(buf, sizeof(buf));
+
+    return done ? (ssize_t)done : -ENODEV;
+}
+
+/* Truthful readiness: the tree is usable only once wc_grb_init() has built the
+ * root and the leaves.  Reporting ready early would let the kernel batch from
+ * a service that is not yet answering. */
+static bool wc_grb_ready(void)
+{
+    return wc_grb_service_active() ? true : false;
+}
+
+static const struct wolfssl_linuxkm_fips_random_bytes_handlers
+wc_grb_handlers = {
+    ._get_random_bytes     = wc_grb_service,
+    .get_random_bytes_user = wc_grb_user,
+    .crng_ready            = wc_grb_ready
+    /* .extract_crng_user is the pre-5.17 userspace API; the RBGC targets
+     * kernels carrying the newer one.  .mix_pool_bytes, .credit_init_bits and
+     * .crng_reseed are not implemented yet: they let the module take part in
+     * the kernel's entropy lifecycle and are the next step, not a
+     * prerequisite for serving. */
+};
+
+#endif /* WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS */
+
 /* Diagnostics for the out-of-tree load generator, exported from the glue and
  * not from the boundary: the boundary has no module API, and a test affordance
  * is not a cryptographic service.  Prototyped here rather than in a header
  * because nothing in the tree includes them. */
 int wc_grb_hook_is_active(void);
 int wc_grb_hook_stats(long long *out, int n);
+int wc_grb_hook_irq_hist(int ctx, long long *out, int n);
 
 int wc_grb_hook_is_active(void)
 {
@@ -1373,7 +1429,12 @@ static int wolfssl_init(void)
             pr_err("WCGRB: wc_grb_init() failed: %d\n", grb_ret);
         }
         else {
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS
+            grb_ret = wolfssl_linuxkm_fips_register_random_bytes_handlers(
+                THIS_MODULE, &wc_grb_handlers);
+#else
             grb_ret = wc_grb_hook_register(wc_grb_service);
+#endif
             if (grb_ret != 0) {
                 pr_err("WCGRB: wc_grb_hook_register() failed: %d\n", grb_ret);
                 wc_grb_cleanup();
@@ -1408,7 +1469,11 @@ static void wolfssl_exit(void)
      * caller can reach a half-freed DRBG.  wc_grb_hook_unregister() NULLs the
      * pointer then synchronize_rcu()s, which drains callers already inside. */
     if (wc_grb_service_active()) {
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS
+        (void)wolfssl_linuxkm_fips_unregister_random_bytes_handlers();
+#else
         wc_grb_hook_unregister();
+#endif
         wc_grb_set_registered(0);
     }
     wc_grb_maint_stop();
