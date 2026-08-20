@@ -71,6 +71,12 @@
         ((rng_ptr)->drbg == NULL)
 #endif
 
+/* WC_DRBG_OK is used to test DRBG health in wc_rng_bank_checkout(),
+ * wc_rng_bank_seed(), and wc_rng_bank_reseed(). */
+#if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(5,2,4) || FIPS_VERSION3_EQ(6,0,0))
+    #define WC_DRBG_OK 1
+#endif
+
 /* WC_RNG_BANK_SET_RESEED_CTR drives reseedCtr up to WC_RESEED_INTERVAL to
  * force a reseed.  The SHA-256 DRBG's reseedCtr is 32-bit when
  * WORD64_AVAILABLE is undefined (random.h), so a reseed interval above 2^32
@@ -848,14 +854,18 @@ static WC_INLINE int rng_inst_matches_bank(
         return BAD_FUNC_ARG;
 #endif
 
-    if ((rng_inst < &bank->rngs[0]) ||
-        (rng_inst > &bank->rngs[bank->n_rngs - 1]))
+    /* Compare integer addresses: the negative tests deliberately supply
+     * fabricated pointers, for which pointer relationals and subtraction
+     * are undefined (C11 6.5.8p5 / 6.5.6p9).  Integer comparisons are
+     * defined for any value. */
+    if (((wc_ptr_t)rng_inst < (wc_ptr_t)&bank->rngs[0]) ||
+        ((wc_ptr_t)rng_inst > (wc_ptr_t)&bank->rngs[bank->n_rngs - 1]))
     {
         return BAD_FUNC_ARG;
     }
 
     /* Reject a pointer into the middle of an instance. */
-    if ((((size_t)((const char *)rng_inst - (const char *)&bank->rngs[0])) %
+    if ((((wc_ptr_t)rng_inst - (wc_ptr_t)&bank->rngs[0]) %
          sizeof(*rng_inst)) != 0)
     {
         return BAD_FUNC_ARG;
