@@ -37,11 +37,36 @@
  * SMALL_STACK allocation-ceiling macros, and the 32-bit SP_WORD_SIZE axis).
  */
 
+/* settings.h FIRST, and before mcdc_seed_rng.h: that header decides whether it
+ * can build its SHAKE-256 stream by testing WOLFSSL_SHAKE256, and with no
+ * configuration in scope yet the test reads "no" and the header compiles
+ * itself down to inert stubs -- silently, with the driver still building and
+ * running. That is what happened on the first attempt at :19672:0 here.
+ * settings.h is include-guarded and idempotent, so pulling it in early costs
+ * nothing; sp_int.c below includes it again. */
+#include <wolfssl/wolfcrypt/settings.h>
+
+/* Deterministic RNG. Included BEFORE sp_int.c so its wc_RNG_GenerateBlock()
+ * call sites bind to the pinned SHAKE-256 stream while armed. Two things make
+ * this load-bearing for Class 23 below, not just cosmetic:
+ *   - the stream is reproducible, so the fail-index sweep is reproducible;
+ *   - the armed hook never enters the DRBG, so it makes NO allocation of its
+ *     own. Under WOLFSSL_SMALL_STACK the real Hash_DRBG_Generate() does
+ *     allocate, and one faulted allocation there puts the WC_RNG into its
+ *     permanent DRBG_FAILED state -- after which every later sweep step dies
+ *     at the first wc_RNG_GenerateBlock() instead of reaching the decision
+ *     under test. That is exactly why the earlier real-entropy sweep never
+ *     closed :19672:0. */
+#include "mcdc_seed_rng.h"
+
 /* Pull sp_int.c in verbatim so its file-static helpers and the sp_int
  * struct's fields are in scope and instrumented in THIS binary. sp_int.c
  * includes settings.h (which picks up user_settings.h via
  * -DWOLFSSL_USER_SETTINGS) and sp_int.h itself. */
 #include <wolfcrypt/src/sp_int.c>
+
+#define MCDC_SR_IMPL
+#include "mcdc_seed_rng.h"
 
 #include "mcdc_fault_alloc.h"
 
@@ -1630,6 +1655,11 @@ static void wb_gcd_r_small_b(void)
  * modular exponentiation it performs. Its false side (a composite rejected
  * on the result operand) has to be in the same binary.
  * ------------------------------------------------------------------------- */
+/* Pinned RNG seed for the randomised Miller-Rabin trial loop (Class 23).
+ * Recorded here because a seed that reaches a condition is a test vector: the
+ * next person has to be able to reproduce the result. */
+#define WB_PRIME_RNG_SEED  0x5eed0001UL
+
 static void wb_prime_trial_alloc(void)
 {
     sp_int  a;
@@ -1709,21 +1739,56 @@ static void wb_prime_trial_alloc(void)
         (void)_sp_prime_random_trials(&a, 8, &res, &rng);
         wb_set_d(&a, (sp_int_digit)100160063ULL);
         (void)_sp_prime_random_trials(&a, 8, &res, &rng);
-        /* NOT CLOSED. The deterministic sibling's `err != MP_OKAY` operand
-         * closes on this sweep; this one does not, at any depth tried
-         * (n <= 30, 60, 120). The randomised loop draws a fresh candidate
-         * before every Miller-Rabin round and re-draws rejected ones, so
-         * the index of the round's own allocation is not a fixed offset
-         * from the arming point the way it is in _sp_prime_trials(). A
-         * pinned-seed RNG (mcdc_seed_rng.h) would make it one; it was not
-         * added for a single condition, and the condition is reported open
-         * rather than excluded -- it is not proven unreachable. */
+        /* Real-entropy sweep. Kept for the rows it does reach (the
+         * wc_RNG_GenerateBlock() error break at :19666's neighbour), but it
+         * does NOT close :19672:0: the first faulted allocation lands inside
+         * Hash_DRBG_Generate() and leaves the WC_RNG permanently
+         * DRBG_FAILED, so every later index dies at the draw. Measured: for
+         * n >= 3 the call returns RNG_FAILURE_E with the RNG reporting a
+         * failure, never MP_MEM from the exponentiation. */
         for (n = 1; n <= 30; n++) {
             wb_set_d(&a, (sp_int_digit)2147483647UL);
             mcdc_fa_arm_only(n);
             (void)_sp_prime_random_trials(&a, 8, &res, &rng);
             mcdc_fa_disarm();
         }
+        wc_FreeRng(&rng);
+    }
+
+    /* :19672:0 (`err != MP_OKAY` of the RANDOMISED trial loop), closed with a
+     * PINNED, allocation-free RNG on a fresh WC_RNG.
+     *
+     * PINNED INPUT (evidence): mcdc_seed_rng.h armed with seed 0x5eed0001;
+     * candidate a = 2^31 - 1 (prime) for the error rows and
+     * a = 100160063 = 10007 * 10009 (composite, both factors past the end of
+     * the small-prime table) for the *result == MP_NO row; trials = 8.
+     *
+     * With the armed hook the loop makes no allocation of its own before
+     * sp_prime_miller_rabin(), so allocation index 1 and 2 are this
+     * function's two ALLOC_SP_INT_ARRAYs (err set before the loop; the
+     * decision is not reached) and every index from 3 up lands inside the
+     * exponentiation, returning MP_MEM into `err` and breaking on THIS
+     * operand. The two un-armed calls above it in the same binary supply the
+     * (F,F) row (a prime, so the loop runs every round) and the (F,T) row (a
+     * composite, rejected on *result). */
+    if (wc_InitRng(&rng) == 0) {
+        mcdc_sr_arm(WB_PRIME_RNG_SEED);
+
+        wb_set_d(&a, (sp_int_digit)2147483647UL);
+        (void)_sp_prime_random_trials(&a, 8, &res, &rng);
+        wb_set_d(&a, (sp_int_digit)100160063ULL);
+        (void)_sp_prime_random_trials(&a, 8, &res, &rng);
+
+        for (n = 1; n <= 24; n++) {
+            /* Rewind BEFORE arming: re-absorbing the seed allocates. */
+            mcdc_sr_rewind(WB_PRIME_RNG_SEED);
+            wb_set_d(&a, (sp_int_digit)2147483647UL);
+            mcdc_fa_arm_only(n);
+            (void)_sp_prime_random_trials(&a, 8, &res, &rng);
+            mcdc_fa_disarm();
+        }
+
+        mcdc_sr_disarm();
         wc_FreeRng(&rng);
     }
 #endif
