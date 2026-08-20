@@ -1106,8 +1106,17 @@ int test_wc_curve448_cryptocb(void)
 
     wc_curve448_free(&keyB);
 #ifndef WC_NO_CONSTRUCTORS
+    /* result_code and key_p are both optional */
+    {
+        curve448_key* keyC = NULL;
+        ExpectNotNull(keyC = wc_curve448_new(HEAP_HINT, devId, NULL));
+        if (keyC != NULL) {
+            DoExpectIntEQ(wc_curve448_delete(keyC, NULL), 0);
+        }
+    }
     if (keyA != NULL) {
         DoExpectIntEQ(wc_curve448_delete(keyA, &keyA), 0);
+        ExpectNull(keyA);
     }
     ExpectIntEQ(wc_curve448_delete(NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));

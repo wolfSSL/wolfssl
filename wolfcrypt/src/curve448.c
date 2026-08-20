@@ -342,9 +342,9 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
     wc_MemZero_Add("wc_curve448_shared_secret_ex o", o, CURVE448_PUB_KEY_SIZE);
 #endif
 
-    if (ret == 0) {
-        ret = curve448(o, private_key->k, public_key->p);
-    }
+    /* ret is 0 here: the argument checks return early and the cryptocb block
+     * either returns or resets it. */
+    ret = curve448(o, private_key->k, public_key->p);
 #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
     if (ret == 0) {
         byte t = 0;

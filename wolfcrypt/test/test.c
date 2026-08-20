@@ -80467,7 +80467,10 @@ static wc_test_ret_t curve448_onlycb_test(myCryptoDevCtx *ctx)
     ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
     if (ret != 0)
         ret = WC_TEST_RET_ENC_EC(ret);
-    else if (!key.privSet || !key.pubSet || (key.p[0] != 0xC3) ||
+    else if (!key.privSet || !key.pubSet ||
+             !curve448_buf_is(key.p, 0xC3, CURVE448_PUB_KEY_SIZE) ||
+             (key.k[0] != 0x58) ||
+             !curve448_buf_is(key.k + 1, 0x5A, CURVE448_KEY_SIZE - 2) ||
              (key.k[CURVE448_KEY_SIZE-1] != 0xDA))
         ret = WC_TEST_RET_ENC_NC;
 
@@ -80557,7 +80560,8 @@ static wc_test_ret_t curve448_onlycb_test(myCryptoDevCtx *ctx)
         ret = wc_curve448_shared_secret(&key, &pubKey, out, &outLen);
         if (ret != 0)
             ret = WC_TEST_RET_ENC_EC(ret);
-        else if ((outLen != CURVE448_KEY_SIZE) || (out[0] != 0xA5))
+        else if ((outLen != CURVE448_KEY_SIZE) ||
+                 !curve448_buf_is(out, 0xA5, CURVE448_PUB_KEY_SIZE))
             ret = WC_TEST_RET_ENC_NC;
     }
     if (ret == 0) {
@@ -81206,12 +81210,12 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
             #endif
             if (myCtx->exampleVar == 99) {
+                info->pk.curve448kg.key->devId = devIdArg;
                 /* the dispatcher must hand over a usable payload */
                 if ((info->pk.curve448kg.rng == NULL) ||
                     (info->pk.curve448kg.size != CURVE448_KEY_SIZE)) {
                     return BAD_FUNC_ARG;
                 }
-                info->pk.curve448kg.key->devId = devIdArg;
                 /* deterministic key material so the caller can prove the
                  * callback's output actually reached it */
                 XMEMSET(info->pk.curve448kg.key->k, 0x5A, CURVE448_KEY_SIZE);
