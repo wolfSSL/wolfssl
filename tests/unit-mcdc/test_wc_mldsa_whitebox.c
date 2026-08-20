@@ -44,7 +44,7 @@
  * Crash-safety: all inputs are bounded, fixed-size stack arrays sized to
  * MLDSA_N coefficients; no helper is handed a short/NULL buffer it would
  * dereference past. On any unexpected result we print a note and continue;
- * the binary always returns 0 so the campaign keeps the variant.
+ * the binary always returns 0 so the harness keeps the variant.
  */
 
 /* SAVE_VECTOR_REGISTERS2() gates every SIMD dispatch in this file. In a
@@ -1198,7 +1198,7 @@ static void wb_arg_guards(void)
  *     if ((ret == 0) && valid) { ... }
  *
  * guards: `valid` goes false when a decoded hint is malformed, a norm check
- * fails, or the recomputed commitment differs.  A campaign that only ever
+ * fails, or the recomputed commitment differs.  A suite that only ever
  * verifies signatures it just produced sees valid == 1 at every one of them,
  * so the operand is undriven -- and a genuinely corrupt signature is the
  * ordinary, in-spec way to drive it.
@@ -1331,7 +1331,7 @@ static void wb_verify_invalid(void)
  *
  * The HIGH side (`s1[c] > eta`) is NOT driven here and cannot be: the unpack
  * is `eta - t` with t unsigned, so the decoded coefficient never exceeds eta.
- * Both `> eta` operands are recorded in campaign/db/exclusions.json.
+ * Both `> eta` operands are recorded in the exclusion record.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_CHECK_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \

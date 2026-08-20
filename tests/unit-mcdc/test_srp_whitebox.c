@@ -35,14 +35,14 @@
  * SRP_VERIFY_E) and the (T,F) row (a correct proof) are both there, but the
  * idx0 independence pair -- (T,T) against (F,.) -- is not.
  *
- * mcdc_fault_hash.h is the campaign's lever for exactly this shape: it
+ * mcdc_fault_hash.h is the lever for exactly this shape: it
  * macro-interposes the hash primitives for THIS translation unit only, before
  * srp.c is #included, so mcdc_fh_arm(1) makes the very next primitive call
  * (and every later one) return BAD_FUNC_ARG. SrpHashFinal() then propagates
  * that into `r`, and :1057 is evaluated with `!r` FALSE while the decision
  * short-circuits -- the missing half. The unarmed (T,T) partner is driven in
  * the SAME binary immediately before it, which is what MC/DC needs: llvm-cov
- * computes independence per binary and the campaign only ORs the resulting
+ * computes independence per binary and the harness only ORs the resulting
  * bits by line:col.
  *
  * Note that wc_SrpVerifyPeersProof()'s SHA-256 proof hash is used here in its
@@ -53,7 +53,7 @@
  * cheap (no modexp, well inside TEST_TIMEOUT). tests/api/test_srp.c already
  * carries the full handshake, including the corrupted-proof rejection.
  *
- * Build: compiled by run-mcdc-par.sh's white-box step with the SAME MC/DC
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC
  * CFLAGS, -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then
  * linked against that variant's libwolfssl.a with its srp.o removed (this TU
  * supplies the instrumented srp.c). NOT part of the wolfSSL build; not
@@ -179,6 +179,6 @@ int main(void)
     wb_verify_peers_proof_hash_fault();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
-     * campaign discard this variant's coverage. */
+     * suite discard this variant's coverage. */
     return 0;
 }

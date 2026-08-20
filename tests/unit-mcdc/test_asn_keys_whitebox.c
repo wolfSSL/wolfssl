@@ -729,7 +729,7 @@ static void wb_get_key_oid(void) { WB_NOTE("HAVE_PKCS8/12 off; wc_GetKeyOID skip
 /* ========================================================================
  * Section A10: wc_EncryptPKCS8Key_ex() argument/salt/version checks.
  *
- * ARGUED UNREACHABLE, do not re-open (campaign EXCLUSIONS.md +
+ * ARGUED UNREACHABLE, do not re-open (suite the exclusion record +
  * db/exclusions.json): :10805 BOTH operands. GetAlgoV2() (asn.c:10713-10748)
  * assigns *oid on every switch arm that returns 0 and leaves the caller's
  * initialiser untouched only on the default arm, which returns ALGO_ID_E.
@@ -2790,7 +2790,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

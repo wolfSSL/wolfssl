@@ -21,7 +21,7 @@
 
 /*
  * mcdc_fault_mpint.h -- fault injector for the SCRATCH-mp_int LIFECYCLE macros
- * NEW_MP_INT_SIZE() / INIT_MP_INT_SIZE(), for the per-module MC/DC campaign.
+ * NEW_MP_INT_SIZE() / INIT_MP_INT_SIZE(), for the per-module MC/DC suite.
  * Fourth lever, beside mcdc_fault_alloc.h (heap), mcdc_fault_hash.h (digest /
  * block-cipher primitives) and mcdc_fault_mp.h (big-integer computations).
  *
@@ -97,7 +97,7 @@
  *
  * AVAILABILITY  (read the note in mcdc_seed_rng.h first: a conditionally
  * available header must still define its API UNCONDITIONALLY, or a TU that
- * calls it fails to COMPILE under some variant -- which the campaign scores as
+ * calls it fails to COMPILE under some variant -- which the harness scores as
  * a silent skip rather than an error.)
  *
  * The INIT lever works under every backend: INIT_MP_INT_SIZE is an expression

@@ -10,10 +10,10 @@
  * mp_prime_miller_rabin, mp_prime_is_divisible, s_is_power_of_two, bn_reverse).
  * This translation unit reaches them by compiling integer.c directly (#include)
  * and calling the static helpers with BOTH halves of each targeted MC/DC pair in this
- * one binary (llvm-cov computes MC/DC per binary; the campaign unions the
+ * one binary (llvm-cov computes MC/DC per binary; the harness unions the
  * "independence shown" bit across binaries by line:col).
  *
- * Build: compiled by run-mcdc.sh's white-box step with the SAME MC/DC CFLAGS
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC CFLAGS
  * and -I<workspace> as the instrumented library, then linked against that
  * variant's libwolfssl.a with its integer.o removed (this TU supplies the
  * instrumented integer.c). NOT part of the wolfSSL build; not registered in
@@ -21,7 +21,7 @@
  *
  * Every call is memory-safe (static helpers are handed initialized mp_ints and
  * in-range selectors); setup failures print a skip and return 0 (a nonzero
- * exit makes the campaign discard the variant and its coverage).
+ * exit makes the harness discard the variant and its coverage).
  */
 
 #include <wolfcrypt/src/integer.c>
@@ -1227,7 +1227,7 @@ int main(void)
 #endif
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures surface as skips, not failures: a nonzero exit makes the
-     * campaign discard this variant's coverage. */
+     * suite discard this variant's coverage. */
     return 0;
 #endif
 }

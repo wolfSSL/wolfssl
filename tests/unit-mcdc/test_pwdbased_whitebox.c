@@ -71,7 +71,7 @@
  *    dead. An unarmed derivation is still driven below so this binary's own
  *    MC/DC record carries the (T,T)/(T,F) rows next to the unreachable one.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with pwdbased.o removed. Not part of the wolfSSL build.
  */

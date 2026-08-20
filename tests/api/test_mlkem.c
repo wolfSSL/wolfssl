@@ -4090,7 +4090,7 @@ int test_wc_mlkem_decode_privkey_bad_pubhash(void)
 
 
 /******************************************************************************
- * MC/DC coverage supplements (ISO 26262 per-module campaign).
+ * MC/DC coverage supplements (per-module MC/DC suite).
  *
  * test_wc_MlkemDecisionCoverage: one negative call per argument-check /
  * short-buffer / key-state branch in the public ML-KEM API, each asserting the

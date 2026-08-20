@@ -24,8 +24,8 @@
  * This build variant does NOT define WOLFSSL_WC_LMS_SMALL, WOLFSSL_LMS_SHAKE256
  * or WOLFSSL_LMS_SHA256_192, so the code paths guarded by those macros are dead
  * in this translation unit; the corresponding decisions belong to other
- * campaign variants and are skipped here (see notes below and the final
- * per-line residual list in the task report).
+ * suite variants and are skipped here (see notes below and the final
+ * per-line residual list in the notes).
  *
  * This white-box #includes wc_lms_impl.c directly so it can call file-static
  * helpers (wc_lms_treehash_init/update, wc_lmots_q_expand, ...) and the
@@ -56,7 +56,7 @@ static int wb_fail = 0;
 /* Tree height for the two drivers that build a real multi-level HSS key.
  * Keygen cost is 2^h OTS keys per subtree per level, so height 5 made those
  * two setups alone take ~320s under MC/DC instrumentation -- over the
- * campaign's 600s TEST_TIMEOUT once variants run concurrently, which scored
+ * suite's 600s TEST_TIMEOUT once variants run concurrently, which scored
  * the whole file as a skip and cost every decision in it.
  *
  * wb_make_params() bypasses wc_LmsKey_SetParameters() and lmsType is only
@@ -1066,7 +1066,7 @@ static void wb_hss_full_cycle(void) {}
 
 int main(void)
 {
-    /* Unbuffered: if a driver overruns the campaign's TEST_TIMEOUT the
+    /* Unbuffered: if a driver overruns the TEST_TIMEOUT the
      * harness SIGKILLs this process, and anything still sitting in stdio's
      * buffer is lost -- which reports as an empty log and no clue where it
      * stopped. */
@@ -1088,7 +1088,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips (printed notes + wb_fail), not
-     * process failures: the campaign discards a variant's whole coverage
+     * process failures: the harness discards a variant's whole coverage
      * on non-zero exit, so this always returns 0. */
     return 0;
 #endif

@@ -53,7 +53,7 @@
  * hashes) that its whole primitive range is swept DENSELY, which is what
  * reaches the per-hash-family copies of the auth-path climb loop.
  *
- * TARGETS (campaign/reports/lms/GAPS.md keys, wc_lms_impl.c)
+ * TARGETS (suite/reports/lms/the uncovered-condition report keys, wc_lms_impl.c)
  *   2109:...:0   wc_lms_treehash()      `ret == 0` at the auth-path store
  *                (WOLFSSL_WC_LMS_SMALL arm)                    -- fault
  *   2262:...:0   wc_lms_treehash_init() same, table-based arm   -- fault
@@ -104,11 +104,11 @@
  * i == (i >> (h-1)) * 2^(h-1) + (2^(h-1) - 1). Adding one carries out of
  * bit h-1, so (i + 1) >> (h - 1) == (i >> (h - 1)) + 1: the two sides differ
  * by exactly one on every evaluation and the `!=` is never false. Recorded
- * in campaign/db/exclusions.json and EXCLUSIONS.md.
+ * in the exclusion record and the exclusion record.
  *
  * COST: no keygen and no signing. The most expensive driver computes 8 WOTS
  * leaves; the whole program is a few hundred thousand SHA-256 blocks, orders
- * of magnitude inside the campaign's 600 s TEST_TIMEOUT.
+ * of magnitude inside the 600 s TEST_TIMEOUT.
  *
  * VARIANTS (HARD RULE: must compile under every variant of the module):
  *   WOLFSSL_LMS_VERIFY_ONLY  - keygen/signing static helpers are compiled
@@ -543,7 +543,7 @@ static void wb_treehash_init_fault(const WbFam* f)
  *      leaves 0..3 are served from the leaf cache, so wc_lms_treehash_update
  *      issues NO primitive call until the carry chain of leaf 1 reaches
  *      wc_lms_interior_hash() -- primitive call 1 IS that node hash.
- *      These two conditions are the pair the campaign's 2026-08-11 flake
+ *      These two conditions are the pair the 2026-08-11 flake
  *      hunt recorded as non-deterministic (they depend on where the global
  *      strided hash-fault sweep in test_lms_hash_fault_whitebox.c happens to
  *      land, which moves with the RNG-drawn key). This vector pins them.
@@ -781,6 +781,6 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup problems are printed skips, never a non-zero exit: a non-zero
-     * exit makes the campaign discard this binary's whole coverage. */
+     * exit makes the harness discard this binary's whole coverage. */
     return 0;
 }

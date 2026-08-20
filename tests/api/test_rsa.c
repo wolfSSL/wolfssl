@@ -1429,7 +1429,7 @@ int test_wc_RsaDecisionCoverage(void)
  * differ. The sibling key-gen/decision tests in this file (e.g.
  * test_wc_CheckProbablePrime, the RsaKeyGeneration group) exclude HAVE_SELFTEST
  * for the same reason; do so here too. HAVE_FIPS is intentionally left running:
- * that (newer) module honours these decisions and the campaign gains coverage
+ * that (newer) module honours these decisions and the harness gains coverage
  * from it. */
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_SELFTEST)

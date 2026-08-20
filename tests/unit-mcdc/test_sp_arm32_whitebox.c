@@ -77,7 +77,7 @@
  * This is a coverage-driving supplement, not a known-answer test: only "did
  * this fail outright" is checked, never a specific expected value. Coverage
  * from this binary is unioned with the tests/api variant coverage by source
- * line:col in the per-module campaign (iso26262/mcdc-per-module).
+ * line:col in the per-module suite.
  *
  * Build: compiled by lanes/qemu-entry.sh's white-box step with the SAME MC/DC
  * cross CFLAGS (--target=arm-linux-gnueabihf, -DWOLFSSL_SP_ARM32_ASM,

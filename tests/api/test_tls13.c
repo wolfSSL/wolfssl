@@ -620,7 +620,7 @@ int test_tls13_apis(void)
      *     hash == NULL || ssl == NULL || (ssl->suites == NULL && ssl->ctx == NULL)
      * Only the first two operands are reachable: ssl->ctx is invariant non-NULL
      * for a live WOLFSSL, so the parenthesised sub-expression is dead and both
-     * of its operands are recorded in campaign/db/exclusions.json. */
+     * of its operands are recorded in the exclusion record. */
 #ifndef NO_PSK
 #ifndef NO_WOLFSSL_CLIENT
     ExpectNull(wolfSSL_get_cipher_name_by_hash(clientSsl, NULL));

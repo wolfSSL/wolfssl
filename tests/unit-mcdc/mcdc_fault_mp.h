@@ -21,7 +21,7 @@
 
 /*
  * mcdc_fault_mp.h -- header-only big-integer (mp_*) fault injector for the
- * per-module MC/DC campaign. Third lever, beside mcdc_fault_alloc.h (heap) and
+ * per-module MC/DC suite. Third lever, beside mcdc_fault_alloc.h (heap) and
  * mcdc_fault_hash.h (hash / block-cipher primitives).
  *
  * WHY
@@ -229,7 +229,7 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_fm_to_unsigned_bin_len(const mp_int* a,
 /* Some entry points are declared only under a feature condition by the
  * heapmath (integer.h) and fastmath (tfm.h) backends; sp_int.h declares all of
  * them. Wrapping one the active backend does not declare makes the including
- * TU fail to build, which the campaign scores as a silent skip. */
+ * TU fail to build, which the harness scores as a silent skip. */
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     #define MCDC_FM_HAVE_READ_RADIX
     #define MCDC_FM_HAVE_PRIME_IS_PRIME_EX

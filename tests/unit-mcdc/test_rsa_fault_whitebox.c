@@ -52,7 +52,7 @@
  * sweep simply finds fewer heap sites to fault and the targets run to
  * completion), which is why it is safe to wire as a normal whitebox entry that
  * every variant compiles.  ==> wire it with the small_stack -D (see the
- * modules.json note at the end of this file's commit message).
+ * the module registry note at the end of this file's commit message).
  *
  * It #includes rsa.c directly (like the sibling test_rsa_whitebox.c and the
  * other unit-mcdc white-boxes) to reach the file-static wc_CompareDiffPQ /
@@ -72,7 +72,7 @@
  * the RSA verify-decrypt padding comparisons (3584/3595/3631/4071/4074) and the
  * *_KeyDecodeRaw / CheckProbablePrime_ex argument guards (5293/5914/5996/6004).
  *
- * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json; line
+ * STRUCTURALLY UNSATISFIABLE (recorded in the exclusion record; line
  * numbers are rsa.c's). None of these is "hard to reach" -- each is an
  * argument that the missing row does not exist:
  *
@@ -125,7 +125,7 @@
  *   ./test_rsa_fault_whitebox            default: full fault-index sweep
  *   ./test_rsa_fault_whitebox baseline   only the unarmed valid ops (delta base)
  *   ./test_rsa_fault_whitebox probe      per-entry-point allocation counts
- * (Default is the sweep so the campaign's run_whitebox harness -- which runs the
+ * (Default is the sweep so the run_whitebox harness -- which runs the
  * binary with NO arguments -- gets full coverage.)
  */
 

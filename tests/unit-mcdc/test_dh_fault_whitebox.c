@@ -27,7 +27,7 @@
  * file-static, full-capacity sp_int) is a cross-TU call into sp_int.c, and
  * mcdc_fault_alloc.h's XMALLOC hook only reaches allocations made BY dh.c
  * itself (see its header comment) - it cannot fail an sp_int.c internal
- * allocation, and under this campaign's math backend (WOLFSSL_SP_MATH_ALL,
+ * allocation, and under this suite's math backend (WOLFSSL_SP_MATH_ALL,
  * SP_INT_BITS=4096, fixed-size sp_int, no heap growth) most of those calls
  * cannot fail at all except on a NULL argument that can never be NULL here.
  * This file therefore does not use mcdc_fault_alloc.h; instead it drives the
@@ -71,7 +71,7 @@
  * "oversized" buffer, whose LENGTH argument (never its dereferenced past-end
  * content) is what trips the size guard - no OOB read ever happens.
  *
- * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json).
+ * STRUCTURALLY UNSATISFIABLE (recorded in the exclusion record).
  * Three dh.c conditions are not driven here because no input produces the
  * missing vector:
  *
@@ -119,7 +119,7 @@
 #include "mcdc_fault_mp.h"
 
 /* EXPERIMENT (2026-08-11 flake hunt): dh.c:3359 `(ret == 0) && (primeCheckCount)`
- * was the last non-deterministic condition campaign-wide -- covered in 2 of 3
+ * was the last non-deterministic condition suite-wide -- covered in 2 of 3
  * sweeps of an unchanged tree. primeCheckCount counts rejected prime
  * candidates, so it is a direct function of the random draws. */
 #include "mcdc_seed_rng.h"
@@ -284,7 +284,7 @@ static void test_generate_keypair_null_guards(void)
  * dispatch above returns first): a p whose bit count is not 2048/3072/4096
  * takes this generic path in every variant. 1408's mp_to_unsigned_bin(y,pub)
  * call is given the exact size it needs (never truncated) and only checks
- * for NULL - its failure arm is unreachable (see DEATHNOTE note below), so
+ * for NULL - its failure arm is unreachable (), so
  * only 1408's ret==0 operand is exercised here (via the same cascade as
  * 1405's). */
 static void test_generate_public_cascade(void)
@@ -315,7 +315,7 @@ static void test_generate_public_cascade(void)
     /* 1405:1 - a modulus bigger than SP_INT_BITS makes sp_exptmod_ex's own
      * "m->used*2 >= SP_INT_DIGITS" guard fail deterministically (verified:
      * MP_EXPTMOD_E), with ret==0 still true entering the check. Self-built
-     * odd 6144-bit-ish value (no HAVE_FFDHE_6144 table in this campaign's
+     * odd 6144-bit-ish value (no HAVE_FFDHE_6144 table in this suite's
      * base config) - trusted=1 skips the (irrelevant) primality check. */
     {
         byte bigp[768];
@@ -433,7 +433,7 @@ static void test_validate_and_pairwise(void)
  * candidate; a single flipped byte makes it composite with overwhelming
  * probability, giving isPrime==0 (2706's TRUE row) which sets ret=
  * DH_CHECK_PUB_E and cascades ret!=0 into 2710 (its FALSE row). mp_init()
- * on &key->g itself cannot fail here (see DEATHNOTE note). */
+ * on &key->g itself cannot fail here. */
 static void test_setkey_primality(void)
 {
     WC_RNG rng;

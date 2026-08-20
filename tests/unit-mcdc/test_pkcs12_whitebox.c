@@ -8,11 +8,11 @@
  * wrapper pre-validates). This translation unit compiles pkcs12.c directly
  * (#include) to reach its static helpers and calls them with both halves of
  * each targeted MC/DC independence pair. Heap-allocation failures use the
- * shared campaign fault injector (mcdc_fault_alloc.h) to force a specific
+ * shared suite fault injector (mcdc_fault_alloc.h) to force a specific
  * XMALLOC call to return NULL deterministically.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage by
- * source line:col in the per-module campaign (iso26262/mcdc-per-module).
+ * source line:col in the per-module suite.
  *
  * Targeted residuals (pkcs12.c), by class:
  *   Class 1  GetSignData() digest/salt alloc-failure guards ....... 2 conds
@@ -38,7 +38,7 @@
  *     once GetLength has succeeded. Confirmed empirically (a totalSz small
  *     enough to trip the overflow makes GetLength itself fail first, with a
  *     BUFFER_E/ASN_PARSE_E return, never reaching this line with digest/salt
- *     already allocated). Logged in DEATHNOTE.md (Part 5 findings) as
+ *     already allocated). Logged in the defect notes as
  *     dead/simplify candidates; only the alloc-failure half is exercised here.
  *   - wc_PKCS12_create_mac() kLen<0 (line ~599): every hash OID that
  *     wc_OidGetHash() maps to a non-NONE wc_HashType is guarded in
@@ -130,7 +130,7 @@ static void wb_free_signdata(WC_PKCS12* pkcs12)
 /* Class 1: GetSignData() digest/salt alloc-failure guards (pkcs12.c:445
  * mac->digest==NULL; pkcs12.c:477 mac->salt==NULL -- the reachable half of
  * each `|| size+curIdx>totalSz` guard; see file header for why the size half
- * is dead code, logged in DEATHNOTE.md). Both operands normally false (real
+ * is dead code). Both operands normally false (real
  * DER + successful alloc); the alloc-failure half is white-box only, reached
  * here with the shared fault injector on a static-function-direct call. */
 static void wb_getsigndata(void)
@@ -166,7 +166,7 @@ static void wb_getsigndata(void)
 
     mcdc_fa_restore();
     WB_NOTE("GetSignData digest/salt alloc-failure pairs exercised "
-            "(size-overflow half is dead code, see file header / DEATHNOTE.md)");
+            "(size-overflow half is dead code, see file header)");
 }
 
 /* Class 2: wc_PKCS12_create_mac() NULL guard (pkcs12.c:546-547) and the
@@ -651,7 +651,7 @@ int main(void)
     wb_check_constructed_zero();
     wb_shroud_and_keybag();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 }

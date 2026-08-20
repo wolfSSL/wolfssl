@@ -37,7 +37,7 @@
  * Keygen cost: every real wc_LmsKey_MakeKey/Reload below uses the smallest
  * mapped parameter set, levels=1 height=5 width=8 (WC_LMS_PARM_L1_H5_W8, 32
  * leaves) -- the same set test_wc_lms_impl_whitebox.c uses for its per-family
- * roundtrip. WOLFSSL_LMS_MAX_LEVELS is pinned to 2 by this module's campaign
+ * roundtrip. WOLFSSL_LMS_MAX_LEVELS is pinned to 2 by this module's suite
  * config, so no larger key is attempted here.
  *
  * VERIFY_ONLY: wc_LmsKey_SetLmsParm/SetParameters(_ex)/GetParameters(_ex),
@@ -51,7 +51,7 @@
  * whole group is behind one #ifndef with a skip stub.
  *
  * No allocation-fault sweep here: every uncovered decision in
- * campaign/reports/lms/GAPS.md for wc_lms.c is a NULL/argument guard or a
+ * suite/reports/lms/the uncovered-condition report for wc_lms.c is a NULL/argument guard or a
  * state-machine check, not a post-XMALLOC error chain, so mcdc_fault_alloc.h
  * is not needed by this file.
  */
@@ -149,7 +149,7 @@ static int wb_read_exhausted(byte* priv, word32 privSz, void* context)
 
 /*******************************************************************
  * wc_LmsKey_InitId (665, 668, 674) / wc_LmsKey_InitLabel (698, 703).
- * Only compiled when WOLF_PRIVATE_KEY_ID is set; this campaign's base
+ * Only compiled when WOLF_PRIVATE_KEY_ID is set; this suite's base
  * enables HAVE_PK_CALLBACKS, which settings.h auto-derives it from.
  *
  * 665: if ((key == NULL) || ((id == NULL) && (len != 0)))
@@ -171,7 +171,7 @@ static int wb_read_exhausted(byte* priv, word32 privSz, void* context)
  *   B=F (id==NULL, len!=0, ret==0) is UNREACHABLE: 665 already forces
  *   ret=BAD_FUNC_ARG whenever id==NULL && len!=0, so "ret==0 && id==NULL"
  *   can never coexist with len!=0. No test call issued for this row --
- *   DEATHNOTE candidate, see task report.
+ *
  ******************************************************************/
 #ifdef WOLF_PRIVATE_KEY_ID
 static void wb_initid(void)
@@ -356,7 +356,7 @@ static void wb_setlmsparm_setparams(void)
     WB_NOTE("819 SetParameters state leaves closed");
 
     /* --- 879 SetParameters_ex: only the ret==0 operand is flagged in
-     * GAPS.md, but its independence pair still needs the *wrong-state* row
+     * the uncovered-condition report, but its independence pair still needs the *wrong-state* row
      * held alongside it: for (ret==0) && (state!=INITED), the ret==0
      * operand's own pair requires the OTHER operand pinned TRUE (masking
      * MC/DC on an AND chain -- pinning it FALSE, i.e. the plain success
@@ -1411,7 +1411,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Setup/skip conditions are surfaced as notes, not process failures:
-     * the campaign discards a variant's whole coverage on non-zero exit. */
+     * the harness discards a variant's whole coverage on non-zero exit. */
     return 0;
 }
 

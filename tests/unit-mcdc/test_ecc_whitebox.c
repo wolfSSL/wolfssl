@@ -13,13 +13,13 @@
  * halves of each MC/DC independence pair.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage by
- * source line:col in the per-module campaign (iso26262/mcdc-per-module):
- * llvm-cov computes MC/DC independence PER BINARY, and the campaign's
+ * source line:col in the per-module suite:
+ * llvm-cov computes MC/DC independence PER BINARY, and the
  * aggregate.sh ORs the "independence shown" bit across binaries by key. That
  * is why every pair below is completed *within this file* rather than
  * relying on the API tests to supply the other half.
  *
- * Build: compiled by run-mcdc.sh's white-box step with the SAME MC/DC CFLAGS,
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC CFLAGS,
  * -DHAVE_CONFIG_H and -I<workspace> as the instrumented library, then linked
  * against that variant's libwolfssl.a with its ecc.o removed (this TU
  * supplies the instrumented ecc.c). NOT part of the wolfSSL build; not
@@ -47,7 +47,7 @@
  * with ecc.o removed, so the opt-in is local to the white-box binary: it does
  * not change the library under test, and it touches nothing outside ecc.c
  * (the macro appears in no header, so no shared type or layout moves). The
- * campaign unions MC/DC per source line, which is exactly how a white-box is
+ * suite unions MC/DC per source line, which is exactly how a white-box is
  * meant to add rows the native variants cannot produce. */
 #ifndef WOLFSSL_ECIES_STATIC_GCM_NONCE
     #define WOLFSSL_ECIES_STATIC_GCM_NONCE
@@ -875,7 +875,7 @@ out:
     mp_clear(&a);
 }
 
-/* ECC_SHAMIR is unconditional in the base config (see modules.json "ecc"
+/* ECC_SHAMIR is unconditional in the base config (see the module registry "ecc"
  * notes): under it, ecc_mul2add() is `static normal_ecc_mul2add()` (FP_ECC
  * on, the default) or the public `ecc_mul2add()` itself (no_fp_shamir, FP_ECC
  * off) -- select the same symbol the source itself would use. */
@@ -1658,7 +1658,7 @@ static void wb_arg_guards(void)
 
     /* The accepting vectors below need the real curve constants: a zero
      * modulus/order would make wc_ecc_gen_deterministic_k's RFC 6979 retry
-     * loop spin, and the campaign kills the variant on TEST_TIMEOUT. */
+     * loop spin, and the harness kills the variant on TEST_TIMEOUT. */
     {
         mp_int prime;
         mp_int order;
@@ -1932,7 +1932,7 @@ static void wb_gap_pass2(void)
         /* (F,-): the only way to reach the guard with the first operand
          * FALSE is a NON-NULL pubOut (which leaves key->type alone) on a key
          * that is a full ECC_PRIVATEKEY. Every API caller passes NULL, which
-         * is why this row is missing from the campaign. */
+         * is why this row is missing from the harness. */
         if (pubPt != NULL) {
             key.type = ECC_PRIVATEKEY;
             (void)wc_ecc_make_pub(&key, pubPt);
@@ -2008,7 +2008,7 @@ static void wb_gap_pass2(void)
      * The public import paths reduce/reject out-of-range coordinates before
      * building a point, so only a hand-built point reaches these with a
      * coordinate >= p. (The mp_isneg operand of each is a separate matter --
-     * see the residual note in the campaign report.) */
+     * see the residual note in the harness report.) */
     {
         mp_int prime, af, bf;
         ecc_point* pt = wc_ecc_new_point();
@@ -2429,7 +2429,7 @@ static void wb_ecies_algos(void)
 
         /* (T,T,-) and (T,F,T): longer than one byte AND a compressed-point
          * prefix, once for each parity tag. Only an ECIES sender that chose
-         * point compression emits these, and nothing in the campaign does --
+         * point compression emits these, and nothing in the harness does --
          * which also made the 0x03 operand a COIN FLIP before this vector
          * existed: it was only covered when a random ephemeral key happened to
          * have an odd y, so the module's number moved between runs of an
@@ -2510,7 +2510,7 @@ static const int wbCurveIds[] = {
 
 /* Curve availability is a RUNTIME question here, not a compile-time one: the
  * per-curve HAVE_ECCnnn macros are only set when a build hand-picks curves,
- * and this campaign's configs take the HAVE_ALL_CURVES default instead -- so
+ * and this suite's configs take the HAVE_ALL_CURVES default instead -- so
  * guarding on them would silently reduce every sweep below to P-256 and leave
  * each `ecc_sets[idx].id == <curve>` operand permanently TRUE. Asking the
  * table is correct for both kinds of build. */
@@ -3618,7 +3618,7 @@ static void wb_ecies_bad_kdf(void)
  *  5110:1  `if ((err == MP_OKAY) && checkInf)`
  *          checkInf is a local initialized to the constant 1 and never
  *          assigned again outside WOLFSSL_SE050 builds, so it cannot be FALSE
- *          in any variant this campaign compiles.
+ *          in any variant this suite compiles.
  *
  *  5088:1  `x < mp_unsigned_bin_size(result->x)`
  *          x is mp_unsigned_bin_size(curve->prime) and the guard only runs
@@ -3689,7 +3689,7 @@ static void wb_ecies_bad_kdf(void)
  *          NOT a residual -- COVERED by Class 33 below. The argument that
  *          used to be filed here (MAX_ECC_BITS caps the scalars at 521 bits,
  *          66 bytes, well under KB_SIZE - 2 = 126) is false for this
- *          campaign's configs: they #define WOLFCRYPT_HAVE_SAKKE, which
+ *          suite's configs: they #define WOLFCRYPT_HAVE_SAKKE, which
  *          raises MAX_ECC_BITS to 1024 and puts the 128-byte ECC_SAKKE_1
  *          curve in ecc_sets[], while accel_fp_mul2add() uses a flat
  *          `#define KB_SIZE 128` (accel_fp_mul() is 256 under the same
@@ -3877,7 +3877,7 @@ int main(void)
     wb_ecies_bad_kdf();
     wb_fp_mul2add_kb_size();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

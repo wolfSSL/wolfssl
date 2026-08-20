@@ -23,7 +23,7 @@
  * White-box MC/DC supplement for wolfcrypt/src/logging.c -- CORE (non
  * OpenSSL-compat) decisions only.
  *
- * The campaign's default build for this module measures 0 MC/DC on
+ * The suite's default build for this module measures 0 MC/DC on
  * logging.c's core decisions because every one of them lives behind a
  * debug/error-queue macro that the default variant does not enable
  * (DEBUG_WOLFSSL / WOLFSSL_DEBUG_CERTS for certificate logging,
@@ -34,7 +34,7 @@
  * tests/unit-mcdc/README.md's per-binary MC/DC contract).
  *
  * IMPORTANT SCOPE: OPENSSL_EXTRA is deliberately NEVER defined here. The
- * per-module campaign excludes logging.c's OPENSSL_EXTRA-guarded (OpenSSL
+ * per-module suite excludes logging.c's OPENSSL_EXTRA-guarded (OpenSSL
  * compatibility) decisions from its MC/DC boundary; this file only targets
  * the CORE decisions. Where a core decision needs the same top-level guard
  * that also (independently) admits OPENSSL_EXTRA builds (e.g. the error

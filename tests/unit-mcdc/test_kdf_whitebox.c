@@ -29,7 +29,7 @@
  *
  *   1. wc_Tls13_HKDF_Extract_ex()  (~line 354)
  *          if (prk == NULL || (ikm == NULL && ikmLen > 0))
- *      A public entry point, but the campaign's group tests only ever call it
+ *      A public entry point, but the group tests only ever call it
  *      with a valid prk and a present ikm, so none of the three operands gets
  *      a pair. All four call shapes are memory-safe: the guard short-circuits
  *      before either pointer is read, and the accepted "ikm == NULL &&
@@ -76,7 +76,7 @@
  * this file cannot do. They are closed in the sibling translation unit
  * tests/unit-mcdc/test_kdf_hash_fault_whitebox.c instead.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with kdf.o removed. Not part of the wolfSSL build.
  */

@@ -99,7 +99,7 @@ int test_wc_KdfDecisionCoverage(void)
      * 14-byte HMAC_FIPS_MIN_KEY (returns HMAC_MIN_KEYLEN_E for the short keys
      * these probes use), the MD5/TLS1.0 PRF is disallowed, and several argument
      * checks differ, so these OPEN-build MC/DC assertions do not hold. kdf.c
-     * coverage is measured only in non-FIPS campaign variants, so skip the whole
+     * coverage is measured only in non-FIPS variants, so skip the whole
      * suite under FIPS/selftest. */
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 #ifndef NO_KDF
@@ -670,7 +670,7 @@ int test_wc_KdfFeatureCoverage(void)
     /* See test_wc_KdfDecisionCoverage: FIPS/selftest builds diverge on KDF
      * behavior (14-byte minimum HMAC key, MD5/TLS1.0 PRF disallowed, differing
      * argument checks), so skip this OPEN-build positive-path suite there;
-     * kdf.c is measured only in non-FIPS campaign variants. */
+     * kdf.c is measured only in non-FIPS variants. */
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 #ifndef NO_KDF
 

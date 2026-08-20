@@ -20,7 +20,7 @@
  */
 
 /*
- * mcdc_der_edit.h -- structural DER edits for the per-module MC/DC campaign.
+ * mcdc_der_edit.h -- structural DER edits for the per-module MC/DC suite.
  *
  * PURPOSE
  * -------

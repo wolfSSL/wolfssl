@@ -26,7 +26,7 @@
  *
  * None of these decisions need a real XMSS keypair. Every guard chain here
  * is closed with the SMALLEST built-in parameter set (XMSS-SHA2_10_256,
- * height 10 - available under every campaign variant since
+ * height 10 - available under every suite variant since
  * WOLFSSL_XMSS_MIN_HEIGHT defaults to 10) purely for its XmssParams fields
  * (sig_len/pk_len/sk_len); wc_XmssKey_SetParamStr() never generates keys, so
  * it costs nothing. key->state is then poked directly (this file #includes
@@ -57,7 +57,7 @@
  * This #includes wc_xmss.c directly (like the sibling wc_xmss_impl.c
  * white-box) so key->state and the other private fields are reachable.
  *
- * Invocation: no arguments; runs the full sweep (the campaign's
+ * Invocation: no arguments; runs the full sweep (the
  * run_whitebox harness invokes the binary with none).
  */
 
@@ -908,7 +908,7 @@ static void wb_import_pub_raw_guard(void)
  * 907: same function's
  *   "if (labelLen == 0 || labelLen > XMSS_MAX_LABEL_LEN)"
  * WOLF_PRIVATE_KEY_ID is auto-enabled by settings.h whenever
- * HAVE_PK_CALLBACKS is set (true for every campaign variant here), so this
+ * HAVE_PK_CALLBACKS is set (true for every suite variant here), so this
  * is not a dead gate in practice.
  ********************************************/
 static void wb_init_id_label(void)

@@ -48,7 +48,7 @@
  * sakke_compute_point_r are reachable for direct armed calls, and so
  * llvm-cov attributes the coverage to sakke.c's own decisions.
  *
- * Targeted GAPS.md residuals (err==0 FALSE half unless noted):
+ * Targeted the uncovered-condition report residuals (err==0 FALSE half unless noted):
  *   411  sakke_mulmod_base_add "(err==0) && map"      (non-SP build only)
  *   536  wc_MakeSakkeKey       "(err==0) && mp_iszero(..)"  cond 0 only;
  *        cond 1 (mp_iszero true, random scalar == 0) is crypto-unreachable.
@@ -75,7 +75,7 @@
  *   ./test_sakke_fault_whitebox            default: full fault-index sweeps
  *   ./test_sakke_fault_whitebox baseline   unarmed valid ops only (delta base)
  *   ./test_sakke_fault_whitebox probe      print per-target allocation counts
- * The campaign run_whitebox harness runs the binary with NO arguments, so the
+ * The white-box harness runs the binary with NO arguments, so the
  * default is the productive full sweep.
  */
 
@@ -469,7 +469,7 @@ int main(int argc, char** argv)
 #ifndef MCDC_FA_UNAVAILABLE
         /* ============================================================
          * Fault-index sweeps. K values sized from the probe run (see the
-         * modules.json note); each K over-sweeps its target's allocation
+         * the module registry note); each K over-sweeps its target's allocation
          * count by a margin (over-sweeping is harmless -- once n exceeds the
          * site count the target simply runs to completion). Fresh key state
          * is (re)built while DISARMED for every group whose target mutates

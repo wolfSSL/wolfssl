@@ -45,7 +45,7 @@
  * The higher-level Entropy_Init()/wc_Entropy_OnDemandTest()/wc_Entropy_Get()
  * exercise the MemUse/GetSample/GetNoise/Condition path best-effort; any
  * setup failure is reported as a skip (return 0), never a test failure, so
- * the campaign never discards the variant's coverage.
+ * the harness never discards the variant's coverage.
  *
  * wc_Entropy_Get() itself has two decisions whose operands reference the
  * SAME file-static health-test state, but are not independently selectable
@@ -93,7 +93,7 @@
  * preprocessed away, and wb_startup_noise_fail() below -- which is guarded on
  * the same macro but sits AFTER wolfentropy.c has pulled settings.h in --
  * refers to a wb_sha3_refuse that does not exist. That is a compile failure,
- * which the campaign scores as a SILENT SKIP.
+ * which the harness scores as a SILENT SKIP.
  */
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -237,7 +237,7 @@ static void wb_collect_path(void)
  * -- is never shown from tests/api. Both globals are file-static: drive
  * each operand's independence pair directly, holding the other operand
  * false (the "both false" side is already exercised by every other
- * steady-state call in this campaign, e.g. wb_collect_path() above). */
+ * steady-state call in this suite, e.g. wb_collect_path() above). */
 static void wb_startup_retrigger(void)
 {
     int ret;
@@ -463,6 +463,6 @@ int main(void)
     wb_entropy_get_mutex();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
-     * campaign discard this variant's coverage. */
+     * suite discard this variant's coverage. */
     return 0;
 }

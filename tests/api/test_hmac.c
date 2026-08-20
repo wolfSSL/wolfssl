@@ -883,7 +883,7 @@ int test_wc_HmacSizeByType(void)
 /* The FIPS/self-test hmac's wc_HmacSizeByType returns HMAC_KAT_FIPS_E for any
  * type it doesn't accept (e.g. MD5 is not a FIPS HMAC type), and BAD_FUNC_ARG
  * differs too, so the size/invalid-type assertions here only hold on the open
- * builds the campaign actually measures. Exclude the frozen modules whole. */
+ * builds the harness actually measures. Exclude the frozen modules whole. */
 #if !defined(NO_HMAC) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 #ifndef NO_MD5
     ExpectIntEQ(wc_HmacSizeByType(WC_MD5), WC_MD5_DIGEST_SIZE);
@@ -941,7 +941,7 @@ int test_wc_HmacCopy(void)
 /* wc_HmacCopy() is newer than the frozen FIPS/selftest wolfcrypt modules
  * (absent from the v4.1.0-stable hmac.h that cavp-selftest-v2 pins, and from
  * every frozen FIPS bundle), so skip it there to keep those builds warning-
- * clean; the campaign measures MC/DC on non-FIPS variants regardless. */
+ * clean; the harness measures MC/DC on non-FIPS variants regardless. */
 #if !defined(NO_HMAC) && !defined(NO_SHA256) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     Hmac src;

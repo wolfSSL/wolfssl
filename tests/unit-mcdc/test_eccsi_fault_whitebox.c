@@ -42,7 +42,7 @@
  * the map guard sees err != 0. It #includes eccsi.c directly (like the sibling
  * test_eccsi_whitebox.c) so the file-static helpers are in scope.
  *
- * Not driven here (justified, documented in test_eccsi_whitebox.c and GAPS.md):
+ * Not driven here (justified, documented in test_eccsi_whitebox.c and the uncovered-condition report):
  *   - eccsi_load_ecc_params() 196/202/208 `err == 0` FALSE halves: reaching them
  *     requires eccsi_load_order() / the a/b radix reads to fail. Those are
  *     mp_read_radix() calls on fixed, static, in-struct sp_int members of known-
@@ -64,7 +64,7 @@
  *
  * Invocation:
  *   ./test_eccsi_fault_whitebox            default: full fault sweep (used by the
- *                                          campaign run_whitebox, no args)
+ *                                          suite run_whitebox, no args)
  *   ./test_eccsi_fault_whitebox baseline   unarmed valid ops only (delta baseline)
  *   ./test_eccsi_fault_whitebox probe      per-target allocation-site counts
  */

@@ -21,7 +21,7 @@
 
 /*
  * White-box MC/DC supplement for wolfcrypt/src/asn.c, "extensions" wave
- * (Part 5 of the ISO 26262 MC/DC campaign): name-constraint matching,
+ * (Part 5 of the ISO 26262 MC/DC suite): name-constraint matching,
  * X.509 extension decoding, and the certificate/CSR decode core
  * (asn.c lines ~18537-23356 at the time this file was written).
  *
@@ -33,7 +33,7 @@
  * certificate -- the malformed/edge-case arms never fire from there.
  *
  * Coverage is unioned by source line:col with every other variant/whitebox
- * in the per-module campaign; independence pairs are completed *within this
+ * in the per-module suite; independence pairs are completed *within this
  * binary*.
  *
  * Sections (asn.c line numbers as of this writing):
@@ -92,7 +92,7 @@
  *     once keyOID == RSAk and ParseCertRelative succeeds, GetCertKey always
  *     sets publicKey/pubKeySize together; only the all-true combination is
  *     reachable without editing library source. Now FILED as an exclusion
- *     (campaign EXCLUSIONS.md + db/exclusions.json), together with the same
+ *     (suite the exclusion record + db/exclusions.json), together with the same
  *     arrival argument for ParseCertRelative()'s :24656 cond 1 and :24790
  *     cond 0. The matching pubKeySize operands at :24656 cond 2 and :24790
  *     cond 2 are deliberately NOT excluded: outside the RSA-family branch
@@ -124,7 +124,7 @@
 /* Some leading `ret == 0` operands in this file's decoders have no crafted
  * input that reaches them: the only preceding statement that can set ret is a
  * DECL_ASNGETDATA allocation or a hash call, neither of which fails on valid
- * input. Those are driven with the campaign's heap-fault injector, which is
+ * input. Those are driven with the heap-fault injector, which is
  * only effective in the WOLFSSL_SMALL_STACK variant (where the ASN.1 data
  * arrays and wc_ShaHash()'s context are heap-allocated); the matching TRUE
  * rows are issued unarmed in the same binary. */
@@ -641,7 +641,7 @@ static void wb_permitted_excluded_lists(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS
  *   :19392  subjectDnsName fallback len>0 && name!=NULL
  *   :19414-:19415  critical + unsupported GeneralName form -> fail closed
  *
- * RESIDUAL (argued unreachable, recorded in EXCLUSIONS.md under
+ * RESIDUAL (argued unreachable, recorded in the exclusion record under
  * "Condition-level exclusions"): the SECOND operand of the subjectDnsName
  * fallback, `subjectDnsName.name != NULL`. subjectDnsName is XMEMSET to zero
  * at the top of every nameTypes[] iteration and only three switch arms ever
@@ -769,7 +769,7 @@ static void wb_confirm_name_constraints(void)
      * ASN_RFC822_TYPE under `cert->subjectEmail != NULL` and ASN_DIR_TYPE
      * under `cert->subjectRaw != NULL` -- and each of those assigns the
      * length and the pointer from the same object it has just tested. A
-     * non-zero .len therefore implies a non-NULL .name; see EXCLUSIONS.md. */
+     * non-zero .len therefore implies a non-NULL .name; see the exclusion record. */
     WB_NOTE("ConfirmNameConstraints(): subjectDnsName fallback len/name [:19392]");
     /* subjectEmail present -> synthetic RFC822 name len>0 && name!=NULL,
      * both true, checked against an excluded email base. */
@@ -2941,7 +2941,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

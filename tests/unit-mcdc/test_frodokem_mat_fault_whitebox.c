@@ -34,7 +34,7 @@
  * AES-ECB over the aligned scratch takes a non-allocating path). The heap-fault
  * mock therefore closes NONE of the 13 here -- they need a primitive-return
  * fault mock instead. This driver still runs the mat file end to end (baseline
- * coverage) and is kept so the campaign has a documented, reproducible negative
+ * coverage) and is kept so the harness has a documented, reproducible negative
  * result. See test_frodokem_fault_common.h for the full rationale.
  */
 

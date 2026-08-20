@@ -24,7 +24,7 @@
  *
  * tests/api/test_tsp.c and tests/unit-mcdc/test_tsp_whitebox.c together drive
  * the module's happy paths and most static-helper argument guards. The
- * campaign's GAPS.md still lists a residual set of MC/DC independence pairs
+ * suite's the uncovered-condition report still lists a residual set of MC/DC independence pairs
  * as unshown in the union of all variant runs; this file targets those,
  * providing BOTH rows of each pair in this one binary (MC/DC independence is
  * computed per binary, not merged across separately-compiled #include
@@ -71,7 +71,7 @@
  * tsa_cert_der_2048/tsa_key_der_2048 (real RSA signature over real
  * SignedAttributes).
  *
- * DEATHNOTE claim check (asn_tsp.c:1433, condition index 0,
+ * dead-condition claim check (asn_tsp.c:1433, condition index 0,
  * `GetASNTag(signers, &idx, &tag, signersSz) < 0`, inside
  * TspCheckOneSignerInfo()'s `while ((ret == 0) && (idx < signersSz))` loop):
  * CONFIRMED dead at this call site. GetASNTag() only fails when
@@ -86,7 +86,7 @@
  * test_tsp_whitebox.c's header for why that would be unnecessary anyway:
  * none of the residuals here are in one of its file-static helpers).
  *
- * Targeted residuals, by GAPS.md line (17 NULL/argument-guard conditions):
+ * Targeted residuals, by the uncovered-condition report line (17 NULL/argument-guard conditions):
  *   tsp.c:797  idx0,idx1   - SetGenTimeAsTime ts==NULL / ValidateGmtime
  *   tsp.c:1033 idx3,idx5   - SetFromRequest policySz==0 / serialSz==0
  *   tsp.c:1175 idx4        - CheckRequest nonce content mismatch
@@ -125,7 +125,7 @@
  *                            GeneralName (no mock needed)
  *   tsp.c:2135 idx2        - TspResponse_Verify tokenSz==0 with a token
  *
- * STRUCTURALLY UNSATISFIABLE (recorded in campaign/db/exclusions.json):
+ * STRUCTURALLY UNSATISFIABLE (recorded in the exclusion record):
  *   - tsp.c:2167 idx3 `pkcs7->verifyCert == NULL`: this else-if only runs
  *     with ret == 0, and wc_TspTstInfo_VerifyWithPKCS7() sets ret to
  *     TSP_VERIFY_E whenever pkcs7->verifyCert is NULL, so the operand is
@@ -1358,7 +1358,7 @@ int main(void)
     wb_response_verify_cm();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Always return 0: a nonzero exit makes the campaign discard the whole
+    /* Always return 0: a nonzero exit makes the harness discard the whole
      * variant's coverage, including the parts that did succeed. */
     (void)wb_fail;
     return 0;

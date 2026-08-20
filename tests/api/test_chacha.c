@@ -73,7 +73,7 @@ int test_wc_Chacha_SetKey(void)
 
     /* misaligned key pointer: exercises the (wc_ptr_t)key % 4 realignment
      * decision in wc_Chacha_SetKey when XSTREAM_ALIGN is forced on (the
-     * xstream_align campaign variant). settings.h compiles XSTREAM_ALIGN out
+     * xstream_align variant). settings.h compiles XSTREAM_ALIGN out
      * by default on x86_64/i386/ia64 (NO_XSTREAM_ALIGN), so this call is a
      * harmless no-op realignment-free copy on every other build. */
     {

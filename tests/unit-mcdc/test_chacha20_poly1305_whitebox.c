@@ -50,7 +50,7 @@
  *    guards (encrypt and decrypt arms), "len > 0" FALSE half: a zero-length
  *    data update, valid but unused by the tests.
  *
- * NOT closable, recorded in campaign/db/exclusions.json (three conditions,
+ * NOT closable, recorded in the exclusion record (three conditions,
  * one argument):
  *
  *   :943  if (ret == 0 && aead->state == CHACHA20_POLY1305_STATE_AAD)
@@ -80,7 +80,7 @@
  *
  * No ciphertext or tag value is checked here: the AEAD KATs own correctness,
  * this file only drives the decisions. Every failure is reported as a skip and
- * main() always returns 0 -- a non-zero exit makes the campaign discard the
+ * main() always returns 0 -- a non-zero exit makes the harness discard the
  * whole variant.
  */
 
@@ -320,7 +320,7 @@ int main(void)
     printf("chacha20_poly1305.c white-box MC/DC supplement\n");
     wb_run();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 }

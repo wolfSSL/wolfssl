@@ -80,8 +80,8 @@
  *   ./test_dsa_fault_whitebox            baseline: unarmed valid ops only
  *   ./test_dsa_fault_whitebox sweep      baseline + the fault-index sweeps
  * (Two modes so the injector's contribution can be measured as a delta; the
- * campaign's run_whitebox harness runs it with no args -- pass "sweep" there by
- * default via argv, see the modules.json entry note.)
+ * suite's run_whitebox harness runs it with no args -- pass "sweep" there by
+ * default via argv, see the the module registry entry note.)
  */
 
 /* Installed BEFORE dsa.c so its mp_* calls resolve to the fault wrappers --
@@ -304,7 +304,7 @@ static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
 
     /* ---- wc_MakeDsaParameters reached with err != MP_OKAY. 518's `err !=
      * MP_OKAY` operand is only FALSE-able from a successful run (the baseline
-     * call) and TRUE-able from a failed one; nothing in the normal campaign
+     * call) and TRUE-able from a failed one; nothing in the normal suite
      * ever fails it, and the heap sweep cannot (see the MakeDsaParameters note
      * further down). One armed mp step is enough and stops before the
      * expensive prime search: index 1 is mp_read_unsigned_bin at :426, index 2
@@ -332,7 +332,7 @@ static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
      * reports the BACKEND's code (MP_MEM from the heap backends) -- so
      * wc_MakeDsaParameters' "err not MP_INIT_E" guards could never fire and
      * wc_MakeDsaKey had no guard at all and ran mp_clear(tmpQ) on never-
-     * initialised storage (the SIGSEGV recorded in DEATHNOTE.md). Both sites
+     * initialised storage (the SIGSEGV). Both sites
      * now use the idiom wc_DsaSign_ex/wc_DsaVerify_ex already used, so failing
      * THEIR mp_init_multi is the way into these halves and is crash-safe: the
      * guards exist precisely to skip the clears.
@@ -665,7 +665,7 @@ static void wb_crafted(WC_RNG* rng, DsaKey* key, const byte* digest,
 
 int main(int argc, char** argv)
 {
-    /* Default action is the fault sweep so the campaign's run_whitebox harness
+    /* Default action is the fault sweep so the run_whitebox harness
      * (which runs this binary with NO arguments) gets full coverage. Pass
      * "baseline" to run only the unarmed valid ops (used to measure the
      * injector's contribution as a delta), or "probe" to print the
@@ -714,7 +714,7 @@ int main(int argc, char** argv)
         /* Diagnostic: count the allocations each entry point performs, WITHOUT
          * failing any (arm a huge index so the counter advances but never
          * trips). Use these counts to choose each sweep's K -- see the header
-         * and the campaign fan-out recipe. Exits without sweeping. */
+         * and the harness fan-out recipe. Exits without sweeping. */
         int a = 0;
         byte s2[256]; XMEMSET(s2, 0, sizeof(s2));
         mcdc_fa_arm(1000000);

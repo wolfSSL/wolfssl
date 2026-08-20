@@ -16,8 +16,8 @@
  * helpers with both halves of each MC/DC independence pair.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage
- * by source line:col in the per-module campaign (iso26262/mcdc-per-module):
- * llvm-cov computes MC/DC independence PER BINARY, and the campaign's
+ * by source line:col in the per-module suite:
+ * llvm-cov computes MC/DC independence PER BINARY, and the
  * aggregate.sh ORs the "independence shown" bit across binaries by key.
  * That is why every pair below is completed *within this file* rather than
  * relying on the API tests to supply the other half.
@@ -25,7 +25,7 @@
  * Only meaningful under WC_X25519_NONBLOCK (requires CURVE25519_SMALL,
  * per curve25519.c's own top-of-file doc comment); a no-op elsewhere.
  *
- * Build: compiled by run-mcdc-par.sh's white-box step with the SAME MC/DC
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC
  * CFLAGS, -DHAVE_CONFIG_H and -I<workspace> as the instrumented library,
  * then linked against that variant's libwolfssl.a with its curve25519.o
  * removed (this TU supplies the instrumented curve25519.c). NOT part of
@@ -40,11 +40,11 @@
  * These are the only curve25519.c gaps confirmed structurally unreachable
  * through the public API: wc_curve25519_make_key() pre-validates key/rng
  * non-NULL identically before ever calling either static, and only enters
- * either with ret==0 already true. See the campaign's RESIDUALS.md for
+ * either with ret==0 already true. See the RESIDUALS.md for
  * everything else (notably curve25519_smul_blind()'s RNG-retry loop, which
  * needs a controllable/mockable RNG to force its rare all-0xff/large-first-
  * byte draw and is left as a structural residual, matching the ecc.c
- * campaign's Tonelli-Shanks precedent).
+ * suite's Tonelli-Shanks precedent).
  */
 
 /* Pull curve25519.c in verbatim so the file-static helpers below are in
@@ -60,7 +60,7 @@
  *
  * only takes "i >= 0" FALSE when EVERY byte of rz is 0xff -- a 2^-256 event
  * that no seeded stream can be relied on to produce (and rule 3 of this
- * campaign forbids evidence that depends on a live draw). Interposing
+ * suite forbids evidence that depends on a live draw). Interposing
  * wc_RNG_GenerateBlock() for THIS translation unit lets one scripted draw
  * return 32 x 0xff, so the loop's first iteration evaluates the guard with
  * i == -1, while the second (unscripted) draw ends the loop normally -- both
@@ -69,7 +69,7 @@
  *
  * random.h is included and the hook declared FIRST so the macro never has to
  * rewrite random.h's own prototype (see the same note in mcdc_seed_rng.h: an
- * undeclared hook is a compile failure, which the campaign scores as a silent
+ * undeclared hook is a compile failure, which the harness scores as a silent
  * skip). The hook's body sits after the #undef, so it still reaches the real
  * RNG when the script is idle.
  */
@@ -333,7 +333,7 @@ static void wb_generic_arg_guards(void)
  * idx1 ("rz[0] <= 0xec") stays EXCLUDED and is not attempted here: reaching
  * it at all requires i < 0, which the loop bound (i >= 0, not i >= 1) makes
  * synonymous with rz[0] == 0xff, so the operand is unreachable-as-true. That
- * is a product defect, filed in the campaign's DEATHNOTE.md; if the loop bound
+ * is a product defect; if the loop bound
  * is ever corrected the exclusion must be withdrawn and BOTH operands
  * re-measured from this same interposer.
  * ------------------------------------------------------------------------- */
@@ -410,7 +410,7 @@ int main(void)
     wb_blind_rz_all_ff();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
-     * campaign treats a nonzero exit as a failed variant and discards its
+     * suite treats a nonzero exit as a failed variant and discards its
      * coverage. */
     return 0;
 #endif

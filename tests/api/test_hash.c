@@ -999,7 +999,7 @@ int test_wc_HashDecisionCoverage(void)
      * these types, so hash->type is never one of them and the debug check
      * always intercepts here, making the arm unreachable in DEBUG builds
      * (non-DEBUG builds cover it). Not a value workaround -- the arm's
-     * coverage simply comes from non-DEBUG variants in the campaign union. */
+     * coverage simply comes from non-DEBUG variants in the harness union. */
 #ifndef DEBUG_WOLFSSL
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_MD5_SHA, (byte*)"a", 1),
         WC_NO_ERR_TRACE(HASH_TYPE_E));

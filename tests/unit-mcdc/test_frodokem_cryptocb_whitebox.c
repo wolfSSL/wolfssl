@@ -36,9 +36,9 @@
  *         ...
  *     #endif
  *
- * so the operand needs THREE things at once that no existing campaign vector
+ * so the operand needs THREE things at once that no existing suite vector
  * supplies: the build must define WOLF_CRYPTO_CB (it is now set in
- * campaign/configs/frodokem/user_settings.base.h), the key must carry a real
+ * suite/configs/frodokem/user_settings.base.h), the key must carry a real
  * devId, and a registered device must actually service the request rather than
  * declining with CRYPTOCB_UNAVAILABLE. Miss any one and `cbHandled` is a
  * constant 0 -- not merely undriven, but with no false side to drive.
@@ -404,6 +404,6 @@ int main(void)
 #endif
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
-    /* A non-zero exit makes the campaign discard this binary's coverage. */
+    /* A non-zero exit makes the harness discard this binary's coverage. */
     return 0;
 }

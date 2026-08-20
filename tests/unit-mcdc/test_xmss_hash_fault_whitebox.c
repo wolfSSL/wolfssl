@@ -22,7 +22,7 @@
 /*
  * MC/DC hash-fault white-box supplement for wolfcrypt/src/wc_xmss_impl.c.
  *
- * campaign/reports/xmss/GAPS.md is entirely error-propagation:
+ * suite/reports/xmss/the uncovered-condition report is entirely error-propagation:
  *
  *     for (i = 1; (ret == 0) && (i < params->wots_len); i++)   -- WOTS+ chain
  *     for (i = 0; (ret == 0) && (i < params->d); i++)          -- subtree loops
@@ -91,7 +91,7 @@ static int wb_fail = 0;
 #define WB_POINTS      192
 #define WB_DEADLINE_S  170
 
-/* WALL clock, not clock(): the campaign runs several variants concurrently and
+/* WALL clock, not clock(): the harness runs several variants concurrently and
  * TEST_TIMEOUT is 600 s of WALL time. Under that contention CPU time accrues
  * far slower than wall time, so a CPU-time budget would sail past the timeout
  * -- and a timed-out white-box is scored as a SILENT SKIP that loses the whole
@@ -450,6 +450,6 @@ int main(void)
 #endif
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
-    /* A non-zero exit makes the campaign discard this binary's coverage. */
+    /* A non-zero exit makes the harness discard this binary's coverage. */
     return 0;
 }

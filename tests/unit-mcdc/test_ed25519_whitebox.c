@@ -17,17 +17,17 @@
  * none of them ever construct the "in==NULL && inLen>0" combination or pass
  * key/hash as NULL. This translation unit reaches all three operands' TRUE
  * sides (and completes the FALSE-side pairing within this same binary, per
- * the campaign's cross-binary MC/DC lesson) by compiling ed25519.c directly
+ * the cross-binary MC/DC lesson) by compiling ed25519.c directly
  * (#include) and calling the static helper directly.
  *
  * Coverage from this binary is unioned with the tests/api variant coverage
- * by source line:col in the per-module campaign (iso26262/mcdc-per-module):
- * llvm-cov computes MC/DC independence PER BINARY, and the campaign's
+ * by source line:col in the per-module suite:
+ * llvm-cov computes MC/DC independence PER BINARY, and the
  * aggregate.sh ORs the "independence shown" bit across binaries by key. That
  * is why every pair below is completed *within this file* rather than
  * relying on the API tests to supply the other half.
  *
- * Build: compiled by run-mcdc-par.sh's white-box step with the SAME MC/DC
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC
  * CFLAGS, -DHAVE_CONFIG_H and -I<workspace> as the instrumented library,
  * then linked against that variant's libwolfssl.a with its ed25519.o
  * removed (this TU supplies the instrumented ed25519.c). NOT part of the
@@ -38,7 +38,7 @@
  *   Class 1  ed25519_hash() key/in/hash NULL guard ............ 4 conditions
  * The only ed25519.c gap confirmed structurally unreachable through the
  * public API (every wrapper hard-codes non-NULL, well-formed arguments).
- * See the campaign's RESIDUALS.md for everything else: the "ret==0" FALSE
+ * See the RESIDUALS.md for everything else: the "ret==0" FALSE
  * sides following a successful ed25519_hash() call (would need a mockable
  * malloc/wc_InitSha512Ex failure to force), and the WOLFSSL_CHECK_VER_FAULTS
  * redundant post-verify ConstantCompare (a deterministic double-call on the
@@ -248,7 +248,7 @@ int main(void)
     wb_ed25519_verify_helper_key_guard();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
-     * campaign treats a nonzero exit as a failed variant and discards its
+     * suite treats a nonzero exit as a failed variant and discards its
      * coverage. */
     return 0;
 #endif

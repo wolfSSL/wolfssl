@@ -1262,7 +1262,7 @@ static void wb_date_greater_than(void)
  * Section 15: wc_ValidateDateWithTime() [:15988,:16015]
  *
  * :15988 `sizeof(ltime)==sizeof(word32) && (sword32)ltime<0` -- on every
- * build this campaign targets, time_t is 64-bit, so the 1st operand is a
+ * build this suite targets, time_t is 64-bit, so the 1st operand is a
  * compile-time false and the 2nd is never reached; its true side is not
  * reachable without a 32-bit time_t target (RESIDUAL, platform-gated, not
  * a fault-injection case).
@@ -1273,7 +1273,7 @@ static void wb_date_greater_than(void)
  * the offset `i` lands on once the 6 GetTime() fields are consumed, so by
  * the time this line runs date[i] is always 'Z' on any successful parse.
  * Structurally dead code under the current ExtractDate() contract
- * (candidate for the campaign DEATHNOTE) -- not attempted here.
+ * -- not attempted here.
  * ========================================================================= */
 static void wb_validate_date_with_time(void)
 {
@@ -3243,7 +3243,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

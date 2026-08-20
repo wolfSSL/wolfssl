@@ -114,7 +114,7 @@ DISTCLEANFILES+= tests/.libs/unit.test
 # directly and defines its own main(), so it cannot be a unit.test source (that
 # would duplicate main() and the included .c's symbols).  They are compiled
 # standalone, one at a time, by the out-of-tree per-module MC/DC coverage
-# campaign, which reads them from this directory.  They are listed in EXTRA_DIST
+# suite, which reads them from this directory.  They are listed in EXTRA_DIST
 # only so the source-completeness check accounts for them and so they ship in
 # the dist tarball -- the same treatment tests/api/include.am gives its
 # non-compiled files.  Do not move them to tests_unit_test_SOURCES.
