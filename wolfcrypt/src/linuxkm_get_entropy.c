@@ -377,8 +377,14 @@ static int wc_grb_reseed_local(int want_cpu)
     if (ret == 0) {
         flags = wc_linuxkm_irq_save();
         cpu = wc_grb_this_cpu();
-        if (((want_cpu < 0) || (cpu == want_cpu)) &&
-            atomic_read(&wc_grb_cpu[cpu].pending)) {
+        if ((want_cpu >= 0) && (cpu != want_cpu)) {
+            /* CPU hotplug moved this work off the CPU it was pinned to.  The
+             * leaf belongs to a CPU that may be inside it right now, so leave
+             * it pending and let the next tick have it. */
+            atomic_set(&wc_grb_any_pending, 1);
+            wc_grb_ctr_inc(&wc_grb_maint_deferred);
+        }
+        else if (atomic_read(&wc_grb_cpu[cpu].pending)) {
             ret = wc_RNG_DRBG_Reseed(&wc_grb_cpu[cpu].rng, seed,
                                      (word32) sizeof(seed));
             if (ret == 0) {
@@ -413,18 +419,35 @@ static int wc_grb_reseed_local(int want_cpu)
     return 0;
 }
 
-/* Reseed one NMI leaf.  No interrupts-off and no exclusion: the spare is not
- * in service, and the index store that publishes it is atomic, so an NMI sees
- * one instantiation or the other and never a partial one. */
-static int wc_grb_reseed_nmi(int cpu)
+/* Reseeds the spare and flips it live, so an NMI sees one instantiation or the
+ * other.  Runs only on the leaf's own CPU: a stalled NMI stalls that CPU, so
+ * this worker cannot run twice underneath a reader.  Hotplug is the one way it
+ * lands elsewhere; the generation counter below backstops that. */
+static int wc_grb_reseed_nmi(int cpu, int want_cpu)
 {
-    byte sl_seed[WC_DRBG_SEED_SZ];
-    int  spare, ret;
+    byte          sl_seed[WC_DRBG_SEED_SZ];
+    unsigned long flags;
+    int           spare, ret, here;
+
+    flags = wc_linuxkm_irq_save();
+    here = wc_grb_this_cpu();
+    wc_linuxkm_irq_restore(flags);
+
+    if ((want_cpu >= 0) && (here != want_cpu)) {
+        atomic_set(&wc_grb_any_pending, 1);
+        wc_grb_ctr_inc(&wc_grb_maint_deferred);
+
+        return 0;
+    }
 
     ret = wc_RNG_GenerateBlock(&wc_grb_root, sl_seed,
                                (word32) sizeof(sl_seed));
     if (ret == 0) {
         spare = atomic_read(&wc_grb_nmi[cpu].live) ? 0 : 1;
+        /* Published BEFORE the write, so an NMI still inside this instance
+         * from before a previous flip sees the change and discards its
+         * result rather than reading state being rewritten. */
+        atomic_inc(&wc_grb_nmi[cpu].gen[spare]);
         ret = wc_RNG_DRBG_Reseed(&wc_grb_nmi[cpu].rng[spare], sl_seed,
                                  (word32) sizeof(sl_seed));
         if (ret == 0) {
@@ -676,7 +699,7 @@ int wc_grb_maintain_cpu(int cpu)
     }
 
     if ((ret == 0) && atomic_read(&wc_grb_nmi[target].pending)) {
-        ret = wc_grb_reseed_nmi(target);
+        ret = wc_grb_reseed_nmi(target, cpu);
     }
 
     return ret;
