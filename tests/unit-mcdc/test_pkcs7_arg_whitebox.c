@@ -33,6 +33,17 @@
  * vector is paired with the all-false vector inside this same file. The
  * accepting vector only has to make the guard evaluate false; failing
  * deeper in is fine and expected.
+ *
+ * ARGUED UNREACHABLE, do not re-open (also in the campaign's EXCLUSIONS.md
+ * and db/exclusions.json):
+ *
+ *   :4183 cond 1 (`pkcs7->sidType != DEGENERATE_SID`). PKCS7_EncodeSigned's
+ *     only assignment of a non-zero flatSignedAttribsSz is at :3836, inside
+ *     the `if (pkcs7->sidType != DEGENERATE_SID)` block that opens at :3730.
+ *     The enclosing `if (flatSignedAttribsSz > 0)` at :4180 therefore already
+ *     implies sidType != DEGENERATE_SID: with a degenerate SID the attribute
+ *     block never runs, flatSignedAttribsSz stays 0, and :4183 is not
+ *     reached at all. The operand is constant-true where it is evaluated.
  */
 
 #include <wolfcrypt/src/pkcs7.c>
@@ -1867,6 +1878,100 @@ static void wb_size_guards(void)
     }
 }
 
+/* ------------------------------------------------------------------------- *
+ * wc_PKCS7_EncodeContentStream(): the trailing-pad gate
+ *   :3413  `(cipherType != WC_CIPHER_NONE) && (totalSz == pkcs7->contentSz)`
+ *
+ * Both operands need rows that no public encode call produces. The only
+ * cipherType != WC_CIPHER_NONE callers are inside wc_PKCS7_EncryptContent()
+ * and are reached only when pkcs7->encodeStream is set, and every such call
+ * hands the whole content over in one piece, so totalSz always ends up equal
+ * to pkcs7->contentSz. Calling the (file-static) encoder directly supplies
+ * all three rows in this binary:
+ *
+ *   (F,-)  cipherType WC_CIPHER_NONE, the signed-bundle shape
+ *   (T,T)  AES-CBC with contentSz == inSz  -> the pad block runs
+ *   (T,F)  AES-CBC with contentSz > inSz   -> the read loop runs out of
+ *          input first (`contentDataRead <= 0` breaks the do/while), so the
+ *          pad block is skipped and the partial block is flushed as-is
+ * ------------------------------------------------------------------------- */
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(ASN_BER_TO_DER)
+static void wb_encode_content_stream_pad(void)
+{
+    static byte in[32];
+    static byte out[512];
+    byte key[16], iv[16];
+    Aes  aes;
+    wc_PKCS7* p;
+    int  ret;
+
+    XMEMSET(in, 0x41, sizeof(in));
+    XMEMSET(key, 0x42, sizeof(key));
+    XMEMSET(iv, 0x43, sizeof(iv));
+
+    WB_NOTE("wc_PKCS7_EncodeContentStream(): WC_CIPHER_NONE, pad gate short-"
+            "circuits on the first operand [:3413 cond 0 false]");
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0) {
+            p->encodeStream = 1;
+            p->contentSz    = (word32)sizeof(in);
+            ret = wc_PKCS7_EncodeContentStream(p, NULL, NULL, in,
+                    (int)sizeof(in), out, WC_CIPHER_NONE);
+            WB_CHECK(ret == 0, ":3413 WC_CIPHER_NONE stream copy");
+        }
+        wc_PKCS7_Free(p);
+    }
+
+    WB_NOTE("wc_PKCS7_EncodeContentStream(): AES-CBC with the whole content"
+            " consumed, so the pad block runs [:3413 both operands true]");
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0 && wc_AesInit(&aes, NULL,
+                    INVALID_DEVID) == 0) {
+            if (wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                        AES_ENCRYPTION) == 0) {
+                p->encodeStream = 1;
+                p->encryptOID   = AES128CBCb;
+                p->contentSz    = (word32)sizeof(in);
+                ret = wc_PKCS7_EncodeContentStream(p, NULL, &aes, in,
+                        (int)sizeof(in), out, WC_CIPHER_AES_CBC);
+                WB_CHECK(ret == 0, ":3413 AES-CBC padded flush");
+            }
+            wc_AesFree(&aes);
+        }
+        wc_PKCS7_Free(p);
+    }
+
+    WB_NOTE("wc_PKCS7_EncodeContentStream(): AES-CBC whose declared contentSz"
+            " is larger than the input, so the read loop stops short and the"
+            " pad block is skipped [:3413 cond 1 false]");
+    p = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (p != NULL) {
+        if (wc_PKCS7_InitWithCert(p, NULL, 0) == 0 && wc_AesInit(&aes, NULL,
+                    INVALID_DEVID) == 0) {
+            if (wc_AesSetKey(&aes, key, (word32)sizeof(key), iv,
+                        AES_ENCRYPTION) == 0) {
+                p->encodeStream = 1;
+                p->encryptOID   = AES128CBCb;
+                p->contentSz    = (word32)sizeof(in) * 2;
+                ret = wc_PKCS7_EncodeContentStream(p, NULL, &aes, in,
+                        (int)sizeof(in), out, WC_CIPHER_AES_CBC);
+                WB_CHECK(ret == 0, ":3413 AES-CBC short read, no pad block");
+            }
+            wc_AesFree(&aes);
+        }
+        wc_PKCS7_Free(p);
+    }
+}
+#else
+static void wb_encode_content_stream_pad(void)
+{
+    WB_NOTE("no AES-CBC/BER-to-DER; EncodeContentStream pad gate skipped");
+}
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -1885,6 +1990,7 @@ int main(void)
     wb_small_matrices();
     wb_auth_encode_shapes();
     wb_size_guards();
+    wb_encode_content_stream_pad();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
