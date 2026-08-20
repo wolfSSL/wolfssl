@@ -1301,8 +1301,119 @@ static void wb_verify_invalid(void)
 }
 #endif
 
+/* ------------------------------------------------------------------------- *
+ * wc_MlDsaKey_CheckKey()'s s1/s2 coefficient range check (wc_mldsa.c:12517,
+ * :12522, :12523).
+ *
+ *     for (c = 0; c < (word32)(params->l * MLDSA_N); c++) {
+ *         if (s1[c] < -eta || s1[c] > eta) { ret = PUBLIC_KEY_E; break; }
+ *     }
+ *     for (c = 0; (ret == 0) && (c < (word32)(params->k * MLDSA_N)); c++) {
+ *         if (s2[c] < -eta || s2[c] > eta) { ret = PUBLIC_KEY_E; break; }
+ *     }
+ *
+ * Every key the API can hand this function was either generated (s1/s2 are in
+ * range by construction) or decoded through mldsa_check_eta_range(), which
+ * rejects an out-of-range nibble/3-bit group before the key is marked set. So
+ * from tests/api the two `< -eta` operands only ever take their FALSE side and
+ * the s2 loop header's `ret == 0` operand only ever takes its TRUE side.
+ *
+ * The vector is a MUTATED private key blob: a good key is generated, then the
+ * first byte of the packed s1 (or s2) region of key->k is forced to 0xFF. The
+ * eta unpackers read `eta - t` from an unsigned bit field -- t is a 3-bit
+ * group for eta 2 and a nibble for eta 4 (mldsa_decode_eta_2_bits_c /
+ * mldsa_decode_eta_4_bits_c) -- so 0xFF decodes the first coefficient as
+ * 2 - 7 = -5 or 4 - 15 = -11, out of range on the LOW side for either
+ * parameter set. The un-mutated CheckKey call in the same binary supplies the
+ * all-false row of both `||` decisions and the `ret == 0` TRUE row; the s1
+ * mutation supplies the s2 header's `ret == 0` FALSE row (the s1 loop has
+ * already set PUBLIC_KEY_E when that header is next evaluated).
+ *
+ * The HIGH side (`s1[c] > eta`) is NOT driven here and cannot be: the unpack
+ * is `eta - t` with t unsigned, so the decoded coefficient never exceeds eta.
+ * Both `> eta` operands are recorded in campaign/db/exclusions.json.
+ * ------------------------------------------------------------------------- */
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_CHECK_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && defined(WOLFSSL_MLDSA_PRIVATE_KEY)
+static void wb_check_key_range(void)
+{
+    wc_MlDsaKey key;
+    byte        seed[MLDSA_SEED_SZ];
+    byte*       kp;
+    byte*       s1p;
+    byte*       s2p;
+    byte        savedS1;
+    byte        savedS2;
+    int         ret;
+#ifndef WOLFSSL_NO_ML_DSA_44
+    const int   level = WC_ML_DSA_44;   /* smallest set: fastest under cov */
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    const int   level = WC_ML_DSA_65;
+#else
+    const int   level = WC_ML_DSA_87;
+#endif
+
+    XMEMSET(seed, 0x27, sizeof(seed));
+
+    if (wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("CheckKey range rows skipped (init failed)");
+        return;
+    }
+    if ((wc_MlDsaKey_SetParams(&key, level) != 0) ||
+            (wc_MlDsaKey_MakeKeyFromSeed(&key, seed) != 0)) {
+        wc_MlDsaKey_Free(&key);
+        WB_NOTE("CheckKey range rows skipped (keygen unavailable)");
+        return;
+    }
+
+    /* All-false row of both range decisions, and the s2 header's ret == 0
+     * true row: a well-formed key. */
+    ret = wc_MlDsaKey_CheckKey(&key);
+    if (ret != 0) {
+        WB_NOTE("wc_MlDsaKey_CheckKey rejected a freshly generated key");
+    }
+
+    kp  = (byte*)key.k;
+    s1p = kp + MLDSA_PUB_SEED_SZ + MLDSA_K_SZ + MLDSA_TR_SZ;
+    s2p = s1p + key.params->s1EncSz;
+    savedS1 = s1p[0];
+    savedS2 = s2p[0];
+
+    /* s1[0] out of range on the low side: :12517 idx0 true, and the s2 loop
+     * header (:12522 idx0) is then evaluated with ret != 0. */
+    s1p[0] = 0xFF;
+    ret = wc_MlDsaKey_CheckKey(&key);
+    if (ret == 0) {
+        WB_NOTE("CheckKey accepted an out-of-range s1 coefficient");
+    }
+    s1p[0] = savedS1;
+
+    /* s2[0] out of range: the s1 loop runs clean, the s2 header is true, and
+     * :12523 idx0 takes its true side. */
+    s2p[0] = 0xFF;
+    ret = wc_MlDsaKey_CheckKey(&key);
+    if (ret == 0) {
+        WB_NOTE("CheckKey accepted an out-of-range s2 coefficient");
+    }
+    s2p[0] = savedS2;
+
+    wc_MlDsaKey_Free(&key);
+    WB_NOTE("CheckKey s1/s2 range rows exercised (12517, 12522, 12523)");
+}
+#else
+static void wb_check_key_range(void)
+{
+    WB_NOTE("CheckKey range rows skipped (not compiled in this variant)");
+}
+#endif
+
 int main(void)
 {
+    /* Unbuffered: on a timeout the process is killed and anything still
+     * buffered is lost, which reads as an empty log. */
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     printf("wc_mldsa.c white-box MC/DC supplement\n");
 #if !defined(WOLFSSL_HAVE_MLDSA)
     printf("  ML-DSA not enabled; nothing to exercise\n");
@@ -1339,6 +1450,7 @@ int main(void)
     wb_gen_lane_rows();
     wb_arg_guards();
     wb_verify_invalid();
+    wb_check_key_range();
     printf("done (%d note%s)\n", wb_notes, (wb_notes == 1) ? "" : "s");
     return 0;
 #endif
