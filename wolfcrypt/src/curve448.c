@@ -121,7 +121,14 @@ static int curve448_make_pub_ex(int public_size, byte* pub, int private_size,
     return ret;
 }
 
-/* Derive a key's public point from its own private scalar. */
+/* Derive a key's public point from its own private scalar.
+ *
+ * Only wc_curve448_make_key() and the public key export use this, so it is
+ * unreferenced when the software key generation is stripped out and export is
+ * disabled.
+ */
+#if !defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || \
+    defined(HAVE_CURVE448_KEY_EXPORT)
 static int curve448_key_make_pub(curve448_key* key)
 {
 #ifdef WOLF_CRYPTO_CB
@@ -139,6 +146,7 @@ static int curve448_key_make_pub(curve448_key* key)
         (int)sizeof(key->k), key->k, INVALID_DEVID, 0);
 #endif
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_CURVE448 || HAVE_CURVE448_KEY_EXPORT */
 
 int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
     const byte* priv)
