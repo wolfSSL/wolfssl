@@ -40,10 +40,6 @@
  * remove this and provide XTIME and XGMTIME instead. */
 #define NO_ASN_TIME
 
-/* WARNING: test-only seed so builds work out of the box. For production
- * use real entropy: the ASU offload below or CUSTOM_RAND_GENERATE_SEED. */
-#define WOLFSSL_GENSEED_FORTEST
-
 /* Math backend */
 #define WOLFSSL_SP_MATH_ALL
 
@@ -84,5 +80,19 @@
  * xilasu and xilmailbox libraries in this BSP. wolfCrypt_Init registers the
  * device, so the app needs no ASU calls of its own. */
 /* #define WOLFSSL_VERSAL_GEN2_ASU */
+
+/* Change the 1 below to 0, or delete this block, once you have picked where
+ * the random seed comes from. Some choices:
+ *   CUSTOM_RAND_GENERATE_SEED  you supply a seed function
+ *   WOLF_CRYPTO_CB             a crypto callback answers the seed request
+ *   WOLFSSL_GENSEED_FORTEST    fake seed, test builds only
+ *   WC_NO_RNG                  this build needs no random numbers
+ * On Xilinx parts a port can seed wolfSSL for you, so no define above is
+ * needed: WOLFSSL_VERSAL_GEN2_ASU on Versal Gen 2, or
+ * WOLFSSL_XILINX_CRYPT_VERSAL on Versal. See wolfcrypt/src/port/xilinx/ for
+ * what each port covers. */
+#if 1
+    #error "Pick a random seed source in user_settings.h, then clear this"
+#endif
 
 #endif /* USER_SETTINGS_H */
