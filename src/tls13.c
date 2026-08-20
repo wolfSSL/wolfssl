@@ -6645,18 +6645,29 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                  * only exact while it stays below the max ticket age. Past
                  * that point DoClientTicketCheck has already rejected
                  * anything old enough to predate the ctx, so the check can be
-                 * skipped. A ctx that survives the wrap re-enters the window
-                 * for one max-ticket-age span and rejects 0-RTT until it
-                 * leaves again. */
+                 * skipped.
+                 *
+                 * ctxAge is unsigned, so a clock reading before the ctx start
+                 * time (a backward step) wraps to just under 2^32. Letting
+                 * that count as an old ctx would silently disable the check
+                 * and admit 0-RTT for tickets minted before a restart, so the
+                 * near-wrap band stays in the checked range.
+                 *
+                 * The two cases are indistinguishable on a wrapping 32 bit
+                 * clock, so a ctx aged between (2^32 - max ticket age) and
+                 * 2^32 ms also lands in the band and refuses 0-RTT until it
+                 * wraps out. Refusing 0-RTT only costs the early data round
+                 * trip, so the ambiguity is resolved that way. */
+                word32 maxAge = (word32)TLS13_MAX_TICKET_AGE * 1000;
                 word32 now = TimeNowInMilliseconds();
                 word32 ctxAge = now - ssl->ctx->ticketStartTime;
                 word32 delta = ssl->ctx->ticketStartTime -
                                ssl->session->ticketSeen;
                 ssl->options.ticketPredatesCtx =
                     (now != 0 &&
-                     ctxAge <= (word32)TLS13_MAX_TICKET_AGE * 1000 &&
+                     (ctxAge <= maxAge || ctxAge >= (word32)0u - maxAge) &&
                      delta != 0 &&
-                     delta <= (word32)TLS13_MAX_TICKET_AGE * 1000);
+                     delta <= maxAge);
         #else
                 ssl->options.ticketPredatesCtx =
                     (ssl->session->ticketSeen < ssl->ctx->ticketStartTime);
