@@ -12185,6 +12185,11 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
 #endif
         /* Ensure all private data is zeroized. */
         ForceZero(key, sizeof(*key));
+#ifdef WOLF_CRYPTO_CB
+        /* Zeroing leaves devId at 0, which is a usable device id. Mark the
+         * key as having no device so a second free does not call out again. */
+        key->devId = INVALID_DEVID;
+#endif
     }
 }
 

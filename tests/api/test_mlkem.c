@@ -4650,8 +4650,8 @@ int test_wc_mlkem_encode_key_len_decision(void)
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_encode_key_len_decision */
 
-#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLF_CRYPTO_CB) && \
-    defined(WOLF_CRYPTO_CB_FREE)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #define TEST_MLKEM_CB_FREE
     #define TEST_MLKEM_CB_FREE_DEVID 0x4D4C4B4D
     #ifndef WOLFSSL_NO_ML_KEM_512
@@ -4666,23 +4666,43 @@ int test_wc_mlkem_encode_key_len_decision(void)
 #endif
 
 #ifdef TEST_MLKEM_CB_FREE
+/* What the free callback saw, so the test can check the contract rather than
+ * just that something fired. */
+typedef struct {
+    int frees;        /* matching free callbacks seen */
+    int badObj;       /* callback was handed the wrong object */
+    int wiped;        /* callback saw a key already cleaned up */
+    int ret;          /* what the callback returns */
+    const void* obj;  /* object the free is expected to name */
+} MlKemCbFreeCtx;
+
 /* Stands in for a device holding state for the key. Counting the call proves
  * wc_MlKemKey_Free told the device rather than only cleaning up in software,
  * which would leave the device side of the key behind. */
 static int mlkem_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
-    int* frees = (int*)ctx;
+    MlKemCbFreeCtx* seen = (MlKemCbFreeCtx*)ctx;
 
     (void)devIdArg;
 
-    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_FREE) &&
+    if ((seen != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_FREE) &&
             (info->free.algo == WC_ALGO_TYPE_PK) &&
             (info->free.type == WC_PK_TYPE_PQC_KEM_KEYGEN) &&
             (info->free.subType == WC_PQC_KEM_TYPE_MLKEM)) {
-        if (frees != NULL) {
-            (*frees)++;
+        const MlKemKey* mk = (const MlKemKey*)info->free.obj;
+
+        seen->frees++;
+        if ((mk == NULL) || ((const void*)mk != seen->obj)) {
+            seen->badObj++;
         }
-        return 0;
+        /* The device gets the key while it is still whole: it may need to
+         * read it to release the right resource, so the software wipe has
+         * to come after this call, not before. */
+        else if (mk->devId != TEST_MLKEM_CB_FREE_DEVID) {
+            seen->wiped++;
+        }
+        return seen->ret;
     }
 
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -4690,28 +4710,62 @@ static int mlkem_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #endif /* TEST_MLKEM_CB_FREE */
 
 /* Freeing a key that names a device has to tell that device, so it can
- * release what it holds. A key with no device must not. */
+ * release what it holds. A key with no device must not, and neither must a
+ * second free of a key already freed: neither the key nor the hash and PRF
+ * objects inside it name a device once freed. A device that reports an error
+ * does not stop the software cleanup. */
 int test_wc_mlkem_cb_free(void)
 {
     EXPECT_DECLS;
 #ifdef TEST_MLKEM_CB_FREE
     MlKemKey* key = NULL;
-    int frees = 0;
+    MlKemCbFreeCtx seen;
+    int freeRet;
+
+    XMEMSET(&seen, 0, sizeof(seen));
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLKEM_CB_FREE_DEVID,
-        mlkem_cb_free_cb, &frees), 0);
+        mlkem_cb_free_cb, &seen), 0);
 
     ExpectNotNull(key = (MlKemKey*)XMALLOC(sizeof(MlKemKey), NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
+    seen.obj = key;
     ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_FREE_TYPE, NULL,
         TEST_MLKEM_CB_FREE_DEVID), 0);
-    ExpectIntEQ(wc_MlKemKey_Free(key), 0);
-    ExpectIntEQ(frees, 1);
+    /* Freed outside the assertion so the hash and PRF objects are always
+     * disposed of, even once an earlier check has failed. */
+    freeRet = wc_MlKemKey_Free(key);
+    ExpectIntEQ(freeRet, 0);
+    ExpectIntEQ(seen.frees, 1);
+    ExpectIntEQ(seen.badObj, 0);
+    ExpectIntEQ(seen.wiped, 0);
+    if (key != NULL) {
+        ExpectIntEQ(key->devId, INVALID_DEVID);
+        ExpectIntEQ(key->hash.devId, INVALID_DEVID);
+        ExpectIntEQ(key->prf.devId, INVALID_DEVID);
+    }
+
+    freeRet = wc_MlKemKey_Free(key);
+    ExpectIntEQ(freeRet, 0);
+    ExpectIntEQ(seen.frees, 1);
+
+    /* A device that fails still leaves the key cleaned up locally. */
+    seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_FREE_TYPE, NULL,
+        TEST_MLKEM_CB_FREE_DEVID), 0);
+    freeRet = wc_MlKemKey_Free(key);
+    ExpectIntEQ(freeRet, 0);
+    ExpectIntEQ(seen.frees, 2);
+    if (key != NULL) {
+        ExpectIntEQ(key->devId, INVALID_DEVID);
+    }
+    seen.ret = 0;
 
     ExpectIntEQ(wc_MlKemKey_Init(key, TEST_MLKEM_CB_FREE_TYPE, NULL,
         INVALID_DEVID), 0);
-    ExpectIntEQ(wc_MlKemKey_Free(key), 0);
-    ExpectIntEQ(frees, 1);
+    freeRet = wc_MlKemKey_Free(key);
+    ExpectIntEQ(freeRet, 0);
+    ExpectIntEQ(seen.frees, 2);
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_CryptoCb_UnRegisterDevice(TEST_MLKEM_CB_FREE_DEVID);

@@ -9056,6 +9056,11 @@ void wc_falcon_free(falcon_key* key)
         }
 #endif
         ForceZero(key, sizeof(*key));
+#ifdef WOLF_CRYPTO_CB
+        /* Zeroing leaves devId at 0, which is a usable device id. Mark the
+         * key as having no device so a second free does not call out again. */
+        key->devId = INVALID_DEVID;
+#endif
     }
 }
 
