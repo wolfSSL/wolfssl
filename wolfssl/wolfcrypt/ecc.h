@@ -701,6 +701,7 @@ WOLFSSL_API mp_int* wc_ecc_key_get_priv(ecc_key* key);
 
 
 WOLFSSL_ABI WOLFSSL_API ecc_key* wc_ecc_key_new(void* heap);
+WOLFSSL_ABI WOLFSSL_API ecc_key* wc_ecc_key_new_ex(void* heap, int devId);
 WOLFSSL_ABI WOLFSSL_API void wc_ecc_key_free(ecc_key* key);
 
 

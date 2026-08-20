@@ -6366,15 +6366,10 @@ static void wc_ecc_dump_oids(void)
 
 
 WOLFSSL_ABI
-ecc_key* wc_ecc_key_new(void* heap)
+ecc_key* wc_ecc_key_new_ex(void* heap, int devId)
 {
-    int devId = INVALID_DEVID;
     ecc_key* key;
 
-#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
-    /* assume all keys are using CAAM for ECC unless explicitly set otherwise */
-    devId = WOLFSSL_CAAM_DEVID;
-#endif
     key = (ecc_key*)XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
     if (key) {
         if (wc_ecc_init_ex(key, heap, devId) != 0) {
@@ -6384,6 +6379,19 @@ ecc_key* wc_ecc_key_new(void* heap)
     }
 
     return key;
+}
+
+WOLFSSL_ABI
+ecc_key* wc_ecc_key_new(void* heap)
+{
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+    /* assume all keys are using CAAM for ECC unless explicitly set otherwise */
+    int devId = WOLFSSL_CAAM_DEVID;
+#else
+    int devId = INVALID_DEVID;
+#endif
+
+    return wc_ecc_key_new_ex(heap, devId);
 }
 
 

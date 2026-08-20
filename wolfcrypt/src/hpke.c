@@ -1116,18 +1116,10 @@ static int wc_HpkeCopyPrivateKey(Hpke* hpke, void* key, void** copy)
             ret = wc_ecc_export_private_only((ecc_key*)key, eccPriv,
                 &eccPrivSz);
             if (ret == 0) {
-                *copy = wc_ecc_key_new(hpke->heap);
+                *copy = wc_ecc_key_new_ex(hpke->heap, INVALID_DEVID);
                 if (*copy == NULL)
                     ret = MEMORY_E;
             }
-        #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
-            /* wc_ecc_key_new() adopts a platform default device id on some
-             * ports. The key being copied has none, so the copy must not gain
-             * one, or the shared secret would move onto a device the caller
-             * never asked for. */
-            if (ret == 0)
-                ((ecc_key*)*copy)->devId = INVALID_DEVID;
-        #endif
             if (ret == 0) {
                 /* The public part is not needed: the shared secret takes its
                  * point from the ephemeral key. */
