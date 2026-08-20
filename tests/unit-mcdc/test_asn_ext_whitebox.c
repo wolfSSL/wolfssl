@@ -1288,7 +1288,8 @@ static void wb_decode_policy_oid(void)
 /* ------------------------------------------------------------------------- *
  * Section 17: DecodeCertPolicy() (static, called directly).
  * Gated on WOLFSSL_SEP || WOLFSSL_CERT_EXT, same as the source.
- *   :21346  while ((ret==0) && (idx<total_length) && (extCertPoliciesNb<MAX_CERTPOL_NB))
+ *   :21346  while ((ret==0) && (idx<seqEnd) && (extCertPoliciesNb<MAX_CERTPOL_NB))
+ *           total_length==0 empty-SEQUENCE check, reached before that loop
  *   :21369  ret==0 && cert->deviceType==NULL          (WOLFSSL_SEP)
  *   :21401  duplicate-OID scan loop (WOLFSSL_CERT_EXT, !WOLFSSL_DUP_CERTPOL)
  * MAX_CERTPOL_NB is 2, so three policies exercise the count limit.
@@ -1338,10 +1339,11 @@ static void wb_decode_cert_policy(void)
     /* Zero policies. */
     static const byte noPolicies[] = { 0x30, 0x00 };
 
-    WB_NOTE("DecodeCertPolicy(): zero policies (loop false via idx<total_length) [:21346]");
+    WB_NOTE("DecodeCertPolicy(): empty SEQUENCE rejected before the loop (total_length==0)");
     XMEMSET(&cert, 0, sizeof(cert));
     ret = DecodeCertPolicy(noPolicies, sizeof(noPolicies), &cert);
-    WB_CHECK(ret == 0, "no policies present");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+            "empty SEQUENCE rejected: RFC 5280 4.2.1.4 requires SIZE (1..MAX)");
 
     WB_NOTE("DecodeCertPolicy(): one policy (loop true then false) [:21346,:21369]");
     XMEMSET(&cert, 0, sizeof(cert));
