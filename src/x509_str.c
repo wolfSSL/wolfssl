@@ -160,24 +160,24 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
     /* populate issuer with Signer DER. A signer restored from a cert cache
-     * (cm_restore_cert_row()) carries no DER, so fall through to the empty
+     * (cm_restore_cert_row()) carries no DER, so fall back to the empty
      * certificate below rather than dereferencing NULL. */
     if ((ca->derCert != NULL) && (ca->derCert->buffer != NULL)) {
         if (wolfSSL_X509_d2i_ex(issuer, ca->derCert->buffer,
                 ca->derCert->length, cm->heap) == NULL)
             return WOLFSSL_FAILURE;
-
-        return WOLFSSL_SUCCESS;
     }
+    else
 #endif
+    {
+        /* Create an empty certificate as CA doesn't have a certificate. */
+        *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
+            DYNAMIC_TYPE_OPENSSL);
+        if (*issuer == NULL)
+            return WOLFSSL_FAILURE;
 
-    /* Create an empty certificate as CA doesn't have a certificate. */
-    *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
-        DYNAMIC_TYPE_OPENSSL);
-    if (*issuer == NULL)
-        return WOLFSSL_FAILURE;
-
-    InitX509((*issuer), 1, NULL);
+        InitX509((*issuer), 1, NULL);
+    }
 
     return WOLFSSL_SUCCESS;
 }
