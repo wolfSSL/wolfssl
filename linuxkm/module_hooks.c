@@ -667,53 +667,133 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #ifdef LINUXKM_RBGC
 
-/* The boundary cannot schedule work itself, so the glue polls
- * wc_grb_reseed_due() and drives wc_grb_maintain() from process context. */
+/* The boundary cannot schedule work itself, so the glue drives it.
+ *
+ * One delayed work PER CPU, queued with queue_delayed_work_on() so it runs on
+ * the CPU whose leaf it reseeds.  That is what lets the reseed take interrupts
+ * off and know no caller on that CPU can be inside the leaf, which is what
+ * removes the need for any exclusion flag in the boundary.
+ *
+ * The root's own refresh from the noise source is a separate, unpinned work:
+ * it is the entropy gather and must not be coupled to leaf demand. */
 #define WC_GRB_MAINT_POLL_MS 50
 
-static void wc_grb_maint_work_fn(struct work_struct *work);
-/* Runtime INIT_DELAYED_WORK, not DECLARE_DELAYED_WORK: the static initializer
- * expands TIMER_ENTRY_STATIC, whose void* arithmetic trips pointer-arith. */
-static struct delayed_work wc_grb_maint_work;
-static int wc_grb_maint_running;
+struct wc_grb_cpu_work {
+    struct delayed_work dw;
+    int                 cpu;
+};
 
-static void wc_grb_maint_work_fn(struct work_struct *work)
+static struct wc_grb_cpu_work *wc_grb_cpu_works;
+static struct delayed_work     wc_grb_root_work;
+static int                     wc_grb_maint_running;
+
+static void wc_grb_cpu_work_fn(struct work_struct *work)
+{
+    /* dw is the first member of wc_grb_cpu_work and work is the first member
+     * of delayed_work, so the work pointer is the wrapper pointer.
+     * container_of() cannot be used here: it does void* arithmetic and this
+     * builds with -Werror=pointer-arith. */
+    struct wc_grb_cpu_work *cw = (struct wc_grb_cpu_work *) work;
+    int ret;
+
+    wc_static_assert(offsetof(struct wc_grb_cpu_work, dw) == 0);
+    wc_static_assert(offsetof(struct delayed_work, work) == 0);
+
+    ret = wc_grb_maintain_cpu(cw->cpu);
+
+    if (ret != 0) {
+        pr_err("WCGRB: wc_grb_maintain_cpu(%d) failed: %d\n", cw->cpu, ret);
+    }
+
+    if (READ_ONCE(wc_grb_maint_running)) {
+        queue_delayed_work_on(cw->cpu, system_wq, &cw->dw,
+                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+    }
+}
+
+static void wc_grb_root_work_fn(struct work_struct *work)
 {
     int ret;
 
     (void)work;
-    if (wc_grb_reseed_due()) {
-        ret = wc_grb_maintain();
-        if (ret != 0) {
-            pr_err("WCGRB: wc_grb_maintain() failed: %d\n", ret);
-        }
-    }
-
-    /* The root refresh from noise keeps its own schedule: it is the entropy
-     * gather and must never be coupled to leaf demand. */
     ret = wc_grb_root_tick();
     if (ret != 0) {
         pr_err("WCGRB: wc_grb_root_tick() failed: %d\n", ret);
     }
 
     if (READ_ONCE(wc_grb_maint_running)) {
-        schedule_delayed_work(&wc_grb_maint_work,
+        schedule_delayed_work(&wc_grb_root_work,
                               msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
     }
 }
 
-static void wc_grb_maint_start(void)
-{
-    INIT_DELAYED_WORK(&wc_grb_maint_work, wc_grb_maint_work_fn);
-    WRITE_ONCE(wc_grb_maint_running, 1);
-    schedule_delayed_work(&wc_grb_maint_work,
-                          msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
-}
-
 static void wc_grb_maint_stop(void)
 {
+    unsigned int cpu;
+
     WRITE_ONCE(wc_grb_maint_running, 0);
-    cancel_delayed_work_sync(&wc_grb_maint_work);
+    cancel_delayed_work_sync(&wc_grb_root_work);
+
+    if (wc_grb_cpu_works != NULL) {
+        for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+            cancel_delayed_work_sync(&wc_grb_cpu_works[cpu].dw);
+        }
+
+        kfree(wc_grb_cpu_works);
+        wc_grb_cpu_works = NULL;
+    }
+}
+
+/* Diagnostics for the out-of-tree load generator, exported from the glue and
+ * not from the boundary: the boundary has no module API, and a test affordance
+ * is not a cryptographic service.  Prototyped here rather than in a header
+ * because nothing in the tree includes them. */
+int wc_grb_hook_is_active(void);
+int wc_grb_hook_stats(long long *out, int n);
+
+int wc_grb_hook_is_active(void)
+{
+    return wc_grb_service_active();
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_is_active);
+
+int wc_grb_hook_stats(long long *out, int n)
+{
+    return wc_grb_stat_snapshot(out, n);
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_stats);
+
+static int wc_grb_maint_start(void)
+{
+    unsigned int cpu;
+
+    wc_grb_cpu_works = kcalloc(nr_cpu_ids, sizeof(*wc_grb_cpu_works),
+                               GFP_KERNEL);
+    if (wc_grb_cpu_works == NULL) {
+        return -ENOMEM;
+    }
+
+    WRITE_ONCE(wc_grb_maint_running, 1);
+
+    INIT_DELAYED_WORK(&wc_grb_root_work, wc_grb_root_work_fn);
+    schedule_delayed_work(&wc_grb_root_work,
+                          msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+
+    /* Runtime INIT_DELAYED_WORK, not the static initializer: that expands
+     * TIMER_ENTRY_STATIC, whose void* arithmetic trips pointer-arith. */
+    for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+        wc_grb_cpu_works[cpu].cpu = (int) cpu;
+        INIT_DELAYED_WORK(&wc_grb_cpu_works[cpu].dw, wc_grb_cpu_work_fn);
+    }
+
+    /* Only online CPUs get a worker.  A CPU brought up later is covered by
+     * the service path's self-help, which reseeds the leaf it is running on. */
+    for_each_online_cpu(cpu) {
+        queue_delayed_work_on((int) cpu, system_wq, &wc_grb_cpu_works[cpu].dw,
+                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+    }
+
+    return 0;
 }
 
 #endif /* LINUXKM_RBGC */
@@ -1300,7 +1380,9 @@ static int wolfssl_init(void)
             }
             else {
                 wc_grb_set_registered(1);
-                wc_grb_maint_start();
+                if (wc_grb_maint_start() != 0) {
+                    pr_err("WCGRB: no memory for per-CPU maintenance work\n");
+                }
                 pr_info("WCGRB: get_random_bytes() hook registered\n");
                 /* Module init has finished, so all further demand is the
                  * running system rather than bring-up. */

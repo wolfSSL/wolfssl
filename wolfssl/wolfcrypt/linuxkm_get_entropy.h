@@ -21,7 +21,14 @@
 
 /* In-boundary service for the Linux kernel's get_random_bytes().  The
  * SP 800-90C Sec. 7 DRBG tree it implements is described in
- * wolfcrypt/src/linuxkm_get_entropy.c. */
+ * linuxkm/RBGC-design.md and in wolfcrypt/src/linuxkm_get_entropy.c.
+ *
+ * WOLFSSL_LOCAL throughout: none of this is module API.  Every caller is
+ * linuxkm/module_hooks.c in the same module, and the kernel reaches
+ * wc_grb_service() through a registered function pointer, not a symbol.  The
+ * cryptographic service these run is wc_RNG_GenerateBlock(), which is already
+ * the fips.c wrapper and already carries the FipsAllowed() and AlgoAllowed()
+ * checks, so nothing here needs wrapping a second time. */
 
 #ifndef WOLF_CRYPT_LINUXKM_GET_ENTROPY_H
 #define WOLF_CRYPT_LINUXKM_GET_ENTROPY_H
@@ -44,6 +51,8 @@ enum wc_grb_stat_idx {
     WC_GRB_ST_CALLS         = 0,   /* + context, 4 slots each */
     WC_GRB_ST_SERVED        = 4,
     WC_GRB_ST_FAILED        = 8,
+    /* Retained at a stable index and always zero: this design has no path
+     * that turns a caller away. */
     WC_GRB_ST_DECLINED      = 12,
     WC_GRB_ST_RESEEDS       = 16,
     WC_GRB_ST_RESEED_FAILED = 17,
@@ -63,47 +72,38 @@ enum wc_grb_stat_idx {
 /* Bring the tree up and tear it down.  These do not install the kernel hook:
  * the container must have no unresolved symbols, so an in-boundary file cannot
  * call wc_grb_hook_register().  The glue does that. */
-WOLFSSL_API int wc_grb_init(int ncpus);
-WOLFSSL_API void wc_grb_cleanup(void);
+WOLFSSL_LOCAL int wc_grb_init(int ncpus);
+WOLFSSL_LOCAL void wc_grb_cleanup(void);
 
 /* The service.  Signature matches wc_grb_hook_fn from <linux/random.h>.
  * Returns 0 if it filled buf; non-zero lets the kernel's own CRNG answer. */
-WOLFSSL_API int wc_grb_service(void *buf, size_t len);
+WOLFSSL_LOCAL int wc_grb_service(void *buf, size_t len);
 
 /* Told to us by the glue after a successful registration. */
-WOLFSSL_API void wc_grb_set_registered(int on);
+WOLFSSL_LOCAL void wc_grb_set_registered(int on);
 
 /* Nonzero once the hook is installed.  A consumer must assert this before
  * trusting a clean run: zero failures from an unregistered hook look exactly
  * like zero failures from a working one. */
-WOLFSSL_API int wc_grb_service_active(void);
+WOLFSSL_LOCAL int wc_grb_service_active(void);
 
-/* Nonzero once a leaf has spent its reseed allowance.  The glue polls this and
- * calls wc_grb_maintain(); nothing reseeds on the service path. */
-WOLFSSL_API int wc_grb_reseed_due(void);
-
-/* Reseed every due leaf from the root.  Process context only: the root's own
- * generate may gather entropy, and that has to be able to block. */
-WOLFSSL_API int wc_grb_maintain(void);
+/* Reseed the leaves belonging to one CPU, from the root.  Process context
+ * only: the root's own generate may gather entropy, and that has to be able to
+ * block.  The glue pins this to cpu; a negative cpu means "wherever this call
+ * happens to be", which the service path's self-help uses. */
+WOLFSSL_LOCAL int wc_grb_maintain_cpu(int cpu);
 
 /* One maintenance tick.  The root refreshes from the noise source on its own
  * jittered schedule, independent of leaf demand. */
-WOLFSSL_API int wc_grb_root_tick(void);
-
-/* Root reseed period in maintenance ticks.  Set by the glue, which owns the
- * tick rate; the jitter around it is chosen in-boundary. */
-WOLFSSL_API void wc_grb_set_root_period(unsigned long ticks);
+WOLFSSL_LOCAL int wc_grb_root_tick(void);
 
 /* Separates boot-time demand from steady state in the counters. */
-WOLFSSL_API void wc_grb_mark_boot_done(void);
+WOLFSSL_LOCAL void wc_grb_mark_boot_done(void);
 
 /* Live snapshot, so a consumer can report while a run is in progress rather
  * than only at unload.  64-bit throughout: a 32-bit count wraps within hours
  * at the rate this path is driven. */
-WOLFSSL_API int wc_grb_stat_snapshot(long long *out, int n);
-
-/* Dump the per-context counters to the kernel log. */
-WOLFSSL_API void wc_grb_report(void);
+WOLFSSL_LOCAL int wc_grb_stat_snapshot(long long *out, int n);
 
 #endif /* WOLFSSL_LINUXKM && LINUXKM_RBGC */
 

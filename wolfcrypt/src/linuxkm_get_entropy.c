@@ -40,11 +40,19 @@
  * mutex and one shared SP 800-90B RCT/APT state, so extra roots would
  * serialize on it and share its health verdict for 3x the cost.
  *
- * Concurrency: the critical section runs with interrupts off, so on one CPU
- * process, softirq and hardirq cannot overlap.  NMI is not masked and gets its
- * own leaf.  A leaf can therefore only be held by the maintenance reseed of
- * that same leaf, so callers try once and give way; a non-zero return sends
- * the caller to the kernel's own CRNG.
+ * Concurrency: a caller runs with interrupts off, so on one CPU process,
+ * softirq and hardirq cannot overlap.  The maintenance reseed for a general
+ * leaf runs ON THAT LEAF'S OWN CPU, also with interrupts off, so no caller can
+ * be inside while it writes and no exclusion is needed at all.
+ *
+ * NMI is not masked by that, so an NMI leaf is two instantiations: the reseed
+ * writes the spare and then publishes it with one atomic index store.  An NMI
+ * reads either the old or the new instance, both fully instantiated, so a torn
+ * state is not representable.  The instance it displaces is not written again
+ * until the next maintenance cycle, which is orders of magnitude longer than a
+ * generate.
+ *
+ * Nothing here waits, and a caller is never turned away.
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -109,24 +117,34 @@ struct wc_grb_ctx_stats {
     struct wc_grb_ctr reseeds;
 };
 
-/* One leaf: its DRBG, its exclusion flag, generates since its last reseed and
- * the jittered count at which the next reseed is requested. */
+/* General leaf: process, softirq and hardirq on one CPU.  No exclusion flag,
+ * because the only writer is the maintenance reseed running on this same CPU
+ * with interrupts off. */
 struct wc_grb_slot {
-    WC_RNG           rng;
-    atomic_t         inuse;
-    atomic_t         pending;
+    WC_RNG            rng;
+    atomic_t          pending;
     struct wc_grb_ctr since;
-    unsigned long    at;
+    unsigned long     at;
+};
+
+/* NMI leaf: two instantiations, one in service.  live is the index a caller
+ * reads; the reseed writes the other and then stores the new index. */
+struct wc_grb_nmi_slot {
+    WC_RNG            rng[2];
+    atomic_t          live;
+    atomic_t          pending;
+    struct wc_grb_ctr since;
+    unsigned long     at;
 };
 
 static struct wc_grb_ctx_stats wc_grb_stat[WC_GRB_CTX_N];
 static atomic_t               wc_grb_last_err;
 static int                    wc_grb_boot_done;
 
-static WC_RNG             wc_grb_root;
-static struct wc_grb_slot *wc_grb_cpu;
-static struct wc_grb_slot *wc_grb_nmi;
-static int                wc_grb_ncpu;
+static WC_RNG                  wc_grb_root;
+static struct wc_grb_slot     *wc_grb_cpu;
+static struct wc_grb_nmi_slot *wc_grb_nmi;
+static int                     wc_grb_ncpu;
 
 static unsigned long    wc_grb_reseed_base;
 static struct wc_grb_ctr wc_grb_reseeds;
@@ -140,7 +158,7 @@ static atomic_t wc_grb_any_pending;
 static struct wc_grb_ctr wc_grb_root_reseeds;
 static struct wc_grb_ctr wc_grb_root_reseed_failed;
 static unsigned long    wc_grb_root_ticks;
-static unsigned long    wc_grb_root_period = WC_GRB_ROOT_PERIOD;
+static const unsigned long wc_grb_root_period = WC_GRB_ROOT_PERIOD;
 static unsigned long    wc_grb_root_at = WC_GRB_ROOT_PERIOD;
 static atomic_t         wc_grb_maint_busy;
 
@@ -190,6 +208,8 @@ static void wc_grb_ctr_zero(struct wc_grb_ctr *c)
     atomic_set(&c->hi, 0);
 }
 
+static int wc_grb_reseed_due(void);
+
 static int wc_grb_ctx(void)
 {
     if (in_nmi()) {
@@ -207,22 +227,18 @@ static int wc_grb_ctx(void)
     return WC_GRB_PROC;
 }
 
-/* This CPU's leaf.  Safe to cache: the caller holds interrupts off, so it
- * cannot migrate before it releases the flag. */
-static struct wc_grb_slot *wc_grb_my_slot(int ctx)
+/* This CPU's index.  Safe to use across the critical section: the caller holds
+ * interrupts off, so it cannot migrate. */
+static int wc_grb_this_cpu(void)
 {
     int cpu = wc_linuxkm_cpu_id();
 
-    if ((cpu < 0) || (cpu >= wc_grb_ncpu)) {
-        cpu = 0;
-    }
-
-    return (ctx == WC_GRB_NMI) ? &wc_grb_nmi[cpu] : &wc_grb_cpu[cpu];
+    return ((cpu < 0) || (cpu >= wc_grb_ncpu)) ? 0 : cpu;
 }
 
 /* Draw the next reseed point from the root.  Firing at exactly half the seed
  * life would put the refresh on an externally observable schedule. */
-static void wc_grb_set_next_threshold(struct wc_grb_slot *sl)
+static void wc_grb_set_next_threshold(unsigned long *at)
 {
     /* Not an SSP: root output used only to jitter a reseed counter, never as
      * seed material, so it is not zeroized. */
@@ -235,7 +251,7 @@ static void wc_grb_set_next_threshold(struct wc_grb_slot *sl)
         j = (((unsigned long) b[0] << 8) | (unsigned long) b[1]) % (span + 1);
     }
 
-    sl->at = wc_grb_reseed_base - (span / 2) + j;
+    *at = wc_grb_reseed_base - (span / 2) + j;
 }
 
 /* Reseed the root from the entropy source.  Process context only:
@@ -266,50 +282,93 @@ static int wc_grb_reseed_root(void)
     return 0;
 }
 
-/* Reseed one leaf from its own fresh root generate, per SP 800-90C
- * Sec. 7.2.3.2.1 and Sec. 7.3.1 requirement 15. */
-static int wc_grb_reseed_slot(struct wc_grb_slot *sl, int ctx)
+/* Reseed THIS CPU's general leaf from its own fresh root generate, per
+ * SP 800-90C Sec. 7.2.3.2.1 and Sec. 7.3.1 requirement 15.
+ *
+ * The CPU is re-read with interrupts off and checked against the one the glue
+ * pinned this work to.  A worker that CPU hotplug migrated would otherwise
+ * write a leaf another CPU is reading; here it simply skips and the leaf is
+ * picked up on the next tick. */
+static int wc_grb_reseed_local(int want_cpu)
 {
     byte          seed[WC_DRBG_SEED_SZ];
     unsigned long flags;
-    int           ret;
+    int           cpu, ret, done = 0;
 
     ret = wc_RNG_GenerateBlock(&wc_grb_root, seed, (word32) sizeof(seed));
     if (ret == 0) {
-        /* Interrupts off for the leaf half only; it is pure computation.  Try
-         * once: a reseed has no deadline, the threshold sits at half the seed
-         * life, and the next maintenance tick is milliseconds away. */
         flags = wc_linuxkm_irq_save();
-        if (atomic_cmpxchg(&sl->inuse, 0, 1) != 0) {
-            wc_linuxkm_irq_restore(flags);
-            /* CSP: root output drawn as this leaf's seed material, now
-             * unused.  SP 800-90C Sec. 7.3.1 req 15 bars reusing it for any
-             * other instantiation, so the only thing to do with it is
-             * destroy it. */
-            ForceZero(seed, sizeof(seed));
-            atomic_set(&wc_grb_any_pending, 1);
-            return 0;
+        cpu = wc_grb_this_cpu();
+        if (((want_cpu < 0) || (cpu == want_cpu)) &&
+            atomic_read(&wc_grb_cpu[cpu].pending)) {
+            ret = wc_RNG_DRBG_Reseed(&wc_grb_cpu[cpu].rng, seed,
+                                     (word32) sizeof(seed));
+            if (ret == 0) {
+                wc_grb_ctr_zero(&wc_grb_cpu[cpu].since);
+                atomic_set(&wc_grb_cpu[cpu].pending, 0);
+                done = 1;
+            }
         }
-
-        ret = wc_RNG_DRBG_Reseed(&sl->rng, seed, (word32) sizeof(seed));
-        atomic_set(&sl->inuse, 0);
         wc_linuxkm_irq_restore(flags);
     }
 
-    /* CSP: this leaf's seed material, consumed by the reseed above. */
+    /* CSP: this leaf's seed material, consumed by the reseed above, or unused
+     * because the leaf was not due.  SP 800-90C Sec. 7.3.1 req 15 bars reusing
+     * it either way. */
     ForceZero(seed, sizeof(seed));
 
     if (ret != 0) {
         wc_grb_ctr_inc(&wc_grb_reseed_failed);
         atomic_set(&wc_grb_last_err, ret);
+
         return ret;
     }
 
-    wc_grb_ctr_zero(&sl->since);
-    wc_grb_set_next_threshold(sl);
-    atomic_set(&sl->pending, 0);
+    if (done) {
+        /* Outside the critical section: this draws from the root.  A caller
+         * reading the old threshold meanwhile gets a valid one. */
+        wc_grb_set_next_threshold(&wc_grb_cpu[cpu].at);
+        wc_grb_ctr_inc(&wc_grb_reseeds);
+        wc_grb_ctr_inc(&wc_grb_stat[WC_GRB_PROC].reseeds);
+    }
+
+    return 0;
+}
+
+/* Reseed one NMI leaf.  No interrupts-off and no exclusion: the spare is not
+ * in service, and the index store that publishes it is atomic, so an NMI sees
+ * one instantiation or the other and never a partial one. */
+static int wc_grb_reseed_nmi(int cpu)
+{
+    byte sl_seed[WC_DRBG_SEED_SZ];
+    int  spare, ret;
+
+    ret = wc_RNG_GenerateBlock(&wc_grb_root, sl_seed,
+                               (word32) sizeof(sl_seed));
+    if (ret == 0) {
+        spare = atomic_read(&wc_grb_nmi[cpu].live) ? 0 : 1;
+        ret = wc_RNG_DRBG_Reseed(&wc_grb_nmi[cpu].rng[spare], sl_seed,
+                                 (word32) sizeof(sl_seed));
+        if (ret == 0) {
+            wc_grb_ctr_zero(&wc_grb_nmi[cpu].since);
+            atomic_set(&wc_grb_nmi[cpu].pending, 0);
+            atomic_set(&wc_grb_nmi[cpu].live, spare);
+        }
+    }
+
+    /* CSP: this leaf's seed material; see wc_grb_reseed_local(). */
+    ForceZero(sl_seed, sizeof(sl_seed));
+
+    if (ret != 0) {
+        wc_grb_ctr_inc(&wc_grb_reseed_failed);
+        atomic_set(&wc_grb_last_err, ret);
+
+        return ret;
+    }
+
+    wc_grb_set_next_threshold(&wc_grb_nmi[cpu].at);
     wc_grb_ctr_inc(&wc_grb_reseeds);
-    wc_grb_ctr_inc(&wc_grb_stat[ctx].reseeds);
+    wc_grb_ctr_inc(&wc_grb_stat[WC_GRB_NMI].reseeds);
 
     return 0;
 }
@@ -340,24 +399,33 @@ int wc_grb_service(void *buf, size_t len)
     }
 
     {
-        struct wc_grb_slot *sl;
-        unsigned long      flags;
+        unsigned long flags;
+        int           cpu;
 
         /* Interrupts off for the whole call.  This is what makes same-CPU
          * nesting impossible, and why nothing below may allocate or sleep. */
         flags = wc_linuxkm_irq_save();
-        sl = wc_grb_my_slot(ctx);
-        if (atomic_cmpxchg(&sl->inuse, 0, 1) != 0) {
-            wc_linuxkm_irq_restore(flags);
-            wc_grb_ctr_inc(&wc_grb_stat[ctx].declined);
-            return -1;
-        }
+        cpu = wc_grb_this_cpu();
 
-        ret = wc_RNG_GenerateBlock(&sl->rng, (byte *) buf, (word32) len);
-        atomic_set(&sl->inuse, 0);
-        if ((unsigned long) wc_grb_ctr_inc_return(&sl->since) >= sl->at) {
-            atomic_set(&sl->pending, 1);
-            atomic_set(&wc_grb_any_pending, 1);
+        if (ctx == WC_GRB_NMI) {
+            struct wc_grb_nmi_slot *sl = &wc_grb_nmi[cpu];
+            int                     live = atomic_read(&sl->live);
+
+            ret = wc_RNG_GenerateBlock(&sl->rng[live], (byte *) buf,
+                                       (word32) len);
+            if ((unsigned long) wc_grb_ctr_inc_return(&sl->since) >= sl->at) {
+                atomic_set(&sl->pending, 1);
+                atomic_set(&wc_grb_any_pending, 1);
+            }
+        }
+        else {
+            struct wc_grb_slot *sl = &wc_grb_cpu[cpu];
+
+            ret = wc_RNG_GenerateBlock(&sl->rng, (byte *) buf, (word32) len);
+            if ((unsigned long) wc_grb_ctr_inc_return(&sl->since) >= sl->at) {
+                atomic_set(&sl->pending, 1);
+                atomic_set(&wc_grb_any_pending, 1);
+            }
         }
 
         wc_linuxkm_irq_restore(flags);
@@ -366,11 +434,11 @@ int wc_grb_service(void *buf, size_t len)
     if (ret == 0) {
         wc_grb_ctr_inc(&wc_grb_stat[ctx].served);
         /* Self-help, so worker scheduling cannot starve the reseed.  Interrupts
-         * are restored by now, wc_grb_maintain() is a root generate and not the
+         * are restored by now, the maintenance call is a root generate not the
          * entropy gather, and can_block() rules out a caller holding a lock. */
         if ((ctx == WC_GRB_PROC) && wc_grb_reseed_due() &&
             wc_linuxkm_can_block()) {
-            (void) wc_grb_maintain();
+            (void) wc_grb_maintain_cpu(-1);
         }
 
         return 0;
@@ -401,13 +469,6 @@ int wc_grb_service_active(void)
 void wc_grb_set_registered(int on)
 {
     wc_grb_registered = on ? 1 : 0;
-}
-
-void wc_grb_set_root_period(unsigned long ticks)
-{
-    if (ticks != 0UL) {
-        wc_grb_root_period = ticks;
-    }
 }
 
 /* One maintenance tick.  The root refreshes from the noise source on its own
@@ -444,7 +505,7 @@ int wc_grb_root_tick(void)
     return ret;
 }
 
-int wc_grb_reseed_due(void)
+static int wc_grb_reseed_due(void)
 {
     if (!wc_grb_rng_ready) {
         return 0;
@@ -453,17 +514,16 @@ int wc_grb_reseed_due(void)
     return atomic_read(&wc_grb_any_pending) ? 1 : 0;
 }
 
-/* Reseed every due leaf from the root.  Process context only: the root's own
- * generate may gather entropy, and that has to be able to block. */
-int wc_grb_maintain(void)
+/* Reseed the leaves belonging to one CPU.  Process context only: the root's
+ * own generate may gather entropy, and that has to be able to block.
+ *
+ * cpu is the CPU the glue pinned this work to, or negative for "wherever this
+ * call happens to be", which is what the service path's self-help uses. */
+int wc_grb_maintain_cpu(int cpu)
 {
-    int ret = 0, i;
+    int ret = 0, target;
 
-    if (!wc_grb_rng_ready) {
-        return 0;
-    }
-
-    if (atomic_cmpxchg(&wc_grb_maint_busy, 0, 1) != 0) {
+    if ((!wc_grb_rng_ready) || (wc_grb_cpu == NULL) || (cpu >= wc_grb_ncpu)) {
         return 0;
     }
 
@@ -471,23 +531,15 @@ int wc_grb_maintain(void)
      * its own flag, and anything raised during the scan re-arms this. */
     atomic_set(&wc_grb_any_pending, 0);
 
-    for (i = 0; i < wc_grb_ncpu; i++) {
-        if (atomic_read(&wc_grb_cpu[i].pending)) {
-            ret = wc_grb_reseed_slot(&wc_grb_cpu[i], WC_GRB_PROC);
-            if (ret != 0) {
-                break;
-            }
-        }
+    target = (cpu < 0) ? wc_grb_this_cpu() : cpu;
 
-        if (atomic_read(&wc_grb_nmi[i].pending)) {
-            ret = wc_grb_reseed_slot(&wc_grb_nmi[i], WC_GRB_NMI);
-            if (ret != 0) {
-                break;
-            }
-        }
+    if (atomic_read(&wc_grb_cpu[target].pending)) {
+        ret = wc_grb_reseed_local(cpu);
     }
 
-    atomic_set(&wc_grb_maint_busy, 0);
+    if ((ret == 0) && atomic_read(&wc_grb_nmi[target].pending)) {
+        ret = wc_grb_reseed_nmi(target);
+    }
 
     return ret;
 }
@@ -537,7 +589,7 @@ int wc_grb_stat_snapshot(long long *out, int n)
     return n;
 }
 
-void wc_grb_report(void)
+static void wc_grb_report(void)
 {
     /* 2-D, not an array of pointers: pointers need relocations and land in
      * .data, this lands in .rodata with none. */
@@ -569,10 +621,11 @@ void wc_grb_report(void)
             wc_grb_ctr_read(&wc_grb_reseed_failed));
     if ((wc_grb_cpu != NULL) && (wc_grb_nmi != NULL)) {
         for (i = 0; i < wc_grb_ncpu; i++) {
-            pr_info("WCGRB: leaf[cpu%d] since=%lld at=%lu"
-                    " nmi_since=%lld nmi_at=%lu\n",
+            pr_info("WCGRB: leaf[cpu%d] since=%lld at=%lu nmi_since=%lld"
+                    " nmi_at=%lu nmi_live=%d\n",
                     i, wc_grb_ctr_read(&wc_grb_cpu[i].since), wc_grb_cpu[i].at,
-                    wc_grb_ctr_read(&wc_grb_nmi[i].since), wc_grb_nmi[i].at);
+                    wc_grb_ctr_read(&wc_grb_nmi[i].since), wc_grb_nmi[i].at,
+                    atomic_read(&wc_grb_nmi[i].live));
         }
     }
 
@@ -582,47 +635,109 @@ void wc_grb_report(void)
 
 /* wc_FreeRng() zeroizes each leaf's DRBG internal state (V, C, reseed
  * counter), which is the CSP this file holds for the life of the module. */
-static void wc_grb_free_slots(struct wc_grb_slot **slots, int n)
+/* wc_FreeRng() zeroizes each leaf's DRBG internal state (V, C, reseed
+ * counter), which is the CSP this file holds for the life of the module. */
+static void wc_grb_free_cpu(int n)
 {
     int i;
 
-    if (*slots == NULL) {
+    if (wc_grb_cpu == NULL) {
         return;
     }
 
     for (i = 0; i < n; i++) {
-        (void) wc_FreeRng(&(*slots)[i].rng);
+        (void) wc_FreeRng(&wc_grb_cpu[i].rng);
     }
 
-    XFREE(*slots, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    *slots = NULL;
+    XFREE(wc_grb_cpu, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_grb_cpu = NULL;
 }
 
-static int wc_grb_alloc_slots(struct wc_grb_slot **slots, const char *what)
+static void wc_grb_free_nmi(int n)
+{
+    int i;
+
+    if (wc_grb_nmi == NULL) {
+        return;
+    }
+
+    for (i = 0; i < n; i++) {
+        (void) wc_FreeRng(&wc_grb_nmi[i].rng[0]);
+        (void) wc_FreeRng(&wc_grb_nmi[i].rng[1]);
+    }
+
+    XFREE(wc_grb_nmi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_grb_nmi = NULL;
+}
+
+static int wc_grb_alloc_cpu(void)
 {
     size_t sz = sizeof(struct wc_grb_slot) * (size_t) wc_grb_ncpu;
     int    ret, i;
 
-    *slots = (struct wc_grb_slot *) XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (*slots == NULL) {
-        pr_err("WCGRB: no memory for %d %s leaves\n", wc_grb_ncpu, what);
+    wc_grb_cpu = (struct wc_grb_slot *) XMALLOC(sz, NULL,
+                                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (wc_grb_cpu == NULL) {
+        pr_err("WCGRB: no memory for %d cpu leaves\n", wc_grb_ncpu);
+
         return MEMORY_E;
     }
 
-    XMEMSET(*slots, 0, sz);
+    XMEMSET(wc_grb_cpu, 0, sz);
     for (i = 0; i < wc_grb_ncpu; i++) {
-        ret = wc_InitRngRBGC(&(*slots)[i].rng, &wc_grb_root);
+        ret = wc_InitRngRBGC(&wc_grb_cpu[i].rng, &wc_grb_root);
         if (ret != 0) {
-            pr_err("WCGRB: wc_InitRngRBGC(%s cpu%d) failed: %d\n", what, i,
-                   ret);
-            wc_grb_free_slots(slots, i);
+            pr_err("WCGRB: wc_InitRngRBGC(cpu%d) failed: %d\n", i, ret);
+            wc_grb_free_cpu(i);
+
             return ret;
         }
 
-        atomic_set(&(*slots)[i].inuse, 0);
-        atomic_set(&(*slots)[i].pending, 0);
-        wc_grb_ctr_zero(&(*slots)[i].since);
-        (*slots)[i].at = wc_grb_reseed_base;
+        atomic_set(&wc_grb_cpu[i].pending, 0);
+        wc_grb_ctr_zero(&wc_grb_cpu[i].since);
+        wc_grb_cpu[i].at = wc_grb_reseed_base;
+    }
+
+    return 0;
+}
+
+/* Both NMI instantiations are seeded up front, so the spare is a complete
+ * RBGC leaf from the moment the module starts and the first flip publishes a
+ * fully instantiated DRBG rather than an empty one. */
+static int wc_grb_alloc_nmi(void)
+{
+    size_t sz = sizeof(struct wc_grb_nmi_slot) * (size_t) wc_grb_ncpu;
+    int    ret, i, k;
+
+    wc_grb_nmi = (struct wc_grb_nmi_slot *) XMALLOC(sz, NULL,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
+    if (wc_grb_nmi == NULL) {
+        pr_err("WCGRB: no memory for %d nmi leaves\n", wc_grb_ncpu);
+
+        return MEMORY_E;
+    }
+
+    XMEMSET(wc_grb_nmi, 0, sz);
+    for (i = 0; i < wc_grb_ncpu; i++) {
+        for (k = 0; k < 2; k++) {
+            ret = wc_InitRngRBGC(&wc_grb_nmi[i].rng[k], &wc_grb_root);
+            if (ret != 0) {
+                pr_err("WCGRB: wc_InitRngRBGC(nmi cpu%d/%d) failed: %d\n",
+                       i, k, ret);
+                while (--k >= 0) {
+                    (void) wc_FreeRng(&wc_grb_nmi[i].rng[k]);
+                }
+
+                wc_grb_free_nmi(i);
+
+                return ret;
+            }
+        }
+
+        atomic_set(&wc_grb_nmi[i].live, 0);
+        atomic_set(&wc_grb_nmi[i].pending, 0);
+        wc_grb_ctr_zero(&wc_grb_nmi[i].since);
+        wc_grb_nmi[i].at = wc_grb_reseed_base;
     }
 
     return 0;
@@ -675,29 +790,31 @@ int wc_grb_init(int ncpus)
         return BAD_STATE_E;
     }
 
-    ret = wc_grb_alloc_slots(&wc_grb_cpu, "cpu");
+    ret = wc_grb_alloc_cpu();
     if (ret != 0) {
         (void) wc_FreeRng(&wc_grb_root);
+
         return ret;
     }
 
-    ret = wc_grb_alloc_slots(&wc_grb_nmi, "nmi");
+    ret = wc_grb_alloc_nmi();
     if (ret != 0) {
-        wc_grb_free_slots(&wc_grb_cpu, wc_grb_ncpu);
+        wc_grb_free_cpu(wc_grb_ncpu);
         (void) wc_FreeRng(&wc_grb_root);
+
         return ret;
     }
 
     wc_grb_rng_ready = 1;
     for (i = 0; i < wc_grb_ncpu; i++) {
-        wc_grb_set_next_threshold(&wc_grb_cpu[i]);
-        wc_grb_set_next_threshold(&wc_grb_nmi[i]);
+        wc_grb_set_next_threshold(&wc_grb_cpu[i].at);
+        wc_grb_set_next_threshold(&wc_grb_nmi[i].at);
     }
 
     /* The effective interval, not the threshold: the threshold is capped and
      * would read the same for 1e6 and for the SP 800-90A maximum. */
-    pr_info("WCGRB: RBGC up, 1 root + %d cpu leaves + %d nmi leaves, SHA-512,"
-            " WC_RESEED_INTERVAL=%llu\n",
+    pr_info("WCGRB: RBGC up, 1 root + %d cpu leaves + %d x2 nmi leaves,"
+            " SHA-512, WC_RESEED_INTERVAL=%llu\n",
             wc_grb_ncpu, wc_grb_ncpu, (unsigned long long) WC_RESEED_INTERVAL);
 
     return 0;
@@ -709,8 +826,8 @@ void wc_grb_cleanup(void)
     wc_grb_report();
     if (wc_grb_rng_ready) {
         wc_grb_rng_ready = 0;
-        wc_grb_free_slots(&wc_grb_cpu, wc_grb_ncpu);
-        wc_grb_free_slots(&wc_grb_nmi, wc_grb_ncpu);
+        wc_grb_free_cpu(wc_grb_ncpu);
+        wc_grb_free_nmi(wc_grb_ncpu);
         (void) wc_FreeRng(&wc_grb_root);
     }
 }
