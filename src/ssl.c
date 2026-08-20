@@ -9628,21 +9628,23 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 #endif /* WOLFSSL_HAVE_MLKEM */
 #ifndef NO_DH
     /* Finite field groups have no NID; OpenSSL identifies them by TLS group
-     * code point, so use that for both fields. */
+     * code point. A nid of 0 marks the row as not an EC curve so the NID
+     * lookups skip it - a code point reused as a NID would otherwise collide
+     * with an unrelated WC_NID_* value. */
     #ifdef HAVE_FFDHE_2048
-    {CURVE_NAME("ffdhe2048"), WOLFSSL_FFDHE_2048, WOLFSSL_FFDHE_2048},
+    {CURVE_NAME("ffdhe2048"), 0, WOLFSSL_FFDHE_2048},
     #endif
     #ifdef HAVE_FFDHE_3072
-    {CURVE_NAME("ffdhe3072"), WOLFSSL_FFDHE_3072, WOLFSSL_FFDHE_3072},
+    {CURVE_NAME("ffdhe3072"), 0, WOLFSSL_FFDHE_3072},
     #endif
     #ifdef HAVE_FFDHE_4096
-    {CURVE_NAME("ffdhe4096"), WOLFSSL_FFDHE_4096, WOLFSSL_FFDHE_4096},
+    {CURVE_NAME("ffdhe4096"), 0, WOLFSSL_FFDHE_4096},
     #endif
     #ifdef HAVE_FFDHE_6144
-    {CURVE_NAME("ffdhe6144"), WOLFSSL_FFDHE_6144, WOLFSSL_FFDHE_6144},
+    {CURVE_NAME("ffdhe6144"), 0, WOLFSSL_FFDHE_6144},
     #endif
     #ifdef HAVE_FFDHE_8192
-    {CURVE_NAME("ffdhe8192"), WOLFSSL_FFDHE_8192, WOLFSSL_FFDHE_8192},
+    {CURVE_NAME("ffdhe8192"), 0, WOLFSSL_FFDHE_8192},
     #endif
 #endif /* !NO_DH */
 #ifdef WOLFSSL_SM2
@@ -9849,7 +9851,8 @@ int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
         return 0;
 
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-        if (nist_name->curve == group)
+        /* nid 0 means the group has no NID - report the code point. */
+        if ((nist_name->curve == group) && (nist_name->nid != 0))
             return nist_name->nid;
     }
 
@@ -9928,7 +9931,7 @@ const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id)
     /* wolfSSL_get_negotiated_group() reports a NID where one exists, so map
      * NIDs back to their code point before looking the name up. */
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-        if (nist_name->nid == id) {
+        if ((nist_name->nid != 0) && (nist_name->nid == id)) {
             group = (int)nist_name->curve;
             break;
         }
