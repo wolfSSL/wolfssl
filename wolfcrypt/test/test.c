@@ -79256,6 +79256,12 @@ typedef struct {
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE)
     int cmacFreeCount;    /* CMAC free callback invocations */
 #endif
+#ifdef WOLF_CRYPTO_CB_COPY
+    int hashCopyType;     /* hash type seen by last hash copy dispatch */
+#endif
+#ifdef WOLF_CRYPTO_CB_FREE
+    int hashFreeType;     /* hash type seen by last hash free dispatch */
+#endif
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     int rsaPssVerifyCount; /* RSA-PSS verify callback invocations */
 #endif
@@ -81788,6 +81794,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                        info->copy.algo, info->copy.type);
 #endif
         if (info->copy.algo == WC_ALGO_TYPE_HASH) {
+            /* record the dispatched type so tests can assert on it */
+            myCtx->hashCopyType = info->copy.type;
             switch (info->copy.type) {
 #ifndef NO_SHA
                 case WC_HASH_TYPE_SHA:
@@ -81924,6 +81932,34 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+                case WC_HASH_TYPE_SHAKE128:
+                {
+                    wc_Shake* src = (wc_Shake*)info->copy.src;
+                    wc_Shake* dst = (wc_Shake*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Shake128_Copy(src, dst);
+                    src->devId = devIdArg;
+                    if (ret == 0) {
+                        dst->devId = devIdArg;
+                    }
+                    break;
+                }
+#endif
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+                case WC_HASH_TYPE_SHAKE256:
+                {
+                    wc_Shake* src = (wc_Shake*)info->copy.src;
+                    wc_Shake* dst = (wc_Shake*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Shake256_Copy(src, dst);
+                    src->devId = devIdArg;
+                    if (ret == 0) {
+                        dst->devId = devIdArg;
+                    }
+                    break;
+                }
+#endif
                 default:
                     ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
                     break;
@@ -81942,6 +81978,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #endif
 
         if (info->free.algo == WC_ALGO_TYPE_HASH) {
+            /* record the dispatched type so tests can assert on it */
+            myCtx->hashFreeType = info->free.type;
             switch (info->free.type) {
 #ifndef NO_SHA
                 case WC_HASH_TYPE_SHA:
@@ -82034,6 +82072,26 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     wc_Sha3* sha = (wc_Sha3*)info->free.obj;
                     sha->devId = INVALID_DEVID;
                     wc_Sha3_512_Free(sha);
+                    ret = 0;
+                    break;
+                }
+#endif
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+                case WC_HASH_TYPE_SHAKE128:
+                {
+                    wc_Shake* shake = (wc_Shake*)info->free.obj;
+                    shake->devId = INVALID_DEVID;
+                    wc_Shake128_Free(shake);
+                    ret = 0;
+                    break;
+                }
+#endif
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+                case WC_HASH_TYPE_SHAKE256:
+                {
+                    wc_Shake* shake = (wc_Shake*)info->free.obj;
+                    shake->devId = INVALID_DEVID;
+                    wc_Shake256_Free(shake);
                     ret = 0;
                     break;
                 }
@@ -82736,6 +82794,129 @@ static int myCryptoCbFind(int currentId, int algoType)
 }
 #endif /* WOLF_CRYPTO_CB_FIND */
 
+#if defined(WOLFSSL_SHA3) && \
+    (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)) && \
+    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE))
+/* Round-trip one SHAKE variant through Update/Final/Copy/Free with the
+ * callback registered and assert Copy/Free dispatched expectType. */
+static wc_test_ret_t shake_cb_copy_free_test(myCryptoDevCtx* myCtx,
+    int expectType, int (*initFn)(wc_Shake*, void*, int),
+    int (*updateFn)(wc_Shake*, const byte*, word32),
+    int (*finalFn)(wc_Shake*, byte*, word32),
+    int (*copyFn)(wc_Shake*, wc_Shake*), void (*freeFn)(wc_Shake*))
+{
+    wc_test_ret_t ret = 0;
+    int shakeInit = 0;
+    int copyInit = 0;
+    byte shakeIn[32];
+    byte shakeOut[32];
+    byte shakeOut2[32];
+    WC_DECLARE_VAR(shake, wc_Shake, 1, HEAP_HINT);
+    WC_DECLARE_VAR(shakeCopy, wc_Shake, 1, HEAP_HINT);
+
+    WC_ALLOC_VAR_EX(shake, wc_Shake, 1, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+    if (ret == 0)
+        WC_ALLOC_VAR_EX(shakeCopy, wc_Shake, 1, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER, ret = WC_TEST_RET_ENC_EC(MEMORY_E));
+
+    XMEMSET(shakeIn, 0x3c, sizeof(shakeIn));
+    if (ret == 0) {
+        ret = initFn(shake, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            shakeInit = 1;
+    }
+    if (ret == 0) {
+        ret = initFn(shakeCopy, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            copyInit = 1;
+    }
+#ifdef WOLF_CRYPTO_CB_FREE
+    /* Free a freshly initialized context: the dispatch type must come
+     * from the init-time set, no Update/Final has run yet. */
+    if (ret == 0) {
+        myCtx->hashFreeType = WC_HASH_TYPE_NONE;
+        freeFn(shakeCopy);
+        copyInit = 0;
+        if (myCtx->hashFreeType != expectType)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        ret = initFn(shakeCopy, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            copyInit = 1;
+    }
+#endif
+    if (ret == 0) {
+        ret = updateFn(shake, shakeIn, (word32)sizeof(shakeIn));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    /* Copy before any Final: covers the init-time hashType set. */
+#ifdef WOLF_CRYPTO_CB_COPY
+    myCtx->hashCopyType = WC_HASH_TYPE_NONE;
+#endif
+    if (ret == 0) {
+        ret = copyFn(shake, shakeCopy);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+#ifdef WOLF_CRYPTO_CB_COPY
+    if (ret == 0 && myCtx->hashCopyType != expectType)
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+    if (ret == 0) {
+        ret = finalFn(shake, shakeOut, (word32)sizeof(shakeOut));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        ret = finalFn(shakeCopy, shakeOut2, (word32)sizeof(shakeOut2));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0 && XMEMCMP(shakeOut, shakeOut2, sizeof(shakeOut)) != 0)
+        ret = WC_TEST_RET_ENC_NC;
+    /* Copy again after Final reset the state: covers the hashType
+     * restore in the Final path. */
+    if (ret == 0) {
+        ret = updateFn(shake, shakeIn, (word32)sizeof(shakeIn));
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+#ifdef WOLF_CRYPTO_CB_COPY
+    if (ret == 0) {
+        myCtx->hashCopyType = WC_HASH_TYPE_NONE;
+        ret = copyFn(shake, shakeCopy);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else if (myCtx->hashCopyType != expectType)
+            ret = WC_TEST_RET_ENC_NC;
+    }
+#endif
+#ifdef WOLF_CRYPTO_CB_FREE
+    myCtx->hashFreeType = WC_HASH_TYPE_NONE;
+#endif
+    if (shakeInit)
+        freeFn(shake);
+    if (copyInit)
+        freeFn(shakeCopy);
+#ifdef WOLF_CRYPTO_CB_FREE
+    if (ret == 0 && shakeInit && myCtx->hashFreeType != expectType)
+        ret = WC_TEST_RET_ENC_NC;
+#endif
+
+    WC_FREE_VAR_EX(shakeCopy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(shake, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* WOLFSSL_SHA3 && SHAKE && (CB_COPY || CB_FREE) */
 
 #if !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
@@ -83349,6 +83530,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         WC_FREE_VAR_EX(cmac, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* WOLFSSL_CMAC && WOLF_CRYPTO_CB_FREE */
+
+#if defined(WOLFSSL_SHA3) && \
+    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE))
+#ifdef WOLFSSL_SHAKE128
+    if (ret == 0)
+        ret = shake_cb_copy_free_test(&myCtx, WC_HASH_TYPE_SHAKE128,
+            wc_InitShake128, wc_Shake128_Update, wc_Shake128_Final,
+            wc_Shake128_Copy, wc_Shake128_Free);
+#endif
+#ifdef WOLFSSL_SHAKE256
+    if (ret == 0)
+        ret = shake_cb_copy_free_test(&myCtx, WC_HASH_TYPE_SHAKE256,
+            wc_InitShake256, wc_Shake256_Update, wc_Shake256_Final,
+            wc_Shake256_Copy, wc_Shake256_Free);
+#endif
+#endif /* WOLFSSL_SHA3 && (CB_COPY || CB_FREE) */
 
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
     !defined(NO_RSA) && !defined(WC_NO_RNG) && defined(WOLFSSL_KEY_GEN) && \
