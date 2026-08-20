@@ -35,6 +35,24 @@
  * before use and freed after; the in-memory secret-key scratch buffer is
  * sized for the tall parameter set and roundtrips that would exceed it are
  * skipped cleanly.
+ *
+ * What this file deliberately does NOT cover - both are in the campaign's
+ * exclusion ledger (campaign/db/exclusions.json,
+ * EXCLUSIONS.md#condition-level-exclusions):
+ *
+ *   2465:2 and 4131:2 - the "c <= 4" operand of WC_IDX_INVALID's mixed
+ *   32/64-bit arm, i.e. "((c > 4) && IDX64_INVALID(..)) || ((c <= 4) &&
+ *   IDX32_INVALID(..))" with c = params->idx_len. It is the exact logical
+ *   negation of the "c > 4" operand, which is evaluated on every arrival that
+ *   gets past "ret == 0", so every vector that flips it flips "c > 4" too and
+ *   no independence pair exists. It is not dead: it IS evaluated, and false,
+ *   whenever c > 4 is true and IDX64_INVALID is false (a live height-40 key).
+ *   The other four operands of both decisions ARE driven here - "ret == 0"
+ *   false from a forged idx_len of 2, "c > 4"/IDX64_INVALID from live and
+ *   retired XMSSMT-SHA2_40/8_256 keys, IDX32_INVALID from live and retired
+ *   XMSSMT-SHA2_20/2_256 keys. Beware the index: these five conditions all
+ *   share one macro-expansion location, and llvm-cov's export order is NOT
+ *   source order there - index 2 is "c <= 4" and index 3 is IDX64_INVALID.
  */
 
 #include <wolfcrypt/src/wc_xmss_impl.c>
@@ -1170,11 +1188,12 @@ static void wb_full_cycle_d1(void)
     /* wc_xmss_sigsleft(): line 4121's WC_IDX_INVALID true side, ret == 0
      * true. Craft an sk whose encoded idx is exactly 2^h - 1 == 15 (the
      * smallest value for which (idx+1)>>h != 0) directly, rather than
-     * reusing the just-exhausted sk above: wc_xmssmt_sign()'s exhaustion
-     * handling XMEMSETs the index field to all-0xFF, which as an encoded
-     * 32-bit value (0xFFFFFFFF) wraps back to looking "valid" under
-     * IDX32_INVALID's "(idx+1)>>h" arithmetic (idx+1 overflows to 0) - a
-     * real quirk of that cleanup path, but not what this test is after. */
+     * reusing the just-exhausted sk above, whose index field wc_xmssmt_sign()
+     * has XMEMSET to all-0xFF: 2^h - 1 is the smallest value the check must
+     * reject and is the one this test is after. (The all-0xFF marker used to
+     * read back as "valid" because IDX32_INVALID's "(idx+1)>>h" overflowed to
+     * 0 - a real defect, fixed in "wolfcrypt: xmss exhausted-key index marker
+     * wrapped and re-enabled signing" and recorded in DEATHNOTE.md.) */
     if (exhausted) {
         byte idxSk[2048];
 
@@ -1232,7 +1251,8 @@ static void wb_full_cycle_d1(void)
 #endif /* !WOLFSSL_XMSS_VERIFY_ONLY && !WOLFSSL_WC_XMSS_SMALL */
 
 /********************************************
- * 3981-3983: wc_xmssmt_sign_next_idx()'s
+ * 3995-3997 (3981-3983 before the exhausted-marker fix moved the file):
+ * wc_xmssmt_sign_next_idx()'s
  *   "if ((ret == 0) && (i > 0) && (updates > 0) &&
  *        (idx_tree < ((XmssIdx)1 << (h - (hs * (i + 1))))) &&
  *        (bds[alt_i].next < ((XmssIdx)1 << h)))"
@@ -1246,7 +1266,7 @@ static void wb_full_cycle_d1(void)
  *    FULL tree height. On every reachable signing vector next <= 2^sub_h <=
  *    2^h, so the operand is true. It is only false when the value loaded out
  *    of the persisted secret key (a 24-bit big-endian field, wc_xmss_bds_
- *    state_load() at 2729) is already >= 2^h - i.e. a corrupted/forged
+ *    state_load() at 2743) is already >= 2^h - i.e. a corrupted/forged
  *    private key, which is exactly the case this defensive guard exists for.
  *    Here that state is forged directly: the BDS array is loaded from a COPY
  *    of a good secret key and every state's "next" is set to 1 << h before
@@ -1378,7 +1398,7 @@ static void wb_sign_next_idx_rows(void)
         * WC_XMSS_SHA256 */
 
 /********************************************
- * 2455 (WOLFSSL_WC_XMSS_SMALL's wc_xmssmt_sign() only):
+ * 2465 (WOLFSSL_WC_XMSS_SMALL's wc_xmssmt_sign() only):
  *   "if ((ret == 0) && (WC_IDX_INVALID(idx, params->idx_len, params->h)))"
  * condIndex 0's false side. The only assignment to ret before the guard is
  * WC_IDX_DECODE's trailing "else { ret = NOT_COMPILED_IN; }", which fires
@@ -1396,7 +1416,7 @@ static void wb_sign_next_idx_rows(void)
  * params.sk_len so even the unused interior pointers stay in-object.
  *
  * Only built for WOLFSSL_WC_XMSS_SMALL: the non-small wc_xmssmt_sign()
- * (4041) allocates and loads the BDS state from sk *before* its own index
+ * (4055) allocates and loads the BDS state from sk *before* its own index
  * check and decodes with xmss_idx_decode(), which has no NOT_COMPILED_IN
  * arm - it would neither reach this decision nor be memory-safe with a
  * forged parameter set.
