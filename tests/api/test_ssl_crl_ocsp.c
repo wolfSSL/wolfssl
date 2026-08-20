@@ -392,6 +392,10 @@ static int test_ssl_crl_ocsp_url_bad(const char* url)
     ExpectNull(path);
     ExpectIntEQ(isSsl, 0);
 
+    XFREE(host, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(port, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(path, NULL, DYNAMIC_TYPE_OPENSSL);
+
     return EXPECT_RESULT();
 }
 
