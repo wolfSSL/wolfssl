@@ -832,11 +832,15 @@ int test_wc_curve448_export_import_endian(void)
 } /* END test_wc_curve448_export_import_endian */
 
 /* Cross-check make_pub, generic and keygen: public keys must match and a
- * shared secret must round trip (runs via cryptocb under CB_ONLY_CURVE448). */
+ * shared secret must round trip. */
+/* The keys are built with wc_curve448_init (INVALID_DEVID), so under CB-only
+ * the software path is stripped and wc_curve448_make_key only dispatches when
+ * WOLF_CRYPTO_CB_FIND can route to a registered device. */
 int test_wc_curve448_make_pub_generic(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_SHARED_SECRET)
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_SHARED_SECRET) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || defined(WOLF_CRYPTO_CB_FIND))
     curve448_key keyA;
     curve448_key keyB;
     WC_RNG       rng;
@@ -881,6 +885,17 @@ int test_wc_curve448_make_pub_generic(void)
     ExpectIntEQ(wc_curve448_shared_secret_ex(&keyB, &keyA, ssBA, &ssBALen,
         EC448_LITTLE_ENDIAN), 0);
     ExpectBufEQ(ssBA, ssAB, CURVE448_PUB_KEY_SIZE);
+
+    /* an all-zero result (small-order basepoint) must be rejected, matching
+     * wc_curve448_shared_secret_ex */
+    XMEMSET(pubG, 0, sizeof(pubG));
+    {
+        byte baseZero[CURVE448_KEY_SIZE];
+        XMEMSET(baseZero, 0, sizeof(baseZero));
+        ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), pubG,
+            (int)sizeof(keyA.k), keyA.k, (int)sizeof(baseZero), baseZero),
+            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    }
 
     /* argument checks on the new generic API */
     ExpectIntEQ(wc_curve448_generic((int)sizeof(pubG), NULL,

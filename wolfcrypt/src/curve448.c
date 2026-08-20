@@ -105,7 +105,26 @@ int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
     return ret;
 }
 
-/* Multiply a scalar (private key) against any basepoint over curve448. */
+/* Is every byte of the curve448 result zero? Only reached when the caller's
+ * basepoint is of small order, which leaks the result to anyone watching. */
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+static WC_INLINE int curve448_result_is_zero(const byte* out)
+{
+    int i;
+    byte t = 0;
+    for (i = 0; i < CURVE448_PUB_KEY_SIZE; i++) {
+        t |= out[i];
+    }
+    return (t == 0);
+}
+#endif
+
+/* Multiply a scalar (private key) against any basepoint over curve448.
+ *
+ * An all-zero result is rejected with ECC_OUT_OF_RANGE_E, matching
+ * wc_curve448_shared_secret_ex; define WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK to
+ * get the raw scalar multiplication result instead.
+ */
 int wc_curve448_generic(int public_size, byte* pub,
                         int private_size, const byte* priv,
                         int basepoint_size, const byte* basepoint)
@@ -129,8 +148,15 @@ int wc_curve448_generic(int public_size, byte* pub,
 #ifdef WOLF_CRYPTO_CB
     ret = wc_CryptoCb_Curve448Generic(public_size, pub, private_size, priv,
         basepoint_size, basepoint);
-    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+    #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+        /* RFC 7748: reject an all-zero result from the callback too */
+        if ((ret == 0) && curve448_result_is_zero(pub)) {
+            ret = ECC_OUT_OF_RANGE_E;
+        }
+    #endif
         return ret;
+    }
     /* fall-through when unavailable */
 #endif
 
@@ -140,6 +166,11 @@ int wc_curve448_generic(int public_size, byte* pub,
     fe448_init();
 
     ret = curve448(pub, priv, basepoint);
+#ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
+    if ((ret == 0) && curve448_result_is_zero(pub)) {
+        ret = ECC_OUT_OF_RANGE_E;
+    }
+#endif
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 */
 
     return ret;

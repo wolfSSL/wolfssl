@@ -910,14 +910,16 @@ int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
     \brief This function performs a generic Curve448 scalar
     multiplication with a custom basepoint. This allows computing
     scalar * basepoint for any basepoint, not just the standard
-    generator. This is a raw primitive: unlike
-    wc_curve448_shared_secret_ex it does not reject an all-zero
-    result. Callers doing key agreement with a peer-supplied point
-    must reject an all-zero output themselves (RFC 7748 section 6.2).
+    generator. As in wc_curve448_shared_secret_ex, an all-zero result
+    is rejected (RFC 7748 section 6.2); build with
+    WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK to get the raw scalar
+    multiplication result instead.
 
     \return 0 On successfully computing the result
     \return ECC_BAD_ARG_E If any input parameter is NULL or a size is
     invalid
+    \return ECC_OUT_OF_RANGE_E If the result is all-zero, i.e. the
+    basepoint was of small order
 
     \param public_size Size of the output buffer (must be 56)
     \param pub Pointer to buffer to store the result

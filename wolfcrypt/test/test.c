@@ -80424,6 +80424,17 @@ exit_onlycb:
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 
 #if defined(WOLF_CRYPTO_CB_ONLY_CURVE448) && !defined(WOLFSSL_SWDEV)
+/* Is every byte of buf the marker value v? */
+static int curve448_buf_is(const byte* buf, byte v, word32 len)
+{
+    word32 i;
+    for (i = 0; i < len; i++) {
+        if (buf[i] != v)
+            return 0;
+    }
+    return 1;
+}
+
 /* Exercise Curve448 dispatch under CB_ONLY_CURVE448: cb-handled then
  * cb-delegated. */
 static wc_test_ret_t curve448_onlycb_test(myCryptoDevCtx *ctx)
@@ -80451,11 +80462,14 @@ static wc_test_ret_t curve448_onlycb_test(myCryptoDevCtx *ctx)
         return WC_TEST_RET_ENC_EC(ret);
     }
 
-    /* cb handles the op, expects 0(success) */
+    /* cb handles the op, expects 0(success) and the stub's key material */
     ctx->exampleVar = 99;
     ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
     if (ret != 0)
         ret = WC_TEST_RET_ENC_EC(ret);
+    else if (!key.privSet || !key.pubSet || (key.p[0] != 0xC3) ||
+             (key.k[CURVE448_KEY_SIZE-1] != 0xDA))
+        ret = WC_TEST_RET_ENC_NC;
 
     if (ret == 0) {
         /* cb delegates to software, expects NO_VALID_DEVID(failure) */
@@ -80477,18 +80491,24 @@ static wc_test_ret_t curve448_onlycb_test(myCryptoDevCtx *ctx)
         scalar[0] = 4;
         scalar[CURVE448_KEY_SIZE-1] = 0x80;
 
-        /* cb handles make_pub and generic, expects 0(success) */
+        /* cb handles make_pub and generic, expects 0(success) and the
+         * stub's per-type marker written over the caller's buffer */
         ctx->exampleVar = 99;
+        XMEMSET(pubTmp, 0, sizeof(pubTmp));
         ret = wc_curve448_make_pub((int)sizeof(pubTmp), pubTmp,
             (int)sizeof(scalar), scalar);
         if (ret != 0)
             ret = WC_TEST_RET_ENC_EC(ret);
+        else if (!curve448_buf_is(pubTmp, 0x6B, sizeof(pubTmp)))
+            ret = WC_TEST_RET_ENC_NC;
         if (ret == 0) {
             ret = wc_curve448_generic((int)sizeof(pubTmp), pubTmp,
                 (int)sizeof(scalar), scalar, (int)sizeof(basepoint),
                 basepoint);
             if (ret != 0)
                 ret = WC_TEST_RET_ENC_EC(ret);
+            else if (!curve448_buf_is(pubTmp, 0x3C, sizeof(pubTmp)))
+                ret = WC_TEST_RET_ENC_NC;
         }
 
         /* cb delegates to software, expects NO_VALID_DEVID(failure) */
@@ -81186,7 +81206,21 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
             #endif
             if (myCtx->exampleVar == 99) {
+                /* the dispatcher must hand over a usable payload */
+                if ((info->pk.curve448kg.rng == NULL) ||
+                    (info->pk.curve448kg.size != CURVE448_KEY_SIZE)) {
+                    return BAD_FUNC_ARG;
+                }
                 info->pk.curve448kg.key->devId = devIdArg;
+                /* deterministic key material so the caller can prove the
+                 * callback's output actually reached it */
+                XMEMSET(info->pk.curve448kg.key->k, 0x5A, CURVE448_KEY_SIZE);
+                info->pk.curve448kg.key->k[0] &= 0xfc;
+                info->pk.curve448kg.key->k[CURVE448_KEY_SIZE-1] |= 0x80;
+                XMEMSET(info->pk.curve448kg.key->p, 0xC3,
+                    CURVE448_PUB_KEY_SIZE);
+                info->pk.curve448kg.key->privSet = 1;
+                info->pk.curve448kg.key->pubSet = 1;
                 return 0;
             }
             #endif
@@ -81229,6 +81263,36 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                  info->pk.type == WC_PK_TYPE_CURVE448_GENERIC) {
             #if defined(WOLF_CRYPTO_CB_ONLY_CURVE448)
             if (myCtx->exampleVar == 99) {
+                /* check the dispatcher populated every payload field, then
+                 * write a per-type marker so the caller can prove the
+                 * callback's output actually reached it */
+                if (info->pk.type == WC_PK_TYPE_CURVE448_MAKE_PUB) {
+                    if ((info->pk.curve448makepub.pub == NULL) ||
+                        (info->pk.curve448makepub.priv == NULL) ||
+                        (info->pk.curve448makepub.pubSz !=
+                            CURVE448_PUB_KEY_SIZE) ||
+                        (info->pk.curve448makepub.privSz !=
+                            CURVE448_KEY_SIZE)) {
+                        return BAD_FUNC_ARG;
+                    }
+                    XMEMSET(info->pk.curve448makepub.pub, 0x6B,
+                        CURVE448_PUB_KEY_SIZE);
+                }
+                else {
+                    if ((info->pk.curve448generic.pub == NULL) ||
+                        (info->pk.curve448generic.priv == NULL) ||
+                        (info->pk.curve448generic.basepoint == NULL) ||
+                        (info->pk.curve448generic.pubSz !=
+                            CURVE448_PUB_KEY_SIZE) ||
+                        (info->pk.curve448generic.privSz !=
+                            CURVE448_KEY_SIZE) ||
+                        (info->pk.curve448generic.basepointSz !=
+                            CURVE448_KEY_SIZE)) {
+                        return BAD_FUNC_ARG;
+                    }
+                    XMEMSET(info->pk.curve448generic.pub, 0x3C,
+                        CURVE448_PUB_KEY_SIZE);
+                }
                 return 0;
             }
             #endif
