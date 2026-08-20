@@ -1993,7 +1993,8 @@ int test_tls13_fail_if_no_psk_resumption_exempt_from_dhe(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && defined(HAVE_SESSION_TICKET) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     (defined(HAVE_ECC) || !defined(NO_RSA))
@@ -8811,11 +8812,13 @@ int test_tls13_clear_preserves_psk_dhe(void)
     ExpectIntEQ(wolfSSL_CTX_no_dhe_psk(ctx), 0);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(ssl->options.noPskDheKe, 1);
+    ExpectIntEQ(ssl->options.noPskDheKePolicy, 1);
 
     /* SSL reuse must preserve the CTX-level noPskDheKe; resetting to 0
      * would silently re-enable psk_dhe_ke for the next handshake. */
     ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
     ExpectIntEQ(ssl->options.noPskDheKe, 1);
+    ExpectIntEQ(ssl->options.noPskDheKePolicy, 1);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -9518,6 +9521,475 @@ int test_tls13_pha_status_request(void)
      * empty OCSP staple instead of failing with -406. */
     ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl_s));
     wolfSSL_X509_free(peer);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Drive a TLS 1.3 handshake up to, but not including, the server's final
+ * wolfSSL_accept() - the call that runs the NewSessionTicket loop. */
+static int test_tls13_handshake_to_ticket(WOLFSSL* ssl_c, WOLFSSL* ssl_s)
+{
+    EXPECT_DECLS;
+
+    /* ClientHello. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    /* Server flight. */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    /* Client Finished. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 9846 Section 4.3.9 and Section 4.7.1: a NewSessionTicket creates a
+ * resumption PSK, so the server may only send one when the ClientHello
+ * advertised a psk_key_exchange_modes mode it can be used with. */
+int test_tls13_ticket_psk_modes(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* The wolfSSL client always advertises psk_key_exchange_modes, so drive
+     * the no-extension case by clearing the recorded flag after the
+     * handshake: a ClientHello without the extension gets no ticket. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_tls13_handshake_to_ticket(ssl_c, ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(ssl_s->options.pskKeModesRecvd, 1);
+    if (EXPECT_SUCCESS()) {
+        ssl_s->options.pskKeModesRecvd = 0;
+    }
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* Control: the wolfSSL client advertises the modes, so a ticket is sent. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_tls13_handshake_to_ticket(ssl_c, ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_len, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_send_SessionTicket() applies the same RFC 9846 precondition as the
+ * automatic ticket path, and reports why it will not send. */
+int test_tls13_send_session_ticket_psk_modes(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        /* No psk_key_exchange_modes extension in the ClientHello. */
+        ssl_s->options.pskKeModesRecvd = 0;
+    }
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s),
+        WC_NO_ERR_TRACE(MISSING_HANDSHAKE_DATA));
+    if (EXPECT_SUCCESS()) {
+        /* Extension present but carrying only unrecognized modes. */
+        ssl_s->options.pskKeModesRecvd = 1;
+        ssl_s->options.pskKeModes = 0;
+    }
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s),
+        WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+    if (EXPECT_SUCCESS()) {
+        /* psk_dhe_ke only, but the server refuses (EC)DHE with PSK. Set
+         * through the public API - the handshake clears noPskDheKe, so the
+         * decision has to read the configured policy. */
+        ssl_s->options.pskKeModes = 1 << PSK_DHE_KE;
+    }
+    ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s),
+        WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+    if (EXPECT_SUCCESS()) {
+        ssl_s->options.noPskDheKePolicy = 0;
+    }
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+#ifdef HAVE_SUPPORTED_CURVES
+    if (EXPECT_SUCCESS()) {
+        /* psk_ke only, but the server requires (EC)DHE with PSK. */
+        ssl_s->options.pskKeModes = 1 << PSK_KE;
+    }
+    ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_s), 0);
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s),
+        WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+    if (EXPECT_SUCCESS()) {
+        ssl_s->options.onlyPskDheKe = 0;
+    }
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Build a NewSessionTicket handshake message carrying the given extensions
+ * block verbatim.  Returns the message length, including the handshake
+ * header, or -1 when it does not fit. */
+static int test_tls13_make_nst(byte* out, int outSz, const byte* exts,
+    int extsSz)
+{
+    static const byte body[] = {
+        0x00, 0x00, 0x0e, 0x10,             /* ticket_lifetime: 3600 */
+        0x01, 0x02, 0x03, 0x04,             /* ticket_age_add */
+        0x01, 0x00,                         /* ticket_nonce<1> */
+        0x00, 0x04, 0xde, 0xad, 0xbe, 0xef  /* ticket<4> */
+    };
+    int len = (int)sizeof(body) + OPAQUE16_LEN + extsSz;
+
+    if (outSz < HANDSHAKE_HEADER_SZ + len)
+        return -1;
+
+    out[0] = session_ticket;
+    out[1] = (byte)(len >> 16);
+    out[2] = (byte)(len >> 8);
+    out[3] = (byte)len;
+    XMEMCPY(out + HANDSHAKE_HEADER_SZ, body, sizeof(body));
+    c16toa((word16)extsSz, out + HANDSHAKE_HEADER_SZ + sizeof(body));
+    if (extsSz > 0) {
+        XMEMCPY(out + HANDSHAKE_HEADER_SZ + sizeof(body) + OPAQUE16_LEN, exts,
+            (size_t)extsSz);
+    }
+
+    return HANDSHAKE_HEADER_SZ + len;
+}
+
+/* Encrypt a post-handshake message with the server's keys and hand it to the
+ * client.  Returns 0 on success. */
+static int test_tls13_send_post_hs(struct test_memio_ctx* test_ctx,
+    WOLFSSL* ssl_s, const byte* msg, int msgSz)
+{
+    EXPECT_DECLS;
+    byte rec[256];
+    int recSz;
+
+    recSz = BuildTls13Message(ssl_s, rec, (int)sizeof(rec), msg, msgSz,
+        handshake, 0, 0, 0);
+    ExpectIntGT(recSz, 0);
+    ExpectIntLE(recSz, (int)sizeof(rec));
+    ExpectIntEQ(test_memio_inject_message(test_ctx, 1, (const char*)rec, recSz),
+        0);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 9846 Section 4.7.1 defines NewSessionTicket.extensions as a list of
+ * Section 4.3 Extension TLVs, and Section 6 requires a decode_error alert for
+ * a message that cannot be parsed.  The framing has to be checked whether or
+ * not early data - the only extension wolfSSL acts on there - is compiled in.
+ */
+int test_tls13_new_session_ticket_ext_framing(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    /* Well formed extension of an unknown type - must be ignored. */
+    static const byte extOk[] = { 0x12, 0x34, 0x00, 0x02, 0xaa, 0xbb };
+    /* Two unknown types, the second with empty extension_data. */
+    static const byte extTwo[] = { 0x12, 0x34, 0x00, 0x02, 0xaa, 0xbb,
+                                   0x56, 0x78, 0x00, 0x00 };
+    /* Vector too short to hold an Extension header. */
+    static const byte extShort[] = { 0x00, 0x2a, 0x00 };
+    /* extension_data length runs past the end of the vector. */
+    static const byte extTrunc[] = { 0x12, 0x34, 0x00, 0x04, 0xaa, 0xbb };
+    static const char appData[] = "still talking";
+    struct {
+        const byte* exts;
+        int         extsSz;
+        int         expectErr;
+    } cases[] = {
+        { NULL,     0,                     0             },
+        { extOk,    (int)sizeof(extOk),    0             },
+        { extTwo,   (int)sizeof(extTwo),   0             },
+        { extShort, (int)sizeof(extShort), BUFFER_ERROR  },
+        { extTrunc, (int)sizeof(extTrunc), BUFFER_ERROR  },
+    };
+    size_t i;
+    char buf[64];
+
+    for (i = 0; i < XELEM_CNT(cases) && EXPECT_SUCCESS(); i++) {
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_ALERT_HISTORY h;
+        byte msg[64];
+        int msgSz;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* Consume the server's own NewSessionTicket. */
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+
+        msgSz = -1;
+        if (EXPECT_SUCCESS()) {
+            msgSz = test_tls13_make_nst(msg, (int)sizeof(msg), cases[i].exts,
+                cases[i].extsSz);
+        }
+        ExpectIntGT(msgSz, 0);
+        ExpectIntEQ(test_tls13_send_post_hs(&test_ctx, ssl_s, msg, msgSz),
+            TEST_SUCCESS);
+
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        if (cases[i].expectErr == 0) {
+            /* Accepted: no application data follows the ticket, and the
+             * client raised no alert. */
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+            ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_tx.code, -1);
+            ExpectIntEQ(h.last_tx.level, -1);
+            /* The connection carries on: data still flows both ways. */
+            ExpectIntEQ(wolfSSL_write(ssl_s, appData, (int)sizeof(appData) - 1),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
+            ExpectIntEQ(wolfSSL_write(ssl_c, appData, (int)sizeof(appData) - 1),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+                (int)sizeof(appData) - 1);
+            ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                cases[i].expectErr);
+            ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_tx.code, decode_error);
+            ExpectIntEQ(h.last_tx.level, alert_fatal);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 4.3.11: when the modes the client advertised leave no PSK
+ * the server may use, the PSK is ignored and a certificate handshake runs.
+ * Aborting instead would kill a connection that can still be completed. */
+int test_tls13_psk_mode_mismatch_falls_back(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    int round;
+
+    for (round = 0; round < 2 && EXPECT_SUCCESS(); round++) {
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL* ssl_c = NULL;
+        WOLFSSL* ssl_s = NULL;
+        WOLFSSL_SESSION* sess = NULL;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_ALERT_HISTORY h;
+        byte readBuf[16];
+        char buf[32];
+        static const char appData[] = "still talking";
+
+        /* Full handshake with no mode policy, to obtain a ticket. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* Drain the NewSessionTicket so the session carries a ticket. */
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+
+        /* Resume into a mode mismatch. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+        if (round == 0) {
+            /* Client offers psk_ke only, server requires psk_dhe_ke. */
+            ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_c), 0);
+            ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_s), 0);
+        }
+        else {
+            /* Client offers psk_dhe_ke only, server refuses (EC)DHE. */
+            ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_c), 0);
+            ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_s), 0);
+        }
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 20, NULL), 0);
+        /* The PSK was declined, not used, and no alert was raised. */
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+        ExpectIntEQ(ssl_s->options.resuming, 0);
+        ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &h), WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_tx.code, -1);
+        ExpectIntEQ(h.last_tx.level, -1);
+        if (round == 1) {
+            /* The certificate handshake clears noPskDheKe, so the configured
+             * policy has to be kept separately. */
+            ExpectIntEQ(ssl_s->options.noPskDheKePolicy, 1);
+        }
+        /* The connection carries on: data still flows both ways. */
+        ExpectIntEQ(wolfSSL_write(ssl_s, appData, (int)sizeof(appData) - 1),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
+        ExpectIntEQ(wolfSSL_write(ssl_c, appData, (int)sizeof(appData) - 1),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)),
+            (int)sizeof(appData) - 1);
+        ExpectIntEQ(XMEMCMP(buf, appData, sizeof(appData) - 1), 0);
+
+        wolfSSL_SESSION_free(sess);
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The ticket decision must use the configured (EC)DHE policy. A certificate
+ * handshake clears ssl->options.noPskDheKe before the ticket is sent, so
+ * reading that field would make the psk_dhe_ke case always look compatible. */
+int test_tls13_ticket_psk_modes_uses_policy(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* Client advertises psk_dhe_ke only, server is configured to refuse
+     * (EC)DHE with PSK, so no ticket it could issue is usable. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_no_dhe_psk(ssl_s), 0);
+    ExpectIntEQ(test_tls13_handshake_to_ticket(ssl_c, ssl_s), TEST_SUCCESS);
+    /* The handshake used a certificate, which clears the negotiated flag. */
+    ExpectIntEQ(ssl_s->options.noPskDheKe, 0);
+    ExpectIntEQ(ssl_s->options.noPskDheKePolicy, 1);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s),
+        WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* Control: same client, server with no policy, so a ticket is sent. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_only_dhe_psk(ssl_c), 0);
+    ExpectIntEQ(test_tls13_handshake_to_ticket(ssl_c, ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.c_len, 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

@@ -5706,6 +5706,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         ssl->options.noPskDheKe = ssl->ctx->noPskDheKe;
+        ssl->options.noPskDheKePolicy = ssl->ctx->noPskDheKe;
         #ifdef HAVE_SUPPORTED_CURVES
         ssl->options.onlyPskDheKe = ssl->ctx->onlyPskDheKe;
         #endif
@@ -5714,6 +5715,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
         ssl->options.ticketsSent = 0;
+        #if !defined(NO_WOLFSSL_SERVER) && \
+            defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
+        /* Recorded from the ClientHello, so it must not carry into the next
+         * connection on a reused object. */
+        ssl->options.pskKeModes = 0;
+        ssl->options.pskKeModesRecvd = 0;
+        #endif
         #endif
         ssl->options.rejectTicket = 0;
     #endif

@@ -1739,3 +1739,82 @@ int test_wolfSSL_GetSessionAtIndex(void)
 
 #endif /* SESSION_INDEX && HAVE_SESSION_TICKET && !NO_SESSION_CACHE &&
         * !NO_WOLFSSL_CLIENT && !NO_TLS */
+
+/* RFC 9846 Appendix C.4: client applications should not offer tickets across
+ * connections meant to be uncorrelated.  wolfSSL_SetServerID() is how an
+ * application keeps such connections apart, so a shorter ID must not match a
+ * cached entry that merely starts with the same bytes. */
+int test_wolfSSL_client_cache_id_prefix(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_CLIENT_CACHE) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
+    static const byte prefix[] = { 'w', 'o', 'l', 'f', 'S', 'S', 'L', ':' };
+    byte   id[sizeof(prefix) + 4];
+    byte   sessId[ID_LEN];
+    word32 i;
+    /* The cache row is picked from a hash of the ID, so the prefix and any
+     * one long ID rarely share a row.  Every long ID here starts with the
+     * prefix, and there are enough of them to cover all rows, so the prefix
+     * lookup lands on a row holding one of them. */
+    const word32 fill = 4096;
+
+    /* TLS 1.2 so the client has a complete session to cache as soon as the
+     * handshake is done, with or without session tickets. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->session->isSetup, 1);
+
+    XMEMCPY(id, prefix, sizeof(prefix));
+    XMEMSET(sessId, 0, sizeof(sessId));
+    for (i = 0; i < fill && EXPECT_SUCCESS(); i++) {
+        ClientSession* entry = NULL;
+
+        c32toa(i, id + sizeof(prefix));
+        c32toa(i, sessId);
+        ExpectIntEQ(wolfSSL_SetServerID(ssl_c, id, (int)sizeof(id), 1),
+            WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(ssl_c->session->sessionID, sessId, ID_LEN);
+            XMEMCPY(ssl_c->session->altSessionID, sessId, ID_LEN);
+            ssl_c->session->sessionIDSz = ID_LEN;
+        }
+        ExpectIntEQ(AddSessionToCache(ctx_c, ssl_c->session, sessId, ID_LEN,
+            NULL, WOLFSSL_CLIENT_END, 0, &entry), 0);
+        ExpectNotNull(entry);
+    }
+
+    /* The prefix is a distinct partition key: no cached session for it. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(ssl->session->isSetup, 0);
+    ExpectIntEQ(wolfSSL_SetServerID(ssl, prefix, (int)sizeof(prefix), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->session->isSetup, 0);
+    ExpectIntEQ(ssl->session->idLen, (int)sizeof(prefix));
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Control: the ID it was cached under still finds it. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_SetServerID(ssl, id, (int)sizeof(id), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->session->isSetup, 1);
+    wolfSSL_free(ssl);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

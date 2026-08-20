@@ -12983,8 +12983,17 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte modes;
 
     ret = TLSX_PskKeyModes_Parse_Modes(input, length, msgType, &modes);
-    if (ret == 0)
+    if (ret == 0) {
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
+        /* Keep the advertised modes for the NewSessionTicket decision. The
+         * extension object is dropped with the rest of the handshake state
+         * once the handshake is done. */
+        ssl->options.pskKeModes = modes;
+        ssl->options.pskKeModesRecvd = 1;
+#endif
         ret = TLSX_PskKeyModes_Use(ssl, modes);
+    }
 
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
