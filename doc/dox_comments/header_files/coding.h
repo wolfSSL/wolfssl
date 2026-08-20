@@ -275,3 +275,46 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen);
 */
 int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out,
                         word32* outLen);
+
+/*!
+    \ingroup Base_Encoding
+    \brief This function decodes the UTF-8 encoding of one code point. The
+    encodings that RFC 3629 Section 3 requires a decoder to reject are
+    rejected: overlong forms, the code points reserved for UTF-16 surrogates,
+    code points past the end of the Unicode range, the five and six octet
+    forms that RFC 3629 removed, and sequences whose continuation octets are
+    missing or malformed. Letting any of those decode to a character would
+    allow one octet sequence to impersonate another. The index is only
+    advanced when a code point is decoded, so a caller that wants to continue
+    past a bad sequence chooses for itself how far to skip.
+
+    \return 0 On successfully decoding one code point.
+    \return BAD_FUNC_ARG If in, inOutIdx or cp is NULL.
+    \return BUFFER_E If no octets remain, or if the sequence needs more
+    continuation octets than the buffer holds.
+    \return ASN_INPUT_E If the octets are not a valid encoding of a code
+    point.
+
+    \param in pointer to the buffer holding UTF-8 encoded text
+    \param inLen length of the input buffer in octets
+    \param inOutIdx pointer to the index of the first octet to decode;
+    updated to the index of the first octet after the code point decoded
+    \param cp pointer to store the decoded code point
+
+    _Example_
+    \code
+    const byte text[] = { 0xe2, 0x82, 0xac }; // U+20AC
+    word32 idx = 0;
+    word32 cp;
+
+    while (idx < sizeof(text)) {
+        if (wc_Utf8_DecodeChar(text, sizeof(text), &idx, &cp) != 0) {
+            // not valid UTF-8 at idx
+            break;
+        }
+        // cp holds the next code point
+    }
+    \endcode
+*/
+int wc_Utf8_DecodeChar(const byte* in, word32 inLen, word32* inOutIdx,
+                       word32* cp);
