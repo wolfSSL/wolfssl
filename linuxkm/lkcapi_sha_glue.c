@@ -2559,9 +2559,7 @@ static int wc__get_random_bytes(void *buf, size_t len)
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-#ifdef WC_VERBOSE_RNG
         pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc__get_random_bytes() returned %d.\n", ret);
-#endif
         return -EFAULT;
     }
     else {
@@ -2569,7 +2567,7 @@ static int wc__get_random_bytes(void *buf, size_t len)
                                            NULL, 0, buf, (unsigned int)len);
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         if (ret) {
-            pr_warn("BUG: wc__get_random_bytes falling through to native get_random_bytes with wc_linuxkm_drbg_default_instance_registered, ret=%d.\n", ret);
+            pr_err_ratelimited("ERROR: wc__get_random_bytes(): wc_linuxkm_drbg_generate() failed with code %d.\n", ret);
         }
         return ret;
     }
