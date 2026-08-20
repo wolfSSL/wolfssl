@@ -740,12 +740,17 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
 #ifndef _MSC_VER
+    sp_int_digit rem;
+
+    /* divq puts the remainder in rdx, so rdx must be an output and not just
+     * an input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "divq %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (d)
+        : "+a" (lo), "=d" (rem)
+        : "r" (d), "1" (hi)
         : "cc"
     );
+    (void)rem;
     return lo;
 #elif defined(_MSC_VER) && _MSC_VER >= 1920
     return _udiv128(hi, lo, d, NULL);
@@ -944,12 +949,17 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
+    sp_int_digit rem;
+
+    /* divl puts the remainder in edx, so edx must be an output and not just
+     * an input, or the compiler assumes it still holds hi afterwards. */
     __asm__ __volatile__ (
         "divl %2"
-        : "+a" (lo)
-        : "d" (hi), "r" (d)
+        : "+a" (lo), "=d" (rem)
+        : "r" (d), "1" (hi)
         : "cc"
     );
+    (void)rem;
     return lo;
 }
 #define SP_ASM_DIV_WORD
