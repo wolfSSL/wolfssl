@@ -88,10 +88,16 @@
  *     with certs/rsapss/server-rsapss.der but the mismatched-parameters
  *     (false) arm would need byte-level PSS parameter surgery not attempted
  *     here.
- *   - ParseCert() :23263-:23267 operands 2/3 (publicKey != NULL,
- *     pubKeySize > 0): once keyOID == RSAk and ParseCertRelative succeeds,
- *     GetCertKey always sets publicKey/pubKeySize together; only the
- *     all-true combination is reachable without editing library source.
+ *   - ParseCert() :23442 operands 2/3 (publicKey != NULL, pubKeySize > 0):
+ *     once keyOID == RSAk and ParseCertRelative succeeds, GetCertKey always
+ *     sets publicKey/pubKeySize together; only the all-true combination is
+ *     reachable without editing library source. Now FILED as an exclusion
+ *     (campaign EXCLUSIONS.md + db/exclusions.json), together with the same
+ *     arrival argument for ParseCertRelative()'s :24656 cond 1 and :24790
+ *     cond 0. The matching pubKeySize operands at :24656 cond 2 and :24790
+ *     cond 2 are deliberately NOT excluded: outside the RSA-family branch
+ *     nothing validates the key body, so a zero-length SubjectPublicKeyInfo
+ *     BIT STRING is arguably reachable there.
  *   - DecodeCertInternal() :22815/:22821 2nd operand (issuer/subject !=
  *     NULL): both are initialised to NULL and assigned unconditionally
  *     inside the single `if (ret == 0)` block at asn.c:22637 (:22683,
@@ -1979,6 +1985,78 @@ static void wb_decode_cert_internal(void)
         FreeDecodedCert(&cert);
     }
 
+    /* --- trailing-data guard [:22749] --------------------------------- *
+     * `(ret == 0) && (!stopAtPubKey) && (!stopAfterPubKey) &&
+     *  (!cert->allowTrailing) && (cert->srcIdx != cert->maxIdx)`
+     * The decision's TRUE outcome needs a buffer that is longer than the
+     * certificate inside it, which no corpus file and no API caller
+     * supplies -- every loader hands DecodeCert() a buffer sized to the
+     * certificate. Calling the static decoder directly with one extra byte
+     * produces it, and the four other rows (one per operand) are driven
+     * against that same buffer so each operand alone decides the outcome. */
+#ifndef WOLFSSL_NO_ASN_STRICT
+    {
+        DecodedCert cert;
+        static byte trail[4096];
+        int ret, crit;
+        word32 trailSz;
+
+        if (origSz + 1 <= sizeof(trail)) {
+            XMEMCPY(trail, orig, origSz);
+            trail[origSz] = 0x00;
+            trailSz = (word32)origSz + 1;
+
+            WB_NOTE("DecodeCertInternal(): one byte of trailing data"
+                    " [:22749 all five operands true]");
+            wc_InitDecodedCert(&cert, trail, trailSz, NULL);
+            ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 0);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                    ":22749 trailing data rejected");
+            FreeDecodedCert(&cert);
+
+            WB_NOTE("DecodeCertInternal(): same buffer, stopAtPubKey"
+                    " [:22749 second operand false]");
+            wc_InitDecodedCert(&cert, trail, trailSz, NULL);
+            ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 1, 0);
+            /* the stopAtPubKey path returns the SubjectPublicKeyInfo offset,
+             * not 0 (asn.c:22964) */
+            WB_CHECK(ret > 0, ":22749 stopAtPubKey ignores the trailer");
+            FreeDecodedCert(&cert);
+
+            WB_NOTE("DecodeCertInternal(): same buffer, stopAfterPubKey"
+                    " [:22749 third operand false]");
+            wc_InitDecodedCert(&cert, trail, trailSz, NULL);
+            ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 1);
+            WB_CHECK(ret == 0, ":22749 stopAfterPubKey ignores the trailer");
+            FreeDecodedCert(&cert);
+
+            WB_NOTE("DecodeCertInternal(): same buffer with allowTrailing set,"
+                    " the TRUSTED CERTIFICATE shape [:22749 fourth operand"
+                    " false]");
+            wc_InitDecodedCert(&cert, trail, trailSz, NULL);
+            cert.allowTrailing = 1;
+            ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 0);
+            WB_CHECK(ret == 0, ":22749 allowTrailing accepts the trailer");
+            FreeDecodedCert(&cert);
+
+            WB_NOTE("DecodeCertInternal(): buffer sized exactly to the"
+                    " certificate [:22749 fifth operand false]");
+            wc_InitDecodedCert(&cert, trail, (word32)origSz, NULL);
+            ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 0);
+            WB_CHECK(ret == 0, ":22749 no trailing data");
+            FreeDecodedCert(&cert);
+
+            WB_NOTE("DecodeCertInternal(): truncated certificate, so the"
+                    " guard is reached with ret already non-zero [:22749"
+                    " leading operand false]");
+            wc_InitDecodedCert(&cert, trail, (word32)(origSz / 2), NULL);
+            ret = DecodeCertInternal(&cert, NO_VERIFY, &crit, NULL, 0, 0);
+            WB_CHECK(ret != 0, ":22749 template walk failed first");
+            FreeDecodedCert(&cert);
+        }
+    }
+#endif /* !WOLFSSL_NO_ASN_STRICT */
+
     /* --- BEFORE/AFTER date propagation [:22608,:22609,:22620,:22621,
      *     :22812] ------------------------------------------------------- */
     {
@@ -2456,6 +2534,70 @@ static void wb_decode_cert_req_version(void)
     WB_NOTE("version==0: version-check line executed with 2nd operand false "
             "(function may still fail later on the placeholder key material)");
     (void)ret;
+
+    /* The hand-built request above is minimal enough that the template walk
+     * can stop before the version guard, which leaves the guard's `ret == 0
+     * && version <= MAX_X509_VERSION` row unproven. A real request settles
+     * it: certs/csr.signed.der parses cleanly, and the same bytes with the
+     * version INTEGER rewritten to 9 give the true row in this binary. */
+    {
+        static byte realCsr[4096];
+        static byte realCsrBad[4096];
+        size_t realSz = 0;
+        word32 verIdx = 0, i;
+
+        if (wb_load_file("./certs/csr.signed.der", realCsr, sizeof(realCsr),
+                    &realSz) == 0 && realSz > 16) {
+            /* version INTEGER is the first element of the
+             * CertificationRequestInfo SEQUENCE, i.e. inside the first
+             * dozen bytes. */
+            for (i = 0; i + 2 < 12; i++) {
+                if (realCsr[i] == 0x02 && realCsr[i + 1] == 0x01) {
+                    verIdx = i + 2;
+                    break;
+                }
+            }
+            WB_CHECK(verIdx != 0, "sanity: version INTEGER found in csr.signed.der");
+        }
+        if (verIdx != 0) {
+            WB_NOTE("DecodeCertReq(): real request, version within range"
+                    " [:23365 second operand false with ret == 0]");
+            XMEMSET(&cert, 0, sizeof(cert));
+            cert.source = realCsr;
+            cert.maxIdx = (word32)realSz;
+            ret = DecodeCertReq(&cert, &crit);
+            WB_CHECK(ret == 0, "csr.signed.der decodes");
+            FreeDecodedCert(&cert);
+
+            WB_NOTE("DecodeCertReq(): the same request with version 9"
+                    " [:23365 both operands true]");
+            XMEMCPY(realCsrBad, realCsr, realSz);
+            realCsrBad[verIdx] = 0x09;
+            XMEMSET(&cert, 0, sizeof(cert));
+            cert.source = realCsrBad;
+            cert.maxIdx = (word32)realSz;
+            ret = DecodeCertReq(&cert, &crit);
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
+                    "version 9 rejected");
+            FreeDecodedCert(&cert);
+
+            /* :23365's leading operand needs a request whose template walk
+             * fails outright, so the version guard is reached with ret
+             * already non-zero. Half the request is enough. */
+            WB_NOTE("DecodeCertReq(): truncated request, template walk fails"
+                    " [:23365 leading operand false]");
+            XMEMSET(&cert, 0, sizeof(cert));
+            cert.source = realCsr;
+            cert.maxIdx = (word32)(realSz / 2);
+            ret = DecodeCertReq(&cert, &crit);
+            WB_CHECK(ret != 0, "truncated request rejected");
+            FreeDecodedCert(&cert);
+        }
+        else {
+            WB_NOTE("certs/csr.signed.der unavailable; real-request version"
+                    " rows skipped");
+        }
+    }
 }
 #else
 static void wb_decode_cert_req_version(void) { WB_NOTE("WOLFSSL_CERT_REQ off; skipped"); }
@@ -2682,6 +2824,50 @@ static void wb_ext_error_propagation(void)
 #endif /* WOLFSSL_SUBJ_DIR_ATTR */
 }
 
+/* ------------------------------------------------------------------------- *
+ * SetDNSEntry(): the name-copy guard [:15067]
+ *   `if (str != NULL && strLen > 0) XMEMCPY(dnsEntry_name, str, strLen);`
+ *
+ * Every production caller derives (str, strLen) from one parsed GeneralName,
+ * so the two are always consistent: a non-NULL pointer with a positive
+ * length. The guard exists for the degenerate combinations, and only a direct
+ * call can produce them. All three rows live in this binary:
+ *   (F,-)  str == NULL, strLen == 0  -> a zero-length entry is still created
+ *   (T,T)  a real string             -> the copy runs
+ *   (T,F)  a real pointer, strLen 0  -> the copy is skipped
+ * ------------------------------------------------------------------------- */
+#ifndef WC_ASN_NO_HEAP
+static void wb_set_dns_entry(void)
+{
+    DNS_entry* list = NULL;
+    static const char name[] = "example.com";
+    int ret;
+
+    WB_NOTE("SetDNSEntry(): str==NULL with strLen==0 [:15067 first operand"
+            " false]");
+    ret = SetDNSEntry(NULL, NULL, NULL, NULL, 0, ASN_DNS_TYPE, &list);
+    WB_CHECK(ret == 0, ":15067 NULL/0 entry created");
+
+    WB_NOTE("SetDNSEntry(): real string, positive length [:15067 both"
+            " operands true]");
+    ret = SetDNSEntry(NULL, NULL, NULL, name, (int)(sizeof(name) - 1),
+            ASN_DNS_TYPE, &list);
+    WB_CHECK(ret == 0, ":15067 name copied");
+
+    WB_NOTE("SetDNSEntry(): real string pointer with strLen==0 [:15067"
+            " second operand false]");
+    ret = SetDNSEntry(NULL, NULL, NULL, name, 0, ASN_DNS_TYPE, &list);
+    WB_CHECK(ret == 0, ":15067 zero-length entry, copy skipped");
+
+    FreeAltNames(list, NULL);
+}
+#else
+static void wb_set_dns_entry(void)
+{
+    WB_NOTE("WC_ASN_NO_HEAP build; SetDNSEntry name-copy guard skipped");
+}
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -2717,6 +2903,7 @@ int main(void)
     wb_parse_cert_rsa_pubkey();
     wb_get_decoded_cert_accessors();
     wb_ext_error_propagation();
+    wb_set_dns_entry();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
