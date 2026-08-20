@@ -37,6 +37,20 @@ int test_BuildTlsHandshakeHash_bounds(void);
 int test_TLS_hmac_bounds(void);
 int test_TLSX_ALPN_GetSize_overflow(void);
 int test_TLSX_Cookie_bounds(void);
+int test_TLSX_CSR_write_getsize_bounds(void);
+int test_TLSX_CSR_SetResponseWithStatusCB_bounds(void);
+int test_ProcessChainOCSPRequest_bounds(void);
+int test_TLSX_PopulateExtensions_bounds(void);
+int test_TLSX_PopulateSupportedGroups_bounds(void);
+int test_TLSX_CSR_Parse_bounds(void);
+int test_TLSX_CSR2_Parse_bounds(void);
+int test_TLSX_ext_dispatch_ctx_extensions_bounds(void);
+int test_TLSX_WriteRequest_ems_bounds(void);
+int test_TLSX_WriteRequest_length_prefix_bounds(void);
+int test_TLSX_WriteResponse_bounds(void);
+int test_TLSX_ext_msgtype_dispatch_bounds(void);
+int test_TLSX_SecureRenegotiation_Write_bounds(void);
+int test_TLSX_SessionTicket_Parse_falsefalse_bounds(void);
 
 #define TEST_TLS_BOUNDS_DECLS                                                \
         TEST_DECL_GROUP("tls", test_TLSX_UseSNI_bounds),                     \
@@ -54,6 +68,21 @@ int test_TLSX_Cookie_bounds(void);
         TEST_DECL_GROUP("tls", test_BuildTlsHandshakeHash_bounds),           \
         TEST_DECL_GROUP("tls", test_TLS_hmac_bounds),                       \
         TEST_DECL_GROUP("tls", test_TLSX_ALPN_GetSize_overflow),            \
-        TEST_DECL_GROUP("tls", test_TLSX_Cookie_bounds)
+        TEST_DECL_GROUP("tls", test_TLSX_Cookie_bounds),                    \
+        TEST_DECL_GROUP("tls", test_TLSX_CSR_write_getsize_bounds),         \
+        TEST_DECL_GROUP("tls",                                              \
+                test_TLSX_CSR_SetResponseWithStatusCB_bounds),              \
+        TEST_DECL_GROUP("tls", test_ProcessChainOCSPRequest_bounds),        \
+        TEST_DECL_GROUP("tls", test_TLSX_PopulateExtensions_bounds),        \
+        TEST_DECL_GROUP("tls", test_TLSX_PopulateSupportedGroups_bounds),   \
+        TEST_DECL_GROUP("tls", test_TLSX_CSR_Parse_bounds),                 \
+        TEST_DECL_GROUP("tls", test_TLSX_CSR2_Parse_bounds),                \
+        TEST_DECL_GROUP("tls", test_TLSX_ext_dispatch_ctx_extensions_bounds),\
+        TEST_DECL_GROUP("tls", test_TLSX_WriteRequest_ems_bounds),          \
+        TEST_DECL_GROUP("tls", test_TLSX_WriteRequest_length_prefix_bounds),\
+        TEST_DECL_GROUP("tls", test_TLSX_WriteResponse_bounds),             \
+        TEST_DECL_GROUP("tls", test_TLSX_ext_msgtype_dispatch_bounds),      \
+        TEST_DECL_GROUP("tls", test_TLSX_SecureRenegotiation_Write_bounds),  \
+        TEST_DECL_GROUP("tls", test_TLSX_SessionTicket_Parse_falsefalse_bounds)
 
 #endif /* TESTS_API_TEST_TLS_BOUNDS_H */
