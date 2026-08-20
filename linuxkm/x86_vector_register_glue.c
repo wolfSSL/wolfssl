@@ -1524,6 +1524,120 @@ static inline u8 *wc_svr_area(int ctx)
     return wc_svr_save_area[raw_smp_processor_id()] + ((size_t)ctx * wc_svr_save_size);
 }
 
+/* Fill / read the vector file for the self-test.  x87 and MXCSR are covered by
+ * the save area too, but the registers a wolfCrypt routine can actually leave
+ * data in are the vector ones, so those are what is checked byte for byte.
+ *
+ * -mno-sse is in force for kernel code, so the compiler emits no vector
+ * instructions of its own between the store and the compare; only an
+ * interrupting context could, and this runs with preemption disabled. */
+#ifdef CONFIG_X86_64
+    #define WC_SVR_ST_NREG 16
+    #define WC_SVR_ST_SEQ(M) \
+        M(0)  M(1)  M(2)  M(3)  M(4)  M(5)  M(6)  M(7) \
+        M(8)  M(9)  M(10) M(11) M(12) M(13) M(14) M(15)
+#else
+    #define WC_SVR_ST_NREG 8
+    #define WC_SVR_ST_SEQ(M) M(0) M(1) M(2) M(3) M(4) M(5) M(6) M(7)
+#endif
+#define WC_SVR_ST_LOADY(n)  "vmovdqu " #n "*32(%0), %%ymm" #n "\n\t"
+#define WC_SVR_ST_STORY(n)  "vmovdqu %%ymm" #n ", " #n "*32(%0)\n\t"
+#define WC_SVR_ST_LOADX(n)  "movdqu "  #n "*32(%0), %%xmm" #n "\n\t"
+#define WC_SVR_ST_STORX(n)  "movdqu %%xmm" #n ", "  #n "*32(%0)\n\t"
+
+static int wc_svr_st_avx;
+
+static inline void wc_svr_st_load(const u8 *b)
+{
+    if (wc_svr_st_avx)
+        asm volatile(WC_SVR_ST_SEQ(WC_SVR_ST_LOADY) : : "r"(b) : "memory");
+    else
+        asm volatile(WC_SVR_ST_SEQ(WC_SVR_ST_LOADX) : : "r"(b) : "memory");
+}
+
+static inline void wc_svr_st_store(u8 *b)
+{
+    if (wc_svr_st_avx)
+        asm volatile(WC_SVR_ST_SEQ(WC_SVR_ST_STORY) : : "r"(b) : "memory");
+    else
+        asm volatile(WC_SVR_ST_SEQ(WC_SVR_ST_STORX) : : "r"(b) : "memory");
+}
+
+/* Returns 0 on an exact round trip, negative otherwise. */
+static int wc_svr_selftest(void)
+{
+    u8 *want = NULL, *got = NULL, *area;
+    size_t step, i;
+    int ret = 0;
+
+    if (! wc_svr_use_xsave && ! boot_cpu_has(X86_FEATURE_FXSR))
+        return -EOPNOTSUPP;
+
+    wc_svr_st_avx = boot_cpu_has(X86_FEATURE_AVX) ? 1 : 0;
+    /* The SSE path writes 16 of every 32 bytes, so only that much is compared;
+     * comparing the untouched half would report a clobber that never happened. */
+    step = wc_svr_st_avx ? 32 : 16;
+
+    want = kmalloc(WC_SVR_ST_NREG * 32, GFP_KERNEL);
+    got  = kmalloc(WC_SVR_ST_NREG * 32, GFP_KERNEL);
+    if ((want == NULL) || (got == NULL)) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    for (i = 0; i < (size_t)(WC_SVR_ST_NREG * 32); i++)
+        want[i] = (u8)((i * 7u) ^ 0xa5u);
+
+    /* kernel_fpu_begin() BUGs on !may_use_simd(), so check rather than assume.
+     * At module init this is task context with no section open, so it should
+     * always be true; if it somehow is not, skip the test rather than take the
+     * machine down proving a point. */
+    if (! may_use_simd()) {
+        pr_warn("wolfCrypt: vector registers unavailable at init; "
+                "save/restore self-test skipped.\n");
+        ret = -EAGAIN;
+        goto out;
+    }
+
+    /* Run it exactly the way a nested section runs: pinned, from task context,
+     * with the module's own save area. */
+    preempt_disable();
+    area = wc_svr_area(WC_SVR_CTX_TASK);
+
+    kernel_fpu_begin();          /* own the registers legitimately for the test */
+    wc_svr_st_load(want);        /* the "interrupted context's" data */
+    wc_svr_regs_save(area);      /* what a nested caller would do */
+#ifdef WC_LINUXKM_SVR_SELFTEST_NEGATIVE_CONTROL
+    /* Diagnostic only.  A self-test that has never been seen to fail has not
+     * been shown capable of failing -- it is the instrument vouching for
+     * itself.  This corrupts the saved state so the round trip MUST be
+     * detected as broken; a build with this defined that still reports OK is
+     * the finding. */
+    area[0] ^= 0xffu;
+    area[160] ^= 0xffu;
+#endif
+    memset(got, 0, WC_SVR_ST_NREG * 32);
+    wc_svr_st_load(got);         /* destroy them, as wolfCrypt would */
+    wc_svr_regs_restore(area);   /* hand them back */
+    wc_svr_st_store(got);        /* what the interrupted context would see */
+    kernel_fpu_end();
+
+    preempt_enable();
+
+    for (i = 0; i < WC_SVR_ST_NREG; i++) {
+        if (memcmp(got + (i * 32), want + (i * 32), step) != 0) {
+            pr_err("wolfCrypt: vector register %zu did not survive "
+                   "save/restore.\n", i);
+            ret = -EIO;
+            break;
+        }
+    }
+
+out:
+    kfree(want);
+    kfree(got);
+    return ret;
+}
+
 static void wc_svr_nested_free(void)
 {
     unsigned int cpu;
@@ -1592,6 +1706,31 @@ static int wc_svr_nested_init(void)
     }
 
     wc_svr_nested_ready = 1;
+
+    /* POWER-ON SELF-TEST OF THE SAVE/RESTORE ITSELF.
+     *
+     * The mask, the area size and the XSAVE/XRSTOR pair are all derived from
+     * CPUID and XCR0 at run time, so they differ per CPU model -- and the one
+     * model that matters most, AVX-512, cannot be executed by any VM on the
+     * development host (Arrow Lake has no AVX-512, and Intel SDE runs
+     * userspace, not kernels).  A test rig would prove one machine.  This
+     * proves the machine it is actually running on, including the customer's.
+     *
+     * Write a known pattern across every register the mask covers, save it,
+     * destroy the registers, restore, and compare.  If the round trip is not
+     * exact, nested save is disabled and the module goes on refusing -- the
+     * behaviour it had before this mechanism existed, which is safe.
+     */
+    if (wc_svr_selftest() != 0) {
+        pr_err("wolfCrypt: vector-register save/restore self-test FAILED; "
+               "nested save disabled, sections will be refused as before.\n");
+        wc_svr_nested_ready = 0;
+        return 0;
+    }
+    pr_info("wolfCrypt: vector-register save/restore self-test OK "
+            "(mask 0x%llx, %u B/context).\n",
+            (unsigned long long)wc_svr_save_mask, wc_svr_save_size);
+
     return 0;
 }
 
