@@ -9305,12 +9305,9 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
         if (ssl->suitesStack == NULL)
             return NULL;
 
-        /* higher priority of cipher suite will be on top of stack */
-#if defined(OPENSSL_ALL)
-        for (i = suites->suiteSz - 2; i >=0; i-=2)
-#else
-        for (i = 0; i < suites->suiteSz; i+=2)
-#endif
+        /* Walk lowest priority first: each suite is inserted at index 0, so
+         * the highest priority suite ends up on top of the stack. */
+        for (i = suites->suiteSz - 2; i >= 0; i -= 2)
         {
             struct WOLFSSL_CIPHER cipher;
 
