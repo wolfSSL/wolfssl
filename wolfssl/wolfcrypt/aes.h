@@ -189,6 +189,45 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     #include "cy_crypto_common.h"
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
+/* Backends that replace one or more AES mode entry points, either with a
+ * hardware arm in aes.c or with a port file. Those entry points do not carry
+ * the key-set guard, so the check is not applied on these builds. */
+#if defined(STM32_CRYPTO) || \
+    defined(HAVE_COLDFIRE_SEC) || \
+    defined(FREESCALE_LTC) || \
+    defined(FREESCALE_MMCAU) || \
+    (defined(MAX3266X_AES) && !defined(MAX3266X_CB)) || \
+    (defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)) || \
+    (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)) || \
+    defined(WOLFSSL_SILABS_SE_ACCEL) || \
+    defined(WOLFSSL_TI_CRYPT) || \
+    (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
+     !defined(WOLFSSL_QNX_CAAM)) || \
+    defined(WOLFSSL_KCAPI_AES) || \
+    defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC) || \
+    defined(WOLFSSL_NXP_HASHCRYPT_AES) || \
+    (defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)) || \
+    defined(WOLFSSL_XILINX_CRYPT) || \
+    defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #define WC_AES_KEY_SET_CHECK_UNSUPPORTED
+#endif
+
+/* Make the AES mode APIs return MISSING_KEY when called before a key is
+ * installed, instead of running with the all-zero key schedule left by
+ * wc_AesInit. Define WOLFSSL_AES_REQUIRE_KEY_SET to force the check on, or
+ * WOLFSSL_NO_AES_KEY_SET_CHECK to force it off. */
+#if !defined(WOLFSSL_AES_REQUIRE_KEY_SET) && \
+    !defined(WOLFSSL_NO_AES_KEY_SET_CHECK) && \
+    !defined(WC_AES_KEY_SET_CHECK_UNSUPPORTED)
+    #define WOLFSSL_AES_REQUIRE_KEY_SET
+#endif
+
+#ifdef WOLFSSL_AES_REQUIRE_KEY_SET
+    #define WC_AES_KEY_IS_SET(aes)  ((aes)->keyInstalled != 0)
+#else
+    #define WC_AES_KEY_IS_SET(aes)  (1)
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -482,6 +521,22 @@ struct Aes {
     cy_stc_crypto_aes_gcm_state_t aes_gcm_state;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
+
+    /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
+     * GcmSetKey), including when a crypto callback takes ownership of it.
+     * Checked by the mode APIs so they fail instead of running with the
+     * all-zero key schedule left by wc_AesInit. Distinct from the Cavium-only
+     * keySet field. Appended at the end of the struct so existing member
+     * offsets are unchanged. Always maintained, so the layout does not depend
+     * on WOLFSSL_AES_REQUIRE_KEY_SET.
+     *
+     * Deliberately NOT set by wc_AesInit_Id()/wc_AesInit_Label(): those name a
+     * key held by the device and leave the software key schedule empty. The
+     * guard sits after every offload dispatch, so such a context still reaches
+     * its crypto callback; it only fails if it falls through to a software
+     * path, which is exactly the case that would otherwise encrypt with an
+     * all-zero key. */
+    WC_BITFIELD keyInstalled:1;
 };
 
 #ifndef WC_AES_TYPE_DEFINED
