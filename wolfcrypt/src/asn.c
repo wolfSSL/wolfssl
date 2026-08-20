@@ -34188,8 +34188,11 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     }
 
     ALLOC_ASNGETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
+#ifdef WOLFSSL_SMALL_STACK
+    /* Only the small stack variant of ALLOC_ASNGETDATA can set ret. */
     if (ret != 0)
         return ret;
+#endif
 
     /* Clear dynamic data for ECC public key. */
     XMEMSET(dataASN, 0, sizeof(*dataASN) * eccPublicKeyASN_Length);
