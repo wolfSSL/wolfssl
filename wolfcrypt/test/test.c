@@ -44490,6 +44490,11 @@ static wc_test_ret_t ecc_test_allocator_ex(WC_RNG* rng)
     if (key == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit);
     }
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    if (key->devId != devId) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+    }
+#endif
 
 #ifndef WC_NO_RNG
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
