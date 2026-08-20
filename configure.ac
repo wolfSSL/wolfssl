@@ -6047,7 +6047,7 @@ fi
 
 # OLD TLS
 AC_ARG_ENABLE([oldtls],
-    [AS_HELP_STRING([--enable-oldtls],[Enable old TLS versions < 1.2 (default: disabled)])],
+    [AS_HELP_STRING([--enable-oldtls],[Enable old TLS versions < 1.2, which RFC 8996 and RFC 9846 forbid negotiating (default: disabled)])],
     [ ENABLED_OLD_TLS=$enableval ],
     [ ENABLED_OLD_TLS=no ]
     )

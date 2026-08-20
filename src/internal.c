@@ -104,7 +104,8 @@
  * WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE:
  *                  Disable peek returning WANT_READ for tickets       default: off
  * WOLFSSL_TLS13_IGNORE_AEAD_LIMITS:
- *                  Ignore AEAD message limits from RFC 8446           default: off
+ *                  Ignore AEAD message limits from RFC 9846 5.5, which
+ *                  makes observing them a MUST                        default: off
  * WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT:
  *                  Send more ACKs by default in DTLS 1.3              default: off
  *
@@ -23958,10 +23959,41 @@ static void LogAlert(int type)
 #endif /* DEBUG_WOLFSSL */
 }
 
+/* RFC 9846 Section 6.1 exempts "user_canceled" from tearing the connection
+ * down whatever AlertLevel the peer used, because the level byte carries no
+ * meaning in TLS 1.3.
+ *
+ * The exemption needs a connection that is demonstrably running TLS 1.3, and
+ * neither obvious flag is enough on its own. ssl->version holds the highest
+ * version this side offered until the peer's choice is known, and
+ * options.tls1_3 is set from the session by wolfSSL_set_session() before any
+ * ServerHello, so a downgrade-capable client resuming a TLS 1.3 session has
+ * both set while the peer may still pick TLS 1.2. Exempting on either would
+ * swallow a pre-1.3 peer's fatal alert and leave the caller waiting for a
+ * handshake that is never coming.
+ *
+ * Requiring the record to have been decrypted settles it: in TLS 1.3 every
+ * record after the ServerHello is encrypted, so a decrypted alert can only
+ * have arrived on a connection whose version is already agreed - which is the
+ * only situation RFC 9846 Section 6.1 is describing. keys.decryptedCur is a
+ * property of the record in hand, not a latch: GetRecordHeader() clears it for
+ * each new record and only a successful decrypt sets it, so an earlier
+ * encrypted record cannot lend its status to a later plaintext alert.
+ *
+ * ssl   The SSL/TLS object.
+ * code  Alert description received.
+ * returns 1 when the alert must be ignored rather than acted on.
+ */
+static int AlertIsExemptUserCanceled(const WOLFSSL* ssl, int code)
+{
+    return ssl->options.tls1_3 && ssl->keys.decryptedCur &&
+           (code == user_canceled);
+}
+
 /* process alert, return level */
 #ifndef NO_SESSION_CACHE
 /* RFC 5246 Section 7.2.2: a TLS 1.2 session whose connection is terminated by a
- * fatal alert MUST be invalidated so it cannot be resumed. (TLS 1.3 RFC 8446
+ * fatal alert MUST be invalidated so it cannot be resumed. (TLS 1.3 RFC 9846
  * Section 6.2 only requires closing the connection, but evicting here too is
  * sound defense-in-depth.) Evict the cached session (which also drops any
  * associated ticket). Acts on an established connection or an in-progress
@@ -23975,7 +24007,7 @@ static void InvalidateSessionOnFatalAlert(WOLFSSL* ssl)
         return;
     /* Don't evict on an unauthenticated record: a TLS 1.3 plaintext alert
      * received under encryption (current record not decrypted) is rejected (or
-     * ignored) by DoAlert, and the teardown alert routes back here. RFC 8446
+     * ignored) by DoAlert, and the teardown alert routes back here. RFC 9846
      * 6.2 doesn't require TLS 1.3 eviction; TLS 1.2 alerts are plaintext so are
      * unaffected. */
     if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
@@ -24039,10 +24071,16 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     {
         ssl->alert_history.last_rx.code = code;
         ssl->alert_history.last_rx.level = level;
-        if (level == alert_fatal) {
+        /* RFC 9846 Section 6.1: "user_canceled" only "generally" has
+         * AlertLevel=warning, and a receiver SHOULD keep reading until
+         * "close_notify" arrives. The level byte is meaningless in TLS 1.3,
+         * so do not let a peer that sends the alert at fatal level tear the
+         * connection down. */
+        if (level == alert_fatal &&
+                !AlertIsExemptUserCanceled(ssl, code)) {
             ssl->options.isClosed = 1;  /* Don't send close_notify */
         }
-        /* RFC 8446 Section 6.2: In TLS 1.3, all error alerts are implicitly
+        /* RFC 9846 Section 6.2: In TLS 1.3, all error alerts are implicitly
          * fatal regardless of the AlertLevel byte. */
         if (IsAtLeastTLSv1_3(ssl->version) &&
                 code != close_notify && code != user_canceled) {
@@ -24094,12 +24132,17 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
         }
 #ifndef NO_SESSION_CACHE
         /* Validated fatal alert: invalidate the session so it can't be resumed
-         * (RFC 5246 7.2.2; in TLS 1.3 all error alerts are fatal, RFC 8446
-         * 6.2). */
-        if (*type != close_notify &&
-                (level == alert_fatal ||
-                 (IsAtLeastTLSv1_3(ssl->version) && *type != user_canceled)))
+         * (RFC 5246 7.2.2; in TLS 1.3 all error alerts are fatal, RFC 9846
+         * 6.2). "close_notify" is not an error, and "user_canceled" is exempt
+         * in TLS 1.3 at any AlertLevel (RFC 9846 6.1). */
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            if (*type != close_notify &&
+                    !AlertIsExemptUserCanceled(ssl, *type))
+                InvalidateSessionOnFatalAlert(ssl);
+        }
+        else if (level == alert_fatal && *type != close_notify) {
             InvalidateSessionOnFatalAlert(ssl);
+        }
 #endif
     }
     return level;
@@ -24949,7 +24992,9 @@ static int DoProcessAlertRecord(WOLFSSL* ssl)
     WOLFSSL_MSG("got ALERT!");
     ret = DoAlert(ssl, ssl->buffers.inputBuffer.buffer,
                   &ssl->buffers.inputBuffer.idx, &type);
-    if (ret == alert_fatal)
+    /* RFC 9846 Section 6.1: keep reading past a TLS 1.3 "user_canceled" until
+     * "close_notify" arrives, whatever AlertLevel the peer used. */
+    if (ret == alert_fatal && !AlertIsExemptUserCanceled(ssl, type))
         return FATAL_ERROR;
     else if (ret < 0)
         return ret;
@@ -24965,7 +25010,7 @@ static int DoProcessAlertRecord(WOLFSSL* ssl)
     if (type == decrypt_error)
         return FATAL_ERROR;
 
-    /* RFC 8446 Section 6.2: In TLS 1.3, all error alerts MUST
+    /* RFC 9846 Section 6.2: In TLS 1.3, all error alerts MUST
      * be treated as fatal regardless of the AlertLevel byte.
      * Only close_notify (handled above) and user_canceled
      * are exempt. */
@@ -28594,7 +28639,7 @@ int IsSCR(WOLFSSL* ssl)
     !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
 /*
  * Enforce limits specified in
- * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
+ * https://www.rfc-editor.org/rfc/rfc9846#section-5.5
  */
 static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
 {
@@ -28660,6 +28705,44 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
         seq = w64From32(ssl->keys.sequence_number_hi,
                 ssl->keys.sequence_number_lo);
     }
+
+#ifdef WOLFSSL_EARLY_DATA
+    /* RFC 9846 Section 5.5: a KeyUpdate cannot be performed for early data, so
+     * a sender MUST NOT exceed the limits while sending it. There is no way to
+     * rekey here - the handshake has not finished, so a KeyUpdate would be out
+     * of order - and the write has to fail instead.
+     *
+     * Stop one record early. If the server accepts the early data the client
+     * still owes it an EndOfEarlyData, and Section 2.3 has that message go out
+     * under the same 0-RTT traffic keys. Spending the last record on
+     * application data would leave that message to overrun the limit.
+     *
+     * seq is the number the next record will use, so it also counts the
+     * records already sent under this key. Refusing once seq + 1 reaches the
+     * limit stops application data at seq == limit - 2 and keeps the final
+     * slot, seq == limit - 1, free for the EndOfEarlyData. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+            ssl->earlyData != no_early_data &&
+            ssl->earlyData != done_early_data) {
+        w64wrapper afterThis = seq;
+
+        w64Increment(&afterThis);
+        /* cppcheck-suppress uninitvar
+         * (false positive from cppcheck-2.13.0: every switch arm above either
+         * sets limit or returns) */
+        if (w64GTE(afterThis, limit)) {
+            WOLFSSL_MSG("AEAD limit reached while sending early data");
+            /* Deliberately not recorded here. The caller decides whether this
+             * is an error: a write whose last record took the final slot has
+             * completed and returns success, and recording it now would leave
+             * TOO_MUCH_EARLY_DATA in the OpenSSL-compatibility error queue for
+             * a call that reported no failure. SendData() records it on the
+             * path that does fail. */
+            return TOO_MUCH_EARLY_DATA;
+        }
+        return 0;
+    }
+#endif
 
     if (w64GTE(seq, limit)) { /* cppcheck-suppress uninitvar
                                * (false positive from cppcheck-2.13.0)
@@ -28926,6 +29009,27 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
         if (IsAtLeastTLSv1_3(ssl->version)) {
             ret = CheckTLS13AEADSendLimit(ssl);
+        #ifdef WOLFSSL_EARLY_DATA
+            /* This check runs at the top of every iteration, including the
+             * one after the last record, so it also fires when the write is
+             * already complete and its final record happened to reach the
+             * limit. Nothing is left to send, so report the success: without
+             * this the caller would see WOLFSSL_FATAL_ERROR for a write that
+             * fully landed.
+             *
+             * A write stopped part way through is a failure, not a short
+             * return. Short returns here are gated on partialWrite, and
+             * wolfSSL_get_error(ssl, ret) reports nothing for a positive ret,
+             * so a short count would be indistinguishable from a complete one
+             * to a caller following the documented contract. */
+            if (ret == WC_NO_ERR_TRACE(TOO_MUCH_EARLY_DATA)) {
+                if (sent == (word32)sz) {
+                    break;
+                }
+                /* Failing for real, so now it is worth recording. */
+                WOLFSSL_ERROR_VERBOSE(ret);
+            }
+        #endif
             if (ret != 0) {
                 ssl->error = ret;
                 return WOLFSSL_FATAL_ERROR;
@@ -38336,7 +38440,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int TranslateErrorToAlert(int err)
     {
         switch (err) {
+            /* RFC 9846 Section 4.3 requires a "decode_error" alert when an
+             * extension has data left over after its structure is parsed, and
+             * Section 6.2 defines the alert for any field out of range or
+             * message of incorrect length. The extension parsers report those
+             * as either BUFFER_ERROR or the wolfCrypt BUFFER_E; both must map
+             * here, or the handshake aborts silently with no alert sent. */
             case WC_NO_ERR_TRACE(BUFFER_ERROR):
+            case WC_NO_ERR_TRACE(BUFFER_E):
                 return decode_error;
             case WC_NO_ERR_TRACE(EXT_NOT_ALLOWED):
             case WC_NO_ERR_TRACE(PEER_KEY_ERROR):

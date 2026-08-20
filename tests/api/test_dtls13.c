@@ -2422,3 +2422,67 @@ int test_dtls13_plaintext_ack_after_handshake(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* DtlsResetState() runs whenever a DTLS server abandons a ClientHello on the
+ * stateless path - which includes the ordinary cookie exchange, since the
+ * object goes back to awaiting the verified ClientHello after sending the
+ * HelloRetryRequest.
+ *
+ * It must not leave an alert behind in the history. DoClientHello() can send a
+ * fatal alert there and then swallow the error (DtlsIgnoreError) so the
+ * listener stays up; a stale alert_fatal makes the "already sent a more
+ * specific fatal alert" guards suppress every later alert from that object, so
+ * one bad ClientHello would mute alerts for every peer that follows. The reset
+ * value has to be the -1 "no alert" sentinel InitSSL() uses, not zero, which
+ * would read back as a close_notify that was never sent.
+ *
+ * The alert is planted directly rather than provoked: the error paths that
+ * reach it need a malformed ClientHello that survives record and extension
+ * parsing far enough to fail in the cookie check, and what this guards is the
+ * reset itself. */
+int test_dtls13_reset_clears_alert_history(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* Client sends ClientHello 1. */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    if (EXPECT_SUCCESS() && ssl_s != NULL) {
+        /* Stand in for an alert sent while rejecting an earlier ClientHello. */
+        ssl_s->alert_history.last_tx.code  = decode_error;
+        ssl_s->alert_history.last_tx.level = alert_fatal;
+    }
+
+    /* Server answers statelessly and resets to await the verified
+     * ClientHello, taking DtlsResetState() with it. */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    if (EXPECT_SUCCESS() && ssl_s != NULL) {
+        /* Back to "nothing sent", so the guards do not mute the next alert,
+         * and wolfSSL_get_alert_history() does not report a phantom
+         * close_notify (code 0) or alert_none (level 0). */
+        ExpectIntEQ(ssl_s->alert_history.last_tx.level, -1);
+        ExpectIntEQ(ssl_s->alert_history.last_tx.code, -1);
+    }
+
+    /* The exchange still completes normally afterwards. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

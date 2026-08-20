@@ -205,7 +205,21 @@ static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
             {
                 /* keyUpdateRespond is cleared in SendTls13KeyUpdate. */
                 if (ssl->keys.keyUpdateRespond) {
-                    ret = Tls13UpdateKeys(ssl);
+                    /* RFC 9846 Section 4.7.3: a sender that would exceed the
+                     * key update limit "MUST NOT send its own KeyUpdate ...
+                     * and SHOULD instead ignore the 'update_requested' flag".
+                     * The read side delegated this response without seeing the
+                     * cap - it never sends KeyUpdates, so its count is not the
+                     * one that matters - so the check belongs here, on the
+                     * side that actually sends and owns the counter. */
+                    if (Tls13KeyUpdateLimitReached(ssl)) {
+                        WOLFSSL_MSG("Key update limit reached; ignoring "
+                                    "delegated update_requested");
+                        ssl->keys.keyUpdateRespond = 0;
+                    }
+                    else {
+                        ret = Tls13UpdateKeys(ssl);
+                    }
                 }
             }
 

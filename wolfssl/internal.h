@@ -7426,6 +7426,7 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 
 #ifdef WOLFSSL_TLS13
     WOLFSSL_LOCAL int SendTls13KeyUpdate(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS
