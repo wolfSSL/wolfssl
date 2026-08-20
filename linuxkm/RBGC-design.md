@@ -99,13 +99,102 @@ flip:     live -> [ B ]        [ A ] <- becomes the spare, untouched
 
 Flipping the switch is a single instruction.  An NMI landing at any moment
 reads either A or B, and both are complete, working generators.  There is no
-in-between state to catch.  The generator just displaced is left alone until
-the next cycle, which is many milliseconds away, so any NMI still finishing
-with it is long gone.
+in-between state to catch.
+
+That leaves one hole.  An NMI that started reading A can be stalled
+mid-handler - on a virtual machine the whole CPU can be taken away for hundreds
+of milliseconds - and if the re-seed job came round twice while it was stalled,
+the second pass would be rewriting A underneath it.
+
+Two things close it.  First, the re-seed job for a CPU's pair runs on that CPU,
+so a stalled NMI stalls the job along with it: the job cannot come round even
+once while the NMI is mid-read, let alone twice.  CPU hot-plug is the only
+thing that can put that job on a different CPU, and it is turned away when it
+lands on one.
+
+Second, as a backstop, each generator carries a version number, bumped before
+it is re-seeded.  An NMI notes the version, generates the caller's bytes, and
+checks the version again before telling the caller they are good:
+
+```
+  NMI:   note version of A  ->  generate the bytes  ->  version still same?
+                                                          |            |
+                                                         yes           no
+                                                          |            |
+                                                    tell the      read the other
+                                                    caller they   one over the
+                                                    are good      top, up to 3x
+```
+
+Nothing is generated before it is asked for and nothing is kept afterwards.
+The bytes are written where the caller asked for them, and the caller is
+stopped inside the call until it returns; a return of anything but success
+means the kernel refills the whole buffer itself, so an interrupted read is
+simply overwritten rather than needing to be held anywhere.
+
+A changed version is not a reason to give up.  It means that generator was
+re-seeded mid-read, and the *other* one is live now and fully working - so the
+NMI simply reads that one instead.  Only if three reads in a row are each
+interrupted does it give up.
+
+That matters more than it looks.  Giving up does not mean "no bytes"; it means
+the kernel answers from its own generator, which is outside the module.  Those
+bytes are real randomness, but they are not the validated module's output, so
+every refusal is a hole in the claim that the module serves this call.  A
+re-seed lands about 7.6 times a second per CPU and a read takes microseconds,
+so three interrupted reads in a row is not something the measured rates can
+produce.
+
+## Big requests are cut into pieces
+
+While a leaf is producing bytes, interrupts are turned off on that CPU.  That
+is what makes the whole scheme safe, but it means the CPU cannot respond to
+anything else for as long as it takes.
+
+The catch is that the caller chooses the size.  `ip_rt_init()` asks for 65536
+bytes in a single call.  A 256-byte piece takes 4.1 microseconds; 65536 bytes
+is 256 such pieces, so producing that much in one go would keep interrupts off
+for about 1.05 milliseconds - far too long, and on a real-time kernel it is
+simply not allowed.
+
+So a request is served 256 bytes at a time, letting interrupts back in between
+pieces:
+
+```
+  one 64 KB request
+
+  before:  [============== interrupts off ==============]   ~1.05 ms
+                                                                 nothing else
+                                                                 can run
+
+  after:   [==] [==] [==] [==] [==] ... [==]                     each piece is
+             ^    ^    ^    ^                                     the same small
+             interrupts are back on here                          cost, however
+                                                                  big the ask
+```
+
+The time interrupts are off is now set by the piece size, not by the request
+size.  A bigger request takes more pieces, not longer pieces.
+
+Splitting is safe because each piece is a complete, independent request to the
+generator.  If something else on that CPU asks for random bytes between two
+pieces, it simply gets served and moves the generator on; the next piece
+carries on from wherever it now is.  Every byte handed back came from the
+validated module either way.
 
 ## What this buys
 
-* Every caller is served, in every context.  Nothing waits, nothing is refused.
+* Every caller is served, in every context.  Nothing waits, and nothing is
+  handed back to the kernel's own generator: the one path that could refuse now
+  re-reads the other instance instead, three times before giving up, and with
+  the on-CPU re-seed rule in place there is no sequence of events left that
+  makes even the first re-read necessary.
+* Large requests are served in 256-byte pieces, so the time spent with
+  interrupts turned off does not grow with the size of the request.  Measured
+  over 62,504 requests of 64 KB each, the time interrupts are off is the same
+  as for a small request: 4.1 microseconds at the median, 8.2 at the 99th
+  percentile.  Served in one go the same request would have blocked interrupts
+  for about 1.05 milliseconds.
 * Only the root touches the entropy source.  Nothing is generated in advance
   and stored for later use - each seed is produced at the moment it is needed
   and destroyed immediately after.

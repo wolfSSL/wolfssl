@@ -51,8 +51,8 @@ enum wc_grb_stat_idx {
     WC_GRB_ST_CALLS         = 0,   /* + context, 4 slots each */
     WC_GRB_ST_SERVED        = 4,
     WC_GRB_ST_FAILED        = 8,
-    /* Retained at a stable index and always zero: this design has no path
-     * that turns a caller away. */
+    /* Only the NMI generation check declines, and only if a leaf were
+     * reseeded underneath a read.  Zero on every measured run. */
     WC_GRB_ST_DECLINED      = 12,
     WC_GRB_ST_RESEEDS       = 16,
     WC_GRB_ST_RESEED_FAILED = 17,
@@ -66,8 +66,22 @@ enum wc_grb_stat_idx {
     WC_GRB_ST_ROOT_RESEEDS  = 23,
     WC_GRB_ST_ROOT_FAILED   = 24,
     WC_GRB_ST_CTX_RESEEDS   = 25,  /* + context, 4 slots */
-    WC_GRB_STAT_N           = 29
+    /* Interrupts-off duration per chunk, + context.  -1 when the module was
+     * not built with WC_GRB_MEASURE, which is the shipping default: the
+     * measurement costs two clock reads per chunk. */
+    WC_GRB_ST_IRQ_MAXNS     = 29,
+    WC_GRB_ST_CHUNKS        = 33,
+    /* Maintenance reseeds skipped because hotplug moved the work off the CPU
+     * whose leaf it targets.  Not a decline: no caller was turned away. */
+    WC_GRB_ST_MAINT_DEFERRED = 37,
+    WC_GRB_STAT_N           = 38
 };
+
+/* Interrupts-off histogram for one context.  Bucket k is [2^(k-1), 2^k) units
+ * of 1024 ns; bucket 0 is under 1024 ns.  Returns how many it wrote, 0 when
+ * the module was not built with WC_GRB_MEASURE. */
+#define WC_GRB_IRQ_BUCKETS 16
+WOLFSSL_LOCAL int wc_grb_irq_hist(int ctx, long long *out, int n);
 
 /* Bring the tree up and tear it down.  These do not install the kernel hook:
  * the container must have no unresolved symbols, so an in-boundary file cannot

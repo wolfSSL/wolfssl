@@ -229,6 +229,12 @@
          * raw_smp_processor_id() reads a kernel symbol the container may not
          * reference, so it goes through the redirect table. */
         WOLFSSL_API int wc_linuxkm_cpu_id(void);
+
+        /* Monotonic nanoseconds for the interrupts-off measurement in
+         * linuxkm_get_entropy.c.  ktime_get_mono_fast_ns() is the NMI-safe
+         * reader (seqcount latch, no lock), so it is legal with interrupts
+         * off and in NMI. */
+        WOLFSSL_API unsigned long long wc_linuxkm_mono_ns(void);
     #endif
 
     #ifndef WC_SIG_IGNORE_BEGIN
@@ -1499,6 +1505,7 @@
             typeof(wc_linuxkm_irq_save) *wc_linuxkm_irq_save;
             typeof(wc_linuxkm_irq_restore) *wc_linuxkm_irq_restore;
             typeof(wc_linuxkm_cpu_id) *wc_linuxkm_cpu_id;
+            typeof(wc_linuxkm_mono_ns) *wc_linuxkm_mono_ns;
         #endif
 
         #ifdef CONFIG_KASAN
@@ -1837,6 +1844,7 @@
         #define wc_linuxkm_irq_save WC_PIE_INDIRECT_SYM(wc_linuxkm_irq_save)
         #define wc_linuxkm_irq_restore WC_PIE_INDIRECT_SYM(wc_linuxkm_irq_restore)
         #define wc_linuxkm_cpu_id WC_PIE_INDIRECT_SYM(wc_linuxkm_cpu_id)
+        #define wc_linuxkm_mono_ns WC_PIE_INDIRECT_SYM(wc_linuxkm_mono_ns)
     #endif
 
     #ifdef CONFIG_KASAN

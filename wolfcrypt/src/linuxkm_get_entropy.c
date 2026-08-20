@@ -48,11 +48,15 @@
  * NMI is not masked by that, so an NMI leaf is two instantiations: the reseed
  * writes the spare and then publishes it with one atomic index store.  An NMI
  * reads either the old or the new instance, both fully instantiated, so a torn
- * state is not representable.  The instance it displaces is not written again
- * until the next maintenance cycle, which is orders of magnitude longer than a
- * generate.
+ * state is not representable.  That reseed also runs on the leaf's own CPU, so
+ * a stalled NMI stalls it too and it cannot come round twice underneath a read.
+ * CPU hotplug is the one thing that can move it off that CPU; a per-instance
+ * generation counter backstops that case and is the only path that declines.
  *
- * Nothing here waits, and a caller is never turned away.
+ * A request is served in WC_GRB_CHUNK_SZ pieces, so the interrupts-off window
+ * is set by the chunk size rather than by the size the caller asked for.
+ *
+ * Nothing here waits.
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -73,7 +77,7 @@
 #endif
 
 /* No raw <linux/...> includes: linuxkm_wc_port.h already pulls <linux/random.h>
- * inside a _Pragma guard that suppresses warnings wolfSSL builds with -Werror. */
+ * inside a _Pragma guard suppressing warnings wolfSSL builds with -Werror. */
 
 /* Cap on the leaf reseed threshold, so a build whose WC_RESEED_INTERVAL is the
  * SP 800-90A maximum still refreshes at a sane rate.  Runtime and not #if: the
@@ -82,6 +86,27 @@
 
 /* Root reseed period, in maintenance ticks. */
 #define WC_GRB_ROOT_PERIOD 1200UL
+
+/* Bytes generated per interrupts-off section.  The request length comes from
+ * the caller and is not bounded: ip_rt_init() asks for 65536 in one call, which
+ * as a single generate would hold interrupts off for roughly 2048 SHA-512
+ * compressions.  The kernel's own CRNG takes its lock only to derive a key and
+ * runs the bulk output unlocked for the same reason.  Large requests are
+ * therefore served in chunks, releasing interrupts between them.
+ *
+ * Splitting is safe: each chunk is an independent generate, so a caller that
+ * slips in between chunks merely advances the leaf and the next chunk
+ * continues from the new state.  Output is validated DRBG output either way. */
+#define WC_GRB_CHUNK_SZ 256
+
+/* Reads to attempt before an NMI is turned away.  Each retry costs one more
+ * chunk generate; a reseed lands about 7.6 times a second per CPU, so two in
+ * succession inside one read is not reachable at any measured rate. */
+#define WC_GRB_NMI_TRIES 3
+
+/* Internal to the read loop, never returned: distinguishes "reseeded
+ * underneath the read, try again" from a generator error. */
+#define WC_GRB_RETRY 1
 
 /* Guard against an absurd allocation from a bogus CPU count. */
 #define WC_GRB_MAX_CPU 512
@@ -132,6 +157,12 @@ struct wc_grb_slot {
 struct wc_grb_nmi_slot {
     WC_RNG            rng[2];
     atomic_t          live;
+    /* Bumped before an instance is reseeded.  An NMI reads it either side of
+     * its generate and discards the result if it changed, which turns the
+     * reuse interval from a timing assumption into a checked one: a vCPU
+     * descheduled inside an NMI handler can outlive two flips, and 926 ms of
+     * steal has been measured on this hardware. */
+    atomic_t          gen[2];
     atomic_t          pending;
     struct wc_grb_ctr since;
     unsigned long     at;
@@ -154,6 +185,12 @@ static struct wc_grb_ctr wc_grb_reseed_failed;
  * glue and is also consulted on the service path, so it must be one read and
  * not a scan of 2*ncpu atomics. */
 static atomic_t wc_grb_any_pending;
+
+
+/* Maintenance reseeds skipped because CPU hotplug moved the work off the CPU
+ * whose leaf it was going to write.  Not a decline: no caller was turned
+ * away, and the leaf is picked up on the next tick. */
+static struct wc_grb_ctr wc_grb_maint_deferred;
 
 static struct wc_grb_ctr wc_grb_root_reseeds;
 static struct wc_grb_ctr wc_grb_root_reseed_failed;
@@ -208,7 +245,48 @@ static void wc_grb_ctr_zero(struct wc_grb_ctr *c)
     atomic_set(&c->hi, 0);
 }
 
+#ifdef WC_GRB_MEASURE
+/* Interrupts-off duration per chunk, so the bound WC_GRB_CHUNK_SZ is supposed
+ * to give can be checked rather than asserted.  Two clock reads per chunk, so
+ * it is a harness build only; the shipped path reads no clock.
+ *
+ * Bucket k is [2^(k-1), 2^k) units of 1024 ns; bucket 0 is under 1024 ns.
+ * ns >> 10 rather than ns / 1000 because a 64-bit division calls __udivdi3 on
+ * i386 and the container must resolve every symbol. */
+static atomic_t          wc_grb_irq_max_ns[WC_GRB_CTX_N];
+static struct wc_grb_ctr wc_grb_irq_buckets[WC_GRB_CTX_N][WC_GRB_IRQ_BUCKETS];
+static struct wc_grb_ctr wc_grb_chunks[WC_GRB_CTX_N];
+
+static void wc_grb_note_irqoff(int ctx, unsigned long long ns)
+{
+    unsigned long long u = ns >> 10;
+    int b = 0;
+
+    while ((u != 0ULL) && (b < (WC_GRB_IRQ_BUCKETS - 1))) {
+        u >>= 1;
+        b++;
+    }
+
+    wc_grb_ctr_inc(&wc_grb_chunks[ctx]);
+    wc_grb_ctr_inc(&wc_grb_irq_buckets[ctx][b]);
+    if (ns > 0x7fffffffULL) {
+        ns = 0x7fffffffULL;
+    }
+    if ((int) ns > atomic_read(&wc_grb_irq_max_ns[ctx])) {
+        atomic_set(&wc_grb_irq_max_ns[ctx], (int) ns);
+    }
+}
+#endif /* WC_GRB_MEASURE */
+
 static int wc_grb_reseed_due(void);
+
+/* in_irq() was removed in 6.19 and in_hardirq() only appeared in 5.11, so
+ * neither spelling covers the supported range on its own. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
+    #define WC_GRB_IN_HARDIRQ() in_hardirq()
+#else
+    #define WC_GRB_IN_HARDIRQ() in_irq()
+#endif
 
 static int wc_grb_ctx(void)
 {
@@ -216,7 +294,7 @@ static int wc_grb_ctx(void)
         return WC_GRB_NMI;
     }
 
-    if (in_irq()) {
+    if (WC_GRB_IN_HARDIRQ()) {
         return WC_GRB_HARDIRQ;
     }
 
@@ -380,8 +458,9 @@ static int wc_grb_reseed_nmi(int cpu)
  * linuxkm/module_hooks.c registers it. */
 int wc_grb_service(void *buf, size_t len)
 {
-    int ctx = wc_grb_ctx();
-    int ret;
+    int    ctx = wc_grb_ctx();
+    int    ret = 0;
+    size_t done = 0;
 
     wc_grb_ctr_inc(&wc_grb_stat[ctx].calls);
     if (!wc_grb_boot_done) {
@@ -398,37 +477,98 @@ int wc_grb_service(void *buf, size_t len)
         return -1;
     }
 
-    {
+    while (done < len) {
+        size_t        want = len - done;
         unsigned long flags;
         int           cpu;
 
-        /* Interrupts off for the whole call.  This is what makes same-CPU
-         * nesting impossible, and why nothing below may allocate or sleep. */
+        if (want > WC_GRB_CHUNK_SZ) {
+            want = WC_GRB_CHUNK_SZ;
+        }
+
+        /* Interrupts off for one chunk.  This is what makes same-CPU nesting
+         * impossible, and why nothing below may allocate or sleep. */
+#ifdef WC_GRB_MEASURE
+        {
+            unsigned long long t0;
+#endif
         flags = wc_linuxkm_irq_save();
+#ifdef WC_GRB_MEASURE
+        t0 = wc_linuxkm_mono_ns();
+#endif
         cpu = wc_grb_this_cpu();
 
         if (ctx == WC_GRB_NMI) {
             struct wc_grb_nmi_slot *sl = &wc_grb_nmi[cpu];
-            int                     live = atomic_read(&sl->live);
+            int                     live, g, tries;
 
-            ret = wc_RNG_GenerateBlock(&sl->rng[live], (byte *) buf,
-                                       (word32) len);
-            if ((unsigned long) wc_grb_ctr_inc_return(&sl->since) >= sl->at) {
-                atomic_set(&sl->pending, 1);
-                atomic_set(&wc_grb_any_pending, 1);
+            /* Straight into the caller's buffer.  Nothing is generated ahead
+             * of demand and nothing is retained: these bytes belong to the
+             * request being served, and the caller is blocked inside this
+             * call until it returns.
+             *
+             * A changed generation means this instance was reseeded mid-read.
+             * The other one is live now and fully instantiated, so read that
+             * one, overwriting what the interrupted read left.  Only a return
+             * of 0 tells the caller the bytes are good; on any other return
+             * the kernel refills the whole buffer itself. */
+            for (tries = 0; tries < WC_GRB_NMI_TRIES; tries++) {
+                live = atomic_read(&sl->live);
+                g = atomic_read(&sl->gen[live]);
+                ret = wc_RNG_GenerateBlock(&sl->rng[live],
+                                           (byte *) buf + done,
+                                           (word32) want);
+                if (ret != 0) {
+                    break;
+                }
+
+                if (atomic_read(&sl->gen[live]) == g) {
+                    break;
+                }
+
+                ret = WC_GRB_RETRY;
+            }
+
+            if (ret == WC_GRB_RETRY) {
+                wc_linuxkm_irq_restore(flags);
+                wc_grb_ctr_inc(&wc_grb_stat[ctx].declined);
+
+                return -1;
+            }
+
+            if (ret == 0) {
+                if ((unsigned long) wc_grb_ctr_inc_return(&sl->since) >=
+                    sl->at) {
+                    atomic_set(&sl->pending, 1);
+                    atomic_set(&wc_grb_any_pending, 1);
+                }
             }
         }
         else {
             struct wc_grb_slot *sl = &wc_grb_cpu[cpu];
 
-            ret = wc_RNG_GenerateBlock(&sl->rng, (byte *) buf, (word32) len);
-            if ((unsigned long) wc_grb_ctr_inc_return(&sl->since) >= sl->at) {
+            ret = wc_RNG_GenerateBlock(&sl->rng, (byte *) buf + done,
+                                       (word32) want);
+            if ((ret == 0) &&
+                ((unsigned long) wc_grb_ctr_inc_return(&sl->since) >= sl->at)) {
                 atomic_set(&sl->pending, 1);
                 atomic_set(&wc_grb_any_pending, 1);
             }
         }
 
+#ifdef WC_GRB_MEASURE
+        wc_grb_note_irqoff(ctx, wc_linuxkm_mono_ns() - t0);
+#endif
         wc_linuxkm_irq_restore(flags);
+#ifdef WC_GRB_MEASURE
+        }
+#endif
+
+        if (ret != 0) {
+            break;
+        }
+
+        done += want;
     }
 
     if (ret == 0) {
@@ -458,9 +598,6 @@ int wc_grb_service(void *buf, size_t len)
     return -1;
 }
 
-/* No EXPORT_SYMBOL_GPL in this file: it emits __UNIQUE_ID___addressable_*
- * objects into .discard.addressable, which containerization does not relocate.
- * Kbuild generates the export list from the WOLFSSL_API tags instead. */
 int wc_grb_service_active(void)
 {
     return wc_grb_registered;
@@ -494,7 +631,8 @@ int wc_grb_root_tick(void)
         wc_grb_root_ticks = 0;
         if ((span != 0) &&
             (wc_RNG_GenerateBlock(&wc_grb_root, b, (word32) sizeof(b)) == 0)) {
-            j = (((unsigned long) b[0] << 8) | (unsigned long) b[1]) % (span + 1);
+            j = (((unsigned long) b[0] << 8) | (unsigned long) b[1]) %
+                (span + 1);
         }
 
         wc_grb_root_at = wc_grb_root_period - (span / 2) + j;
@@ -564,9 +702,17 @@ int wc_grb_stat_snapshot(long long *out, int n)
         v[WC_GRB_ST_CALLS + i]       = wc_grb_ctr_read(&wc_grb_stat[i].calls);
         v[WC_GRB_ST_SERVED + i]      = wc_grb_ctr_read(&wc_grb_stat[i].served);
         v[WC_GRB_ST_FAILED + i]      = wc_grb_ctr_read(&wc_grb_stat[i].failed);
-        v[WC_GRB_ST_DECLINED + i]    = wc_grb_ctr_read(&wc_grb_stat[i].declined);
+        v[WC_GRB_ST_DECLINED + i] = wc_grb_ctr_read(&wc_grb_stat[i].declined);
         v[WC_GRB_ST_CTX_RESEEDS + i] = wc_grb_ctr_read(&wc_grb_stat[i].reseeds);
+#ifdef WC_GRB_MEASURE
+        v[WC_GRB_ST_IRQ_MAXNS + i] = atomic_read(&wc_grb_irq_max_ns[i]);
+        v[WC_GRB_ST_CHUNKS + i]    = wc_grb_ctr_read(&wc_grb_chunks[i]);
+#else
+        v[WC_GRB_ST_IRQ_MAXNS + i] = -1;
+        v[WC_GRB_ST_CHUNKS + i]    = -1;
+#endif
     }
+    v[WC_GRB_ST_MAINT_DEFERRED] = wc_grb_ctr_read(&wc_grb_maint_deferred);
 
     v[WC_GRB_ST_RESEEDS]       = wc_grb_ctr_read(&wc_grb_reseeds);
     v[WC_GRB_ST_RESEED_FAILED] = wc_grb_ctr_read(&wc_grb_reseed_failed);
@@ -587,6 +733,31 @@ int wc_grb_stat_snapshot(long long *out, int n)
     }
 
     return n;
+}
+
+int wc_grb_irq_hist(int ctx, long long *out, int n)
+{
+#ifdef WC_GRB_MEASURE
+    int i;
+
+    if ((out == NULL) || (n <= 0) || (ctx < 0) || (ctx >= WC_GRB_CTX_N)) {
+        return 0;
+    }
+
+    if (n > WC_GRB_IRQ_BUCKETS) {
+        n = WC_GRB_IRQ_BUCKETS;
+    }
+
+    for (i = 0; i < n; i++) {
+        out[i] = wc_grb_ctr_read(&wc_grb_irq_buckets[ctx][i]);
+    }
+
+    return n;
+#else
+    (void) ctx; (void) out; (void) n;
+
+    return 0;
+#endif
 }
 
 static void wc_grb_report(void)
@@ -735,6 +906,8 @@ static int wc_grb_alloc_nmi(void)
         }
 
         atomic_set(&wc_grb_nmi[i].live, 0);
+        atomic_set(&wc_grb_nmi[i].gen[0], 0);
+        atomic_set(&wc_grb_nmi[i].gen[1], 0);
         atomic_set(&wc_grb_nmi[i].pending, 0);
         wc_grb_ctr_zero(&wc_grb_nmi[i].since);
         wc_grb_nmi[i].at = wc_grb_reseed_base;

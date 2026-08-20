@@ -423,6 +423,13 @@ int wc_linuxkm_cpu_id(void)
     return (int) raw_smp_processor_id();
 }
 
+/* Seqcount-latch reader, so it takes no lock and is legal with interrupts off
+ * and from NMI (kernel/time/timekeeping.c). */
+unsigned long long wc_linuxkm_mono_ns(void)
+{
+    return (unsigned long long) ktime_get_mono_fast_ns();
+}
+
 #endif /* LINUXKM_RBGC */
 
 int wc_linuxkm_can_block(void) {
@@ -818,6 +825,12 @@ int wc_grb_hook_stats(long long *out, int n)
     return wc_grb_stat_snapshot(out, n);
 }
 EXPORT_SYMBOL_GPL(wc_grb_hook_stats);
+
+int wc_grb_hook_irq_hist(int ctx, long long *out, int n)
+{
+    return wc_grb_irq_hist(ctx, out, n);
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_irq_hist);
 
 static int wc_grb_maint_start(void)
 {
@@ -2102,6 +2115,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_save = wc_linuxkm_irq_save;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_restore = wc_linuxkm_irq_restore;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_cpu_id = wc_linuxkm_cpu_id;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_mono_ns = wc_linuxkm_mono_ns;
 #endif
 
 #ifdef CONFIG_KASAN
