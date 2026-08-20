@@ -559,7 +559,8 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
      * verifies on a single tfm, so operate on a transient copy of the
      * tfm's imported key.  ed25519_key is pure POD as configured for
      * linuxkm (no owned allocations), making the struct copy sound, and
-     * the copy holds only public material, so it's simply discarded.
+     * the copy includes any private key material the tfm holds, so it
+     * is scrubbed at the exit label.
      */
     key_copy = *ctx->key;
     key = &key_copy;
@@ -590,6 +591,13 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
     }
 
 ed25519_verify_end:
+
+#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
+    /* The transient copy includes k[] -- live private key bytes
+     * whenever the tfm holds a signing key -- so scrub it on every
+     * exit, as the sign paths do. */
+    ForceZero(&key_copy, sizeof(key_copy));
+#endif
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed25519_verify dlen %d, slen %d, "
@@ -785,6 +793,13 @@ static int km_ed25519_verify(struct akcipher_request *req)
     }
 
 ed25519_verify_end:
+
+#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
+    /* The transient copy includes k[] -- live private key bytes
+     * whenever the tfm holds a signing key -- so scrub it on every
+     * exit, as the sign paths do. */
+    ForceZero(&key_copy, sizeof(key_copy));
+#endif
 
     free(sig);
 
@@ -1165,7 +1180,8 @@ static int km_ed448_verify(struct crypto_sig *tfm,
      * verifies on a single tfm, so operate on a transient copy of the
      * tfm's imported key.  ed448_key is pure POD as configured for linuxkm
      * (no owned allocations), making the struct copy sound, and the copy
-     * holds only public material, so it's simply discarded.
+     * includes any private key material the tfm holds, so it is
+     * scrubbed at the exit label.
      *
      * Note that wc_Sha3 has no suballocated members, so the transient copy here
      * is unconditionally safe.
@@ -1200,6 +1216,13 @@ static int km_ed448_verify(struct crypto_sig *tfm,
     }
 
 ed448_verify_end:
+
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    /* The transient copy includes k[] -- live private key bytes
+     * whenever the tfm holds a signing key -- so scrub it on every
+     * exit, as the sign paths do. */
+    ForceZero(&key_copy, sizeof(key_copy));
+#endif
 
     #ifdef WOLFKM_DEBUG_EDDSA
     pr_info("info: exiting km_ed448_verify dlen %d, slen %d, "
@@ -1399,6 +1422,13 @@ static int km_ed448_verify(struct akcipher_request *req)
     }
 
 ed448_verify_end:
+
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    /* The transient copy includes k[] -- live private key bytes
+     * whenever the tfm holds a signing key -- so scrub it on every
+     * exit, as the sign paths do. */
+    ForceZero(&key_copy, sizeof(key_copy));
+#endif
 
     free(sig);
 
