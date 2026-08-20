@@ -324,7 +324,8 @@ enum {
     DRBG_FAILURE = 1,
     DRBG_NEED_RESEED = 2,
     DRBG_CONT_FAILURE = 3,
-    DRBG_NO_SEED_CB = 4
+    DRBG_NO_SEED_CB = 4,
+    DRBG_RESEED_DEFERRED = 5
 };
 
 #ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
@@ -332,12 +333,14 @@ enum {
         CONST_NUM_ERR_DRBG_FAILURE = DRBG_FAILURE,
         CONST_NUM_ERR_DRBG_NEED_RESEED = DRBG_NEED_RESEED,
         CONST_NUM_ERR_DRBG_CONT_FAILURE = DRBG_CONT_FAILURE,
-        CONST_NUM_ERR_DRBG_NO_SEED_CB = DRBG_NO_SEED_CB
+        CONST_NUM_ERR_DRBG_NO_SEED_CB = DRBG_NO_SEED_CB,
+        CONST_NUM_ERR_DRBG_RESEED_DEFERRED = DRBG_RESEED_DEFERRED
     };
     #define DRBG_FAILURE WC_ERR_TRACE(DRBG_FAILURE)
     #define DRBG_NEED_RESEED WC_ERR_TRACE(DRBG_NEED_RESEED)
     #define DRBG_CONT_FAILURE WC_ERR_TRACE(DRBG_CONT_FAILURE)
     #define DRBG_NO_SEED_CB WC_ERR_TRACE(DRBG_NO_SEED_CB)
+    #define DRBG_RESEED_DEFERRED WC_ERR_TRACE(DRBG_RESEED_DEFERRED)
     #define WC_DRBG_FAILED WC_ERR_TRACE(WC_DRBG_FAILED)
     #define WC_DRBG_CONT_FAILED WC_ERR_TRACE(WC_DRBG_CONT_FAILED)
 #endif
@@ -2078,6 +2081,7 @@ int wc_Sha512Drbg_IsDisabled(void)
 
 
 static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
+                    const byte* rbgcSeed, word32 rbgcSeedSz,
                     void* heap, int devId)
 {
     int ret = 0;
@@ -2095,6 +2099,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     (void)nonce;
     (void)nonceSz;
+    (void)rbgcSeed;
+    (void)rbgcSeedSz;
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
@@ -2397,6 +2403,17 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
     }
     else {
+#ifdef LINUXKM_RBGC
+            if (rbgcSeed != NULL) {
+                /* SP 800-90C Sec. 7.2.1.2: a non-root RBGC construction is
+                 * instantiated from its parent, so the seed material is
+                 * already in hand and no randomness source is consulted. */
+                XMEMCPY(seed, rbgcSeed, rbgcSeedSz);
+                seedSz = rbgcSeedSz;
+                ret = 0;
+            }
+            else
+#endif
 #ifdef WC_RNG_SEED_CB
             if (seedCb == NULL) {
                 ret = DRBG_NO_SEED_CB;
@@ -2439,8 +2456,19 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 rng->status = DRBG_FAILED;
             }
 
-            if (ret == 0)
+            if (ret == 0) {
+#ifdef LINUXKM_RBGC
+                /* wc_RNG_TestSeed() is a repetition check on raw noise.  The
+                 * parent's output is DRBG output, and SP 800-90C
+                 * Sec. 7.2.1.2 makes the parent's generate status the check
+                 * on this path, so it does not apply. */
+                if (rbgcSeed != NULL) {
+                    ret = DRBG_SUCCESS;
+                }
+                else
+#endif
                 ret = wc_RNG_TestSeed(seed, seedSz);
+            }
     #if defined(DEBUG_WOLFSSL)
             if (ret != 0) {
                 WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
@@ -2454,25 +2482,34 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
 
             if (ret == DRBG_SUCCESS) {
+                const byte* instSeed = seed;
+                word32      instSeedSz = seedSz;
+
+            #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
+                /* The SEED_BLOCK_SZ prefix is the block wc_RNG_TestSeed()
+                 * compares against the rest of a raw seed, so it is not part
+                 * of the seed material.  An RBGC leaf runs no such test and
+                 * SP 800-90C Sec. 7.2.1.2 wants the whole 3s/2 bits in the
+                 * instantiate, so that path keeps the whole buffer. */
+            #ifdef LINUXKM_RBGC
+                if (rbgcSeed == NULL)
+            #endif
+                {
+                    instSeed   = seed + SEED_BLOCK_SZ;
+                    instSeedSz = seedSz - SEED_BLOCK_SZ;
+                }
+            #endif
 #ifndef NO_SHA256
                 if (rng->drbgType == WC_DRBG_SHA256)
                     ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
-                #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
-                                seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
-                #else
-                                seed, seedSz,
-                #endif
+                                instSeed, instSeedSz,
                                 nonce, nonceSz, NULL, 0, rng->heap, devId);
 #endif
 #ifdef WOLFSSL_DRBG_SHA512
                 if (rng->drbgType == WC_DRBG_SHA512)
                     ret = Hash512_DRBG_Instantiate(
                                 (DRBG_SHA512_internal *)rng->drbg512,
-                #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
-                                seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
-                #else
-                                seed, seedSz,
-                #endif
+                                instSeed, instSeedSz,
                                 nonce, nonceSz, NULL, 0, rng->heap, devId);
 #endif
             }
@@ -2616,7 +2653,7 @@ int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
         return MEMORY_E;
     }
 
-    ret = _InitRng(*rng, nonce, nonceSz, heap, devId);
+    ret = _InitRng(*rng, nonce, nonceSz, NULL, 0, heap, devId);
     if (ret != 0) {
         XFREE(*rng, heap, DYNAMIC_TYPE_RNG);
         *rng = NULL;
@@ -2640,31 +2677,92 @@ void wc_rng_free(WC_RNG* rng)
 }
 
 WOLFSSL_ABI
+#ifdef LINUXKM_RBGC
+/* Instantiate a non-root RBGC construction from its parent, SP 800-90C
+ * Sec. 7.2.1.2.  Internal to the RBGC: not WOLFSSL_API, so it is not exported.
+ *
+ * WC_RBGC_INSTANTIATE_SZ is 3s/2 at s = 256, which is the amount that section
+ * names for Hash_DRBG and also the larger of the two amounts it gives.  The
+ * s/2 above the security strength is the nonce entropy of SP 800-90A
+ * Sec. 8.6.7(b), so no separate nonce is passed.
+ *
+ * SHA-512 only, matching the construction; a parent that is not SHA-512 means
+ * that DRBG was disabled, and a leaf must not quietly be built on the other. */
+int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent)
+{
+    byte seed[WC_RBGC_INSTANTIATE_SZ];
+    int  ret;
+
+    if ((rng == NULL) || (parent == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (parent->drbgType != WC_DRBG_SHA512) {
+        return BAD_STATE_E;
+    }
+
+    ret = wc_RNG_GenerateBlock(parent, seed, (word32) sizeof(seed));
+    if (ret == 0) {
+        ret = _InitRng(rng, NULL, 0, seed, (word32) sizeof(seed), NULL,
+                       INVALID_DEVID);
+    }
+
+    /* CSP: the parent's output, which is this leaf's seed material.  SP
+     * 800-90C Sec. 7.3.1 req 15 bars reusing it for anything else. */
+    ForceZero(seed, sizeof(seed));
+
+    if ((ret == 0) && (rng->drbgType != WC_DRBG_SHA512)) {
+        (void) wc_FreeRng(rng);
+        return BAD_STATE_E;
+    }
+
+    return ret;
+}
+#endif /* LINUXKM_RBGC */
+
 int wc_InitRng(WC_RNG* rng)
 {
-    return _InitRng(rng, NULL, 0, NULL, INVALID_DEVID);
+    return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID);
 }
 
 
 int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 {
-    return _InitRng(rng, NULL, 0, heap, devId);
+    return _InitRng(rng, NULL, 0, NULL, 0, heap, devId);
 }
 
 
 int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz)
 {
-    return _InitRng(rng, nonce, nonceSz, NULL, INVALID_DEVID);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, NULL, INVALID_DEVID);
 }
 
 
 int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
                        void* heap, int devId)
 {
-    return _InitRng(rng, nonce, nonceSz, heap, devId);
+    return _InitRng(rng, nonce, nonceSz, NULL, 0, heap, devId);
 }
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+/* Classify a seed-source failure.  BAD_MUTEX_E means the reseed could not be
+ * ATTEMPTED in this context, which is not a DRBG or noise-source fault. */
+static int ReseedSourceFailure(int ret)
+{
+    if (ret == WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+        return DRBG_RESEED_DEFERRED;
+    }
+#if FIPS_VERSION3_GE(7,0,0)
+    /* SP 800-90B RCT/APT verdicts must reach RngGenerateFailure() intact so
+     * they latch as health-test failures, not as a generic DRBG failure. */
+    if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+        (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+        return ret;
+    }
+#endif
+    return DRBG_FAILURE;
+}
+
 static int PollAndReSeed(WC_RNG* rng)
 {
     int ret   = WC_NO_ERR_TRACE(DRBG_NEED_RESEED);
@@ -2696,7 +2794,7 @@ static int PollAndReSeed(WC_RNG* rng)
                     WOLFSSL_DEBUG_PRINTF("ERROR: seedCb() in PollAndReSeed() "
                                          "failed with err %d", ret);
     #endif
-                    ret = DRBG_FAILURE;
+                    ret = ReseedSourceFailure(ret);
                 }
             }
         #else
@@ -2708,7 +2806,7 @@ static int PollAndReSeed(WC_RNG* rng)
                     "ERROR: wc_GenerateSeed() in PollAndReSeed() failed with "
                     "err %d", ret);
     #endif
-                ret = DRBG_FAILURE;
+                ret = ReseedSourceFailure(ret);
             }
         #endif
         }
@@ -2772,6 +2870,12 @@ static int PollAndReSeed(WC_RNG* rng)
  * FIPS_MODE_FAILED, off that one code. */
 static int RngGenerateFailure(WC_RNG* rng, int ret)
 {
+    /* Not a failure of the DRBG: the reseed could not be attempted in this
+     * context.  Leave rng->status untouched so a later call retries. */
+    if (ret == WC_NO_ERR_TRACE(DRBG_RESEED_DEFERRED)) {
+        return BUSY_E;
+    }
+
     if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         rng->status = DRBG_CONT_FAILED;
         return DRBG_CONT_FIPS_E;

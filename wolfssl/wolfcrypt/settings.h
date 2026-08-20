@@ -4795,11 +4795,11 @@
     #endif
 
     #ifndef WC_RESEED_INTERVAL
-        /* In kernel mode, use the maximum reseed interval allowed by
-         * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
-         * generation.
-         */
-        #if defined(HAVE_FIPS) && \
+        /* SP 800-90A Table 2 permits up to 2^48; a validated v7 module designs
+         * within the historical 1,000,000 limit, dev flavors keep the maximum. */
+        #if FIPS_VERSION3_GE(7,0,0) && !defined(WC_FIPS_UNCERTIFIED_BUILD)
+            #define WC_RESEED_INTERVAL (1000000)
+        #elif defined(HAVE_FIPS) && \
             FIPS_VERSION_LT(6,0) && FIPS_VERSION3_NE(5,2,4)
             #define WC_RESEED_INTERVAL UINT_MAX
         #else
