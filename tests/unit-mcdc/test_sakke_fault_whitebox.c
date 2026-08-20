@@ -496,6 +496,39 @@ int main(int argc, char** argv)
         }
         WB_NOTE("wc_MakeSakkeKey fault sweep done");
 
+        /* --- wc_MakeSakkeKey 543: the master-secret retry loop
+         *       while ((err == 0) && mp_iszero(wc_ecc_key_get_priv(..)))
+         * Both conditions need the loop to actually RETRY, i.e. a drawn scalar
+         * that reduces to zero -- a ~2^-1024 event that no heap fault and no
+         * seeded RNG can produce (mp_rand() is served from another TU, so the
+         * seeded-RNG macro never reaches it). The value-forcing mp_rand()
+         * interposer at the top of this file is the lever; sakke.c has exactly
+         * one mp_rand() call site, and both modes are ONE-SHOT so the second
+         * iteration draws real entropy and the loop terminates on real data.
+         *
+         *   WB_SR_ZERO -> (T,T) decision TRUE, retries; the retry supplies the
+         *                 accepting (T,F) row -> closes idx1 and gives idx0
+         *                 the TRUE-decision partner it needs
+         *   WB_SR_FAIL -> (F,-) decision FALSE                 -> closes idx0
+         * Both rows land in THIS binary alongside the ordinary (T,F). --- */
+        {
+            int mode;
+            for (mode = WB_SR_ZERO; mode <= WB_SR_FAIL; mode++) {
+                SakkeKey zk;
+                XMEMSET(&zk, 0, sizeof(zk));
+                if (wc_InitSakkeKey_ex(&zk, 128, ECC_SAKKE_1, NULL,
+                        INVALID_DEVID) == 0) {
+                    int e2;
+                    wb_sr_mode = mode;
+                    e2 = wc_MakeSakkeKey(&zk, &rng);
+                    wb_sr_mode = WB_SR_OFF;
+                    printf("  [wb] MakeSakkeKey rand mode %d -> %d\n",
+                           mode, e2);
+                    wc_FreeSakkeKey(&zk);
+                }
+            }
+        }
+
         /* --- wc_MakeSakkeRsk: sweeps its own success chain. rsk output only;
          * key state (public key + master secret) untouched, so reuse key.
          * Fresh rsk point per iteration. --- */
@@ -544,6 +577,62 @@ int main(int argc, char** argv)
          * err==0 false half. Where mp_add/mp_mul_d never allocate (fixed
          * sp_int), the sweep is a no-op and these stay justified residuals. */
         {
+            /* sakke_tplmod 1518 idx0 (`err == 0` FALSE) -- the THIRD of the
+             * helper's three sequential reductions:
+             *
+             *     err = mp_mul_d(a, 3, r);                          (1511)
+             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1512)
+             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1515)
+             *     if ((err == 0) && (mp_cmp(r,m) != MP_LT)) sub;    (1518)
+             *
+             * 1512 and 1515 get their err!=0 halves for free -- an earlier
+             * mp_sub failing carries err forward -- but 1518 needs the mp_sub
+             * at 1516 to have RUN and FAILED, which needs an input where the
+             * first two reductions both fire. Every in-product caller passes
+             * a < m, so 3a < 3m and the third check is only ever reached with
+             * err == 0; a direct call on the file-static helper with a == m
+             * makes all three fire (300 -> 200 -> 100 -> 0).
+             *
+             * The heap lever cannot do it: under a fixed sp_int backend
+             * mp_sub() never allocates, so it never fails. mcdc_fault_mp.h's
+             * lever can -- interposed mp_* call 1 is the mp_mul_d, 2 is the
+             * mp_sub at 1513 and 3 is the mp_sub at 1516, so arming index 3
+             * fails exactly that one and 1518 is reached with err != 0.
+             *
+             * The accepting (T,T) row at 1518 is the unarmed a == m call right
+             * before it; the (T,F) row comes from the a=40,m=100 tplmod calls
+             * in the sweep below (300 -> 200 -> 100 -> stop). */
+            {
+                mp_int a, m, r;
+                int e0, e1;
+                mp_init(&a); mp_init(&m); mp_init(&r);
+                mp_set(&a, 100); mp_set(&m, 100);
+                e1 = sakke_tplmod(&a, &m, &r);              /* 1518 (T,T) */
+                mcdc_fm_arm(3);
+                e0 = sakke_tplmod(&a, &m, &r);              /* 1518 (F,-) */
+                mcdc_fm_disarm();
+                printf("  [wb] sakke_tplmod 1518 vectors: (T,T)=%d armed=%d\n",
+                       e1, e0);
+                mp_free(&a); mp_free(&m); mp_free(&r);
+            }
+
+            /* sakke_addmod 1490 idx0, same shape but one reduction: a direct
+             * armed call is the only way to reach it with err != 0. */
+            {
+                mp_int a, b, m, r;
+                int e0;
+                mp_init(&a); mp_init(&b); mp_init(&m); mp_init(&r);
+                mp_set(&a, 60); mp_set(&b, 70); mp_set(&m, 100);
+                mcdc_fm_arm(1);
+                e0 = sakke_addmod(&a, &b, &m, &r);          /* 1490 (F,-) */
+                mcdc_fm_disarm();
+                (void)sakke_addmod(&a, &b, &m, &r);         /* 1490 (T,T) */
+                mp_set(&a, 10); mp_set(&b, 20);
+                (void)sakke_addmod(&a, &b, &m, &r);         /* 1490 (T,F) */
+                printf("  [wb] sakke_addmod 1490 armed=%d\n", e0);
+                mp_free(&a); mp_free(&b); mp_free(&m); mp_free(&r);
+            }
+
             for (n = 1; n <= SAKKE_K_SMALLMP; n++) {
                 mp_int a, b, m, r;
                 mp_init(&a); mp_init(&b); mp_init(&m); mp_init(&r);
