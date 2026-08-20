@@ -68,9 +68,10 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
     const char* name = NULL;
     const WOLF_EC_NIST_NAME* nist_name;
 
-    /* Attempt to find the curve info matching the NID passed in. */
+    /* Attempt to find the curve info matching the NID passed in. Rows with a
+     * nid of 0 are not EC curves (the finite field groups) - skip them. */
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-        if (nist_name->nid == nid) {
+        if ((nist_name->nid != 0) && (nist_name->nid == nid)) {
             /* NID found - return name. */
             name = nist_name->name;
             break;
