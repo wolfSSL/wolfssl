@@ -195,12 +195,16 @@ do {                                                    \
 
 /* Check whether index is valid.
  *
+ * Written as "i >= 2^h - 1" for the same reason as IDX32_INVALID: the
+ * previous "((i + 1) >> (h - 32)) != 0" form wrapped at i == 2^64 - 1, the
+ * exhausted-key marker of an 8-byte index field (the h = 60 parameter sets).
+ *
  * @param [in] i  Index to check.
  * @param [in] c  Count of bytes i was encoded in.
  * @param [in] h  Full tree Height.
  */
 #define IDX64_INVALID(i, c, h)                              \
-    ((w64GetHigh32(w64Add32(i, 1, NULL)) >> ((h) - 32)) != 0)
+    w64GTE(i, w64Sub32(w64ShiftLeft(w64From32(0, 1), h), 1, NULL))
 
 /* Set 64-bit index as hash address value for tree.
  *
@@ -252,12 +256,18 @@ do {                                                    \
 
 /* Check whether 32-bit index is valid.
  *
+ * Written as "i >= 2^h - 1" rather than "((i + 1) >> h) != 0": the two agree
+ * everywhere except at i == 0xFFFFFFFF, where i + 1 wraps to 0 and the shift
+ * form reports the index VALID. 0xFFFFFFFF is exactly the exhausted-key
+ * marker this file writes into a 4-byte index field, so the shift form let a
+ * retired key be signed with again.
+ *
  * @param [in] i  Index to check.
  * @param [in] c  Count of bytes i was encoded in.
  * @param [in] h  Full tree Height.
  */
 #define IDX32_INVALID(i, c, h)                          \
-    ((((i) + 1) >> (h)) != 0)
+    ((i) >= ((((word32)1U) << (h)) - 1U))
 
 /* Set 32-bit index as hash address value for tree.
  *
@@ -3715,12 +3725,16 @@ static void xmss_idx_decode(XmssIdx* idx, word8 c, const unsigned char* a)
 
 /* Check whether index is valid.
  *
+ * Written as "i >= 2^h - 1" rather than "((i + 1) >> h) != 0": with XmssIdx
+ * 32 bits wide (WOLFSSL_XMSS_MAX_HEIGHT <= 32) the increment wraps at the
+ * all-ones exhausted-key marker and the shift form reports it valid.
+ *
  * @param [in] i  Index to check.
  * @param [in] h  Full tree Height.
  */
 static int xmss_idx_invalid(XmssIdx i, word8 h)
 {
-    return ((i + 1) >> h) != 0;
+    return i >= ((((XmssIdx)1) << h) - 1);
 }
 
 /* Get tree and leaf index from index.
