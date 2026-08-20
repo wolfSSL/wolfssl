@@ -164,6 +164,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_integer_whitebox.c \
               tests/unit-mcdc/test_kdf_hash_fault_whitebox.c \
               tests/unit-mcdc/test_kdf_whitebox.c \
+              tests/unit-mcdc/test_lms_bds_whitebox.c \
               tests/unit-mcdc/test_lms_fault_whitebox.c \
               tests/unit-mcdc/test_lms_hash_fault_whitebox.c \
               tests/unit-mcdc/test_logging_globalq_whitebox.c \
@@ -210,6 +211,8 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_sp_c32_whitebox.c \
               tests/unit-mcdc/test_sp_c64_fault_whitebox.c \
               tests/unit-mcdc/test_sp_c64_whitebox.c \
+              tests/unit-mcdc/test_sp_cortexm_crafted_whitebox.c \
+              tests/unit-mcdc/test_sp_cortexm_fault_whitebox.c \
               tests/unit-mcdc/test_sp_cortexm_whitebox.c \
               tests/unit-mcdc/test_sp_crafted_common.h \
               tests/unit-mcdc/test_sp_fault_common.h \
@@ -217,6 +220,8 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_sp_int_whitebox.c \
               tests/unit-mcdc/test_sp_x86_64_fault_whitebox.c \
               tests/unit-mcdc/test_sp_x86_64_whitebox.c \
+              tests/unit-mcdc/test_srp_whitebox.c \
+              tests/unit-mcdc/test_tfm_fault_whitebox.c \
               tests/unit-mcdc/test_tfm_whitebox.c \
               tests/unit-mcdc/test_tls13_whitebox.c \
               tests/unit-mcdc/test_tsp_fault_whitebox.c \
@@ -229,5 +234,6 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_wc_port_whitebox.c \
               tests/unit-mcdc/test_wc_xmss_impl_whitebox.c \
               tests/unit-mcdc/test_wolfentropy_whitebox.c \
+              tests/unit-mcdc/test_wolfmath_whitebox.c \
               tests/unit-mcdc/test_xmss_fault_whitebox.c \
               tests/unit-mcdc/test_xmss_hash_fault_whitebox.c

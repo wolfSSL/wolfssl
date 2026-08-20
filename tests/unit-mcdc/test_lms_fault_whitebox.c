@@ -96,6 +96,45 @@ static int wb_read_key(byte* priv, word32 privSz, void* context)
  * SigsLeft() and bails out with BAD_STATE_E/NOSIGS before ever touching the
  * rest of the buffer (wc_lms.c:1359, ahead of the wc_hss_reload_key() call),
  * so the remaining bytes are left zeroed. */
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+/* 1258 (see wb_makekey_checks): the LmsKey whose Q counter the exhausting
+ * write callback below advances, or NULL to leave it alone. */
+static LmsKey* wb_exhaust_key = NULL;
+
+/* Write callback that saves the key and then advances the LIVE key's Q
+ * counter to the total leaf count, so wc_LmsKey_SigsLeft() reads the key as
+ * exhausted on the very next statement.
+ *
+ * wc_LmsKey_MakeKey() runs exactly this callback between wc_hss_make_key()
+ * and its "This should not happen" SigsLeft() guard, so this is the only
+ * point at which the state that guard defends against can be presented -- and
+ * presenting it is what an MC/DC pair for that decision requires. The Q value
+ * matches the parameter set used below (levels=1, height=5 -> 32 leaves);
+ * wc_hss_sigsleft() returns w64LT(q, 1 << (levels*height)), which is 0 for
+ * q == 32. */
+static int wb_write_key_exhaust(const byte* priv, word32 privSz, void* context)
+{
+    int rc = wb_write_key(priv, privSz, context);
+
+    if ((rc == WC_LMS_RC_SAVED_TO_NV_MEMORY) && (wb_exhaust_key != NULL)) {
+        w64wrapper q = w64From32(0, (word32)1U << 5);
+        c64toa(&q, wb_exhaust_key->priv_raw);
+    }
+    return rc;
+}
+
+/* Write callback that reports a failed NV write: wc_LmsKey_MakeKey() turns
+ * that into IO_FAILED_E, which is the only way ret is non-zero when the
+ * SigsLeft() guard at 1258 is reached. */
+static int wb_write_key_fail(const byte* priv, word32 privSz, void* context)
+{
+    (void)priv;
+    (void)privSz;
+    (void)context;
+    return -1;
+}
+#endif /* !WOLFSSL_LMS_VERIFY_ONLY */
+
 static int wb_read_exhausted(byte* priv, word32 privSz, void* context)
 {
     w64wrapper q;
@@ -1087,14 +1126,25 @@ static void wb_sign_checks(WC_RNG* rng)
  * wc_LmsKey_MakeKey: 1163 (state!=PARMSET), 1195 (write_private_key==NULL),
  * 1208 (priv_data==NULL, only the FALSE/reuse row is uncovered).
  *
- * 1261 if ((ret==0) && (wc_LmsKey_SigsLeft(key)==0)) -- PROVEN UNREACHABLE:
- * wc_hss_make_key() (wc_lms_impl.c) always starts by zeroing Q via
- * wc_lms_idx_zero() before it can fail, and wc_hss_sigsleft() (same file)
- * with Q==0 is true for any params -- either the "levels*height>=64"
- * shortcut forces ret=1 outright, or w64LT(0, 1<<(levels*height)) is true
- * for any levels*height>=0. So SigsLeft()==0 can never hold directly after
- * a successful wc_hss_make_key(), for any parameter set. No test call is
- * possible; DEATHNOTE candidate (see task report), not closed here.
+ * 1258 if ((ret==0) && (wc_LmsKey_SigsLeft(key)==0)) -- the "This should not
+ * happen" guard on a freshly generated key. wc_hss_make_key() zeroes Q
+ * (wc_lms_idx_zero) before it can fail and wc_hss_sigsleft() is true for
+ * Q==0 under every parameter set, so the guard cannot fire on the value
+ * make_key itself leaves behind. An earlier pass concluded from that that
+ * the decision was unreachable. It is not: wc_LmsKey_MakeKey() calls the
+ * caller-supplied write_private_key() callback BETWEEN wc_hss_make_key()
+ * and this guard, and that callback is handed the key's own priv_raw
+ * buffer. Anything the NV-write step does to the stored index is therefore
+ * visible to the guard -- which is exactly the failure mode a guard placed
+ * after the write, rather than before it, exists to catch.
+ *
+ * Three rows, all in this binary:
+ *   R1 write cb advances Q to the leaf count -> ret==0, SigsLeft()==0
+ *      -> decision TRUE  (BAD_STATE_E, key->state = WC_LMS_STATE_NOSIGS)
+ *   R2 write cb reports a failed NV write    -> the I/O failure code
+ *      -> decision FALSE on operand 0
+ *   R3 plain successful MakeKey              -> ret==0, SigsLeft()!=0
+ *      -> decision FALSE on operand 1
  ******************************************************************/
 static void wb_makekey_checks(WC_RNG* rng)
 {
@@ -1152,8 +1202,47 @@ static void wb_makekey_checks(WC_RNG* rng)
     }
     wc_LmsKey_Free(&key);
 
-    WB_NOTE("1163/1195/1208 MakeKey leaves closed (1261 unreachable, see "
-        "report)");
+    /* R2: the NV write fails, so ret != 0 when 1258 is evaluated. */
+    {
+        LmsKey keyIoFail;
+
+        XMEMSET(&keyIoFail, 0, sizeof(keyIoFail));
+        wc_LmsKey_Init(&keyIoFail, NULL, INVALID_DEVID);
+        wc_LmsKey_SetParameters(&keyIoFail, 1, 5, 8);
+        wc_LmsKey_SetWriteCb(&keyIoFail, wb_write_key_fail);
+        ret = wc_LmsKey_MakeKey(&keyIoFail, rng);
+        if (ret != WC_NO_ERR_TRACE(IO_FAILED_E)) {
+            WB_NOTE("MakeKey(write cb fails) did not report IO_FAILED_E");
+            wb_fail = 1;
+        }
+        wc_LmsKey_Free(&keyIoFail);
+    }
+
+    /* R1: the NV write succeeds but leaves the key's index at the leaf
+     * count, so SigsLeft() is 0 with ret still 0. */
+    {
+        LmsKey keyExhaust;
+
+        XMEMSET(&keyExhaust, 0, sizeof(keyExhaust));
+        wc_LmsKey_Init(&keyExhaust, NULL, INVALID_DEVID);
+        wc_LmsKey_SetParameters(&keyExhaust, 1, 5, 8);
+        wc_LmsKey_SetWriteCb(&keyExhaust, wb_write_key_exhaust);
+        wb_exhaust_key = &keyExhaust;
+        ret = wc_LmsKey_MakeKey(&keyExhaust, rng);
+        wb_exhaust_key = NULL;
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+            WB_NOTE("MakeKey(exhausted after write) did not report "
+                "BAD_STATE_E");
+            wb_fail = 1;
+        }
+        else if (keyExhaust.state != WC_LMS_STATE_NOSIGS) {
+            WB_NOTE("MakeKey(exhausted after write) left the wrong state");
+            wb_fail = 1;
+        }
+        wc_LmsKey_Free(&keyExhaust);
+    }
+
+    WB_NOTE("1163/1195/1208/1258 MakeKey leaves closed");
 }
 
 /*******************************************************************
