@@ -4254,7 +4254,8 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     #endif
         }
         idx += (word32)policy_length;
-    } while((int)idx < total_length
+    /* idx is an offset into input, so it is bound by sz. */
+    } while(idx < sz
     #ifdef WOLFSSL_CERT_EXT
         && cert->extCertPoliciesNb < MAX_CERTPOL_NB
     #endif

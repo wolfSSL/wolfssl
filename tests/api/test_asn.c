@@ -1577,6 +1577,60 @@ int test_DecodeCertExtensions_dup_certpol(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 5280 4.2.1.4 defines certificatePolicies as SEQUENCE SIZE (1..MAX) OF
+ * PolicyInformation, so an empty SEQUENCE must be rejected instead of being
+ * accepted as zero policies. */
+int test_DecodeCertExtensions_empty_certpol(void)
+{
+    EXPECT_DECLS;
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_CERTS) && !defined(NO_ASN)
+    /* certificatePolicies extnValue carrying no PolicyInformation. */
+    static const byte emptyPolicy[] = {
+        0x30, 0x00                          /* certificatePolicies SEQUENCE */
+    };
+    DecodedCert cert;
+    int isUnknown = 0;
+
+    wc_InitDecodedCert(&cert, emptyPolicy, (word32)sizeof(emptyPolicy), NULL);
+
+    ExpectIntEQ(DecodeExtensionType(emptyPolicy, (word32)sizeof(emptyPolicy),
+        CERT_POLICY_OID, 0, &cert, &isUnknown),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    wc_FreeDecodedCert(&cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Trailing bytes after the last PolicyInformation must be rejected rather than
+ * skipped. */
+int test_DecodeCertExtensions_certpol_trailing_junk(void)
+{
+    EXPECT_DECLS;
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_CERTS) && !defined(NO_ASN)
+    /* One valid PolicyInformation followed by two bytes that are not one. */
+    static const byte trailingJunk[] = {
+        0x30, 0x09,                          /* certificatePolicies SEQUENCE */
+            0x30, 0x05,                      /* PolicyInformation SEQUENCE */
+                0x06, 0x03, 0x2A, 0x03, 0x04,/* policyIdentifier OID 1.2.3.4 */
+            0x00, 0x00                       /* trailing junk */
+    };
+    DecodedCert cert;
+    int isUnknown = 0;
+
+    wc_InitDecodedCert(&cert, trailingJunk, (word32)sizeof(trailingJunk), NULL);
+
+    ExpectIntEQ(DecodeExtensionType(trailingJunk, (word32)sizeof(trailingJunk),
+        CERT_POLICY_OID, 0, &cert, &isUnknown),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    wc_FreeDecodedCert(&cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_ParseCert_SM3wSM2_short_pubkey(void)
 {
     EXPECT_DECLS;
