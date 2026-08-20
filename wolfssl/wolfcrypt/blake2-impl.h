@@ -147,13 +147,5 @@ static WC_INLINE word64 rotr64( const word64 w, const unsigned c )
   return ( w >> c ) | ( w << ( 64 - c ) );
 }
 
-/* prevents compiler optimizing out memset() */
-static WC_INLINE void secure_zero_memory( void *v, word64 n )
-{
-  volatile byte *p = ( volatile byte * )v;
-
-  while( n-- ) *p++ = 0;
-}
-
 #endif  /* WOLFCRYPT_BLAKE2_IMPL_H */
 

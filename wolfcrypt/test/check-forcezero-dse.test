@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# check-forcezero-dse.test
+#
+# make-check wrapper for .github/scripts/check-forcezero-dse.sh: runs the
+# ForceZero() dead-store-elimination probe as part of the normal test suite.
+# Previously this check only ran in specific multi-compiler.yml CI matrix
+# entries, so a barrier regression (e.g. WC_BARRIER_DATA()/XFENCE() being
+# optimized away) could pass `make check` and even most CI jobs undetected.
+#
+# forcezero_test() in wolfcrypt/test/test.c cannot catch this itself: it
+# reads the buffer back after every ForceZero() call, so the compiler can
+# never treat the zeroing stores as dead in that translation unit. Only the
+# objdump-based instruction-count comparison here actually exercises DSE.
+#
+# This wrapper only runs the probe for a native gcc/clang build (the case
+# the underlying script and its objdump-based symbol lookup were written
+# for); anything else -- a non-GNU/clang CC, a missing objdump, a
+# cross-compile, or a non-ELF host -- is skipped (exit 77), not failed, so
+# `make check` stays green on unsupported platforms. Cross builds are still
+# covered explicitly by the CI matrix in .github/workflows/multi-compiler.yml.
+#
+# Fil-C's filcc reports itself as native Clang, passing the checks below,
+# but renames every symbol (dse_probe_word32_wipe -> pizlonatedFI_...),
+# so the probe script can't find them and hard-fails. Skip it explicitly.
+
+CC=${WCTEST_CC:-cc}
+SRCDIR=${WCTEST_SRCDIR:-.}
+BUILDDIR=${WCTEST_BUILDDIR:-.}
+SCRIPT="$SRCDIR/.github/scripts/check-forcezero-dse.sh"
+
+skip() {
+    echo "check-forcezero-dse.test: SKIP - $1"
+    exit 77
+}
+
+[ -f "$SCRIPT" ] || skip "probe script not found: $SCRIPT"
+
+CC_VERSION=$($CC --version 2>/dev/null | head -1)
+case "$CC_VERSION" in
+    *Fil-C*) skip "CC '$CC' is Fil-C, which renames probe symbols" ;;
+esac
+case "$CC_VERSION" in
+    *gcc*|*GCC*|*clang*|*Clang*) : ;;
+    *) skip "CC '$CC' is not gcc/clang, which the probe assumes" ;;
+esac
+
+command -v objdump >/dev/null 2>&1 || skip "objdump not found in PATH"
+
+case "$(uname -s 2>/dev/null)" in
+    Linux) : ;;
+    *) skip "probe assumes an ELF/GNU objdump toolchain (host: $(uname -s 2>/dev/null))" ;;
+esac
+
+# Reject obvious cross-compiles: this wrapper only covers the native case.
+# Cross targets are covered explicitly by the CI matrix.
+CC_MACHINE=$($CC -dumpmachine 2>/dev/null)
+HOST_MACHINE=$(uname -m 2>/dev/null)
+if [ -n "$CC_MACHINE" ] && [ -n "$HOST_MACHINE" ]; then
+    case "$CC_MACHINE" in
+        "$HOST_MACHINE"*) : ;;
+        *"$HOST_MACHINE"*) : ;;
+        *) skip "CC target '$CC_MACHINE' looks cross-compiled for host '$HOST_MACHINE'" ;;
+    esac
+fi
+
+exec "$SCRIPT" --builddir "$BUILDDIR" --srcdir "$SRCDIR" "$CC" -O2

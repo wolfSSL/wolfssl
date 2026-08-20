@@ -170,6 +170,13 @@
   configuration now sees neither the prototype nor the `client_cert_cb`
   typedef instead of failing to build; no other configuration changes.
 
+* **API (`secure_zero_memory` removed from `blake2-impl.h`)**: the BLAKE2 code
+  now zeroizes with `ForceZero()`, which unlike the removed helper's plain
+  volatile byte loop is fenced against dead-store elimination.  No public
+  header includes `blake2-impl.h` - `blake2.h` includes `blake2-int.h` - so
+  only code that named the file directly is affected, and because the helper
+  was `static` there is no ABI change.  Such code should call `wc_ForceZero()`.
+
 ## Fixes
 
 * **Fix (certificate manager left pointing at a released store)**:

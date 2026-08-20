@@ -1677,13 +1677,9 @@ void __attribute__((no_instrument_function))
 }
 #endif
 
-#ifndef WOLFSSL_NO_FORCE_ZERO
-/* Exported version of ForceZero(). */
-void wc_ForceZero(void *mem, size_t len)
-{
-    ForceZero(mem, len);
-}
-#endif
+/* wc_ForceZero() now lives in wc_port.c; memory.c is excluded from some
+ * builds (--enable-leantls/-leanpsk/--disable-memory).
+ */
 
 #ifndef WOLFSSL_NO_CONST_CMP
 /* Exported version of ConstantCompare(). */

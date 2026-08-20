@@ -1916,16 +1916,36 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
-#ifdef WOLF_C99
-    /* use alternate keyword for compatibility with -std=c99 */
-    #define XASM_VOLATILE(a) __asm__ volatile(a)
-#elif defined(__IAR_SYSTEMS_ICC__)
+/* NOLINTBEGIN(bugprone-macro-parentheses) */
+#if defined(__IAR_SYSTEMS_ICC__)
+    /* IAR's asm() does accept a GNU-style clobber list (see the extended-asm
+     * blocks in sp_cortexm.c, which are compiled for IAR too).
+     */
     #define XASM_VOLATILE(a) asm volatile(a)
 #elif defined(__KEIL__)
+    /* KEIL's __asm() does accept a "memory" clobber (see sp_cortexm.c). */
     #define XASM_VOLATILE(a) __asm volatile(a)
+#elif defined(WOLF_C99)
+    #define XASM_VOLATILE(a) __asm__ volatile(a)
 #else
+    /* Pre-C99 GNU/clang and unknown compilers: GNU extended-asm syntax, which
+     * does support a clobber list.
+     */
     #define XASM_VOLATILE(a) __asm__ __volatile__(a)
 #endif
+
+/* Add memory clobber to XASM_VOLATILE(). Define XASM_VOLATILE_NO_CLOBBER
+ * before including this header if targeting a compiler whose asm() dialect
+ * can't take a GNU-style clobber list; every compiler branch above is known
+ * to support one.
+ */
+#ifdef XASM_VOLATILE_NO_CLOBBER
+    #define XASM_VOLATILE_MB(a) XASM_VOLATILE(a)
+#else
+    /* Clobber supported. */
+    #define XASM_VOLATILE_MB(a) XASM_VOLATILE(a ::: "memory")
+#endif
+/* NOLINTEND(bugprone-macro-parentheses) */
 
 #ifndef WOLFSSL_NO_FENCE
     #ifdef XFENCE
@@ -1946,9 +1966,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #elif defined(WOLFSSL_NO_ASM)
         #define XFENCE() WC_DO_NOTHING
     #elif defined (__i386__) || defined(__x86_64__)
-        #define XFENCE() XASM_VOLATILE("lfence")
+        #define XFENCE() XASM_VOLATILE_MB("lfence")
     #elif defined (__arm__) && (__ARM_ARCH > 6)
-        #define XFENCE() XASM_VOLATILE("isb")
+        #define XFENCE() XASM_VOLATILE_MB("isb")
     #elif defined(_MSC_VER) && defined(_M_ARM64)
         /* MSVC on ARM64 has no __asm__; use the ISB intrinsic barrier. */
         #include <intrin.h>
@@ -1956,23 +1976,23 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #elif defined(__aarch64__)
         /* Change ".inst 0xd50330ff" to "sb" when compilers support it. */
         #ifdef WOLFSSL_ARMASM_BARRIER_SB
-            #define XFENCE() XASM_VOLATILE(".inst 0xd50330ff")
+            #define XFENCE() XASM_VOLATILE_MB(".inst 0xd50330ff")
         #elif defined(WOLFSSL_ARMASM_BARRIER_DETECT)
-            extern int aarch64_use_sb;
-            #define XFENCE()                                \
-                do {                                        \
-                    if (aarch64_use_sb)                     \
-                        XASM_VOLATILE(".inst 0xd50330ff");  \
-                    else                                    \
-                        XASM_VOLATILE("isb");               \
+            WOLFSSL_API extern int aarch64_use_sb;
+            #define XFENCE()                                        \
+                do {                                                \
+                    if (aarch64_use_sb)                             \
+                        XASM_VOLATILE_MB(".inst 0xd50330ff");       \
+                    else                                            \
+                        XASM_VOLATILE_MB("isb");                    \
                 } while (0)
         #else
-            #define XFENCE() XASM_VOLATILE("isb")
+            #define XFENCE() XASM_VOLATILE_MB("isb")
         #endif
     #elif defined(__riscv)
-        #define XFENCE() XASM_VOLATILE("fence")
+        #define XFENCE() XASM_VOLATILE_MB("fence")
     #elif defined(__PPC__) || defined(__POWERPC__)
-        #define XFENCE() XASM_VOLATILE("isync; sync")
+        #define XFENCE() XASM_VOLATILE_MB("isync; sync")
     #else
         #define XFENCE() WC_DO_NOTHING
     #endif
@@ -1990,6 +2010,26 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
      */
     #define WC_BARRIER() do { volatile byte _xfence = 0; (void)_xfence; XFENCE(); \
         } while(0)
+#endif
+
+/* Opaque sink for WC_BARRIER_DATA()'s C89 fallback. Always declared (see
+ * wc_port.c): a consumer built with a different compiler may still expand
+ * WC_BARRIER_DATA(p) to it.
+ */
+WOLFSSL_API extern void wc_bd_sink(void*);
+
+/* WC_BARRIER_DATA(p) escapes object at p. */
+#ifdef WC_BARRIER_DATA
+    /* User-supplied WC_BARRIER_DATA(). */
+#elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
+    /* Escape p to asm block. */
+    #define WC_BARRIER_DATA(p) \
+        do { __asm__ __volatile__("" :: "r"(p) : "memory"); } while (0)
+#else
+    /* Portable C89 fallback. */
+    #define WC_BARRIER_DATA_USES_SINK
+
+    #define WC_BARRIER_DATA(p) do { wc_bd_sink(p); } while (0)
 #endif
 
 

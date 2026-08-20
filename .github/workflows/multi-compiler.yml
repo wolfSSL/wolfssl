@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential gcc-9 g++-9 gcc-10 g++-10 gcc-11 g++-11 gcc-12 g++-12 clang-14 clang-19
+          packages: autoconf automake libtool build-essential gcc-9 g++-9 gcc-10 g++-10 gcc-11 g++-11 gcc-12 g++-12 clang-14 clang-19 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64
           ghcr-debs-tag: ubuntu-24.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
@@ -83,7 +83,23 @@ jobs:
            "configure": ["CXX=g++-12",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
            "check": false,
-           "run": [["make", "dist"]]},
+           "run": [
+            ["make", "dist"],
+            ["sh", "-c",
+             "../.github/scripts/check-barrier-arms.sh --builddir . --srcdir .. gcc-12"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. gcc-12 -O2"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. gcc-12 -O3"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. gcc-12 -O2 -flto -ffat-lto-objects"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. --link gcc-12 -O2 -flto -ffat-lto-objects -DWOLFSSL_NO_ASM"],
+            ["sh", "-c",
+             "../.github/scripts/check-sink-relro.sh --builddir . --srcdir .. gcc-12 -O2 -DWOLFSSL_NO_ASM"],
+            ["sh", "-c",
+             "../.github/scripts/check-sink-relro.sh --builddir . --srcdir .. --objdump x86_64-w64-mingw32-objdump x86_64-w64-mingw32-gcc -O2 -DWOLFSSL_NO_ASM"]
+           ]},
           {"name": "clang-14", "minutes": 1.5,
            "cc": "ccache clang-14",
            "configure": ["CXX=clang++-14",
@@ -95,7 +111,19 @@ jobs:
            "configure": ["CXX=clang++-19",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
            "check": false,
-           "run": [["make", "dist"]]}
+           "run": [
+            ["make", "dist"],
+            ["sh", "-c",
+             "../.github/scripts/check-barrier-arms.sh --builddir . --srcdir .. clang-19"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. clang-19 -O2"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. clang-19 -O3"],
+            ["sh", "-c",
+             "../.github/scripts/check-forcezero-dse.sh --builddir . --srcdir .. --link clang-19 -O2 -flto -DWOLFSSL_NO_ASM"],
+            ["sh", "-c",
+             "../.github/scripts/check-sink-relro.sh --builddir . --srcdir .. clang-19 -O2 -DWOLFSSL_NO_ASM"]
+           ]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
