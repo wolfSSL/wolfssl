@@ -712,7 +712,7 @@ endif()
 
 # Hello Retry Request Cookie
 add_option("WOLFSSL_HRR_COOKIE"
-    "Enable the server to send Cookie Extension in HRR with state (default: disabled)"
+    "Enable the server to send Cookie Extension in HRR with state. A client always echoes back a cookie it is sent (default: disabled)"
     "undefined" "yes;no;undefined")
 
 if("${WOLFSSL_HRR_COOKIE}" STREQUAL "yes")

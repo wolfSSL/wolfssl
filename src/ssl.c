@@ -5695,7 +5695,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.tls = 0;
         ssl->options.tls1_1 = 0;
     #ifdef WOLFSSL_TLS13
-    #ifdef WOLFSSL_SEND_HRR_COOKIE
+    #ifdef WOLFSSL_TLS13_COOKIE
         ssl->options.hrrSentCookie = 0;
     #endif
         ssl->options.hrrSentKeyShare = 0;

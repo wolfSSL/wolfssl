@@ -68,6 +68,11 @@ int test_tls13_corrupted_finished(void);
 int test_tls13_certificate_verify_bad_sigalgo(void);
 int test_tls13_peerauth_failsafe(void);
 int test_tls13_hrr_bad_cookie(void);
+int test_tls13_hrr_cookie_handshake(void);
+int test_tls13_hrr_cookie_only_handshake(void);
+int test_tls13_client_cookie_echo(void);
+int test_tls13_client_cookie_too_big(void);
+int test_tls13_server_cookie_parse(void);
 int test_tls13_zero_inner_content_type(void);
 int test_tls13_post_handshake_auth_no_ext(void);
 int test_tls13_post_handshake_auth_late_allow(void);
@@ -155,6 +160,11 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_certificate_verify_bad_sigalgo), \
     TEST_DECL_GROUP("tls13", test_tls13_peerauth_failsafe),    \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_bad_cookie), \
+    TEST_DECL_GROUP("tls13", test_tls13_hrr_cookie_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_hrr_cookie_only_handshake), \
+    TEST_DECL_GROUP("tls13", test_tls13_client_cookie_echo), \
+    TEST_DECL_GROUP("tls13", test_tls13_client_cookie_too_big), \
+    TEST_DECL_GROUP("tls13", test_tls13_server_cookie_parse), \
     TEST_DECL_GROUP("tls13", test_tls13_zero_inner_content_type), \
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_no_ext), \
     TEST_DECL_GROUP("tls13", test_tls13_post_handshake_auth_late_allow), \
