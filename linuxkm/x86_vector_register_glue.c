@@ -1441,12 +1441,97 @@ static inline int wc_svr_ctx(void)
  * that commit on any kernel. */
 #if defined(CONFIG_X86) && !defined(WC_LINUXKM_NO_NESTED_VECTOR_SAVE)
     #define WC_SVR_HAVE_NESTED_SAVE
+    #define WC_SVR_NESTED_X86
+#elif defined(CONFIG_ARM64) && !defined(WC_LINUXKM_NO_NESTED_VECTOR_SAVE)
+    /* Same mechanism, same justification, different register file.
+     *
+     * arm64 refuses SIMD in hardirq, with IRQs disabled, in NMI, and while
+     * another kernel_neon section is open (arch/arm64/include/asm/simd.h) --
+     * and it refuses for the same reason x86 does: fpsimd_save() has nowhere
+     * to put the interrupted state.  That is a missing save area, not a
+     * property of the architecture, and "ARM cannot service a hardirq" is
+     * therefore a statement about today's code, not about ARM.
+     *
+     * THE ONE CONSTRAINT THAT DECIDES CORRECTNESS: writing V0-V31
+     * architecturally ZEROES bits [VL-1:128] of Z0-Z31.  So saving and
+     * restoring only the V registers is exact on a part with no SVE, and
+     * DESTRUCTIVE on a part where SVE state is live.  This path is therefore
+     * gated on !system_supports_sve() at run time; on an SVE or SME part the
+     * module keeps refusing, which is the pre-existing behaviour, until the
+     * wider save is implemented. */
+    #define WC_SVR_HAVE_NESTED_SAVE
+    #define WC_SVR_NESTED_ARM64
 #endif
 
 #ifdef WC_SVR_HAVE_NESTED_SAVE
 
 #include <asm/cpufeature.h>
+#ifdef WC_SVR_NESTED_X86
 #include <asm/processor.h>
+#endif
+
+#ifdef WC_SVR_NESTED_ARM64
+
+/* 32 x 128-bit V registers, then FPSR and FPCR.  That is the WHOLE vector
+ * state on a part without SVE, which is exactly the part this path runs on. */
+#define WC_SVR_A64_VREG_BYTES   512
+#define WC_SVR_A64_AREA_BYTES   576   /* 512 + FPSR/FPCR, rounded to 64 */
+
+static unsigned int wc_svr_save_size;
+static int          wc_svr_nested_ready;
+static u8         **wc_svr_save_area;
+static u8         **wc_svr_save_alloc;
+
+static inline void wc_svr_regs_save(u8 *area)
+{
+    u64 fpsr, fpcr;
+    u8 *p = area;
+    asm volatile(
+        "st1 {v0.16b-v3.16b},   [%0], #64\n\t"
+        "st1 {v4.16b-v7.16b},   [%0], #64\n\t"
+        "st1 {v8.16b-v11.16b},  [%0], #64\n\t"
+        "st1 {v12.16b-v15.16b}, [%0], #64\n\t"
+        "st1 {v16.16b-v19.16b}, [%0], #64\n\t"
+        "st1 {v20.16b-v23.16b}, [%0], #64\n\t"
+        "st1 {v24.16b-v27.16b}, [%0], #64\n\t"
+        "st1 {v28.16b-v31.16b}, [%0], #64\n\t"
+        : "+r"(p) : : "memory");
+    asm volatile("mrs %0, fpsr" : "=r"(fpsr));
+    asm volatile("mrs %0, fpcr" : "=r"(fpcr));
+    *(u64 *)(area + WC_SVR_A64_VREG_BYTES)     = fpsr;
+    *(u64 *)(area + WC_SVR_A64_VREG_BYTES + 8) = fpcr;
+}
+
+static inline void wc_svr_regs_restore(const u8 *area)
+{
+    u64 fpsr = *(const u64 *)(area + WC_SVR_A64_VREG_BYTES);
+    u64 fpcr = *(const u64 *)(area + WC_SVR_A64_VREG_BYTES + 8);
+    const u8 *p = area;
+    asm volatile(
+        "ld1 {v0.16b-v3.16b},   [%0], #64\n\t"
+        "ld1 {v4.16b-v7.16b},   [%0], #64\n\t"
+        "ld1 {v8.16b-v11.16b},  [%0], #64\n\t"
+        "ld1 {v12.16b-v15.16b}, [%0], #64\n\t"
+        "ld1 {v16.16b-v19.16b}, [%0], #64\n\t"
+        "ld1 {v20.16b-v23.16b}, [%0], #64\n\t"
+        "ld1 {v24.16b-v27.16b}, [%0], #64\n\t"
+        "ld1 {v28.16b-v31.16b}, [%0], #64\n\t"
+        : "+r"(p) : : "memory");
+    asm volatile("msr fpsr, %0" : : "r"(fpsr));
+    asm volatile("msr fpcr, %0" : : "r"(fpcr));
+}
+
+/* kernel_neon_begin() leaves FPCR/FPSR as the interrupted context had them, so
+ * unlike x86 there is no control register to normalise here. */
+static inline void wc_svr_load_default_mxcsr(void) { }
+
+static inline u8 *wc_svr_area(int ctx)
+{
+    return wc_svr_save_area[raw_smp_processor_id()] +
+           ((size_t)ctx * wc_svr_save_size);
+}
+
+#else /* WC_SVR_NESTED_X86 */
 
 /* x87, SSE, AVX, AVX-512 opmask, ZMM_Hi256 and Hi16_ZMM: every component a
  * wolfCrypt vector routine can write, and nothing else.  AMX is deliberately
@@ -1531,15 +1616,50 @@ static inline u8 *wc_svr_area(int ctx)
  * -mno-sse is in force for kernel code, so the compiler emits no vector
  * instructions of its own between the store and the compare; only an
  * interrupting context could, and this runs with preemption disabled. */
-#ifdef CONFIG_X86_64
+#ifdef WC_SVR_NESTED_ARM64
+    #define WC_SVR_ST_NREG 32
+    #define WC_SVR_ST_STRIDE 16
+static int wc_svr_st_avx;   /* unused on arm64; kept so the shared code compiles */
+static inline void wc_svr_st_load(const u8 *b)
+{
+    const u8 *p = b;
+    asm volatile(
+        "ld1 {v0.16b-v3.16b},   [%0], #64\n\t"
+        "ld1 {v4.16b-v7.16b},   [%0], #64\n\t"
+        "ld1 {v8.16b-v11.16b},  [%0], #64\n\t"
+        "ld1 {v12.16b-v15.16b}, [%0], #64\n\t"
+        "ld1 {v16.16b-v19.16b}, [%0], #64\n\t"
+        "ld1 {v20.16b-v23.16b}, [%0], #64\n\t"
+        "ld1 {v24.16b-v27.16b}, [%0], #64\n\t"
+        "ld1 {v28.16b-v31.16b}, [%0], #64\n\t"
+        : "+r"(p) : : "memory");
+}
+static inline void wc_svr_st_store(u8 *b)
+{
+    u8 *p = b;
+    asm volatile(
+        "st1 {v0.16b-v3.16b},   [%0], #64\n\t"
+        "st1 {v4.16b-v7.16b},   [%0], #64\n\t"
+        "st1 {v8.16b-v11.16b},  [%0], #64\n\t"
+        "st1 {v12.16b-v15.16b}, [%0], #64\n\t"
+        "st1 {v16.16b-v19.16b}, [%0], #64\n\t"
+        "st1 {v20.16b-v23.16b}, [%0], #64\n\t"
+        "st1 {v24.16b-v27.16b}, [%0], #64\n\t"
+        "st1 {v28.16b-v31.16b}, [%0], #64\n\t"
+        : "+r"(p) : : "memory");
+}
+#elif defined(CONFIG_X86_64)
     #define WC_SVR_ST_NREG 16
+    #define WC_SVR_ST_STRIDE 32
     #define WC_SVR_ST_SEQ(M) \
         M(0)  M(1)  M(2)  M(3)  M(4)  M(5)  M(6)  M(7) \
         M(8)  M(9)  M(10) M(11) M(12) M(13) M(14) M(15)
 #else
     #define WC_SVR_ST_NREG 8
+    #define WC_SVR_ST_STRIDE 32
     #define WC_SVR_ST_SEQ(M) M(0) M(1) M(2) M(3) M(4) M(5) M(6) M(7)
 #endif
+#ifndef WC_SVR_NESTED_ARM64
 #define WC_SVR_ST_LOADY(n)  "vmovdqu " #n "*32(%0), %%ymm" #n "\n\t"
 #define WC_SVR_ST_STORY(n)  "vmovdqu %%ymm" #n ", " #n "*32(%0)\n\t"
 #define WC_SVR_ST_LOADX(n)  "movdqu "  #n "*32(%0), %%xmm" #n "\n\t"
@@ -1562,6 +1682,7 @@ static inline void wc_svr_st_store(u8 *b)
     else
         asm volatile(WC_SVR_ST_SEQ(WC_SVR_ST_STORX) : : "r"(b) : "memory");
 }
+#endif /* !WC_SVR_NESTED_ARM64 */
 
 /* Returns 0 on an exact round trip, negative otherwise. */
 static int wc_svr_selftest(void)
@@ -1570,6 +1691,10 @@ static int wc_svr_selftest(void)
     size_t step, i;
     int ret = 0;
 
+#ifdef WC_SVR_NESTED_ARM64
+    /* Every V register is written in full, so the whole slot is compared. */
+    step = WC_SVR_ST_STRIDE;
+#else
     if (! wc_svr_use_xsave && ! boot_cpu_has(X86_FEATURE_FXSR))
         return -EOPNOTSUPP;
 
@@ -1577,15 +1702,16 @@ static int wc_svr_selftest(void)
     /* The SSE path writes 16 of every 32 bytes, so only that much is compared;
      * comparing the untouched half would report a clobber that never happened. */
     step = wc_svr_st_avx ? 32 : 16;
+#endif
 
     /* Same locked, preempt-disabled context as the allocations above. */
-    want = kmalloc(WC_SVR_ST_NREG * 32, GFP_ATOMIC);
-    got  = kmalloc(WC_SVR_ST_NREG * 32, GFP_ATOMIC);
+    want = kmalloc(WC_SVR_ST_NREG * WC_SVR_ST_STRIDE, GFP_ATOMIC);
+    got  = kmalloc(WC_SVR_ST_NREG * WC_SVR_ST_STRIDE, GFP_ATOMIC);
     if ((want == NULL) || (got == NULL)) {
         ret = -ENOMEM;
         goto out;
     }
-    for (i = 0; i < (size_t)(WC_SVR_ST_NREG * 32); i++)
+    for (i = 0; i < (size_t)(WC_SVR_ST_NREG * WC_SVR_ST_STRIDE); i++)
         want[i] = (u8)((i * 7u) ^ 0xa5u);
 
     /* kernel_fpu_begin() BUGs on !may_use_simd(), so check rather than assume.
@@ -1616,7 +1742,7 @@ static int wc_svr_selftest(void)
     area[0] ^= 0xffu;
     area[160] ^= 0xffu;
 #endif
-    memset(got, 0, WC_SVR_ST_NREG * 32);
+    memset(got, 0, WC_SVR_ST_NREG * WC_SVR_ST_STRIDE);
     wc_svr_st_load(got);         /* destroy them, as wolfCrypt would */
     wc_svr_regs_restore(area);   /* hand them back */
     wc_svr_st_store(got);        /* what the interrupted context would see */
@@ -1625,7 +1751,7 @@ static int wc_svr_selftest(void)
     preempt_enable();
 
     for (i = 0; i < WC_SVR_ST_NREG; i++) {
-        if (memcmp(got + (i * 32), want + (i * 32), step) != 0) {
+        if (memcmp(got + (i * WC_SVR_ST_STRIDE), want + (i * WC_SVR_ST_STRIDE), step) != 0) {
             pr_err("wolfCrypt: vector register %zu did not survive "
                    "save/restore.\n", i);
             ret = -EIO;
@@ -1638,6 +1764,8 @@ out:
     kfree(got);
     return ret;
 }
+
+#endif /* WC_SVR_NESTED_ARM64 / WC_SVR_NESTED_X86 */
 
 static void wc_svr_nested_free(void)
 {
@@ -1657,8 +1785,27 @@ static void wc_svr_nested_free(void)
 static int wc_svr_nested_init(void)
 {
     unsigned int cpu;
+#ifdef WC_SVR_NESTED_ARM64
+    /* THE GATE.  Writing V0-V31 zeroes bits [VL-1:128] of Z0-Z31, so a V-only
+     * save/restore is exact without SVE and destructive with it.  Refuse
+     * rather than corrupt: on an SVE or SME part this leaves the module
+     * declining exactly as it did before, which is safe and honest. */
+    if (! system_supports_fpsimd()) {
+        pr_info("wolfCrypt: no FPSIMD; nested vector save unavailable.\n");
+        return 0;
+    }
+    if (system_supports_sve()) {
+        pr_info("wolfCrypt: SVE is implemented; the FPSIMD-only nested save is"
+                " unsafe here (V writes truncate Z), so sections in hardirq and"
+                " IRQs-off contexts will continue to be refused.\n");
+        return 0;
+    }
+    wc_svr_save_size = WC_SVR_A64_AREA_BYTES;
+#else
     u32 eax, ebx, ecx, edx;
+#endif
 
+#ifdef WC_SVR_NESTED_X86
     /* X86_FEATURE_XSAVE is cleared by the kernel when it will not use XSAVE
      * (setup_clear_cpu_cap on "noxsave"), and OSXSAVE reports CR4.OSXSAVE,
      * without which XGETBV faults.  Require both before executing either. */
@@ -1684,6 +1831,7 @@ static int wc_svr_nested_init(void)
     }
 
     wc_svr_save_size = (wc_svr_save_size + 63U) & ~63U;
+#endif /* WC_SVR_NESTED_X86 */
 
     /* GFP_ATOMIC, not GFP_KERNEL.  allocate_wolfcrypt_linuxkm_fpu_states() is
      * called from wolfCrypt_Init() while wc_lkm_LockMutex() holds
