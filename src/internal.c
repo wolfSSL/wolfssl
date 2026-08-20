@@ -29035,7 +29035,12 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         while (encrypt == NULL);
         encrypt->done = 0;
         encrypt->avail = 0;
-        GrowAnOutputBuffer(ssl, &encrypt->buffer, outputSz);
+        ret = GrowAnOutputBuffer(ssl, &encrypt->buffer, outputSz);
+        if (ret != 0) {
+            encrypt->avail = 1;
+            ssl->error = ret;
+            return WOLFSSL_FATAL_ERROR;
+        }
         out = encrypt->buffer.buffer;
 #endif
 
