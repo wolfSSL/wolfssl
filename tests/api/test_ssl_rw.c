@@ -1062,6 +1062,167 @@ int test_wolfSSL_SendUserCanceled_paths(void)
     return EXPECT_RESULT();
 }
 
+/* Test that quiet shutdown does not suppress the close_notify that the
+ * user_canceled alert obliges wolfSSL to send.
+ *
+ * RFC 9846 Section 6.1 has a "close_notify" following "user_canceled" and has
+ * the peer keep reading until it arrives. Quiet shutdown may drop the
+ * close_notify that stands alone - that is what the option is for - but not
+ * the one the peer has been told to wait for.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_SendUserCanceled_quiet_shutdown(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_EXTRA) || \
+    defined(WOLFSSL_WPAS_SMALL))
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char reply[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_set_quiet_shutdown(ssl_c, 1);
+    }
+
+    /* Both alerts go out. Waiting for the peer's reply is what quiet shutdown
+     * skips, so the shutdown is done as far as this side is concerned. */
+    if (ssl_c != NULL) {
+        ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_c), WOLFSSL_SUCCESS);
+    }
+
+    /* The server reads the user_canceled and then the close_notify, which is
+     * what it reports. Without the close_notify it would still be waiting. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_ZERO_RETURN);
+    ExpectIntEQ(wolfSSL_get_shutdown(ssl_s), WOLFSSL_RECEIVED_SHUTDOWN);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* A quiet shutdown with no user_canceled behind it still sends nothing:
+     * that is the whole point of the option. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (ssl_c != NULL) {
+        wolfSSL_set_quiet_shutdown(ssl_c, 1);
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+    }
+
+    /* Nothing arrived, so the server is still waiting for a record. */
+    ExpectIntLT(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_shutdown(ssl_s), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a deferred user_canceled alert still gets its close_notify under
+ * quiet shutdown.
+ *
+ * When the transport cannot take the user_canceled alert right away it is
+ * left in the output buffer and WANT_WRITE reported. The close_notify RFC
+ * 9846 Section 6.1 requires after it is owed all the same, so a retried
+ * wolfSSL_shutdown() has to flush the buffered alert and send the
+ * close_notify behind it rather than take the quiet shutdown shortcut.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_SendUserCanceled_quiet_shutdown_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_EXTRA) || \
+    defined(WOLFSSL_WPAS_SMALL))
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char reply[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_set_quiet_shutdown(ssl_c, 1);
+    }
+
+    /* The transport takes nothing, so the user_canceled alert is left in the
+     * output buffer with WANT_WRITE reported. */
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_c), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+    if (ssl_c != NULL) {
+        ExpectIntGT(ssl_c->buffers.outputBuffer.length, 0);
+        /* Nothing has been sent, so no close_notify has been attempted. */
+        ExpectIntEQ(ssl_c->options.sentNotify, 0);
+    }
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    /* Retrying while the transport is still blocked keeps the alert buffered
+     * and reports WANT_WRITE again - the quiet shutdown shortcut must not
+     * claim success and drop it. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+    if (ssl_c != NULL) {
+        ExpectIntGT(ssl_c->buffers.outputBuffer.length, 0);
+    }
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    /* Once the transport takes data again the retry flushes the buffered
+     * user_canceled and sends the close_notify behind it. */
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
+    }
+    /* Two records went out: the user_canceled that was stuck in the buffer
+     * and the close_notify sent after it. The flags cannot be checked here -
+     * a successful shutdown resets them through wolfSSL_clear(). */
+    ExpectIntEQ(test_ctx.s_msg_count, 2);
+
+    /* The server reads the user_canceled and then the close_notify, which is
+     * what it reports. Without the close_notify it would still be waiting. */
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_ZERO_RETURN);
+    ExpectIntEQ(wolfSSL_get_shutdown(ssl_s), WOLFSSL_RECEIVED_SHUTDOWN);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that an error the read side recorded is the one the write reports.
  *
  * With a write duplicate in use the read side hands errors over through
