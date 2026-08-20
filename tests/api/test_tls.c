@@ -297,9 +297,10 @@ int test_tls_record_overflow_alert(void)
     return EXPECT_RESULT();
 }
 
+/* Must match the caller's guard exactly, or these statics compile unused. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
     !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA256)
 
 static int test_peer_name_cb_err = 0;
 static int test_peer_name_cb_preverify = -1;
@@ -408,7 +409,7 @@ int test_tls_peer_name_mismatch_verify_cb(void)
 
 #if defined(TEST_PEER_TMP_KEY_ECC) || defined(TEST_PEER_TMP_KEY_X25519) || \
     defined(TEST_PEER_TMP_KEY_X448)
-static int test_peer_tmp_key_group(int group, int tls13)
+static int test_peer_tmp_key_group(int group, int tls13, int expectedType)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -447,7 +448,12 @@ static int test_peer_tmp_key_group(int group, int tls13)
 
     ExpectIntEQ(wolfSSL_get_peer_tmp_key(ssl_c, &pkey), WOLFSSL_SUCCESS);
     ExpectNotNull(pkey);
+    /* The key must be of the negotiated group's type, not just any key.
+     * EVP_PKEY_id() reports the stored type; EVP_PKEY_base_id() maps only the
+     * classic types and returns NID_undef for X25519/X448. */
+    ExpectIntEQ(wolfSSL_EVP_PKEY_id(pkey), expectedType);
     wolfSSL_EVP_PKEY_free(pkey);
+    pkey = NULL;
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -465,19 +471,21 @@ int test_tls_get_peer_tmp_key(void)
     EXPECT_DECLS;
 #ifdef TEST_PEER_TMP_KEY_ECC
 #ifndef WOLFSSL_NO_TLS12
-    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 0),
-        TEST_SUCCESS);
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 0,
+        WC_EVP_PKEY_EC), TEST_SUCCESS);
 #endif
 #ifdef WOLFSSL_TLS13
-    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 1),
-        TEST_SUCCESS);
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_SECP256R1, 1,
+        WC_EVP_PKEY_EC), TEST_SUCCESS);
 #endif
 #endif
 #ifdef TEST_PEER_TMP_KEY_X25519
-    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X25519, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X25519, 1,
+        WC_EVP_PKEY_X25519), TEST_SUCCESS);
 #endif
 #ifdef TEST_PEER_TMP_KEY_X448
-    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X448, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_peer_tmp_key_group(WOLFSSL_ECC_X448, 1,
+        WC_EVP_PKEY_X448), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
