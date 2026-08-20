@@ -50,6 +50,7 @@ runs:
           # stall on. Every other path here reaches the mirror, which is what
           # used to hang these jobs for 10-40 min after the bundle had
           # already installed cleanly.
+          sudo dpkg --configure -a >/dev/null 2>&1 || true
           if sudo apt-get install -y --no-install-recommends \
                --no-download ccache; then
             echo "ccache installed offline from the staged .deb bundle"
@@ -60,16 +61,16 @@ runs:
             APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
                       -o Acquire::https::Timeout=30)
             ok=""
-            for i in 1 2 3; do
+            for i in 1 2; do
               sudo dpkg --configure -a >/dev/null 2>&1 || true
-              if sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q && \
-                 sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y \
+              if sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q && \
+                 sudo timeout -k 10 180 apt-get "${APT_OPTS[@]}" install -y \
                    --no-install-recommends ccache; then
                 ok=1
                 break
               fi
-              echo "::warning::ccache apt install failed (attempt $i/3)"
-              sleep $((5 * i))
+              echo "::warning::ccache apt install failed (attempt $i/2)"
+              sleep 5
             done
             [ -n "$ok" ] || { echo "::error::could not install ccache"; exit 1; }
           fi

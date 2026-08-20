@@ -825,19 +825,20 @@ jobs:
           # A wedged mirror hangs apt instead of failing it. Acquire timeouts
           # drop a stalled connection, `timeout` hard-kills apt-get if it
           # wedges anyway, and the loop then retries against a fresh mirror.
+          # Two attempts at 60s+300s stay inside this job's timeout-minutes.
           APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
                     -o Acquire::https::Timeout=30)
           apt_retry() {
             local i
-            for i in 1 2 3; do
-              if sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q && \
-                 sudo timeout -k 10 900 apt-get "${APT_OPTS[@]}" install -y "$@"; then
+            for i in 1 2; do
+              if sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q && \
+                 sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y "$@"; then
                 return 0
               fi
-              echo "::warning::apt-get failed (attempt $i/3)"
-              sleep $((5 * i))
+              echo "::warning::apt-get failed (attempt $i/2)"
+              sleep 5
             done
-            echo "::error::apt-get failed after 3 attempts"
+            echo "::error::apt-get failed after 2 attempts"
             return 1
           }
           # bison + autotools-dev are required by strace's ./bootstrap.

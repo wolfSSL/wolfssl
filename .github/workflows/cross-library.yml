@@ -64,22 +64,27 @@ jobs:
         run: |
           set -eux
           export DEBIAN_FRONTEND=noninteractive
+          # These containers are bare images with no bash, so this step runs
+          # under `sh` - keep it POSIX. $APT_OPTS is unquoted on purpose so it
+          # word-splits.
           # A wedged mirror hangs apt instead of failing it. Acquire timeouts
-          # drop a stalled connection, `timeout` hard-kills apt-get if it
-          # wedges anyway, and the loop then retries against a fresh mirror.
-          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
-                    -o Acquire::https::Timeout=30)
-          for i in 1 2 3; do
-            if timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q && \
-               timeout -k 10 900 apt-get "${APT_OPTS[@]}" install -y \
+          # drop a stalled connection (and are what actually detects a wedge),
+          # `timeout` hard-kills apt-get if it wedges outside its own I/O loop,
+          # and the loop then retries - re-reading the mirror list. Two
+          # attempts at 60s+300s fit inside this job's timeout-minutes; apt
+          # resumes from archives/partial/, so a killed transfer is not lost.
+          APT_OPTS="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          for i in 1 2; do
+            if timeout -k 10 60 apt-get $APT_OPTS update -q && \
+               timeout -k 10 300 apt-get $APT_OPTS install -y \
                  --no-install-recommends \
                  build-essential autoconf automake libtool pkg-config \
                  git ca-certificates ${{ inputs.apt_packages }}; then
               break
             fi
-            test "$i" -lt 3 || { echo "::error::apt-get failed after 3 attempts"; exit 1; }
-            echo "::warning::apt-get failed (attempt $i/3)"
-            sleep $((5 * i))
+            test "$i" -lt 2 || { echo "::error::apt-get failed after 2 attempts"; exit 1; }
+            echo "::warning::apt-get failed (attempt $i/2)"
+            sleep 5
           done
 
       # Building only needs the commit under test, not history. The break check
@@ -142,22 +147,27 @@ jobs:
         run: |
           set -eux
           export DEBIAN_FRONTEND=noninteractive
+          # These containers are bare images with no bash, so this step runs
+          # under `sh` - keep it POSIX. $APT_OPTS is unquoted on purpose so it
+          # word-splits.
           # A wedged mirror hangs apt instead of failing it. Acquire timeouts
-          # drop a stalled connection, `timeout` hard-kills apt-get if it
-          # wedges anyway, and the loop then retries against a fresh mirror.
-          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
-                    -o Acquire::https::Timeout=30)
-          for i in 1 2 3; do
-            if timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q && \
-               timeout -k 10 900 apt-get "${APT_OPTS[@]}" install -y \
+          # drop a stalled connection (and are what actually detects a wedge),
+          # `timeout` hard-kills apt-get if it wedges outside its own I/O loop,
+          # and the loop then retries - re-reading the mirror list. Two
+          # attempts at 60s+300s fit inside this job's timeout-minutes; apt
+          # resumes from archives/partial/, so a killed transfer is not lost.
+          APT_OPTS="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          for i in 1 2; do
+            if timeout -k 10 60 apt-get $APT_OPTS update -q && \
+               timeout -k 10 300 apt-get $APT_OPTS install -y \
                  --no-install-recommends \
                  build-essential autoconf automake libtool pkg-config \
                  git ca-certificates ${{ inputs.apt_packages }}; then
               break
             fi
-            test "$i" -lt 3 || { echo "::error::apt-get failed after 3 attempts"; exit 1; }
-            echo "::warning::apt-get failed (attempt $i/3)"
-            sleep $((5 * i))
+            test "$i" -lt 2 || { echo "::error::apt-get failed after 2 attempts"; exit 1; }
+            echo "::warning::apt-get failed (attempt $i/2)"
+            sleep 5
           done
 
       # This job does not build wolfSSL, but the latest leg still checks out

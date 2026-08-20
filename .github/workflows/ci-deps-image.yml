@@ -193,14 +193,16 @@ jobs:
           rm -rf debs && mkdir -p debs
           sudo apt-get clean
           APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-          retry() { local i; for i in 1 2 3 4 5; do "$@" && return 0; sleep $((2**i)); done; "$@"; }
-          retry sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -q
+          # 2 attempts, not 5: this job's timeout-minutes is 20, and an
+          # attempt cut off mid-flight reports nothing.
+          retry() { local i; for i in 1 2; do "$@" && return 0; sleep 5; done; "$@"; }
+          retry sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q
           # The whole set is required and this bundle is small, so resolve it as
           # one closure and let any download failure fail the job. We push only
           # on success, so a transient mirror error keeps the last good bundle
           # rather than publishing a partial one - which the kernel-label skip
           # would then pin in place until the kernel next changes (~monthly).
-          retry sudo timeout -k 10 600 apt-get "${APT_OPTS[@]}" install -y \
+          retry sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y \
             --download-only "${PKGS[@]}"
           sudo cp /var/cache/apt/archives/*.deb debs/ 2>/dev/null || true
           echo "Bundled $(ls debs/*.deb 2>/dev/null | wc -l) .deb files"
