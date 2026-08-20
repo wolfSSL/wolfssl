@@ -51,12 +51,13 @@
  *     assuming !SINGLE_THREADED is enough;
  *   - a general-purpose heap for the comparison buffer, which rules out
  *     WOLFSSL_NO_MALLOC and WOLFSSL_STATIC_MEMORY;
- *   - a random.c/random.h pair that actually carries the feature.  A FIPS
- *     build checks out locked copies of both from the module's tag, and those
- *     predate it, so HAVE_FIPS is excluded outright.  Note the locked
- *     random.h also never defines WC_NO_DRBG_THREAD_SAFE, so the test above
- *     cannot detect this on its own. */
-#if !defined(WC_NO_DRBG_THREAD_SAFE) && !defined(HAVE_FIPS) && \
+ *   - a random.c/random.h pair that actually carries the feature.  A FIPS or
+ *     selftest build checks out locked copies of both from the module's tag,
+ *     and those predate it, so HAVE_FIPS and HAVE_SELFTEST are excluded
+ *     outright.  Note the locked random.h also never defines
+ *     WC_NO_DRBG_THREAD_SAFE, so the test above cannot detect this itself. */
+#if !defined(WC_NO_DRBG_THREAD_SAFE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
     (defined(WOLFSSL_PTHREADS) || \
      (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
