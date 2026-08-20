@@ -525,6 +525,112 @@ int test_tls13_apis(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
+    /* The accepting vector for the whole guard:
+     *     required == NULL || ssl == NULL || !IsAtLeastTLSv1_3(ssl->version)
+     * Every case above leaves at least one operand true, so none of the three
+     * operands had a partner vector with the decision false. A live TLS 1.3
+     * object with a non-NULL out-parameter supplies it. */
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectIntEQ(wolfSSL_key_update_response(clientSsl, &required), 0);
+#endif
+
+    /* The remaining TLS 1.3-only entry points guarded by
+     *     ssl == NULL || !IsAtLeastTLSv1_3(ssl->version)
+     * (or the CTX equivalent). Each needs all three vectors -- NULL, a
+     * TLS 1.2 object, and a TLS 1.3 object -- for both operands to have an
+     * independence partner. Return values other than BAD_FUNC_ARG are
+     * intentional: these calls are made on objects that never handshook, so a
+     * side/state error is the correct success indication that the argument
+     * guard was passed. */
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef NO_WOLFSSL_CLIENT
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(clientTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(clientSsl),
+        WC_NO_ERR_TRACE(SIDE_ERROR));
+#endif
+#ifndef NO_WOLFSSL_SERVER
+    ExpectIntEQ(wolfSSL_disable_hrr_cookie(serverSsl), WOLFSSL_SUCCESS);
+#endif
+#endif /* WOLFSSL_SEND_HRR_COOKIE */
+
+#ifdef HAVE_SUPPORTED_CURVES
+    ExpectIntEQ(wolfSSL_CTX_only_dhe_psk(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef NO_WOLFSSL_CLIENT
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(wolfSSL_CTX_only_dhe_psk(clientTls12Ctx),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    ExpectIntEQ(wolfSSL_CTX_only_dhe_psk(clientCtx), 0);
+#endif
+
+    ExpectIntEQ(wolfSSL_only_dhe_psk(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef NO_WOLFSSL_CLIENT
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(wolfSSL_only_dhe_psk(clientTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    ExpectIntEQ(wolfSSL_only_dhe_psk(clientSsl), 0);
+#endif
+#endif /* HAVE_SUPPORTED_CURVES */
+
+    /* wolfSSL_require_psk() already has its NULL and TLS 1.3 vectors in
+     * test_tls13_require_psk_apis(); only the TLS 1.2 middle vector -- the one
+     * that makes the version operand true on its own -- was missing. */
+#ifndef NO_WOLFSSL_CLIENT
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(wolfSSL_require_psk(clientTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    ExpectIntEQ(wolfSSL_require_psk(clientSsl), 0);
+#endif
+
+#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SESSION_TICKET)
+    ExpectIntEQ(wolfSSL_send_SessionTicket(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(wolfSSL_send_SessionTicket(serverTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    /* Never handshook, so the argument guard is passed and the handshake-state
+     * check rejects it. */
+    ExpectIntEQ(wolfSSL_send_SessionTicket(serverSsl),
+        WC_NO_ERR_TRACE(NOT_READY_ERROR));
+#endif
+
+#ifdef WOLFSSL_EARLY_DATA
+    ExpectIntEQ(wolfSSL_get_early_data_status(NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef NO_WOLFSSL_CLIENT
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(wolfSSL_get_early_data_status(clientTls12Ssl),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    ExpectIntEQ(wolfSSL_get_early_data_status(clientSsl),
+        WOLFSSL_EARLY_DATA_NOT_SENT);
+#endif
+#endif /* WOLFSSL_EARLY_DATA */
+
+    /* wolfSSL_get_cipher_name_by_hash():
+     *     hash == NULL || ssl == NULL || (ssl->suites == NULL && ssl->ctx == NULL)
+     * Only the first two operands are reachable: ssl->ctx is invariant non-NULL
+     * for a live WOLFSSL, so the parenthesised sub-expression is dead and both
+     * of its operands are recorded in campaign/db/exclusions.json. */
+#ifndef NO_PSK
+#ifndef NO_WOLFSSL_CLIENT
+    ExpectNull(wolfSSL_get_cipher_name_by_hash(clientSsl, NULL));
+    ExpectNull(wolfSSL_get_cipher_name_by_hash(NULL, "SHA256"));
+#if !defined(NO_SHA256) && (defined(HAVE_AESGCM) || defined(HAVE_CHACHA))
+    ExpectNotNull(wolfSSL_get_cipher_name_by_hash(clientSsl, "SHA256"));
+#endif
+#endif
+#endif /* !NO_PSK */
+
 #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     ExpectIntEQ(wolfSSL_CTX_allow_post_handshake_auth(NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
