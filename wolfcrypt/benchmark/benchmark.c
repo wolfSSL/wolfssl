@@ -4822,11 +4822,22 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifdef HAVE_CURVE448
-    if (bench_all || (bench_asym_algs & BENCH_CURVE448_KEYGEN))
-        bench_curve448KeyGen();
+    if (bench_all || (bench_asym_algs & BENCH_CURVE448_KEYGEN)) {
+    #ifndef NO_SW_BENCH
+        bench_curve448KeyGen(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_curve448KeyGen(1);
+    #endif
+    }
+
     #ifdef HAVE_CURVE448_SHARED_SECRET
-    if (bench_all || (bench_asym_algs & BENCH_CURVE448_KA))
-        bench_curve448KeyAgree();
+    if (bench_all || (bench_asym_algs & BENCH_CURVE448_KA)) {
+        bench_curve448KeyAgree(0);
+    #ifdef BENCH_DEVID
+        bench_curve448KeyAgree(1);
+    #endif
+    }
     #endif
 #endif
 
@@ -15303,7 +15314,7 @@ exit_ed_verify:
 #endif /* HAVE_ED25519 */
 
 #ifdef HAVE_CURVE448
-void bench_curve448KeyGen(void)
+void bench_curve448KeyGen(int useDeviceID)
 {
     curve448_key genKey;
     double start;
@@ -15317,6 +15328,12 @@ void bench_curve448KeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
+            ret = wc_curve448_init_ex(&genKey, HEAP_HINT,
+                                      useDeviceID ? devId : INVALID_DEVID);
+            if (ret != 0) {
+                printf("wc_curve448_init_ex failed: %d\n", ret);
+                break;
+            }
             ret = wc_curve448_make_key(&gRng, 56, &genKey);
             wc_curve448_free(&genKey);
             if (ret != 0) {
@@ -15332,14 +15349,15 @@ void bench_curve448KeyGen(void)
 #endif
        );
 
-    bench_stats_asym_finish("CURVE", 448, desc[2], 0, count, start, ret);
+    bench_stats_asym_finish("CURVE", 448, desc[2], useDeviceID, count, start,
+        ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
 
 #ifdef HAVE_CURVE448_SHARED_SECRET
-void bench_curve448KeyAgree(void)
+void bench_curve448KeyAgree(int useDeviceID)
 {
     curve448_key genKey, genKey2;
     double start;
@@ -15351,8 +15369,10 @@ void bench_curve448KeyAgree(void)
 
     bench_stats_prepare();
 
-    wc_curve448_init(&genKey);
-    wc_curve448_init(&genKey2);
+    wc_curve448_init_ex(&genKey, HEAP_HINT,
+                        useDeviceID ? devId : INVALID_DEVID);
+    wc_curve448_init_ex(&genKey2, HEAP_HINT,
+                        useDeviceID ? devId : INVALID_DEVID);
 
     ret = wc_curve448_make_key(&gRng, 56, &genKey);
     if (ret != 0) {
@@ -15386,7 +15406,8 @@ void bench_curve448KeyAgree(void)
        );
 
 exit:
-    bench_stats_asym_finish("CURVE", 448, desc[3], 0, count, start, ret);
+    bench_stats_asym_finish("CURVE", 448, desc[3], useDeviceID, count, start,
+        ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif

@@ -2429,7 +2429,7 @@ static int DetectStaticEphemeralKeyType(const byte* keyBuf, unsigned int keySz,
         WC_ALLOC_VAR_EX(x448Key, curve448_key, 1, heap,
                         DYNAMIC_TYPE_CURVE448, ret = MEMORY_E);
         if (ret == 0) {
-            ret = wc_curve448_init(x448Key);
+            ret = wc_curve448_init_ex(x448Key, heap, INVALID_DEVID);
         }
         if (ret == 0) {
             ret = wc_Curve448PrivateKeyDecode(keyBuf, &idx, x448Key,

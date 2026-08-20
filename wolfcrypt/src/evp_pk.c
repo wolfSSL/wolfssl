@@ -523,7 +523,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_public_key(int type,
             if (cKey == NULL) {
                 break;
             }
-            if (wc_curve448_init(cKey) != 0) {
+            if (wc_curve448_init_ex(cKey, pkey->heap, INVALID_DEVID) != 0) {
                 XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
                 break;
             }
@@ -672,7 +672,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
             if (cKey == NULL) {
                 break;
             }
-            if (wc_curve448_init(cKey) != 0) {
+            if (wc_curve448_init_ex(cKey, pkey->heap, INVALID_DEVID) != 0) {
                 XFREE(cKey, pkey->heap, DYNAMIC_TYPE_CURVE448);
                 break;
             }

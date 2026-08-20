@@ -46,6 +46,9 @@
 #ifdef HAVE_CURVE25519
 #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
+#ifdef HAVE_CURVE448
+#include <wolfssl/wolfcrypt/curve448.h>
+#endif
 
 static int swdev_initialized = 0;
 
@@ -355,6 +358,41 @@ static int swdev_curve25519_generic(wc_CryptoInfo* info)
         info->pk.curve25519generic.basepoint);
 }
 #endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_CURVE448
+static int swdev_curve448_keygen(wc_CryptoInfo* info)
+{
+    return wc_curve448_make_key(info->pk.curve448kg.rng,
+        info->pk.curve448kg.size, info->pk.curve448kg.key);
+}
+
+#ifdef HAVE_CURVE448_SHARED_SECRET
+static int swdev_curve448(wc_CryptoInfo* info)
+{
+    return wc_curve448_shared_secret_ex(info->pk.curve448.private_key,
+        info->pk.curve448.public_key, info->pk.curve448.out,
+        info->pk.curve448.outlen, info->pk.curve448.endian);
+}
+#endif /* HAVE_CURVE448_SHARED_SECRET */
+
+static int swdev_curve448_make_pub(wc_CryptoInfo* info)
+{
+    return wc_curve448_make_pub((int)info->pk.curve448makepub.pubSz,
+        info->pk.curve448makepub.pub,
+        (int)info->pk.curve448makepub.privSz,
+        info->pk.curve448makepub.priv);
+}
+
+static int swdev_curve448_generic(wc_CryptoInfo* info)
+{
+    return wc_curve448_generic((int)info->pk.curve448generic.pubSz,
+        info->pk.curve448generic.pub,
+        (int)info->pk.curve448generic.privSz,
+        info->pk.curve448generic.priv,
+        (int)info->pk.curve448generic.basepointSz,
+        info->pk.curve448generic.basepoint);
+}
+#endif /* HAVE_CURVE448 */
 
 #ifndef NO_SHA256
 /* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
@@ -1008,7 +1046,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
 
     switch (info->algo_type) {
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE25519)
+    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
     #ifndef NO_RSA
@@ -1071,6 +1109,18 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_CURVE25519_GENERIC:
             return swdev_curve25519_generic(info);
     #endif /* HAVE_CURVE25519 */
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448_KEYGEN:
+            return swdev_curve448_keygen(info);
+        #ifdef HAVE_CURVE448_SHARED_SECRET
+        case WC_PK_TYPE_CURVE448:
+            return swdev_curve448(info);
+        #endif
+        case WC_PK_TYPE_CURVE448_MAKE_PUB:
+            return swdev_curve448_make_pub(info);
+        case WC_PK_TYPE_CURVE448_GENERIC:
+            return swdev_curve448_generic(info);
+    #endif /* HAVE_CURVE448 */
         default:
             return CRYPTOCB_UNAVAILABLE;
         }

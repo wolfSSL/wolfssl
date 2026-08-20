@@ -8567,7 +8567,8 @@ static int TLSX_KeyShare_GenX448Key(WOLFSSL *ssl, KeyShareEntry* kse)
         }
 
         /* Make an Curve448 key. */
-        ret = wc_curve448_init((curve448_key*)kse->key);
+        ret = wc_curve448_init_ex((curve448_key*)kse->key, ssl->heap,
+                                  ssl->devId);
         if (ret == 0) {
             key = (curve448_key*)kse->key;
             kse->keyLen = CURVE448_KEY_SIZE;

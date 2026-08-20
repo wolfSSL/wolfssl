@@ -160,6 +160,108 @@ int wc_curve448_init(curve448_key* key);
 
 /*!
     \ingroup Curve448
+    \brief This function initializes a Curve448 key with extended
+    parameters, allowing specification of custom heap and device ID
+    for hardware acceleration.
+
+    \return 0 On successfully initializing the key
+    \return BAD_FUNC_ARG If key is NULL
+
+    \param [in,out] key Pointer to the curve448_key structure to initialize.
+    \param [in] heap Pointer to heap hint for memory allocation (can be
+    NULL)
+    \param [in] devId Device ID for hardware acceleration (use
+    INVALID_DEVID for software only)
+
+    _Example_
+    \code
+    curve448_key key;
+    void* heap = NULL;
+    int devId = INVALID_DEVID;
+
+    int ret = wc_curve448_init_ex(&key, heap, devId);
+    if (ret != 0) {
+        // error initializing key
+    }
+    \endcode
+
+    \sa wc_curve448_init
+    \sa wc_curve448_free
+*/
+int wc_curve448_init_ex(curve448_key* key, void* heap, int devId);
+
+/*!
+    \ingroup Curve448
+    \brief This function allocates and initializes a new Curve448
+    key structure with extended parameters. The caller is responsible
+    for freeing the key with wc_curve448_delete. These New/Delete
+    functions are exposed to support allocation of the structure using
+    dynamic memory to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return Pointer to newly allocated curve448_key on success
+    \return NULL on failure
+
+    \param [in] heap Pointer to heap hint for memory allocation (can be
+    NULL)
+    \param [in] devId Device ID for hardware acceleration (use
+    INVALID_DEVID for software only)
+    \param [out] result_code Pointer to store result code (0 on success)
+
+    _Example_
+    \code
+    int ret;
+    curve448_key* key;
+
+    key = wc_curve448_new(NULL, INVALID_DEVID, &ret);
+    if (key == NULL || ret != 0) {
+        // error allocating key
+    }
+    // use key
+    wc_curve448_delete(key, &key);
+    \endcode
+
+    \sa wc_curve448_delete
+    \sa wc_curve448_init_ex
+*/
+curve448_key* wc_curve448_new(void* heap, int devId, int* result_code);
+
+/*!
+    \ingroup Curve448
+    \brief This function frees a Curve448 key structure that was
+    allocated with wc_curve448_new and sets the pointer to NULL.
+    These New/Delete functions are exposed to support allocation of the
+    structure using dynamic memory to provide better ABI compatibility.
+
+    \note This API is only available when WC_NO_CONSTRUCTORS is not defined.
+    WC_NO_CONSTRUCTORS is automatically defined when WOLFSSL_NO_MALLOC is
+    defined.
+
+    \return 0 On successfully freeing the key
+    \return BAD_FUNC_ARG If key is NULL
+
+    \param [in,out] key Pointer to the curve448_key structure to free.
+    \param [out] key_p Pointer to the key pointer to set to NULL (can be
+    NULL)
+
+    _Example_
+    \code
+    int ret;
+    curve448_key* key = wc_curve448_new(NULL, INVALID_DEVID, &ret);
+    // use key
+    ret = wc_curve448_delete(key, &key);
+    \endcode
+
+    \sa wc_curve448_new
+    \sa wc_curve448_free
+*/
+int wc_curve448_delete(curve448_key* key, curve448_key** key_p);
+
+/*!
+    \ingroup Curve448
 
     \brief This function frees a Curve448 object.
 
@@ -802,3 +904,46 @@ int wc_curve448_size(curve448_key* key);
 */
 int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
                          const byte* priv);
+
+/*!
+    \ingroup Curve448
+    \brief This function performs a generic Curve448 scalar
+    multiplication with a custom basepoint. This allows computing
+    scalar * basepoint for any basepoint, not just the standard
+    generator. This is a raw primitive: unlike
+    wc_curve448_shared_secret_ex it does not reject an all-zero
+    result. Callers doing key agreement with a peer-supplied point
+    must reject an all-zero output themselves (RFC 7748 section 6.2).
+
+    \return 0 On successfully computing the result
+    \return ECC_BAD_ARG_E If any input parameter is NULL or a size is
+    invalid
+
+    \param public_size Size of the output buffer (must be 56)
+    \param pub Pointer to buffer to store the result
+    \param private_size Size of the scalar (must be 56)
+    \param priv Pointer to buffer containing the scalar
+    \param basepoint_size Size of the basepoint (must be 56)
+    \param basepoint Pointer to buffer containing the basepoint
+
+    _Example_
+    \code
+    byte scalar[CURVE448_KEY_SIZE];
+    byte basepoint[CURVE448_KEY_SIZE];
+    byte result[CURVE448_PUB_KEY_SIZE];
+
+    // initialize scalar and basepoint
+    int ret = wc_curve448_generic(sizeof(result), result,
+                                  sizeof(scalar), scalar,
+                                  sizeof(basepoint), basepoint);
+    if (ret != 0) {
+        // error computing result
+    }
+    \endcode
+
+    \sa wc_curve448_make_pub
+    \sa wc_curve448_shared_secret
+*/
+int wc_curve448_generic(int public_size, byte* pub, int private_size,
+                        const byte* priv, int basepoint_size,
+                        const byte* basepoint);

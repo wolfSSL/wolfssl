@@ -3950,7 +3950,8 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                     ret = MEMORY_E;
                     break;
                 }
-                if (wc_curve448_init(pkey->curve448) != 0) {
+                if (wc_curve448_init_ex(pkey->curve448, pkey->heap,
+                        INVALID_DEVID) != 0) {
                     XFREE(pkey->curve448, pkey->heap, DYNAMIC_TYPE_CURVE448);
                     pkey->curve448 = NULL;
                     break;
@@ -10327,7 +10328,7 @@ int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
                 WOLFSSL_MSG("malloc failed");
                 break;
             }
-            if (wc_curve448_init(key) != 0) {
+            if (wc_curve448_init_ex(key, pkey->heap, INVALID_DEVID) != 0) {
                 XFREE(key, pkey->heap, DYNAMIC_TYPE_CURVE448);
                 break;
             }
