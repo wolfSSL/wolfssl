@@ -55,6 +55,21 @@ int test_tls_msgtype_server_cert_type_tls13(void);
 int test_tls_msgtype_server_cert_type_tls12(void);
 int test_tls_msgtype_connection_id(void);
 int test_tls_msgtype_ech(void);
+int test_tls_msgtype_sni_find(void);
+int test_tls_msgtype_sni_parse_response_gate(void);
+int test_tls_msgtype_sni_parse_size_gates(void);
+int test_tls_msgtype_sni_parse_cacheonly(void);
+int test_tls_msgtype_sni_parse_match(void);
+int test_tls_msgtype_sni_parse_ech_public(void);
+int test_tls_msgtype_psk_ch_id_gates(void);
+int test_tls_msgtype_psk_ch_binder_gates(void);
+int test_tls_msgtype_psk_sh_index(void);
+int test_tls_msgtype_psk_sh_resumption(void);
+int test_tls_msgtype_cookie_parse_gates(void);
+int test_tls_msgtype_tca_parse_gates(void);
+int test_tls_msgtype_tca_find(void);
+int test_tls_msgtype_tca_new_alloc(void);
+int test_tls_msgtype_psk_write_chosen(void);
 
 #define TEST_TLS_MSGTYPE_DECLS                                               \
         TEST_DECL_GROUP("tls", test_tls_msgtype_arg_guard),                 \
@@ -89,6 +104,21 @@ int test_tls_msgtype_ech(void);
         TEST_DECL_GROUP("tls", test_tls_msgtype_server_cert_type_tls13),    \
         TEST_DECL_GROUP("tls", test_tls_msgtype_server_cert_type_tls12),    \
         TEST_DECL_GROUP("tls", test_tls_msgtype_connection_id),             \
-        TEST_DECL_GROUP("tls", test_tls_msgtype_ech)
+        TEST_DECL_GROUP("tls", test_tls_msgtype_ech),                      \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_sni_find),                 \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_sni_parse_response_gate),  \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_sni_parse_size_gates),     \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_sni_parse_cacheonly),      \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_sni_parse_match),          \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_sni_parse_ech_public),     \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_psk_ch_id_gates),          \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_psk_ch_binder_gates),      \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_psk_sh_index),             \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_psk_sh_resumption),        \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_cookie_parse_gates),       \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_tca_parse_gates),          \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_tca_find),                 \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_tca_new_alloc),          \
+        TEST_DECL_GROUP("tls", test_tls_msgtype_psk_write_chosen)
 
 #endif /* TESTS_API_TEST_TLS_MSGTYPE_H */
