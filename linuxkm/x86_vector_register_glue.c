@@ -1578,8 +1578,9 @@ static int wc_svr_selftest(void)
      * comparing the untouched half would report a clobber that never happened. */
     step = wc_svr_st_avx ? 32 : 16;
 
-    want = kmalloc(WC_SVR_ST_NREG * 32, GFP_KERNEL);
-    got  = kmalloc(WC_SVR_ST_NREG * 32, GFP_KERNEL);
+    /* Same locked, preempt-disabled context as the allocations above. */
+    want = kmalloc(WC_SVR_ST_NREG * 32, GFP_ATOMIC);
+    got  = kmalloc(WC_SVR_ST_NREG * 32, GFP_ATOMIC);
     if ((want == NULL) || (got == NULL)) {
         ret = -ENOMEM;
         goto out;
@@ -1684,8 +1685,16 @@ static int wc_svr_nested_init(void)
 
     wc_svr_save_size = (wc_svr_save_size + 63U) & ~63U;
 
-    wc_svr_save_area  = (u8 **)kcalloc(nr_cpu_ids, sizeof(u8 *), GFP_KERNEL);
-    wc_svr_save_alloc = (u8 **)kcalloc(nr_cpu_ids, sizeof(u8 *), GFP_KERNEL);
+    /* GFP_ATOMIC, not GFP_KERNEL.  allocate_wolfcrypt_linuxkm_fpu_states() is
+     * called from wolfCrypt_Init() while wc_lkm_LockMutex() holds
+     * inits_count_mutex with preemption disabled, so a sleeping allocation here
+     * is "BUG: sleeping function called from invalid context" -- caught by
+     * CONFIG_DEBUG_ATOMIC_SLEEP, in the test arm only, because without nested
+     * save this function allocates nothing at all.
+     * Failure is already handled: the caller disables nested save and the
+     * module goes on refusing sections, which is the pre-existing behaviour. */
+    wc_svr_save_area  = (u8 **)kcalloc(nr_cpu_ids, sizeof(u8 *), GFP_ATOMIC);
+    wc_svr_save_alloc = (u8 **)kcalloc(nr_cpu_ids, sizeof(u8 *), GFP_ATOMIC);
     if ((wc_svr_save_area == NULL) || (wc_svr_save_alloc == NULL)) {
         wc_svr_nested_free();
         return -ENOMEM;
@@ -1696,7 +1705,7 @@ static int wc_svr_nested_init(void)
          * XCOMP_BV, and XCOMP_BV must stay 0 for the area to be read back as
          * standard format (SDM Vol. 1, 13.4.2). */
         size_t need = (size_t)wc_svr_save_size * WC_SVR_NCTX;
-        u8 *p = (u8 *)kzalloc(need + 64, GFP_KERNEL);
+        u8 *p = (u8 *)kzalloc(need + 64, GFP_ATOMIC);
         if (p == NULL) {
             wc_svr_nested_free();
             return -ENOMEM;
