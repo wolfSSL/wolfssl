@@ -9740,6 +9740,10 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
         }
     #endif
 
+        /* A reused WOLFSSL may already carry a retained peer key. */
+        FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
+        ssl->peerX25519KeyPresent = 0;
+
         ssl->peerX25519Key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
                                         ssl->heap, DYNAMIC_TYPE_TLSX);
         if (ssl->peerX25519Key == NULL) {
@@ -9813,8 +9817,10 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
     }
 
     /* done with key share, release resources unless the peer key was asked
-     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake */
-    if ((ssl->peerX25519Key != NULL) && !ssl->options.keepResources) {
+     * for - wolfSSL_get_peer_tmp_key() needs it after the handshake. A failed
+     * exchange keeps nothing, matching TLSX_KeyShare_ProcessX448_ex(). */
+    if ((ssl->peerX25519Key != NULL) &&
+            ((ret != 0) || !ssl->options.keepResources)) {
         wc_curve25519_free(ssl->peerX25519Key);
         XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
         ssl->peerX25519Key = NULL;
