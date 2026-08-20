@@ -297,7 +297,7 @@ int test_tls_record_overflow_alert(void)
     return EXPECT_RESULT();
 }
 
-/* Must match the caller's guard exactly, or these statics compile unused. */
+/* Must match the caller's guard exactly, or these functions compile unused. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
     !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA256)
