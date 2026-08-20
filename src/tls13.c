@@ -10811,23 +10811,30 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     }
                     ssl->buffers.keyType = ssl->buffers.altKeyType;
                     ssl->buffers.keySz = ssl->buffers.altKeySz;
-                    /* If we own it, free key before overriding it. */
-                    if (ssl->buffers.weOwnKey) {
-                        FreeDer(&ssl->buffers.key);
+                    /* Check if the swap already occurred */
+                    if (ssl->buffers.key != ssl->buffers.altKey) {
+                        /* If we own it, free key before overriding it. */
+                        if (ssl->buffers.weOwnKey) {
+                            FreeDer(&ssl->buffers.key);
+                        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                            FreeDer(&ssl->buffers.keyMask);
+                        #endif
+                        }
+
+                        /* Swap keys. The alternate field keeps pointing at the
+                         * buffer so a later CertificateVerify can still sign,
+                         * but hands over ownership so it is released once. */
+                        ssl->buffers.key      = ssl->buffers.altKey;
+                        ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
+                        ssl->buffers.weOwnAltKey = 0;
+
                     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                        FreeDer(&ssl->buffers.keyMask);
+                        ssl->buffers.keyMask = ssl->buffers.altKeyMask;
+                        /* Unblind the alternative key before decoding */
+                        wolfssl_priv_der_blind_toggle(ssl->buffers.key,
+                                                      ssl->buffers.keyMask);
                     #endif
                     }
-
-                    /* Swap keys */
-                    ssl->buffers.key     = ssl->buffers.altKey;
-                    ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
-
-                #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                    ssl->buffers.keyMask = ssl->buffers.altKeyMask;
-                    /* Unblind the alternative key before decoding */
-                    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
-                #endif
                 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
                 ret = DecodePrivateKey(ssl, &args->sigLen);

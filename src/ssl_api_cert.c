@@ -1016,6 +1016,12 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
             #endif
             ssl->buffers.weOwnAltKey = 0;
         }
+        /* May still point at the key just released, as signing with the
+         * alternative key hands the buffer over to buffers.key. */
+        ssl->buffers.altKey = NULL;
+        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        ssl->buffers.altKeyMask = NULL;
+        #endif
         #endif /* WOLFSSL_DUAL_ALG_CERTS */
     }
 
