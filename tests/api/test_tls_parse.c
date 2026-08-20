@@ -1486,8 +1486,15 @@ int test_TLSX_PointFormat_parse(void)
 
             ExpectIntEQ(TLSX_SupportedCurve_Preferred(sslp, 0),
                         WOLFSSL_FFDHE_3072);
+#ifdef HAVE_FFDHE_3072
+            /* The group is in the supported set here, so the first entry is
+             * returned rather than skipped. */
+            ExpectIntEQ(TLSX_SupportedCurve_Preferred(sslp, 1),
+                        WOLFSSL_FFDHE_3072);
+#else
             ExpectIntEQ(TLSX_SupportedCurve_Preferred(sslp, 1),
                         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
         }
 #endif
         wolfSSL_free(sslp);
