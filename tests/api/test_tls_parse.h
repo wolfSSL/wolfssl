@@ -37,6 +37,11 @@ int test_TLSX_CSR_parse(void);
 int test_TLSX_PointFormat_parse(void);
 int test_TLSX_SNI_parse(void);
 int test_TLSX_ValidateSupportedCurves(void);
+int test_TLSX_SupportedGroups_parse(void);
+int test_TLSX_KeyShare_negotiate(void);
+int test_TLSX_KeyShare_gen(void);
+int test_TLSX_KeyShare_freesizewrite(void);
+int test_TLSX_KeyShare_process(void);
 
 #define TEST_TLS_PARSE_DECLS                                               \
         TEST_DECL_GROUP("tls", test_TLSX_ALPN_parse),                     \
@@ -53,6 +58,11 @@ int test_TLSX_ValidateSupportedCurves(void);
         TEST_DECL_GROUP("tls", test_TLSX_CSR_parse),                      \
         TEST_DECL_GROUP("tls", test_TLSX_PointFormat_parse),              \
         TEST_DECL_GROUP("tls", test_TLSX_SNI_parse),                      \
-        TEST_DECL_GROUP("tls", test_TLSX_ValidateSupportedCurves)
+        TEST_DECL_GROUP("tls", test_TLSX_ValidateSupportedCurves),        \
+        TEST_DECL_GROUP("tls", test_TLSX_SupportedGroups_parse),         \
+        TEST_DECL_GROUP("tls", test_TLSX_KeyShare_negotiate),             \
+        TEST_DECL_GROUP("tls", test_TLSX_KeyShare_gen),                   \
+        TEST_DECL_GROUP("tls", test_TLSX_KeyShare_freesizewrite),         \
+        TEST_DECL_GROUP("tls", test_TLSX_KeyShare_process)
 
 #endif /* TESTS_API_TEST_TLS_PARSE_H */
