@@ -12128,10 +12128,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             authTagSz, authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
             (byte*)aes->reg, aes->rounds);
         ForceZero(h, sizeof(h));
-        if (_svr_ret != 0) {
-            return _svr_ret;
-        }
-        ret = 0;
+        /* Never return between VECTOR_REGISTERS_PUSH and
+         * VECTOR_REGISTERS_POP.  On 32-bit Arm those macros are
+         * WC_DO_NOTHING today because WOLFSSL_AESNI is undefined, so an
+         * early exit strands nothing; give them a real body and every
+         * one of these leaves the SVR depth raised for the life of the
+         * module.  Carry the status to the POP instead. */
+        ret = _svr_ret;
     }
     else
   #else
@@ -12147,11 +12150,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             authTagSz, authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
             (byte*)aes->reg, aes->rounds);
         ForceZero(h, sizeof(h));
-        if (_svr_ret != 0) {
-            return _svr_ret;
-        }
+        ret = _svr_ret;
     }
-    ret = 0;
   #endif /* WOLFSSL_ARM32_AES_DISPATCH */
 #else
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
@@ -17227,9 +17227,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     if (aes->use_aes_hw_crypto) {
         int _svr_ret = AES_encrypt_blocks_AARCH32(in, out, sz,
             (byte*)aes->key, (int)aes->rounds);
-        if (_svr_ret != 0) {
-            return _svr_ret;
-        }
+        ret = _svr_ret;
     }
     else {
         AES_ECB_encrypt(in, out, sz, (const unsigned char*)aes->key,
@@ -17239,9 +17237,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     {
         int _svr_ret = AES_encrypt_blocks_AARCH32(in, out, sz,
             (byte*)aes->key, (int)aes->rounds);
-        if (_svr_ret != 0) {
-            return _svr_ret;
-        }
+        ret = _svr_ret;
     }
 #else
     AES_ECB_encrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
@@ -17363,9 +17359,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     if (aes->use_aes_hw_crypto) {
         int _svr_ret = AES_decrypt_blocks_AARCH32(in, out, sz,
             (byte*)aes->key, (int)aes->rounds);
-        if (_svr_ret != 0) {
-            return _svr_ret;
-        }
+        ret = _svr_ret;
     }
     else {
         AES_ECB_decrypt(in, out, sz, (const unsigned char*)aes->key,
@@ -17375,9 +17369,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     {
         int _svr_ret = AES_decrypt_blocks_AARCH32(in, out, sz,
             (byte*)aes->key, (int)aes->rounds);
-        if (_svr_ret != 0) {
-            return _svr_ret;
-        }
+        ret = _svr_ret;
     }
 #else
     AES_ECB_decrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds);
