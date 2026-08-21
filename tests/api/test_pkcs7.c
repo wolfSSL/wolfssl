@@ -4558,10 +4558,12 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
             pkcs7->privateKey   = rsaPrivKey;
             pkcs7->privateKeySz = rsaPrivKeySz;
         }
-        dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
-                                           plainFull, bigSz);
-        ExpectIntEQ(dSz, (int)bigSz);
-        ExpectIntEQ(XMEMCMP(plainFull, bigContent, bigSz), 0);
+        if (berSz > 0) {
+            dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
+                                               plainFull, bigSz);
+            ExpectIntEQ(dSz, (int)bigSz);
+            ExpectIntEQ(XMEMCMP(plainFull, bigContent, bigSz), 0);
+        }
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
 
@@ -4572,9 +4574,11 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
             pkcs7->privateKey   = rsaPrivKey;
             pkcs7->privateKeySz = rsaPrivKeySz;
         }
-        dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
-                                           plainSmall, halfSz);
-        ExpectIntLT(dSz, 0);
+        if (berSz > 0) {
+            dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
+                                               plainSmall, halfSz);
+            ExpectIntLT(dSz, 0);
+        }
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
 
@@ -4636,6 +4640,119 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 #endif /* HAVE_PKCS7 */
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_EncodeDecodeEnvelopedData() */
+
+/*
+ * The BER streaming encoder encrypts the content one 4096-byte octet chunk at a
+ * time into a working buffer, and the final chunk additionally carries the
+ * block cipher pad. Content that is an exact multiple of the chunk length makes
+ * that last chunk the largest one the buffer has to hold. Round-trip such sizes.
+ */
+int test_wc_PKCS7_stream_encode_chunk_boundary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* multiples of the encoder's private BER_OCTET_LENGTH (4096) */
+    static const word32 contentSizes[] = { 4096, 8192 };
+    word32 i;
+    #if defined(USE_CERT_BUFFERS_2048)
+        byte   cert[sizeof(client_cert_der_2048)];
+        byte   key[sizeof(client_key_der_2048)];
+        word32 certSz = (word32)sizeof(cert);
+        word32 keySz  = (word32)sizeof(key);
+
+        XMEMCPY(cert, client_cert_der_2048, certSz);
+        XMEMCPY(key, client_key_der_2048, keySz);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        byte   cert[sizeof(client_cert_der_1024)];
+        byte   key[sizeof(client_key_der_1024)];
+        word32 certSz = (word32)sizeof(cert);
+        word32 keySz  = (word32)sizeof(key);
+
+        XMEMCPY(cert, client_cert_der_1024, certSz);
+        XMEMCPY(key, client_key_der_1024, keySz);
+    #else
+        byte   cert[ONEK_BUF];
+        byte   key[ONEK_BUF];
+        word32 certSz = 0;
+        word32 keySz  = 0;
+        XFILE  fp = XBADFILE;
+
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(certSz = (word32)XFREAD(cert, 1, sizeof(cert), fp), 0);
+        if (fp != XBADFILE) {
+            XFCLOSE(fp);
+            fp = XBADFILE;
+        }
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(keySz = (word32)XFREAD(key, 1, sizeof(key), fp), 0);
+        if (fp != XBADFILE)
+            XFCLOSE(fp);
+    #endif
+
+    for (i = 0; i < (word32)XELEM_CNT(contentSizes); i++) {
+        PKCS7* pkcs7 = NULL;
+        byte*  content = NULL;
+        byte*  ber = NULL;
+        byte*  plain = NULL;
+        word32 contentSz = contentSizes[i];
+        word32 berBufSz = contentSz + FOURK_BUF;
+        int    encSz = 0;
+        word32 j;
+
+        ExpectNotNull(content = (byte*)XMALLOC(contentSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(ber = (byte*)XMALLOC(berBufSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(plain = (byte*)XMALLOC(contentSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (content != NULL) {
+            for (j = 0; j < contentSz; j++)
+                content[j] = (byte)j;
+        }
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = content;
+            pkcs7->contentSz    = contentSz;
+            pkcs7->contentOID   = DATA;
+            pkcs7->encryptOID   = AES256CBCb;
+            pkcs7->privateKey   = key;
+            pkcs7->privateKeySz = keySz;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntGT((encSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, ber,
+            berBufSz)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* 8192 is encode-only: a final segment above BER_OCTET_LENGTH does
+         * not decode, which is a separate pre-existing decoder limit */
+        if (encSz > 0 && contentSz == 4096) {
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key;
+                pkcs7->privateKeySz = keySz;
+            }
+            ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, ber, (word32)encSz,
+                plain, contentSz), (int)contentSz);
+            ExpectIntEQ(XMEMCMP(plain, content, contentSz), 0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+
+        XFREE(content, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(ber, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plain, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_stream_encode_chunk_boundary() */
 
 
 #if defined(HAVE_PKCS7) && defined(HAVE_ECC) && defined(HAVE_X963_KDF) && \

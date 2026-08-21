@@ -70781,26 +70781,26 @@ static wc_test_ret_t pkcs7_authenv_attribs_boundary_test(byte* rsaCert,
     int    envSz;
     byte   content[] = "authenv attribs boundary test";
 
-    /* eight distinct, well-formed attribute TLVs (OID + PrintableString) */
-    static const byte oid0[] = { 0x06,0x03, 0x55,0x04,0x03 };
-    static const byte oid1[] = { 0x06,0x03, 0x55,0x04,0x04 };
-    static const byte oid2[] = { 0x06,0x03, 0x55,0x04,0x05 };
-    static const byte oid3[] = { 0x06,0x03, 0x55,0x04,0x06 };
-    static const byte oid4[] = { 0x06,0x03, 0x55,0x04,0x07 };
-    static const byte oid5[] = { 0x06,0x03, 0x55,0x04,0x08 };
-    static const byte oid6[] = { 0x06,0x03, 0x55,0x04,0x09 };
-    static const byte oid7[] = { 0x06,0x03, 0x55,0x04,0x0a };
-    static const byte val[]  = { 0x13,0x01, 0x30 };
-    PKCS7Attrib attribs[8] = {
-        { oid0, sizeof(oid0), val, sizeof(val) },
-        { oid1, sizeof(oid1), val, sizeof(val) },
-        { oid2, sizeof(oid2), val, sizeof(val) },
-        { oid3, sizeof(oid3), val, sizeof(val) },
-        { oid4, sizeof(oid4), val, sizeof(val) },
-        { oid5, sizeof(oid5), val, sizeof(val) },
-        { oid6, sizeof(oid6), val, sizeof(val) },
-        { oid7, sizeof(oid7), val, sizeof(val) }
-    };
+    /* one past either capacity, so the over-capacity cases stay in bounds */
+#if MAX_AUTH_ATTRIBS_SZ > MAX_UNAUTH_ATTRIBS_SZ
+    #define PKCS7_AE_ATTRIB_CNT (MAX_AUTH_ATTRIBS_SZ + 1)
+#else
+    #define PKCS7_AE_ATTRIB_CNT (MAX_UNAUTH_ATTRIBS_SZ + 1)
+#endif
+    static const byte val[] = { 0x13,0x01, 0x30 };
+    byte        oids[PKCS7_AE_ATTRIB_CNT][5];
+    PKCS7Attrib attribs[PKCS7_AE_ATTRIB_CNT];
+    word32      i;
+
+    for (i = 0; i < (word32)PKCS7_AE_ATTRIB_CNT; i++) {
+        oids[i][0] = 0x06; oids[i][1] = 0x03;
+        oids[i][2] = 0x55; oids[i][3] = 0x04;
+        oids[i][4] = (byte)(0x03 + i);
+        attribs[i].oid     = oids[i];
+        attribs[i].oidSz   = (word32)sizeof(oids[i]);
+        attribs[i].value   = val;
+        attribs[i].valueSz = (word32)sizeof(val);
+    }
 
     enveloped = (byte*)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (enveloped == NULL)
@@ -70848,8 +70848,8 @@ static wc_test_ret_t pkcs7_authenv_attribs_boundary_test(byte* rsaCert,
     envSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped, PKCS7_BUF_SIZE);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
-    if (envSz >= 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (envSz != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(envSz), out);
 
     /* one more unauthenticated attribute than fits: must fail, not overrun */
     pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
@@ -70869,8 +70869,29 @@ static wc_test_ret_t pkcs7_authenv_attribs_boundary_test(byte* rsaCert,
     envSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped, PKCS7_BUF_SIZE);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
-    if (envSz >= 0)
-        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    if (envSz != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(envSz), out);
+
+    /* non-DATA contentOID adds a contentType attrib, leaving one slot fewer */
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+    if (pkcs7 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    ret = wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    pkcs7->content         = content;
+    pkcs7->contentSz       = (word32)XSTRLEN((char*)content);
+    pkcs7->contentOID      = FIRMWARE_PKG_DATA;
+    pkcs7->encryptOID      = AES128GCMb;
+    pkcs7->privateKey      = rsaPrivKey;
+    pkcs7->privateKeySz    = rsaPrivKeySz;
+    pkcs7->authAttribs     = attribs;
+    pkcs7->authAttribsSz   = MAX_AUTH_ATTRIBS_SZ;
+    envSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped, PKCS7_BUF_SIZE);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    if (envSz != WC_NO_ERR_TRACE(BUFFER_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(envSz), out);
 
     ret = 0;
 

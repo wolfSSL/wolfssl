@@ -1939,6 +1939,14 @@ int test_wc_ecc_decrypt_pubkey_preserved(void)
     ExpectIntEQ(afterSz, beforeSz);
     ExpectIntEQ(XMEMCMP(before, after, beforeSz), 0);
 
+    /* pubKey is optional in this format: NULL must decrypt too */
+    XMEMSET(plain, 0, sizeof(plain));
+    plainSz = (word32)sizeof(plain);
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain, &plainSz,
+        NULL), 0);
+    ExpectIntEQ(plainSz, msgSz);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
     wc_ecc_free(&pubKey);
     wc_ecc_free(&srvKey);
     wc_ecc_free(&cliKey);
@@ -2681,20 +2689,19 @@ int test_wc_ecc_get_curve_id_from_oid(void)
 
 #ifdef HAVE_OID_DECODING
     {
-        /* An OID with more sub-identifiers than the internal decode array can
-         * hold must be rejected, not decoded past the end of that array. The
-         * first byte decodes to two arcs and every following byte to one, so
-         * MAX_OID_SZ bytes yield well over the MAX_OID_SZ/2 element capacity.
-         * Run under ASan to catch a regression. */
-        byte   longOid[MAX_OID_SZ];
+        /* Length must stay just over the array's element capacity but under
+         * MAX_OID_SZ, or a byte-sized limit would also accept it. */
+        #define ECC_OID_ELEMS (MAX_OID_SZ / (int)sizeof(word16))
+        byte   longOid[ECC_OID_ELEMS + 3];
         word32 i;
 
-        longOid[0] = 0x2A;
+        longOid[0] = 0x2A;                  /* two arcs */
         for (i = 1; i < (word32)sizeof(longOid); i++)
-            longOid[i] = 0x01;
+            longOid[i] = 0x01;              /* one arc each */
 
         ExpectIntEQ(wc_ecc_get_curve_id_from_oid(longOid, sizeof(longOid)),
             WC_NO_ERR_TRACE(BUFFER_E));
+        #undef ECC_OID_ELEMS
     }
 #endif
 #endif
