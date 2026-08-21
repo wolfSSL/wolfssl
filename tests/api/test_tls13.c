@@ -7187,6 +7187,247 @@ int test_tls13_cert_req_sigalgs(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.4.2.2: the chain a server sends MUST NOT be SHA-1 signed
+ * unless the client's advertisement permits SHA-1. */
+int test_tls13_sha1_cert_chain(void)
+{
+    EXPECT_DECLS;
+/* The SHA-1 fixtures below are only shipped as PEM, so this needs a build that
+ * can convert PEM to DER. WOLFSSL_ALLOW_TLS_SHA1 puts SHA-1 back in the
+ * advertised signature algorithms, which is exactly what the rule under test
+ * defers to, so there is nothing left to check in that build. */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_SHA) && \
+    !defined(WOLFSSL_NO_SIGALG) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_ALLOW_TLS_SHA1)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* sha1CertFile = "./certs/server-cert-sha1.pem";
+    const char* sha1RootFile = "./certs/server-cert-sha1-root.pem";
+    const char* sha1CliFile  = "./certs/client-cert-sha1.pem";
+    byte*       leafBuf = NULL;
+    byte*       sha1Buf = NULL;
+    byte*       chainBuf = NULL;
+    size_t      leafSz = 0;
+    size_t      sha1Sz = 0;
+
+    /* A TLS 1.3 client does not offer SHA-1, so the SHA-1 signed leaf must
+     * not be sent. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Read the raw error; wolfSSL_get_error() remaps this one to
+     * WOLFSSL_ERROR_SYSCALL when OPENSSL_EXTRA is on. */
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS)
+    /* Same certificate, but this client advertises rsa_pkcs1_sha1, which the
+     * RFC allows the server to honor. Verification is off for the same reason
+     * as the signature_algorithms_cert case below. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    /* The signature algorithm list parser has no name for SHA-1 once old TLS
+     * versions are compiled out, so append the scheme directly. */
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] = sha_mac;
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] =
+            rsa_sa_algo;
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* OPENSSL_EXTRA && WC_RSA_PSS */
+
+    /* A SHA-256 signed chain is unaffected. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, svrCertFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* The self signed root may be dropped from the chain entirely, so its
+     * SHA-1 signature does not block the handshake. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1RootFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* A SHA-1 signed certificate further up the chain is caught as well. The
+     * chain sent is a SHA-256 leaf followed by a CA issued SHA-1 certificate,
+     * which is not exempt the way a self signed trust anchor is. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(load_file(svrCertFile, &leafBuf, &leafSz), 0);
+    ExpectIntEQ(load_file(sha1CliFile, &sha1Buf, &sha1Sz), 0);
+    ExpectNotNull(chainBuf = (byte*)XMALLOC(leafSz + sha1Sz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chainBuf, leafBuf, leafSz);
+        XMEMCPY(chainBuf + leafSz, sha1Buf, sha1Sz);
+    }
+    ExpectIntEQ(wolfSSL_use_certificate_chain_buffer_format(ssl_s, chainBuf,
+        (long)(leafSz + sha1Sz), WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+
+    XFREE(chainBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER); chainBuf = NULL;
+    XFREE(leafBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);  leafBuf = NULL;
+    XFREE(sha1Buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);  sha1Buf = NULL;
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* signature_algorithms_cert covers the chain on its own: this client
+     * offers no SHA-1 for handshake signatures but does allow a SHA-1 signed
+     * certificate, so the SHA-1 leaf may be sent. What is under test is the
+     * chain the server sends, so verification is off: a platform validator
+     * such as Apple's Security framework refuses a SHA-1 signature outright
+     * and would fail the handshake for an unrelated reason. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->certHashSigAlgo[0] = sha_mac;
+        ssl_c->certHashSigAlgo[1] = rsa_sa_algo;
+        ssl_c->certHashSigAlgoSz = 2;
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->certHashSigAlgoSz, 2);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS)
+    /* When both extensions are present the certificate list is the one that
+     * counts, so SHA-1 offered only in signature_algorithms does not let the
+     * SHA-1 leaf through. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] = sha_mac;
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] =
+            rsa_sa_algo;
+        ssl_c->certHashSigAlgo[0] = sha256_mac;
+        ssl_c->certHashSigAlgo[1] = rsa_sa_algo;
+        ssl_c->certHashSigAlgoSz = 2;
+    }
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* OPENSSL_EXTRA && WC_RSA_PSS */
+
+    /* A client whose own chain is SHA-1 signed sends an empty
+     * certificate_list instead of failing (RFC 8446 Section 4.4.2). The
+     * server asks for a certificate but does not require one. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_c, sha1CliFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.sendVerify, SEND_BLANK_CERT);
+    ExpectIntEQ(ssl_s->options.havePeerCert, 0);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    /* Same client chain, but the CertificateRequest advertises
+     * rsa_pkcs1_sha1, so the client sends its real certificate. The server has
+     * to request and then accept that chain, so it cannot run where the
+     * platform validator rejects SHA-1 for wolfSSL. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_s, "RSA-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ssl_s->suites->hashSigAlgo[ssl_s->suites->hashSigAlgoSz++] = sha_mac;
+        ssl_s->suites->hashSigAlgo[ssl_s->suites->hashSigAlgoSz++] =
+            rsa_sa_algo;
+    }
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_c, sha1CliFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.sendVerify, SEND_CERT);
+    ExpectIntEQ(ssl_s->options.havePeerCert, 1);
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* OPENSSL_EXTRA && WC_RSA_PSS &&
+        * !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+#endif
+
+    return EXPECT_RESULT();
+}
+
 int test_tls13_derive_keys_no_key(void)
 {
     EXPECT_DECLS;
