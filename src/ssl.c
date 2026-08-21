@@ -9823,6 +9823,9 @@ int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
 {
     word16 group = 0;
     const WOLF_EC_NIST_NAME* nist_name;
+#if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || defined(HAVE_ECC)
+    int ecdhDone;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_get_negotiated_group");
 
@@ -9833,16 +9836,27 @@ int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
     group = ssl->namedGroup;
 #endif
 
+#if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || defined(HAVE_ECC)
+    /* Below TLS 1.3 the negotiated curve is only in ecdhCurveOID, which
+     * InitSSL() also seeds from ctx->ecdhCurveOID - what
+     * SSL_CTX_set_tmp_ecdh() writes. Report it only once an EC(DH) exchange
+     * has actually run, or a configured preference reads back as a
+     * negotiated group on a connection that never used one. */
+    ecdhDone = ssl->options.handShakeDone &&
+               ((ssl->specs.kea == ecc_diffie_hellman_kea) ||
+                (ssl->specs.kea == ecdhe_psk_kea));
+#endif
+
 #ifdef HAVE_CURVE25519
-    if ((group == 0) && (ssl->ecdhCurveOID == ECC_X25519_OID))
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID == ECC_X25519_OID))
         group = WOLFSSL_ECC_X25519;
 #endif
 #ifdef HAVE_CURVE448
-    if ((group == 0) && (ssl->ecdhCurveOID == ECC_X448_OID))
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID == ECC_X448_OID))
         group = WOLFSSL_ECC_X448;
 #endif
 #ifdef HAVE_ECC
-    if ((group == 0) && (ssl->ecdhCurveOID != 0))
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID != 0))
         group = GetCurveByOID((int)ssl->ecdhCurveOID);
 #endif
 
