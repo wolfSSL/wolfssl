@@ -3669,6 +3669,9 @@ typedef struct CertificateAuthority {
 
 WOLFSSL_LOCAL int  TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
         const byte* dn, word16 dnSz, void* heap);
+WOLFSSL_LOCAL int  TLSX_CertificateAuthorities_Add_ex(
+        CertificateAuthority** head, CertificateAuthority** tail,
+        const byte* dn, word16 dnSz, void* heap);
 WOLFSSL_LOCAL void TLSX_CertificateAuthorities_FreeAll(
         CertificateAuthority* head, void* heap);
 #endif

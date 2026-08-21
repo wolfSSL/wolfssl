@@ -2350,6 +2350,44 @@ int test_wolfSSL_UseCertificateAuthority_counts(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 4.2.4: authorities is a DistinguishedName<3..2^16-1>, so a
+ * certificate_authorities extension carrying an empty vector is a framing
+ * error rather than a request with no authorities. */
+int test_TLSX_certificate_authorities_empty_vector(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+    /* certificate_authorities with a zero-length authorities vector. */
+    static const byte emptyVector[] = {
+        0x00, 0x2F,                 /* extension type = 47              */
+        0x00, 0x02,                 /* extension length = 2             */
+        0x00, 0x00                  /* authorities length = 0           */
+    };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* The extension is only parsed on a TLS 1.3 connection. */
+    if (ssl != NULL) {
+        ssl->version.major = SSLv3_MAJOR;
+        ssl->version.minor = TLSv1_3_MINOR;
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    }
+
+    ExpectIntEQ(TLSX_Parse(ssl, emptyVector, (word16)sizeof(emptyVector),
+                           certificate_request, suites),
+                WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(wolfSSL_GetPeerCertificateAuthorityCount(ssl), 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_GetPeerCertificateAuthority_empty(void)
 {
     EXPECT_DECLS;

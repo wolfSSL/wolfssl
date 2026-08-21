@@ -40298,6 +40298,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_UseCertificateAuthority_args),
     TEST_DECL(test_wolfSSL_UseCertificateAuthority_size_limits),
     TEST_DECL(test_wolfSSL_UseCertificateAuthority_counts),
+    TEST_DECL(test_TLSX_certificate_authorities_empty_vector),
     TEST_DECL(test_wolfSSL_GetPeerCertificateAuthority_empty),
     TEST_DECL(test_wolfSSL_CertificateAuthority_handshake),
     TEST_DECL(test_wolfSSL_CertificateAuthority_ctx_handshake),

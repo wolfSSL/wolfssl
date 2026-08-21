@@ -39,6 +39,7 @@ int test_certificate_authorities_client_hello(void);
 int test_wolfSSL_UseCertificateAuthority_args(void);
 int test_wolfSSL_UseCertificateAuthority_size_limits(void);
 int test_wolfSSL_UseCertificateAuthority_counts(void);
+int test_TLSX_certificate_authorities_empty_vector(void);
 int test_wolfSSL_GetPeerCertificateAuthority_empty(void);
 int test_wolfSSL_CertificateAuthority_handshake(void);
 int test_wolfSSL_CertificateAuthority_ctx_handshake(void);
