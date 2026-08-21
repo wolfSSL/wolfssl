@@ -7459,7 +7459,9 @@ static int CheckCurve(word32 oid)
  * @param [in, out] outSz  On in, size of buffer.
  *                         On out, number of bytes in buffer.
  * @return  0 on success
- * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BAD_FUNC_ARG when in or outSz is NULL, when inSz is less than 2,
+ *          or when the first arc in[0] is greater than 2. An OID must have
+ *          at least two arcs and, per X.690, its first arc must be 0, 1 or 2.
  * @return  BUFFER_E when buffer too small.
  */
 int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
@@ -7475,7 +7477,11 @@ int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
  * @param [in, out] outSz  On in, size of buffer.
  *                         On out, number of bytes in buffer.
  * @return  0 on success
- * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BAD_FUNC_ARG when in or outSz is NULL, when inSz is less than 2,
+ *          when the first arc in[0] is greater than 2, or when the combined
+ *          first arc (40 * in[0] + in[1]) would overflow a word32. An OID
+ *          must have at least two arcs and, per X.690, its first arc must be
+ *          0, 1 or 2.
  * @return  BUFFER_E when buffer too small.
  */
 int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
@@ -7530,7 +7536,7 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
                 while (d) {
                     out[x++] = (byte)((d & 0x7F) | mask);
                     d     >>= 7;
-                    mask  |= 0x80;  /* upper bit is set on all but the last byte */
+                    mask  |= 0x80;  /* upper bit set on all but last byte */
                 }
                 /* now swap bytes y...x-1 */
                 z = x - 1;
@@ -7572,7 +7578,9 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
  * @param [in, out] outSz  On in, size of buffer.
  *                         On out, number of bytes in buffer.
  * @return  0 on success
- * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BAD_FUNC_ARG when in or outSz is NULL, when inSz is less than 2,
+ *          or when the first arc in[0] is greater than 2. An OID must have
+ *          at least two arcs and, per X.690, its first arc must be 0, 1 or 2.
  * @return  BUFFER_E when buffer too small.
  */
 int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
@@ -7653,6 +7661,9 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
 /* Decode DER encoded form of OID into word16 OID dot separated.
  *
+ * Each arc is stored as a word16, so arc values larger than 65535 are
+ * truncated. Use DecodeObjectId32() in new code.
+ *
  * @param [in]      in     Byte array containing OID.
  * @param [in]      inSz   Size of OID in bytes.
  * @param [in]      out    Array to hold dotted form of OID.
@@ -7660,7 +7671,9 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
  *                         On out, count of numbers in dotted form.
  * @return  0 on success
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
- * @return  BUFFER_E when dotted form buffer too small.
+ * @return  BUFFER_E when dotted form buffer too small. At least two elements
+ *          are required to hold the two arcs encoded in the first byte.
+ * @return  ASN_OBJECT_ID_E when an arc is encoded in more than 4 bytes.
  */
 int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 {
@@ -7727,7 +7740,9 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
  *                         On out, count of numbers in dotted form.
  * @return  0 on success
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
- * @return  BUFFER_E when dotted form buffer too small.
+ * @return  BUFFER_E when dotted form buffer too small. At least two elements
+ *          are required to hold the two arcs encoded in the first byte.
+ * @return  ASN_OBJECT_ID_E when an arc value does not fit in a word32.
  */
 int DecodeObjectId32(const byte* in, word32 inSz, word32* out, word32* outSz)
 {
@@ -15077,7 +15092,8 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         {
             /* Decode OBJECT_ID into dotted form array. */
             ret = DecodeObjectId32((const byte*)(entry->name),
-                    (word32)entry->len, tmpName, &tmpSize);
+                    (word32)entry->len, tmpName, (word32*)&tmpSize);
+
             if (ret == 0) {
                 j = 0;
                 /* Append each number of dotted form. */
@@ -23077,6 +23093,28 @@ int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
     return 0;
 }
 
+int wc_SetUnknownExtCallback32(DecodedCert* cert, wc_UnknownExtCallback32 cb)
+{
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    cert->unknownExtCallback32 = cb;
+    return 0;
+}
+
+int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
+                                 wc_UnknownExtCallback32Ex cb, void *ctx)
+{
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    cert->unknownExtCallback32Ex  = cb;
+    cert->unknownExtCallbackExCtx = ctx;
+    return 0;
+}
+
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
 /*
@@ -23137,32 +23175,68 @@ static int DecodeCertExtensions(DecodedCert* cert)
             ret = DecodeExtensionType(input + idx, length, oid, critical, cert,
                                       &isUnknownExt);
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-            if (isUnknownExt && (cert->unknownExtCallback != NULL ||
-                                 cert->unknownExtCallbackEx != NULL)) {
-                word32 decOid[MAX_OID_SZ];
-                word32 decOidSz = MAX_OID_SZ;
-                ret = DecodeObjectId32(
-                          dataASN[CERTEXTASN_IDX_OID].data.oid.data,
-                          dataASN[CERTEXTASN_IDX_OID].data.oid.length,
-                          decOid, &decOidSz);
-                if (ret != 0) {
-                    /* Should never get here as the extension was successfully
-                     * decoded earlier. Something might be corrupted. */
-                    WOLFSSL_MSG("DecodeObjectId32() failed. Corruption?");
-                    WOLFSSL_ERROR(ret);
-                }
+            if (isUnknownExt){
+                if (cert->unknownExtCallback32Ex != NULL ||
+                        cert->unknownExtCallback32 != NULL) {
+                    word32 decOid[MAX_OID_SZ];
+                    word32 decOidSz = MAX_OID_SZ;
+                    ret = DecodeObjectId32(
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.data,
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.length,
+                            decOid, &decOidSz);
+                    if (ret != 0) {
+                        /* Should never get here as the extension was
+                         * successfully decoded earlier.
+                         * Something might be corrupted. */
+                        WOLFSSL_MSG("DecodeObjectId32() failed. Corruption?");
+                        WOLFSSL_ERROR(ret);
+                    }
 
-                if ((ret == 0) && (cert->unknownExtCallback != NULL)) {
-                    ret = cert->unknownExtCallback(decOid, decOidSz, critical,
-                              dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
-                              dataASN[CERTEXTASN_IDX_VAL].length);
-                }
+                    if (ret == 0 && cert->unknownExtCallback32 != NULL) {
+                        ret = cert->unknownExtCallback32(decOid, decOidSz,
+                                  critical,
+                                  dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                                  dataASN[CERTEXTASN_IDX_VAL].length);
+                    }
 
-                if ((ret == 0) && (cert->unknownExtCallbackEx != NULL)) {
-                    ret = cert->unknownExtCallbackEx(decOid, decOidSz, critical,
-                              dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
-                              dataASN[CERTEXTASN_IDX_VAL].length,
-                              cert->unknownExtCallbackExCtx);
+                    if (ret == 0 && cert->unknownExtCallback32Ex != NULL) {
+                        ret = cert->unknownExtCallback32Ex(decOid, decOidSz,
+                                  critical,
+                                  dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                                  dataASN[CERTEXTASN_IDX_VAL].length,
+                                  cert->unknownExtCallbackExCtx);
+                    }
+                }
+                else if (cert->unknownExtCallbackEx != NULL ||
+                        cert->unknownExtCallback != NULL) {
+                    word16 decOid[MAX_OID_SZ];
+                    word32 decOidSz = MAX_OID_SZ;
+                    ret = DecodeObjectId(
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.data,
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.length,
+                            decOid, &decOidSz);
+                    if (ret != 0) {
+                        /* Should never get here as the extension was
+                         * successfully decoded earlier.
+                         * Something might be corrupted. */
+                        WOLFSSL_MSG("DecodeObjectId() failed. Corruption?");
+                        WOLFSSL_ERROR(ret);
+                    }
+
+                    if (ret == 0 && cert->unknownExtCallback != NULL) {
+                        ret = cert->unknownExtCallback(decOid, decOidSz,
+                                  critical,
+                                  dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                                  dataASN[CERTEXTASN_IDX_VAL].length);
+                    }
+
+                    if (ret == 0 && cert->unknownExtCallbackEx != NULL) {
+                        ret = cert->unknownExtCallbackEx(decOid, decOidSz,
+                                  critical,
+                                  dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                                  dataASN[CERTEXTASN_IDX_VAL].length,
+                                  cert->unknownExtCallbackExCtx);
+                    }
                 }
             }
 #else
@@ -38026,10 +38100,10 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
         else {
             int handled = 0;
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-            if (dcrl != NULL && (dcrl->unknownExtCallback != NULL ||
+            if (dcrl != NULL && (dcrl->unknownExtCallback32 != NULL ||
+                                 dcrl->unknownExtCallback32Ex != NULL ||
+                                 dcrl->unknownExtCallback != NULL ||
                                  dcrl->unknownExtCallbackEx != NULL)) {
-                word32 decOid[MAX_OID_SZ];
-                word32 decOidSz = MAX_OID_SZ;
                 word32 valIdx = idx;
                 int    valLen = 0;
                 int    cbRet;
@@ -38046,28 +38120,68 @@ static int ParseCRL_EntryExtensions(const byte* buff, word32 idx, word32 maxIdx,
                 if (GetASN_ObjectId(buff, oidContent, oidLen) != 0) {
                     return ASN_PARSE_E;
                 }
-                /* Redundant given the check above, but it makes "the callback
-                 * never sees uninitialized stack" true by construction rather
-                 * than by reasoning about DecodeObjectId32's internals. */
-                XMEMSET(decOid, 0, sizeof(decOid));
-                cbRet = DecodeObjectId32(buff + oidContent, (word32)oidLen,
-                    decOid, &decOidSz);
-                if (cbRet == 0 && dcrl->unknownExtCallback != NULL) {
-                    cbRet = dcrl->unknownExtCallback(decOid, decOidSz,
-                        critical, buff + valIdx, (word32)valLen);
+
+                if (dcrl->unknownExtCallback32 != NULL ||
+                                 dcrl->unknownExtCallback32Ex != NULL) {
+
+                    word32 decOid[MAX_OID_SZ];
+                    word32 decOidSz = MAX_OID_SZ;
+                    /* Redundant given the check above, but it makes
+                     * "the callback never sees uninitialized stack" true
+                     * by construction rather than by reasoning about
+                     * DecodeObjectId32's internals. */
+                    XMEMSET(decOid, 0, sizeof(decOid));
+                    cbRet = DecodeObjectId32(buff + oidContent, (word32)oidLen,
+                        decOid, &decOidSz);
+                    if (cbRet == 0 && dcrl->unknownExtCallback32 != NULL) {
+                        cbRet = dcrl->unknownExtCallback32(decOid, decOidSz,
+                            critical, buff + valIdx, (word32)valLen);
+                    }
+                    if (cbRet == 0 && dcrl->unknownExtCallback32Ex != NULL) {
+                        cbRet = dcrl->unknownExtCallback32Ex(decOid, decOidSz,
+                            critical, buff + valIdx, (word32)valLen,
+                            dcrl->unknownExtCallbackExCtx);
+                    }
+                    if (cbRet != 0) {
+                        /* Must stay negative: BufferLoadCRL converts its result
+                         * with "ret ? ret : WOLFSSL_SUCCESS", so a positive
+                         * callback return would collide with
+                         * WOLFSSL_SUCCESS. */
+                        return (cbRet < 0) ? cbRet : ASN_PARSE_E;
+                    }
+                    handled = 1;
                 }
-                if (cbRet == 0 && dcrl->unknownExtCallbackEx != NULL) {
-                    cbRet = dcrl->unknownExtCallbackEx(decOid, decOidSz,
-                        critical, buff + valIdx, (word32)valLen,
-                        dcrl->unknownExtCallbackExCtx);
+                else if (dcrl->unknownExtCallback != NULL ||
+                                 dcrl->unknownExtCallbackEx != NULL) {
+
+                    word16 decOid[MAX_OID_SZ];
+                    word32 decOidSz = MAX_OID_SZ;
+                    /* Redundant given the check above, but it makes
+                     * "the callback never sees uninitialized stack" true
+                     * by construction rather than by reasoning about
+                     * DecodeObjectId's internals. */
+                    XMEMSET(decOid, 0, sizeof(decOid));
+                    cbRet = DecodeObjectId(buff + oidContent, (word32)oidLen,
+                        decOid, &decOidSz);
+                    if (cbRet == 0 && dcrl->unknownExtCallback != NULL) {
+                        cbRet = dcrl->unknownExtCallback(decOid, decOidSz,
+                            critical, buff + valIdx, (word32)valLen);
+                    }
+                    if (cbRet == 0 && dcrl->unknownExtCallbackEx != NULL) {
+                        cbRet = dcrl->unknownExtCallbackEx(decOid, decOidSz,
+                            critical, buff + valIdx, (word32)valLen,
+                            dcrl->unknownExtCallbackExCtx);
+                    }
+                    if (cbRet != 0) {
+                        /* Must stay negative: BufferLoadCRL converts its result
+                         * with "ret ? ret : WOLFSSL_SUCCESS", so a positive
+                         * callback return would collide with
+                         * WOLFSSL_SUCCESS. */
+                        return (cbRet < 0) ? cbRet : ASN_PARSE_E;
+                    }
+                    handled = 1;
+
                 }
-                if (cbRet != 0) {
-                    /* Must stay negative: BufferLoadCRL converts its result
-                     * with "ret ? ret : WOLFSSL_SUCCESS", so a positive
-                     * callback return would collide with WOLFSSL_SUCCESS. */
-                    return (cbRet < 0) ? cbRet : ASN_PARSE_E;
-                }
-                handled = 1;
             }
 #endif
             if (!handled && critical) {
@@ -38511,24 +38625,60 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                      * preserved. */
                     int handled = 0;
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-                    if (dcrl->unknownExtCallback != NULL ||
-                        dcrl->unknownExtCallbackEx != NULL) {
+                    if (dcrl->unknownExtCallback32Ex != NULL ||
+                            dcrl->unknownExtCallback32 != NULL) {
                         word32 decOid[MAX_OID_SZ];
                         word32 decOidSz = MAX_OID_SZ;
                         ret = DecodeObjectId32(
                             dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                             dataASN[CERTEXTASN_IDX_OID].data.oid.length,
                             decOid, &decOidSz);
-                        if (ret == 0 && dcrl->unknownExtCallback != NULL) {
-                            ret = dcrl->unknownExtCallback(decOid, decOidSz,
-                                critical,
-                                dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                        if (ret == 0 &&
+                                dcrl->unknownExtCallback32 != NULL) {
+                            ret = dcrl->unknownExtCallback32(decOid, decOidSz,
+                                critical, dataASN[CERTEXTASN_IDX_VAL]
+                                .data.buffer.data,
                                 dataASN[CERTEXTASN_IDX_VAL].length);
                         }
-                        if (ret == 0 && dcrl->unknownExtCallbackEx != NULL) {
-                            ret = dcrl->unknownExtCallbackEx(decOid, decOidSz,
-                                critical,
-                                dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
+                        if (ret == 0 &&
+                                dcrl->unknownExtCallback32Ex != NULL) {
+                            ret = dcrl->unknownExtCallback32Ex(decOid,
+                                decOidSz, critical,
+                                dataASN[CERTEXTASN_IDX_VAL]
+                                .data.buffer.data,
+                                dataASN[CERTEXTASN_IDX_VAL].length,
+                                dcrl->unknownExtCallbackExCtx);
+                        }
+                        if (ret > 0) {
+                            /* Must stay negative: BufferLoadCRL converts its
+                             * result with "ret ? ret : WOLFSSL_SUCCESS", so a
+                             * positive callback return would collide with
+                             * WOLFSSL_SUCCESS. */
+                            ret = ASN_PARSE_E;
+                        }
+                        handled = 1;
+                    }
+                    else if (dcrl->unknownExtCallbackEx != NULL ||
+                             dcrl->unknownExtCallback != NULL) {
+                        word16 decOid[MAX_OID_SZ];
+                        word32 decOidSz = MAX_OID_SZ;
+                        ret = DecodeObjectId(
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.data,
+                            dataASN[CERTEXTASN_IDX_OID].data.oid.length,
+                            decOid, &decOidSz);
+                        if (ret == 0 &&
+                                dcrl->unknownExtCallback != NULL) {
+                            ret = dcrl->unknownExtCallback(decOid, decOidSz,
+                                critical, dataASN[CERTEXTASN_IDX_VAL]
+                                .data.buffer.data,
+                                dataASN[CERTEXTASN_IDX_VAL].length);
+                        }
+                        if (ret == 0 &&
+                                dcrl->unknownExtCallbackEx != NULL) {
+                            ret = dcrl->unknownExtCallbackEx(decOid,
+                                decOidSz, critical,
+                                dataASN[CERTEXTASN_IDX_VAL]
+                                .data.buffer.data,
                                 dataASN[CERTEXTASN_IDX_VAL].length,
                                 dcrl->unknownExtCallbackExCtx);
                         }

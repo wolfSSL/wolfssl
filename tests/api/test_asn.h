@@ -66,7 +66,7 @@ int test_wc_AsnFeatureCoverage(void);
     TEST_DECL_GROUP("asn", test_DecodeCertExtensions_dup_certpol),  \
     TEST_DECL_GROUP("asn", test_ParseCert_SM3wSM2_short_pubkey),    \
     TEST_DECL_GROUP("asn", test_ParseCert_dnBufferBoundary),        \
-    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId32),              \
+    TEST_DECL_GROUP("asn", test_wc_DecodeObjectId32),               \
     TEST_DECL_GROUP("asn", test_wc_EncodeObjectId),                 \
     TEST_DECL_GROUP("asn", test_wc_EncodeObjectId32),               \
     TEST_DECL_GROUP("asn", test_wc_DecodeObjectId_FIPS16),          \

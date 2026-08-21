@@ -4178,13 +4178,18 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     \param cert the DecodedCert struct that is to be associated with this
     callback.
-    \param cb function to register as the time callback.
+    \param cb function to register as the unknown extension callback.
+
+    \note Each OID arc is passed to the callback as a word16, so arcs with
+    values > 65535 are truncated. Use wc_SetUnknownExtCallback32() in new
+    code. When both a word16 and a word32 callback are registered on the same
+    DecodedCert, only the word32 callback is invoked.
 
     _Example_
     \code
     int ret = 0;
     // Unknown extension callback prototype
-    int myUnknownExtCallback(const word32* oid, word32 oidSz, int crit,
+    int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
                              const unsigned char* der, word32 derSz);
 
     // Register it
@@ -4193,13 +4198,13 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         // failed to set the callback
     }
 
-    // oid: Array of integers that are the dot separated values in an oid.
+    // oid: Array of word16 that are the dot separated values in an oid.
     // oidSz: Number of values in oid.
-    // crit: Whether the extension was mark critical.
+    // crit: Whether the extension was marked critical.
     // der: The der encoding of the content of the extension.
     // derSz: The size in bytes of the der encoding.
-    int myCustomExtCallback(const word32* oid, word32 oidSz, int crit,
-                            const unsigned char* der, word32 derSz) {
+    int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
+                             const unsigned char* der, word32 derSz) {
 
         // Logic to parse extension goes here.
 
@@ -4216,9 +4221,71 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     \sa ParseCert
     \sa wc_SetCustomExtension
+    \sa wc_SetUnknownExtCallback32
 */
 int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
+
+/*!
+    \ingroup ASN
+
+    \brief This function registers a callback that will be used anytime
+    wolfSSL encounters an unknown X.509 extension in a certificate while
+    parsing a certificate. It behaves exactly like wc_SetUnknownExtCallback()
+    except that each OID arc is passed to the callback as a word32, so arcs
+    with values > 65535 are represented without truncation.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned if cert is NULL.
+
+    \param cert the DecodedCert struct that is to be associated with this
+    callback.
+    \param cb function to register as the unknown extension callback.
+
+    \note A word32 callback takes precedence over a word16 one: when both
+    wc_SetUnknownExtCallback() and wc_SetUnknownExtCallback32() have been
+    called on the same DecodedCert, only the word32 callback is invoked.
+
+    _Example_
+    \code
+    int ret = 0;
+    // Unknown extension callback prototype
+    int myUnknownExtCallback32(const word32* oid, word32 oidSz, int crit,
+                               const unsigned char* der, word32 derSz);
+
+    // Register it
+    ret = wc_SetUnknownExtCallback32(cert, myUnknownExtCallback32);
+    if (ret != 0) {
+        // failed to set the callback
+    }
+
+    // oid: Array of word32 that are the dot separated values in an oid.
+    // oidSz: Number of values in oid.
+    // crit: Whether the extension was marked critical.
+    // der: The der encoding of the content of the extension.
+    // derSz: The size in bytes of the der encoding.
+    int myUnknownExtCallback32(const word32* oid, word32 oidSz, int crit,
+                               const unsigned char* der, word32 derSz) {
+
+        // Logic to parse extension goes here.
+
+        // NOTE: by returning zero, we are accepting this extension and
+        // informing wolfSSL that it is acceptable. If you find an extension
+        // that you do not find acceptable, you should return an error. The
+        // standard behavior upon encountering an unknown extension with the
+        // critical flag set is to return ASN_CRIT_EXT_E.
+        return 0;
+    }
+    \endcode
+
+    \sa ParseCert
+    \sa wc_SetCustomExtension
+    \sa wc_SetUnknownExtCallback
+    \sa wc_SetUnknownExtCallback32Ex
+*/
+int wc_SetUnknownExtCallback32(DecodedCert* cert,
+                                             wc_UnknownExtCallback32 cb);
+
 /*!
     \ingroup ASN
 

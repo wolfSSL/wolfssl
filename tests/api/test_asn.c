@@ -2579,8 +2579,7 @@ int test_wc_DecodeObjectId_FIPS16(void)
             0x81, 0x34, 0x04, 0x06
         };
 
-
-        static const byte oid_sha256secp112r1[] = {
+        static const byte oid_secp112r1[] = {
             0x2B, 0x81, 0x04, 0x00, 0x06
         };
 
@@ -2594,8 +2593,8 @@ int test_wc_DecodeObjectId_FIPS16(void)
         word32 trueOutSz = sizeof(oid_dot_form) / sizeof(*oid_dot_form);
         /* Test 1: Normal decode */
         outSz = MAX_OID_SZ;
-        ExpectIntEQ(DecodeObjectId(oid_sha256secp112r1,
-                    sizeof(oid_sha256secp112r1), out, &outSz), 0);
+        ExpectIntEQ(DecodeObjectId(oid_secp112r1,
+                    sizeof(oid_secp112r1), out, &outSz), 0);
         ExpectIntEQ((int)outSz, trueOutSz);
         for (i = 0; i < ((outSz <= trueOutSz) ? outSz : trueOutSz); i++) {
             ExpectIntEQ(out[i], oid_dot_form[i]);
@@ -2603,24 +2602,24 @@ int test_wc_DecodeObjectId_FIPS16(void)
 
         /* Test 2: NULL args */
         outSz = MAX_OID_SZ;
-        ExpectIntEQ(DecodeObjectId(NULL, sizeof(oid_sha256secp112r1),
+        ExpectIntEQ(DecodeObjectId(NULL, sizeof(oid_secp112r1),
                     out, &outSz),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(DecodeObjectId(oid_sha256secp112r1,
-                    sizeof(oid_sha256secp112r1), out, NULL),
+        ExpectIntEQ(DecodeObjectId(oid_secp112r1,
+                    sizeof(oid_secp112r1), out, NULL),
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         /* Test 3 (Bug 1): outSz=1 must return BUFFER_E, not OOB write.
          * The first OID byte decodes into two arcs, so outSz must be >= 2. */
         outSz = 1;
-        ExpectIntEQ(DecodeObjectId(oid_sha256secp112r1,
-                    sizeof(oid_sha256secp112r1), out, &outSz),
+        ExpectIntEQ(DecodeObjectId(oid_secp112r1,
+                    sizeof(oid_secp112r1), out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
         /* Test 4: outSz=0 must also return BUFFER_E */
         outSz = 0;
-        ExpectIntEQ(DecodeObjectId(oid_sha256secp112r1,
-                    sizeof(oid_sha256secp112r1), out, &outSz),
+        ExpectIntEQ(DecodeObjectId(oid_secp112r1,
+                    sizeof(oid_secp112r1), out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
         /* Test 5: outSz=2 is enough for a single-byte OID (two arcs) */
@@ -2635,9 +2634,9 @@ int test_wc_DecodeObjectId_FIPS16(void)
         }
 
         /* Test 6: Buffer too small for later arcs */
-        outSz = 3; /* only room for 3 arcs, but OID has 7 */
-        ExpectIntEQ(DecodeObjectId(oid_sha256secp112r1,
-                    sizeof(oid_sha256secp112r1), out, &outSz),
+        outSz = 3; /* only room for 3 arcs, but OID has 5 */
+        ExpectIntEQ(DecodeObjectId(oid_secp112r1,
+                    sizeof(oid_secp112r1), out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
 
         /* Test 7: first Arc is 2 */
@@ -2762,7 +2761,7 @@ int test_wc_DecodeObjectId32(void)
         }
 
         /* Test 6: Buffer too small for later arcs */
-        outSz = 3; /* only room for 3 arcs, but OID has 7 */
+        outSz = 3; /* only room for 3 arcs, but OID has 5 */
         ExpectIntEQ(DecodeObjectId32(oid_secp112r1, sizeof(oid_secp112r1),
                                    out, &outSz),
                     WC_NO_ERR_TRACE(BUFFER_E));
@@ -2843,7 +2842,8 @@ int test_wc_EncodeObjectId(void)
 
         /* Test 2: normal encode matches expected DER */
         outSz = sizeof(out);
-        ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, out, &outSz), 0);
+        ExpectIntEQ(wc_EncodeObjectId(oid_small, oid_small_cnt, out, &outSz),
+            0);
         ExpectIntEQ((int)outSz, (int)sizeof(oid_small_der));
         for (i = 0; i < outSz && i < sizeof(oid_small_der); i++) {
             ExpectIntEQ(out[i], oid_small_der[i]);
