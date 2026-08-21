@@ -32,8 +32,10 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/patches/5.14.0-570.58.1.el9_6/WOLFSSL_KERNELv5_14_el9_6_FIPS.patch \
 	      linuxkm/patches/5.15/WOLFSSL_KERNELv5_15_FIPS.patch \
 	      linuxkm/patches/5.17/WOLFSSL_KERNELv5_17_FIPS.patch \
+	      linuxkm/patches/5.17.14/WOLFSSL_KERNELv5_17_14_FIPS.patch \
 	      linuxkm/patches/5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch \
 	      linuxkm/patches/6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch \
 	      linuxkm/patches/6.12/WOLFSSL_KERNELv6_12_FIPS.patch \
+	      linuxkm/patches/6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch \
 	      linuxkm/patches/6.15/WOLFSSL_KERNELv6_15_FIPS.patch \
 	      linuxkm/patches/7.0/WOLFSSL_KERNELv7_0_FIPS.patch
