@@ -287,7 +287,9 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
      * the crypto opened: sp_256_ecc_mulmod_avx2_4() takes the SP point cache
      * lock correctly, before its own bracket, but the harness bracket is
      * already open around it.  MEASURED 2026-08-21 on 6.17.0-1022-gcp: this
-     * refusal returns BAD_MUTEX_E (-106) to "ECC key gen" and "ECDHE agree".
+     * guard returns BAD_STATE_E (-192); the SP point-cache callers turn that
+     * into BAD_MUTEX_E (-106) (sp_x86_64.c:12755-12756 and three siblings),
+     * which is what "ECC key gen" and "ECDHE agree" print.
      * That -106 is a harness artifact confined to benchmark builds, NOT a
      * module defect and NOT a leaked bracket -- the bracket is legitimately
      * held and is released by the matching finish.
