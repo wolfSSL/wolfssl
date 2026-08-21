@@ -814,7 +814,7 @@ static void wc_grb_maint_stop(void)
     }
 }
 
-#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
 
 /* Userspace half of the service: /dev/urandom, /dev/random and getrandom(2)
  * all land here.  A bounce buffer is required because wc_grb_service() fills a
@@ -855,7 +855,7 @@ static bool wc_grb_ready(void)
     return wc_grb_service_active() ? true : false;
 }
 
-static const struct wolfssl_linuxkm_fips_random_bytes_handlers
+static const struct wolfssl_linuxkm_random_bytes_handlers
 wc_grb_handlers = {
     ._get_random_bytes     = wc_grb_service,
     .get_random_bytes_user = wc_grb_user,
@@ -867,7 +867,7 @@ wc_grb_handlers = {
      * prerequisite for serving. */
 };
 
-#endif /* WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS */
+#endif /* WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS */
 
 /* Diagnostics for the out-of-tree load generator, exported from the glue and
  * not from the boundary: the boundary has no module API, and a test affordance
@@ -1509,14 +1509,18 @@ static int wolfssl_init(void)
             pr_err("WCGRB: wc_grb_init() failed: %d\n", grb_ret);
         }
         else {
-#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS
-            grb_ret = wolfssl_linuxkm_fips_register_random_bytes_handlers(
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+            grb_ret = wolfssl_linuxkm_register_random_bytes_handlers(
                 THIS_MODULE, &wc_grb_handlers);
 #else
-            grb_ret = wc_grb_hook_register(wc_grb_service);
+#error LINUXKM_RBGC requires a kernel carrying one of the patches in\
+    linuxkm/patches/.  Without it there is no get_random_bytes() hook to\
+    register, and the module would leave the native kernel generator in\
+    service with no indication that it had.
 #endif
             if (grb_ret != 0) {
-                pr_err("WCGRB: wc_grb_hook_register() failed: %d\n", grb_ret);
+                pr_err("WCGRB: wolfssl_linuxkm_register_random_bytes_handlers()"
+                       " failed: %d\n", grb_ret);
                 wc_grb_cleanup();
             }
             else {
@@ -1546,14 +1550,14 @@ static void wolfssl_exit(void)
 {
 #ifdef LINUXKM_RBGC
     /* Unregister the hook before anything else is torn down, so no in-flight
-     * caller can reach a half-freed DRBG.  wc_grb_hook_unregister() NULLs the
-     * pointer then synchronize_rcu()s, which drains callers already inside. */
+     * caller can reach a half-freed DRBG.
+     * wolfssl_linuxkm_unregister_random_bytes_handlers() drains by
+     * cmpxchg'ing random_bytes_cb_refcnt from 1 to 0, retrying up to 100 times
+     * with msleep_interruptible(10) while callers are still inside; it does
+     * not use RCU.  It can return -EBUSY, which this call discards -- see
+     * drivers/char/random.c in the patch for this kernel. */
     if (wc_grb_service_active()) {
-#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS
-        (void)wolfssl_linuxkm_fips_unregister_random_bytes_handlers();
-#else
-        wc_grb_hook_unregister();
-#endif
+        (void)wolfssl_linuxkm_unregister_random_bytes_handlers();
         wc_grb_set_registered(0);
     }
     wc_grb_maint_stop();
