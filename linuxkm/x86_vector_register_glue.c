@@ -35,8 +35,71 @@
     #define WC_LINUXKM_FPU_END()   kernel_fpu_end()
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
     #include <asm/neon.h>
+    #include <linux/version.h>
+
+#if defined(CONFIG_ARM64) && (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
+    /* Linux 7.0 changed the arm64 contract: the CALLER supplies the buffer that
+     * holds the interrupted kernel-mode FPSIMD state.
+     *   arch/arm64/include/asm/neon.h
+     *     void kernel_neon_begin(struct user_fpsimd_state *);
+     *     void kernel_neon_end(struct user_fpsimd_state *);
+     *   arch/arm64/kernel/fpsimd.c
+     *     begin(): in task context records it as
+     *              current->thread.kernel_fpsimd_state so a CONTEXT SWITCH can
+     *              preserve the section, and WARNs if that field was not NULL;
+     *              nested in softirq it does fpsimd_save_state(state).
+     *     end():   nested in softirq does fpsimd_load_state(state); otherwise
+     *              WARN_ON(current->thread.kernel_fpsimd_state != state).
+     *
+     * So the buffer must live for the WHOLE section and be EXCLUSIVE to it.
+     * One per CPU per context is exclusive for softirq and hardirq, neither of
+     * which can migrate.  Task context is the hard case: kernel_neon_begin()
+     * releases the fpsimd context before returning, so the task stays
+     * preemptible and could be switched out and resumed on another CPU while a
+     * second task reuses this CPU's slot.  Pinning the CPU for the life of the
+     * section makes the slot exclusive, and is exactly what kernel_fpu_begin()
+     * already does on x86 -- so this makes the two architectures agree rather
+     * than introducing a new rule.  Nothing inside a section may sleep
+     * (wc_linuxkm_can_block() refuses while a bracket is open), so pinning
+     * costs no correctness.
+     *
+     * Pre-7.0 arm64 and all arm32 keep the no-argument form: only arm64
+     * changed. */
+    struct wc_lkm_neon_slots {
+        struct user_fpsimd_state s[3];  /* task, softirq, hardirq */
+    };
+    static DEFINE_PER_CPU(struct wc_lkm_neon_slots, wc_lkm_neon_slots);
+
+    static inline struct user_fpsimd_state *wc_lkm_neon_slot(void)
+    {
+        unsigned int i;
+        if (preempt_count() & (NMI_MASK | HARDIRQ_MASK))
+            i = 2;
+        else if (in_serving_softirq())
+            i = 1;
+        else
+            i = 0;
+        /* raw_: the CPU is pinned by the preempt_disable() in FPU_BEGIN for the
+         * whole life of the section, so this resolves to the same slot at
+         * begin and at end. */
+        return &raw_cpu_ptr(&wc_lkm_neon_slots)->s[i];
+    }
+
+    #define WC_LINUXKM_FPU_BEGIN()                                  \
+        do {                                                        \
+            preempt_disable();                                      \
+            kernel_neon_begin(wc_lkm_neon_slot());                  \
+        } while (0)
+    #define WC_LINUXKM_FPU_END()                                    \
+        do {                                                        \
+            kernel_neon_end(wc_lkm_neon_slot());                    \
+            preempt_enable();                                       \
+        } while (0)
+#else
     #define WC_LINUXKM_FPU_BEGIN() kernel_neon_begin()
     #define WC_LINUXKM_FPU_END()   kernel_neon_end()
+#endif
+
 #endif
 
 /* Non-FIPS and the in-development FIPS flavors (dev, dev-no-post) take this
