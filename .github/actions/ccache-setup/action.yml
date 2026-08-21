@@ -51,8 +51,8 @@ runs:
           # used to hang these jobs for 10-40 min after the bundle had
           # already installed cleanly.
           sudo dpkg --configure -a >/dev/null 2>&1 || true
-          if sudo apt-get install -y --no-install-recommends \
-               --no-download ccache; then
+          if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+               --no-install-recommends --no-download ccache; then
             echo "ccache installed offline from the staged .deb bundle"
           else
             # Same defence in depth as install-apt-deps: Acquire timeouts drop
@@ -63,9 +63,11 @@ runs:
             ok=""
             for i in 1 2; do
               sudo dpkg --configure -a >/dev/null 2>&1 || true
-              if sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q && \
-                 sudo timeout -k 10 180 apt-get "${APT_OPTS[@]}" install -y \
-                   --no-install-recommends ccache; then
+              if sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 60 \
+                     apt-get "${APT_OPTS[@]}" update -q && \
+                 sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 180 \
+                     apt-get "${APT_OPTS[@]}" install -y \
+                     --no-install-recommends ccache; then
                 ok=1
                 break
               fi
