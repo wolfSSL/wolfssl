@@ -984,18 +984,67 @@ int main(void)
         WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignatureCheckPrivKey(&mldsa,
             WC_PQC_SIG_TYPE_MLDSA, NULL, 0));
 
-        /* bonus: same INVALID_DEVID early-return guard as ML-KEM above */
+        /* seeded key generation and caller-supplied signing randomness */
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
+            WC_PQC_SIG_TYPE_MLDSA, 65, in, 48, &mldsa));
+
+        outLen = sizeof(out);
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignEx(in, sizeof(in), out,
+            &outLen, NULL, 0, 0, NULL, in, 16, WC_PQC_SIG_TYPE_MLDSA,
+            &mldsa));
+
+        /* internal interface: caller supplies the built message
+         * representative */
+        outLen = sizeof(out);
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignMsg(in, sizeof(in), out,
+            &outLen, NULL, in, 16, WC_PQC_SIG_TYPE_MLDSA, &mldsa));
+
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa));
+
+        /* bonus: an unrecognized algorithm type leaves GetDevId at
+         * INVALID_DEVID, which then finds no device */
         mldsa.devId = WB_DEVID;
         (void)wc_CryptoCb_MakePqcSignatureKey(NULL, -1, 65, &mldsa);
 
-        WB_NOTE("PQC ML-DSA: MakePqcSignatureKey/PqcSign/PqcVerify/"
-                "PqcSignatureCheckPrivKey dev&&dev->cb driven, plus "
-                "GetDevId's INVALID_DEVID guard");
+        WB_NOTE("PQC ML-DSA: MakePqcSignatureKey{,Ex}/PqcSign{,Ex}/"
+                "PqcSignMsg/PqcVerify{,Msg}/PqcSignatureCheckPrivKey "
+                "dev&&dev->cb driven, plus GetDevId's unknown-type path");
     }
 #else
-    WB_NOTE("WOLFSSL_HAVE_MLDSA not defined (only FALCON/SLHDSA); "
-            "Falcon/SLH-DSA dispatch skipped - their key setup is out of "
-            "scope for this pass");
+    WB_NOTE("WOLFSSL_HAVE_MLDSA not defined; ML-DSA dispatch skipped");
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    {
+        SlhDsaKey slhdsa;
+        XMEMSET(&slhdsa, 0, sizeof(slhdsa));
+
+        /* drives the WC_PQC_SIG_TYPE_SLHDSA arm of PqcSigGetDevId; the stub
+         * callback never dereferences the key, so no parameter set is set
+         * up here */
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
+            WC_PQC_SIG_TYPE_SLHDSA, 0, in, 48, &slhdsa));
+
+        outLen = sizeof(out);
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcSignEx(in, sizeof(in), out,
+            &outLen, NULL, 0, 0, NULL, in, 16, WC_PQC_SIG_TYPE_SLHDSA,
+            &slhdsa));
+
+        outLen = sizeof(out);
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcSignMsg(in, sizeof(in), out,
+            &outLen, NULL, in, 16, WC_PQC_SIG_TYPE_SLHDSA, &slhdsa));
+
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_SIG_TYPE_SLHDSA, &slhdsa));
+
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcSignatureCheckPrivKey(&slhdsa,
+            WC_PQC_SIG_TYPE_SLHDSA, NULL, 0));
+
+        WB_NOTE("PQC SLH-DSA: MakePqcSignatureKeyEx/PqcSignEx/PqcSignMsg/"
+                "PqcVerifyMsg/PqcSignatureCheckPrivKey dev&&dev->cb driven");
+    }
+#else
+    WB_NOTE("WOLFSSL_HAVE_SLHDSA not defined; SLH-DSA dispatch skipped");
 #endif
 #else
     WB_NOTE("None of HAVE_FALCON/WOLFSSL_HAVE_MLDSA/WOLFSSL_HAVE_SLHDSA "
