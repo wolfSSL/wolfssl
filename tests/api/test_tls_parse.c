@@ -53,10 +53,20 @@ static WOLFSSL_CTX* test_tls_parse_server_ctx(WOLFSSL_METHOD* method)
     if (ctx == NULL)
         return NULL;
 
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-    if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, CERT_FILETYPE)
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
+    #ifndef NO_RSA
+    const char* certFile = svrCertFile;
+    const char* keyFile  = svrKeyFile;
+    #else
+    /* An ECC-only build has no RSA server certificate to load. */
+    const char* certFile = eccCertFile;
+    const char* keyFile  = eccKeyFile;
+    #endif
+
+    if (wolfSSL_CTX_use_certificate_file(ctx, certFile, CERT_FILETYPE)
             != WOLFSSL_SUCCESS ||
-        wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE)
+        wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile, CERT_FILETYPE)
             != WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(ctx);
         return NULL;
@@ -2768,7 +2778,6 @@ int test_TLSX_KeyShare_freesizewrite(void)
          * under test. */
         ExpectNotNull(kse = test_tls_parse_push_kse(&ssl->extensions, ssl,
                     WOLFSSL_FFDHE_2048));
-        (void)kse;
         {
             TLSX* ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
             ExpectNotNull(ext);
@@ -2781,6 +2790,18 @@ int test_TLSX_KeyShare_freesizewrite(void)
         respOff = 0;
         XMEMSET(out, 0, sizeof(out));
         ExpectIntEQ(TLSX_WriteResponse(ssl, out, server_hello, &respOff), 0);
+
+        /* The request direction never reaches the pubKey test -- isRequest
+         * short-circuits it -- but it does copy pubKey unconditionally, so
+         * give the entry one before writing a ClientHello. */
+        if (kse != NULL) {
+            kse->pubKey = (byte*)XMALLOC(2, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            ExpectNotNull(kse->pubKey);
+            if (kse->pubKey != NULL) {
+                XMEMSET(kse->pubKey, 0, 2);
+                kse->pubKeyLen = 2;
+            }
+        }
 
         reqLen = 0;
         ExpectIntEQ(TLSX_GetRequestSize(ssl, client_hello, &reqLen), 0);
