@@ -1036,6 +1036,33 @@ int test_wolfssl_local_MatchBaseName(void)
     ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
                 "user@domain.com", 15, "user@", 5), 0);
 
+    /* Regression: the scan for '@' in the base must test the length bound
+     * before dereferencing. The base is passed with an explicit length and
+     * is not required to be NUL terminated, so a bare-domain constraint
+     * (no '@' anywhere in it) used to read base[baseSz]. Run the same
+     * cases against a heap buffer holding exactly baseSz bytes with no
+     * terminator, so that the over-read is a heap overflow that ASAN or
+     * valgrind will catch. */
+    {
+        const char* bases[] = { "domain.com", ".domain.com", "user@domain.com" };
+        const int   expect[] = { 1, 0, 1 };
+        size_t      i;
+
+        for (i = 0; i < XELEM_CNT(bases); i++) {
+            char* base = NULL;
+            int   baseSz = (int)XSTRLEN(bases[i]);
+
+            ExpectNotNull(base = (char*)XMALLOC((size_t)baseSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
+            if (base != NULL) {
+                XMEMCPY(base, bases[i], (size_t)baseSz);
+                ExpectIntEQ(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                    "user@domain.com", 15, base, baseSz), expect[i]);
+                XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
+    }
+
     /*
      * Tests for directory type (ASN_DIR_TYPE = 0x04)
      *
