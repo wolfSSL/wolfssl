@@ -3309,7 +3309,8 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_entry_ext(void)
         Bit16Callback,
         Bit32Callback,
         CallbackTypeEnd
-    } CallbackType = Bit16Callback;
+    };
+    int CallbackType = Bit16Callback;
     CRLUnkExtCtx ctx;
 
     for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
@@ -3379,8 +3380,9 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
     enum {
         Bit16Callback,
         Bit32Callback,
-        CallbackTypeEnd,
-    } CallbackType = Bit16Callback;
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
     CRLUnkExtCtx ctx = { 0, 0, 0 };
 
     /* Accepting callback: the load must succeed and the callback must have
@@ -3484,7 +3486,8 @@ int test_wolfSSL_CRL_unknown_ext_cb_positive_return_fails_load(void)
         Bit16Callback,
         Bit32Callback,
         CallbackTypeEnd
-    } CallbackType = Bit16Callback;
+    };
+    int CallbackType = Bit16Callback;
     int rc;
 
     for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
@@ -3546,7 +3549,8 @@ int test_wolfSSL_CRL_unknown_ext_cb_noctx(void)
         Bit16Callback,
         Bit32Callback,
         CallbackTypeEnd
-    } CallbackType = Bit16Callback;
+    };
+    int CallbackType = Bit16Callback;
 
     /* A NULL cert manager is rejected by both registration entry points. */
     ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(NULL,
