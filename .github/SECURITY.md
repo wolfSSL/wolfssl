@@ -7,9 +7,8 @@ reports must use [`SECURITY-REPORT-TEMPLATE.md`](../SECURITY-REPORT-TEMPLATE.md)
 with every required field completed. Reports that do not use the template, or
 that leave required fields incomplete, will not receive CVE consideration.
 
-Submit the completed template to **support@wolfssl.com**, monitored continuously.
-To send it encrypted, use **secure@wolfssl.com** with the
-[wolfSSL security PGP key](https://www.wolfssl.com/.well-known/pgp-key.asc):
+Submit the completed template to **secure@wolfssl.com**, optionally encrypted to
+the [wolfSSL security PGP key](https://www.wolfssl.com/.well-known/pgp-key.asc):
 
     Fingerprint: A2A4 8E7B CB96 C5BE CB98 7314 EBC8 0E41 5CA2 9677
     Key server: keys.openpgp.org

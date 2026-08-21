@@ -20,7 +20,7 @@ This policy covers security vulnerabilities in wolfSSL products distributed unde
 
 **Use of the wolfSSL Vulnerability Report Template is mandatory.** All security reports must be submitted using [`SECURITY-REPORT-TEMPLATE.md`](SECURITY-REPORT-TEMPLATE.md), with every required field completed. Reports that do not use the template, or that leave required fields incomplete, will not receive CVE consideration.
 
-Submit the completed template to **support@wolfssl.com**, monitored continuously. To send it encrypted, use **secure@wolfssl.com** with the [wolfSSL security PGP key](https://www.wolfssl.com/.well-known/pgp-key.asc).
+Submit the completed template to **secure@wolfssl.com**, optionally encrypted to the [wolfSSL security PGP key](https://www.wolfssl.com/.well-known/pgp-key.asc). This address reaches the security team directly and is the correct channel for anything under embargo.
 
 Non-template submissions may still be reviewed on the merits and, where appropriate, addressed as hardening fixes in a future release. CVE assignment requires a complete template.
 
@@ -100,8 +100,8 @@ We provide security updates for the support period of each product (Article 13(8
 
 ## Contact
 
-- **support@wolfssl.com** — security vulnerability reports; monitored continuously
-- **secure@wolfssl.com** — PGP-encrypted security reports
+- **secure@wolfssl.com** — security vulnerability reports
+- **support@wolfssl.com** — general support; do not send embargoed reports here
 - **facts@wolfssl.com** — general inquiries
 
 Reports may be encrypted to the wolfSSL security key:
