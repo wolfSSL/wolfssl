@@ -3924,8 +3924,14 @@ WOLFSSL_LOCAL int TLSX_IsGroupSupported(int namedGroup, int side);
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
                                                byte second, word32* ecdhCurveOID);
-WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
-WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define TLSX_SupportedCurve_CheckPriority \
+            wolfSSL_TLSX_SupportedCurve_CheckPriority
+    #define TLSX_SupportedFFDHE_Set wolfSSL_TLSX_SupportedFFDHE_Set
+#endif
+/* WOLFSSL_TEST_VIS: no public API reaches these; the API tests call them. */
+WOLFSSL_TEST_VIS int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
+WOLFSSL_TEST_VIS int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL int TLSX_SupportedCurve_IsSupported(WOLFSSL* ssl, word16 name);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
