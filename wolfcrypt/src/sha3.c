@@ -2024,7 +2024,15 @@ int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags)
  */
 int wc_InitShake128(wc_Shake* shake, void* heap, int devId)
 {
-    return wc_InitSha3(shake, heap, devId);
+    int ret = wc_InitSha3(shake, heap, devId);
+/* The PSoC6 wc_Sha3 variant has no hashType member */
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so set the type here for the
+     * Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE128;
+#endif
+    return ret;
 }
 
 #if defined(PSOC6_HASH_SHA3)
@@ -2192,7 +2200,13 @@ int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     if (ret != 0)
         return ret;
 
-    return InitSha3(shake);  /* reset state */
+    ret = InitSha3(shake);  /* reset state */
+#ifdef WOLF_CRYPTO_CB
+    /* Restore the type cleared by the reset for Copy/Free dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE128;
+#endif
+    return ret;
 }
 
 /* Absorb the data for squeezing.
@@ -2323,7 +2337,15 @@ int wc_Shake128_Copy(wc_Shake* src, wc_Shake* dst)
  */
 int wc_InitShake256(wc_Shake* shake, void* heap, int devId)
 {
-    return wc_InitSha3(shake, heap, devId);
+    int ret = wc_InitSha3(shake, heap, devId);
+/* The PSoC6 wc_Sha3 variant has no hashType member */
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so set the type here for the
+     * Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE256;
+#endif
+    return ret;
 }
 
 
@@ -2491,7 +2513,13 @@ int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     if (ret != 0)
         return ret;
 
-    return InitSha3(shake);  /* reset state */
+    ret = InitSha3(shake);  /* reset state */
+#ifdef WOLF_CRYPTO_CB
+    /* Restore the type cleared by the reset for Copy/Free dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE256;
+#endif
+    return ret;
 }
 
 /* Absorb the data for squeezing.
