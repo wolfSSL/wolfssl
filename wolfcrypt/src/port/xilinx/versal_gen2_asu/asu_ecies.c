@@ -38,11 +38,11 @@
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/random.h>
 
-/* The ASU takes raw x and y only, so a compressed key always runs in software.
- * Define WOLFSSL_VERSAL_GEN2_ASU_NO_COMP_KEY_WARN to silence this. */
+/* The ASU takes raw x and y only, so ECIES refuses a compressed key. Define
+ * WOLFSSL_VERSAL_GEN2_ASU_NO_COMP_KEY_WARN to silence this. */
 #if defined(HAVE_COMP_KEY) && \
     !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_COMP_KEY_WARN)
-    #warning "ASU ECIES cannot offload compressed keys, software handles them"
+    #warning "ASU ECIES refuses compressed keys, it cannot offload them"
 #endif
 
 #ifdef NO_INLINE
@@ -292,11 +292,12 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
         info->pk.eciesencrypt.outSz == NULL || ctx == NULL) {
         return CRYPTOCB_UNAVAILABLE;
     }
-    /* The ASU only writes uncompressed keys, so turn down compressed. */
+    /* The ASU only writes uncompressed keys. Fail rather than fall back, so
+     * the hardening the caller offloaded for is not lost without a word. */
     if (info->pk.eciesencrypt.compressed != 0) {
         WC_ASU_PRINTF("[ASU] ecies enc: compressed key asked for, "
-            "software will do it\r\n");
-        return CRYPTOCB_UNAVAILABLE;
+            "the ASU cannot write one\r\n");
+        return BAD_FUNC_ARG;
     }
     ret = wc_AsuEciesCurve(pubKey, &curveType, &keyLen);
     if (ret != 0) {
@@ -521,11 +522,12 @@ static int wc_AsuEciesDecrypt(wc_CryptoInfo* info)
         }
     }
 
-    /* The sender key must be uncompressed, so turn down compressed. */
+    /* The sender key has to be uncompressed. Fail rather than hand the work
+     * to software, for the same reason as the encrypt path above. */
     if (msgSz < 1U || msg[0] != (byte)ECC_POINT_UNCOMP) {
         WC_ASU_PRINTF("[ASU] ecies dec: sender key is not uncompressed, "
-            "software will do it\r\n");
-        return CRYPTOCB_UNAVAILABLE;
+            "the ASU cannot read one\r\n");
+        return BAD_FUNC_ARG;
     }
     pubKeySz = 1U + (2U * (word32)keyLen);
     if (msgSz < pubKeySz + (word32)WC_ASU_ECIES_NONCE_SZ +
