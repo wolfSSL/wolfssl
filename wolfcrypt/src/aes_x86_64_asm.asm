@@ -2489,6 +2489,7 @@ L_AES_ECB_encrypt_vaes_16_aes_enc_block_last:
         cmp	r10d, r11d
         jb	L_AES_ECB_encrypt_vaes_enc_16
 L_AES_ECB_encrypt_vaes_done_enc:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         add	rsp, 40
@@ -2781,6 +2782,7 @@ L_AES_ECB_decrypt_vaes_16_aes_dec_block_last:
         cmp	r10d, r11d
         jb	L_AES_ECB_decrypt_vaes_dec_16
 L_AES_ECB_decrypt_vaes_done_dec:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         add	rsp, 40
@@ -3174,6 +3176,7 @@ L_AES_CBC_decrypt_vaes_16_aes_dec_block_last:
         jb	L_AES_CBC_decrypt_vaes_dec_16
 L_AES_CBC_decrypt_vaes_done_dec:
         vmovdqu	OWORD PTR [r8], xmm8
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
@@ -3652,6 +3655,7 @@ L_AES_CTR_encrypt_vaes_16_aes_enc_block_last:
 L_AES_CTR_encrypt_vaes_done_enc:
         vpshufb	xmm0, xmm7, xmm8
         vmovdqu	OWORD PTR [r10], xmm0
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
@@ -3984,6 +3988,7 @@ L_AES_ECB_encrypt_avx512_16_aes_enc_block_last:
         cmp	r10d, r11d
         jb	L_AES_ECB_encrypt_avx512_enc_16
 L_AES_ECB_encrypt_avx512_done_enc:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         vmovdqu	xmm8, OWORD PTR [rsp+40]
@@ -4313,6 +4318,7 @@ L_AES_ECB_decrypt_avx512_16_aes_dec_block_last:
         cmp	r10d, r11d
         jb	L_AES_ECB_decrypt_avx512_dec_16
 L_AES_ECB_decrypt_avx512_done_dec:
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+8]
         vmovdqu	xmm7, OWORD PTR [rsp+24]
         vmovdqu	xmm8, OWORD PTR [rsp+40]
@@ -4742,6 +4748,7 @@ L_AES_CBC_decrypt_avx512_16_aes_dec_block_last:
         jb	L_AES_CBC_decrypt_avx512_dec_16
 L_AES_CBC_decrypt_avx512_done_dec:
         vmovdqu	OWORD PTR [r8], xmm8
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
@@ -5215,6 +5222,7 @@ L_AES_CTR_encrypt_avx512_16_aes_enc_block_last:
 L_AES_CTR_encrypt_avx512_done_enc:
         vpshufb	xmm0, xmm7, xmm8
         vmovdqu	OWORD PTR [r10], xmm0
+        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         vmovdqu	xmm8, OWORD PTR [rsp+32]
