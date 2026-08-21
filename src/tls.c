@@ -18862,11 +18862,15 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 if (size != 0)
                     return BUFFER_ERROR;
 
+                /* Honor a user request to disable EMS by ignoring the peer's
+                 * extension rather than enabling it. */
+                if (!ssl->options.disableEMS) {
 #ifndef NO_WOLFSSL_SERVER
-                if (isRequest)
-                    ssl->options.haveEMS = 1;
+                    if (isRequest)
+                        ssl->options.haveEMS = 1;
 #endif
-                pendingEMS = 1;
+                    pendingEMS = 1;
+                }
                 break;
 #endif
 
