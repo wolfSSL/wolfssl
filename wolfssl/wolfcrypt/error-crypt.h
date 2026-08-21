@@ -346,7 +346,8 @@ enum wolfCrypt_ErrorCodes {
      * -1022 to DH_PCT_E, so cross-version log analysis must key on the module
      * version, never on the bare number.) */
     DH_PCT_E            = -1023, /* DH (FFC) Pairwise Consistency Test failure
-                                  * (SP 800-56A r3 sec 5.6.2.1.4, IG 10.3.B).
+                                  * (SP 800-56A r3 sec 5.6.2.1.4, IG 10.3.A
+                                  * Additional Comment 1).
                                   * RETAINED, unlike the three codes above:
                                   * this header is shared source, not part of
                                   * the frozen file set, so the v5 and v6

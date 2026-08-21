@@ -1494,7 +1494,10 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
         defined(WOLFSSL_VALIDATE_DH_KEYGEN)
     if (ret == 0) {
         /* FFC key-pair PCT per SP 800-56A r3 sec 5.6.2.1.4, required after
-         * KeyGen by FIPS 140-3 IG 10.3.B.  Non-FIPS builds keep it under
+         * KeyGen by FIPS 140-3 IG 10.3.A Additional Comment 1 (TE10.35.03, key
+         * agreement).  NOT IG 10.3.B: that IG is "Self-test for Embedded
+         * Cryptographic Algorithms" and says nothing about pairwise
+         * consistency.  Non-FIPS builds keep it under
          * WOLFSSL_VALIDATE_DH_KEYGEN or HAVE_DH_PCT_TEST.
          *
          * v7 dropped classic finite-field DH from the module boundary, so no
