@@ -1243,6 +1243,15 @@ WOLFSSL_LOCAL void AES_XTS_encrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#ifdef WOLFSSL_AESXTS_STREAM
+/* Block-streaming entry points.  Same implementation as the one-shot pair
+ * above; the running tweak is read from and written back to "tweak" instead
+ * of being derived from an IV under key2. */
+WOLFSSL_LOCAL void AES_XTS_encrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+#endif /* WOLFSSL_AESXTS_STREAM */
 #endif /* WOLFSSL_AES_XTS */
 #endif /* __aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 

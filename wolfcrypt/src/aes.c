@@ -19898,6 +19898,19 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        /* Same predicate the one-shot wc_AesXtsEncrypt() dispatches on, so a
+         * given build and a given key context resolve to the same
+         * implementation whichever entry point the caller uses.  The vector
+         * registers are already held by wc_AesXtsEncryptUpdate()/Final(). */
+        if (xaes->aes.use_aes_hw_crypto) {
+            AES_XTS_encrypt_update_AARCH64(in, out, sz, (byte*)xaes->aes.key,
+                stream->tweak_block, (byte*)xaes->aes.tmp, xaes->aes.rounds);
+            ret = 0;
+        }
+        else
+#endif
         {
             ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, stream->tweak_block);
         }
@@ -20404,7 +20417,8 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
                            struct XtsAesStreamData *stream)
 {
     int ret;
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || (defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
     Aes *aes;
 #endif
 
@@ -20412,7 +20426,8 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESNI) || (defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO))
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     aes = &xaes->aes_decrypt;
 #else
@@ -20512,6 +20527,19 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         }
         else
 #endif /* WOLFSSL_AESNI */
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        /* Same predicate the one-shot wc_AesXtsDecrypt() dispatches on.  Note
+         * this reads the DECRYPT context selected above, not xaes->aes: taking
+         * the flag and the key schedule from different contexts is how the
+         * aarch64 decrypt-key defect arose. */
+        if (aes->use_aes_hw_crypto) {
+            AES_XTS_decrypt_update_AARCH64(in, out, sz, (byte*)aes->key,
+                stream->tweak_block, (byte*)aes->tmp, aes->rounds);
+            ret = 0;
+        }
+        else
+#endif
         {
             ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz,
                                          stream->tweak_block);
