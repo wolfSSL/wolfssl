@@ -27264,13 +27264,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     for (i = 0; i < bank->n_rngs; ++i) {
     #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        word64 bankReseedCtr;
+        /* random.h gates rng.drbg / struct DRBG_internal on !NO_SHA256, so
+         * the SHA-256 arm is gated the same way (as in _rng_test() above).
+         * With NO_SHA256 the only DRBG that can be instantiated is the
+         * SHA-512 one, so the initializer below is never the value tested;
+         * it is a sentinel, not a skip -- if drbgType ever came back as
+         * something else the comparison fails and the test errors out. */
+        word64 bankReseedCtr = 0;
         if (bank->rngs[i].rng.drbgType == WC_DRBG_SHA512)
             bankReseedCtr = ((struct DRBG_SHA512_internal *)
                 bank->rngs[i].rng.drbg512)->reseedCtr;
+    #ifndef NO_SHA256
         else
             bankReseedCtr = ((struct DRBG_internal *)
                 bank->rngs[i].rng.drbg)->reseedCtr;
+    #endif
         if (bankReseedCtr != WC_RESEED_INTERVAL)
     #else
         if (((struct DRBG_internal *)bank->rngs[i].rng.drbg)

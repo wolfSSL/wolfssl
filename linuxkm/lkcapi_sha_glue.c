@@ -3062,8 +3062,13 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
                     V_offset = 0;
             }
         }
+#ifndef NO_SHA256
         else
+#endif
 #endif /* WOLFSSL_DRBG_SHA512 */
+        /* random.h gates ->drbg / struct DRBG_internal on !NO_SHA256, so the
+         * SHA-256 arm only exists when SHA-256 is compiled in. */
+#ifndef NO_SHA256
         {
             for (i = 0, V_offset = 0; i < len; ++i) {
                 ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V[V_offset++] += ((byte *)buf)[i];
@@ -3071,6 +3076,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
                     V_offset = 0;
             }
         }
+#endif
 
         wc_rng_bank_checkin(ctx, &drbg);
         if (can_sleep) {
