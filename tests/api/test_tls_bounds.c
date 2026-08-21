@@ -1000,6 +1000,7 @@ int test_TLSX_Cookie_bounds(void)
  * to csr->ssl in between. Excluded (family 3) in both functions.
  */
 #ifdef TEST_TLS_BOUNDS_CSR_STATUS_CB
+TEST_TLS_BOUNDS_UNUSED
 static int test_TLSX_CSR_write_getsize_status_cb(WOLFSSL* ssl, void* arg)
 {
     (void)ssl; (void)arg;
@@ -1361,6 +1362,7 @@ enum {
     CSROCSP_MODE_WANT_READ
 };
 
+TEST_TLS_BOUNDS_UNUSED
 static int test_ProcessChainOCSPRequest_io_cb(void* ctx, const char* url,
         int urlSz, unsigned char* req, int reqSz, unsigned char** respBuf)
 {
@@ -1385,6 +1387,7 @@ static int test_ProcessChainOCSPRequest_io_cb(void* ctx, const char* url,
  * (leaf) + intermediate1 (the chain entry ProcessChainOCSPRequest() will
  * process) issued off root-ca, matching the identity the csrocsp_resp_*
  * fixtures above were generated against. */
+TEST_TLS_BOUNDS_UNUSED
 static int test_ProcessChainOCSPRequest_setup(WOLFSSL_CTX** pctx,
         WOLFSSL** pssl, CertificateStatusRequest** pcsr, int* mode)
 {
@@ -1661,6 +1664,7 @@ int test_ProcessChainOCSPRequest_bounds(void)
  * is therefore fixed true on every execution that reaches it - excluded
  * (family 3: fixed by the branch that reaches it). */
 #ifdef TEST_TLS_BOUNDS_POPULATE_EXT
+TEST_TLS_BOUNDS_UNUSED
 static unsigned int test_TLSX_PopulateExtensions_psk_cb(WOLFSSL* ssl,
         const char* hint, char* identity, unsigned int id_max_len,
         unsigned char* key, unsigned int key_max_len)
@@ -1685,6 +1689,7 @@ static unsigned int test_TLSX_PopulateExtensions_psk_cb(WOLFSSL* ssl,
     }
 }
 
+TEST_TLS_BOUNDS_UNUSED
 static unsigned int test_TLSX_PopulateExtensions_psk_tls13_cb(WOLFSSL* ssl,
         const char* hint, char* identity, unsigned int id_max_len,
         unsigned char* key, unsigned int key_max_len, const char** ciphersuite)
@@ -1946,6 +1951,7 @@ int test_TLSX_PopulateSupportedGroups_bounds(void)
 static int test_TLSX_CSR_Parse_fail_after = -1;
 static int test_TLSX_CSR_Parse_alloc_seen = 0;
 
+TEST_TLS_BOUNDS_UNUSED
 static void* test_TLSX_CSR_Parse_fail_malloc(size_t size)
 {
     if (test_TLSX_CSR_Parse_fail_after >= 0) {
@@ -1958,11 +1964,13 @@ static void* test_TLSX_CSR_Parse_fail_malloc(size_t size)
     return malloc(size);
 }
 
+TEST_TLS_BOUNDS_UNUSED
 static void test_TLSX_CSR_Parse_fail_free(void* ptr)
 {
     free(ptr);
 }
 
+TEST_TLS_BOUNDS_UNUSED
 static void* test_TLSX_CSR_Parse_fail_realloc(void* ptr, size_t size)
 {
     return realloc(ptr, size);
@@ -2694,6 +2702,7 @@ int test_TLSX_SecureRenegotiation_Write_bounds(void)
  * protocol-level row, not a callee postcondition that collapses it into
  * REJECT. So: covered, not excluded. */
 #ifdef TEST_TLS_BOUNDS_SESSION_TICKET_FF
+TEST_TLS_BOUNDS_UNUSED
 static int test_TLSX_SessionTicket_ff_enc_cb(WOLFSSL* ssl,
         byte key_name[WOLFSSL_TICKET_NAME_SZ], byte iv[WOLFSSL_TICKET_IV_SZ],
         byte mac[WOLFSSL_TICKET_MAC_SZ], int enc, byte* ticket, int inLen,
@@ -2722,6 +2731,7 @@ static int test_TLSX_SessionTicket_ff_enc_cb(WOLFSSL* ssl,
     return WOLFSSL_TICKET_RET_OK;
 }
 
+TEST_TLS_BOUNDS_UNUSED
 static int test_TLSX_SessionTicket_ff_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
