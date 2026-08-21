@@ -3975,7 +3975,7 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
         byte* searched);
 WOLFSSL_LOCAL int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE);
 WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl, int* doHelloRetry);
-WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* sclientKSEclientKSEsl);
+WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input,
         word16 length, byte msgType);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
