@@ -1891,6 +1891,69 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
 /*!
     \ingroup ECC
 
+    \brief This function selects the type of key an ecEncCtx object operates
+    on. It can optionally be called after wc_ecc_ctx_new.
+
+    ECC_CURVE_DEF, the default, means the key pointers handed to the ECIES
+    functions are ecc_key pointers. ECC_X25519 and ECC_X448 mean they are
+    curve25519_key and curve448_key pointers respectively, in which case they
+    must be passed to wc_ecc_encrypt_ex2 and wc_ecc_decrypt_ex2 - the
+    ecc_key-typed wc_ecc_encrypt, wc_ecc_encrypt_ex and wc_ecc_decrypt reject a
+    context configured for a Montgomery curve.
+
+    Individual ECC curves are not selectable here: for an ecc_key the curve is
+    carried by the key itself. This is a key type selector only.
+
+    \return 0 Returned upon successfully setting the key type.
+    \return NOT_COMPILED_IN Returned if the curve is compiled in but its ECIES
+    support is not. See WOLFSSL_ECIES_X25519 and WOLFSSL_ECIES_X448.
+    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL or
+    curveId is not one of the three values above.
+
+    \param ctx pointer to the ecEncCtx for which to set the key type
+    \param curveId ECC_CURVE_DEF, ECC_X25519 or ECC_X448
+
+    \note The setting survives wc_ecc_ctx_reset, so a context can be reused
+    across the REQ/RESP rounds without reconfiguring it.
+
+    _Example_
+    \code
+    ecEncCtx* ctx;
+    // initialize ctx
+    if (wc_ecc_ctx_set_curve_id(ctx, ECC_X25519) != 0) {
+        // error setting the key type
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_new
+    \sa wc_ecc_ctx_get_curve_id
+    \sa wc_ecc_encrypt_ex2
+    \sa wc_ecc_decrypt_ex2
+*/
+
+int wc_ecc_ctx_set_curve_id(ecEncCtx* ctx, int curveId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function reads back the key type configured on an ecEncCtx
+    object with wc_ecc_ctx_set_curve_id.
+
+    \return 0 Returned upon successfully reading the key type.
+    \return BAD_FUNC_ARG Returned if either argument is NULL.
+
+    \param ctx pointer to the ecEncCtx to read
+    \param curveId pointer to an int that receives ECC_CURVE_DEF, ECC_X25519
+    or ECC_X448
+
+    \sa wc_ecc_ctx_set_curve_id
+*/
+
+int wc_ecc_ctx_get_curve_id(ecEncCtx* ctx, int* curveId);
+
+/*!
+    \ingroup ECC
+
     \brief This function returns the salt of an ecEncCtx object. This
     function should only be called when the ecEncCtx's state is
     ecSRV_INIT or ecCLI_INIT.
@@ -2242,6 +2305,113 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+/*!
+    \ingroup ECC
+
+    \brief This function encrypts the given message using ECIES, as
+    wc_ecc_encrypt_ex does, but takes the keys as void pointers so that a
+    Montgomery-curve key can be used. The type the pointers actually have is
+    whatever wc_ecc_ctx_set_curve_id selected on ctx: ecc_key for
+    ECC_CURVE_DEF, curve25519_key for ECC_X25519, curve448_key for ECC_X448.
+
+    For the Montgomery curves the ephemeral public key is placed at the front
+    of the message as a raw little-endian u-coordinate - 32 bytes for X25519,
+    56 for X448 - with no format byte and no compression. This is the RFC 7748
+    encoding used by the TLS key_share extension and by HPKE.
+
+    \return 0 Returned upon successfully encrypting the message.
+    \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, out or outSz is
+    NULL, or if compressed is set for a Montgomery curve.
+    \return BUFFER_E Returned if the supplied output buffer is too small.
+    \return NOT_COMPILED_IN Returned if the selected DEM or curve support is
+    not built in.
+
+    \param privKey pointer to the sender's private key, of the type ctx
+    selects. This is normally an ephemeral key, fresh for each message.
+    \param pubKey pointer to the peer's public key, of the type ctx selects
+    \param msg pointer to the buffer holding the message to encrypt
+    \param msgSz size of the buffer to encrypt
+    \param out pointer to the buffer in which to store the ciphertext
+    \param outSz pointer to a word32 holding the available size in out; on
+    success, holds the number of bytes written
+    \param ctx pointer to an ecEncCtx object. Mandatory for the Montgomery
+    curves: the key type cannot be recovered from a NULL context, and passing
+    NULL there would make this function read a curve25519_key or curve448_key
+    as though it were an ecc_key.
+    \param compressed whether to export the ephemeral public key as a
+    compressed point. ECC only; must be 0 for a Montgomery curve.
+
+    \note The crypto callback (WOLF_CRYPTO_CB) ECIES hooks take ecc_key
+    pointers and are therefore bypassed for the Montgomery curves.
+
+    _Example_
+    \code
+    byte msg[32];  // padded to the DEM block size
+    byte out[CURVE25519_PUB_KEY_SIZE + sizeof(msg) + WC_SHA256_DIGEST_SIZE];
+    word32 outSz = sizeof(out);
+    curve25519_key eph, peer;
+    ecEncCtx* ctx;
+    // initialize eph with a fresh key pair and peer with the peer public key
+
+    ctx = wc_ecc_ctx_new(0, &rng);
+    if (wc_ecc_ctx_set_curve_id(ctx, ECC_X25519) != 0) {
+        // error selecting the key type
+    }
+    if (wc_ecc_encrypt_ex2(&eph, &peer, msg, sizeof(msg), out, &outSz, ctx, 0)
+            != 0) {
+        // error encrypting message
+    }
+    \endcode
+
+    \sa wc_ecc_decrypt_ex2
+    \sa wc_ecc_ctx_set_curve_id
+    \sa wc_ecc_encrypt_ex
+*/
+
+int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
+
+/*!
+    \ingroup ECC
+
+    \brief This function decrypts a message produced by wc_ecc_encrypt_ex2.
+    The keys are void pointers whose actual type is whatever
+    wc_ecc_ctx_set_curve_id selected on ctx.
+
+    For the Montgomery curves the peer's ephemeral public key is read from the
+    front of the message and validated - wc_curve25519_check_public or
+    wc_curve448_check_public - before the shared secret is derived. That check
+    requires a canonical encoding with the high bit clear, which is what
+    wc_ecc_encrypt_ex2 produces.
+
+    \return 0 Returned upon successfully decrypting the message.
+    \return BAD_FUNC_ARG Returned if privKey, msg, out or outSz is NULL, or
+    the input is too short to hold a message.
+    \return BUFFER_E Returned if the supplied output buffer is too small.
+    \return HASH_TYPE_E Returned if the message MAC does not verify.
+    \return AES_GCM_AUTH_E Returned if an AES-GCM DEM fails to authenticate.
+
+    \param privKey pointer to the recipient's private key, of the type ctx
+    selects
+    \param pubKey optional pointer to storage of the type ctx selects, which
+    receives the peer's ephemeral public key. May be NULL, in which case
+    temporary storage is used.
+    \param msg pointer to the ciphertext to decrypt
+    \param msgSz size of the ciphertext
+    \param out pointer to the buffer in which to store the plaintext
+    \param outSz pointer to a word32 holding the available size in out; on
+    success, holds the number of bytes written
+    \param ctx pointer to an ecEncCtx object. Mandatory for the Montgomery
+    curves, for the same reason as in wc_ecc_encrypt_ex2.
+
+    \sa wc_ecc_encrypt_ex2
+    \sa wc_ecc_ctx_set_curve_id
+    \sa wc_ecc_decrypt
+*/
+
+int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
 
 /*!
