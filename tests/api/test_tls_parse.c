@@ -153,13 +153,15 @@ TEST_TLS_PARSE_UNUSED
 static int test_tls_parse_push_curve(TLSX** extensions, WOLFSSL* ssl,
         word16 name)
 {
-    SupportedCurve* curve = (SupportedCurve*)XMALLOC(sizeof(SupportedCurve),
-            ssl->heap, DYNAMIC_TYPE_TLSX);
-    if (curve == NULL)
+    SupportedCurves* curves = (SupportedCurves*)XMALLOC(
+            sizeof(SupportedCurves) + sizeof(word16), ssl->heap,
+            DYNAMIC_TYPE_TLSX);
+    if (curves == NULL)
         return WC_NO_ERR_TRACE(MEMORY_E);
-    curve->name = name;
-    curve->next = NULL;
-    return TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, ssl->heap);
+    curves->count = 1;
+    curves->cap = 1;
+    curves->name[0] = name;
+    return TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curves, ssl->heap);
 }
 
 /* Builds and pushes a minimal key share entry -- a peer offer that was
