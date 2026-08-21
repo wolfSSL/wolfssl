@@ -121,9 +121,18 @@ jobs:
           {"name": "curve25519", "minutes": 3.6,
            "comment": "WOLF_CRYPTO_CB_ONLY_CURVE25519: strips software X25519 (keygen/shared-secret); swdev provides the software path via cryptocb. Nonblock and async X25519 have no callback path and are left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
+          {"name": "mldsa", "minutes": 4.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_MLDSA: strips the software ML-DSA core (NTT, matrix expansion, rejection sampling, the sign/verify workers and the x86 assembly); key import/export, the size queries and the DER paths stay, and the cached matrix/vector fields stay in the key struct so its layout is unchanged. The in-tree cryptocb test registers a callback-only ML-DSA device and drives key generation, signing, verifying and the private-key check through it, so the successful dispatch path is covered and not just the no-device refusal.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_MLDSA"]},
+          {"name": "mldsa-verify-only", "minutes": 4.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_MLDSA against a verify-only ML-DSA build. That combination drops WOLFSSL_MLDSA_CHECK_KEY and the signing entry points, so it catches a callback-only path that assumes an API which this configuration does not compile.",
+           "configure": ["--enable-mldsa=verify-only", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_MLDSA"]},
+          {"name": "mldsa-no-verify", "minutes": 4.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_MLDSA against a sign-only ML-DSA build (WOLFSSL_MLDSA_NO_VERIFY), the mirror of the verify-only entry.",
+           "configure": ["--enable-mldsa=sign", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_MLDSA"]},
           {"name": "all", "minutes": 4.1,
-           "comment": "All seven ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
-           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]}
+           "comment": "All eight ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_MLDSA"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \

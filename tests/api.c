@@ -27983,6 +27983,7 @@ static int test_wc_SignCRL_mldsa(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_CERT_GEN) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1)
     static const struct {
