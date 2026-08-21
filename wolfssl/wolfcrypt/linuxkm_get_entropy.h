@@ -74,7 +74,12 @@ enum wc_grb_stat_idx {
     /* Maintenance reseeds skipped because hotplug moved the work off the CPU
      * whose leaf it targets.  Not a decline: no caller was turned away. */
     WC_GRB_ST_MAINT_DEFERRED = 37,
-    WC_GRB_STAT_N           = 38
+    /* NMI requests answered by the leaf's other instantiation because the live
+     * one could not.  Each one is a request that would otherwise have been
+     * handed back to the kernel's own generator, so this is the count of
+     * fall-throughs avoided, not a count of errors. */
+    WC_GRB_ST_NMI_ALT        = 38,
+    WC_GRB_STAT_N           = 39
 };
 
 /* Interrupts-off histogram for one context.  Bucket k is [2^(k-1), 2^k) units

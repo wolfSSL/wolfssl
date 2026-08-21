@@ -82,7 +82,9 @@
 /* Cap on the leaf reseed threshold, so a build whose WC_RESEED_INTERVAL is the
  * SP 800-90A maximum still refreshes at a sane rate.  Runtime and not #if: the
  * interval may carry a cast the preprocessor cannot evaluate. */
+#ifndef WC_GRB_RESEED_CAP
 #define WC_GRB_RESEED_CAP 500000UL
+#endif
 
 /* Root reseed period, in maintenance ticks. */
 #define WC_GRB_ROOT_PERIOD 1200UL
@@ -191,6 +193,11 @@ static atomic_t wc_grb_any_pending;
  * whose leaf it was going to write.  Not a decline: no caller was turned
  * away, and the leaf is picked up on the next tick. */
 static struct wc_grb_ctr wc_grb_maint_deferred;
+
+/* NMI requests answered by the leaf's other instantiation because the live one
+ * could not answer.  Every one of these is a request that would otherwise have
+ * been handed back to the kernel's own generator. */
+static struct wc_grb_ctr wc_grb_nmi_alt;
 
 static struct wc_grb_ctr wc_grb_root_reseeds;
 static struct wc_grb_ctr wc_grb_root_reseed_failed;
@@ -541,7 +548,51 @@ int wc_grb_service(void *buf, size_t len)
                 ret = wc_RNG_GenerateBlock(&sl->rng[live],
                                            (byte *) buf + done,
                                            (word32) want);
+
                 if (ret != 0) {
+                    /* This instantiation could not answer.  The reachable
+                     * reason is that it has reached its own reseed interval,
+                     * and a reseed cannot be performed from NMI because the
+                     * noise source takes a mutex.
+                     *
+                     * Ask the leaf's OTHER instantiation before giving up.  It
+                     * is separately instantiated with its own state and its own
+                     * reseed counter, so it is not in the same condition, and
+                     * reading it is the same on-demand generate into the same
+                     * caller-owned buffer -- nothing is held, nothing is
+                     * produced ahead of the request.
+                     *
+                     * Giving up here is not a neutral outcome: a non-zero
+                     * return lets the kernel's own generator answer, and those
+                     * bytes are not validated output and the caller cannot tell
+                     * which it got. */
+                    int other = live ? 0 : 1;
+                    int og = atomic_read(&sl->gen[other]);
+
+                    /* Ask for a reseed NOW.  The counters below only advance
+                     * on a SUCCESSFUL generate, so an instance that has
+                     * reached its reseed interval stops advancing "since" and
+                     * would therefore never raise its own pending flag -- the
+                     * leaf goes quiet exactly when it most needs maintenance,
+                     * and the flag is only set later by whichever generate
+                     * happens to succeed.  Raising it here bounds the stall to
+                     * one maintenance tick instead of leaving it to chance.
+                     * Both stores are atomic and neither can block, so this is
+                     * legal in NMI. */
+                    atomic_set(&sl->pending, 1);
+                    atomic_set(&wc_grb_any_pending, 1);
+
+                    ret = wc_RNG_GenerateBlock(&sl->rng[other],
+                                               (byte *) buf + done,
+                                               (word32) want);
+                    if (ret != 0) {
+                        break;
+                    }
+                    if (atomic_read(&sl->gen[other]) != og) {
+                        ret = WC_GRB_RETRY;
+                        continue;
+                    }
+                    wc_grb_ctr_inc(&wc_grb_nmi_alt);
                     break;
                 }
 
@@ -776,6 +827,7 @@ int wc_grb_stat_snapshot(long long *out, int n)
 #endif
     }
     v[WC_GRB_ST_MAINT_DEFERRED] = wc_grb_ctr_read(&wc_grb_maint_deferred);
+    v[WC_GRB_ST_NMI_ALT]        = wc_grb_ctr_read(&wc_grb_nmi_alt);
 
     v[WC_GRB_ST_RESEEDS]       = wc_grb_ctr_read(&wc_grb_reseeds);
     v[WC_GRB_ST_RESEED_FAILED] = wc_grb_ctr_read(&wc_grb_reseed_failed);
