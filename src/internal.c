@@ -9432,6 +9432,11 @@ void FreeAsyncCtx(WOLFSSL* ssl, byte freeAsync)
         }
 #endif
         if (freeAsync) {
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_TLS13)
+            /* Teardown only: a suspended record build must keep its
+             * resume marker across handler-tail cleanups. */
+            ssl->options.buildArgs13Set = 0;
+#endif
             XFREE(ssl->async, ssl->heap, DYNAMIC_TYPE_ASYNC);
             ssl->async = NULL;
         }
@@ -19151,6 +19156,12 @@ exit_ppc:
 
         return ret;
     }
+    /* TLS 1.3 replays skip the sanity check that re-sets got_certificate;
+     * restore on completion or Finished reports out-of-order. */
+    if (ret == 0 && IsAtLeastTLSv1_3(ssl->version) &&
+            ssl->msgsReceived.got_certificate == 0) {
+        ssl->msgsReceived.got_certificate = 1;
+    }
 #endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
 
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
@@ -25052,6 +25063,26 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         return ssl->error;
     }
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_ASYNC_CRYPT)
+    /* Finish a TLS 1.3 key schedule the last handshake message left pending
+     * before any further record is read or decrypted: the derives install
+     * the very keys that record needs. See DoTls13MsgDerives(). */
+    if (ssl->options.tls1_3 && ssl->kdfMsgStep > 0) {
+        ret = DoTls13MsgDerives(ssl, ssl->kdfMsgType);
+        if (ret != 0) {
+            if (ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                WOLFSSL_ERROR(ret);
+            }
+            return ret;
+        }
+        /* The pend is resolved; leaving ssl->error set would make the
+         * next message skip its sanity check and got_* marking. */
+        if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            ssl->error = 0;
+        }
+    }
+#endif
+
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_ASYNC_CRYPT)
     /* process any pending DTLS messages - this flow can happen with async */
     if (ssl->dtls_rx_msg_list != NULL) {
@@ -25740,6 +25771,24 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
                                             ssl->curStartIdx + ssl->curSize);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+                        /* A post-handler key-schedule pend consumed the
+                         * message but not the record; finish it here so
+                         * the retry reads the next record. */
+                        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                                ssl->kdfMsgStep > 0) {
+                            ssl->options.processReply = doProcessInit;
+                            if ((ssl->buffers.inputBuffer.idx -
+                                    ssl->curStartIdx) < ssl->curSize) {
+                                ssl->options.processReply =
+                                    runProcessingOneMessage;
+                            }
+                            else if (IsEncryptionOn(ssl, 0)) {
+                                ssl->buffers.inputBuffer.idx +=
+                                    ssl->keys.padSz;
+                            }
+                        }
+    #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
                         /* Post-handshake auth resumes through
                          * wolfSSL_negotiate() instead of reprocessing this
@@ -25749,8 +25798,12 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                          * the trailing MAC is read as the next record header
                          * and fails with VERSION_ERROR. Mirrors the end of
                          * record block below: resume inside the record when
-                         * content is left, else skip the padding. */
+                         * content is left, else skip the padding. Skipped for
+                         * a key-schedule pend (kdfMsgStep != 0): the block
+                         * above already finished the record, and running this
+                         * one too would skip the padding twice. */
                         if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                                ssl->kdfMsgStep == TLS13_MSG_KDF_NONE &&
                                 ssl->options.processReply == doProcessInit) {
                             if ((ssl->buffers.inputBuffer.idx -
                                     ssl->curStartIdx) < ssl->curSize) {

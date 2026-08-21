@@ -8436,7 +8436,7 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
             return MEMORY_E;
         }
 
-        /* Make an Curve25519 key. */
+        /* Initialize the Curve25519 key. */
         ret = wc_curve25519_init_ex((curve25519_key*)kse->key, ssl->heap,
             ssl->devId);
         if (ret == 0) {
@@ -8465,28 +8465,32 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
         }
     #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
               WC_ASYNC_ENABLE_X25519 */
-        if (ret == 0) {
-        #ifdef WOLFSSL_STATIC_EPHEMERAL
-            ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_CURVE25519, kse->key);
-            if (ret != 0) /* on failure, fallback to local key generation */
-        #endif
-            {
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                /* initialize event */
-                ret = wolfSSL_AsyncInit(ssl, &key->asyncDev,
-                    WC_ASYNC_FLAG_NONE);
-                if (ret != 0)
-                    return ret;
-            #endif
-                ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+    }
 
-                /* Handle async pending response */
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                    return wolfSSL_AsyncPush(ssl, &key->asyncDev);
-                }
-            #endif /* WOLFSSL_ASYNC_CRYPT */
+    /* Outside the allocation guard: a WC_PENDING_E retry must regenerate,
+     * not export an ungenerated key. pubKeyLen marks a completed export on
+     * every backend; pubSet stops the SW-async retry re-arming forever. */
+    if (ret == 0 && key != NULL && kse->pubKeyLen == 0 && !key->pubSet) {
+    #ifdef WOLFSSL_STATIC_EPHEMERAL
+        ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_CURVE25519,
+            kse->key);
+        if (ret != 0) /* on failure, fallback to local key generation */
+    #endif
+        {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+            if (ret != 0)
+                return ret;
+        #endif
+            ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+
+            /* Handle async pending response */
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                return wolfSSL_AsyncPush(ssl, &key->asyncDev);
             }
+        #endif /* WOLFSSL_ASYNC_CRYPT */
         }
     }
 
@@ -8715,6 +8719,10 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
         /* Initialize an ECC key struct for the ephemeral key */
         ret = wc_ecc_init_ex((ecc_key*)kse->key, ssl->heap, ssl->devId);
+        if (ret == 0) {
+            /* setting eccKey means okay to call wc_ecc_free */
+            eccKey = (ecc_key*)kse->key;
+        }
 
     #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
         defined(WC_ASYNC_ENABLE_ECC)
@@ -8737,49 +8745,40 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         }
     #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
               WC_ASYNC_ENABLE_ECC */
+    }
 
-        if (ret == 0) {
-            kse->keyLen = keySize;
-            kse->pubKeyLen = keySize * 2 + 1;
+    /* Outside the allocation guard: a WC_PENDING_E retry must regenerate,
+     * not export an ungenerated key. The key type marks completion;
+     * kse->pubKey covers backends that never touch the ecc_key (TSIP). */
+    if (ret == 0 && eccKey != NULL && kse->pubKey == NULL &&
+            eccKey->type != ECC_PRIVATEKEY &&
+            eccKey->type != ECC_PRIVATEKEY_ONLY) {
+        kse->keyLen = keySize;
+        kse->pubKeyLen = keySize * 2 + 1;
 
-        #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-            ret = tsip_Tls13GenEccKeyPair(ssl, kse);
-            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+        ret = tsip_Tls13GenEccKeyPair(ssl, kse);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret;
+        }
+    #endif
+
+    #ifdef WOLFSSL_STATIC_EPHEMERAL
+        ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_ECDH, kse->key);
+        if (ret != 0 || eccKey->dp->id != curveId)
+    #endif
+        {
+            /* set curve info for EccMakeKey "peer" info */
+            ret = wc_ecc_set_curve(eccKey, (int)kse->keyLen, curveId);
+            if (ret == 0) {
+                /* Generate ephemeral ECC key; a crypto callback retry
+                 * re-enters here, x963 export follows below. */
+                ret = EccMakeKey(ssl, eccKey, eccKey);
+            }
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                 return ret;
-            }
         #endif
-            /* setting eccKey means okay to call wc_ecc_free */
-            eccKey = (ecc_key*)kse->key;
-
-        #ifdef WOLFSSL_STATIC_EPHEMERAL
-            ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_ECDH, kse->key);
-            if (ret != 0 || eccKey->dp->id != curveId)
-        #endif
-            {
-                /* set curve info for EccMakeKey "peer" info */
-                ret = wc_ecc_set_curve(eccKey, (int)kse->keyLen, curveId);
-                if (ret == 0) {
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* Detect when private key generation is done */
-                    if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E) &&
-                            eccKey->type == ECC_PRIVATEKEY) {
-                        ret = 0; /* ECC Key Generation is done */
-                    }
-                    else
-            #endif
-                    {
-                        /* Generate ephemeral ECC key */
-                        /* For async this is called once and when event is done, the
-                        *   provided buffers in key be populated.
-                        * Final processing is x963 key export below. */
-                        ret = EccMakeKey(ssl, eccKey, eccKey);
-                    }
-                }
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
-                    return ret;
-            #endif
-            }
         }
     }
 
@@ -10609,7 +10608,8 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         WOLFSSL_BUFFER(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
     }
 #endif
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || \
+    defined(WOLFSSL_ASYNC_CRYPT)
     keyShareEntry->derived = (ret == 0);
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -12226,6 +12226,27 @@ int TLSX_KeyShare_DeriveSecret(WOLFSSL *ssl)
     TLSX*          extension;
     KeyShareEntry* list = NULL;
 
+    /* Find the KeyShare extension if it exists. */
+    extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+    if (extension != NULL)
+        list = (KeyShareEntry*)extension->data;
+
+    if (list == NULL) {
+        /* Unreachable once the handshake reached this accept state
+         * (TLSX_KeyShare_Setup installed the extension), so no async event
+         * can be stranded by returning before the pop below. */
+        return KEY_SHARE_ERROR;
+    }
+
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || \
+    defined(WOLFSSL_ASYNC_CRYPT)
+    /* Already derived: a later pend's retry re-enters here with the peer
+     * key freed. Checked before the pop so the later operation's queued
+     * event is not stolen. */
+    if (list->derived)
+        return 0;
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, NULL);
     /* Check for error */
@@ -12233,14 +12254,6 @@ int TLSX_KeyShare_DeriveSecret(WOLFSSL *ssl)
         return ret;
     }
 #endif
-
-    /* Find the KeyShare extension if it exists. */
-    extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
-    if (extension != NULL)
-        list = (KeyShareEntry*)extension->data;
-
-    if (list == NULL)
-        return KEY_SHARE_ERROR;
 
     /* Calculate secret. */
     ret = TLSX_KeyShare_Process(ssl, list);

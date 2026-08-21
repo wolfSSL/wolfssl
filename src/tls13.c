@@ -172,6 +172,46 @@
  */
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
+/* Senders suspend/resume a pending record build only on the re-invoke path;
+ * poll-completing backends block inside EncryptTls13() as before. */
+#if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+    #define TLS13_HS_ASYNC_OKAY 1
+#else
+    #define TLS13_HS_ASYNC_OKAY 0
+#endif
+
+#ifdef WOLFSSL_ASYNC_REINVOKE
+/* Arm ssl->kdfAsyncDev for a key-schedule op that may pend, retiring this
+ * connection's previous KDF event first (re-pushing a queued event would
+ * self-link the event list). Returns 0 on success. */
+static int Tls13KdfAsyncInit(WOLFSSL* ssl)
+{
+    int ret;
+
+    if (ssl->asyncDev == &ssl->kdfAsyncDev) {
+        ret = wolfSSL_AsyncPop(ssl, NULL);
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_NO_PENDING_E) &&
+                ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            return ret;
+        }
+    }
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+    /* Never poll-routed: a zeroed cryptocbDevId would look poll-stamped to
+     * wolfSSL_AsyncPop() and stop the resume state advancing. */
+    ssl->kdfAsyncDev.cryptocbDevId = INVALID_DEVID;
+#endif
+    return wolfSSL_AsyncInit(ssl, &ssl->kdfAsyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+}
+
+#endif /* WOLFSSL_ASYNC_REINVOKE */
+
+/* Cap on re-invoking a callback for a record the caller cannot resume
+ * (alerts, asyncOkay = 0 senders); bounds the otherwise unbounded spin. */
+#ifndef WOLFSSL_ASYNC_MAX_REINVOKE
+#define WOLFSSL_ASYNC_MAX_REINVOKE 1000
+#endif
+
 /* Size of the TLS v1.3 label use when deriving keys. */
 #define TLS13_PROTOCOL_LABEL_SZ    6
 /* The protocol label for TLS v1.3. */
@@ -213,6 +253,15 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                 int digest)
 {
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#ifdef WOLFSSL_ASYNC_REINVOKE
+    int aret;
+
+    /* Armed before the provider runs so a pending from the PK callback or
+     * wolfCrypt path falls through to the single push below. */
+    aret = Tls13KdfAsyncInit(ssl);
+    if (aret != 0)
+        return aret;
+#endif
 
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx && ssl->ctx->HKDFExpandLabelCb) {
@@ -223,10 +272,9 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                           WOLFSSL_CLIENT_END /* ignored */);
     }
 
-    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
-        return ret;
+    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
 #endif
-    (void)ssl;
+    {
     PRIVATE_KEY_UNLOCK();
 #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
     ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
@@ -235,12 +283,21 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                      info, infoLen, digest,
                                      ssl->heap, ssl->devId);
 #else
+    (void)ssl;
     ret = wc_Tls13_HKDF_Expand_Label(okm, okmLen, prk, prkLen,
                                      protocol, protocolLen,
                                      label, labelLen,
                                      info, infoLen, digest);
 #endif
     PRIVATE_KEY_LOCK();
+    }
+#ifdef WOLFSSL_ASYNC_REINVOKE
+    /* HKDF has no key object to carry a WC_ASYNC_DEV, so queue the
+     * SSL-owned KDF device; without it the pop finds nothing pending and
+     * replays the handshake message. CALL_AGAIN keeps the state put. */
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wolfSSL_AsyncPush(ssl, &ssl->kdfAsyncDev);
+#endif
     return ret;
 }
 
@@ -255,6 +312,12 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                    int digest, int side)
 {
     int ret;
+#ifdef WOLFSSL_ASYNC_REINVOKE
+    ret = Tls13KdfAsyncInit(ssl);
+    if (ret != 0)
+        return ret;
+#endif
+
 #if defined(HAVE_PK_CALLBACKS)
     ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
     if (ssl->ctx && ssl->ctx->HKDFExpandLabelCb) {
@@ -264,9 +327,10 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                          info, infoLen,
                                          digest, side);
     }
-    if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
-        return ret;
+    /* No early return: a pending here must reach the push at the end. */
+    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
 #endif
+    {
 
 #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
     ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
@@ -285,6 +349,14 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
                                       protocol, protocolLen,
                                       label, labelLen,
                                       info, infoLen, digest);
+#endif
+    }
+#ifdef WOLFSSL_ASYNC_REINVOKE
+    /* HKDF has no key object to carry a WC_ASYNC_DEV, so queue the
+     * SSL-owned KDF device; without it the pop finds nothing pending and
+     * replays the handshake message. CALL_AGAIN keeps the state put. */
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wolfSSL_AsyncPush(ssl, &ssl->kdfAsyncDev);
 #endif
     (void)ssl;
     (void)side;
@@ -1176,8 +1248,19 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
-    void *cb_ctx = ssl->HkdfExtractCtx;
-    CallbackHKDFExtract cb = ssl->ctx->HkdfExtractCb;
+    void *cb_ctx;
+    CallbackHKDFExtract cb;
+#endif
+
+#ifdef WOLFSSL_ASYNC_REINVOKE
+    ret = Tls13KdfAsyncInit(ssl);
+    if (ret != 0)
+        return ret;
+#endif
+
+#ifdef HAVE_PK_CALLBACKS
+    cb_ctx = ssl->HkdfExtractCtx;
+    cb = ssl->ctx->HkdfExtractCb;
     if (cb != NULL) {
         ret = cb(prk, salt, (word32)saltLen, ikm, (word32)ikmLen, digest, cb_ctx);
     }
@@ -1199,6 +1282,10 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
         (void)ssl;
     #endif
     }
+#ifdef WOLFSSL_ASYNC_REINVOKE
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wolfSSL_AsyncPush(ssl, &ssl->kdfAsyncDev);
+#endif
     return ret;
 }
 
@@ -2610,6 +2697,9 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     word16 macSz  = ssl->specs.aead_mac_size;
     word32 nonceSz = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
+    /* Only AES-GCM/AES-CCM assign asyncDev, so only they may pend under a
+     * poll-completing device; the crypto-callback re-invoke path returns
+     * before the push and is not limited this way. */
     WC_ASYNC_DEV* asyncDev = NULL;
     word32 event_flags = WC_ASYNC_FLAG_CALL_AGAIN;
 #endif
@@ -2808,30 +2898,35 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                     return ENCRYPT_ERROR;
             }
 
-            /* Advance state */
-            ssl->encrypt.state = CIPHER_STATE_END;
-
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            #if defined(WOLF_CRYPTO_CB) && \
-                !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
-                !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
-                !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
-                /* No completion path for a pending bulk cipher op. */
-                WOLFSSL_ERROR_VERBOSE(ASYNC_OP_E);
-                return ASYNC_OP_E;
-            #else
                 /* if async is not okay, then block */
                 if (!asyncOkay) {
+                #if defined(WOLFSSL_ASYNC_REINVOKE) && \
+                    !defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+                    /* wc_AsyncWait() never runs a callback: leave the state
+                     * at CIPHER_STATE_DO for the caller to re-invoke. */
+                    return ret;
+                #else
                     ret = wc_AsyncWait(ret, asyncDev, event_flags);
+                #endif
                 }
                 else {
-                    /* If pending, then leave and return will resume below */
+                #if !defined(WOLFSSL_ASYNC_REINVOKE) || \
+                    defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+                    /* Poll completes into output; the resume must skip the
+                     * in-place AEAD or it would encrypt its own output. */
+                    ssl->encrypt.state = CIPHER_STATE_END;
+                #endif
+                    /* Else stay at CIPHER_STATE_DO: the retry must re-invoke
+                     * the callback or the record goes out unencrypted. */
                     return wolfSSL_AsyncPush(ssl, asyncDev);
                 }
-            #endif
             }
         #endif
+
+            /* Advance state */
+            ssl->encrypt.state = CIPHER_STATE_END;
         }
         FALL_THROUGH;
 
@@ -3177,24 +3272,25 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
                     return DECRYPT_ERROR;
             }
 
-            /* Advance state */
-            ssl->decrypt.state = CIPHER_STATE_END;
-
         #ifdef WOLFSSL_ASYNC_CRYPT
-            /* If pending, leave now */
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            #if defined(WOLF_CRYPTO_CB) && \
-                !defined(WOLF_CRYPTO_CB_ASYNC_POLL) && \
-                !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
-                !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
-                /* No completion path for a pending bulk cipher op. */
-                WOLFSSL_ERROR_VERBOSE(ASYNC_OP_E);
-                return ASYNC_OP_E;
+            #if !defined(WOLFSSL_ASYNC_REINVOKE) || \
+                defined(WOLF_CRYPTO_CB_ASYNC_POLL)
+                /* The poll completes the operation into the output buffer,
+                 * so the resume must not run the AEAD again: advance past
+                 * it now (the pop does not, the event is CALL_AGAIN). */
+                ssl->decrypt.state = CIPHER_STATE_END;
             #else
-                return ret;
+                /* Crypto callback re-invocation: leave the state at
+                 * CIPHER_STATE_DO so the retry re-enters the AEAD;
+                 * advancing would hand back the undecrypted record. */
             #endif
+                return ret;
             }
         #endif
+
+            /* Advance state */
+            ssl->decrypt.state = CIPHER_STATE_END;
         }
         FALL_THROUGH;
 
@@ -3233,25 +3329,6 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
     return ret;
 }
 
-/* Persistable BuildTls13Message arguments */
-typedef struct BuildMsg13Args {
-    word32 sz;
-    word32 idx;
-    word32 headerSz;
-    word16 size;
-    word32 paddingSz;
-} BuildMsg13Args;
-
-static void FreeBuildMsg13Args(WOLFSSL* ssl, void* pArgs)
-{
-    BuildMsg13Args* args = (BuildMsg13Args*)pArgs;
-
-    (void)ssl;
-    (void)args;
-
-    /* no allocations in BuildTls13Message */
-}
-
 /* Build SSL Message, encrypted.
  * TLS v1.3 encryption is AEAD only.
  *
@@ -3270,8 +3347,8 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay)
 {
     int ret;
-    BuildMsg13Args* args;
-    BuildMsg13Args  lcl_args;
+    BuildMsgArgs* args;
+    BuildMsgArgs  lcl_args;
 
     WOLFSSL_ENTER("BuildTls13Message");
 
@@ -3282,16 +3359,17 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;
     if (asyncOkay) {
-        WOLFSSL_ASSERT_SIZEOF_GE(ssl->async->args, *args);
-
         if (ssl->async == NULL) {
             ssl->async = (struct WOLFSSL_ASYNC*)
                     XMALLOC(sizeof(struct WOLFSSL_ASYNC), ssl->heap,
                             DYNAMIC_TYPE_ASYNC);
             if (ssl->async == NULL)
                 return MEMORY_E;
+            XMEMSET(ssl->async, 0, sizeof(struct WOLFSSL_ASYNC));
         }
-        args = (BuildMsg13Args*)ssl->async->args;
+        /* Not ssl->async->args: that buffer belongs to the handler that
+         * called down into the record builder. */
+        args = &ssl->async->buildArgs;
 
         ret = wolfSSL_AsyncPop(ssl, &ssl->options.buildMsgState);
         if (ret != WC_NO_ERR_TRACE(WC_NO_PENDING_E)) {
@@ -3306,9 +3384,11 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         args = &lcl_args;
     }
 
-    /* Reset state */
+    /* buildArgs13Set, not the pop result, marks a resume: the handler
+     * already popped the pending, and resetting on the pop result would
+     * rebuild a half-built record (transcript/sequence advance twice). */
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E))
+    if (!asyncOkay || !ssl->options.buildArgs13Set)
 #endif
     {
         /* Note: these hit ssl->options even for a sizeOnly probe, where every
@@ -3317,7 +3397,12 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
          * the only sizeOnly caller and restores them; a new one must too. */
         ret = 0;
         ssl->options.buildMsgState = BUILD_MSG_BEGIN;
-        XMEMSET(args, 0, sizeof(BuildMsg13Args));
+        /* A fresh record must not inherit a suspended build's mid-way
+         * cipher state. Not for sizeOnly probes: GetRecordSize() does not
+         * save this field and rewinding would re-run the AEAD. */
+        if (!sizeOnly)
+            ssl->encrypt.state = CIPHER_STATE_BEGIN;
+        XMEMSET(args, 0, sizeof(BuildMsgArgs));
 
         args->headerSz = RECORD_HEADER_SZ;
 #ifdef WOLFSSL_DTLS13
@@ -3327,12 +3412,12 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
         args->sz = args->headerSz + (word32)inSz;
         args->idx  = args->headerSz;
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (asyncOkay)
-            ssl->async->freeArgs = FreeBuildMsg13Args;
-    #endif
     }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E))
+        ret = 0;
+#endif
 
     switch (ssl->options.buildMsgState) {
         case BUILD_MSG_BEGIN:
@@ -3357,7 +3442,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             /* Pad to minimum length */
             if (ssl->options.dtls &&
                     args->sz < (word32)Dtls13MinimumRecordLength(ssl)) {
-                args->paddingSz = Dtls13MinimumRecordLength(ssl) - args->sz;
+                args->pad = Dtls13MinimumRecordLength(ssl) - args->sz;
                 args->sz = Dtls13MinimumRecordLength(ssl);
             }
 #endif
@@ -3390,6 +3475,13 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 XMEMCPY(output + args->idx, input, (size_t)inSz);
             args->idx += (word32)inSz;
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
+            /* Set only after the argument checks above cannot return any
+             * more: an early error return must not leave the resume marker
+             * set, or the next build would reuse stale args. */
+            if (asyncOkay)
+                ssl->options.buildArgs13Set = 1;
+    #endif
             ssl->options.buildMsgState = BUILD_MSG_HASH;
         }
         FALL_THROUGH;
@@ -3405,8 +3497,8 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             /* The real record content type goes at the end of the data. */
             output[args->idx++] = (byte)type;
             /* Double check that any necessary padding is zero'd out */
-            XMEMSET(output + args->idx, 0, args->paddingSz);
-            args->idx += args->paddingSz;
+            XMEMSET(output + args->idx, 0, args->pad);
+            args->idx += args->pad;
 
             ssl->options.buildMsgState = BUILD_MSG_ENCRYPT;
         }
@@ -3440,6 +3532,28 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 output += args->headerSz;
                 ret = EncryptTls13(ssl, output, output, args->size, aad,
                                    (word16)args->headerSz, asyncOkay);
+            #ifdef WOLFSSL_ASYNC_REINVOKE
+                /* Non-resumable caller (alerts): finish the encryption by
+                 * re-invoking; devices were already waited on above. */
+                if (!asyncOkay) {
+                    int reinvoke = 0;
+
+                    while (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                            reinvoke++ < WOLFSSL_ASYNC_MAX_REINVOKE) {
+                        ret = EncryptTls13(ssl, output, output, args->size,
+                                           aad, (word16)args->headerSz,
+                                           asyncOkay);
+                    }
+                    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                        /* A device that never completes would otherwise spin
+                         * here forever, which is what wc_AsyncWait() used to
+                         * do. Report it instead. */
+                        WOLFSSL_MSG("Crypto callback still pending after "
+                                    "retry limit on a blocking record");
+                        ret = WC_HW_WAIT_E;
+                    }
+                }
+            #endif
                 if (ret != 0) {
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
@@ -3488,10 +3602,8 @@ exit_buildmsg:
     /* Final cleanup */
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (asyncOkay)
-        FreeAsyncCtx(ssl, 0);
-    else
+        ssl->options.buildArgs13Set = 0;
 #endif
-        FreeBuildMsg13Args(ssl, args);
 
     return ret;
 }
@@ -6075,8 +6187,15 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     } /* switch (ssl->options.asyncState) */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (ret == 0)
+    if (ret == 0) {
         FreeAsyncCtx(ssl, 0);
+        /* Replays skip the sanity check that re-sets got_server_hello;
+         * restore on completion (not for HRR, which re-counts it). */
+        if (*extMsgType == server_hello &&
+                ssl->msgsReceived.got_server_hello == 0) {
+            ssl->msgsReceived.got_server_hello = 1;
+        }
+    }
 #endif
 
     WOLFSSL_LEAVE("DoTls13ServerHello", ret);
@@ -7545,6 +7664,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         DYNAMIC_TYPE_ASYNC);
         if (ssl->async == NULL)
             ERROR_OUT(MEMORY_E, exit_dch);
+        /* Zeroed so the mid-flight resume test below can never route into
+         * uninitialised args. */
+        XMEMSET(ssl->async, 0, sizeof(struct WOLFSSL_ASYNC));
     }
     args = (Dch13Args*)ssl->async->args;
 
@@ -7554,6 +7676,13 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret < 0) {
             goto exit_dch;
         }
+    }
+    else if (ssl->options.asyncState > TLS_ASYNC_BEGIN &&
+             ssl->options.asyncState < TLS_ASYNC_END) {
+        /* Mid-flight replay: the event may already be retired but
+         * asyncState/args are intact, so resume; resetting would hash the
+         * message twice. Fresh ClientHellos arrive at TLS_ASYNC_BEGIN. */
+        ret = 0;
     }
     else
 #endif
@@ -8108,7 +8237,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     case TLS_ASYNC_FINALIZE:
     {
     *inOutIdx = args->idx;
-    ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ssl->options.pskNegotiated = (args->usingPSK != 0);
 #endif
@@ -8157,6 +8285,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto exit_dch;
 #endif /* !NO_CERTS */
     }
+
+    /* Advanced only after the derive: earlier would let the accept loop
+     * proceed on an unfinished early secret. */
+    ssl->options.clientState = CLIENT_HELLO_COMPLETE;
     break;
     } /* case TLS_ASYNC_FINALIZE */
     default:
@@ -8235,6 +8367,14 @@ exit_dch:
     FreeDch13Args(ssl, args);
 #ifdef WOLFSSL_ASYNC_CRYPT
     FreeAsyncCtx(ssl, 0);
+    /* Back to BEGIN so a later ClientHello (HRR, duplicate) can never be
+     * mistaken for a replay and resume into freed args. */
+    ssl->options.asyncState = TLS_ASYNC_BEGIN;
+    /* Replays skip the sanity check that re-sets got_client_hello; restore
+     * on completion (only from 0: an HRR second ClientHello counts to 2). */
+    if (ret == 0 && ssl->msgsReceived.got_client_hello == 0) {
+        ssl->msgsReceived.got_client_hello = 1;
+    }
 #endif
     WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 
@@ -8550,6 +8690,13 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
         idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* A suspended build already ran the key schedule below; re-running it
+     * would extract in place over preMasterSecret a second time. */
+    if (ssl->options.buildArgs13Set)
+        goto tls13_send_ee_build;
+#endif
+
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
     if ((ret = TLSX_SupportedCurve_CheckPriority(ssl)) != 0)
         return ret;
@@ -8558,23 +8705,57 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     /* Derive the handshake secret now that we are at first message to be
      * encrypted under the keys.
      */
-    if ((ret = DeriveHandshakeSecret(ssl)) != 0)
-        return ret;
-    if ((ret = DeriveTls13Keys(ssl, handshake_key,
-                               ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0)
-        return ret;
+    if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_NONE) {
+        ret = DeriveHandshakeSecret(ssl);
+        if (ret != 0) {
+            if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+            return ret;
+        }
+        ssl->kdfDeriveStep = TLS13_SEND_KDF_EE_HS_SECRET;
+    }
+    if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_EE_HS_SECRET) {
+        ret = DeriveTls13Keys(ssl, handshake_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
+        if (ret != 0) {
+            if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+            return ret;
+        }
+        ssl->kdfDeriveStep = TLS13_SEND_KDF_EE_HS_KEYS;
+    }
 
     /* Setup encrypt/decrypt keys for following messages. */
 #ifdef WOLFSSL_EARLY_DATA
-    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-        return ret;
-    if (ssl->earlyData != process_early_data) {
-        if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
+    if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_EE_HS_KEYS) {
+        ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY);
+        if (ret != 0) {
+            if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
             return ret;
+        }
+        ssl->kdfDeriveStep = TLS13_SEND_KDF_EE_ENC_KEYS_SET;
+    }
+    if (ssl->earlyData != process_early_data) {
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_EE_ENC_KEYS_SET) {
+            ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_EE_KEYS_SET;
+        }
     }
 #else
-    if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
-        return ret;
+    if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_EE_ENC_KEYS_SET) {
+        ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
+        if (ret != 0) {
+            if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+            return ret;
+        }
+        ssl->kdfDeriveStep = TLS13_SEND_KDF_EE_KEYS_SET;
+    }
 #endif
 #ifdef WOLFSSL_QUIC
     if (IsAtLeastTLSv1_3(ssl->version) && WOLFSSL_IS_QUIC(ssl)) {
@@ -8589,13 +8770,23 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
         w64wrapper epochHandshake = w64From32(0, DTLS13_EPOCH_HANDSHAKE);
         ssl->dtls13Epoch = epochHandshake;
 
-        ret = Dtls13SetEpochKeys(
-            ssl, epochHandshake, ENCRYPT_AND_DECRYPT_SIDE);
-        if (ret != 0)
-            return ret;
-
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_EE_KEYS_SET) {
+            ret = Dtls13SetEpochKeys(ssl, epochHandshake,
+                                     ENCRYPT_AND_DECRYPT_SIDE);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_EE_DTLS_EPOCH;
+        }
     }
 #endif /* WOLFSSL_DTLS13 */
+    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+tls13_send_ee_build:
+#endif
 
     ret = TLSX_GetResponseSize(ssl, encrypted_extensions, &length);
     if (ret != 0)
@@ -8613,12 +8804,19 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     /* Get position in output buffer to write new message to. */
     output = GetOutputBuffer(ssl);
 
-    /* Put the record and handshake headers on. */
-    AddTls13Headers(output, length, encrypted_extensions, ssl);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Skip on a resume: BuildTls13Message already replaced the record
+     * header; rewriting the plaintext headers would corrupt it. */
+    if (!ssl->options.buildArgs13Set)
+#endif
+    {
+        /* Put the record and handshake headers on. */
+        AddTls13Headers(output, length, encrypted_extensions, ssl);
 
-    ret = TLSX_WriteResponse(ssl, output + idx, encrypted_extensions, NULL);
-    if (ret != 0)
-        return ret;
+        ret = TLSX_WriteResponse(ssl, output + idx, encrypted_extensions, NULL);
+        if (ret != 0)
+            return ret;
+    }
     idx += length;
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
@@ -8651,7 +8849,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     /* This handshake message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
                                (int)(idx - RECORD_HEADER_SZ),
-                               handshake, 1, 0, 0);
+                               handshake, 1, 0, TLS13_HS_ASYNC_OKAY);
     if (sendSz < 0)
         return sendSz;
 
@@ -11398,12 +11596,14 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* Fits in a single record: the common path used by RSA, ECC,
                  * EdDSA and ML-DSA is left byte-for-byte unchanged. */
 
-                /* This message is always encrypted. */
+                /* Always encrypted. A record AEAD pend propagates through
+                 * exit_scv (args kept) and the retry resumes the build. */
                 ret = BuildTls13Message(ssl, args->output,
                                         (int)args->outputSz,
                                         args->output + RECORD_HEADER_SZ,
                                         args->sendSz - RECORD_HEADER_SZ,
-                                        handshake, 1, 0, 0);
+                                        handshake, 1, 0,
+                                        TLS13_HS_ASYNC_OKAY);
 
                 if (ret < 0) {
                     goto exit_scv;
@@ -12721,6 +12921,13 @@ exit_dcv:
     /* Cleanup async */
     FreeAsyncCtx(ssl, 0);
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Replays skip the sanity check that re-sets got_certificate_verify;
+     * restore on completion or Finished reports out-of-order. */
+    if (ret == 0 && ssl->msgsReceived.got_certificate_verify == 0) {
+        ssl->msgsReceived.got_certificate_verify = 1;
+    }
+#endif
 
     return ret;
 }
@@ -12952,7 +13159,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
     byte  finishedSz = ssl->specs.hash_size;
     byte* input;
     byte* output;
-    int   ret;
+    int   ret = 0; /* the resume goto can skip every build-phase assign */
     int   headerSz = HANDSHAKE_HEADER_SZ;
     int   outputSz;
     byte* secret;
@@ -12964,7 +13171,6 @@ static int SendTls13Finished(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_FINISHED_SEND);
     WOLFSSL_ENTER("SendTls13Finished");
 
-    ssl->options.buildingMsg = 1;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         headerSz = DTLS_HANDSHAKE_HEADER_SZ;
@@ -12973,6 +13179,13 @@ static int SendTls13Finished(WOLFSSL* ssl)
         isDtls = 1;
     }
 #endif /* WOLFSSL_DTLS13 */
+
+    /* Post-send key-schedule resume: the Finished record is already
+     * queued, so skip the build phase (re-running would queue it twice). */
+    if (ssl->kdfDeriveStep > 0)
+        goto tls13_send_finished_derives;
+
+    ssl->options.buildingMsg = 1;
 
     outputSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
@@ -12990,6 +13203,13 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
     AddTls13HandShakeHeader(input, (word32)finishedSz, 0, (word32)finishedSz,
             finished, ssl);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* A suspended build already wrote the verify data and hashed it;
+     * recomputing would hash the body twice. */
+    if (ssl->options.buildArgs13Set)
+        goto tls13_send_finished_encrypt;
+#endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
@@ -13045,6 +13265,10 @@ static int SendTls13Finished(WOLFSSL* ssl)
         }
     #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+tls13_send_finished_encrypt:
+#endif
+
 #ifdef WOLFSSL_DTLS13
     if (isDtls) {
         dtlsRet = Dtls13HandshakeSend(ssl, output, (word16)outputSz,
@@ -13058,8 +13282,15 @@ static int SendTls13Finished(WOLFSSL* ssl)
     {
         /* This message is always encrypted. */
         int sendSz = BuildTls13Message(ssl, output, outputSz, input,
-                                   headerSz + finishedSz, handshake, 1, 0, 0);
+                                   headerSz + finishedSz, handshake, 1, 0,
+                                   TLS13_HS_ASYNC_OKAY);
         if (sendSz < 0) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* Propagate a pending record encryption rather than reporting it
+             * as a build failure: the retry resumes the record. */
+            if (sendSz == WC_NO_ERR_TRACE(WC_PENDING_E))
+                return sendSz;
+        #endif
             WOLFSSL_ERROR_VERBOSE(BUILD_MSG_ERROR);
             return BUILD_MSG_ERROR;
         }
@@ -13078,13 +13309,24 @@ static int SendTls13Finished(WOLFSSL* ssl)
         ssl->options.buildingMsg = 0;
     }
 
+    /* Build phase complete; steps below are individually resumable. */
+    ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_ENTERED;
+tls13_send_finished_derives:
+
     if (ssl->options.side == WOLFSSL_SERVER_END) {
 #ifdef WOLFSSL_EARLY_DATA
         byte storeTrafficDecKeys = ssl->earlyData == no_early_data;
 #endif
         /* Can send application data now. */
-        if ((ret = DeriveMasterSecret(ssl)) != 0)
-            return ret;
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_ENTERED) {
+            ret = DeriveMasterSecret(ssl);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_MASTER_SECRET;
+        }
         /* Last use of preMasterSecret - zeroize as soon as possible. */
         ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
 #ifdef WOLFSSL_EARLY_DATA
@@ -13096,22 +13338,46 @@ static int SendTls13Finished(WOLFSSL* ssl)
             storeTrafficDecKeys = 1;
 #endif /* WOLFSSL_DTLS13 */
 
-        if ((ret = DeriveTls13Keys(ssl, traffic_key, ENCRYPT_SIDE_ONLY, 1))
-                                                                         != 0) {
-            return ret;
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_MASTER_SECRET) {
+            ret = DeriveTls13Keys(ssl, traffic_key, ENCRYPT_SIDE_ONLY, 1);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_ENC_TRAFFIC_KEYS;
         }
-        if ((ret = DeriveTls13Keys(ssl, traffic_key, DECRYPT_SIDE_ONLY,
-                                       storeTrafficDecKeys)) != 0) {
-            return ret;
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_ENC_TRAFFIC_KEYS) {
+            ret = DeriveTls13Keys(ssl, traffic_key, DECRYPT_SIDE_ONLY,
+                                  storeTrafficDecKeys);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_TRAFFIC_KEYS;
         }
 #else
-        if ((ret = DeriveTls13Keys(ssl, traffic_key, ENCRYPT_AND_DECRYPT_SIDE,
-                                                                     1)) != 0) {
-            return ret;
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_ENC_TRAFFIC_KEYS) {
+            ret = DeriveTls13Keys(ssl, traffic_key, ENCRYPT_AND_DECRYPT_SIDE,
+                                  1);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_TRAFFIC_KEYS;
         }
 #endif
-        if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-            return ret;
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_TRAFFIC_KEYS) {
+            ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_ENC_KEYS_SET;
+        }
 
 #ifdef WOLFSSL_DTLS13
         if (isDtls) {
@@ -13120,11 +13386,16 @@ static int SendTls13Finished(WOLFSSL* ssl)
             ssl->dtls13Epoch = epochTraffic0;
             ssl->dtls13PeerEpoch = epochTraffic0;
 
-            ret = Dtls13SetEpochKeys(
-                ssl, epochTraffic0, ENCRYPT_AND_DECRYPT_SIDE);
-            if (ret != 0)
-                return ret;
-
+            if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_ENC_KEYS_SET) {
+                ret = Dtls13SetEpochKeys(ssl, epochTraffic0,
+                                         ENCRYPT_AND_DECRYPT_SIDE);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_DTLS_TRAFFIC_EPOCH;
+            }
         }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -13134,20 +13405,38 @@ static int SendTls13Finished(WOLFSSL* ssl)
                                                   !ssl->options.handShakeDone) {
 #ifdef WOLFSSL_EARLY_DATA
         if (ssl->earlyData != no_early_data) {
-            if ((ret = DeriveTls13Keys(ssl, no_key, ENCRYPT_SIDE_ONLY,
-                                                                     1)) != 0) {
+            if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_DTLS_TRAFFIC_EPOCH) {
+                ret = DeriveTls13Keys(ssl, no_key, ENCRYPT_SIDE_ONLY, 1);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
                     return ret;
+                }
+                ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_EARLY_ENC_KEYS;
             }
         }
 #endif
         /* Setup keys for application data messages. */
-        if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-            return ret;
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_EARLY_ENC_KEYS) {
+            ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_EARLY_KEYS_SET;
+        }
 
 #if defined(HAVE_SESSION_TICKET)
-        ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
-        if (ret != 0)
-            return ret;
+        if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_EARLY_KEYS_SET) {
+            ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
+            if (ret != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                return ret;
+            }
+            ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_RESUMPTION_SECRET;
+        }
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -13157,14 +13446,23 @@ static int SendTls13Finished(WOLFSSL* ssl)
             ssl->dtls13Epoch = epochTraffic0;
             ssl->dtls13PeerEpoch = epochTraffic0;
 
-            ret = Dtls13SetEpochKeys(
-                ssl, epochTraffic0, ENCRYPT_AND_DECRYPT_SIDE);
-            if (ret != 0)
-                return ret;
-
+            /* Step-guarded like every other derive in this function, so a
+             * pend resumes here and a real error clears the resume state. */
+            if (ssl->kdfDeriveStep <= TLS13_SEND_KDF_FIN_RESUMPTION_SECRET) {
+                ret = Dtls13SetEpochKeys(
+                    ssl, epochTraffic0, ENCRYPT_AND_DECRYPT_SIDE);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfDeriveStep = TLS13_SEND_KDF_FIN_DTLS_EPOCH_SET;
+            }
         }
 #endif /* WOLFSSL_DTLS13 */
     }
+
+    ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
 
 #ifndef NO_WOLFSSL_CLIENT
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
@@ -14049,8 +14347,13 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 return SIDE_ERROR;
             }
         #endif
-            /* Check state. */
-            if (ssl->options.clientState >= CLIENT_HELLO_COMPLETE) {
+            /* A replay after a pend arrives with got_client_hello cleared
+             * (see exit_dch); a genuine duplicate arrives with it set. */
+            if (ssl->options.clientState >= CLIENT_HELLO_COMPLETE
+        #ifdef WOLFSSL_ASYNC_CRYPT
+                && ssl->msgsReceived.got_client_hello != 0
+        #endif
+                ) {
                 WOLFSSL_MSG("ClientHello received out of order");
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
@@ -14663,6 +14966,212 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
  * totalSz   Length of remaining data in the message buffer.
  * returns 0 on success and otherwise failure.
  */
+/* Run the key schedule belonging to a just-processed handshake message.
+ * A pend here cannot replay the message (its handler already advanced
+ * state); the record is consumed and this is called again from
+ * DoProcessReplyEx() entry, pre-dispatch, or the reply-loop exits.
+ * Returns 0, WC_PENDING_E while the device is busy, else an error. */
+int DoTls13MsgDerives(WOLFSSL* ssl, byte type)
+{
+    int ret = 0;
+
+    (void)type;
+
+#ifndef NO_WOLFSSL_CLIENT
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        if (type == server_hello) {
+            /* Entered before the first derive, or a pend there would
+             * route the retry back to the message handler. */
+            if (ssl->kdfMsgStep == TLS13_MSG_KDF_NONE) {
+                ssl->kdfMsgStep = TLS13_MSG_KDF_SH_ENTERED;
+                ssl->kdfMsgType = type;
+            }
+
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_SH_ENTERED) {
+                ret = DeriveEarlySecret(ssl);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_SH_EARLY_SECRET;
+            }
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_SH_EARLY_SECRET) {
+                ret = DeriveHandshakeSecret(ssl);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_SH_HS_SECRET;
+            }
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_SH_HS_SECRET) {
+                ret = DeriveTls13Keys(ssl, handshake_key,
+                                      ENCRYPT_AND_DECRYPT_SIDE, 1);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_SH_HS_KEYS;
+            }
+    #ifdef WOLFSSL_EARLY_DATA
+            if (ssl->earlyData != no_early_data) {
+                if (ssl->kdfMsgStep <= TLS13_MSG_KDF_SH_HS_KEYS) {
+                    ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY);
+                    if (ret != 0) {
+                        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                        return ret;
+                    }
+                    ssl->kdfMsgStep = TLS13_MSG_KDF_SH_KEYS_SET;
+                }
+            }
+            else
+    #endif
+            {
+                if (ssl->kdfMsgStep <= TLS13_MSG_KDF_SH_HS_KEYS) {
+                    ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
+                    if (ret != 0) {
+                        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                        return ret;
+                    }
+                    ssl->kdfMsgStep = TLS13_MSG_KDF_SH_KEYS_SET;
+                }
+            }
+
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                w64wrapper epochHandshake;
+                epochHandshake = w64From32(0, DTLS13_EPOCH_HANDSHAKE);
+                ssl->dtls13Epoch = epochHandshake;
+                ssl->dtls13PeerEpoch = epochHandshake;
+
+                if (ssl->kdfMsgStep <= TLS13_MSG_KDF_SH_KEYS_SET) {
+                    ret = Dtls13SetEpochKeys(ssl, epochHandshake,
+                                             ENCRYPT_AND_DECRYPT_SIDE);
+                    if (ret != 0) {
+                        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                        return ret;
+                    }
+                    ssl->kdfMsgStep = TLS13_MSG_KDF_SH_DTLS_EPOCH;
+                }
+            }
+#endif /* WOLFSSL_DTLS13 */
+            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+        }
+
+        if (type == finished) {
+            /* Mark the phase entered before the first derive, so a pending
+             * there still routes the retry back here. */
+            if (ssl->kdfMsgStep == TLS13_MSG_KDF_NONE) {
+                ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_ENTERED;
+                ssl->kdfMsgType = type;
+            }
+
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_FIN_ENTERED) {
+                if ((ret = DeriveMasterSecret(ssl)) != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                /* Zeroized only after the derive completed: a pend retry
+                 * still reads preMasterSecret. */
+                ForceZero(ssl->arrays->preMasterSecret,
+                    ssl->arrays->preMasterSz);
+                ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_MASTER_SECRET;
+            }
+    #ifdef WOLFSSL_EARLY_DATA
+    #ifdef WOLFSSL_QUIC
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_FIN_MASTER_SECRET) {
+                if (WOLFSSL_IS_QUIC(ssl) &&
+                        ssl->earlyData != no_early_data) {
+                    /* QUIC never sends/receives EndOfEarlyData, but
+                     * having early data means the last encryption keys
+                     * had not been set yet. */
+                    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0) {
+                        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                        return ret;
+                    }
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_QUIC_EARLY_KEYS;
+            }
+    #endif
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_FIN_QUIC_EARLY_KEYS) {
+                ret = DeriveTls13Keys(ssl, traffic_key,
+                            ENCRYPT_AND_DECRYPT_SIDE,
+                            ssl->earlyData == no_early_data);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_TRAFFIC_KEYS;
+            }
+            if (ssl->earlyData != no_early_data) {
+                if (ssl->kdfMsgStep <= TLS13_MSG_KDF_FIN_TRAFFIC_KEYS) {
+                    if ((ret = DeriveTls13Keys(ssl, no_key,
+                                            DECRYPT_SIDE_ONLY, 1)) != 0) {
+                        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                        return ret;
+                    }
+                    ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_TRAFFIC_DONE;
+                }
+            }
+    #else
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_FIN_QUIC_EARLY_KEYS) {
+                ret = DeriveTls13Keys(ssl, traffic_key,
+                            ENCRYPT_AND_DECRYPT_SIDE, 1);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_TRAFFIC_DONE;
+            }
+    #endif
+            /* Setup keys for application data messages. */
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_FIN_TRAFFIC_DONE) {
+                if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_FIN_KEYS_SET;
+            }
+            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+        }
+    }
+#endif /* NO_WOLFSSL_CLIENT */
+
+#ifndef NO_WOLFSSL_SERVER
+    #if defined(HAVE_SESSION_TICKET)
+        if (ssl->options.side == WOLFSSL_SERVER_END && type == finished) {
+            if (ssl->kdfMsgStep == TLS13_MSG_KDF_NONE) {
+                ssl->kdfMsgStep = TLS13_MSG_KDF_SFIN_ENTERED;
+                ssl->kdfMsgType = type;
+            }
+            if (ssl->kdfMsgStep <= TLS13_MSG_KDF_SFIN_ENTERED) {
+                ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
+                if (ret != 0) {
+                    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
+                        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+                    return ret;
+                }
+                ssl->kdfMsgStep = TLS13_MSG_KDF_SFIN_RESUMPTION_SECRET;
+            }
+            ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+        }
+    #endif
+#endif /* NO_WOLFSSL_SERVER */
+
+    return ret;
+}
+
 int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             byte type, word32 size, word32 totalSz)
 {
@@ -14682,8 +15191,14 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (*inOutIdx + size > totalSz)
         return INCOMPLETE_DATA;
 
-    /* sanity check msg received */
-    if ((ret = SanityCheckTls13MsgReceived(ssl, type)) != 0) {
+    /* Sanity check msg received. Skipped on a WC_PENDING_E resume (it
+     * would reject the replay against already-advanced state); handlers
+     * restore their cleared got_* markers on completion instead. */
+    if (
+#ifdef WOLFSSL_ASYNC_CRYPT
+            ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
+#endif
+            (ret = SanityCheckTls13MsgReceived(ssl, type)) != 0) {
         WOLFSSL_MSG("Sanity Check on handshake message type received failed");
         if (ret == WC_NO_ERR_TRACE(VERSION_ERROR))
             SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
@@ -14739,6 +15254,18 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 
     /* above checks handshake state */
+    /* Finish an earlier message's key schedule before this message is
+     * judged: it installs state this one is checked against. */
+    if (ssl->kdfMsgStep > 0) {
+        ret = DoTls13MsgDerives(ssl, ssl->kdfMsgType);
+        if (ret != 0)
+            return ret;
+        /* A resolved pend must not suppress the next sanity check. */
+        if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            ssl->error = 0;
+        }
+    }
+
     switch (type) {
 #ifndef NO_WOLFSSL_CLIENT
     /* Messages only received by client. */
@@ -14982,83 +15509,14 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 
     if (ret == 0 && ssl->options.tls1_3) {
-        /* Need to hash input message before deriving secrets. */
-    #ifndef NO_WOLFSSL_CLIENT
+        /* The message is hashed by now; run the key schedule that belongs to
+         * it. */
+        ret = DoTls13MsgDerives(ssl, type);
+        if (ret != 0)
+            return ret;
+
+    #if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            if (type == server_hello) {
-                if ((ret = DeriveEarlySecret(ssl)) != 0)
-                    return ret;
-                if ((ret = DeriveHandshakeSecret(ssl)) != 0)
-                    return ret;
-
-                if ((ret = DeriveTls13Keys(ssl, handshake_key,
-                                        ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
-                    return ret;
-                }
-        #ifdef WOLFSSL_EARLY_DATA
-                if (ssl->earlyData != no_early_data) {
-                    if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
-                        return ret;
-                }
-                else
-        #endif
-                if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
-                    return ret;
-
-#ifdef WOLFSSL_DTLS13
-                if (ssl->options.dtls) {
-                    w64wrapper epochHandshake;
-                    epochHandshake = w64From32(0, DTLS13_EPOCH_HANDSHAKE);
-                    ssl->dtls13Epoch = epochHandshake;
-                    ssl->dtls13PeerEpoch = epochHandshake;
-
-                    ret = Dtls13SetEpochKeys(
-                        ssl, epochHandshake, ENCRYPT_AND_DECRYPT_SIDE);
-                    if (ret != 0)
-                        return ret;
-
-                }
-#endif /* WOLFSSL_DTLS13 */
-            }
-
-            if (type == finished) {
-                if ((ret = DeriveMasterSecret(ssl)) != 0)
-                    return ret;
-                /* Last use of preMasterSecret - zeroize as soon as possible. */
-                ForceZero(ssl->arrays->preMasterSecret,
-                    ssl->arrays->preMasterSz);
-        #ifdef WOLFSSL_EARLY_DATA
-        #ifdef WOLFSSL_QUIC
-                if (WOLFSSL_IS_QUIC(ssl) && ssl->earlyData != no_early_data) {
-                    /* QUIC never sends/receives EndOfEarlyData, but having
-                     * early data means the last encryption keys had not been
-                     * set yet. */
-                    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-                        return ret;
-                }
-        #endif
-                if ((ret = DeriveTls13Keys(ssl, traffic_key,
-                                    ENCRYPT_AND_DECRYPT_SIDE,
-                                    ssl->earlyData == no_early_data)) != 0) {
-                    return ret;
-                }
-                if (ssl->earlyData != no_early_data) {
-                    if ((ret = DeriveTls13Keys(ssl, no_key, DECRYPT_SIDE_ONLY,
-                                                                  1)) != 0) {
-                            return ret;
-                    }
-                }
-        #else
-                if ((ret = DeriveTls13Keys(ssl, traffic_key,
-                                        ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
-                    return ret;
-                }
-        #endif
-                /* Setup keys for application data messages. */
-                if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
-                    return ret;
-            }
-        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             if (type == certificate_request &&
                                 ssl->options.handShakeState == HANDSHAKE_DONE) {
 #if defined(HAVE_WRITE_DUP)
@@ -15118,19 +15576,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 }
             }
-        #endif
         }
-    #endif /* NO_WOLFSSL_CLIENT */
-
-#ifndef NO_WOLFSSL_SERVER
-    #if defined(HAVE_SESSION_TICKET)
-        if (ssl->options.side == WOLFSSL_SERVER_END && type == finished) {
-            ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
-            if (ret != 0)
-                return ret;
-        }
-    #endif
-#endif /* NO_WOLFSSL_SERVER */
+    #endif /* !NO_WOLFSSL_CLIENT && WOLFSSL_POST_HANDSHAKE_AUTH */
     }
 
 #ifdef WOLFSSL_DTLS13
@@ -15162,6 +15609,11 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     word32 inputLength;
     byte   type;
     word32 size = 0;
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+    /* Nonzero on entry: an earlier message's schedule is unfinished, so a
+     * pend from its pre-dispatch drain must re-present this message. */
+    byte   kdfStepEntry = ssl->kdfMsgStep;
+#endif
 
     WOLFSSL_ENTER("DoTls13HandShakeMsg");
 
@@ -15174,6 +15626,9 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
     if (ssl->pendingMsgSz == 0) {
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+        word32 startIdx = *inOutIdx;
+    #endif
 
         if (GetHandshakeHeader(ssl, input, inOutIdx, &type, &size,
                                totalSz) != 0) {
@@ -15217,6 +15672,16 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
                                       totalSz);
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+        if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0)) ||
+                ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
+            /* Re-present for in-handler pends and pre-dispatch drain pends;
+             * a post-handler key-schedule pend must NOT replay (state is
+             * committed; DoTls13MsgDerives() finishes it instead). */
+            *inOutIdx = startIdx;
+        }
+    #endif
     }
     else {
         if (inputLength + ssl->pendingMsgOffset > ssl->pendingMsgSz) {
@@ -15244,9 +15709,11 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->pendingMsgSz - HANDSHAKE_HEADER_SZ,
                                 ssl->pendingMsgSz);
         #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-            if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
+            if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0)) ||
                 ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
-                /* setup to process fragment again */
+                /* Re-present the fragment; a post-handler key-schedule
+                 * pend falls through and consumes the message. */
                 ssl->pendingMsgOffset -= inputLength;
                 *inOutIdx -= inputLength;
             }
@@ -15520,6 +15987,17 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                     }
                 }
 #endif /* WOLFSSL_DTLS13 */
+            }
+
+            /* Finish a key schedule the Finished handler left pending:
+             * it must complete before this side's sends advance the
+             * transcript the traffic secrets hash. */
+            if (ssl->kdfMsgStep > 0) {
+                ssl->error = DoTls13MsgDerives(ssl, ssl->kdfMsgType);
+                if (ssl->error != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
             }
 
             ssl->options.connectState = FIRST_REPLY_DONE;
@@ -16981,6 +17459,17 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     }
                 }
 #endif /* WOLFSSL_DTLS13 */
+            }
+
+            /* Finish a key schedule the Finished handler left pending:
+             * it must complete before this side's sends advance the
+             * transcript the traffic secrets hash. */
+            if (ssl->kdfMsgStep > 0) {
+                ssl->error = DoTls13MsgDerives(ssl, ssl->kdfMsgType);
+                if (ssl->error != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
             }
 
             ssl->options.acceptState = TLS13_ACCEPT_FINISHED_DONE;
