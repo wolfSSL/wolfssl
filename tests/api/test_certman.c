@@ -29,6 +29,7 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #include <wolfssl/ocsp.h>
 #include <tests/api/api.h>
 #include <tests/api/test_certman.h>
@@ -2648,6 +2649,54 @@ int test_wolfSSL_CRL_static_revoked_list(void)
         sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
 
     wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CRL_static_revoked_list_dup(void)
+{
+    EXPECT_DECLS;
+#if defined(CRL_STATIC_REVOKED_LIST) && defined(HAVE_CRL) && \
+    defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM)
+    /* certs/crl/crl_reason.pem revokes serial 01 and carries a
+     * crlEntryExtensions (CRL Reason Code) for that entry.
+     * Under OPENSSL_EXTRA GetRevoked() heap-allocates
+     * RevokedCert.extensions to hold the raw DER of those extensions. */
+    const char* crlReasonFile = "./certs/crl/crl_reason.pem";
+    XFILE fp = XBADFILE;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_X509_CRL* dupl = NULL;
+
+    ExpectTrue((fp = XFOPEN(crlReasonFile, "rb")) != XBADFILE);
+    ExpectNotNull(crl = wolfSSL_PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+
+    ExpectNotNull(crl != NULL ? crl->crlList : NULL);
+    ExpectIntGT((crl != NULL && crl->crlList != NULL) ?
+        crl->crlList->totalCerts : 0, 0);
+    ExpectNotNull((crl != NULL && crl->crlList != NULL) ?
+        crl->crlList->certs[0].extensions : NULL);
+
+    ExpectNotNull(dupl = wolfSSL_X509_CRL_dup(crl));
+
+    /* Every duplicated revoked cert must own its own extensions buffer. This
+     * fails if the entries are shallow-copied. */
+    if (crl != NULL && dupl != NULL && crl->crlList != NULL &&
+            dupl->crlList != NULL) {
+        int i;
+        for (i = 0; i < crl->crlList->totalCerts; i++) {
+            if (crl->crlList->certs[i].extensions != NULL) {
+                ExpectPtrNE(dupl->crlList->certs[i].extensions,
+                            crl->crlList->certs[i].extensions);
+            }
+        }
+    }
+
+    wolfSSL_X509_CRL_free(dupl);
+    wolfSSL_X509_CRL_free(crl);
 #endif
     return EXPECT_RESULT();
 }
