@@ -529,5 +529,10 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitShake128", "shake128");
     check_cfg(&binding, "wc_InitShake256", "shake256");
 
+    /* slhdsa */
+    check_cfg(&binding, "wc_SlhDsaKey_Init", "slhdsa");
+    check_cfg(&binding, "wc_SlhDsaKey_Sign", "slhdsa_sign");
+    check_cfg(&binding, "WC_SLHDSA_SHA2_128S_SIG_LEN", "slhdsa_sha2");
+
     Ok(())
 }
