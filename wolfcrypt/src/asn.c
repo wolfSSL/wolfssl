@@ -12969,6 +12969,43 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
     }
 }
 
+/* Allocate an alt name entry holding a NUL terminated copy of the name in the
+ * same block. nameStored stays 0, so the name is never freed on its own.
+ *
+ * str     Name to store. May be NULL only when strLen is 0.
+ * strLen  Length of the name in bytes, zero or more.
+ * heap    Heap hint for the allocation.
+ * returns the new alt name, or NULL on failure.
+ */
+DNS_entry* AltNameNewEx(const char* str, int strLen, void* heap)
+{
+    DNS_entry* ret;
+    char* name;
+
+    /* len would otherwise cover bytes that were never written. */
+    if ((strLen < 0) || ((str == NULL) && (strLen > 0)))
+        return NULL;
+
+    ret = (DNS_entry*)XMALLOC(sizeof(DNS_entry) + (size_t)strLen + 1, heap,
+                              DYNAMIC_TYPE_ALTNAME);
+    if (ret == NULL)
+        return NULL;
+
+    XMEMSET(ret, 0, sizeof(DNS_entry));
+    name = (char*)ret + sizeof(DNS_entry);
+    if ((str != NULL) && (strLen > 0))
+        XMEMCPY(name, str, (size_t)strLen);
+    name[strLen] = '\0';
+    ret->name = name;
+    ret->len = strLen;
+#ifdef WC_ASN_NO_HEAP
+    ret->entryStored = 1;   /* heap-allocated node; FreeAltNames frees it */
+#endif
+
+    (void)heap;
+    return ret;
+}
+
 /* malloc and initialize a new alt name structure */
 DNS_entry* AltNameNew(void* heap)
 {
@@ -15011,11 +15048,8 @@ static int SetDNSEntry(void* heap, DNS_entry* pool, word32* poolUsed,
                        const char* str, int strLen, int type,
                        DNS_entry** entries)
 {
-    DNS_entry* dnsEntry;
+    DNS_entry* dnsEntry = NULL;
     int ret = 0;
-#ifndef WC_ASN_NO_HEAP
-    char *dnsEntry_name = NULL;
-#endif
 
 #ifdef WC_ASN_NO_HEAP
     /* No heap: borrow a pool slot; name points into the source DER. */
@@ -15051,31 +15085,20 @@ static int SetDNSEntry(void* heap, DNS_entry* pool, word32* poolUsed,
 #else
     (void)pool;
     (void)poolUsed;
-    /* TODO: consider one malloc. */
-    /* Allocate DNS Entry object. */
-    dnsEntry = AltNameNew(heap);
-    if (dnsEntry == NULL) {
-        ret = MEMORY_E;
+    /* Screened here so a NULL from AltNameNewEx() means out of memory and
+     * nothing else. */
+    if ((strLen < 0) || ((str == NULL) && (strLen > 0))) {
+        ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
-        /* Allocate DNS Entry name - length of string plus 1 for NUL. */
-        dnsEntry->name = dnsEntry_name = (char*)XMALLOC((size_t)strLen + 1,
-                                                    heap, DYNAMIC_TYPE_ALTNAME);
-        if (dnsEntry->name == NULL) {
+        /* Allocate DNS Entry object holding the name. */
+        dnsEntry = AltNameNewEx(str, strLen, heap);
+        if (dnsEntry == NULL) {
             ret = MEMORY_E;
         }
-        else {
-            dnsEntry->nameStored = 1;
-        }
     }
     if (ret == 0) {
-        /* Set tag type, name length, name and NUL terminate name. */
         dnsEntry->type = type;
-        dnsEntry->len = strLen;
-        if (str != NULL && strLen > 0) {
-            XMEMCPY(dnsEntry_name, str, (size_t)strLen);
-        }
-        dnsEntry_name[strLen] = '\0';
 
 #ifdef WOLFSSL_RID_ALT_NAME
         /* store registeredID as a string */
@@ -15090,12 +15113,16 @@ static int SetDNSEntry(void* heap, DNS_entry* pool, word32* poolUsed,
 #endif
     if (ret == 0) {
         ret = AddDNSEntryToList(entries, dnsEntry);
+        /* The list owns it from here. */
+        if (ret == 0)
+            dnsEntry = NULL;
     }
 
-    /* failure cleanup */
+    /* Only reached when the entry was never linked. Clear next so
+     * FreeAltNames() frees this node alone. */
     if (ret != 0 && dnsEntry != NULL) {
-        XFREE(dnsEntry_name, heap, DYNAMIC_TYPE_ALTNAME);
-        XFREE(dnsEntry, heap, DYNAMIC_TYPE_ALTNAME);
+        dnsEntry->next = NULL;
+        FreeAltNames(dnsEntry, heap);
     }
 #endif
 

@@ -3119,7 +3119,6 @@ int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
         word32 nameSz, int type)
 {
     DNS_entry* newAltName = NULL;
-    char* nameCopy = NULL;
 
     if (x509 == NULL)
         return WOLFSSL_FAILURE;
@@ -3127,25 +3126,17 @@ int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
     if ((name == NULL) || (nameSz == 0))
         return WOLFSSL_SUCCESS;
 
-    newAltName = AltNameNew(x509->heap);
+    /* AltNameNewEx() takes a signed length. */
+    if (nameSz > (word32)INT_MAX)
+        return WOLFSSL_FAILURE;
+
+    /* One block, so nothing to unwind on failure. */
+    newAltName = AltNameNewEx(name, (int)nameSz, x509->heap);
     if (newAltName == NULL)
         return WOLFSSL_FAILURE;
 
-    nameCopy = (char*)XMALLOC(nameSz + 1, x509->heap, DYNAMIC_TYPE_ALTNAME);
-    if (nameCopy == NULL) {
-        XFREE(newAltName, x509->heap, DYNAMIC_TYPE_ALTNAME);
-        return WOLFSSL_FAILURE;
-    }
-
-    XMEMCPY(nameCopy, name, nameSz);
-
-    nameCopy[nameSz] = '\0';
-
     newAltName->next = x509->altNames;
     newAltName->type = type;
-    newAltName->len = (int)nameSz;
-    newAltName->name = nameCopy;
-    newAltName->nameStored = 1;
     x509->altNames = newAltName;
 
     return WOLFSSL_SUCCESS;
