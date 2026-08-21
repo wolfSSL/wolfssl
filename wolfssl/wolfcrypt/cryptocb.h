@@ -290,6 +290,11 @@ typedef struct wc_CryptoInfo {
             } ecc_check_pub;          /* distinct from ecc_check (priv-key cmp)  */
             #endif
             #ifdef HAVE_ECC_ENCRYPT
+            /* ECC keys only.  ECIES over a Montgomery curve (ECC_X25519 /
+             * ECC_X448, selected with wc_ecc_ctx_set_curve_id) bypasses these
+             * callbacks entirely, since the key pointers below are typed for
+             * ecc_key.  The curve25519 callback still fires for the shared
+             * secret itself. */
             struct {
                 ecc_key*    privKey;
                 ecc_key*    pubKey;

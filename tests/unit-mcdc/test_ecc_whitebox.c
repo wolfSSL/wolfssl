@@ -196,17 +196,19 @@ static void wb_import_private_key_ex(void)
  *
  * Both public callers (wc_ecc_ctx_set_own_salt via REQ_RESP_CLIENT/SERVER,
  * ecc_ctx_init) always pass a live ctx and a hard-coded nonzero flags
- * (REQ_RESP_CLIENT/REQ_RESP_SERVER), so flags==0 can never be observed from
- * the API; ctx==NULL is likewise never forwarded by any caller (they all
- * either early-return on their own NULL check or pass &localCtx).
+ * (REQ_RESP_CLIENT/REQ_RESP_SERVER); wc_ecc_ctx_reset() skips the call
+ * entirely when protocol==0, so flags==0 can never be observed from the API.
+ * ctx==NULL is likewise never forwarded by any caller (they all either
+ * early-return on their own NULL check or pass &localCtx).
  *
  * Classes 4-6: ecEncCtx.protocol == 0 halves of the get_own_salt /
  * set_peer_salt / set_own_salt guards (lines ~14506, ~14554, ~14646). The
- * only public constructor, wc_ecc_ctx_new()/wc_ecc_ctx_new_ex(), always sets
- * ctx->protocol to REQ_RESP_CLIENT or REQ_RESP_SERVER (or fails and frees the
- * ctx), so a live ctx with protocol==0 does not exist on any API path. Build
- * one directly here since ecEncCtx's full definition is only visible inside
- * this TU (it is an opaque forward-declared type in ecc.h).
+ * public constructor wc_ecc_ctx_new()/wc_ecc_ctx_new_ex() does accept
+ * flags==0 - such a context carries the algorithms and the key type but takes
+ * no part in the REQ/RESP salt exchange - and these three functions are the
+ * ones that reject it. Build the ctx directly here since ecEncCtx's full
+ * definition is only visible inside this TU (it is an opaque
+ * forward-declared type in ecc.h).
  * ------------------------------------------------------------------------- */
 static void wb_ctx_set_salt(void)
 {
@@ -1645,16 +1647,23 @@ static void wb_arg_guards(void)
         }
     }
 
-    /* ecc_public_key_size: key == NULL || key->dp == NULL */
+    /* ecies_pub_key_size: the ECC branch rejects a NULL key and a key with no
+     * domain parameters, both of which wc_ecc_size() reports as size 0.  (This
+     * guard used to live in ecc_public_key_size(), which the key-type dispatch
+     * for ECIES replaced.) */
+#if defined(HAVE_ECC_ENCRYPT) && !defined(WOLFSSL_ECIES_OLD)
     {
         const ecc_set_type* savedDp = key.dp;
+        word32 pubSz = 0;
 
-        (void)ecc_public_key_size(NULL, &sz);
+        (void)ecies_pub_key_size(NULL, NULL, 0, &pubSz);
         key.dp = NULL;
-        (void)ecc_public_key_size(&key, &sz);
+        (void)ecies_pub_key_size(NULL, &key, 0, &pubSz);
         key.dp = savedDp;
-        (void)ecc_public_key_size(&key, &sz);
+        (void)ecies_pub_key_size(NULL, &key, 0, &pubSz);
+        (void)ecies_pub_key_size(NULL, &key, 1, &pubSz);
     }
+#endif
 
     /* The accepting vectors below need the real curve constants: a zero
      * modulus/order would make wc_ecc_gen_deterministic_k's RFC 6979 retry

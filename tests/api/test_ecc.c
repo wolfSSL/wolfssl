@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/wolfcrypt/curve448.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_ecc.h>
 
@@ -1566,9 +1572,15 @@ int test_wc_ecc_ctx_new(void)
     cli = NULL;
     wc_ecc_ctx_free(srv);
 
+    /* No protocol is valid: there is no REQ/RESP salt exchange, but the
+     * context still carries the algorithms and the key type.  It matches the
+     * default context the encrypt/decrypt paths build internally. */
+    ExpectNotNull(cli = wc_ecc_ctx_new(0, &rng));
+    wc_ecc_ctx_free(cli);
+    cli = NULL;
+
     /* Test bad args. */
     /* wc_ecc_ctx_new_ex() will free if returned NULL. */
-    ExpectNull(cli = wc_ecc_ctx_new(0, &rng));
     ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT, NULL));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -1867,6 +1879,246 @@ int test_wc_ecc_encryptDecrypt(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_encryptDecrypt */
+
+/*
+ * Testing wc_ecc_ctx_set_curve_id()/wc_ecc_ctx_get_curve_id(): bad arguments,
+ * curves that are not compiled in, and that the setting survives the context
+ * reset that the REQ/RESP flow performs between rounds.
+ */
+int test_wc_ecc_ctx_set_curve_id(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    WC_RNG    rng;
+    ecEncCtx* ctx = NULL;
+    int       curveId = ECC_CURVE_INVALID;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(NULL, ECC_CURVE_DEF), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(NULL, &curveId), BAD_FUNC_ARG);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, NULL), BAD_FUNC_ARG);
+
+    /* Defaults to the ecc_key path. */
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_CURVE_DEF);
+
+    /* A named ECC curve is not a key type - the curve comes from the key. */
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_SECP256R1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, -2), BAD_FUNC_ARG);
+
+#ifdef HAVE_CURVE25519
+    #ifdef WOLFSSL_ECIES_X25519
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_X25519);
+
+    /* The key type has to survive a reset; the REQ/RESP flow resets between
+     * rounds and reverting to ECC_CURVE_DEF would be a type confusion. */
+    ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_X25519);
+
+    /* The typed entry points stay ECC-only. */
+    ExpectIntEQ(wc_ecc_encrypt(NULL, NULL, NULL, 0, NULL, NULL, ctx),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_decrypt(NULL, NULL, NULL, 0, NULL, NULL, ctx),
+        BAD_FUNC_ARG);
+    #else
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), NOT_COMPILED_IN);
+    #endif
+#endif
+#ifdef HAVE_CURVE448
+    #ifdef WOLFSSL_ECIES_X448
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_X448);
+    #else
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), NOT_COMPILED_IN);
+    #endif
+#endif
+
+    /* Back to the default. */
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_CURVE_DEF), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_CURVE_DEF);
+
+    wc_ecc_ctx_free(ctx);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ctx_set_curve_id */
+
+/*
+ * Testing ECIES with an X25519 key: round trip, the on-the-wire encoding of
+ * the ephemeral public key, rejection of a tampered message, and rejection of
+ * point compression (meaningless on a Montgomery curve).
+ */
+int test_wc_ecc_ecies_x25519(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && \
+    defined(WOLFSSL_ECIES_X25519) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_ECIES_OLD) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128) && defined(HAVE_HKDF) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    WC_RNG         rng;
+    curve25519_key ephKey;
+    curve25519_key srvKey;
+    ecEncCtx*      ctx = NULL;
+    const char*    msg = "EccBlock Size 16";
+    word32         msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    /* ephemeral public key | [IV, GEN_IV only] | ciphertext | HMAC.
+     * The DEM here is AES-128-CBC, so the IV is one AES block. */
+    byte           out[CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE +
+                       AES_BLOCK_SIZE + WC_SHA256_DIGEST_SIZE];
+    word32         outSz = (word32)sizeof(out);
+    byte           plain[sizeof("EccBlock Size 16") + AES_BLOCK_SIZE];
+    word32         plainSz = (word32)sizeof(plain);
+    byte           wire[CURVE25519_PUB_KEY_SIZE];
+    word32         wireSz = (word32)sizeof(wire);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ephKey, 0, sizeof(ephKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve25519_init(&ephKey), 0);
+    ExpectIntEQ(wc_curve25519_init(&srvKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &ephKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &srvKey), 0);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), 0);
+
+    ExpectIntEQ(wc_ecc_encrypt_ex2(&ephKey, &srvKey, (const byte*)msg, msgSz,
+        out, &outSz, ctx, 0), 0);
+#ifdef WOLFSSL_ECIES_GEN_IV
+    ExpectIntEQ(outSz, CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE + msgSz +
+        WC_SHA256_DIGEST_SIZE);
+#else
+    ExpectIntEQ(outSz,
+        CURVE25519_PUB_KEY_SIZE + msgSz + WC_SHA256_DIGEST_SIZE);
+#endif
+
+    /* The message opens with the ephemeral public key as a raw little-endian
+     * u-coordinate (RFC 7748), with no format byte. */
+    ExpectIntEQ(wc_curve25519_export_public_ex(&ephKey, wire, &wireSz,
+        EC25519_LITTLE_ENDIAN), 0);
+    ExpectIntEQ(XMEMCMP(wire, out, CURVE25519_PUB_KEY_SIZE), 0);
+
+    /* Point compression does not apply to a Montgomery curve. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(&ephKey, &srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 1), BAD_FUNC_ARG);
+    }
+
+    ExpectIntEQ(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(plainSz, msgSz);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
+    /* Corrupting the ciphertext must fail the MAC. */
+    out[outSz - 1] ^= 0x01;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntNE(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    out[outSz - 1] ^= 0x01;
+
+    /* So must corrupting the ephemeral public key. */
+    out[0] ^= 0x01;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntNE(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+
+    wc_ecc_ctx_free(ctx);
+    wc_curve25519_free(&srvKey);
+    wc_curve25519_free(&ephKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_x25519 */
+
+/*
+ * Testing ECIES with an X448 key: round trip and the on-the-wire encoding of
+ * the ephemeral public key.
+ */
+int test_wc_ecc_ecies_x448(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && \
+    defined(WOLFSSL_ECIES_X448) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_ECIES_OLD) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128) && defined(HAVE_HKDF) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    WC_RNG       rng;
+    curve448_key ephKey;
+    curve448_key srvKey;
+    ecEncCtx*    ctx = NULL;
+    const char*  msg = "EccBlock Size 16";
+    word32       msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    /* ephemeral public key | [IV, GEN_IV only] | ciphertext | HMAC. */
+    byte         out[CURVE448_PUB_KEY_SIZE + AES_BLOCK_SIZE +
+                     AES_BLOCK_SIZE + WC_SHA256_DIGEST_SIZE];
+    word32       outSz = (word32)sizeof(out);
+    byte         plain[sizeof("EccBlock Size 16") + AES_BLOCK_SIZE];
+    word32       plainSz = (word32)sizeof(plain);
+    byte         wire[CURVE448_PUB_KEY_SIZE];
+    word32       wireSz = (word32)sizeof(wire);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ephKey, 0, sizeof(ephKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_init(&ephKey), 0);
+    ExpectIntEQ(wc_curve448_init(&srvKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &ephKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &srvKey), 0);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), 0);
+
+    ExpectIntEQ(wc_ecc_encrypt_ex2(&ephKey, &srvKey, (const byte*)msg, msgSz,
+        out, &outSz, ctx, 0), 0);
+#ifdef WOLFSSL_ECIES_GEN_IV
+    ExpectIntEQ(outSz, CURVE448_PUB_KEY_SIZE + AES_BLOCK_SIZE + msgSz +
+        WC_SHA256_DIGEST_SIZE);
+#else
+    ExpectIntEQ(outSz, CURVE448_PUB_KEY_SIZE + msgSz + WC_SHA256_DIGEST_SIZE);
+#endif
+
+    ExpectIntEQ(wc_curve448_export_public_ex(&ephKey, wire, &wireSz,
+        EC448_LITTLE_ENDIAN), 0);
+    ExpectIntEQ(XMEMCMP(wire, out, CURVE448_PUB_KEY_SIZE), 0);
+
+    ExpectIntEQ(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(plainSz, msgSz);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
+    out[outSz - 1] ^= 0x01;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntNE(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+
+    wc_ecc_ctx_free(ctx);
+    wc_curve448_free(&srvKey);
+    wc_curve448_free(&ephKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_x448 */
 
 /*
  * Testing ECIES with the AES-256-GCM DEM. Exercises, each with its own
