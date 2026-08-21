@@ -1431,6 +1431,12 @@ struct wc_svr_ctx_state {
     unsigned int depth;
     unsigned int inhibited;
     unsigned int nested;
+    /* Nonzero when the save that opened this section took a migrate_disable()
+     * as well as the preempt_disable(), so the restore releases exactly what
+     * the save took.  Only the nested-save path outlives the save function, so
+     * only it needs the flag recorded here; every other path carries it in a
+     * local.  See WC_SVR_DECIDE_PIN(). */
+    unsigned int migrate_pinned;
 };
 struct wc_svr_cpu_state {
     struct wc_svr_ctx_state c[WC_SVR_NCTX];
@@ -3096,14 +3102,118 @@ static void wc_svr_nested_free(void) { }
  * per-CPU, so the CPU has to stay put across them.  kernel_fpu_begin() pins for
  * the same reason.  Without nested save compiled in, nothing between the test
  * and the claim is per-CPU and this stays out of the way -- notably on ARM,
- * where kernel_neon_begin() does its own pinning. */
+ * where kernel_neon_begin() does its own pinning.
+ *
+ * WHY preempt_disable() IS NOT ENOUGH ON ITS OWN.
+ *
+ * It is the pin on any kernel built with CONFIG_PREEMPT_COUNT.  Without that
+ * symbol -- PREEMPT_NONE, or PREEMPT_VOLUNTARY with no PREEMPT_DYNAMIC, which
+ * is what x86_64 defconfig produced through 5.15 -- include/linux/preempt.h
+ * defines it as barrier(), and preemptible() as constant 0:
+ *
+ *   linux-6.1.62  include/linux/preempt.h:274  #define preempt_disable() barrier()
+ *   linux-6.12.59 include/linux/preempt.h:286  #define preempt_disable() barrier()
+ *
+ * It increments nothing there, so it pins nothing, and because preemptible()
+ * is a constant nothing warns.  Only the PREEMPT_MASK half of preempt_count()
+ * goes blind: preempt_count_add() sits OUTSIDE the CONFIG_PREEMPT_COUNT guard
+ * (linux-5.15.216/include/linux/preempt.h:199, guard opens at :210), so
+ * local_bh_disable() still raises SOFTIRQ_DISABLE_OFFSET and the hardirq and
+ * softirq masks stay exact.
+ *
+ * THIS IS A CONFIG, NOT A KERNEL VERSION.  kernel/Kconfig.preempt makes
+ * PREEMPT_COUNT a bare bool that only PREEMPTION selects; PREEMPT_VOLUNTARY
+ * does not select it, and x86_64 defconfig produced exactly that combination
+ * through 5.15, gaining PREEMPT_DYNAMIC -> PREEMPTION -> PREEMPT_COUNT only at
+ * 5.16.  Older enterprise and embedded kernels ship it routinely.  On x86_64
+ * 7.1 the combination is no longer reachable -- PREEMPT_NONE gained
+ * "depends on ARCH_NO_PREEMPT" and PREEMPT_VOLUNTARY gained "depends on
+ * !ARCH_HAS_PREEMPT_LAZY", and x86 has the latter and not the former
+ * (linux-7.1.9/kernel/Kconfig.preempt) -- but PREEMPT_COUNT is still a bare
+ * bool, so architectures without ARCH_HAS_PREEMPT_LAZY can still produce it.
+ *
+ * The same blindness in wc_linuxkm_can_block() let a cond_resched() sleep
+ * inside an open section, migrate the task, and strand kernel_fpu_begin()'s
+ * section on the origin CPU (module_hooks.c).  That was fixed by testing the
+ * open section directly.  This site is the other half: the pin itself has to
+ * be a pin.
+ *
+ * WHY migrate_disable() IS THE RIGHT ANSWER HERE, AND NOT JUST THE ANSWER THE
+ * UNCERTIFIED HALF OF THIS FILE ALREADY USES.
+ *
+ * What this region needs is that it does not change CPU.  It does not need to
+ * be non-preemptible: nothing between the test and the claim sleeps, and a
+ * task that is merely scheduled out and back in on the SAME CPU observes the
+ * same per-CPU slot it tested.  migrate_disable() delivers exactly that
+ * property, and it is the only primitive whose effect does not route through
+ * PREEMPT_MASK: it sets current->migration_disabled, which
+ * migrate_disable_switch() and select_task_rq() consult directly
+ * (kernel/sched/core.c), so a voluntary schedule inside the region resumes on
+ * the CPU it left.  get_cpu()/put_cpu() and local_bh_disable() are both
+ * preempt_count arithmetic and are just as blind; local_irq_save() would pin
+ * but cannot be held for the life of a crypto section, and does not compile
+ * in-boundary on arm64 before 6.6.
+ *
+ * VERSION FLOOR IS 5.11, NOT 5.7.  Through 5.10 migrate_disable() is
+ * literally preempt_disable() -- read verbatim from
+ * linux-5.7.19/include/linux/preempt.h:335 and
+ * linux-5.10.265/include/linux/preempt.h:336,
+ *   static __always_inline void migrate_disable(void) { preempt_disable(); }
+ * so on a !CONFIG_PREEMPT_COUNT build it is barrier() and compensates for
+ * nothing.  The per-task migration_disabled machinery, and
+ * EXPORT_SYMBOL_GPL(migrate_disable), arrive in 5.11
+ * (linux-5.11.22/kernel/sched/core.c:1756).  The uncertified half of this file
+ * carries a 5.7 floor at eight sites; those eight are no-ops on 5.7 - 5.10 for
+ * this reason, and 5.6 and earlier have no migrate_disable() at all.  On
+ * !CONFIG_PREEMPT_COUNT kernels below 5.11 there is no primitive that pins
+ * this region short of disabling interrupts, and this code does not pretend
+ * otherwise.
+ *
+ * TASK CONTEXT ONLY.  Only task context can change CPU; a softirq or hardirq
+ * runs to completion on the CPU it interrupted.  wc_svr_ctx() tells them apart
+ * with NMI_MASK/HARDIRQ_MASK and in_serving_softirq(), and those masks ARE
+ * maintained without CONFIG_PREEMPT_COUNT -- only the PREEMPT_MASK half of
+ * preempt_count() goes blind.  Restricting the call to task context is
+ * therefore sufficient, and it also keeps migrate_enable()'s
+ * __set_cpus_allowed_ptr() arm, which takes rq locks, unreachable from
+ * interrupt context.
+ *
+ * !SMP compiles nothing: include/linux/preempt.h defines migrate_disable() as
+ * an empty inline there, correctly, because there is nowhere to migrate to. */
 #ifdef WC_SVR_HAVE_NESTED_SAVE
-    #define WC_SVR_DECIDE_PIN()   preempt_disable()
-    #define WC_SVR_DECIDE_UNPIN() preempt_enable()
+    #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
+        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        #define WC_SVR_MIGRATE_PIN_NEEDED 1
+        #define WC_SVR_DECIDE_PIN(flag_)                                \
+            do {                                                        \
+                if (! (preempt_count() & (NMI_MASK | HARDIRQ_MASK)) &&  \
+                    ! in_serving_softirq())                             \
+                {                                                       \
+                    migrate_disable();                                  \
+                    (flag_) = 1;                                        \
+                }                                                       \
+                preempt_disable();                                      \
+            } while (0)
+        /* Reverse acquisition order: the preempt_disable() was taken last so
+         * it is released first.  Releasing migrate_enable() first would leave
+         * a window that still believes it is pinned but is not. */
+        #define WC_SVR_DECIDE_UNPIN(flag_)                              \
+            do {                                                        \
+                preempt_enable();                                       \
+                if (flag_)                                              \
+                    migrate_enable();                                   \
+            } while (0)
+    #else
+        #define WC_SVR_DECIDE_PIN(flag_)                                \
+            do { (void)(flag_); preempt_disable(); } while (0)
+        #define WC_SVR_DECIDE_UNPIN(flag_)                              \
+            do { (void)(flag_); preempt_enable(); } while (0)
+    #endif
 #else
-    #define WC_SVR_DECIDE_PIN()   WC_DO_NOTHING
-    #define WC_SVR_DECIDE_UNPIN() WC_DO_NOTHING
+    #define WC_SVR_DECIDE_PIN(flag_)   (void)(flag_)
+    #define WC_SVR_DECIDE_UNPIN(flag_) (void)(flag_)
 #endif
+
 
 /* Nonzero when this CPU is inside one of this module's sections, so the lock
  * primitives can refuse to run there.  this_cpu ops are preemption-safe, and a
@@ -3143,6 +3253,7 @@ void free_wolfcrypt_linuxkm_fpu_states(void)
                 st->depth = 0;
                 st->inhibited = 0;
                 st->nested = 0;
+                st->migrate_pinned = 0;
             }
         }
     }
@@ -3183,6 +3294,10 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 {
     struct wc_svr_ctx_state *st;
     int ctx;
+    /* Set by WC_SVR_DECIDE_PIN() when it took a migrate_disable(); read by
+     * every WC_SVR_DECIDE_UNPIN() below, and copied into the slot on the one
+     * path whose pin outlives this function. */
+    int migrate_pinned = 0;
 
     if (in_nmi())
         return WC_ACCEL_INHIBIT_E;
@@ -3242,13 +3357,14 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         st->depth = 1;
         st->inhibited = 1;
         st->nested = 0;
+        st->migrate_pinned = 0;
         return 0;
     }
 
     /* Pin before asking, because the answer and the storage are both per-CPU
      * and a task-context caller is otherwise free to migrate between the two.
      * Nothing below sleeps. */
-    WC_SVR_DECIDE_PIN();
+    WC_SVR_DECIDE_PIN(migrate_pinned);
 
     /* raw while only DECIDE_PIN holds the CPU -- it is a no-op in builds
      * without nested save, and this_cpu_ptr() would then be a
@@ -3257,7 +3373,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         /* Only reachable by migrating onto a CPU whose same-context slot is
          * open, which cannot happen while that section holds that CPU.  Refuse
          * rather than share a register file on the strength of a count. */
-        WC_SVR_DECIDE_UNPIN();
+        WC_SVR_DECIDE_UNPIN(migrate_pinned);
         return BAD_STATE_E;
     }
 
@@ -3267,8 +3383,9 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         st->depth = 1;
         st->inhibited = 0;
         st->nested = 0;
+        st->migrate_pinned = 0;
         /* FPU_BEGIN holds the CPU for the life of the section. */
-        WC_SVR_DECIDE_UNPIN();
+        WC_SVR_DECIDE_UNPIN(migrate_pinned);
         return 0;
     }
 
@@ -3279,7 +3396,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
          * refused exactly as it would have been without nested save. */
         if (wc_svr_regs_save(wc_svr_area(ctx)) != 0) {
             WC_SVR_COUNT_REFUSE(ctx);
-            WC_SVR_DECIDE_UNPIN();
+            WC_SVR_DECIDE_UNPIN(migrate_pinned);
             return WC_ACCEL_INHIBIT_E;
         }
         wc_svr_load_default_mxcsr();
@@ -3288,13 +3405,14 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         st->depth = 1;
         st->inhibited = 0;
         st->nested = 1;
+        st->migrate_pinned = (unsigned int)migrate_pinned;
         /* The pin IS this section's pin, and is released by the restore. */
         return 0;
     }
 #endif
 
     WC_SVR_COUNT_REFUSE(ctx);
-    WC_SVR_DECIDE_UNPIN();
+    WC_SVR_DECIDE_UNPIN(migrate_pinned);
     return WC_ACCEL_INHIBIT_E;
 }
 
@@ -3340,11 +3458,13 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
     }
 #ifdef WC_SVR_HAVE_NESTED_SAVE
     else if (st->nested) {
+        int migrate_pinned = (int)st->migrate_pinned;
         st->nested = 0;
+        st->migrate_pinned = 0;
         /* Hand the interrupted context its registers back before letting
          * anything else run on this CPU. */
         wc_svr_regs_restore(wc_svr_area(ctx));
-        WC_SVR_DECIDE_UNPIN();
+        WC_SVR_DECIDE_UNPIN(migrate_pinned);
     }
 #endif
     else {
