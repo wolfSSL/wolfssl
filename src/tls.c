@@ -1673,6 +1673,7 @@ static TLSX* TLSX_New(TLSX_Type type, const void* data, void* heap)
     if (extension) {
         extension->type = type;
         extension->data = (void*)data;
+        extension->val  = 0;
         extension->resp = 0;
         extension->next = NULL;
     }
@@ -3273,9 +3274,9 @@ int TLSX_UseTrustedCA(TLSX** extensions, byte type,
 
 #ifdef HAVE_MAX_FRAGMENT
 
-static word16 TLSX_MFL_Write(byte* data, byte* output)
+static word16 TLSX_MFL_Write(byte mfl, byte* output)
 {
-    output[0] = data[0];
+    output[0] = mfl;
 
     return ENUM_LEN;
 }
@@ -3303,8 +3304,7 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             extension = TLSX_Find(ssl->ctx->extensions,
                     TLSX_MAX_FRAGMENT_LENGTH);
         }
-        if (extension == NULL || extension->data == NULL ||
-                ((byte*)extension->data)[0] != *input) {
+        if (extension == NULL || (byte)extension->val != *input) {
             SendAlert(ssl, alert_fatal, illegal_parameter);
             WOLFSSL_ERROR_VERBOSE(UNKNOWN_MAX_FRAG_LEN_E);
             return UNKNOWN_MAX_FRAG_LEN_E;
@@ -3345,29 +3345,27 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 {
-    byte* data = NULL;
     int ret = 0;
+    TLSX* extension;
 
     if (extensions == NULL || mfl < WOLFSSL_MFL_MIN || mfl > WOLFSSL_MFL_MAX)
         return BAD_FUNC_ARG;
 
-    data = (byte*)XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX);
-    if (data == NULL)
-        return MEMORY_E;
-
-    data[0] = mfl;
-
-    ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, data, heap);
-    if (ret != 0) {
-        XFREE(data, heap, DYNAMIC_TYPE_TLSX);
+    /* The code fits in the extension itself, so it holds no data. */
+    ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, NULL, heap);
+    if (ret != 0)
         return ret;
-    }
+
+    extension = TLSX_Find(*extensions, TLSX_MAX_FRAGMENT_LENGTH);
+    if (extension == NULL)
+        return MEMORY_E;
+    extension->val = mfl;
 
     return WOLFSSL_SUCCESS;
 }
 
 
-#define MFL_FREE_ALL(data, heap) XFREE(data, (heap), DYNAMIC_TYPE_TLSX)
+#define MFL_FREE_ALL(data, heap) WC_DO_NOTHING
 #define MFL_GET_SIZE(data) ENUM_LEN
 #define MFL_WRITE          TLSX_MFL_Write
 #define MFL_PARSE          TLSX_MFL_Parse
@@ -16019,7 +16017,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_MAX_FRAGMENT_LENGTH:
                 WOLFSSL_MSG("Max Fragment Length extension to write");
-                offset += MFL_WRITE((byte*)extension->data, output + offset);
+                offset += MFL_WRITE((byte)extension->val, output + offset);
                 break;
 
             case TLSX_EXTENDED_MASTER_SECRET:
