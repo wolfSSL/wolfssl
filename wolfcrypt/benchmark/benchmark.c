@@ -14124,102 +14124,109 @@ void bench_slhdsa(int param)
        );
     bench_stats_asym_finish(name, len, "vrfy-msg", 0, count, start, ret);
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHAKE256)
     /* Pre-hash interface: hash message ONCE outside the timed loop (the
      * bench measures sign/verify, not the application-side hash), then sign
-     * and verify the digest. SHA-256 path: only built when SHA-256 is
-     * available; HashSLH-DSA still works at runtime with any hashType the
-     * build supports, but the bench needs a compile-time choice. */
+     * and verify the digest.
+     *
+     * The pre-hash is selected per parameter set, not hardcoded.  FIPS 205
+     * Section 10.2 requires the signed digest to be produced by an approved
+     * hash or XOF providing at least 8n bits of classical security strength
+     * against collision attacks, and Section 10.2.2 states that SHA-256 and
+     * SHAKE128 "are only appropriate for use with SLH-DSA parameter sets that
+     * are claimed to be in security category 1".  Section 11 maps n = 16/24/32
+     * to categories 1/3/5.  SHA-256 has 128-bit collision resistance (FIPS 202
+     * Table 4), so it satisfies 8n only at n = 16; at n = 24 and n = 32 the
+     * module correctly rejects it with BAD_FUNC_ARG. */
     {
-        byte digest[WC_SHA256_DIGEST_SIZE];
-
-        ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
-        if (ret != 0) {
-            goto exit;
-        }
-
-        PRIVATE_KEY_UNLOCK();
-        bench_stats_start(&count, &start);
-        do {
-            sigLen = WC_SLHDSA_MAX_SIG_LEN;
-            ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
-                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, &sigLen);
-            if (ret != 0) {
-                break;
-            }
-            count++;
-            RECORD_MULTI_VALUE_STATS();
-        } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-           || runs < minimum_runs
-#endif
-           );
-        PRIVATE_KEY_LOCK();
-        bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
-
-        bench_stats_start(&count, &start);
-        do {
-            ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
-                (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, sigLen);
-            if (ret != 0) {
-                break;
-            }
-            count++;
-            RECORD_MULTI_VALUE_STATS();
-        } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-           || runs < minimum_runs
-#endif
-           );
-        bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
-    }
+#if defined(WOLFSSL_SHA512)
+        byte digest[WC_SHA512_DIGEST_SIZE];
 #elif defined(WOLFSSL_SHAKE256)
-    /* SHAKE-only build (NO_SHA256): use SHAKE256 prehash bench instead. */
-    {
         byte digest[WC_SHA3_512_DIGEST_SIZE];
+#else
+        byte digest[WC_SHA256_DIGEST_SIZE];
+#endif
+        word32 digestLen = 0;
+        enum wc_HashType phType = WC_HASH_TYPE_NONE;
 
-        ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest,
-            WC_SHA3_512_DIGEST_SIZE);
+        ret = 0;
+        if (key->params->n == WC_SLHDSA_N_128) {
+            /* Security category 1: 8n = 128 bits. */
+#ifndef NO_SHA256
+            phType    = WC_HASH_TYPE_SHA256;
+            digestLen = WC_SHA256_DIGEST_SIZE;
+            ret = wc_Sha256Hash(msg, (word32)sizeof(msg), digest);
+#elif defined(WOLFSSL_SHAKE256)
+            phType    = WC_HASH_TYPE_SHAKE256;
+            digestLen = WC_SHA3_512_DIGEST_SIZE;
+            ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest, digestLen);
+#endif
+        }
+        else {
+            /* Security category 3 or 5: 8n = 192 or 256 bits.  SHA-512 and
+             * SHAKE256 (512-bit output) both give 256-bit collision
+             * resistance and cover either category. */
+#if defined(WOLFSSL_SHA512)
+            phType    = WC_HASH_TYPE_SHA512;
+            digestLen = WC_SHA512_DIGEST_SIZE;
+            ret = wc_Sha512Hash(msg, (word32)sizeof(msg), digest);
+#elif defined(WOLFSSL_SHAKE256)
+            phType    = WC_HASH_TYPE_SHAKE256;
+            digestLen = WC_SHA3_512_DIGEST_SIZE;
+            ret = wc_Shake256Hash(msg, (word32)sizeof(msg), digest, digestLen);
+#endif
+        }
         if (ret != 0) {
             goto exit;
         }
 
-        PRIVATE_KEY_UNLOCK();
-        bench_stats_start(&count, &start);
-        do {
-            sigLen = WC_SLHDSA_MAX_SIG_LEN;
-            ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
-                (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, &sigLen);
-            if (ret != 0) {
-                break;
-            }
-            count++;
-            RECORD_MULTI_VALUE_STATS();
-        } while (bench_stats_check(start)
+        if (phType != WC_HASH_TYPE_NONE) {
+            PRIVATE_KEY_UNLOCK();
+            bench_stats_start(&count, &start);
+            do {
+                sigLen = WC_SLHDSA_MAX_SIG_LEN;
+                ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
+                    digestLen, phType, sig, &sigLen);
+                if (ret != 0) {
+                    break;
+                }
+                count++;
+                RECORD_MULTI_VALUE_STATS();
+            } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
-           || runs < minimum_runs
+               || runs < minimum_runs
 #endif
-           );
-        PRIVATE_KEY_LOCK();
-        bench_stats_asym_finish(name, len, "sign-pre", 0, count, start, ret);
+               );
+            PRIVATE_KEY_LOCK();
+            bench_stats_asym_finish(name, len, "sign-pre", 0, count, start,
+                ret);
 
-        bench_stats_start(&count, &start);
-        do {
-            ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
-                (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, sigLen);
-            if (ret != 0) {
-                break;
-            }
-            count++;
-            RECORD_MULTI_VALUE_STATS();
-        } while (bench_stats_check(start)
+            /* Only time verify when sign actually produced a signature.  On a
+             * sign failure sigLen still holds WC_SLHDSA_MAX_SIG_LEN, and
+             * wc_SlhDsaKey_VerifyHash checks sigSz against params->sigLen
+             * before it looks at the pre-hash, so a stale sigLen reports
+             * BAD_LENGTH_E and masks the real error. */
+            if (ret == 0) {
+                bench_stats_start(&count, &start);
+                do {
+                    ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
+                        digestLen, phType, sig, sigLen);
+                    if (ret != 0) {
+                        break;
+                    }
+                    count++;
+                    RECORD_MULTI_VALUE_STATS();
+                } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
-           || runs < minimum_runs
+                   || runs < minimum_runs
 #endif
-           );
-        bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start, ret);
+                   );
+                bench_stats_asym_finish(name, len, "vrfy-pre", 0, count, start,
+                    ret);
+            }
+        }
     }
-#endif /* NO_SHA256 / WOLFSSL_SHAKE256 */
+#endif /* !NO_SHA256 || WOLFSSL_SHA512 || WOLFSSL_SHAKE256 */
 
 exit:
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
