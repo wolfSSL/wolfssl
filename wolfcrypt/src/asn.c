@@ -22744,6 +22744,7 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         #ifndef IGNORE_NETSCAPE_CERT_TYPE
         /* Netscape's certificate type. */
         case NETSCAPE_CT_OID:
+            VERIFY_AND_SET_OID(cert->extNetscapeCertTypeSet);
             if (DecodeNsCertType(input, (int)length, cert) < 0)
                 ret = ASN_PARSE_E;
             break;
