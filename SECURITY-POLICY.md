@@ -20,7 +20,7 @@ This policy covers security vulnerabilities in wolfSSL products distributed unde
 
 **Use of the wolfSSL Vulnerability Report Template is mandatory.** All security reports must be submitted using [`SECURITY-REPORT-TEMPLATE.md`](SECURITY-REPORT-TEMPLATE.md), with every required field completed. Reports that do not use the template, or that leave required fields incomplete, will not receive CVE consideration.
 
-Submit the completed template to **secure@wolfssl.com**, optionally encrypted to the [wolfSSL security PGP key](https://www.wolfssl.com/.well-known/pgp-key.asc). This address reaches the security team directly and is the correct channel for anything under embargo.
+Submit the completed template to **secure@wolfssl.com**, optionally encrypted to the [wolfSSL security PGP key](https://www.wolfssl.com/.well-known/pgp-key.asc). Use this address for anything under embargo.
 
 Non-template submissions may still be reviewed on the merits and, where appropriate, addressed as hardening fixes in a future release. CVE assignment requires a complete template.
 
@@ -36,10 +36,10 @@ wolfSSL files a CVE advisory for defects with meaningful security impact on real
 
 We classify confirmed vulnerabilities across four severity tiers:
 
-- **Critical** — Remote, practically exploitable defects in default configurations
-- **High** — Serious defects with realistic exploitability
-- **Medium** — Defects with meaningful impact under favorable conditions
-- **Low** — Defects requiring specialized configurations or narrow deployment scenarios
+- **Critical**: remote, practically exploitable defects in default configurations
+- **High**: serious defects with realistic exploitability
+- **Medium**: defects with meaningful impact under favorable conditions
+- **Low**: defects requiring specialized configurations or narrow deployment scenarios
 
 Reporter-proposed severity is input to the process, not its conclusion.
 
@@ -78,7 +78,7 @@ Security fixes are released for the current stable release and the immediately p
 
 We do not pursue legal action against good-faith security researchers. We ask reporters to allow us reasonable time to develop and distribute a fix before public disclosure.
 
-We investigate and fix confirmed vulnerabilities privately, coordinate disclosure timing with the reporter, and release the fix and security advisory together. Embargo extensions for ecosystem coordination — downstream integrators, certification bodies, or equivalent — are considered case-by-case. CVE records are published consistent with CVE Program rules.
+We investigate and fix confirmed vulnerabilities privately, coordinate disclosure timing with the reporter, and release the fix and security advisory together. Embargo extensions for ecosystem coordination (downstream integrators, certification bodies, or equivalent) are considered case-by-case. CVE records are published consistent with CVE Program rules.
 
 ## Credit
 
@@ -100,9 +100,9 @@ We provide security updates for the support period of each product (Article 13(8
 
 ## Contact
 
-- **secure@wolfssl.com** — security vulnerability reports
-- **support@wolfssl.com** — general support; do not send embargoed reports here
-- **facts@wolfssl.com** — general inquiries
+- **secure@wolfssl.com**: security vulnerability reports
+- **support@wolfssl.com**: general support; do not send embargoed reports here
+- **facts@wolfssl.com**: general inquiries
 
 Reports may be encrypted to the wolfSSL security key:
 
@@ -117,7 +117,7 @@ Published CVE advisories: https://www.wolfssl.com/docs/security-vulnerabilities/
 Material changes to this policy are announced via the wolfSSL blog.
 
 The canonical policy is `SECURITY-POLICY.md` in the wolfSSL source
-repository. Reporting addresses also appear in
-<https://www.wolfssl.com/.well-known/security.txt>; keep them in step.
+repository. The reporting addresses are also published in
+<https://www.wolfssl.com/.well-known/security.txt>.
 
 *Last updated: 2026-08-21*
