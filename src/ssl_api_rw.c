@@ -1076,8 +1076,13 @@ static int wolfssl_shutdown_internal(WOLFSSL* ssl, int allowInInit)
     else if ((!allowInInit) && (!ssl->options.handShakeDone) &&
              (!wolfssl_handshake_failed(ssl))) {
         WOLFSSL_MSG("Shutdown called before the handshake completed");
-        /* Report without touching ssl->error: as in OpenSSL, this leaves the
-         * handshake in progress rather than failing it. */
+        /* Queue NOT_READY_ERROR but leave ssl->error alone. ssl->error is a
+         * single slot that also gates handshake progress and drives
+         * wolfssl_handshake_failed() above, so writing it here would abort
+         * the in-flight handshake and make this guard skip itself on the
+         * next call. The queued error is what OpenSSL reports for
+         * SSL_R_SHUTDOWN_WHILE_IN_INIT, and it is separate from the retry
+         * state either way. */
         WOLFSSL_ERROR(NOT_READY_ERROR);
         ret = WOLFSSL_FATAL_ERROR;
     }
