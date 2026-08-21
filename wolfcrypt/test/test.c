@@ -27149,10 +27149,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
             join_failed = 1;
     }
     if (join_failed) {
-        /* A worker may still be running over rng and out, so deliberately
-         * neither frees them nor returns through out_free: leaking here is
-         * the lesser fault against a live thread writing freed memory. */
-        return WC_TEST_RET_ENC_NC;
+        /* A failed join has no safe recovery: rng and args are stack locals of
+         * this frame, so returning abandons them to any surviving worker
+         * whether or not the heap is freed.  Since the dangling reference is
+         * unavoidable, run the normal teardown rather than adding a leak to
+         * it.  Unreachable in practice -- wolfSSL_JoinThread wraps
+         * pthread_join, which fails only on EINVAL/EDEADLK/ESRCH, none of
+         * which apply to a valid joinable tid created moments earlier. */
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
     }
 
     /* A generate failure is a real failure however many workers ran, so it is

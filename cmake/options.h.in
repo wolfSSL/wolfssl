@@ -599,6 +599,8 @@ extern "C" {
 #cmakedefine WC_RNG_BANK_SUPPORT
 #undef WC_NO_DRBG_THREAD_SAFE
 #cmakedefine WC_NO_DRBG_THREAD_SAFE
+#undef HAVE_GETPID
+#cmakedefine HAVE_GETPID
 #undef HAVE_VALGRIND
 #cmakedefine HAVE_VALGRIND
 #undef HAVE_CRL_MONITOR
