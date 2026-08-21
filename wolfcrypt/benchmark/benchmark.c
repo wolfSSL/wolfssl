@@ -14027,7 +14027,7 @@ void bench_slhdsa(int param)
     do {
         ret = wc_SlhDsaKey_MakeKey(key, &gRng);
         if (ret != 0) {
-           goto exit;
+           break;
         }
         count++;
         RECORD_MULTI_VALUE_STATS();
@@ -14045,7 +14045,7 @@ void bench_slhdsa(int param)
         ret = wc_SlhDsaKey_Sign(key, ctx, 0, msg, (word32)sizeof(msg),
             sig, &sigLen, &gRng);
         if (ret != 0) {
-            goto exit;
+            break;
         }
         count++;
         RECORD_MULTI_VALUE_STATS();
@@ -14077,7 +14077,7 @@ void bench_slhdsa(int param)
         ret = wc_SlhDsaKey_Verify(key_vfy, ctx, 0, msg, (word32)sizeof(msg),
             sig, sigLen);
         if (ret != 0) {
-            goto exit;
+            break;
         }
         count++;
         RECORD_MULTI_VALUE_STATS();
@@ -14096,7 +14096,7 @@ void bench_slhdsa(int param)
         ret = wc_SlhDsaKey_SignMsgDeterministic(key, msg,
             (word32)sizeof(msg), sig, &sigLen);
         if (ret != 0) {
-            goto exit;
+            break;
         }
         count++;
         RECORD_MULTI_VALUE_STATS();
@@ -14113,7 +14113,7 @@ void bench_slhdsa(int param)
         ret = wc_SlhDsaKey_VerifyMsg(key_vfy, msg, (word32)sizeof(msg),
             sig, sigLen);
         if (ret != 0) {
-            goto exit;
+            break;
         }
         count++;
         RECORD_MULTI_VALUE_STATS();
@@ -14145,7 +14145,7 @@ void bench_slhdsa(int param)
             ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
                 (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, &sigLen);
             if (ret != 0) {
-                goto exit;
+                break;
             }
             count++;
             RECORD_MULTI_VALUE_STATS();
@@ -14162,7 +14162,7 @@ void bench_slhdsa(int param)
             ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
                 (word32)sizeof(digest), WC_HASH_TYPE_SHA256, sig, sigLen);
             if (ret != 0) {
-                goto exit;
+                break;
             }
             count++;
             RECORD_MULTI_VALUE_STATS();
@@ -14191,7 +14191,7 @@ void bench_slhdsa(int param)
             ret = wc_SlhDsaKey_SignHashDeterministic(key, ctx, 0, digest,
                 (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, &sigLen);
             if (ret != 0) {
-                goto exit;
+                break;
             }
             count++;
             RECORD_MULTI_VALUE_STATS();
@@ -14208,7 +14208,7 @@ void bench_slhdsa(int param)
             ret = wc_SlhDsaKey_VerifyHash(key_vfy, ctx, 0, digest,
                 (word32)sizeof(digest), WC_HASH_TYPE_SHAKE256, sig, sigLen);
             if (ret != 0) {
-                goto exit;
+                break;
             }
             count++;
             RECORD_MULTI_VALUE_STATS();
