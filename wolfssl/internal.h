@@ -4076,8 +4076,13 @@ typedef struct SessionTicket {
     word64 seen;
     word32 ageAdd;
 #endif
-    byte*  data;
     word16 size;
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte   data[WC_FLEXIBLE_ARRAY_SIZE];
 } SessionTicket;
 
 #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_WOLFSSL_SERVER)
