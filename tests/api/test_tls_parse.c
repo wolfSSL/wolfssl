@@ -715,7 +715,7 @@ int test_TLSX_THM_parse(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_TRUNCATED_HMAC) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8];
@@ -1111,7 +1111,8 @@ int test_TLSX_SignatureAlgorithms_parse(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[16];
@@ -1424,7 +1425,8 @@ int test_TLSX_PointFormat_parse(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[16];
@@ -1576,7 +1578,8 @@ int test_TLSX_PointFormat_parse(void)
 int test_TLSX_SNI_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_SNI) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[64];
