@@ -4064,21 +4064,9 @@ int DeriveKeys(WOLFSSL* ssl)
 
 static void CleanPreMaster(WOLFSSL* ssl)
 {
-    int sz = (int)(ssl->arrays->preMasterSz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("CleanPreMaster preMasterSecret",
-                   ssl->arrays->preMasterSecret, sz);
-#endif
-
-    ForceZero(ssl->arrays->preMasterSecret, sz);
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Check(ssl->arrays->preMasterSecret, sz);
-#endif
-
-    XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    ssl->arrays->preMasterSecret = NULL;
+    /* A wc_MemZero_Check() here would alias the whole "SSL Arrays" entry,
+     * which starts at the same address. */
+    ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
     ssl->arrays->preMasterSz = 0;
 }
 
