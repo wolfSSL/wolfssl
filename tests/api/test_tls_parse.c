@@ -28,13 +28,14 @@
 #include <wolfssl/internal.h>
 #ifndef NO_DH
 #include <wolfssl/wolfcrypt/dh.h>
+#endif
 
+/* Several helpers below are called only from test bodies whose feature guards
+ * differ, so a configuration can compile in none of their callers. */
 #if defined(__GNUC__) || defined(__clang__)
     #define TEST_TLS_PARSE_UNUSED __attribute__((unused))
 #else
     #define TEST_TLS_PARSE_UNUSED
-#endif
-
 #endif
 
 /* Helper to build a server-side WOLFSSL_CTX with a certificate/key loaded,
