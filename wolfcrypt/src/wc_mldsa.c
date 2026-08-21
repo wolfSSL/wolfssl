@@ -12187,8 +12187,10 @@ void wc_MlDsaKey_Free(wc_MlDsaKey* key)
         ForceZero(key, sizeof(*key));
 #ifdef WOLF_CRYPTO_CB
         /* Zeroing leaves devId at 0, which is a usable device id. Mark the
-         * key as having no device so a second free does not call out again. */
+         * key and the SHAKE object inside it as having no device: a second
+         * free runs the SHAKE free again and would otherwise call out. */
         key->devId = INVALID_DEVID;
+        key->shake.devId = INVALID_DEVID;
 #endif
     }
 }

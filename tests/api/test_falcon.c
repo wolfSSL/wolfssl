@@ -1102,6 +1102,9 @@ int test_falcon_cb_free(void)
     XMEMSET(&seen, 0, sizeof(seen));
     seen.obj = &key;
 
+    /* No key to free, and nothing to tell a device about. */
+    wc_falcon_free(NULL);
+
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_FALCON_CB_FREE_DEVID,
         falcon_cb_free_cb, &seen), 0);
 

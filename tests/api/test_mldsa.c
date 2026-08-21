@@ -31479,6 +31479,7 @@ int test_mldsa_cb_free(void)
     ExpectIntEQ(seen.wiped, 0);
     if (key != NULL) {
         ExpectIntEQ(key->devId, INVALID_DEVID);
+        ExpectIntEQ(key->shake.devId, INVALID_DEVID);
     }
 
     wc_MlDsaKey_Free(key);

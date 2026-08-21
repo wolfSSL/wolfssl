@@ -4724,6 +4724,9 @@ int test_wc_mlkem_cb_free(void)
 
     XMEMSET(&seen, 0, sizeof(seen));
 
+    /* No key to free, and nothing to tell a device about. */
+    ExpectIntEQ(wc_MlKemKey_Free(NULL), 0);
+
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_MLKEM_CB_FREE_DEVID,
         mlkem_cb_free_cb, &seen), 0);
 
