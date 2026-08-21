@@ -779,6 +779,45 @@ int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(WOLFSSL_CERT_MANAGER* cm,
 #endif /* HAVE_CRL */
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
 
+#if !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+/* Certificate verdicts a verify callback may override, matching the errors the
+ * TLS path also hands to it: validity dates, an untrusted or self-signed chain,
+ * a failed signature, weak key sizes, name, path length, key usage, unhandled
+ * critical extensions, and revocation. This is an allowlist, so any other error
+ * such as a parse, algorithm, resource, or lock failure that left no verified
+ * certificate fails closed and never reaches the callback. */
+static int cm_verify_err_overridable(int err)
+{
+    if ((err == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E)) ||
+        (err == WC_NO_ERR_TRACE(BAD_PADDING_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_NAME_INVALID_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E)) ||
+        (err == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E)) ||
+        (err == WC_NO_ERR_TRACE(KEYUSAGE_E)) ||
+        (err == WC_NO_ERR_TRACE(EXTKEYUSAGE_E)) ||
+        (err == WC_NO_ERR_TRACE(RSA_KEY_SIZE_E)) ||
+        (err == WC_NO_ERR_TRACE(ECC_KEY_SIZE_E)) ||
+        (err == WC_NO_ERR_TRACE(FALCON_KEY_SIZE_E)) ||
+        (err == WC_NO_ERR_TRACE(MLDSA_KEY_SIZE_E))) {
+        return 1;
+    }
+#ifdef HAVE_CRL
+    if ((err == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) ||
+        (err == WC_NO_ERR_TRACE(CRL_MISSING)) ||
+        (err == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))) {
+        return 1;
+    }
+#endif
+    return 0;
+}
+#endif
+
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
     defined(OPENSSL_EXTRA)
 /* Verify the certificate.
@@ -862,6 +901,20 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
 #if !defined(NO_WOLFSSL_CM_VERIFY) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    /* Only a certificate-policy verdict may be handed to the callback; any
+     * other error leaves no verified certificate and fails closed. Classify
+     * this attempt's own result first so it cannot be lost. */
+    if ((ret != 0) && !cm_verify_err_overridable(ret)) {
+        fatal = 1;
+    }
+    /* A prior load failure is what the callback should see, but only when this
+     * attempt did not fail closed; it too fails closed when not a verdict. */
+    if ((!fatal) && (prev_err != 0)) {
+        ret = prev_err;
+        if (!cm_verify_err_overridable(ret)) {
+            fatal = 1;
+        }
+    }
     /* Use callback to perform verification too if available. */
     if ((!fatal) && cm->verifyCallback) {
         WC_DECLARE_VAR(args, ProcPeerCertArgs, 1, 0);
@@ -890,10 +943,6 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
             args->dCert = cert;
             args->dCertInit = 1;
 
-            /* Replace value in ret with an error value passed in. */
-            if (prev_err != 0) {
-                ret = prev_err;
-            }
             /* Use callback to verify certificate. */
             ret = DoVerifyCallback(cm, NULL, ret, args);
         }
