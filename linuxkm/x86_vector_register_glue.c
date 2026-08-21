@@ -1907,9 +1907,12 @@ static inline u8 *wc_svr_area(int ctx)
 
 #endif /* WC_SVR_NESTED_X86 */
 
-/* Fill / read the vector file for the self-test.  x87 and MXCSR are covered by
- * the save area too, but the registers a wolfCrypt routine can actually leave
- * data in are the vector ones, so those are what is checked byte for byte.
+/* Fill / read the vector file for the self-test.  On x86 this reaches
+ * %ymm0-%ymm15, or %xmm0-%xmm15 without AVX -- the widest set that assembles
+ * without an AVX-512 assembler.  x87 and MXCSR are covered by the save area but
+ * not written here; neither are the AVX-512-only components the mask names
+ * (opmask, ZMM_Hi256, Hi16_ZMM), which is stated in full at the call site in
+ * wc_svr_nested_init().
  *
  * -mno-sse is in force for kernel code, so the compiler emits no vector
  * instructions of its own between the store and the compare; only an
@@ -2361,10 +2364,30 @@ static int wc_svr_nested_init(void)
      * userspace, not kernels).  A test rig would prove one machine.  This
      * proves the machine it is actually running on, including the customer's.
      *
-     * Write a known pattern across every register the mask covers, save it,
-     * destroy the registers, restore, and compare.  If the round trip is not
-     * exact, nested save is disabled and the module goes on refusing -- the
-     * behaviour it had before this mechanism existed, which is safe.
+     * Write a known pattern into the vector registers wc_svr_st_load() can
+     * address, save it, destroy the registers, restore, and compare.
+     *
+     * WHAT THE x86 PATTERN DOES NOT COVER.  wc_svr_st_load()/_store() reach
+     * %ymm0-%ymm15 (or %xmm0-%xmm15 without AVX).  WC_SVR_XFEATURE_MASK also
+     * names opmask, ZMM_Hi256 and Hi16_ZMM -- bits 5, 6 and 7 of 0x00e7 -- and
+     * nothing here writes those, so on an AVX-512 part they are still in their
+     * init state when XSAVE runs.  XSAVE then writes XSTATE_BV[i] = 0 for them
+     * and XRSTOR re-initialises rather than reloads them (SDM Vol. 1, 13.7 and
+     * 13.8), so the round trip is correct but is not exercised.  A pass proves
+     * the mask value, the area size, the 64-byte alignment and the
+     * standard-format round trip on this machine; it does not prove the three
+     * AVX-512-only components.
+     *
+     * WHAT NO ARCHITECTURE'S PATTERN PROVES.  This runs in task context inside
+     * a legitimate kernel_fpu_begin().  It says nothing about saving when
+     * may_use_simd() is false, from a softirq or a hardirq on top of a live
+     * section -- which is the case the nested save relies on.  That argument is
+     * reasoning, not measurement, and the "self-test OK" line below is not
+     * evidence for it.
+     *
+     * If the round trip is not exact, nested save is disabled and the module
+     * goes on refusing -- the behaviour it had before this mechanism existed,
+     * which is safe.
      */
     if (wc_svr_selftest() != 0) {
         pr_err("wolfCrypt: vector-register save/restore self-test FAILED; "
@@ -2387,9 +2410,12 @@ static int wc_svr_nested_init(void)
                 wc_svr_save_size);
     }
 #else
+    /* Name the pattern's reach, so the log line cannot be read as covering
+     * the AVX-512-only components in the mask. */
     pr_info("wolfCrypt: vector-register save/restore self-test OK "
-            "(mask 0x%llx, %u B/context).\n",
-            (unsigned long long)wc_svr_save_mask, wc_svr_save_size);
+            "(mask 0x%llx, %u B/context, pattern in %s0-15).\n",
+            (unsigned long long)wc_svr_save_mask, wc_svr_save_size,
+            wc_svr_st_avx ? "ymm" : "xmm");
 #endif
 
     return 0;
