@@ -178,6 +178,10 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_ED25519_CHECK_KEY: return "ED25519 CheckKey";
         case WC_PK_TYPE_CURVE25519_MAKE_PUB: return "CURVE25519 MakePub";
         case WC_PK_TYPE_CURVE25519_GENERIC: return "CURVE25519 Generic";
+        case WC_PK_TYPE_CURVE448: return "CURVE448";
+        case WC_PK_TYPE_CURVE448_KEYGEN: return "CURVE448 KeyGen";
+        case WC_PK_TYPE_CURVE448_MAKE_PUB: return "CURVE448 MakePub";
+        case WC_PK_TYPE_CURVE448_GENERIC: return "CURVE448 Generic";
     }
     return NULL;
 }
@@ -1456,6 +1460,127 @@ int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_ED25519 */
+
+#ifdef HAVE_CURVE448
+int wc_CryptoCb_Curve448Gen(WC_RNG* rng, int keySize,
+    curve448_key* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE448_KEYGEN;
+        cryptoInfo.pk.curve448kg.rng = rng;
+        cryptoInfo.pk.curve448kg.size = keySize;
+        cryptoInfo.pk.curve448kg.key = key;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Curve448(curve448_key* private_key,
+    curve448_key* public_key, byte* out, word32* outlen, int endian)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (private_key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(private_key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE448;
+        cryptoInfo.pk.curve448.private_key = private_key;
+        cryptoInfo.pk.curve448.public_key = public_key;
+        cryptoInfo.pk.curve448.out = out;
+        cryptoInfo.pk.curve448.outlen = outlen;
+        cryptoInfo.pk.curve448.endian = endian;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Curve448MakePub(int devId, int public_size, byte* pub,
+    int private_size, const byte* priv)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (pub == NULL || priv == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    /* only a caller that selected no device settles for the first registered
+     * one; a devId names the single device allowed to see the scalar */
+    if ((dev == NULL || dev->cb == NULL) && (devId == INVALID_DEVID))
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE448_MAKE_PUB;
+        cryptoInfo.pk.curve448makepub.pub = pub;
+        cryptoInfo.pk.curve448makepub.pubSz = (word32)public_size;
+        cryptoInfo.pk.curve448makepub.priv = priv;
+        cryptoInfo.pk.curve448makepub.privSz = (word32)private_size;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Curve448Generic(int devId, int public_size, byte* pub,
+    int private_size, const byte* priv, int basepoint_size,
+    const byte* basepoint)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (pub == NULL || priv == NULL || basepoint == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    /* only a caller that selected no device settles for the first registered
+     * one; a devId names the single device allowed to see the scalar */
+    if ((dev == NULL || dev->cb == NULL) && (devId == INVALID_DEVID))
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE448_GENERIC;
+        cryptoInfo.pk.curve448generic.pub = pub;
+        cryptoInfo.pk.curve448generic.pubSz = (word32)public_size;
+        cryptoInfo.pk.curve448generic.priv = priv;
+        cryptoInfo.pk.curve448generic.privSz = (word32)private_size;
+        cryptoInfo.pk.curve448generic.basepoint = basepoint;
+        cryptoInfo.pk.curve448generic.basepointSz = (word32)basepoint_size;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
 int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen, byte* out,

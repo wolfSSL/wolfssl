@@ -3241,7 +3241,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("ED25519  test passed!\n");
 #endif
 
-#ifdef HAVE_CURVE448
+#if defined(HAVE_CURVE448) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || defined(WOLFSSL_SWDEV))
     if ( (ret = curve448_test()) != 0)
         TEST_FAIL("CURVE448 test failed!\n", ret);
     else
@@ -50901,9 +50902,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve448_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    wc_curve448_init(&userA);
-    wc_curve448_init(&userB);
-    wc_curve448_init(&pubKey);
+    wc_curve448_init_ex(&userA, HEAP_HINT, devId);
+    wc_curve448_init_ex(&userB, HEAP_HINT, devId);
+    wc_curve448_init_ex(&pubKey, HEAP_HINT, devId);
 
     ret = curve448_keyagree_test(&rng, &userA, &userB, &pubKey);
     if (ret != 0)
@@ -79529,6 +79530,10 @@ typedef struct {
     int ed448SignCount;   /* Ed448 sign callback invocations */
     int ed448VerifyCount; /* Ed448 verify callback invocations */
 #endif
+#ifdef HAVE_CURVE448
+    int curve448KgCount;  /* Curve448 keygen callback invocations */
+    int curve448SsCount;  /* Curve448 shared-secret callback invocations */
+#endif
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE)
     int cmacFreeCount;    /* CMAC free callback invocations */
 #endif
@@ -80418,6 +80423,167 @@ exit_onlycb:
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE448) && !defined(WOLFSSL_SWDEV)
+/* Is every byte of buf the marker value v? */
+static int curve448_buf_is(const byte* buf, byte v, word32 len)
+{
+    word32 i;
+    for (i = 0; i < len; i++) {
+        if (buf[i] != v)
+            return 0;
+    }
+    return 1;
+}
+
+/* Exercise Curve448 dispatch under CB_ONLY_CURVE448: cb-handled then
+ * cb-delegated. */
+static wc_test_ret_t curve448_onlycb_test(myCryptoDevCtx *ctx)
+{
+    wc_test_ret_t ret = 0;
+    curve448_key key;
+#if defined(HAVE_CURVE448_SHARED_SECRET) && \
+    defined(HAVE_CURVE448_KEY_IMPORT)
+    curve448_key pubKey;
+    int pubInit = 0;
+    const byte priv[CURVE448_KEY_SIZE] = {1};
+    const byte pub[CURVE448_KEY_SIZE] = {5};
+    byte out[CURVE448_KEY_SIZE];
+    word32 outLen = (word32)sizeof(out);
+#endif
+    WC_RNG rng;
+
+    ret = wc_curve448_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        wc_curve448_free(&key);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* cb handles the op, expects 0(success) and the stub's key material */
+    ctx->exampleVar = 99;
+    ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    else if (!key.privSet || !key.pubSet ||
+             !curve448_buf_is(key.p, 0xC3, CURVE448_PUB_KEY_SIZE) ||
+             (key.k[0] != 0x58) ||
+             !curve448_buf_is(key.k + 1, 0x5A, CURVE448_KEY_SIZE - 2) ||
+             (key.k[CURVE448_KEY_SIZE-1] != 0xDA))
+        ret = WC_TEST_RET_ENC_NC;
+
+    if (ret == 0) {
+        /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+        ctx->exampleVar = 1;
+        ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
+        if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+
+    if (ret == 0) {
+        const byte basepoint[CURVE448_KEY_SIZE] = {5};
+        byte scalar[CURVE448_KEY_SIZE];
+        byte pubTmp[CURVE448_PUB_KEY_SIZE];
+
+        /* clamped scalar: low two bits clear, top bit set */
+        XMEMSET(scalar, 0, sizeof(scalar));
+        scalar[0] = 4;
+        scalar[CURVE448_KEY_SIZE-1] = 0x80;
+
+        /* cb handles make_pub and generic, expects 0(success) and the
+         * stub's per-type marker written over the caller's buffer */
+        ctx->exampleVar = 99;
+        XMEMSET(pubTmp, 0, sizeof(pubTmp));
+        ret = wc_curve448_make_pub((int)sizeof(pubTmp), pubTmp,
+            (int)sizeof(scalar), scalar);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else if (!curve448_buf_is(pubTmp, 0x6B, sizeof(pubTmp)))
+            ret = WC_TEST_RET_ENC_NC;
+        if (ret == 0) {
+            ret = wc_curve448_generic((int)sizeof(pubTmp), pubTmp,
+                (int)sizeof(scalar), scalar, (int)sizeof(basepoint),
+                basepoint);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else if (!curve448_buf_is(pubTmp, 0x3C, sizeof(pubTmp)))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+
+        /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+        if (ret == 0) {
+            ctx->exampleVar = 1;
+            ret = wc_curve448_make_pub((int)sizeof(pubTmp), pubTmp,
+                (int)sizeof(scalar), scalar);
+            if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else
+                ret = 0;
+        }
+        if (ret == 0) {
+            ret = wc_curve448_generic((int)sizeof(pubTmp), pubTmp,
+                (int)sizeof(scalar), scalar, (int)sizeof(basepoint),
+                basepoint);
+            if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else
+                ret = 0;
+        }
+    }
+
+#if defined(HAVE_CURVE448_SHARED_SECRET) && \
+    defined(HAVE_CURVE448_KEY_IMPORT)
+    if (ret == 0) {
+        ret = wc_curve448_init_ex(&pubKey, HEAP_HINT, devId);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            pubInit = 1;
+    }
+    if (ret == 0) {
+        ret = wc_curve448_import_private(priv, sizeof(priv), &key);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        ret = wc_curve448_import_public(pub, sizeof(pub), &pubKey);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
+        /* cb handles the op, expects 0(success) and the stub's secret */
+        ctx->exampleVar = 99;
+        ret = wc_curve448_shared_secret(&key, &pubKey, out, &outLen);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else if ((outLen != CURVE448_KEY_SIZE) ||
+                 !curve448_buf_is(out, 0xA5, CURVE448_PUB_KEY_SIZE))
+            ret = WC_TEST_RET_ENC_NC;
+    }
+    if (ret == 0) {
+        /* cb delegates to software, expects NO_VALID_DEVID(failure) */
+        ctx->exampleVar = 1;
+        ret = wc_curve448_shared_secret(&key, &pubKey, out, &outLen);
+        if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+    if (pubInit)
+        wc_curve448_free(&pubKey);
+#endif /* HAVE_CURVE448_SHARED_SECRET && HAVE_CURVE448_KEY_IMPORT */
+
+    wc_FreeRng(&rng);
+    wc_curve448_free(&key);
+    (void)ctx;
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB_ONLY_CURVE448 && !WOLFSSL_SWDEV */
+
 #if defined(HAVE_ECC) && !defined(WOLFSSL_NO_MALLOC) && \
     defined(HAVE_ECC_KEY_EXPORT)
 /* Serialize pub to X9.63 uncompressed (0x04 || X || Y) using the curve size
@@ -81034,6 +81200,109 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.ed25519checkkey.key->devId = devIdArg;
         }
     #endif /* HAVE_ED25519 */
+    #ifdef HAVE_CURVE448
+        if (info->pk.type == WC_PK_TYPE_CURVE448_KEYGEN) {
+            myCtx->curve448KgCount++;
+            /* set devId to invalid, so software is used */
+            info->pk.curve448kg.key->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_CURVE448)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->pk.curve448kg.key->devId = devIdArg;
+                /* the dispatcher must hand over a usable payload */
+                if ((info->pk.curve448kg.rng == NULL) ||
+                    (info->pk.curve448kg.size != CURVE448_KEY_SIZE)) {
+                    return BAD_FUNC_ARG;
+                }
+                /* deterministic key material so the caller can prove the
+                 * callback's output actually reached it */
+                XMEMSET(info->pk.curve448kg.key->k, 0x5A, CURVE448_KEY_SIZE);
+                info->pk.curve448kg.key->k[0] &= 0xfc;
+                info->pk.curve448kg.key->k[CURVE448_KEY_SIZE-1] |= 0x80;
+                XMEMSET(info->pk.curve448kg.key->p, 0xC3,
+                    CURVE448_PUB_KEY_SIZE);
+                info->pk.curve448kg.key->privSet = 1;
+                info->pk.curve448kg.key->pubSet = 1;
+                return 0;
+            }
+            #endif
+
+            ret = wc_curve448_make_key(info->pk.curve448kg.rng,
+                info->pk.curve448kg.size, info->pk.curve448kg.key);
+
+            /* reset devId */
+            info->pk.curve448kg.key->devId = devIdArg;
+        }
+        #ifdef HAVE_CURVE448_SHARED_SECRET
+        else if (info->pk.type == WC_PK_TYPE_CURVE448) {
+            myCtx->curve448SsCount++;
+            /* set devId to invalid, so software is used */
+            info->pk.curve448.private_key->devId = INVALID_DEVID;
+            #if defined(WOLF_CRYPTO_CB_ONLY_CURVE448)
+            #ifdef DEBUG_WOLFSSL
+            printf("CryptoDevCb: exampleVar %d\n", myCtx->exampleVar);
+            #endif
+            if (myCtx->exampleVar == 99) {
+                info->pk.curve448.private_key->devId = devIdArg;
+                /* deterministic non-zero secret so the caller's RFC 7748
+                 * all-zero check has defined input to pass */
+                XMEMSET(info->pk.curve448.out, 0xA5, CURVE448_PUB_KEY_SIZE);
+                *info->pk.curve448.outlen = CURVE448_PUB_KEY_SIZE;
+                return 0;
+            }
+            #endif
+
+            ret = wc_curve448_shared_secret_ex(
+                info->pk.curve448.private_key, info->pk.curve448.public_key,
+                info->pk.curve448.out, info->pk.curve448.outlen,
+                info->pk.curve448.endian);
+
+            /* reset devId */
+            info->pk.curve448.private_key->devId = devIdArg;
+        }
+        #endif /* HAVE_CURVE448_SHARED_SECRET */
+        else if (info->pk.type == WC_PK_TYPE_CURVE448_MAKE_PUB ||
+                 info->pk.type == WC_PK_TYPE_CURVE448_GENERIC) {
+            #if defined(WOLF_CRYPTO_CB_ONLY_CURVE448)
+            if (myCtx->exampleVar == 99) {
+                /* check the dispatcher populated every payload field, then
+                 * write a per-type marker so the caller can prove the
+                 * callback's output actually reached it */
+                if (info->pk.type == WC_PK_TYPE_CURVE448_MAKE_PUB) {
+                    if ((info->pk.curve448makepub.pub == NULL) ||
+                        (info->pk.curve448makepub.priv == NULL) ||
+                        (info->pk.curve448makepub.pubSz !=
+                            CURVE448_PUB_KEY_SIZE) ||
+                        (info->pk.curve448makepub.privSz !=
+                            CURVE448_KEY_SIZE)) {
+                        return BAD_FUNC_ARG;
+                    }
+                    XMEMSET(info->pk.curve448makepub.pub, 0x6B,
+                        CURVE448_PUB_KEY_SIZE);
+                }
+                else {
+                    if ((info->pk.curve448generic.pub == NULL) ||
+                        (info->pk.curve448generic.priv == NULL) ||
+                        (info->pk.curve448generic.basepoint == NULL) ||
+                        (info->pk.curve448generic.pubSz !=
+                            CURVE448_PUB_KEY_SIZE) ||
+                        (info->pk.curve448generic.privSz !=
+                            CURVE448_KEY_SIZE) ||
+                        (info->pk.curve448generic.basepointSz !=
+                            CURVE448_KEY_SIZE)) {
+                        return BAD_FUNC_ARG;
+                    }
+                    XMEMSET(info->pk.curve448generic.pub, 0x3C,
+                        CURVE448_PUB_KEY_SIZE);
+                }
+                return 0;
+            }
+            #endif
+            /* decline: ret stays NOT_COMPILED_IN, software is used */
+        }
+    #endif /* HAVE_CURVE448 */
     #ifdef HAVE_ED448
         #ifdef HAVE_ED448_SIGN
         if (info->pk.type == WC_PK_TYPE_ED448) {
@@ -83217,6 +83486,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.ed448SignCount = 0;
     myCtx.ed448VerifyCount = 0;
 #endif
+#ifdef HAVE_CURVE448
+    myCtx.curve448KgCount = 0;
+    myCtx.curve448SsCount = 0;
+#endif
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE)
     myCtx.cmacFreeCount = 0;
 #endif
@@ -83571,6 +83844,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = curve25519_onlycb_test(&myCtx);
     PRIVATE_KEY_LOCK();
+#endif
+#if defined(HAVE_CURVE448) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || defined(WOLFSSL_SWDEV))
+    myCtx.curve448KgCount = 0;
+    myCtx.curve448SsCount = 0;
+    if (ret == 0)
+        ret = curve448_test();
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_CURVE448) && !defined(WOLFSSL_SWDEV)
+    PRIVATE_KEY_UNLOCK();
+    if (ret == 0)
+        ret = curve448_onlycb_test(&myCtx);
+    PRIVATE_KEY_LOCK();
+#endif
+#if defined(HAVE_CURVE448) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_CURVE448) || defined(WOLFSSL_SWDEV))
+    /* the keys carry devId, so the callback must have been dispatched */
+    if (ret == 0 && myCtx.curve448KgCount == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    #ifdef HAVE_CURVE448_SHARED_SECRET
+    if (ret == 0 && myCtx.curve448SsCount == 0)
+        ret = WC_TEST_RET_ENC_NC;
+    #endif
 #endif
 #if !defined(NO_AES) && !defined(WOLF_CRYPTO_CB_ONLY_AES)
     /* CB_ONLY_AES skips these (aes_onlycb_test covers that path). */

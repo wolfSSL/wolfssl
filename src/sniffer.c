@@ -3006,7 +3006,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 ret = BUFFER_E;
             }
             if (ret == 0) {
-                ret = wc_curve448_init(&args->key->priv.x448);
+                ret = wc_curve448_init_ex(&args->key->priv.x448, NULL, devId);
                 if (ret == 0) {
                     args->key->type = WC_PK_TYPE_CURVE448;
                     args->key->initPriv = 1;

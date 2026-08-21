@@ -42,6 +42,8 @@ int test_wc_curve448_check_public_be(void);
 int test_wc_curve448_shared_secret_keyset_checks(void);
 int test_wc_curve448_import_public_ex_argchecks(void);
 int test_wc_curve448_export_import_endian(void);
+int test_wc_curve448_make_pub_generic(void);
+int test_wc_curve448_cryptocb(void);
 
 #define TEST_CURVE448_DECLS                                                 \
     TEST_DECL_GROUP("curve448", test_wc_curve448_make_key),                 \
@@ -61,6 +63,8 @@ int test_wc_curve448_export_import_endian(void);
     TEST_DECL_GROUP("curve448", test_wc_curve448_check_public_be),          \
     TEST_DECL_GROUP("curve448", test_wc_curve448_shared_secret_keyset_checks), \
     TEST_DECL_GROUP("curve448", test_wc_curve448_import_public_ex_argchecks), \
-    TEST_DECL_GROUP("curve448", test_wc_curve448_export_import_endian)
+    TEST_DECL_GROUP("curve448", test_wc_curve448_export_import_endian),     \
+    TEST_DECL_GROUP("curve448", test_wc_curve448_make_pub_generic),         \
+    TEST_DECL_GROUP("curve448", test_wc_curve448_cryptocb)
 
 #endif /* WOLFCRYPT_TEST_CURVE448_H */
