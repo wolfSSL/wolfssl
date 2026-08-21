@@ -1609,6 +1609,8 @@ static inline u8 *wc_svr_area(int ctx)
     return wc_svr_save_area[raw_smp_processor_id()] + ((size_t)ctx * wc_svr_save_size);
 }
 
+#endif /* WC_SVR_NESTED_X86 */
+
 /* Fill / read the vector file for the self-test.  x87 and MXCSR are covered by
  * the save area too, but the registers a wolfCrypt routine can actually leave
  * data in are the vector ones, so those are what is checked byte for byte.
@@ -1619,7 +1621,7 @@ static inline u8 *wc_svr_area(int ctx)
 #ifdef WC_SVR_NESTED_ARM64
     #define WC_SVR_ST_NREG 32
     #define WC_SVR_ST_STRIDE 16
-static int wc_svr_st_avx;   /* unused on arm64; kept so the shared code compiles */
+static int __maybe_unused wc_svr_st_avx;  /* unused on arm64; kept so the shared code compiles */
 static inline void wc_svr_st_load(const u8 *b)
 {
     const u8 *p = b;
@@ -1730,7 +1732,7 @@ static int wc_svr_selftest(void)
     preempt_disable();
     area = wc_svr_area(WC_SVR_CTX_TASK);
 
-    kernel_fpu_begin();          /* own the registers legitimately for the test */
+    WC_LINUXKM_FPU_BEGIN();      /* own the registers legitimately for the test */
     wc_svr_st_load(want);        /* the "interrupted context's" data */
     wc_svr_regs_save(area);      /* what a nested caller would do */
 #ifdef WC_LINUXKM_SVR_SELFTEST_NEGATIVE_CONTROL
@@ -1746,7 +1748,7 @@ static int wc_svr_selftest(void)
     wc_svr_st_load(got);         /* destroy them, as wolfCrypt would */
     wc_svr_regs_restore(area);   /* hand them back */
     wc_svr_st_store(got);        /* what the interrupted context would see */
-    kernel_fpu_end();
+    WC_LINUXKM_FPU_END();
 
     preempt_enable();
 
@@ -1764,8 +1766,6 @@ out:
     kfree(got);
     return ret;
 }
-
-#endif /* WC_SVR_NESTED_ARM64 / WC_SVR_NESTED_X86 */
 
 static void wc_svr_nested_free(void)
 {
@@ -1884,9 +1884,14 @@ static int wc_svr_nested_init(void)
         wc_svr_nested_ready = 0;
         return 0;
     }
+#ifdef WC_SVR_NESTED_ARM64
+    pr_info("wolfCrypt: vector-register save/restore self-test OK "
+            "(FPSIMD V0-V31 + FPSR/FPCR, %u B/context).\n", wc_svr_save_size);
+#else
     pr_info("wolfCrypt: vector-register save/restore self-test OK "
             "(mask 0x%llx, %u B/context).\n",
             (unsigned long long)wc_svr_save_mask, wc_svr_save_size);
+#endif
 
     return 0;
 }
