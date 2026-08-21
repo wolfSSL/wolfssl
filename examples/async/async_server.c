@@ -212,8 +212,11 @@ int server_async_test(int argc, char** argv)
     AsyncTlsCryptoCbCtx cryptoCbCtx;
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
-    static byte memory[300000];
-    static byte memoryIO[34500];
+    /* Sized for a TLS 1.3 mutual-auth handshake with every supported
+     * operation class pending: suspended verifies during mutual auth raise
+     * the bucket high-water mark well above the synchronous footprint. */
+    static byte memory[800000];
+    static byte memoryIO[64000];
     #if !defined(WOLFSSL_STATIC_MEMORY_LEAN)
     WOLFSSL_MEM_CONN_STATS ssl_stats;
     #endif

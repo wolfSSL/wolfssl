@@ -15674,11 +15674,15 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                       totalSz);
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
         if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
-                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0)) ||
+                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0) &&
+                 ssl->options.processReply != 0 /* doProcessInit */) ||
                 ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
-            /* Re-present for in-handler pends and pre-dispatch drain pends;
-             * a post-handler key-schedule pend must NOT replay (state is
-             * committed; DoTls13MsgDerives() finishes it instead). */
+            /* Re-present for in-handler pends and pre-dispatch drain pends.
+             * Not for post-handler pends, which committed the message: a
+             * key-schedule pend (kdfMsgStep != 0) resumes through
+             * DoTls13MsgDerives(), and a post-handshake-auth send pend
+             * (processReply reset to doProcessInit) resumes through
+             * wolfSSL_negotiate(). */
             *inOutIdx = startIdx;
         }
     #endif
@@ -15710,10 +15714,11 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->pendingMsgSz);
         #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
             if ((ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
-                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0)) ||
+                 (ssl->kdfMsgStep == 0 || kdfStepEntry != 0) &&
+                 ssl->options.processReply != 0 /* doProcessInit */) ||
                 ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
-                /* Re-present the fragment; a post-handler key-schedule
-                 * pend falls through and consumes the message. */
+                /* Re-present the fragment; a post-handler pend falls
+                 * through and consumes the message. */
                 ssl->pendingMsgOffset -= inputLength;
                 *inOutIdx -= inputLength;
             }
