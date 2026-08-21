@@ -444,8 +444,9 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 
 #ifdef MULTI_VALUE_STATISTICS
     #define STATS_CLAUSE_SEPARATOR ""
-    #define DECLARE_MULTI_VALUE_STATS_VARS() double max = 0, min = 0, sum = 0,\
-                                         squareSum = 0, prev = 0, delta;\
+    #define DECLARE_MULTI_VALUE_STATS_VARS() bench_real_t max = 0, min = 0,\
+                                         sum = 0, squareSum = 0, prev = 0,   \
+                                         delta;                              \
                                          int    runs = 0;
     #define RECORD_MULTI_VALUE_STATS()  if (runs == 0) {\
                                             delta = current_time(0) - start;\
@@ -460,7 +461,8 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
                                         else if (min > delta)\
                                             min = delta;\
                                         sum += delta;\
-                                        squareSum += delta * delta;\
+                                        squareSum +=                    \
+                                            WC_BENCH_RMUL(delta, delta);\
                                         runs++;\
                                         prev = current_time(0)
     #define RESET_MULTI_VALUE_STATS_VARS()   prev = 0;\
@@ -474,7 +476,233 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
     #define RESET_MULTI_VALUE_STATS_VARS()   WC_DO_NOTHING
 #endif
 
-#ifdef WOLFSSL_NO_FLOAT_FMT
+/* ---------------------------------------------------------------------------
+ * Rate arithmetic: double in userspace, 64-bit fixed point in kernel builds.
+ *
+ * A Linux kernel module must not use floating point or SIMD.  On arm64,
+ * arch/arm64/Makefile adds -mgeneral-regs-only to KBUILD_CFLAGS (verified in
+ * linux-6.6.99 arch/arm64/Makefile:39), so the compiler rejects any FP or
+ * SIMD operand and this file did not build at all under
+ * --enable-linuxkm-benchmarks.  Everywhere else the kernel does not preserve
+ * FPU/SIMD state across a kernel-mode section unless the code brackets it, so
+ * double is wrong on those targets too even where it happens to compile.
+ *
+ * WC_BENCH_INT_ONLY selects an integer implementation of the few quantities
+ * the benchmark derives: elapsed time, bytes/sec, ops/sec, ms/op and
+ * cycles/byte.  It turns on automatically for WOLFSSL_LINUXKM, and may be
+ * defined by hand in a userspace build to compare the two paths against each
+ * other.  The userspace default path is unchanged.
+ *
+ * bench_real_t then carries a value scaled by WC_BENCH_FP_SCALE, so one LSB
+ * is 10^-6 and printed values keep six fractional digits.
+ * ------------------------------------------------------------------------ */
+#if defined(WOLFSSL_LINUXKM) && !defined(WC_BENCH_INT_ONLY)
+    #define WC_BENCH_INT_ONLY
+#endif
+
+#ifdef WC_BENCH_INT_ONLY
+
+#ifdef WOLFSSL_LINUXKM
+    /* 64/64 division has no libgcc helper available to a module on 32 bit
+     * targets (arm would need __aeabi_uldivmod, i386 __udivdi3), so route
+     * every 64 bit division through the kernel's own helper. */
+    #include <linux/math64.h>
+    #define WC_BENCH_DIV64(n, d) div64_u64((word64)(n), (word64)(d))
+#else
+    #define WC_BENCH_DIV64(n, d) ((word64)(n) / (word64)(d))
+#endif
+
+typedef sword64 bench_real_t;
+
+#define WC_BENCH_FP_SCALE   1000000
+#define WC_BENCH_FP_DIGITS  6
+#define WC_BENCH_REAL_MAX   ((sword64)0x7fffffffffffffffLL)
+#define WC_BENCH_U64_MAX    ((word64)0xffffffffffffffffULL)
+
+static const word64 wc_bench_pow10[] = {
+    1ULL, 10ULL, 100ULL, 1000ULL, 10000ULL, 100000ULL,
+    1000000ULL, 10000000ULL, 100000000ULL, 1000000000ULL
+};
+#define WC_BENCH_POW10_MAX \
+    ((int)(sizeof(wc_bench_pow10) / sizeof(wc_bench_pow10[0])) - 1)
+
+/* magnitude of x, correct for the most negative value too. */
+static WC_INLINE word64 wc_bench_abs(bench_real_t x)
+{
+    return (x < 0) ? ((word64)(-(x + 1)) + 1U) : (word64)x;
+}
+
+/* magnitude of x rounded half up to prec fractional digits, still scaled by
+ * WC_BENCH_FP_SCALE. */
+static WC_INLINE word64 wc_bench_rounded(bench_real_t x, int prec)
+{
+    word64 v = wc_bench_abs(x);
+    word64 step;
+
+    if (prec < 0)
+        prec = 0;
+    if (prec >= WC_BENCH_FP_DIGITS)
+        return v;
+    step = wc_bench_pow10[WC_BENCH_FP_DIGITS - prec];
+    if (v > WC_BENCH_U64_MAX - (step / 2))
+        return v;
+    return WC_BENCH_DIV64(v + step / 2, step) * step;
+}
+
+static WC_INLINE const char* wc_bench_sign(bench_real_t x)
+{
+    return (x < 0) ? "-" : "";
+}
+
+static WC_INLINE unsigned long long wc_bench_ipart(bench_real_t x, int prec)
+{
+    return (unsigned long long)
+        WC_BENCH_DIV64(wc_bench_rounded(x, prec), WC_BENCH_FP_SCALE);
+}
+
+static WC_INLINE unsigned long long wc_bench_fpart(bench_real_t x, int prec)
+{
+    word64 v = wc_bench_rounded(x, prec);
+    word64 f = v - (WC_BENCH_DIV64(v, WC_BENCH_FP_SCALE) *
+                    (word64)WC_BENCH_FP_SCALE);
+
+    if (prec < 0)
+        prec = 0;
+    if (prec > WC_BENCH_POW10_MAX)
+        prec = WC_BENCH_POW10_MAX;
+    if (prec <= WC_BENCH_FP_DIGITS)
+        return (unsigned long long)
+            WC_BENCH_DIV64(f, wc_bench_pow10[WC_BENCH_FP_DIGITS - prec]);
+    /* asking for more digits than we carry: pad with zeros. */
+    return (unsigned long long)(f * wc_bench_pow10[prec - WC_BENCH_FP_DIGITS]);
+}
+
+/* ratio of two plain integers, as a bench_real_t. */
+static WC_INLINE bench_real_t wc_bench_idiv(word64 n, word64 d)
+{
+    if (d == 0)
+        return 0;
+    while (n > WC_BENCH_U64_MAX / (word64)WC_BENCH_FP_SCALE) {
+        n >>= 1;
+        d >>= 1;
+        if (d == 0)
+            return WC_BENCH_REAL_MAX;
+    }
+    return (bench_real_t)WC_BENCH_DIV64(n * (word64)WC_BENCH_FP_SCALE, d);
+}
+
+/* a / b, both bench_real_t.  Split into integer quotient and remainder so a
+ * large numerator never has to be scaled up before the division. */
+static bench_real_t wc_bench_rdiv(bench_real_t a, bench_real_t b)
+{
+    int neg;
+    word64 ua, ub, q, r, frac, res;
+
+    if (b == 0)
+        return 0;
+    neg = ((a < 0) != (b < 0));
+    ua = wc_bench_abs(a);
+    ub = wc_bench_abs(b);
+
+    q = WC_BENCH_DIV64(ua, ub);
+    r = ua - q * ub;
+    while (r > WC_BENCH_U64_MAX / (word64)WC_BENCH_FP_SCALE) {
+        r >>= 1;
+        ub >>= 1;
+    }
+    frac = (ub == 0) ? 0 :
+        WC_BENCH_DIV64(r * (word64)WC_BENCH_FP_SCALE, ub);
+
+    if (q > (word64)WC_BENCH_REAL_MAX / (word64)WC_BENCH_FP_SCALE)
+        return neg ? -WC_BENCH_REAL_MAX : WC_BENCH_REAL_MAX;
+    res = q * (word64)WC_BENCH_FP_SCALE + frac;
+    return neg ? -(bench_real_t)res : (bench_real_t)res;
+}
+
+static WC_INLINE bench_real_t wc_bench_rdivi(bench_real_t a, word64 k)
+{
+    word64 v;
+
+    if (k == 0)
+        return 0;
+    v = WC_BENCH_DIV64(wc_bench_abs(a), k);
+    return (a < 0) ? -(bench_real_t)v : (bench_real_t)v;
+}
+
+#ifdef MULTI_VALUE_STATISTICS
+static bench_real_t wc_bench_rmul(bench_real_t a, bench_real_t b)
+{
+    int neg = ((a < 0) != (b < 0));
+    word64 ua = wc_bench_abs(a);
+    word64 ub = wc_bench_abs(b);
+    word64 hi, lo, res;
+
+    hi = WC_BENCH_DIV64(ua, (word64)WC_BENCH_FP_SCALE);
+    lo = ua - hi * (word64)WC_BENCH_FP_SCALE;
+    while (ub != 0 && lo > WC_BENCH_U64_MAX / ub) {
+        lo >>= 1;
+        ub >>= 1;
+        hi >>= 1;
+    }
+    res = hi * ub + WC_BENCH_DIV64(lo * ub, (word64)WC_BENCH_FP_SCALE);
+    return neg ? -(bench_real_t)res : (bench_real_t)res;
+}
+
+/* square root of a bench_real_t.  sqrt(v / S) * S == sqrt(v * S), and S is
+ * 10^6 so sqrt(S) is exactly 1000 when v * S will not fit. */
+static bench_real_t wc_bench_rsqrt(bench_real_t in)
+{
+    word64 v, x, next;
+    int i, scaled = 1;
+
+    if (in < 0)
+        return -(bench_real_t)WC_BENCH_FP_SCALE;
+    if (in == 0)
+        return 0;
+
+    v = (word64)in;
+    if (v <= WC_BENCH_U64_MAX / (word64)WC_BENCH_FP_SCALE)
+        v *= (word64)WC_BENCH_FP_SCALE;
+    else
+        scaled = 0;
+
+    x = v;
+    for (i = 0; i < 64; i++) {
+        next = (x + WC_BENCH_DIV64(v, x)) >> 1;
+        if (next >= x)
+            break;
+        x = next;
+    }
+    return scaled ? (bench_real_t)x
+                  : (bench_real_t)(x * wc_bench_pow10[3]);
+}
+#endif /* MULTI_VALUE_STATISTICS */
+
+#define WC_BENCH_R(x)          ((bench_real_t)((sword64)(x) *                 \
+                                               (sword64)WC_BENCH_FP_SCALE))
+#define WC_BENCH_RDIV(a, b)    wc_bench_rdiv((a), (b))
+#define WC_BENCH_RDIVI(a, k)   wc_bench_rdivi((a), (word64)(k))
+#define WC_BENCH_RMULI(a, k)   ((bench_real_t)((a) * (sword64)(k)))
+#define WC_BENCH_RMUL(a, b)    wc_bench_rmul((a), (b))
+#define WC_BENCH_IDIV(n, d)    wc_bench_idiv((word64)(n), (word64)(d))
+#define WC_BENCH_PERSEC(b, t)  wc_bench_rdiv((b), (t))
+#define WC_BENCH_RSQRT(x)      wc_bench_rsqrt(x)
+#define WC_BENCH_ONE           ((bench_real_t)WC_BENCH_FP_SCALE)
+
+/* Same rendered text as the WOLFSSL_NO_FLOAT_FMT case below, but every
+ * argument is derived with integer arithmetic.  No %f survives here: the
+ * kernel's vsnprintf has no floating point conversion at all, so a stray %f
+ * would print garbage rather than fail loudly. */
+#define FLT_FMT      "%s%llu,%09llu"
+#define FLT_FMT_PREC "%s%llu.%0*llu"
+#define FLT_FMT_PREC2 FLT_FMT_PREC
+#define FLT_FMT_ARGS(x)                                                       \
+    wc_bench_sign(x), wc_bench_ipart((x), 9), wc_bench_fpart((x), 9)
+#define FLT_FMT_PREC_ARGS(p, x)                                               \
+    wc_bench_sign(x), wc_bench_ipart((x), (p)), (p), wc_bench_fpart((x), (p))
+#define FLT_FMT_PREC2_ARGS(w, p, x) FLT_FMT_PREC_ARGS(p, x)
+
+#elif defined(WOLFSSL_NO_FLOAT_FMT)
     #define FLT_FMT "%0ld,%09lu"
     #define FLT_FMT_PREC "%0ld.%0*lu"
     #define FLT_FMT_PREC2 FLT_FMT_PREC
@@ -501,7 +729,23 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
     #define FLT_FMT_ARGS(x) x
     #define FLT_FMT_PREC_ARGS(p, x) p, x
     #define FLT_FMT_PREC2_ARGS(w, p, x) w, p, x
-#endif /* WOLFSSL_NO_FLOAT_FMT */
+#endif /* WC_BENCH_INT_ONLY / WOLFSSL_NO_FLOAT_FMT */
+
+#ifndef WC_BENCH_INT_ONLY
+    /* Unchanged userspace path: bench_real_t is double and every operation
+     * below is spelled exactly as it was before the integer path existed, so
+     * userspace output is bit for bit what it always was. */
+    typedef double bench_real_t;
+    #define WC_BENCH_R(x)          ((double)(x))
+    #define WC_BENCH_RDIV(a, b)    ((a) / (b))
+    #define WC_BENCH_RDIVI(a, k)   ((a) / (k))
+    #define WC_BENCH_RMULI(a, k)   ((a) * (k))
+    #define WC_BENCH_RMUL(a, b)    ((a) * (b))
+    #define WC_BENCH_IDIV(n, d)    ((double)(n) / (double)(d))
+    #define WC_BENCH_PERSEC(b, t)  ((1 / (t)) * (b))
+    #define WC_BENCH_RSQRT(x)      wc_sqroot(x)
+    #define WC_BENCH_ONE           ((double)1.0F)
+#endif
 
 #ifdef WOLFSSL_ESPIDF
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
@@ -1611,17 +1855,17 @@ static const char* bench_result_words3[][5] = {
             " %s = " FLT_FMT_PREC2 STATS_CLAUSE_SEPARATOR,                     \
             bench_result_words1[lng_index][2],                                 \
             FLT_FMT_PREC2_ARGS(6, 2, count == 0 ? 0 :                          \
-            (double)total_cycles / ((word64)count*(s))))
+            WC_BENCH_IDIV(total_cycles, (word64)count*(s))))
     #define SHOW_CYCLES_OPS(b, n)                                              \
         (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b),                    \
             " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
             FLT_FMT_PREC2_ARGS(10, 1, count == 0 ? 0 :                         \
-            (double)total_cycles / (word64)count),                             \
+            WC_BENCH_IDIV(total_cycles, (word64)count)),                       \
             bench_result_words1[lng_index][3])
     #define SHOW_CYCLES_CSV(b, n, s)                                           \
         (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), FLT_FMT_PREC ","   \
             STATS_CLAUSE_SEPARATOR, FLT_FMT_PREC_ARGS(6, count == 0 ? 0 :      \
-            (double)total_cycles / ((word64)count*(s))))
+            WC_BENCH_IDIV(total_cycles, (word64)count*(s))))
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
     #include <sys/syscall.h>
@@ -1663,17 +1907,17 @@ static const char* bench_result_words3[][5] = {
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                        \
             " %s = " FLT_FMT_PREC2 STATS_CLAUSE_SEPARATOR,                     \
         bench_result_words1[lng_index][2],                                     \
-                        FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles /        \
-                            (count*s)))
+                        FLT_FMT_PREC2_ARGS(6, 2,                               \
+                            WC_BENCH_IDIV(total_cycles, (count)*(s))))
     #define SHOW_CYCLES_OPS(b, n)                                              \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                        \
             " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
-            FLT_FMT_PREC2_ARGS(10, 1, (double)total_cycles / (count)),         \
+            FLT_FMT_PREC2_ARGS(10, 1, WC_BENCH_IDIV(total_cycles, count)),     \
             bench_result_words1[lng_index][3]);
     #define SHOW_CYCLES_CSV(b, n, s)                                           \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ","       \
-            STATS_CLAUSE_SEPARATOR, FLT_FMT_PREC_ARGS(6, (double)total_cycles  \
-                / (count*s)))
+            STATS_CLAUSE_SEPARATOR,                                            \
+            FLT_FMT_PREC_ARGS(6, WC_BENCH_IDIV(total_cycles, (count)*(s))))
 
 #elif defined(SYNERGY_CYCLE_COUNT)
     #include "hal_data.h"
@@ -1689,15 +1933,15 @@ static const char* bench_result_words3[][5] = {
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                        \
         " %s = " FLT_FMT_PREC2 STATS_CLAUSE_SEPARATOR,                         \
         bench_result_words1[lng_index][2],                                     \
-            FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)))
+            FLT_FMT_PREC2_ARGS(6, 2, WC_BENCH_IDIV(total_cycles, (count)*(s))))
     #define SHOW_CYCLES_OPS(b, n)                                              \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                        \
             " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
-            FLT_FMT_PREC2_ARGS(10, 1, (double)total_cycles / (count)),         \
+            FLT_FMT_PREC2_ARGS(10, 1, WC_BENCH_IDIV(total_cycles, count)),     \
             bench_result_words1[lng_index][3])
     #define SHOW_CYCLES_CSV(b, n, s)                                           \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n",    \
-            FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
+            FLT_FMT_PREC_ARGS(6, WC_BENCH_IDIV(total_cycles, (count)*(s))))
 #elif defined(WOLFSSL_ESPIDF)
     /* TAG for ESP_LOGx() */
     static const char* TAG = "wolfssl_benchmark";
@@ -1763,18 +2007,20 @@ static const char* bench_result_words3[][5] = {
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                \
             " %s = " FLT_FMT_PREC2 "\n",                               \
             bench_result_words1[lng_index][2],                         \
-            FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)) \
+            FLT_FMT_PREC2_ARGS(6, 2,                                   \
+                WC_BENCH_IDIV(total_cycles, (count)*(s)))              \
         )
     #define SHOW_ESP_CYCLES_OPS(b, n)                                  \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                \
             " " FLT_FMT_PREC2 " %s\n",                                 \
-            FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count)),  \
+            FLT_FMT_PREC2_ARGS(6, 2,                                   \
+                WC_BENCH_IDIV(total_cycles, count)),                   \
             bench_result_words1[lng_index][3]                          \
         )
 
     #define SHOW_ESP_CYCLES_CSV(b, n, s) \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n", \
-            FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
+            FLT_FMT_PREC_ARGS(6, WC_BENCH_IDIV(total_cycles, (count)*(s))))
 
     #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
         /* 64 bit, unisgned, absolute difference
@@ -2033,17 +2279,17 @@ static const char* bench_result_words3[][5] = {
             " %s = " FLT_FMT_PREC2 STATS_CLAUSE_SEPARATOR,                     \
             bench_result_words1[lng_index][2],                                 \
             FLT_FMT_PREC2_ARGS(6, 2, count == 0 ? 0 :                          \
-            (double)total_cycles / ((word64)count*(s))))
+            WC_BENCH_IDIV(total_cycles, (word64)count*(s))))
     #define SHOW_CYCLES_OPS(b, n)                                              \
         (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b),                    \
             " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
             FLT_FMT_PREC2_ARGS(10, 1, count == 0 ? 0 :                         \
-            (double)total_cycles / (word64)count),                             \
+            WC_BENCH_IDIV(total_cycles, (word64)count)),                       \
             bench_result_words1[lng_index][3])
     #define SHOW_CYCLES_CSV(b, n, s)                                           \
         (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), FLT_FMT_PREC ","   \
             STATS_CLAUSE_SEPARATOR, FLT_FMT_PREC_ARGS(6, count == 0 ? 0 :      \
-            (double)total_cycles / ((word64)count*(s))))
+            WC_BENCH_IDIV(total_cycles, (word64)count*(s))))
     word64 tick_freq = 0;
     word64 actual_freq = 0;
 
@@ -2092,7 +2338,7 @@ static const char* bench_result_words3[][5] = {
 #ifdef WOLFSSL_CURRTIME_REMAP
     #define current_time WOLFSSL_CURRTIME_REMAP
 #else
-    double current_time(int reset);
+    bench_real_t current_time(int reset);
 #endif
 
 #ifdef LINUX_RUSAGE_UTIME
@@ -2318,7 +2564,7 @@ static const char* bench_result_words2[][6] = {
 
 /* maximum runtime for each benchmark */
 #ifndef BENCH_MIN_RUNTIME_SEC
-    #define BENCH_MIN_RUNTIME_SEC   (double)1.0F
+    #define BENCH_MIN_RUNTIME_SEC   WC_BENCH_ONE
 #endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
@@ -2572,7 +2818,7 @@ typedef enum bench_stat_type {
         struct bench_stats* prev;
         char algo[BENCH_MAX_NAME_SZ+1]; /* may not be static, so make copy */
         const char* desc;
-        double perfsec;
+        bench_real_t perfsec;
         int strength;
         int useDeviceID;
         int finishCount;
@@ -2592,7 +2838,7 @@ typedef enum bench_stat_type {
 
     static bench_stats_t* bench_stats_add(bench_stat_type_t type,
         const char* algo, int strength, const char* desc, int useDeviceID,
-        double perfsec, const char* perftype, int ret,
+        bench_real_t perfsec, const char* perftype, int ret,
         long heapAllocs, long heapBytes, long stackBytes)
     {
         bench_stats_t* bstat = NULL;
@@ -2745,7 +2991,7 @@ static WC_INLINE void bench_stats_init(void)
     INIT_CYCLE_COUNTER
 }
 
-static WC_INLINE void bench_stats_start(int* count, double* start)
+static WC_INLINE void bench_stats_start(int* count, bench_real_t* start)
 {
     *count = 0;
     *start = current_time(1);
@@ -2800,8 +3046,16 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
         bench_stats_start(count, start);                                       \
     } while (0)
 #elif defined(WOLFSSL_LINUXKM)
-    /* we're using floating point to figure the statistics, so we need to
-     * FPU save+lock even without SIMD.
+    /* The statistics no longer need this: with WC_BENCH_INT_ONLY they are
+     * computed entirely in 64-bit integers, and the object contains no
+     * FP/SIMD instruction at all.  What is still open here is the benchmarked
+     * crypto itself, which is why the bracket is left in place -- but note
+     * that it holds kernel_fpu_begin() across a whole benchmark run, which is
+     * at least BENCH_MIN_RUNTIME_SEC of work plus allocation and printk with
+     * preemption disabled.  This branch is also x86-only: arm64 has no
+     * kernel_fpu_begin(), it has kernel_neon_begin().  Builds that define
+     * WOLFSSL_USE_SAVE_VECTOR_REGISTERS take the branch above instead and do
+     * not reach this.
      */
     #define bench_stats_start(count, start) do {                               \
         kernel_fpu_begin();                                                    \
@@ -2809,10 +3063,10 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
     } while (0)
 #endif
 
-static WC_INLINE int bench_stats_check(double start)
+static WC_INLINE int bench_stats_check(bench_real_t start)
 {
     int ret = 0;
-    double this_current_time = 0.0;
+    bench_real_t this_current_time = 0;
     this_current_time = current_time(0); /* get the timestamp, no reset */
 
 #if defined(DEBUG_WOLFSSL_BENCHMARK_TIMING) && defined(WOLFSSL_ESPIDF)
@@ -2832,7 +3086,7 @@ static WC_INLINE int bench_stats_check(double start)
 }
 
 /* return text for units and scale the value of blocks as needed */
-static const char* get_blocktype(double* blocks)
+static const char* get_blocktype(bench_real_t* blocks)
 {
     const char* rt;
 
@@ -2840,19 +3094,19 @@ static const char* get_blocktype(double* blocks)
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB))
     #undef  WOLFSSL_FIXED_UNIT
     #define WOLFSSL_FIXED_UNIT "GB"
-    *blocks /= (1024UL * 1024UL * 1024UL);
+    *blocks = WC_BENCH_RDIVI(*blocks, 1024UL * 1024UL * 1024UL);
     rt = "GiB";
 #elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) || \
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB))
     #undef  WOLFSSL_FIXED_UNIT
     #define WOLFSSL_FIXED_UNIT "MB"
-    *blocks /= (1024UL * 1024UL);
+    *blocks = WC_BENCH_RDIVI(*blocks, 1024UL * 1024UL);
     rt = "MiB";
 #elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_K) || \
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
     #undef  WOLFSSL_FIXED_UNIT
     #define WOLFSSL_FIXED_UNIT "KB"
-    *blocks /= 1024;
+    *blocks = WC_BENCH_RDIVI(*blocks, 1024);
     rt = "KiB";
 #elif  defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)
     #undef  WOLFSSL_FIXED_UNIT
@@ -2862,12 +3116,12 @@ static const char* get_blocktype(double* blocks)
 #else
     /* If no user-specified, auto-scale each metric (results vary).
      * Determine if we should show as KB or MB or bytes. No GiB here. */
-    if (*blocks > (1024UL * 1024UL)) {
-        *blocks /= (1024UL * 1024UL);
+    if (*blocks > WC_BENCH_R(1024UL * 1024UL)) {
+        *blocks = WC_BENCH_RDIVI(*blocks, 1024UL * 1024UL);
         rt = "MiB";
     }
-    else if (*blocks > 1024) {
-        *blocks /= 1024;
+    else if (*blocks > WC_BENCH_R(1024)) {
+        *blocks = WC_BENCH_RDIVI(*blocks, 1024);
         rt = "KiB";
     }
     else {
@@ -2879,21 +3133,21 @@ static const char* get_blocktype(double* blocks)
 }
 
 /* return text for units and scale the value of blocks as needed for base2 */
-static const char* get_blocktype_base10(double* blocks)
+static const char* get_blocktype_base10(bench_real_t* blocks)
 {
     const char* rt;
 
 #if (  defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G) || \
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB))
-    *blocks /= (1000UL * 1000UL * 1000UL);
+    *blocks = WC_BENCH_RDIVI(*blocks, 1000UL * 1000UL * 1000UL);
     rt = "GB";
 #elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) || \
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB))
-    *blocks /= (1000UL * 1000UL);
+    *blocks = WC_BENCH_RDIVI(*blocks, 1000UL * 1000UL);
     rt = "MB";
 #elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_K) || \
        defined(WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
-    *blocks /= (1000UL);
+    *blocks = WC_BENCH_RDIVI(*blocks, 1000UL);
     rt = "KB";
 #elif     defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)
     (void)(*blocks); /* no adjustment, just appease compiler */
@@ -2901,12 +3155,12 @@ static const char* get_blocktype_base10(double* blocks)
 #else
     /* If not user-specified, auto-scale each metric (results vary).
      * Determine if we should show as KB or MB or bytes */
-    if (*blocks > (1000UL * 1000UL)) {
-        *blocks /= (1000UL * 1000UL);
+    if (*blocks > WC_BENCH_R(1000UL * 1000UL)) {
+        *blocks = WC_BENCH_RDIVI(*blocks, 1000UL * 1000UL);
         rt = "MB";
     }
-    else if (*blocks > 1000) {
-        *blocks /= 1000; /* make KB */
+    else if (*blocks > WC_BENCH_R(1000)) {
+        *blocks = WC_BENCH_RDIVI(*blocks, 1000); /* make KB */
         rt = "KB";
     }
     else {
@@ -2918,6 +3172,7 @@ static const char* get_blocktype_base10(double* blocks)
 }
 
 #ifdef MULTI_VALUE_STATISTICS
+#ifndef WC_BENCH_INT_ONLY
 static double wc_sqroot(double in)
 {
     /* do 32 iterations for the sqroot */
@@ -2932,22 +3187,23 @@ static double wc_sqroot(double in)
 
     return root;
 }
+#endif /* !WC_BENCH_INT_ONLY */
 
-static void bench_multi_value_stats(double max, double min, double sum,
-        double squareSum, int runs)
+static void bench_multi_value_stats(bench_real_t max, bench_real_t min,
+        bench_real_t sum, bench_real_t squareSum, int runs)
 {
-    double mean = 0;
-    double sd   = 0;
+    bench_real_t mean = 0;
+    bench_real_t sd   = 0;
     char   msg[WC_BENCH_MAX_LINE_LEN];
     const char** word = bench_result_words3[lng_index];
 
     XMEMSET(msg, 0, sizeof(msg));
 
-    mean = sum / runs;
+    mean = WC_BENCH_RDIVI(sum, runs);
 
     /* Calculating standard deviation */
-    sd = (squareSum / runs) - (mean * mean);
-    sd = wc_sqroot(sd);
+    sd = WC_BENCH_RDIVI(squareSum, runs) - WC_BENCH_RMUL(mean, mean);
+    sd = WC_BENCH_RSQRT(sd);
 
     if (csv_format == 1) {
         (void)XSNPRINTF(msg, sizeof(msg), FLT_FMT_PREC2 ","
@@ -2981,9 +3237,9 @@ static void bench_multi_value_stats(double max, double min, double sum,
  * except for AES direct that operates on WC_AES_BLOCK_SIZE blocks */
 static void bench_stats_sym_finish(const char* desc, int useDeviceID,
                                    int count, word32 countSz,
-                                   double start, int ret)
+                                   bench_real_t start, int ret)
 {
-    double total, persec = 0, blocks = (double)count;
+    bench_real_t total, persec = 0, blocks = WC_BENCH_R(count);
     const char* blockType;
 #ifdef WC_BENCH_HEAP_TRACKING
     long heapAllocs = 0;
@@ -3012,7 +3268,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #endif
 
     /* calculate actual bytes */
-    blocks *= countSz;
+    blocks = WC_BENCH_RMULI(blocks, countSz);
     if (csv_format == 1) {
         /* only print out header once */
         if (sym_header_printed == 0) {
@@ -3099,7 +3355,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
     /* calculate blocks per second */
     if (total > 0) {
-        persec = (1 / total) * blocks;
+        persec = WC_BENCH_PERSEC(blocks, total);
     }
 
     bench_heap_checkpoint_measure(
@@ -3284,9 +3540,9 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
  * requiring BENCH_ASYM to be defined.  Used for benchmarks like RNG init/free
  * that measure operation counts rather than byte throughput. */
 static void bench_stats_ops_finish(const char* algo, int strength,
-    const char* desc, int count, double start, int ret)
+    const char* desc, int count, bench_real_t start, int ret)
 {
-    double total, each = 0, opsSec, milliEach;
+    bench_real_t total, each = 0, opsSec, milliEach;
     const char **word = bench_result_words2[lng_index];
     char msg[256];
 #ifdef BENCH_MICROSECOND
@@ -3306,16 +3562,16 @@ static void bench_stats_ops_finish(const char* algo, int strength,
 #endif
 
     if (count > 0)
-        each = total / count;
+        each = WC_BENCH_RDIVI(total, count);
     if (total > 0)
-        opsSec = count / total;
+        opsSec = WC_BENCH_RDIV(WC_BENCH_R(count), total);
     else
         opsSec = 0;
 
 #ifdef BENCH_MICROSECOND
-    milliEach = each / 1000;
+    milliEach = WC_BENCH_RDIVI(each, 1000);
 #else
-    milliEach = each * 1000;
+    milliEach = WC_BENCH_RMULI(each, 1000);
 #endif
 
     SLEEP_ON_ERROR(ret);
@@ -3389,9 +3645,9 @@ static void bench_stats_ops_finish(const char* algo, int strength,
       !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
-    double start, int ret)
+    bench_real_t start, int ret)
 {
-    double total, each = 0, opsSec, milliEach;
+    bench_real_t total, each = 0, opsSec, milliEach;
     const char **word = bench_result_words2[lng_index];
 #ifdef WC_BENCH_TRACK_STATS
     const char* kOpsSec = "Ops/Sec";
@@ -3423,7 +3679,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 
     /* some sanity checks on the final numbers */
     if (count > 0) {
-        each  = total / count; /* per second  */
+        each  = WC_BENCH_RDIVI(total, count); /* per second  */
     }
     else {
         count = 0;
@@ -3431,16 +3687,16 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     }
 
     if (total > 0) {
-        opsSec = count / total;    /* ops second */
+        opsSec = WC_BENCH_RDIV(WC_BENCH_R(count), total); /* ops second */
     }
     else {
         opsSec = 0;
     }
 
 #ifdef BENCH_MICROSECOND
-    milliEach = each / 1000;   /* milliseconds */
+    milliEach = WC_BENCH_RDIVI(each, 1000);   /* milliseconds */
 #else
-    milliEach = each * 1000;   /* milliseconds */
+    milliEach = WC_BENCH_RMULI(each, 1000);   /* milliseconds */
 #endif
 
     bench_heap_checkpoint_measure(
@@ -3531,7 +3787,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                         FLT_FMT_PREC_ARGS(digits, opsSec),
                         count, FLT_FMT_ARGS(total), (unsigned long)total_cycles,
                         FLT_FMT_PREC_ARGS(6,
-                            (double)total_cycles / (double)count));
+                            WC_BENCH_IDIV(total_cycles, count)));
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                         "asym,%s,%d,%s%s," FLT_FMT_PREC ",%d,"
@@ -3547,8 +3803,8 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                         STATS_CLAUSE_SEPARATOR,
                         algo, strength, desc, desc_extra,
                         FLT_FMT_PREC_ARGS(digits, opsSec),
-                        FLT_FMT_PREC_ARGS(2, (double)total_cycles /
-                                             (double)count));
+                        FLT_FMT_PREC_ARGS(2,
+                            WC_BENCH_IDIV(total_cycles, count)));
     #else
         (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s%s,"
                         FLT_FMT_PREC "," STATS_CLAUSE_SEPARATOR,
@@ -3588,8 +3844,8 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                         BENCH_DEVID_GET_NAME(useDeviceID), count, word[0],
                         FLT_FMT_PREC2_ARGS(5, 3, total), word[1],
                         FLT_FMT_PREC_ARGS(digits, opsSec), word[3],
-                        FLT_FMT_PREC2_ARGS(10, 1, (double)total_cycles /
-                                                  (word64)count), word[4]);
+                        FLT_FMT_PREC2_ARGS(10, 1,
+                            WC_BENCH_IDIV(total_cycles, count)), word[4]);
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                         "%-6s %5d %8s%-2s %s %6d %s " FLT_FMT_PREC2 " %s, "
@@ -3656,7 +3912,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                         FLT_FMT_PREC_ARGS(digits, opsSec),
                         count, FLT_FMT_ARGS(total), (unsigned long)total_cycles,
                         FLT_FMT_PREC_ARGS(6,
-                            (double)total_cycles / (double)count));
+                            WC_BENCH_IDIV(total_cycles, count)));
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                         "asym,%s,%d,%s%s," FLT_FMT_PREC "," FLT_FMT_PREC ",%d,"
@@ -3779,7 +4035,8 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 } /* bench_stats_asym_finish_ex */
 
 static void bench_stats_asym_finish(const char* algo, int strength,
-    const char* desc, int useDeviceID, int count, double start, int ret)
+    const char* desc, int useDeviceID, int count, bench_real_t start,
+    int ret)
 {
     bench_stats_asym_finish_ex(algo, strength, desc, "", useDeviceID, count,
                                start, ret);
@@ -5287,7 +5544,7 @@ int benchmark_test(void *args)
 void bench_rng(void)
 {
     int    ret, i, count;
-    double start;
+    bench_real_t  start;
     long   pos, len, remain;
     WC_RNG myrng;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -5372,7 +5629,7 @@ exit_rng:
 void bench_rng_sha512(void)
 {
     int    ret, i, count;
-    double start;
+    bench_real_t  start;
     long   pos, len, remain;
     WC_RNG myrng;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -5447,7 +5704,7 @@ exit_rng_sha512:
 void bench_rng_init(void)
 {
     int    ret, count;
-    double start;
+    bench_real_t  start;
     WC_RNG myrng;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -5503,7 +5760,7 @@ exit_rng_init:
 void bench_rng_sha512_init(void)
 {
     int    ret, count;
-    double start;
+    bench_real_t  start;
     WC_RNG myrng;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -5701,7 +5958,7 @@ static void bench_aescbc_internal(int useDeviceID,
     int    ret = 0, i, count = 0, times, pending = 0;
     WC_DECLARE_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                      sizeof(Aes), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_prepare();
@@ -5886,7 +6143,7 @@ static void bench_aesgcm_internal(int useDeviceID,
 #endif
     const byte* in = bench_plain;
     byte* out = bench_cipher;
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -6087,7 +6344,7 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
     WC_DECLARE_ARRAY(dec, Aes, BENCH_MAX_PENDING,
                      sizeof(Aes), HEAP_HINT);
 #endif
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
@@ -6307,7 +6564,7 @@ void bench_gmac(int useDeviceID)
 {
     int ret = 0, times, count = 0;
     Gmac gmac;
-    double start;
+    bench_real_t  start;
     byte tag[AES_AUTH_TAG_SZ];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -6388,7 +6645,7 @@ static void bench_aesecb_internal(int useDeviceID,
     int    ret = 0, i, count = 0, times, pending = 0;
     WC_DECLARE_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                      sizeof(Aes), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef HAVE_FIPS
     const word32 benchSz = WC_AES_BLOCK_SIZE;
@@ -6557,7 +6814,7 @@ static void bench_aescfb_internal(const byte* key,
                                   const char* label_enc, const char* label_dec)
 {
     Aes    enc;
-    double start;
+    bench_real_t  start;
     int    i, ret, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -6660,7 +6917,7 @@ static void bench_aesofb_internal(const byte* key,
                                   const char* label_enc, const char* label_dec)
 {
     Aes    enc;
-    double start;
+    bench_real_t  start;
     int    i, ret, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -6760,7 +7017,7 @@ void bench_aesxts(void)
 {
 #ifdef WOLFSSL_AES_128
     WC_DECLARE_VAR(aes, XtsAes, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count, ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -6862,7 +7119,7 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
                                   int useDeviceID)
 {
     Aes    enc;
-    double start;
+    bench_real_t  start;
     int    i, count, ret = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     const byte* in = bench_cipher;
@@ -6928,7 +7185,7 @@ void bench_aesccm(int useDeviceID)
 {
     Aes    enc;
     int    enc_inited = 0;
-    double start;
+    bench_real_t  start;
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -7031,7 +7288,7 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
     byte nonce[WC_AES_BLOCK_SIZE];
     byte siv[WC_AES_BLOCK_SIZE];
     int count = 0;
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_prepare();
@@ -7105,7 +7362,7 @@ static void bench_aesgcmsiv_internal(const byte* key, word32 keySz, const char*
     byte additional[AES_AUTH_ADD_SZ];
     byte tag[WC_AES_BLOCK_SIZE];
     int count = 0;
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     XMEMSET(nonce, 0, sizeof(nonce));
@@ -7182,7 +7439,7 @@ void bench_poly1305(void)
 {
     Poly1305 enc;
     byte     mac[16];
-    double   start;
+    bench_real_t    start;
     int      ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -7249,7 +7506,7 @@ void bench_poly1305(void)
 void bench_camellia(void)
 {
     wc_Camellia cam;
-    double   start;
+    bench_real_t    start;
     int      ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -7290,7 +7547,7 @@ void bench_camellia(void)
 void bench_sm4_cbc(void)
 {
     wc_Sm4 sm4;
-    double start;
+    bench_real_t  start;
     int    ret;
     int    i;
     int    count;
@@ -7361,7 +7618,7 @@ void bench_sm4_cbc(void)
 void bench_sm4_gcm(void)
 {
     wc_Sm4 sm4;
-    double start;
+    bench_real_t  start;
     int    ret;
     int    i;
     int    count;
@@ -7442,7 +7699,7 @@ exit:
 void bench_sm4_ccm(void)
 {
     wc_Sm4 enc;
-    double start;
+    bench_real_t  start;
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -7524,7 +7781,7 @@ void bench_des(int useDeviceID)
     int    ret = 0, i, count = 0, times, pending = 0;
     WC_DECLARE_ARRAY(enc, Des3, BENCH_MAX_PENDING,
                      sizeof(Des3), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_prepare();
@@ -7598,7 +7855,7 @@ void bench_arc4(int useDeviceID)
     int    ret = 0, i, count = 0, times, pending = 0;
     WC_DECLARE_ARRAY(enc, Arc4, BENCH_MAX_PENDING,
                      sizeof(Arc4), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_prepare();
@@ -7669,7 +7926,7 @@ exit:
 void bench_chacha(void)
 {
     WC_DECLARE_VAR(enc, ChaCha, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -7742,7 +7999,7 @@ exit:
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 void bench_chacha20_poly1305_aead(void)
 {
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count;
     ChaCha   chacha;   /* keyed once, reused per record: the TLS-record path */
     Poly1305 poly;
@@ -7953,7 +8210,7 @@ void bench_ascon_aead(void)
 {
 #define ASCON_AD (byte*)"ADADADADAD"
 #define ASCON_AD_SZ XSTR_SIZEOF(ASCON_AD)
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count;
     WC_DECLARE_VAR(authTag, byte, ASCON_AEAD128_TAG_SZ, HEAP_HINT);
     WC_DECLARE_VAR(enc, wc_AsconAEAD128, 1, HEAP_HINT);
@@ -8016,7 +8273,7 @@ void bench_md5(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Md5, BENCH_MAX_PENDING,
                      sizeof(wc_Md5), HEAP_HINT);
-    double start = 0;
+    bench_real_t  start = 0;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8134,7 +8391,7 @@ void bench_sha(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha, BENCH_MAX_PENDING,
                      sizeof(wc_Sha), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8250,7 +8507,7 @@ void bench_sha224(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha224, BENCH_MAX_PENDING,
                      sizeof(wc_Sha224), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8362,7 +8619,7 @@ void bench_sha256(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha256, BENCH_MAX_PENDING,
                      sizeof(wc_Sha256), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8475,7 +8732,7 @@ void bench_sha384(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha384, BENCH_MAX_PENDING,
                      sizeof(wc_Sha384), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8587,7 +8844,7 @@ void bench_sha512(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha512, BENCH_MAX_PENDING,
                      sizeof(wc_Sha512), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8699,7 +8956,7 @@ void bench_sha512_224(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha512_224, BENCH_MAX_PENDING,
                      sizeof(wc_Sha512_224), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8812,7 +9069,7 @@ void bench_sha512_256(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha512_256, BENCH_MAX_PENDING,
                      sizeof(wc_Sha512_256), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -8928,7 +9185,7 @@ void bench_sha3_224(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha3, BENCH_MAX_PENDING,
                      sizeof(wc_Sha3), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -9040,7 +9297,7 @@ void bench_sha3_256(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha3, BENCH_MAX_PENDING,
                      sizeof(wc_Sha3), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     DECLARE_MULTI_VALUE_STATS_VARS()
     int    ret = 0, i, count = 0, times, pending = 0;
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -9152,7 +9409,7 @@ void bench_sha3_384(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha3, BENCH_MAX_PENDING,
                      sizeof(wc_Sha3), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -9264,7 +9521,7 @@ void bench_sha3_512(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sha3, BENCH_MAX_PENDING,
                      sizeof(wc_Sha3), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -9376,7 +9633,7 @@ void bench_shake128(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Shake, BENCH_MAX_PENDING,
                      sizeof(wc_Shake), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -9495,7 +9752,7 @@ void bench_shake256(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Shake, BENCH_MAX_PENDING,
                      sizeof(wc_Shake), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
@@ -9613,7 +9870,7 @@ static void bench_kmac_helper(int is256, const char* outMsg)
     wc_Kmac kmac;
     byte    key[32];
     byte    digest[32];
-    double  start;
+    bench_real_t   start;
     int     ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -9720,7 +9977,7 @@ static void bench_cshake_helper(int is256, const char* outMsg)
         'g', 'n', 'a', 't', 'u', 'r', 'e'
     };
     byte   digest[32];
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -9820,7 +10077,7 @@ void bench_sm3(int useDeviceID)
 {
     WC_DECLARE_ARRAY(hash, wc_Sm3, BENCH_MAX_PENDING,
                      sizeof(wc_Sm3), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SM3_DIGEST_SIZE,
@@ -9930,7 +10187,7 @@ void bench_ripemd(void)
 {
     RipeMd hash;
     byte   digest[RIPEMD_DIGEST_SIZE];
-    double start;
+    bench_real_t  start;
     int    i, count, ret = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -10009,7 +10266,7 @@ void bench_blake2b(void)
 {
     Blake2b b2b;
     byte    digest[64];
-    double  start;
+    bench_real_t   start;
     int     ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -10084,7 +10341,7 @@ void bench_blake2s(void)
 {
     Blake2s b2s;
     byte    digest[32];
-    double  start;
+    bench_real_t   start;
     int     ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -10159,7 +10416,7 @@ void bench_ascon_hash(void)
 {
     wc_AsconHash256 ascon;
     byte    digest[ASCON_HASH256_SZ];
-    double  start;
+    bench_real_t   start;
     int     ret = 0, i, count;
 
     bench_stats_prepare();
@@ -10223,7 +10480,7 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
     Cmac    cmac;
     byte    digest[WC_AES_BLOCK_SIZE];
     word32  digestSz = sizeof(digest);
-    double  start;
+    bench_real_t   start;
     int     ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef WOLFSSL_SECO_CAAM
@@ -10315,7 +10572,7 @@ void bench_cmac(int useDeviceID)
 void bench_scrypt(void)
 {
     byte   derived[64];
-    double start;
+    bench_real_t  start;
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -10356,7 +10613,7 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
 {
     WC_DECLARE_ARRAY(hmac, Hmac, BENCH_MAX_PENDING,
                      sizeof(Hmac), HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -10646,7 +10903,7 @@ void bench_hmac_sha3_512(int useDeviceID)
 #ifndef NO_PWDBASED
 void bench_pbkdf2(void)
 {
-    double start;
+    bench_real_t  start;
     int    ret = 0, count = 0;
     const char* passwd32 = "passwordpasswordpasswordpassword";
     WOLFSSL_SMALL_STACK_STATIC const byte salt32[] = {
@@ -10685,7 +10942,7 @@ void bench_pbkdf2(void)
 #ifdef WOLFSSL_SIPHASH
 void bench_siphash(void)
 {
-    double start;
+    bench_real_t  start;
     int    ret = 0, count;
     const char* passwd16 = "passwordpassword";
     byte out[16];
@@ -10739,7 +10996,7 @@ void bench_siphash(void)
 #ifdef WC_SRTP_KDF
 void bench_srtpkdf(void)
 {
-    double start;
+    bench_real_t  start;
     int count;
     int ret = 0;
     byte keyE[32];
@@ -10855,7 +11112,7 @@ static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
 {
     WC_DECLARE_ARRAY(genKey, RsaKey, BENCH_MAX_PENDING,
                      sizeof(RsaKey), HEAP_HINT);
-    double start = 0;
+    bench_real_t  start = 0;
     int    ret = 0, i, count = 0, times, pending = 0;
     const long rsa_e_val = WC_RSA_EXPONENT;
     const char**desc = bench_desc_words[lng_index];
@@ -11082,7 +11339,7 @@ static void bench_rsa_helper(int useDeviceID,
     const char* messageStr = TEST_STRING;
     const int   len = (int)TEST_STRING_SZ;
 #endif
-    double      start = 0.0F;
+    bench_real_t       start = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
@@ -11426,7 +11683,7 @@ void bench_rsa_pad(void)
             int    devIdArg = useDeviceID ? devId : INVALID_DEVID;
             RsaKey key;
             int    ret, count, times, keyInit = 0;
-            double start = 0.0;
+            bench_real_t  start = 0;
             word32 outLen, idx;
 
         #ifdef NO_SW_BENCH
@@ -11707,7 +11964,7 @@ void bench_dh(int useDeviceID)
     int    ret = 0, i;
     int    count = 0, times, pending = 0;
     const byte* tmp = NULL;
-    double start = 0.0F;
+    bench_real_t  start = 0;
     WC_DECLARE_ARRAY(dhKey, DhKey, BENCH_MAX_PENDING,
                      sizeof(DhKey), HEAP_HINT);
     int    dhKeySz = BENCH_DH_KEY_SIZE * 8; /* used in printf */
@@ -11968,7 +12225,7 @@ static void bench_mlkem_keygen(int type, const char* name, int keySize,
 {
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
     int ret = 0, times, count, pending = 0;
-    double start;
+    bench_real_t  start;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -12022,7 +12279,7 @@ static void bench_mlkem_encap(int type, const char* name, int keySize,
     MlKemKey* key1, MlKemKey* key2)
 {
     int ret = 0, times, count, pending = 0;
-    double start;
+    bench_real_t  start;
     const char**desc = bench_desc_words[lng_index];
     WC_DECLARE_VAR(ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(ss, byte, WC_ML_KEM_SS_SZ, HEAP_HINT);
@@ -12221,7 +12478,7 @@ static void bench_frodokem_keygen(int type, const char* name, int keySize,
 {
 #ifndef WOLFSSL_FRODOKEM_NO_MAKE_KEY
     int ret = 0, times, count, pending = 0;
-    double start;
+    bench_real_t  start;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -12268,7 +12525,7 @@ static void bench_frodokem_encap(int type, const char* name, int keySize,
     FrodoKemKey* key1, FrodoKemKey* key2)
 {
     int ret = 0, times, count, pending = 0;
-    double start;
+    bench_real_t  start;
     const char**desc = bench_desc_words[lng_index];
     WC_DECLARE_VAR(ct, byte, FRODOKEM_MAX_CIPHER_TEXT_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(ss, byte, FRODOKEM_MAX_LENSEC, HEAP_HINT);
@@ -12662,7 +12919,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
     word32      pubLen = HSS_MAX_PUBLIC_KEY_LEN;
     int         times = 0;
     int         count = 0;
-    double      start = 0.0F;
+    bench_real_t       start = 0;
     int         levels;
     int         height;
     int         winternitz;
@@ -12780,7 +13037,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     int          loaded = 0;
     int          times = 0;
     int          count = 0;
-    double       start = 0.0F;
+    bench_real_t        start = 0;
     const char * str = wc_LmsKey_ParmToStr(parm);
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -13249,7 +13506,7 @@ static void bench_xmss_sign_verify(const char * params)
     word32          sigSz = 0;
     int             times = 0;
     int             count = 0;
-    double          start = 0.0F;
+    bench_real_t           start = 0;
 
     bench_stats_prepare();
 
@@ -13717,7 +13974,7 @@ void bench_xmss(int hash)
 void bench_slhdsa(int param)
 {
     int ret = 0, count = 0;
-    double start = 0;
+    bench_real_t  start = 0;
     WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT);
@@ -14029,7 +14286,7 @@ void bench_eccMakeKey(int useDeviceID, int curveId)
     WC_DECLARE_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
     char name[BENCH_ECC_NAME_SZ];
-    double start = 0;
+    bench_real_t  start = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -14117,7 +14374,7 @@ void bench_ecc(int useDeviceID, int curveId)
 #endif
 
     word32 x[BENCH_MAX_PENDING];
-    double start = 0;
+    bench_real_t  start = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -14468,7 +14725,7 @@ void bench_eccEncrypt(int curveId)
     int     keySize;
     word32  bench_plainSz = bench_size;
     int     ret, i, count;
-    double start;
+    bench_real_t  start;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -14700,7 +14957,7 @@ static void bench_sm2_MakeKey(int useDeviceID)
     WC_DECLARE_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
     char name[BENCH_ECC_NAME_SZ];
-    double start = 0;
+    bench_real_t  start = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -14784,7 +15041,7 @@ void bench_sm2(int useDeviceID)
 #endif
 #endif
     word32 x[BENCH_MAX_PENDING];
-    double start = 0;
+    bench_real_t  start = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
@@ -15039,7 +15296,7 @@ exit:
 void bench_curve25519KeyGen(int useDeviceID)
 {
     curve25519_key genKey;
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -15083,7 +15340,7 @@ void bench_curve25519KeyGen(int useDeviceID)
 void bench_curve25519KeyAgree(int useDeviceID)
 {
     curve25519_key genKey, genKey2;
-    double start;
+    bench_real_t  start;
     int    ret, i, count;
     byte   shared[32];
     const char**desc = bench_desc_words[lng_index];
@@ -15164,7 +15421,7 @@ void bench_ed25519KeyGen(int useDeviceID)
 #endif
 #ifdef HAVE_ED25519_MAKE_KEY
     ed25519_key genKey;
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -15211,7 +15468,7 @@ void bench_ed25519KeySign(int useDeviceID)
     int    ret = 0;
     ed25519_key genKey;
 #ifdef HAVE_ED25519_SIGN
-    double start;
+    bench_real_t  start;
     int    i, count;
     byte   sig[ED25519_SIG_SIZE];
     byte   msg[512];
@@ -15306,7 +15563,7 @@ exit_ed_verify:
 void bench_curve448KeyGen(void)
 {
     curve448_key genKey;
-    double start;
+    bench_real_t  start;
     int    ret = 0, i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -15342,7 +15599,7 @@ void bench_curve448KeyGen(void)
 void bench_curve448KeyAgree(void)
 {
     curve448_key genKey, genKey2;
-    double start;
+    bench_real_t  start;
     int    ret, i, count;
     byte   shared[56];
     const char**desc = bench_desc_words[lng_index];
@@ -15401,7 +15658,7 @@ exit:
 void bench_ed448KeyGen(void)
 {
     ed448_key genKey;
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -15435,7 +15692,7 @@ void bench_ed448KeySign(void)
     int    ret;
     WC_DECLARE_VAR(genKey, ed448_key, 1, HEAP_HINT);
 #ifdef HAVE_ED448_SIGN
-    double start;
+    bench_real_t  start;
     int    i, count;
     byte   sig[ED448_SIG_SIZE];
     byte   msg[512];
@@ -15526,7 +15783,7 @@ exit:
 void bench_eccsiKeyGen(void)
 {
     WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     int    ret;
@@ -15569,7 +15826,7 @@ exit:
 void bench_eccsiPairGen(void)
 {
     WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
@@ -15627,7 +15884,7 @@ exit:
 void bench_eccsiValidate(void)
 {
     WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
@@ -15687,7 +15944,7 @@ exit:
 void bench_eccsi(void)
 {
     WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
@@ -15786,7 +16043,7 @@ exit:
 void bench_sakkeKeyGen(void)
 {
     WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     int    ret;
@@ -15829,7 +16086,7 @@ exit:
 void bench_sakkeRskGen(void)
 {
     WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     ecc_point* rsk;
@@ -15881,7 +16138,7 @@ exit:
 void bench_sakkeValidate(void)
 {
     WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     ecc_point* rsk;
@@ -15935,7 +16192,7 @@ exit:
 void bench_sakke(void)
 {
     WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
-    double start;
+    bench_real_t  start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
     ecc_point* rsk;
@@ -16177,7 +16434,7 @@ void bench_falconKeySign(byte level)
     int    ret = 0;
     WC_DECLARE_VAR(key, falcon_key, 1, HEAP_HINT);
     int key_inited = 0;
-    double start;
+    bench_real_t  start;
     int    i, count;
     WC_DECLARE_VAR(sig, byte, FALCON_MAX_SIG_SIZE, HEAP_HINT);
     #define BENCH_FALCONKEYSIGN_MSG_SIZE 512
@@ -17381,7 +17638,7 @@ static const int sizeof_bench_mldsa_87_sig =
 void bench_mldsaKeySign(byte level)
 {
     int    ret = 0;
-    double start;
+    bench_real_t  start;
     int    i, count;
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY)
     word32 x = 0;
@@ -18111,11 +18368,12 @@ out:
 
 #elif defined(WOLFSSL_LINUXKM)
 
-    double current_time(int reset)
+    bench_real_t current_time(int reset)
     {
         (void)reset;
-        u64 ns = ktime_get_ns();
-        return (double)ns / 1000000000.0;
+        /* microseconds; bench_real_t counts seconds scaled by 10^6, so the
+         * nanosecond clock only needs dividing by 1000. */
+        return (bench_real_t)div_u64(ktime_get_ns(), 1000);
     }
 
 #elif defined(WOLFSSL_BSDKM)
@@ -18155,7 +18413,7 @@ out:
     #include <time.h>
     #include <sys/time.h>
 
-    double current_time(int reset)
+    bench_real_t current_time(int reset)
     {
         struct timespec tv;
 
@@ -18163,7 +18421,19 @@ out:
 
         LIBCALL_CHECK_RET(clock_gettime(CLOCK_REALTIME, &tv));
 
-    #ifdef BENCH_MICROSECOND
+    #if defined(WC_BENCH_INT_ONLY)
+        /* WC_BENCH_INT_ONLY is normally only reached via WOLFSSL_LINUXKM,
+         * which has its own current_time() above.  Defining it by hand in a
+         * userspace build lands here, and exists so the integer path can be
+         * compared against the double path on the same machine. */
+        #ifdef BENCH_MICROSECOND
+        return (bench_real_t)tv.tv_sec * 1000000 * WC_BENCH_FP_SCALE +
+               (bench_real_t)tv.tv_nsec / 1000 * WC_BENCH_FP_SCALE;
+        #else
+        return (bench_real_t)tv.tv_sec * WC_BENCH_FP_SCALE +
+               (bench_real_t)tv.tv_nsec / 1000;
+        #endif
+    #elif defined(BENCH_MICROSECOND)
         return (double)tv.tv_sec * 1000000 + (double)tv.tv_nsec / 1000;
     #else
         return (double)tv.tv_sec + (double)tv.tv_nsec / 1000000000;
