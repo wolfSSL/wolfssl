@@ -7773,9 +7773,12 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
     #define WC_CA_NAMES_MIN_SZ 3
 #endif
 
-/* Push a copy of dn/dnSz onto the list head. */
-int TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
-        const byte* dn, word16 dnSz, void* heap)
+/* Append a copy of dn/dnSz to the list so wire order matches call order.
+ * tail, when not NULL, caches the append point across calls: parsing a
+ * maximum sized extension adds thousands of entries and walking from the
+ * head each time would be quadratic. */
+int TLSX_CertificateAuthorities_Add_ex(CertificateAuthority** head,
+        CertificateAuthority** tail, const byte* dn, word16 dnSz, void* heap)
 {
     CertificateAuthority* node;
     size_t sz;
@@ -7790,11 +7793,26 @@ int TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
     XMEMCPY(node->dn, dn, dnSz);
     node->dnSz = dnSz;
     node->next = NULL;
-    /* Append so wire order matches the order of the Add calls. */
-    while (*head != NULL)
-        head = &(*head)->next;
-    *head = node;
+
+    if ((tail != NULL) && (*tail != NULL)) {
+        (*tail)->next = node;
+    }
+    else {
+        CertificateAuthority** end = head;
+
+        while (*end != NULL)
+            end = &(*end)->next;
+        *end = node;
+    }
+    if (tail != NULL)
+        *tail = node;
     return 0;
+}
+
+int TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
+        const byte* dn, word16 dnSz, void* heap)
+{
+    return TLSX_CertificateAuthorities_Add_ex(head, NULL, dn, dnSz, heap);
 }
 
 void TLSX_CertificateAuthorities_FreeAll(CertificateAuthority* head, void* heap)
@@ -7906,6 +7924,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
                                   word16 length, byte isRequest)
 {
     word16 extLen;
+    CertificateAuthority* tail = NULL;
 
     (void)isRequest;
 
@@ -7928,9 +7947,10 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     length -= OPAQUE16_LEN;
     if (extLen != length)
         return BUFFER_ERROR;
-    /* RFC 8446 section 4.2.4 says authorities<3..2^16-1>, and the size table
-     * in TLSX_Parse skips certificate_request. Set WC_CA_NAMES_MIN_SZ to 0
-     * to accept short lists the way older versions did. */
+    /* authorities<3..2^16-1>: the extension is only parsed when present, so
+     * an empty vector is a framing error too. The size table in TLSX_Parse
+     * skips certificate_request; set WC_CA_NAMES_MIN_SZ to 0 to accept short
+     * lists the way older versions did. */
 #if WC_CA_NAMES_MIN_SZ > 0
     if (extLen < WC_CA_NAMES_MIN_SZ)
         return BUFFER_ERROR;
@@ -7959,8 +7979,8 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         if ((word32)innerLen + seqIdx != entrySz)
             return BUFFER_ERROR;
 
-        ret = TLSX_CertificateAuthorities_Add(&ssl->ws_peer_ca_names,
-                input + OPAQUE16_LEN + seqIdx, (word16)innerLen,
+        ret = TLSX_CertificateAuthorities_Add_ex(&ssl->ws_peer_ca_names,
+                &tail, input + OPAQUE16_LEN + seqIdx, (word16)innerLen,
                 ssl->heap);
         if (ret != 0)
             return ret;
