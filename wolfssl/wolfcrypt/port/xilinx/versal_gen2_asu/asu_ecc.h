@@ -1,4 +1,4 @@
-/* asu_cryptocb.h
+/* asu_ecc.h
  *
  * Copyright (C) 2006-2026 wolfSSL Inc.
  *
@@ -19,15 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Crypto callback device for the ASU. Anything the ASU cannot do falls back
- * to software. */
+/* ECDSA and EdDSA on the ASU. Curves we do not support run in software.
+ * See asu_ecc.c. */
 
-#ifndef WOLFSSL_VERSAL_GEN2_ASU_CRYPTOCB_H
-#define WOLFSSL_VERSAL_GEN2_ASU_CRYPTOCB_H
+#ifndef WOLFSSL_VERSAL_GEN2_ASU_ECC_H
+#define WOLFSSL_VERSAL_GEN2_ASU_ECC_H
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_VERSAL_GEN2_ASU
+/* Nothing here exists in a build without ECC. */
+#if defined(WOLFSSL_VERSAL_GEN2_ASU_ECC) && defined(HAVE_ECC) && \
+    !defined(NO_ECC)
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
@@ -35,17 +37,14 @@
 extern "C" {
 #endif
 
-/* Register the ASU device, which also starts the ASU client. Use the same
- * devId as WC_USE_DEVID. */
-WOLFSSL_API int wc_AsuCryptoCb_RegisterDevice(int devId);
-
-/* Remove the ASU device from the crypto callback framework. */
-WOLFSSL_API void wc_AsuCryptoCb_UnRegisterDevice(int devId);
+/* ECC entry point. Returns 0, CRYPTOCB_UNAVAILABLE to use software, or a
+ * negative error. */
+WOLFSSL_LOCAL int wc_AsuEcc(wc_CryptoInfo* info);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* WOLFSSL_VERSAL_GEN2_ASU */
+#endif /* WOLFSSL_VERSAL_GEN2_ASU_ECC && HAVE_ECC && !NO_ECC */
 
-#endif /* WOLFSSL_VERSAL_GEN2_ASU_CRYPTOCB_H */
+#endif /* WOLFSSL_VERSAL_GEN2_ASU_ECC_H */

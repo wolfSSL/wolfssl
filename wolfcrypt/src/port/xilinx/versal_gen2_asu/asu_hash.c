@@ -19,42 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* ASU hashing for the wolfSSL crypto callback: SHA2 256/384/512, SHA3
- * 256/384/512 and SHAKE256.
- *
- * Why the message is buffered instead of streamed to the hardware:
- *   wolfSSL drives hashing as update()...update()...final(), and may have
- *   several hash contexts in flight at the same time (interleaved). The ASU SHA
- *   core supports START/UPDATE/FINISH streaming, but it keeps the running hash
- *   state only inside the core and exposes no way to save and restore it:
- *   XSha_Start always begins a fresh hash and the digest registers are read
- *   only (read out at FINISH). The client library therefore allows only one
- *   multi update stream in progress per priority channel. Because the hardware
- *   cannot hold more than one partial hash, interleaved hardware streaming is
- *   physically impossible.
- *
- *   To support arbitrary interleaving correctly, each hash context's message is
- *   accumulated in its own buffer hung off the wolfSSL hash devCtx (using the
- *   wolfSSL _wc_Hash_Grow helper), and the digest is produced with a single
- *   atomic ASU operation (START|UPDATE|FINISH) at final(). Several contexts can
- *   be mid stream at once, each in its own buffer; the ASU only ever performs
- *   one complete hash at a time (serialized by wc_AsuTransact).
- *
- * Because the state lives in devCtx, the copy and free crypto callbacks are
- * required: copy gives the destination context its own deep copy of the
- * buffer (a plain struct copy would share the pointer), and free releases the
- * buffer if a context is freed without being finalized.
- *
- * SHAKE256 is an extendable output function: the output length chosen at final()
- * is carried to this callback in the hash info outSz field (by wc_CryptoCb_Shake).
- * An output that fits the ASU response mailbox (WC_ASU_SHAKE_HW_MAX_BYTES) is
- * produced in one ASU SHAKE256 operation; a longer output cannot be returned by
- * the hardware (see that define) and is computed in software from the same
- * accumulated message. SHAKE128 has no ASU mode, so it is declined and runs in
- * software. Only the update()/final() hash style routes here; the
- * absorb()/squeezeBlocks() streaming XOF (used by ML-KEM and ML-DSA) is not on
- * the callback path and stays in software.
- */
+/* Hashing on the ASU. The ASU cannot save a partial hash, so each context
+ * saves its message in its own buffer and hashes it all at final(). */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -106,8 +72,7 @@ typedef struct {
     int isSha3;
 } AsuHashReq;
 
-/* Release a kept message record. The message buffer holds the plaintext that
- * was hashed, so it is zeroized before being returned to the allocator. */
+/* Free a saved message. It holds the data we hashed, so wipe it first. */
 static void wc_AsuHashKeepFree(AsuHashKeep* keep)
 {
     if (keep == NULL) {
@@ -120,8 +85,7 @@ static void wc_AsuHashKeepFree(AsuHashKeep* keep)
     XFREE(keep, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
-/* Submit thunk: queue one ASU hash operation. Called by wc_AsuTransact with the
- * submit lock held, so it only queues the request. */
+/* Queue one ASU hash operation. The lock is held here, so only queue it. */
 static int wc_AsuHashSubmit(XAsu_ClientParams* params, void* ctx)
 {
     AsuHashReq* req = (AsuHashReq*)ctx;
@@ -138,30 +102,35 @@ static int wc_AsuHashSubmit(XAsu_ClientParams* params, void* ctx)
     }
 }
 
-/* Return the size of the hash context struct for the given hash type, or 0 for
- * an unsupported type. The copy callback needs this to duplicate the whole
- * context (see wc_AsuHashCopy). */
+/* Size of the hash context for this type, or 0 if we do not support it. */
 static word32 wc_AsuHashCtxSize(int hashType)
 {
     switch (hashType) {
+#ifndef NO_SHA256
         case WC_HASH_TYPE_SHA256:
             return (word32)sizeof(wc_Sha256);
+#endif
+#ifdef WOLFSSL_SHA384
         case WC_HASH_TYPE_SHA384:
             return (word32)sizeof(wc_Sha384);
+#endif
+#ifdef WOLFSSL_SHA512
         case WC_HASH_TYPE_SHA512:
             return (word32)sizeof(wc_Sha512);
+#endif
+#ifdef WOLFSSL_SHA3
         case WC_HASH_TYPE_SHA3_256:
         case WC_HASH_TYPE_SHA3_384:
         case WC_HASH_TYPE_SHA3_512:
         case WC_HASH_TYPE_SHAKE256: /* wc_Shake is a wc_Sha3 */
             return (word32)sizeof(wc_Sha3);
+#endif
         default:
             return 0;
     }
 }
 
-/* Return the address of the devCtx field of the hash context for the given hash
- * type, or NULL for an unsupported type. */
+/* Address of the devCtx field for this hash type, or NULL if unsupported. */
 static void** wc_AsuHashDevCtx(void* hashCtx, int hashType)
 {
     if (hashCtx == NULL) {
@@ -169,25 +138,32 @@ static void** wc_AsuHashDevCtx(void* hashCtx, int hashType)
     }
 
     switch (hashType) {
+#ifndef NO_SHA256
         case WC_HASH_TYPE_SHA256:
             return &((wc_Sha256*)hashCtx)->devCtx;
+#endif
+#ifdef WOLFSSL_SHA384
         case WC_HASH_TYPE_SHA384:
             return &((wc_Sha384*)hashCtx)->devCtx;
+#endif
+#ifdef WOLFSSL_SHA512
         case WC_HASH_TYPE_SHA512:
             return &((wc_Sha512*)hashCtx)->devCtx;
+#endif
+#ifdef WOLFSSL_SHA3
         case WC_HASH_TYPE_SHA3_256:
         case WC_HASH_TYPE_SHA3_384:
         case WC_HASH_TYPE_SHA3_512:
         case WC_HASH_TYPE_SHAKE256: /* wc_Shake is a wc_Sha3 */
             return &((wc_Sha3*)hashCtx)->devCtx;
+#endif
         default:
             return NULL;
     }
 }
 
-/* Resolve the hash info to the ASU type and mode, the digest length, and the
- * address of the context's devCtx field. Returns 0 if supported, otherwise
- * CRYPTOCB_UNAVAILABLE. */
+/* Work out the ASU type, mode, digest length and devCtx for this hash.
+ * Returns 0 if we support it. */
 static int wc_AsuHashResolve(wc_CryptoInfo* info, void*** devCtx, u8* shaType,
     u8* shaMode, word32* hashLen)
 {
@@ -197,24 +173,26 @@ static int wc_AsuHashResolve(wc_CryptoInfo* info, void*** devCtx, u8* shaType,
     }
 
     switch (info->hash.type) {
+#ifndef NO_SHA256
         case WC_HASH_TYPE_SHA256:
             *devCtx  = wc_AsuHashDevCtx(info->hash.sha256, info->hash.type);
             *shaType = XASU_SHA2_TYPE;
             *shaMode = XASU_SHA_MODE_256;
             *hashLen = WC_SHA256_DIGEST_SIZE;
             break;
+#endif
+#ifdef WOLFSSL_SHA384
         case WC_HASH_TYPE_SHA384:
             *devCtx  = wc_AsuHashDevCtx(info->hash.sha384, info->hash.type);
             *shaType = XASU_SHA2_TYPE;
             *shaMode = XASU_SHA_MODE_384;
             *hashLen = WC_SHA384_DIGEST_SIZE;
             break;
+#endif
+#ifdef WOLFSSL_SHA512
         case WC_HASH_TYPE_SHA512:
-            /* SHA-512/224 and SHA-512/256 share the wc_Sha512 context and reach
-             * this callback as plain SHA-512 on update() (the variant is only
-             * known at final()). The ASU does only full SHA-512, and the
-             * truncated variants use different initial values, so decline them
-             * here and let wolfSSL run them entirely in software. */
+            /* The ASU only does full SHA-512. The shorter versions start from
+             * different values, so let software handle them. */
             if (info->hash.sha512 != NULL &&
                 (info->hash.sha512->hashType == WC_HASH_TYPE_SHA512_224 ||
                  info->hash.sha512->hashType == WC_HASH_TYPE_SHA512_256)) {
@@ -225,6 +203,8 @@ static int wc_AsuHashResolve(wc_CryptoInfo* info, void*** devCtx, u8* shaType,
             *shaMode = XASU_SHA_MODE_512;
             *hashLen = WC_SHA512_DIGEST_SIZE;
             break;
+#endif
+#ifdef WOLFSSL_SHA3
         case WC_HASH_TYPE_SHA3_256:
             *devCtx  = wc_AsuHashDevCtx(info->hash.sha3, info->hash.type);
             *shaType = XASU_SHA3_TYPE;
@@ -243,24 +223,24 @@ static int wc_AsuHashResolve(wc_CryptoInfo* info, void*** devCtx, u8* shaType,
             *shaMode = XASU_SHA_MODE_512;
             *hashLen = WC_SHA3_512_DIGEST_SIZE;
             break;
+#ifdef WOLFSSL_SHAKE256
         case WC_HASH_TYPE_SHAKE256:
-            /* SHAKE is an extendable output function: the digest length is the
-             * caller's requested output, carried in outSz on the final call.
-             * SHAKE128 is not a hardware mode, so it falls through to the
-             * default and runs in software. */
+            /* SHAKE lets the caller pick the output length, which arrives in
+             * outSz. SHAKE128 has no ASU mode and runs in software. */
             *devCtx  = wc_AsuHashDevCtx(info->hash.sha3, info->hash.type);
             *shaType = XASU_SHA3_TYPE;
             *shaMode = XASU_SHA_MODE_SHAKE256;
             *hashLen = info->hash.outSz;
             break;
+#endif /* WOLFSSL_SHAKE256 */
+#endif /* WOLFSSL_SHA3 */
         default:
             return CRYPTOCB_UNAVAILABLE;
     }
 
-#ifdef WOLFSSL_HASH_FLAGS
-    /* Keccak-256 (legacy 0x01 padding) is selected with a hash flag on a SHA3
-     * context. The ASU SHA3 core only does NIST SHA3 (0x06) padding, so decline
-     * Keccak and let wolfSSL compute it in software. */
+#if defined(WOLFSSL_HASH_FLAGS) && defined(WOLFSSL_SHA3)
+    /* The ASU only does standard SHA3 padding, so older Keccak runs in
+     * software. */
     if (*shaType == XASU_SHA3_TYPE && info->hash.sha3 != NULL &&
         (info->hash.sha3->flags & WC_HASH_SHA3_KECCAK256) != 0) {
         return CRYPTOCB_UNAVAILABLE;
@@ -274,8 +254,7 @@ static int wc_AsuHashResolve(wc_CryptoInfo* info, void*** devCtx, u8* shaType,
     return 0;
 }
 
-/* Hash dataLen bytes from data in one atomic ASU operation, writing hashLen
- * bytes of digest. */
+/* Hash the whole message in one ASU operation. */
 static int wc_AsuHashOneShot(u8 shaType, u8 shaMode, const byte* data,
     word32 dataLen, byte* digest, word32 hashLen)
 {
@@ -289,12 +268,8 @@ static int wc_AsuHashOneShot(u8 shaType, u8 shaMode, const byte* data,
         return BAD_FUNC_ARG;
     }
 
-    /* SHAKE256 is an extendable output function with a caller chosen length. The
-     * ASU reads the result out of the digest registers a 32 bit word at a time,
-     * so a length that is not a multiple of 4 would drop the final partial word.
-     * Round the request up to a word boundary into a temporary buffer and copy
-     * back exactly the bytes asked for. The ASU also caps a single SHAKE squeeze
-     * at one rate block (XASU_SHAKE_256_MAX_HASH_LEN), which bounds the temp. */
+    /* The ASU reads the digest 4 bytes at a time, so round the length up into
+     * a temporary buffer and copy back only what was asked for. */
     if ((shaMode == XASU_SHA_MODE_SHAKE256) && ((hashLen % 4u) != 0u) &&
         (hashLen <= XASU_SHAKE_256_MAX_HASH_LEN)) {
         outLen  = (hashLen + 3u) & ~3u;
@@ -325,9 +300,8 @@ static int wc_AsuHashOneShot(u8 shaType, u8 shaMode, const byte* data,
     WC_ASU_PRINTF("[ASU] hash type=%d mode=%d dataLen=%u hashLen=%u\r\n",
         (int)shaType, (int)shaMode, (unsigned int)dataLen, (unsigned int)hashLen);
 
-    /* The ASU DMAs the input message from memory, so clean it out. The digest is
-     * delivered back through the response path (a CPU copy), so it needs no
-     * cache maintenance here. */
+    /* The ASU reads the message from memory, so push it out first. The digest
+     * comes back another way and needs nothing here. */
     if (dataLen > 0) {
         wc_AsuCacheFlush(data, dataLen);
     }
@@ -337,8 +311,7 @@ static int wc_AsuHashOneShot(u8 shaType, u8 shaMode, const byte* data,
         return WC_HW_E;
     }
 
-    /* Copy back the exact byte count when a temp buffer was used for the SHAKE
-     * word-alignment round up. */
+    /* Copy back only the bytes asked for when a temp buffer was used. */
     if (outAddr != digest) {
         XMEMCPY(digest, xofTmp, hashLen);
     }
@@ -346,22 +319,13 @@ static int wc_AsuHashOneShot(u8 shaType, u8 shaMode, const byte* data,
     return 0;
 }
 
-/* The ASU returns a hash through a fixed response mailbox slot of 16 words (64
- * bytes), sized for the largest fixed digest (SHA-512). SHAKE256 is an
- * extendable output function, so a requested output up to this size fits in one
- * ASU operation and is offloaded; a longer output is computed in software
- * instead (see wc_AsuShakeSoftware).
- *
- * The hardware could in principle emit more by continuing the squeeze a rate
- * block at a time, but that path is closed to us: the XAsu_ShaOperationCmd
- * "next xof" continue-squeeze flag (ShakeReserved) is documented "NA for client,
- * ASUFW internal use", and the ASU server resets the squeeze after every finish.
- * So a client cannot chain blocks, and anything past one mailbox stays software. */
+/* The ASU sends the hash back in a 64 byte slot. A SHAKE output that fits goes
+ * to the ASU, and anything longer is done in software. */
 #define WC_ASU_SHAKE_HW_MAX_BYTES 64
 
-/* Compute SHAKE256 of the already accumulated message in software, for outputs
- * larger than the ASU can return. A private context with INVALID_DEVID keeps it
- * off the crypto callback (no recursion) so wolfSSL runs its own SHAKE. */
+#ifdef WOLFSSL_SHAKE256
+/* Do SHAKE256 in software for long outputs. The private context uses an
+ * invalid device id so this does not come back through the callback. */
 static int wc_AsuShakeSoftware(const byte* data, word32 dataLen, byte* digest,
     word32 hashLen)
 {
@@ -387,9 +351,9 @@ static int wc_AsuShakeSoftware(const byte* data, word32 dataLen, byte* digest,
     wc_Shake256_Free(&shake);
     return ret;
 }
+#endif /* WOLFSSL_SHAKE256 */
 
-/* update() and final() handling for WC_ALGO_TYPE_HASH. Internal helper reached
- * through the wc_AsuHash dispatcher. */
+/* Handles update and final for a hash. */
 static int wc_AsuHashCompute(wc_CryptoInfo* info)
 {
     void**       devCtxPtr = NULL;
@@ -410,7 +374,7 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
 
     keep = (AsuHashKeep*)(*devCtxPtr);
 
-    /* update(): accumulate the message with the wolfSSL grow helper. */
+    /* update: add this chunk to the saved message. */
     if (info->hash.in != NULL) {
         if (keep == NULL) {
             keep = (AsuHashKeep*)XMALLOC(sizeof(AsuHashKeep), NULL,
@@ -429,8 +393,7 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
         }
     }
 
-    /* final(): hash the whole accumulated message in one ASU operation, then
-     * release the buffer. */
+    /* final: hash the saved message in one go, then free the buffer. */
     if (info->hash.digest != NULL) {
         const byte* data = NULL;
         word32      dataLen = 0;
@@ -440,14 +403,16 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
             dataLen = keep->used;
         }
 
-        /* SHAKE256 output longer than the ASU response mailbox can carry is
-         * produced in software from the same accumulated message; everything
-         * else (the fixed hashes and short SHAKE) is one ASU operation. */
+        /* A long SHAKE output is done in software from the same message.
+         * Everything else is one ASU operation. */
+#ifdef WOLFSSL_SHAKE256
         if ((shaMode == XASU_SHA_MODE_SHAKE256) &&
             (hashLen > WC_ASU_SHAKE_HW_MAX_BYTES)) {
             ret = wc_AsuShakeSoftware(data, dataLen, info->hash.digest, hashLen);
         }
-        else {
+        else
+#endif /* WOLFSSL_SHAKE256 */
+        {
             ret = wc_AsuHashOneShot(shaType, shaMode, data, dataLen,
                 info->hash.digest, hashLen);
         }
@@ -465,8 +430,7 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
     return 0;
 }
 
-/* WC_ALGO_TYPE_COPY handling for a hash context. Internal helper reached
- * through the wc_AsuHash dispatcher. */
+/* Handles copying a hash context. */
 static int wc_AsuHashCopy(wc_CryptoInfo* info)
 {
     void**       srcDevCtx;
@@ -490,16 +454,12 @@ static int wc_AsuHashCopy(wc_CryptoInfo* info)
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    /* wolfSSL calls this callback before its own struct copy and skips both that
-     * copy and its own free of the destination when we return success, so the
-     * callback owns the entire copy. Free any buffer the destination already
-     * holds first (it is about to be overwritten), or it would leak. */
+    /* wolfSSL skips its own copy when we succeed, so we do all of it. Free
+     * anything the destination already holds or it would leak. */
     wc_AsuHashKeepFree((AsuHashKeep*)(*dstDevCtx));
 
-    /* Duplicate the whole context struct, which carries devId (so the copy keeps
-     * routing to this port) and the rest of the state. The struct copy leaves the
-     * destination devCtx pointing at the source buffer, so then replace it with
-     * the destination's own deep copy of the kept message. */
+    /* Copy the whole struct, then give the destination its own copy of the
+     * saved message so the two do not share a buffer. */
     XMEMCPY(info->copy.dst, info->copy.src, ctxSize);
 
     srcKeep = (AsuHashKeep*)(*srcDevCtx);
@@ -530,8 +490,7 @@ static int wc_AsuHashCopy(wc_CryptoInfo* info)
     return 0;
 }
 
-/* WC_ALGO_TYPE_FREE handling for a hash context. Internal helper reached
- * through the wc_AsuHash dispatcher. */
+/* Handles freeing a hash context. */
 static int wc_AsuHashFree(wc_CryptoInfo* info)
 {
     void**       devCtx;
@@ -553,16 +512,13 @@ static int wc_AsuHashFree(wc_CryptoInfo* info)
         }
     }
 
-    /* Return unavailable so wolfSSL still runs its own ForceZero. devCtx is now
-     * NULL, so there is no second free. */
+    /* Return unavailable so wolfSSL still wipes the context. devCtx is NULL
+     * now, so nothing gets freed twice. */
     return CRYPTOCB_UNAVAILABLE;
 }
 
-/* Single entry point for the SHA2/SHA3 engine. The crypto callback dispatcher
- * routes every hash related operation here and this handler decides which one it
- * is: update/final (WC_ALGO_TYPE_HASH), context copy (WC_ALGO_TYPE_COPY), or
- * context free (WC_ALGO_TYPE_FREE). Keeping the whole lifecycle behind one entry
- * keeps it owned by this module. */
+/* Entry point for hashing. Sorts out whether this is an update, a final, a
+ * copy or a free. */
 int wc_AsuHash(wc_CryptoInfo* info)
 {
     if (info == NULL) {

@@ -105,6 +105,18 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cipher.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cmac.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cryptocb.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecc.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecdh.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecies.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_hash.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_hmac.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_rng.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_rsa.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_settings.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_util.h \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/caam_error.h \
                          wolfssl/wolfcrypt/port/caam/caam_qnx.h \

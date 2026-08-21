@@ -19,32 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* ASU HMAC for the wolfSSL crypto callback: HMAC over SHA2 256/384/512 and SHA3
- * 256/384/512.
- *
- * The approach mirrors the SHA hash port (asu_hash.c): wolfSSL drives HMAC as
- * update()...update()...final() and may have several contexts in flight, but the
- * ASU keeps the running state only inside the core and cannot save and restore
- * it. So each context's message is accumulated in its own buffer hung off the
- * wolfSSL Hmac devCtx (with the wolfSSL _wc_Hash_Grow helper) and the whole HMAC
- * is produced in one atomic ASU operation at final(). The raw key is taken from
- * the context: wolfSSL records keyRaw and keyLen on the Hmac whenever the crypto
- * callback is enabled, and the ASU HMAC engine performs the key reduction
- * internally, so the unmodified user key is passed straight through.
- *
- * Lifecycle: unlike the hash contexts, wc_HmacCopy does not run through the copy
- * crypto callback and wc_HmacFree does not run through the free callback, so no
- * copy/free handlers are wired for HMAC. This is safe because the buffer is freed
- * in final() (the common path), wc_HmacFree finalizes any context that still owns
- * a buffer through this same callback (so an abandoned context is cleaned up),
- * and wolfSSL only copies an HMAC context right after the key is set, before any
- * update, when devCtx is still NULL (so the shallow struct copy shares nothing).
- *
- * HMAC output is always the underlying digest size (<= 64 bytes), so unlike SHAKE
- * it always fits the ASU response mailbox and is always offloaded for the
- * supported MAC types. HMAC over SHA-1, SHA-224 and the truncated SHA-512
- * variants has no ASU mode and is declined to software.
- */
+/* HMAC on the ASU. Same idea as asu_hash.c: the message is saved per context
+ * and the whole HMAC is done in one operation at final(). */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -91,8 +67,7 @@ typedef struct {
     XAsu_HmacParams params;
 } AsuHmacReq;
 
-/* Release a kept message record. The message buffer holds plaintext that was
- * MAC'd, so it is zeroized before being returned to the allocator. */
+/* Free a saved message. It holds the data we read, so wipe it first. */
 static void wc_AsuHmacKeepFree(AsuHmacKeep* keep)
 {
     if (keep == NULL) {
@@ -105,8 +80,7 @@ static void wc_AsuHmacKeepFree(AsuHmacKeep* keep)
     XFREE(keep, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
-/* Submit thunk: queue one ASU HMAC operation. Called by wc_AsuTransact with the
- * submit lock held, so it only queues the request. */
+/* Queue one ASU HMAC operation. The lock is held here, so only queue it. */
 static int wc_AsuHmacSubmit(XAsu_ClientParams* params, void* ctx)
 {
     AsuHmacReq* req = (AsuHmacReq*)ctx;
@@ -118,8 +92,8 @@ static int wc_AsuHmacSubmit(XAsu_ClientParams* params, void* ctx)
     return XAsu_HmacCompute(params, &req->params);
 }
 
-/* Resolve the wolfSSL MAC (hash) type to the ASU SHA type and mode and the HMAC
- * output length. Returns 0 if supported, otherwise CRYPTOCB_UNAVAILABLE. */
+/* Work out the ASU type, mode and output length for this MAC type.
+ * Returns 0 if we support it. */
 static int wc_AsuHmacResolve(int macType, u8* shaType, u8* shaMode,
     word32* hmacLen)
 {
@@ -128,21 +102,28 @@ static int wc_AsuHmacResolve(int macType, u8* shaType, u8* shaMode,
     }
 
     switch (macType) {
+#ifndef NO_SHA256
         case WC_HASH_TYPE_SHA256:
             *shaType = XASU_SHA2_TYPE;
             *shaMode = XASU_SHA_MODE_256;
             *hmacLen = WC_SHA256_DIGEST_SIZE;
             break;
+#endif
+#ifdef WOLFSSL_SHA384
         case WC_HASH_TYPE_SHA384:
             *shaType = XASU_SHA2_TYPE;
             *shaMode = XASU_SHA_MODE_384;
             *hmacLen = WC_SHA384_DIGEST_SIZE;
             break;
+#endif
+#ifdef WOLFSSL_SHA512
         case WC_HASH_TYPE_SHA512:
             *shaType = XASU_SHA2_TYPE;
             *shaMode = XASU_SHA_MODE_512;
             *hmacLen = WC_SHA512_DIGEST_SIZE;
             break;
+#endif
+#ifdef WOLFSSL_SHA3
         case WC_HASH_TYPE_SHA3_256:
             *shaType = XASU_SHA3_TYPE;
             *shaMode = XASU_SHA_MODE_256;
@@ -158,6 +139,7 @@ static int wc_AsuHmacResolve(int macType, u8* shaType, u8* shaMode,
             *shaMode = XASU_SHA_MODE_512;
             *hmacLen = WC_SHA3_512_DIGEST_SIZE;
             break;
+#endif
         default:
             return CRYPTOCB_UNAVAILABLE;
     }
@@ -165,7 +147,7 @@ static int wc_AsuHmacResolve(int macType, u8* shaType, u8* shaMode,
     return 0;
 }
 
-/* Compute HMAC over the whole message in one atomic ASU operation. */
+/* Run the whole HMAC in one ASU operation. */
 static int wc_AsuHmacOneShot(u8 shaType, u8 shaMode, const byte* key,
     word32 keyLen, const byte* msg, word32 msgLen, byte* mac, word32 macLen)
 {
@@ -198,9 +180,8 @@ static int wc_AsuHmacOneShot(u8 shaType, u8 shaMode, const byte* key,
         (int)shaType, (int)shaMode, (unsigned int)keyLen, (unsigned int)msgLen,
         (unsigned int)macLen);
 
-    /* The ASU DMAs the key and message from memory, so clean them out. The MAC
-     * is delivered back through the response path, so it needs no cache
-     * maintenance here. */
+    /* The ASU reads the key and message from memory, so push them out first.
+     * The MAC comes back another way and needs nothing here. */
     wc_AsuCacheFlush(key, keyLen);
     if (msgLen > 0) {
         wc_AsuCacheFlush(msg, msgLen);
@@ -214,8 +195,7 @@ static int wc_AsuHmacOneShot(u8 shaType, u8 shaMode, const byte* key,
     return 0;
 }
 
-/* update() and final() handling for WC_ALGO_TYPE_HMAC. Internal helper reached
- * through the wc_AsuHmac dispatcher. */
+/* Handles update and final for an HMAC. */
 static int wc_AsuHmacCompute(wc_CryptoInfo* info)
 {
     Hmac*        hmac;
@@ -239,17 +219,14 @@ static int wc_AsuHmacCompute(wc_CryptoInfo* info)
         return ret;
     }
 
-    /* The ASU HMAC engine needs a non empty raw key; if wolfSSL did not retain
-     * one, let it compute the HMAC in software. keyRaw and keyLen are fixed by
-     * the preceding SetKey, so this decision is the same on every update and
-     * final for a given context. */
+    /* The ASU needs the raw key. If wolfSSL did not keep one, use software. */
     if ((hmac->keyRaw == NULL) || (hmac->keyLen == 0)) {
         return CRYPTOCB_UNAVAILABLE;
     }
 
     keep = (AsuHmacKeep*)hmac->devCtx;
 
-    /* update(): accumulate the message with the wolfSSL grow helper. */
+    /* update: add this chunk to the saved message. */
     if (info->hmac.in != NULL) {
         if (keep == NULL) {
             keep = (AsuHmacKeep*)XMALLOC(sizeof(AsuHmacKeep), NULL,
@@ -268,8 +245,7 @@ static int wc_AsuHmacCompute(wc_CryptoInfo* info)
         }
     }
 
-    /* final(): HMAC the whole accumulated message in one ASU operation, then
-     * release the buffer. */
+    /* final: run the saved message in one go, then free the buffer. */
     if (info->hmac.digest != NULL) {
         const byte* msg = NULL;
         word32      msgLen = 0;
@@ -295,11 +271,8 @@ static int wc_AsuHmacCompute(wc_CryptoInfo* info)
     return 0;
 }
 
-/* WC_ALGO_TYPE_COPY handling for an HMAC context. Unlike the hash copy callback,
- * wc_HmacCopy performs the struct copy itself (and deep copies the inner hash),
- * then calls this only to fix up the kept message: the shallow struct copy left
- * the destination sharing the source buffer pointer, so replace it with the
- * destination's own deep copy. Internal helper reached through wc_AsuHmac. */
+/* Handles copying an HMAC context. wolfSSL copies the struct itself, so this
+ * only gives the destination its own copy of the saved message. */
 static int wc_AsuHmacCopy(wc_CryptoInfo* info)
 {
     Hmac*        src;
@@ -349,9 +322,8 @@ static int wc_AsuHmacCopy(wc_CryptoInfo* info)
     return 0;
 }
 
-/* WC_ALGO_TYPE_FREE handling for an HMAC context: release the accumulated
- * message buffer so an abandoned context (updated but never finalized) is freed
- * without a stray ASU operation. Internal helper reached through wc_AsuHmac. */
+/* Handles freeing an HMAC context, so a context that was never finished does
+ * not leak its saved message. */
 static int wc_AsuHmacFree(wc_CryptoInfo* info)
 {
     Hmac*        hmac;
@@ -373,15 +345,13 @@ static int wc_AsuHmacFree(wc_CryptoInfo* info)
         }
     }
 
-    /* Return unavailable so wolfSSL still runs its own cleanup. devCtx is now
-     * NULL, so there is no second free. */
+    /* Return unavailable so wolfSSL still cleans up. devCtx is NULL now, so
+     * nothing gets freed twice. */
     return CRYPTOCB_UNAVAILABLE;
 }
 
-/* Single entry point for the HMAC engine. The crypto callback dispatcher routes
- * every HMAC related operation here and this handler decides which it is: update
- * and final (WC_ALGO_TYPE_HMAC), context copy (WC_ALGO_TYPE_COPY) or context
- * free (WC_ALGO_TYPE_FREE). */
+/* Entry point for HMAC. Sorts out whether this is an update, a final, a copy
+ * or a free. */
 int wc_AsuHmac(wc_CryptoInfo* info)
 {
     if (info == NULL) {

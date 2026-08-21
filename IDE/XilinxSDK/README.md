@@ -1,3 +1,9 @@
+# Vitis Unified IDE (2023.2+)
+
+For the Vitis Unified IDE (system device tree flow), wolfSSL can be added to
+a BSP as an embedded software library — see `vitis_sdt/README.md` in this
+directory. The instructions below apply to the classic Vitis/SDK IDE.
+
 # Common Gotcha's
 
 - If compiling all code together (ie no separate wolfssl library) then the -fPIC compiler flag should be used. Without using -fPIC in this build setup there could be unexpected failures.

@@ -1679,8 +1679,8 @@ int test_wc_ecc_ctx_set_info(void)
 
 /*
  * Testing the crypto-callback context accessors wc_ecc_ctx_get_algo,
- * wc_ecc_ctx_get_kdf_salt and wc_ecc_ctx_get_info (built only when
- * WOLF_CRYPTO_CB is enabled).
+ * wc_ecc_ctx_get_kdf_salt, wc_ecc_ctx_get_info, wc_ecc_ctx_get_mac_salt and
+ * wc_ecc_ctx_get_protocol (built only when WOLF_CRYPTO_CB is enabled).
  */
 int test_wc_ecc_ctx_getters(void)
 {
@@ -1746,6 +1746,66 @@ int test_wc_ecc_ctx_getters(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ecc_ctx_get_info(ctx, &got, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Setting the KDF salt and info must leave the MAC salt empty. The ASU
+     * ECIES offload only runs when that salt is empty. */
+    got = salt; gotSz = 123;
+    ExpectIntEQ(wc_ecc_ctx_get_mac_salt(ctx, &got, &gotSz), 0);
+    ExpectIntEQ(gotSz, 0);
+    ExpectNull(got);
+
+    /* get_mac_salt: macSalt is only populated after the own-salt/peer-salt
+     * handshake, so drive that on a fresh context then read it back. */
+    {
+        ecEncCtx*   ctx2 = NULL;
+        const byte* macGot = NULL;
+        word32      macGotSz = 0;
+
+        ExpectNotNull(ctx2 = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng));
+        /* Before the salt exchange the MAC salt is empty, which is the state
+         * the ASU offload looks for. Both out-parameters are set to something
+         * else first, so the checks fail if the getter never writes. */
+        macGot = salt;
+        macGotSz = 0xFFFFFFFFU;
+        ExpectIntEQ(wc_ecc_ctx_get_mac_salt(ctx2, &macGot, &macGotSz), 0);
+        ExpectIntEQ(macGotSz, 0);
+        ExpectNull(macGot);
+        ExpectNotNull(wc_ecc_ctx_get_own_salt(ctx2));
+        ExpectIntEQ(wc_ecc_ctx_set_peer_salt(ctx2, salt), 0);
+        ExpectIntEQ(wc_ecc_ctx_get_mac_salt(ctx2, &macGot, &macGotSz), 0);
+        ExpectIntEQ(macGotSz, (word32)EXCHANGE_SALT_SZ);
+        ExpectNotNull(macGot);
+        /* The two salts differ in their second half, so a getter that returns
+         * the wrong one fails this check. */
+        ExpectIntEQ(XMEMCMP(macGot + (EXCHANGE_SALT_SZ / 2),
+            salt + (EXCHANGE_SALT_SZ / 2), EXCHANGE_SALT_SZ / 2), 0);
+        /* bad args: NULL ctx / salt / size */
+        ExpectIntEQ(wc_ecc_ctx_get_mac_salt(NULL, &macGot, &macGotSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_get_mac_salt(ctx2, NULL, &macGotSz),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_get_mac_salt(ctx2, &macGot, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_ecc_ctx_free(ctx2);
+    }
+
+    /* Read both roles back and check the NULL guards. The ASU offload picks
+     * different paths for each role, so they must not be mixed up. */
+    {
+        ecEncCtx* sctx = NULL;
+        int proto = 0;
+        ExpectIntEQ(wc_ecc_ctx_get_protocol(ctx, &proto), 0);
+        ExpectIntEQ(proto, REQ_RESP_CLIENT);
+        ExpectNotNull(sctx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng));
+        proto = 0;
+        ExpectIntEQ(wc_ecc_ctx_get_protocol(sctx, &proto), 0);
+        ExpectIntEQ(proto, REQ_RESP_SERVER);
+        wc_ecc_ctx_free(sctx);
+        ExpectIntEQ(wc_ecc_ctx_get_protocol(NULL, &proto),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_get_protocol(ctx, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
 
     wc_ecc_ctx_free(ctx);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);

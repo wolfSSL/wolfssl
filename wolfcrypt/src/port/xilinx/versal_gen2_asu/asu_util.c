@@ -35,6 +35,16 @@
 #include "xil_util.h"
 #include "xstatus.h"
 
+#ifndef WOLFSSL_VERSAL_GEN2_ASU_NO_CLIENT_INIT
+    #include "xilmailbox.h"
+    #include "xparameters.h"
+
+    /* IPI channel the client reaches the ASU on. */
+    #ifndef WOLFSSL_VERSAL_GEN2_ASU_IPI_BASEADDR
+        #define WOLFSSL_VERSAL_GEN2_ASU_IPI_BASEADDR XPAR_XIPIPSU_0_BASEADDR
+    #endif
+#endif
+
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_RTC
     #include "xiltimer.h"
     #include "xrtcpsu.h"
@@ -45,8 +55,42 @@
     #endif
 #endif
 
-/* Shared response handler registered with every ASU request. The ASU client
- * passes the AsuWait record back through the callback reference. */
+#ifndef WOLFSSL_VERSAL_GEN2_ASU_NO_CLIENT_INIT
+
+int wc_AsuClientInit(void)
+{
+    /* The client keeps the mailbox for every later request; ready makes a
+     * repeat register a no-op. */
+    static XMailbox mailbox;
+    static int      ready = 0;
+    s32 status;
+
+    if (ready) {
+        return 0;
+    }
+
+    status = (s32)XMailbox_Initialize(&mailbox,
+                                      WOLFSSL_VERSAL_GEN2_ASU_IPI_BASEADDR);
+    if (status != XST_SUCCESS) {
+        WC_ASU_PRINTF("ASU mailbox initialize failed: %08x\r\n",
+                      (unsigned int)status);
+        return WC_HW_E;
+    }
+
+    status = (s32)XAsu_ClientInit(&mailbox);
+    if (status != XST_SUCCESS) {
+        WC_ASU_PRINTF("ASU client initialize failed: %08x\r\n",
+                      (unsigned int)status);
+        return WC_HW_E;
+    }
+
+    ready = 1;
+    return 0;
+}
+
+#endif /* !WOLFSSL_VERSAL_GEN2_ASU_NO_CLIENT_INIT */
+
+/* Called when an ASU request finishes. The client hands our record back. */
 static void wc_AsuResponseHandler(void* ref, u32 status)
 {
     AsuWait* wait = (AsuWait*)ref;
@@ -70,8 +114,8 @@ void wc_AsuWaitPrepare(AsuWait* wait, XAsu_ClientParams* params)
 }
 
 #ifndef WC_ASU_WAIT_TIMEOUT_US
-    /* Per poll cycle in microseconds; the loop re-arms until the flag is set, so a
-     * timeout just repeats the wait rather than failing the transaction. */
+    /* How long each wait lasts. A timeout just waits again, it is not an
+     * error. */
     #define WC_ASU_WAIT_TIMEOUT_US 1000000U
 #endif
 
@@ -79,11 +123,11 @@ word32 wc_AsuWaitDone(AsuWait* wait)
 {
     while (wait->Done == 0) {
     #ifdef XYIELD
-        /* Hand the wait to an RTOS/scheduler when the app defines XYIELD. */
+        /* Let the scheduler run if the app defines XYIELD. */
         XYIELD();
     #else
-        /* Poll the completion flag with a bounded wait, re-arming until it is set.
-         * Done is one byte, so mask the low byte of the word Xil_WaitForEvent reads. */
+        /* Wait for the done flag. It is one byte, so mask the low byte of the
+         * word this call reads. */
         (void)Xil_WaitForEvent((UINTPTR)&wait->Done, 0xFFU, 1U,
             WC_ASU_WAIT_TIMEOUT_US);
     #endif
@@ -92,10 +136,8 @@ word32 wc_AsuWaitDone(AsuWait* wait)
     return wait->Status;
 }
 
-/* When WC_ASU_DISABLE_CACHE is set (mirrored from XASU_DISABLE_CACHE in
- * asu_settings.h) the data cache is off for the whole application, so buffer
- * maintenance is unnecessary and these become no ops. Otherwise the cache is on
- * and the port cleans inputs and invalidates outputs around each ASU access. */
+/* With the cache off these do nothing. With it on they push inputs out and
+ * reload outputs around each ASU call. */
 
 void wc_AsuCacheFlush(const void* addr, word32 len)
 {
@@ -110,8 +152,8 @@ void wc_AsuCacheFlush(const void* addr, word32 len)
 #endif
 }
 
-/* Exact extent: callers flush the buffer before the op, so the edge cache lines
- * hold nothing stale to write back and neighboring data keeps its new value. */
+/* Callers flush before the operation, so the end lines hold nothing stale and
+ * nearby data keeps its value. */
 void wc_AsuCacheInvalidate(void* addr, word32 len)
 {
     if (addr == NULL || len == 0) {
@@ -129,13 +171,8 @@ void wc_AsuCacheInvalidate(void* addr, word32 len)
 /* ----------------------------------------------------------------------- */
 /* Transaction and concurrency (ticketing)                                 */
 /* ----------------------------------------------------------------------- */
-/* The ASU associates a unique id with each call and routes its completion back
- * to the request's own callback, so that id is the ticket: every transaction
- * gets its own AsuWait and several run concurrently. The only shared state that
- * needs guarding is the submit, since the client request allocation is not
- * thread safe. Locking uses the wolfSSL crypto hardware mutex (enabled for the
- * multi threaded build in asu_settings.h, a no op otherwise) and is held only
- * across the submit, never across the wait. */
+/* Each call gets its own id and its own wait record, so several can run at
+ * once. Only the submit needs a lock, and the lock is dropped before waiting. */
 word32 wc_AsuTransact(AsuSubmitFn submit, void* ctx, word32* additionalStatus)
 {
     XAsu_ClientParams params;
@@ -146,8 +183,7 @@ word32 wc_AsuTransact(AsuSubmitFn submit, void* ctx, word32* additionalStatus)
         return (word32)XST_FAILURE;
     }
 
-    /* The prepared params carry this request's completion context, which the
-     * ASU associates with the unique id it assigns. */
+    /* These params carry the record the ASU hands back when it is done. */
     wc_AsuWaitPrepare(&wait, &params);
 
     wolfSSL_CryptHwMutexLock();
@@ -159,8 +195,7 @@ word32 wc_AsuTransact(AsuSubmitFn submit, void* ctx, word32* additionalStatus)
         return (word32)status;
     }
 
-    /* Wait on our own completion outside the lock, so other callers submit and
-     * run concurrently up to the ASU queue depth. */
+    /* Wait outside the lock so other callers can submit while we wait. */
     status = (s32)wc_AsuWaitDone(&wait);
 
     WC_ASU_PRINTF("[ASU] op done status=%d\r\n", (int)status);
@@ -174,9 +209,8 @@ word32 wc_AsuTransact(AsuSubmitFn submit, void* ctx, word32* additionalStatus)
 
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_RTC
 
-/* Timer and RTC. The benchmark time base is the Cortex A78 generic timer, which
- * is free running and needs no init. The system RTC is brought up by
- * wc_AsuTimerInit and read with wc_AsuRtcSeconds for wall clock timestamps. */
+/* Timer and clock. The A78 timer always runs and needs no setup. The system
+ * clock is started here and read for wall clock times. */
 
 static XRtcPsu asuRtc;
 static int     asuRtcReady = 0;
@@ -228,11 +262,10 @@ word32 wc_AsuRtcSeconds(void)
 
 #if defined(WOLFSSL_USER_CURRTIME)
 
-/* Benchmark time source. benchmark.c declares this extern when
- * WOLFSSL_USER_CURRTIME is set and calls it to time each operation. */
+/* Time source the benchmark uses to time each operation. */
 double current_time(int reset)
 {
-    (void)reset; /* the generic timer counter is free running */
+    (void)reset; /* the timer always runs, nothing to reset */
 
     return wc_AsuTimerSeconds();
 }
