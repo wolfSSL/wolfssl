@@ -3883,6 +3883,76 @@ static int test_wolfSSL_OtherName(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+static int cm_override_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    return 1;   /* override any error */
+}
+#endif
+
+static int test_wolfSSL_CertManagerVerifyBuffer_internal_err(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    unsigned char bad[64];
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && !defined(NO_SHA256)
+    /* sha256WithRSAEncryption, the algorithm of server_cert_der_2048 */
+    static const unsigned char sigAlgOid[9] =
+        { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b };
+    unsigned char certBuf[2048];
+    int i;
+    int last = -1;
+#endif
+
+    /* Malformed DER, so parsing fails with an internal error rather than a
+     * certificate verification verdict. */
+    XMEMSET(bad, 0x30, sizeof(bad));
+    bad[1] = 0x3e;
+
+    /* A verify callback that overrides every error must not turn an internal
+     * error into a success. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    wolfSSL_CertManagerSetVerify(cm, cm_override_cb);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, bad, (long)sizeof(bad),
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* The certificate-loading path also reverifies with the callback, so a
+     * malformed CA must fail closed there too. */
+    ExpectIntNE(wolfSSL_CertManagerLoadCABuffer(cm, bad, (long)sizeof(bad),
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && !defined(NO_SHA256)
+    /* A mismatched outer signature-algorithm OID means the signature was
+     * never checked, so it must fail closed as well. */
+    ExpectIntLE(sizeof_server_cert_der_2048, (int)sizeof(certBuf));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(certBuf, server_cert_der_2048,
+            (size_t)sizeof_server_cert_der_2048);
+        for (i = 0; i + (int)sizeof(sigAlgOid) <=
+                (int)sizeof_server_cert_der_2048; i++) {
+            if (XMEMCMP(certBuf + i, sigAlgOid, sizeof(sigAlgOid)) == 0) {
+                last = i;
+            }
+        }
+        ExpectIntGT(last, 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        certBuf[last + sizeof(sigAlgOid) - 1] ^= 0x01;
+        ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, certBuf,
+            (long)sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+    }
+#endif
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
 #ifdef HAVE_CERT_CHAIN_VALIDATION
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int test_wolfSSL_CertRsaPss(void)
@@ -40474,6 +40544,7 @@ TEST_CASE testCases[] = {
     !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     TEST_DECL(test_wolfSSL_CertRsaPss),
 #endif
+    TEST_DECL(test_wolfSSL_CertManagerVerifyBuffer_internal_err),
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),
