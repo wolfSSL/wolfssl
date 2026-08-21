@@ -2854,6 +2854,85 @@ static int test_wolfSSL_set_alpn_protos_default_fails(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_set_alpn_protos_binary_safe(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ALPN) && defined(OPENSSL_EXTRA) && !defined(NO_BIO) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* one 3-byte protocol name that contains a comma */
+    unsigned char comma[] = { 3, 'a', ',', 'b' };
+    /* a valid entry followed by a zero-length entry */
+    unsigned char empty[] = { 1, 'a', 0 };
+    /* a non-empty name containing a NUL byte */
+    unsigned char embeddedNul[] = { 3, 'a', 0, 'b' };
+    TLSX* ext = NULL;
+    ALPN* alpn = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* A comma inside a name must not split it into two protocols. */
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntEQ(wolfSSL_set_alpn_protos(ssl, comma, sizeof(comma)), 0);
+#else
+    ExpectIntEQ(wolfSSL_set_alpn_protos(ssl, comma, sizeof(comma)),
+        WOLFSSL_SUCCESS);
+#endif
+    if (ssl != NULL) {
+        ext = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
+        ExpectNotNull(ext);
+        if (ext != NULL) {
+            alpn = (ALPN*)ext->data;
+            ExpectNotNull(alpn);
+            if (alpn != NULL) {
+                /* Exactly one protocol, named "a,b". */
+                ExpectNull(alpn->next);
+                ExpectNotNull(alpn->protocol_name);
+                ExpectStrEQ(alpn->protocol_name, "a,b");
+            }
+        }
+    }
+
+    /* A zero-length entry is malformed and must be rejected. */
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntNE(wolfSSL_set_alpn_protos(ssl, empty, sizeof(empty)), 0);
+#else
+    ExpectIntNE(wolfSSL_set_alpn_protos(ssl, empty, sizeof(empty)),
+        WOLFSSL_SUCCESS);
+#endif
+
+    /* A NUL byte inside a non-empty name is a valid ALPN identifier and must
+     * round-trip intact: length preserved, all bytes unchanged. */
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    ExpectIntEQ(wolfSSL_set_alpn_protos(ssl, embeddedNul,
+        sizeof(embeddedNul)), 0);
+#else
+    ExpectIntEQ(wolfSSL_set_alpn_protos(ssl, embeddedNul,
+        sizeof(embeddedNul)), WOLFSSL_SUCCESS);
+#endif
+    if (ssl != NULL) {
+        ext = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
+        ExpectNotNull(ext);
+        if (ext != NULL) {
+            alpn = (ALPN*)ext->data;
+            ExpectNotNull(alpn);
+            if (alpn != NULL) {
+                ExpectNull(alpn->next);
+                ExpectIntEQ(alpn->protocol_nameSz, 3);
+                ExpectNotNull(alpn->protocol_name);
+                ExpectBufEQ(alpn->protocol_name, embeddedNul + 1, 3);
+            }
+        }
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_use_certificate(void)
 {
     EXPECT_DECLS;
@@ -40336,6 +40415,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
     TEST_DECL(test_wolfSSL_set_alpn_protos_default_fails),
+    TEST_DECL(test_wolfSSL_set_alpn_protos_binary_safe),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),

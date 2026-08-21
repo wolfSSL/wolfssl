@@ -3510,10 +3510,11 @@ WOLFSSL_LOCAL int TLSX_UseTrustedCA(TLSX** extensions, byte type,
 /* Application-Layer Protocol Negotiation - RFC 7301 */
 #ifdef HAVE_ALPN
 typedef struct ALPN {
-    char*        protocol_name; /* ALPN protocol name */
-    struct ALPN* next;          /* List Behavior      */
-    byte         options;       /* Behavior options */
-    byte         negotiated;    /* ALPN protocol negotiated or not */
+    char*        protocol_name;   /* ALPN protocol name */
+    struct ALPN* next;            /* List Behavior      */
+    word16       protocol_nameSz; /* length of protocol_name in bytes */
+    byte         options;         /* Behavior options */
+    byte         negotiated;      /* ALPN protocol negotiated or not */
 } ALPN;
 
 WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
