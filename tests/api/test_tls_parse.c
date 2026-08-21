@@ -75,6 +75,7 @@ static WOLFSSL_CTX* test_tls_parse_server_ctx(WOLFSSL_METHOD* method)
  * header into 'out', which must be at least bodyLen + 4 bytes, and returns
  * the total length.
  */
+TEST_TLS_PARSE_UNUSED
 static word16 test_tls_parse_build_ext(byte* out, word16 outCap,
         word16 type, const byte* body, word16 bodyLen)
 {
@@ -135,6 +136,7 @@ static void* tls_parse_fail_realloc(void* ptr, size_t size)
  * TLSX_UseSupportedCurve()'s TLSX_IsGroupSupported() gate -- needed to name
  * a group id this build does not itself recognise, the same as a peer's
  * raw wire value would. */
+TEST_TLS_PARSE_UNUSED
 static int test_tls_parse_push_curve(TLSX** extensions, WOLFSSL* ssl,
         word16 name)
 {
@@ -150,6 +152,7 @@ static int test_tls_parse_push_curve(TLSX** extensions, WOLFSSL* ssl,
 /* Builds and pushes a minimal key share entry -- a peer offer that was
  * never processed into a real key -- for tests that only need the
  * bookkeeping fields (group, ke) a negotiation helper looks at. */
+TEST_TLS_PARSE_UNUSED
 static KeyShareEntry* test_tls_parse_push_kse(TLSX** extensions, WOLFSSL* ssl,
         word16 group)
 {
@@ -178,6 +181,7 @@ static KeyShareEntry* test_tls_parse_push_kse(TLSX** extensions, WOLFSSL* ssl,
  * WOLFSSL_LOCAL; releasing a standalone (not already list-linked) entry
  * built directly for a test goes through the generic TLSX_FreeAll()
  * instead, via a throwaway one-node extension list. */
+TEST_TLS_PARSE_UNUSED
 static void test_tls_parse_free_kse(WOLFSSL* ssl, KeyShareEntry* kse)
 {
     TLSX* extensions = NULL;

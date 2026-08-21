@@ -2355,6 +2355,7 @@ int test_tls_msgtype_tca_find(void)
 static int tca_fail_after = -1;
 static int tca_alloc_seen = 0;
 
+TEST_TLS_MSGTYPE_UNUSED
 static void* tca_fail_malloc(size_t size)
 {
     if (tca_fail_after >= 0) {
@@ -2367,11 +2368,13 @@ static void* tca_fail_malloc(size_t size)
     return malloc(size);
 }
 
+TEST_TLS_MSGTYPE_UNUSED
 static void tca_fail_free(void* ptr)
 {
     free(ptr);
 }
 
+TEST_TLS_MSGTYPE_UNUSED
 static void* tca_fail_realloc(void* ptr, size_t size)
 {
     return realloc(ptr, size);
