@@ -778,6 +778,40 @@ out:
 
 #endif /* WOLFSSL_SHA3 && LINUXKM_LKCAPI_REGISTER_SHA3_* */
 
+/* ---- all-or-nothing vector-register bracket for a shash entry point -------
+ *
+ * SAVE_VECTOR_REGISTERS lives inside inline_XTRANSFORM(), i.e. per 64-byte
+ * BLOCK (wolfcrypt/src/sha256.c).  Left there, a refusal partway through a
+ * multi-block update leaves the earlier blocks ALREADY ABSORBED into the
+ * state, so a caller that retried the same buffer would absorb them twice and
+ * get a WRONG DIGEST.  Returning a retryable -EBUSY from that position would
+ * be an invitation to corrupt the hash.
+ *
+ * Taking the bracket once here makes the entry point atomic: either the
+ * registers were unavailable and NOTHING ran -- state untouched, -EBUSY, safe
+ * to retry -- or they are held for the whole operation and every inner
+ * per-block acquire merely nests, which cannot fail
+ * (wc_save_vector_registers_x86() returns 0 on depth > 0 for
+ * WC_SVR_FLAG_NONE).
+ *
+ * The kernel brackets the same way -- one kernel_fpu_begin() around the whole
+ * update, no chunking: arch/x86/crypto/sha256_ssse3_glue.c _sha256_update().
+ * The difference is what it does when SIMD is unusable: it calls
+ * crypto_sha256_update(), a second C implementation.  This module has exactly
+ * one implementation and must refuse instead -- retryably, so the caller comes
+ * back to us rather than to somebody else's crypto.
+ *
+ * wc_lkm_errno() maps WC_ACCEL_INHIBIT_E -> -EBUSY and everything else to
+ * -EINVAL, which is the distinction the kernel hook patch retries on.
+ */
+#define KM_SHA_SVR_BEGIN(ret_var)                                          \
+    do {                                                                   \
+        (ret_var) = SAVE_VECTOR_REGISTERS2();                              \
+        if ((ret_var) != 0)                                                \
+            return wc_lkm_errno(ret_var);                                  \
+    } while (0)
+#define KM_SHA_SVR_END() RESTORE_VECTOR_REGISTERS()
+
 #define WC_LINUXKM_SHA1_IMPLEMENT(name, s_name, digest_size, block_size,   \
                                   this_cra_name, this_cra_driver_name,     \
                                   init_f, update_f, final_f,               \
@@ -840,7 +874,10 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
         (struct km_ ## name ## _shash_ctx *)shash_desc_ctx(desc);          \
     struct s_name *ctx = &wrap->inner;                                     \
                                                                            \
-    int ret = update_f(ctx, data, len);                                    \
+    int ret;                                                               \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
+    ret = update_f(ctx, data, len);                                        \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -872,7 +909,10 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
-    int ret = final_f(ctx, out);                                           \
+    int ret;                                                               \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
+    ret = final_f(ctx, out);                                               \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     free_f(ctx);                                                           \
     /* Digest emitted; the message state is spent.  free_f() leaves it in  \
@@ -905,7 +945,10 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
-    int ret = update_f(ctx, data, len);                                    \
+    int ret;                                                               \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
+    ret = update_f(ctx, data, len);                                        \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     if (ret != 0) {                                                        \
         wrap->failed = 1;                                                  \
@@ -1064,9 +1107,11 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
     int ret;                                                               \
     WC_LINUXKM_SHA2_DECL_W(ctx, W_size);                                   \
                                                                            \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
     ret = update_f(ctx, data, len);                                        \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -1100,9 +1145,11 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
     ret = final_f(ctx, out);                                               \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     free_f(ctx);                                                           \
     /* Digest emitted; the message state is spent.  free_f() leaves it in  \
@@ -1137,9 +1184,11 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
     ret = update_f(ctx, data, len);                                        \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     if (ret != 0) {                                                        \
         wrap->failed = 1;                                                  \
@@ -1150,9 +1199,11 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
     ret = final_f(ctx, out);                                               \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     free_f(ctx);                                                           \
     /* Digest emitted; the message state is spent.  free_f() leaves it in  \
@@ -1173,10 +1224,18 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
     struct s_name *ctx = &wrap->inner;                                     \
     int ret;                                                               \
                                                                            \
+    /* One-shot: bracket the WHOLE operation.  crypto_shash_digest() binds     \
+     * straight here, so this -- not ->finup() -- is the path a caller takes, \
+     * and leaving it unbracketed made the per-block refusal surface as        \
+     * -EINVAL (permanent) instead of -EBUSY (retryable).  Measured.           \
+     */                                                                       \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
+                                                                           \
     wrap->failed = 0;                                                      \
     ret = init_f(ctx);                                                     \
     if (ret != 0) {                                                        \
         wrap->failed = 1;                                                  \
+        KM_SHA_SVR_END();                                                  \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
@@ -1184,6 +1243,8 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
                                                                            \
     if (ret == 0)                                                          \
         ret = final_f(ctx, out);                                           \
+                                                                           \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     free_f(ctx);                                                           \
     /* One-shot: digest emitted, desc spent.  free_f() leaves the          \
