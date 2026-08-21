@@ -326,6 +326,42 @@ int test_ocsp_ancestor_responder_rejected(void)
 }
 #endif
 
+#if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
+/* The responder certificate embedded in an OCSP response must have its own
+ * signature verified against the CA it claims issued it (RFC 6960 4.2.2.2:
+ * the delegation certificate and the certificate being checked must be signed
+ * by the same key). resp_forged_responder_cert carries a responder
+ * certificate that names the legitimate root CA as its issuer and repeats
+ * that CA's key identifier, so the signer lookup resolves to the real root
+ * CA, but it was signed by the imposter root CA's key. Matching names and key
+ * identifiers only select a candidate issuer; they do not authenticate one.
+ * Nothing else about the response is wrong, so accepting it would mean the
+ * responder certificate's signature was never checked. */
+int test_ocsp_forged_responder_cert_rejected(void)
+{
+    EXPECT_DECLS;
+    struct test_conf conf;
+
+    conf.resp = (unsigned char*)resp_forged_responder_cert;
+    conf.respSz = sizeof(resp_forged_responder_cert);
+    conf.ca0 = root_ca_cert_pem;
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = NULL;
+    conf.ca1Sz = 0;
+    conf.targetCert = intermediate1_ca_cert_pem;
+    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, OCSP_LOOKUP_FAIL),
+        TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_ocsp_forged_responder_cert_rejected(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
     !defined(NO_RSA)
 static int test_ocsp_create_x509store(WOLFSSL_X509_STORE** store,
