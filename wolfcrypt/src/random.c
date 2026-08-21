@@ -35,8 +35,10 @@ This library contains implementation for the random number generator.
  * WC_RNG_BLOCKING:          Make RNG operations blocking         default: off
  * WC_VERBOSE_RNG:           Enable verbose RNG debug output      default: off
  * WC_RNG_SEED_CB:           Use custom seed callback function    default: off
- * WC_RNG_BANK_SUPPORT:      Enable RNG bank (pre-generated)     default: off
- *                            random data support
+ * WC_RNG_BANK_SUPPORT:      Enable RNG bank (a set of ready     default: off
+ *                            DRBG instances -- NOT stored
+ *                            output; generation still goes
+ *                            straight into the caller buffer)
  * WOLFSSL_RNG_USE_FULL_SEED: Use full-length seed for DRBG      default: off
  * WOLFSSL_GENSEED_FORTEST:  Use deterministic seed for testing   default: off
  *                            WARNING: not for production use
