@@ -153,15 +153,17 @@ TEST_TLS_PARSE_UNUSED
 static int test_tls_parse_push_curve(TLSX** extensions, WOLFSSL* ssl,
         word16 name)
 {
-    SupportedCurve* curve = (SupportedCurve*)XMALLOC(sizeof(SupportedCurve),
-            ssl->heap, DYNAMIC_TYPE_TLSX);
-    if (curve == NULL)
+    SupportedCurves* curves = (SupportedCurves*)XMALLOC(
+            sizeof(SupportedCurves) + sizeof(word16), ssl->heap,
+            DYNAMIC_TYPE_TLSX);
+    if (curves == NULL)
         return WC_NO_ERR_TRACE(MEMORY_E);
-    curve->name = name;
-    curve->next = NULL;
-    if (TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, ssl->heap) != 0) {
+    curves->count = 1;
+    curves->cap = 1;
+    curves->name[0] = name;
+    if (TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curves, ssl->heap) != 0) {
         /* TLSX_New failed before it stored curve, so the entry is still ours. */
-        XFREE(curve, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(curves, ssl->heap, DYNAMIC_TYPE_TLSX);
         return WC_NO_ERR_TRACE(MEMORY_E);
     }
     return 0;
