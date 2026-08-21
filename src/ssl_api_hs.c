@@ -1626,6 +1626,16 @@ int wolfSSL_is_init_finished(const WOLFSSL* ssl)
         }
         else
         #endif /* WOLFSSL_DTLS13 && !NO_WOLFSSL_CLIENT */
+        #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
+        if ((ssl->options.side == WOLFSSL_CLIENT_END) && (!ssl->options.dtls)
+                && (IsAtLeastTLSv1_3(ssl->version))) {
+            /* handShakeState is set before the Finished is flushed,
+             * so only connectState tells us if the record actually went out. */
+            ret = (ssl->options.handShakeState == HANDSHAKE_DONE) &&
+                  (ssl->options.connectState >= FINISHED_DONE);
+        }
+        else
+        #endif /* WOLFSSL_TLS13 && !NO_WOLFSSL_CLIENT */
         {
             /* Can't use ssl->options.connectState and ssl->options.acceptState
              * because they differ in meaning for TLS <=1.2 and 1.3 */
