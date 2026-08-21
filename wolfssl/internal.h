@@ -3731,11 +3731,16 @@ WOLFSSL_LOCAL int TLSX_UseTrustedCA(TLSX** extensions, byte type,
 /* Application-Layer Protocol Negotiation - RFC 7301 */
 #ifdef HAVE_ALPN
 typedef struct ALPN {
-    char*        protocol_name;   /* ALPN protocol name */
     struct ALPN* next;            /* List Behavior      */
     word16       protocol_nameSz; /* length of protocol_name in bytes */
     byte         options;         /* Behavior options */
     byte         negotiated;      /* ALPN protocol negotiated or not */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    char protocol_name[WC_FLEXIBLE_ARRAY_SIZE]; /* ALPN protocol name */
 } ALPN;
 
 WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
