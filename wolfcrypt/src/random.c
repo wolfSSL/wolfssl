@@ -534,7 +534,11 @@ static int UnlockDrbgState(void)
  * retry rather than being left holding a stale value.
  *
  * Returns 1 when this call took the flag and the caller must release it, 0
- * when the instance's exclusivity comes from its owner instead. */
+ * when the instance's exclusivity comes from its owner instead, and
+ * WC_RNG_EXCL_TAKEN_BUSY when the flag is held and this caller must not wait
+ * for it.  Every caller has to handle the third value: treating it as "took
+ * it" would release a flag this thread does not own. */
+#define WC_RNG_EXCL_TAKEN_BUSY (-1)
 static int RngExclEnter(WC_RNG* rng)
 {
     WC_ATOMIC_INT_ARG expected = WC_RNG_EXCL_FREE;
@@ -542,6 +546,31 @@ static int RngExclEnter(WC_RNG* rng)
     if (WOLFSSL_ATOMIC_LOAD(rng->excl) == WC_RNG_EXCL_OWNER) {
         return 0;
     }
+
+#if defined(WOLFSSL_LINUXKM)
+    /* NMI must not wait for this flag.  The holder can be a task on this very
+     * CPU: the NMI DRBG leaf reseed in linuxkm_get_entropy.c runs in process
+     * context with interrupts on, so an NMI lands on top of it, and that task
+     * cannot run again until the NMI returns.  The spin below would then never
+     * end -- measured as a permanently wedged CPU with the leaf's own pinned
+     * maintenance worker RCU-stalled behind it.
+     *
+     * Try once.  A caller that does not get the flag is told the instance is
+     * busy and reports a retryable failure instead of waiting.  Nothing is
+     * computed a second way and no other generator answers: the caller
+     * retries, and if it runs out of retries it fails loudly. */
+    if (in_nmi()) {
+        WC_ATOMIC_INT_ARG nmi_expected = WC_RNG_EXCL_FREE;
+
+        if (! wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &nmi_expected,
+                                                 WC_RNG_EXCL_HELD))
+        {
+            return WC_RNG_EXCL_TAKEN_BUSY;
+        }
+
+        return 1;
+    }
+#endif
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     /* fork() clones only the calling thread, so a flag left HELD by a thread
@@ -883,6 +912,9 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
     /* Reseed rewrites V, C and reseedCtr; serialize it against Generate on
      * the same instance. */
     excl = RngExclEnter(rng);
+    if (excl == WC_RNG_EXCL_TAKEN_BUSY) {
+        return BUSY_E;
+    }
 #endif
 
     ret = _RNG_DRBG_Reseed(rng, seed, seedSz);
@@ -3032,6 +3064,11 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
      * crypto callback, RDRAND, async, touches no DRBG state and stays
      * outside.  Returns 0 for a bank instance, which is already exclusive. */
     excl = RngExclEnter(rng);
+    if (excl == WC_RNG_EXCL_TAKEN_BUSY) {
+        /* Held, and this caller may not wait.  Retryable: the instance is
+         * intact and the next call gets it. */
+        return BUSY_E;
+    }
 
     /* Another thread may have failed the instance while we waited. */
     if (rng->status != DRBG_OK) {
