@@ -520,25 +520,25 @@ int test_wolfSSL_X509_sign(void)
      * with the MSB set. See GenerateInteger in asn.c */
 #ifndef USE_CERT_BUFFERS_1024
 #ifndef WOLFSSL_ALT_NAMES
-    /* Valid case - size should be 781-786 with 16 byte serial number */
-    ExpectTrue((781 + snSz <= ret) && (ret <= 781 + 5 + snSz));
+    /* Valid case - size should be 777-782 with 16 byte serial number */
+    ExpectTrue((777 + snSz <= ret) && (ret <= 777 + 5 + snSz));
 #elif defined(WOLFSSL_IP_ALT_NAME)
-    /* Valid case - size should be 955-960 with 16 byte serial number */
-    ExpectTrue((939 + snSz <= ret) && (ret <= 939 + 5 + snSz));
+    /* Valid case - size should be 951-956 with 16 byte serial number */
+    ExpectTrue((935 + snSz <= ret) && (ret <= 935 + 5 + snSz));
 #else
-    /* Valid case - size should be 926-931 with 16 byte serial number */
-    ExpectTrue((910 + snSz <= ret) && (ret <= 910 + 5 + snSz));
+    /* Valid case - size should be 922-927 with 16 byte serial number */
+    ExpectTrue((906 + snSz <= ret) && (ret <= 906 + 5 + snSz));
 #endif
 #else
 #ifndef WOLFSSL_ALT_NAMES
-    /* Valid case - size should be 537-542 with 16 byte serial number */
-    ExpectTrue((521 + snSz <= ret) && (ret <= 521 + 5 + snSz));
+    /* Valid case - size should be 533-538 with 16 byte serial number */
+    ExpectTrue((517 + snSz <= ret) && (ret <= 517 + 5 + snSz));
 #elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-    /* Valid case - size should be 695-670 with 16 byte serial number */
-    ExpectTrue((679 + snSz <= ret) && (ret <= 679 + 5 + snSz));
+    /* Valid case - size should be 691-696 with 16 byte serial number */
+    ExpectTrue((675 + snSz <= ret) && (ret <= 675 + 5 + snSz));
 #else
-    /* Valid case - size should be 666-671 with 16 byte serial number */
-    ExpectTrue((650 + snSz <= ret) && (ret <= 650 + 5 + snSz));
+    /* Valid case - size should be 662-667 with 16 byte serial number */
+    ExpectTrue((646 + snSz <= ret) && (ret <= 646 + 5 + snSz));
 #endif
 #endif
     /* check that issuer name is as expected after signature */

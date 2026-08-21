@@ -30820,6 +30820,120 @@ exit_rsa_even_mod:
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
 #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_MALLOC)
+#ifdef WOLFSSL_TEST_CERT
+/* RFC 5280: validity dates through 2049 encode as UTCTime, 2050 and later as
+ * GeneralizedTime. Returns 0 when the decoded date TLV honors that rule. */
+static int cert_time_format_ok(const byte* dateTLV)
+{
+    int year;
+
+    if (dateTLV == NULL)
+        return -1;
+    if (dateTLV[0] == ASN_UTC_TIME)
+        return 0;
+    if (dateTLV[0] != ASN_GENERALIZED_TIME)
+        return -1;
+    year = (dateTLV[2] - '0') * 1000 + (dateTLV[3] - '0') * 100 +
+           (dateTLV[4] - '0') * 10  + (dateTLV[5] - '0');
+    return ((year < 1950) || (year >= 2050)) ? 0 : -1;
+}
+
+/* Decode the calendar year from an ASN.1 date TLV, inverting the two-digit
+ * UTCTime year, so a wrong encoded year is caught. Returns -1 on error. */
+static int cert_date_year(const byte* dateTLV)
+{
+    int yy;
+
+    if (dateTLV == NULL)
+        return -1;
+    if (dateTLV[0] == ASN_UTC_TIME) {
+        yy = (dateTLV[2] - '0') * 10 + (dateTLV[3] - '0');
+        return (yy < 50) ? 2000 + yy : 1900 + yy;
+    }
+    if (dateTLV[0] == ASN_GENERALIZED_TIME) {
+        return (dateTLV[2] - '0') * 1000 + (dateTLV[3] - '0') * 100 +
+               (dateTLV[4] - '0') * 10  + (dateTLV[5] - '0');
+    }
+    return -1;
+}
+
+static time_t certGenBoundaryTime;
+static time_t cert_gen_boundary_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = certGenBoundaryTime;
+    return certGenBoundaryTime;
+}
+
+/* Deterministically exercise the RFC 5280 UTCTime/GeneralizedTime boundary by
+ * forcing the clock to fixed mid-2049 and mid-2050 dates. Those epochs need a
+ * 64-bit time_t, so 32-bit-time_t builds skip the check. */
+static wc_test_ret_t cert_gen_time_boundary_test(Cert* cert, byte* der,
+        RsaKey* key, WC_RNG* rng, DecodedCert* decode)
+{
+    static const struct {
+        time_t now;
+        int    daysValid;
+        byte   beforeTag;
+        byte   afterTag;
+        int    beforeYear;
+        int    afterYear;
+    } cases[] = {
+        { (time_t)2508710400UL, 100, ASN_UTC_TIME,         ASN_UTC_TIME,
+          2049, 2049 },
+        { (time_t)2540246400UL, 100, ASN_GENERALIZED_TIME, ASN_GENERALIZED_TIME,
+          2050, 2050 },
+        { (time_t)2508710400UL, 400, ASN_UTC_TIME,         ASN_GENERALIZED_TIME,
+          2049, 2050 }
+    };
+    wc_test_ret_t ret = 0;
+    int tSz = (int)sizeof(time_t);
+    int tSigned = ((time_t)-1 < 0);
+    int certSz;
+    int i;
+
+    /* The mid-2050 epoch needs a time_t that reaches past 2038: 64-bit, or
+     * unsigned 32-bit (good to 2106). Signed 32-bit cannot, so skip it. */
+    if ((tSz < 8) && tSigned)
+        return 0;
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        certGenBoundaryTime = cases[i].now;
+        ret = wc_SetTimeCb(cert_gen_boundary_time_cb);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+
+        cert->daysValid = cases[i].daysValid;
+        ret = 0;
+        WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
+            wc_MakeSelfCert(cert, der, FOURK_BUF, key, rng));
+        (void)wc_SetTimeCb(NULL);
+        if (ret < 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        certSz = (int)ret;
+
+        InitDecodedCert(decode, der, certSz, HEAP_HINT);
+        ret = ParseCert(decode, CERT_TYPE, NO_VERIFY, 0);
+        if (ret == 0) {
+            if ((decode->beforeDate == NULL) || (decode->afterDate == NULL) ||
+                (decode->beforeDate[0] != cases[i].beforeTag) ||
+                (decode->afterDate[0] != cases[i].afterTag) ||
+                (cert_date_year(decode->beforeDate) != cases[i].beforeYear) ||
+                (cert_date_year(decode->afterDate) != cases[i].afterYear)) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+        else {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        FreeDecodedCert(decode);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+#endif
 static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -30946,6 +31060,12 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
         FreeDecodedCert(decode);
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
     }
+    /* Verify the generated validity dates use the RFC 5280 time format. */
+    if ((cert_time_format_ok(decode->beforeDate) != 0) ||
+        (cert_time_format_ok(decode->afterDate) != 0)) {
+        FreeDecodedCert(decode);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
+    }
     FreeDecodedCert(decode);
 #endif
 
@@ -30954,6 +31074,13 @@ static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, 
     if (ret != 0) {
         goto exit_rsa;
     }
+
+#ifdef WOLFSSL_TEST_CERT
+    ret = cert_gen_time_boundary_test(myCert, der, key, rng, decode);
+    if (ret != 0) {
+        goto exit_rsa;
+    }
+#endif
 
     /* Setup Certificate */
     ret = wc_InitCert_ex(myCert, HEAP_HINT, devId);

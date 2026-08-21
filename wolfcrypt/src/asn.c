@@ -28295,15 +28295,32 @@ static WC_INLINE byte itob(int number)
 }
 
 
-/* write time to output, format */
-static void SetTime(struct tm* date, byte* output)
+/* RFC 5280: validity dates through 2049 encode as UTCTime, 2050 and later as
+ * GeneralizedTime. date->tm_year holds the full year here. */
+static byte ValidityTimeFormat(const struct tm* date)
+{
+    if (date->tm_year >= 1950 && date->tm_year < 2050)
+        return ASN_UTC_TIME;
+    return ASN_GENERALIZED_TIME;
+}
+
+/* write time value to output in the given ASN.1 format */
+static void SetTime(struct tm* date, byte* output, byte format)
 {
     int i = 0;
+    int year = date->tm_year;
 
-    output[i++] = itob((date->tm_year % 10000) / 1000);
-    output[i++] = itob((date->tm_year % 1000)  /  100);
-    output[i++] = itob((date->tm_year % 100)   /   10);
-    output[i++] = itob( date->tm_year % 10);
+    if (format == ASN_UTC_TIME) {
+        year %= 100;
+        output[i++] = itob((year / 10) % 10);
+        output[i++] = itob( year % 10);
+    }
+    else {
+        output[i++] = itob((year % 10000) / 1000);
+        output[i++] = itob((year % 1000)  /  100);
+        output[i++] = itob((year % 100)   /   10);
+        output[i++] = itob( year % 10);
+    }
 
     output[i++] = itob(date->tm_mon / 10);
     output[i++] = itob(date->tm_mon % 10);
@@ -30066,6 +30083,8 @@ static int SetValidity(byte* before, byte* after, int daysValid)
 {
 #ifndef NO_ASN_TIME
     int ret = 0;
+    byte format;
+    word32 timeSz;
     time_t now;
     time_t then;
     struct tm* tmpTime;
@@ -30096,7 +30115,12 @@ static int SetValidity(byte* before, byte* after, int daysValid)
         localTime.tm_year += 1900;
         localTime.tm_mon +=    1;
 
-        SetTime(&localTime, before);
+        format = ValidityTimeFormat(&localTime);
+        timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
+                                          : ASN_GEN_TIME_SZ;
+        before[0] = format;
+        SetLength(timeSz, before + 1);
+        SetTime(&localTime, before + 2, format);
 
         /* add daysValid of seconds */
         then = now + (daysValid * (time_t)86400);
@@ -30113,7 +30137,12 @@ static int SetValidity(byte* before, byte* after, int daysValid)
         localTime.tm_year += 1900;
         localTime.tm_mon  +=    1;
 
-        SetTime(&localTime, after);
+        format = ValidityTimeFormat(&localTime);
+        timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
+                                          : ASN_GEN_TIME_SZ;
+        after[0] = format;
+        SetLength(timeSz, after + 1);
+        SetTime(&localTime, after + 2, format);
     }
 
     return ret;
@@ -30806,6 +30835,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     int ret = 0;
     word32 issRawLen = 0;
     word32 sbjRawLen = 0;
+    byte localBefore[MAX_DATE_SIZE];
+    byte localAfter[MAX_DATE_SIZE];
 
     /* Unused without PQC */
     (void)falconKey;
@@ -31031,16 +31062,35 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         }
         else
         {
-            /* Don't put out UTC before data. */
-            dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC].noOut = 1;
-            /* Make space for before date data. */
-            SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT],
-                    NULL, ASN_GEN_TIME_SZ);
-            /* Don't put out UTC after data. */
-            dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC].noOut = 1;
-            /* Make space for after date data. */
-            SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT],
-                    NULL, ASN_GEN_TIME_SZ);
+            /* Compute default validity dates; SetValidity picks UTCTime or
+             * Generalized Time per RFC 5280 based on the year. */
+            ret = SetValidity(localBefore, localAfter, cert->daysValid);
+            if (ret == 0) {
+                if (localBefore[0] == ASN_UTC_TIME) {
+                    SetASN_Buffer(
+                        &dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC],
+                        localBefore + 2, ASN_UTC_TIME_SIZE - 1);
+                    dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT].noOut = 1;
+                }
+                else {
+                    dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC].noOut = 1;
+                    SetASN_Buffer(
+                        &dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT],
+                        localBefore + 2, ASN_GEN_TIME_SZ);
+                }
+                if (localAfter[0] == ASN_UTC_TIME) {
+                    SetASN_Buffer(
+                        &dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC],
+                        localAfter + 2, ASN_UTC_TIME_SIZE - 1);
+                    dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT].noOut = 1;
+                }
+                else {
+                    dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC].noOut = 1;
+                    SetASN_Buffer(
+                        &dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT],
+                        localAfter + 2, ASN_GEN_TIME_SZ);
+                }
+            }
         }
         if (sbjRawLen > 0) {
             /* Put in encoded subject name. */
@@ -31078,7 +31128,9 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                 X509CERTASN_IDX_SIGNATURE);
 
         /* Calculate encoded certificate body size. */
-        ret = SizeASN_Items(x509CertASN, dataASN, x509CertASN_Length, &sz);
+        if (ret >= 0) {
+            ret = SizeASN_Items(x509CertASN, dataASN, x509CertASN_Length, &sz);
+        }
     }
     /* Check buffer is big enough for encoded data. */
     if ((ret == 0) && (sz > derSz)) {
@@ -31108,18 +31160,6 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                 dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].data.buffer.data,
             dataASN[X509CERTASN_IDX_TBS_SUBJECT_SEQ].data.buffer.length,
             &cert->subject, cert->heap);
-    }
-    if (ret >= 0) {
-        if (cert->beforeDateSz == 0 || cert->afterDateSz == 0)
-        {
-            /* Encode validity into buffer. */
-            /* safe casts -- the pointers are actually inside derBuffer. */
-            ret = SetValidity(
-                (byte*)(wc_ptr_t)dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT]
-                               .data.buffer.data,
-                (byte*)(wc_ptr_t)dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT]
-                               .data.buffer.data, cert->daysValid);
-        }
     }
     if (ret >= 0) {
         /* Encode public key into buffer. */
