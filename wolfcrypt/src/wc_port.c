@@ -5762,23 +5762,32 @@ int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
 #endif /* (__unix__ || __APPLE__) && !WOLFSSL_KERNEL_MODE && !WOLFSSL_ZEPHYR &&
         * !WOLFSSL_SGX */
 
-#if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
-    defined(WC_SYM_RELOC_TABLES)
-#ifndef CONFIG_ARCH_TEGRA
+/* Forwarding definitions for the system-header shims installed in
+ * linuxkm/linuxkm_wc_port.h.  wc_port.c is a containerized (PIE) object, which
+ * is where these have to live: the container is link-checked on its own, so a
+ * shimmed name that resolves outside it is still an unresolved symbol.  The
+ * conditions are the same WC_LINUXKM_HAVE_* macros the #define, the #undef,
+ * the table member and the table population use -- the four sites disagreeing
+ * is what left "U my__alt_cb_patch_nops" in the container on arm64/6.1+ with
+ * CONFIG_ARCH_TEGRA=y.
+ */
+#if defined(WOLFSSL_LINUXKM) && defined(WC_CONTAINERIZE_THIS)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
 noinstr void my__alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
                                    __le32 *updptr, int nr_inst)
 {
     return WC_PIE_INDIRECT_SYM(alt_cb_patch_nops)
         (alt, origptr, updptr, nr_inst);
 }
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
+#endif /* WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS */
 
+#ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
 void my__queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 {
     return WC_PIE_INDIRECT_SYM(queued_spin_lock_slowpath)
         (lock, val);
 }
-#endif
-#endif
+#endif /* WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH */
+
+#endif /* WOLFSSL_LINUXKM && WC_CONTAINERIZE_THIS */

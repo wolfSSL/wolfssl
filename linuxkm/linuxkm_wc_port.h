@@ -485,15 +485,47 @@
         #error WC_FORCE_LINUXKM_FORTIFY_SOURCE without CONFIG_FORTIFY_SOURCE.
     #endif
 
-    #if defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_ARM64)
-        /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
-         * to allow shimming in system headers.
-         */
-        /* alt_cb_patch_nops added by d926079f17, release 6.1 */
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    /* One condition per redirected symbol, decided once here and used at
+     * every site that has to agree about it: the #define below that shims the
+     * system headers, the matching #undef and the redirect-table member in
+     * struct wolfssl_linuxkm_pie_redirect_table, the forwarding definition in
+     * wolfcrypt/src/wc_port.c, and the table population in
+     * linuxkm/module_hooks.c.
+     *
+     * a5f1fde95 ("linuxkm: fix Tegra Yocto FIPS build issues") added a
+     * CONFIG_ARCH_TEGRA exclusion to every one of those sites EXCEPT the
+     * #define.  On an arm64 configuration with CONFIG_ARCH_TEGRA=y -- which
+     * arm64 defconfig sets -- the system headers were therefore redirected to
+     * my__alt_cb_patch_nops with nothing defining it, and with no #undef to
+     * take the redirection back down for the rest of the translation unit.
+     *
+     * alt_cb_patch_nops needs no platform exclusion: arm64 declares it
+     * unconditionally in arch/arm64/include/asm/alternative.h (line 37 in
+     * 7.0.14), and the Tegra kernel a5f1fde95 was fixing is 5.17, which the
+     * 6.1 test below already excludes.  The queued_spin_lock_slowpath
+     * exclusion is carried over from a5f1fde95 unchanged.
+     *
+     * alt_cb_patch_nops added by d926079f17, release 6.1.
+     */
+    #if defined(CONFIG_ARM64) && \
+        (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+        #define WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
+    #endif
+    #if defined(CONFIG_ARM64) && !defined(CONFIG_ARCH_TEGRA)
+        #define WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
+    #endif
+
+    /* Shim the system headers.  This has to happen before they are included:
+     * their inline bodies are tokenised as they are read, so a later #define
+     * cannot reach the calls those bodies leave behind.
+     */
+    #ifdef WC_CONTAINERIZE_THIS
+        #ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
             #define alt_cb_patch_nops my__alt_cb_patch_nops
-        #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
-        #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
+        #endif
+        #ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
+            #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
+        #endif
     #endif
 
     /*
@@ -1464,26 +1496,26 @@
 
         typeof(dump_stack) *dump_stack;
 
-        #ifdef CONFIG_ARM64
-        #ifndef CONFIG_ARCH_TEGRA
         #ifdef WC_CONTAINERIZE_THIS
-            /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
-             * to allow shimming in system headers, but now we need the native
-             * ones.
+            /* The system headers have been read, so the shim has done its job
+             * and the table needs the native names back.  Each #undef is
+             * gated exactly like the #define that paired with it.
              */
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+            #ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
             #undef alt_cb_patch_nops
             typeof(my__alt_cb_patch_nops) *alt_cb_patch_nops;
-            #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
+            #endif
+            #ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
             #undef queued_spin_lock_slowpath
             typeof(my__queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
+            #endif
         #else
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+            #ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
             typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
             #endif
+            #ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
             typeof(queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
-        #endif
-        #endif
+            #endif
         #endif
 
         typeof(preempt_count) *preempt_count;
