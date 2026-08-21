@@ -262,8 +262,11 @@ int test_tls_msgtype_certificate_ext_offered(void)
 int test_tls_msgtype_sni_tls13(void)
 {
     EXPECT_DECLS;
+/* Drives TLSX_SNI_Parse's isRequest path, which is server-side code and
+ * is compiled out by NO_WOLFSSL_SERVER. */
 #if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -1236,7 +1239,8 @@ int test_tls_msgtype_sni_find(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* host = "example.com";
@@ -1309,8 +1313,11 @@ int test_tls_msgtype_sni_parse_response_gate(void)
 int test_tls_msgtype_sni_parse_size_gates(void)
 {
     EXPECT_DECLS;
+/* Drives TLSX_SNI_Parse's isRequest path, which is server-side code and
+ * is compiled out by NO_WOLFSSL_SERVER. */
 #if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* host = "srv.example";
@@ -1414,7 +1421,8 @@ int test_tls_msgtype_sni_parse_match(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
