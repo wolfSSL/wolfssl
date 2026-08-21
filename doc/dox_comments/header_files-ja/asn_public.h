@@ -1928,9 +1928,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     \return Other 失敗時に負の値。
 
     \param cert このコールバックに関連付けられるDecodedCert構造体。
-    \param cb 不明な拡張コールバックとして登録する関数。
-
-    \note 各OIDアークはword16としてコールバックに渡されるため、65535を超える値は切り捨てられます。新しいコードではwc_SetUnknownExtCallback32()を使用してください。同一のDecodedCertにword16とword32の両方のコールバックが登録されている場合、word32のコールバックのみが呼び出されます。
+    \param cb 時刻コールバックとして登録する関数。
 
     _Example_
     \code
@@ -1945,13 +1943,13 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         // コールバックの設定失敗
     }
 
-    // oid: oidのドット区切り値であるword16の配列。
+    // oid: oidのドット区切り値である整数の配列。
     // oidSz: oid内の値の数。
     // crit: 拡張が重要としてマークされたかどうか。
     // der: 拡張のコンテンツのderエンコーディング。
     // derSz: derエンコーディングのサイズ（バイト単位）。
-    int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
-                             const unsigned char* der, word32 derSz) {
+    int myCustomExtCallback(const word16* oid, word32 oidSz, int crit,
+                            const unsigned char* der, word32 derSz) {
 
         // 拡張を解析するロジックがここに入ります。
 
@@ -1968,7 +1966,6 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     \sa ParseCert
     \sa wc_SetCustomExtension
-    \sa wc_SetUnknownExtCallback32
 */
 int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
