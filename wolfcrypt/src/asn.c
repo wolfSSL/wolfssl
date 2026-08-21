@@ -3534,8 +3534,10 @@ WOLFSSL_LOCAL int SetASNInt(int len, byte firstByte, byte* output)
 #endif
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-#if !defined(NO_DSA) || defined(HAVE_ECC) || (defined(WOLFSSL_CERT_GEN) && \
-    !defined(NO_RSA)) || ((defined(WOLFSSL_KEY_GEN) || \
+#if !defined(NO_DSA) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)) || \
+    (defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)) || \
+    ((defined(WOLFSSL_KEY_GEN) || \
     (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || \
     defined(OPENSSL_EXTRA)) && !defined(NO_RSA))
 /* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int.
@@ -4048,11 +4050,12 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
 #endif
 }
 
-/* RSA (with CertGen or KeyGen) OR ECC OR ED25519 OR ED448 (with CertGen or
- * KeyGen) OR CRL */
+/* RSA (with CertGen, KeyGen or KeyToDer) OR ECC OR ED25519 OR ED448 (with
+ * CertGen or KeyGen) OR CRL */
 #if (!defined(NO_RSA) && \
      (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
-      defined(OPENSSL_EXTRA))) || \
+      defined(OPENSSL_EXTRA) || \
+      (defined(WOLFSSL_KEY_TO_DER) && !defined(NO_CERTS)))) || \
     (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)) || \
     ((defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
      (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
