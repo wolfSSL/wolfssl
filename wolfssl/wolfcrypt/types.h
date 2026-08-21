@@ -2414,6 +2414,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 #ifndef WC_RELAX_LONG_LOOP
     #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
+#else
+    /* A port supplied a real relax hook of its own (linuxkm does). */
+    #define WC_HAVE_PORT_RELAX_LONG_LOOP
 #endif
 
 /* Yield hook for the DRBG acquire spin in RngExclEnter().  Deliberately
@@ -2428,35 +2431,49 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
  * one is in scope.  SINGLE_THREADED is excluded first: wc_port.h omits these
  * kernel headers in that configuration, so the yields have no declaration.
  * Any port may define WC_SPIN_RELAX ahead of this. */
-#ifndef WC_SPIN_RELAX
-    #if defined(SINGLE_THREADED)
-        #define WC_SPIN_RELAX() WC_DO_NOTHING
-    #elif defined(WOLFSSL_ZEPHYR)
-        #define WC_SPIN_RELAX() k_yield()
-    #elif (defined(FREERTOS) || defined(FREERTOS_TCP) || \
-           defined(WOLFSSL_SAFERTOS)) && defined(taskYIELD)
-        /* taskYIELD() is a macro from FreeRTOS task.h, which none of these
-         * paths include themselves, so key off the macro rather than assume
-         * it: a build without task.h falls through to the default. */
-        #define WC_SPIN_RELAX() taskYIELD()
-    #elif defined(THREADX)
-        #define WC_SPIN_RELAX() tx_thread_relinquish()
-    #elif defined(WOLFSSL_TIRTOS)
-        #define WC_SPIN_RELAX() Task_yield()
-    #elif defined(RTTHREAD)
-        #define WC_SPIN_RELAX() rt_thread_yield()
-    #elif defined(WOLFSSL_PTHREADS)
-        /* wc_port.h includes <pthread.h> on this path, which carries
-         * <sched.h>; wolfentropy.c and async.c already call sched_yield()
-         * under the same assumption. */
-        #define WC_SPIN_RELAX() (void)sched_yield()
-    #elif defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)
-        /* <windows.h> is included by wc_port.h on this path. */
-        #define WC_SPIN_RELAX() (void)SwitchToThread()
-    #else
-        /* Ports that supply a real relax hook (linuxkm) keep it here. */
-        #define WC_SPIN_RELAX() WC_RELAX_LONG_LOOP()
-    #endif
+/* WC_SPIN_RELAX_YIELDS is defined alongside every mapping that really hands
+ * the CPU over.  Where it is absent the spin cannot yield, and random.h elects
+ * the thread-safe DRBG off rather than ship a wait that a priority-preemptive
+ * scheduler can turn into a livelock. */
+#ifdef WC_SPIN_RELAX
+    /* Supplied by the port; taken to be a real yield. */
+    #define WC_SPIN_RELAX_YIELDS
+#elif defined(SINGLE_THREADED)
+    #define WC_SPIN_RELAX() WC_DO_NOTHING
+#elif defined(WOLFSSL_ZEPHYR)
+    #define WC_SPIN_RELAX() k_yield()
+    #define WC_SPIN_RELAX_YIELDS
+#elif (defined(FREERTOS) || defined(FREERTOS_TCP) || \
+       defined(WOLFSSL_SAFERTOS)) && defined(taskYIELD)
+    /* taskYIELD() is a macro from FreeRTOS task.h, which none of these paths
+     * include themselves, so key off the macro rather than assume it: a build
+     * without task.h falls through to the no-yield default. */
+    #define WC_SPIN_RELAX() taskYIELD()
+    #define WC_SPIN_RELAX_YIELDS
+#elif defined(THREADX)
+    #define WC_SPIN_RELAX() tx_thread_relinquish()
+    #define WC_SPIN_RELAX_YIELDS
+#elif defined(WOLFSSL_TIRTOS)
+    #define WC_SPIN_RELAX() Task_yield()
+    #define WC_SPIN_RELAX_YIELDS
+#elif defined(RTTHREAD)
+    #define WC_SPIN_RELAX() rt_thread_yield()
+    #define WC_SPIN_RELAX_YIELDS
+#elif defined(WOLFSSL_PTHREADS)
+    /* wc_port.h includes <pthread.h> on this path, which carries <sched.h>;
+     * wolfentropy.c and async.c already call sched_yield() the same way. */
+    #define WC_SPIN_RELAX() (void)sched_yield()
+    #define WC_SPIN_RELAX_YIELDS
+#elif defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)
+    /* <windows.h> is included by wc_port.h on this path. */
+    #define WC_SPIN_RELAX() (void)SwitchToThread()
+    #define WC_SPIN_RELAX_YIELDS
+#elif defined(WC_HAVE_PORT_RELAX_LONG_LOOP)
+    /* linuxkm and anything else that installed its own relax hook. */
+    #define WC_SPIN_RELAX() WC_RELAX_LONG_LOOP()
+    #define WC_SPIN_RELAX_YIELDS
+#else
+    #define WC_SPIN_RELAX() WC_DO_NOTHING
 #endif
 #ifndef WC_CHECK_FOR_INTR_SIGNALS
     #define WC_CHECK_FOR_INTR_SIGNALS() 0

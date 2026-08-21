@@ -79,14 +79,16 @@
 
 
 /* avoid redefinition of structs */
-/* A build with no DRBG, no atomics, or no threads has nothing to implement
- * this with, so elect it off here rather than making every use site restate
- * the requirements.  Kept ahead of the FIPS-version guard below: the use
+/* A build with no DRBG, no atomics, no threads, or no way for the acquire
+ * spin to yield (WC_SPIN_RELAX_YIELDS, types.h) has nothing to implement this
+ * with, so elect it off here rather than making every use site restate the
+ * requirements.  Kept ahead of the FIPS-version guard below: the use
  * sites test !defined(WC_NO_DRBG_THREAD_SAFE), so this must be evaluated on
  * every path that reaches them, including the one where the WC_RNG defined
  * below is not the struct in use. */
 #if (!defined(HAVE_HASHDRBG) || defined(CUSTOM_RAND_GENERATE_BLOCK) || \
      defined(SINGLE_THREADED) || defined(WOLFSSL_NO_ATOMICS) || \
+     !defined(WC_SPIN_RELAX_YIELDS) || \
      (defined(HAVE_FIPS) && \
       !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))) && \
     !defined(WC_NO_DRBG_THREAD_SAFE)

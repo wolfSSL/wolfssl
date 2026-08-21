@@ -27028,7 +27028,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 
 struct rng_thread_test_args {
     WC_RNG* rng;
-    byte*   out;    /* this worker's slice, DRAWS * BLKSZ bytes */
+    byte*   out;      /* this worker's slice, DRAWS * BLKSZ bytes */
+    int     reseeder; /* nonzero: also drive the reseed side of the exclusion */
     int     ret;
 };
 
@@ -27044,6 +27045,19 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* argp)
         if (ret != 0) {
             args->ret = ret;
             break;
+        }
+
+        /* One worker also reseeds, so the exclusion in wc_RNG_DRBG_Reseed()
+         * is covered and runs against the other workers' generates.  Output
+         * must stay unique across the reseed. */
+        if (args->reseeder && ((i % 8) == 7)) {
+            byte seed[16];
+            XMEMSET(seed, 0xa5, sizeof(seed));
+            ret = wc_RNG_DRBG_Reseed(args->rng, seed, (word32)sizeof(seed));
+            if (ret != 0) {
+                args->ret = ret;
+                break;
+            }
         }
     }
 
@@ -27082,6 +27096,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         args[i].rng = &rng;
         args[i].out = out + ((size_t)i * WC_RNG_THREAD_TEST_DRAWS *
                              WC_RNG_THREAD_TEST_BLKSZ);
+        args[i].reseeder = (i == 0);
         args[i].ret = 0;
         if (wolfSSL_NewThread(&threads[i], &rng_thread_test_worker,
                               &args[i]) != 0) {
