@@ -2182,7 +2182,10 @@ struct DecodedCert {
     WC_BITFIELD extPolicyConstIpmSet:1; /* inhibitPolicyMapping set */
     WC_BITFIELD extSubjAltNameSet:1;
     WC_BITFIELD inhibitAnyOidSet:1;
-    WC_BITFIELD selfSigned:1;           /* Indicates subject and issuer are same */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    WC_BITFIELD extNetscapeCertTypeSet:1;  /* Netscape certificate type seen */
+#endif
+    WC_BITFIELD selfSigned:1;          /* Indicates subject and issuer are same */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
     WC_BITFIELD extCertPolicySet:1;
 #endif
