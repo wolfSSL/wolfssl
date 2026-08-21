@@ -35,7 +35,7 @@
 #ifdef WOLFSSL_ARMASM_INLINE
 #include <wolfssl/wolfcrypt/wc_frodokem_mat.h>
 
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 XALIGNED(16) static const word64 L_sha3_aarch64_r[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
@@ -1314,7 +1314,7 @@ void frodokem_mul_add_sb_plus_e_neon(word16* out, const word16* b,
     );
 }
 
-#endif /* WOLFSSL_HAVE_FRODOKEM */
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */
