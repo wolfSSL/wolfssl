@@ -2366,6 +2366,18 @@ WOLFSSL_LOCAL int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                                 word16 sz, const byte* aad, word16 aadSz);
 WOLFSSL_LOCAL int  DoTls13MsgDerives(WOLFSSL* ssl, byte type);
+/* A crypto/PK callback pending is finished by re-invoking the provider:
+ * wolfSSL_AsyncPoll() never runs a callback. Exported so tests compile in
+ * only where a callback pend is resumable. */
+#if defined(WOLFSSL_ASYNC_CRYPT) && \
+    (defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)) && \
+    !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
+    !defined(HAVE_CAVIUM)
+    #define WOLFSSL_ASYNC_REINVOKE
+#endif
+#if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
+WOLFSSL_LOCAL void Tls13FreeHsHmac(WOLFSSL* ssl);
+#endif
 WOLFSSL_LOCAL int  DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input,
                                            word32* inOutIdx, byte type,
                                            word32 size, word32 totalSz);
@@ -6424,16 +6436,6 @@ enum ConnectionIdUsage {
 
 /* wolfSSL ssl type */
 
-/* A crypto/PK callback pending is finished by re-invoking the provider:
- * wolfSSL_AsyncPoll() never runs a callback. Exported so tests compile in
- * only where a callback pend is resumable. */
-#if defined(WOLFSSL_ASYNC_CRYPT) && \
-    (defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)) && \
-    !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
-    !defined(HAVE_CAVIUM)
-    #define WOLFSSL_ASYNC_REINVOKE
-#endif
-
 /* TLS 1.3 key-schedule resume steps (kdfMsgStep/kdfDeriveStep). A value is
  * recorded after its named operation completes ("step <= X" = X not done);
  * 0 = sequence not entered or finished. Values repeat across sequences. */
@@ -7076,6 +7078,15 @@ struct WOLFSSL {
     byte kdfDeriveStep;  /* enum Tls13KdfSendStep (send side) */
     byte kdfMsgStep;     /* enum Tls13KdfMsgStep (receive side) */
     byte kdfMsgType;     /* handshake type kdfMsgStep belongs to */
+#if defined(WOLFSSL_ASYNC_REINVOKE) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_HMAC)
+    /* Transcript HMAC (Finished verify_data, PSK binders) held across a
+     * WC_PENDING_E so the retry re-invokes the same object and arguments,
+     * bound to its output buffer. */
+    Hmac* hsHmac;
+    byte* hsHmacOut;
+    byte  hsHmacStep;
+#endif
 };
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)

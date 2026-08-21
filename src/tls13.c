@@ -1505,10 +1505,26 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
  * hash  The hash result - verify data.
  * returns length of verify data generated.
  */
+#if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
+/* Release the held transcript Hmac and its resume state. */
+void Tls13FreeHsHmac(WOLFSSL* ssl)
+{
+    if (ssl->hsHmac != NULL) {
+        wc_HmacFree(ssl->hsHmac);
+        XFREE(ssl->hsHmac, ssl->heap, DYNAMIC_TYPE_HMAC);
+        ssl->hsHmac = NULL;
+    }
+    ssl->hsHmacStep = 0;
+    ssl->hsHmacOut = NULL;
+}
+#endif /* WOLFSSL_ASYNC_REINVOKE && !NO_HMAC */
+
 static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     word32* pHashSz)
 {
+#ifndef WOLFSSL_ASYNC_REINVOKE
     WC_DECLARE_VAR(verifyHmac, Hmac, 1, 0);
+#endif
     int  hashType = WC_SHA256;
     int  hashSz = WC_SHA256_DIGEST_SIZE;
     int  ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
@@ -1561,6 +1577,51 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     WOLFSSL_BUFFER(hash, hashSz);
 #endif
 
+#ifdef WOLFSSL_ASYNC_REINVOKE
+    /* Held on the SSL object so a crypto callback WC_PENDING_E resumes by
+     * re-invoking the same Hmac with identical arguments; the transcript
+     * hash input is recomputed deterministically by the caller's retry.
+     * Bound to the output buffer: a replayed caller that computes several
+     * HMACs (the PSK binder list) must not resume one request against
+     * another's key, so a different output discards the held state. */
+    if (ssl->hsHmac != NULL && ssl->hsHmacOut != hash)
+        Tls13FreeHsHmac(ssl);
+    if (ssl->hsHmac == NULL) {
+        ssl->hsHmac = (Hmac*)XMALLOC(sizeof(Hmac), ssl->heap,
+                                     DYNAMIC_TYPE_HMAC);
+        if (ssl->hsHmac == NULL)
+            return MEMORY_E;
+        ret = wc_HmacInit(ssl->hsHmac, ssl->heap, ssl->devId);
+        if (ret != 0) {
+            Tls13FreeHsHmac(ssl);
+            return ret;
+        }
+        ssl->hsHmacStep = 0;
+        ssl->hsHmacOut = hash;
+    }
+    /* Armed before the operations, matching the HKDF helpers. */
+    ret = Tls13KdfAsyncInit(ssl);
+    if (ret != 0) {
+        Tls13FreeHsHmac(ssl);
+        return ret;
+    }
+    if (ssl->hsHmacStep == 0) {
+        ret = wc_HmacSetKey(ssl->hsHmac, hashType, key,
+                            ssl->specs.hash_size);
+        if (ret == 0)
+            ssl->hsHmacStep = 1;
+    }
+    if (ret == 0 && ssl->hsHmacStep == 1) {
+        ret = wc_HmacUpdate(ssl->hsHmac, hash, (word32)hashSz);
+        if (ret == 0)
+            ssl->hsHmacStep = 2;
+    }
+    if (ret == 0 && ssl->hsHmacStep == 2)
+        ret = wc_HmacFinal(ssl->hsHmac, hash);
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        return wolfSSL_AsyncPush(ssl, &ssl->kdfAsyncDev);
+    Tls13FreeHsHmac(ssl);
+#else
     WC_ALLOC_VAR_EX(verifyHmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
         return MEMORY_E);
 
@@ -1576,6 +1637,7 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     }
 
     WC_FREE_VAR_EX(verifyHmac, NULL, DYNAMIC_TYPE_HMAC);
+#endif /* WOLFSSL_ASYNC_REINVOKE */
 
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("  Hash");
@@ -14031,6 +14093,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 static int ExpectedResumptionSecret(WOLFSSL* ssl)
 {
     int         ret;
+    int         saveRet = 0;
     word32      finishedSz = 0;
     byte        mac[WC_MAX_DIGEST_SIZE];
     Digest      digest;
@@ -14094,6 +14157,9 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
 
     /* Restore the hash inline with currently seen messages. */
 restore:
+    /* The restore result must not mask the error that got here, or a
+     * WC_PENDING_E would be reported as success with the derive skipped. */
+    saveRet = ret;
     switch (ssl->specs.mac_algorithm) {
     #ifndef NO_SHA256
         case sha256_mac:
@@ -14124,6 +14190,8 @@ restore:
             break;
     #endif
     }
+    if (saveRet != 0)
+        ret = saveRet;
 
     ForceZero(mac, sizeof(mac));
     return ret;

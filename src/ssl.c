@@ -5716,6 +5716,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
         ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
         ssl->kdfMsgType = 0;
+        #if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
+        Tls13FreeHsHmac(ssl);
+        #endif
         #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->options.buildArgs13Set = 0;
         /* An abandoned handshake can leave a mid-flight handler resume

@@ -9543,7 +9543,8 @@ enum TestTls13PendTarget {
     TEST_TLS13_PEND_ECC_KEYGEN,
     TEST_TLS13_PEND_ECDSA_SIGN,
     TEST_TLS13_PEND_ECDSA_VERIFY,
-    TEST_TLS13_PEND_KDF
+    TEST_TLS13_PEND_KDF,
+    TEST_TLS13_PEND_HMAC
 };
 
 typedef struct TestTls13PendCtx {
@@ -9585,6 +9586,9 @@ static int TestTls13PendMatches(int target, wc_CryptoInfo* info)
         case TEST_TLS13_PEND_KDF:
             match = (info->algo_type == WC_ALGO_TYPE_KDF);
             break;
+        case TEST_TLS13_PEND_HMAC:
+            match = (info->algo_type == WC_ALGO_TYPE_HMAC);
+            break;
         default:
             break;
     }
@@ -9615,6 +9619,38 @@ static int TestTls13PendCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     if (info == NULL || c == NULL)
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+#if defined(HAVE_HKDF) && !defined(NO_HMAC) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    if (c->target == TEST_TLS13_PEND_HMAC &&
+            info->algo_type == WC_ALGO_TYPE_KDF) {
+        /* Serve the key schedule synchronously in software; falling back
+         * with the devId set would route its internal HMACs back here and
+         * those cannot resume (see wolfcrypt/src/hmac.c). Only the
+         * TLS-layer transcript HMACs are left to pend. */
+        if (info->kdf.type == WC_KDF_TYPE_HKDF_EXTRACT) {
+            return wc_HKDF_Extract_ex(info->kdf.hkdf_extract.hashType,
+                info->kdf.hkdf_extract.salt, info->kdf.hkdf_extract.saltSz,
+                info->kdf.hkdf_extract.inKey, info->kdf.hkdf_extract.inKeySz,
+                info->kdf.hkdf_extract.out, NULL, INVALID_DEVID);
+        }
+        if (info->kdf.type == WC_KDF_TYPE_HKDF_EXPAND) {
+            return wc_HKDF_Expand_ex(info->kdf.hkdf_expand.hashType,
+                info->kdf.hkdf_expand.inKey, info->kdf.hkdf_expand.inKeySz,
+                info->kdf.hkdf_expand.info, info->kdf.hkdf_expand.infoSz,
+                info->kdf.hkdf_expand.out, info->kdf.hkdf_expand.outSz,
+                NULL, INVALID_DEVID);
+        }
+        if (info->kdf.type == WC_KDF_TYPE_HKDF) {
+            return wc_HKDF_ex(info->kdf.hkdf.hashType,
+                info->kdf.hkdf.inKey, info->kdf.hkdf.inKeySz,
+                info->kdf.hkdf.salt, info->kdf.hkdf.saltSz,
+                info->kdf.hkdf.info, info->kdf.hkdf.infoSz,
+                info->kdf.hkdf.out, info->kdf.hkdf.outSz,
+                NULL, INVALID_DEVID);
+        }
+    }
+#endif
+
     if (!TestTls13PendMatches(c->target, info))
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
@@ -9849,6 +9885,14 @@ int test_tls13_cryptocb_async(void)
         TEST_SUCCESS);
     ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_KDF, 1),
         TEST_SUCCESS);
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+    /* Transcript HMACs (Finished verify_data) pending on both sides. */
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_HMAC, 0),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_HMAC, 1),
+        TEST_SUCCESS);
+#endif
 #endif
 #endif
     return EXPECT_RESULT();

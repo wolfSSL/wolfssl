@@ -8750,12 +8750,16 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     /* Outside the allocation guard: a WC_PENDING_E retry must regenerate,
      * not export an ungenerated key. The key type marks completion;
      * kse->pubKey covers backends that never touch the ecc_key (TSIP). */
+    if (ret == 0 && eccKey != NULL) {
+        /* Outside the generation guard below: the export alloc reads
+         * pubKeyLen even when generation is skipped. */
+        kse->keyLen = keySize;
+        kse->pubKeyLen = keySize * 2 + 1;
+    }
+
     if (ret == 0 && eccKey != NULL && kse->pubKey == NULL &&
             eccKey->type != ECC_PRIVATEKEY &&
             eccKey->type != ECC_PRIVATEKEY_ONLY) {
-        kse->keyLen = keySize;
-        kse->pubKeyLen = keySize * 2 + 1;
-
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_Tls13GenEccKeyPair(ssl, kse);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {

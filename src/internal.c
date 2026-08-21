@@ -9742,6 +9742,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     /* Cleanup async */
     FreeAsyncCtx(ssl, 1);
 #endif
+#if defined(WOLFSSL_ASYNC_REINVOKE) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_HMAC)
+    Tls13FreeHsHmac(ssl);
+#endif
     if (ssl->options.weOwnRng) {
         wc_FreeRng(ssl->rng);
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
