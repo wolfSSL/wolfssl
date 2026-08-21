@@ -82358,7 +82358,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
 #endif
-#if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA) || \
+    defined(HAVE_FALCON)
                 case WC_PK_TYPE_PQC_SIG_KEYGEN:
                 {
             #ifdef WOLFSSL_HAVE_MLDSA
@@ -82374,6 +82375,14 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         SlhDsaKey* slh = (SlhDsaKey*)info->free.obj;
                         slh->devId = INVALID_DEVID;
                         wc_SlhDsaKey_Free(slh);
+                        ret = 0;
+                    }
+            #endif
+            #ifdef HAVE_FALCON
+                    if (info->free.subType == WC_PQC_SIG_TYPE_FALCON) {
+                        falcon_key* fk = (falcon_key*)info->free.obj;
+                        fk->devId = INVALID_DEVID;
+                        wc_falcon_free(fk);
                         ret = 0;
                     }
             #endif

@@ -3871,3 +3871,106 @@ int test_slhdsa_get_sigalg_info(void)
 #endif /* WOLFSSL_HAVE_SLHDSA && OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_FREE)
+    #define TEST_SLHDSA_CB_FREE
+    #define TEST_SLHDSA_CB_FREE_DEVID 0x534C4844
+#endif
+
+#ifdef TEST_SLHDSA_CB_FREE
+/* What the free callback saw, so the test can check the contract rather than
+ * just that something fired. */
+typedef struct {
+    int frees;        /* matching free callbacks seen */
+    int badObj;       /* callback was handed the wrong object */
+    int wiped;        /* callback saw a key already cleaned up */
+    int ret;          /* what the callback returns */
+    const void* obj;  /* object the free is expected to name */
+} SlhDsaCbFreeCtx;
+
+/* Stands in for a device holding state for the key. Counting the call proves
+ * wc_SlhDsaKey_Free told the device rather than only cleaning up in software,
+ * which would leave the device side of the key behind. */
+static int slhdsa_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    SlhDsaCbFreeCtx* seen = (SlhDsaCbFreeCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((seen != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
+            (info->free.subType == WC_PQC_SIG_TYPE_SLHDSA)) {
+        const SlhDsaKey* slh = (const SlhDsaKey*)info->free.obj;
+
+        seen->frees++;
+        if ((slh == NULL) || ((const void*)slh != seen->obj)) {
+            seen->badObj++;
+        }
+        /* The device gets the key while it is still whole: it may need to
+         * read it to release the right resource, so the software wipe has
+         * to come after this call, not before. */
+        else if ((slh->devId != TEST_SLHDSA_CB_FREE_DEVID) ||
+                 (slh->params == NULL)) {
+            seen->wiped++;
+        }
+        return seen->ret;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_SLHDSA_CB_FREE */
+
+/* Freeing a key that names a device has to tell that device, so it can
+ * release what it holds. A key with no device must not, and neither must a
+ * second free of a key already freed: a freed key names no device. A device
+ * that reports an error does not stop the software cleanup. */
+int test_slhdsa_cb_free(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_CB_FREE
+    SlhDsaKey key;
+    SlhDsaCbFreeCtx seen;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&seen, 0, sizeof(seen));
+    seen.obj = &key;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_SLHDSA_CB_FREE_DEVID,
+        slhdsa_cb_free_cb, &seen), 0);
+
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, WC_SLHDSA_DEFAULT_PARAM, NULL,
+        TEST_SLHDSA_CB_FREE_DEVID), 0);
+    wc_SlhDsaKey_Free(&key);
+    ExpectIntEQ(seen.frees, 1);
+    ExpectIntEQ(seen.badObj, 0);
+    ExpectIntEQ(seen.wiped, 0);
+    ExpectIntEQ(key.devId, INVALID_DEVID);
+    ExpectNull(key.params);
+
+    wc_SlhDsaKey_Free(&key);
+    ExpectIntEQ(seen.frees, 1);
+
+    /* A device that fails still leaves the key cleaned up locally. */
+    seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, WC_SLHDSA_DEFAULT_PARAM, NULL,
+        TEST_SLHDSA_CB_FREE_DEVID), 0);
+    wc_SlhDsaKey_Free(&key);
+    ExpectIntEQ(seen.frees, 2);
+    ExpectIntEQ(key.devId, INVALID_DEVID);
+    ExpectNull(key.params);
+    seen.ret = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, WC_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), 0);
+    wc_SlhDsaKey_Free(&key);
+    ExpectIntEQ(seen.frees, 2);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_SLHDSA_CB_FREE_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
