@@ -47,6 +47,7 @@
 /* TLSX_SNI_Free() is file-static in src/tls.c. A test that detaches an SNI
  * list from its extension has to release it the same way: the host name, then
  * the node. */
+#ifdef HAVE_SNI
 TEST_TLS_MSGTYPE_UNUSED
 static void test_tls_msgtype_free_sni(void* p, void* heap)
 {
@@ -61,6 +62,7 @@ static void test_tls_msgtype_free_sni(void* p, void* heap)
         sni = next;
     }
 }
+#endif /* HAVE_SNI */
 
 
 /* Build one extension record (2-byte type, 2-byte length, N zero data
