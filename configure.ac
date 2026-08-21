@@ -2743,6 +2743,33 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_RNG_BANK_SUPPORT"
 fi
 
+# Thread-safe DRBG. Serializes the generate/reseed path of a single WC_RNG so
+# one instance can be shared between threads. Needs real atomics, so a
+# single-threaded build elects it off in random.h regardless of this setting.
+#
+# Default off for --enable-linuxkm: the kernel module reaches the DRBG through
+# the RNG bank, which checks out an instance exclusively, so the per-generate
+# atomic is redundant there and its wait has no place in an atomic context.
+# Enable it explicitly with --enable-threadsafe-drbg.
+AC_ARG_ENABLE([threadsafe-drbg],
+    [AS_HELP_STRING([--enable-threadsafe-drbg],[Enable sharing one WC_RNG between threads (default: enabled, except linuxkm)])],
+    [ ENABLED_THREADSAFE_DRBG=$enableval ],
+    [ if test "$ENABLED_LINUXKM" = "no"; then
+          ENABLED_THREADSAFE_DRBG=yes
+      else
+          ENABLED_THREADSAFE_DRBG=no
+      fi ]
+    )
+
+if test "$ENABLED_THREADSAFE_DRBG" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_DRBG_THREAD_SAFE"
+elif test "x$enable_threadsafe_drbg" = "xyes" && \
+     test "$ENABLED_SINGLETHREADED" = "yes"
+then
+    AC_MSG_ERROR([--enable-threadsafe-drbg is incompatible with --enable-singlethreaded.])
+fi
+
 
 # DTLS-SCTP
 AC_ARG_ENABLE([sctp],

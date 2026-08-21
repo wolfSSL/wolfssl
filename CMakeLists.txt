@@ -145,6 +145,21 @@ check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
 check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
 check_function_exists("getpid" HAVE_GETPID)
+if(WIN32)
+    # The probe can link on Windows (MinGW) while pid_t -- which random.h
+    # declares under HAVE_GETPID -- is not a declared type there.  Clear the
+    # variable itself, not just the compile line: options.h.in keys its
+    # #cmakedefine off this variable.
+    unset(HAVE_GETPID CACHE)
+endif()
+if(HAVE_GETPID)
+    # Match autotools (configure.ac adds -DHAVE_GETPID=1 to AM_CFLAGS).  Must
+    # land on the compile line AND in the generated options.h, or the library
+    # and its consumers disagree about the WC_RNG pid member.  Without this,
+    # CMake POSIX builds elect the thread-safe DRBG off for want of a
+    # per-owner fork token.
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_GETPID=1")
+endif()
 
 include(CheckSymbolExists)
 check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
@@ -3721,6 +3736,14 @@ if(WOLFSSL_RNG_BANK)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_RNG_BANK_SUPPORT")
 endif()
 
+# Thread-safe DRBG (share one WC_RNG between threads)
+add_option("WOLFSSL_THREADSAFE_DRBG"
+    "Enable sharing one WC_RNG between threads (default: enabled)"
+    "yes" "yes;no")
+if(NOT WOLFSSL_THREADSAFE_DRBG)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_DRBG_THREAD_SAFE")
+endif()
+
 # Valgrind (for unit tests)
 add_option("WOLFSSL_VALGRIND"
     "Enable valgrind for unit tests (default: disabled)"
@@ -4110,6 +4133,10 @@ generate_build_flags()
 if(WOLFSSL_USER_SETTINGS)
     # Replace all options and just use WOLFSSL_USER_SETTINGS
     set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+    # check_function_exists() results must not survive into the generated
+    # options.h either: the library is compiled from user_settings.h, and a
+    # stray HAVE_GETPID there would not match what the application sees.
+    unset(HAVE_GETPID CACHE)
 endif()
 
 if(WOLFSSL_USER_SETTINGS_ASM)

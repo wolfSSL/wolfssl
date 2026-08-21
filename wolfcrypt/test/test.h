@@ -38,6 +38,33 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifndef WC_NO_RNG
+    /* for WC_NO_DRBG_THREAD_SAFE, which random.h may elect on. */
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
+
+/* The thread-safe DRBG test drives one instance from several threads, so it
+ * needs more than the feature itself:
+ *   - wolfSSL_NewThread()/wolfSSL_JoinThread(), which are only implemented for
+ *     a subset of targets (notably not WOLFSSL_LINUXKM, which builds this file
+ *     into the kernel module), so require one that has them rather than
+ *     assuming !SINGLE_THREADED is enough;
+ *   - an RNG at all: WC_NO_RNG both removes wc_FreeRng() and stops test.h
+ *     from including random.h, so WC_NO_DRBG_THREAD_SAFE would not be seen;
+ *   - a general-purpose heap for the comparison buffer, which rules out
+ *     WOLFSSL_NO_MALLOC and WOLFSSL_STATIC_MEMORY;
+ *   - a random.c/random.h pair that actually carries the feature.  A FIPS or
+ *     selftest build checks out locked copies of both from the module's tag,
+ *     and those predate it, so HAVE_FIPS and HAVE_SELFTEST are excluded
+ *     outright.  Note the locked random.h also never defines
+ *     WC_NO_DRBG_THREAD_SAFE, so the test above cannot detect this itself. */
+#if !defined(WC_NO_RNG) && !defined(WC_NO_DRBG_THREAD_SAFE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    (defined(WOLFSSL_PTHREADS) || \
+     (defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)))
+    #define WC_TEST_THREADSAFE_DRBG
+#endif
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
@@ -251,6 +278,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 #endif
 #ifndef WC_NO_RNG
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
+#ifdef WC_TEST_THREADSAFE_DRBG
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
+#endif
 #ifdef WC_RNG_BANK_SUPPORT
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif

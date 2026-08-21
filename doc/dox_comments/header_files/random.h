@@ -108,10 +108,31 @@ int  wc_InitRng(WC_RNG* rng);
     \return DRBG_CONT_FIPS_E Hash_gen returned DRBG_CONT_FAILURE
     \return RNG_FAILURE_E Default error. rng’s status originally not
     ok, or set to DRBG_FAILED
+    \return INTERRUPTED_E waiting for a shared instance was interrupted; a
+    port supplying its own WC_CHECK_FOR_INTR_SIGNALS() may return its own
+    negative code here instead
+    \return WC_TIMEOUT_E waiting for a shared instance exceeded
+    WC_RNG_EXCL_TIMEOUT_SEC, when that is defined
+    \return BUSY_E the instance was held and this context cannot wait for it
+    (a port that defines WC_RNG_EXCL_CAN_WAIT()); retry from a context that
+    can. This is a transient condition, not a DRBG failure
 
     \param rng random number generator initialized with wc_InitRng
     \param output buffer to which the block is copied
     \param sz size of output in bytes
+
+    \note One WC_RNG may be shared between threads: the DRBG generate and
+    reseed path is serialized per instance. Not enabled on every build --
+    it needs atomics, a thread yield, and getpid() where fork() exists --
+    and --disable-threadsafe-drbg (WC_NO_DRBG_THREAD_SAFE) opts out where each
+    instance is only used by one thread at a time. This covers generate and
+    reseed only -- wc_InitRng() and wc_FreeRng() must not run concurrently
+    with a generate on the same instance, and a callback invoked from a
+    generate (WC_RNG_SEED_CB, crypto callbacks) must not re-enter the same
+    WC_RNG. Where it is active, waiting for the instance can fail: see the
+    added return values above. Threads running under a real-time scheduling
+    policy (SCHED_FIFO, SCHED_RR) should not share one instance -- a
+    higher-priority waiter can starve the holder.
 
     _Example_
     \code
@@ -453,6 +474,11 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
     \return 0 On success
     \return BAD_FUNC_ARG If rng or seed is NULL
     \return RNG_FAILURE_E Reseed failed
+    \return INTERRUPTED_E waiting for a shared instance was interrupted
+    \return WC_TIMEOUT_E waiting for a shared instance exceeded
+    WC_RNG_EXCL_TIMEOUT_SEC, when that is defined
+    \return BUSY_E the instance was held and this context cannot wait for it;
+    retry from a context that can
 
     \param rng WC_RNG to reseed
     \param seed Seed buffer
@@ -466,7 +492,12 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
     int ret = wc_RNG_DRBG_Reseed(&rng, seed, sizeof(seed));
     \endcode
 
+    \note Serialized against a concurrent wc_RNG_GenerateBlock() on the same
+    instance where the thread-safe DRBG is enabled; see that function's note
+    for the conditions and the opt-out.
+
     \sa wc_InitRng
+    \sa wc_RNG_GenerateBlock
 */
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz);
 
