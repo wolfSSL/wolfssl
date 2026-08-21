@@ -121,9 +121,15 @@ jobs:
           {"name": "curve25519", "minutes": 3.6,
            "comment": "WOLF_CRYPTO_CB_ONLY_CURVE25519: strips software X25519 (keygen/shared-secret); swdev provides the software path via cryptocb. Nonblock and async X25519 have no callback path and are left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
-          {"name": "all", "minutes": 4.1,
-           "comment": "All seven ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
-           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]}
+          {"name": "slhdsa", "minutes": 8,
+           "comment": "WOLF_CRYPTO_CB_ONLY_SLHDSA: strips software SLH-DSA (hashes, WOTS+, XMSS, hypertree, FORS); swdev provides the software path via cryptocb. slhdsa is enabled per-entry rather than in the base because signing the 's' parameter sets is slow and only this entry and 'all' need it.",
+           "configure": ["--enable-slhdsa=yes,sha2", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
+          {"name": "slhdsa-verify-only", "minutes": 4,
+           "comment": "Same strip with signing compiled out (WOLFSSL_SLHDSA_VERIFY_ONLY). swdev has to build against the verify-only header, which omits key generation, signing and CheckKey, and the dispatcher has to stop offering those operations. Verification alone is quick, so this costs little beside the 'slhdsa' entry above.",
+           "configure": ["--enable-slhdsa=yes,sha2,verify-only", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_SLHDSA"]},
+          {"name": "all", "minutes": 6,
+           "comment": "All eight ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
+           "configure": ["--enable-slhdsa=yes,sha2", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_SLHDSA"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \

@@ -5901,6 +5901,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 is incompatible with " \
            "WOLFSSL_ASYNC_CRYPT"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SLHDSA) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_SLHDSA requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_SLHDSA) && !defined(WOLFSSL_HAVE_SLHDSA)
+    #error "WOLF_CRYPTO_CB_ONLY_SLHDSA requires WOLFSSL_HAVE_SLHDSA"
+#endif
 
 /* Early Data / Session Rules */
 #if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_EARLY_DATA) && \

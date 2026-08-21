@@ -1332,6 +1332,243 @@ int test_wc_slhdsa_sign_msg(void)
 }
 
 /*
+ * Cross-check that the signing randomness and the externally built M' reach
+ * the signer unchanged. Under WOLF_CRYPTO_CB_ONLY_SLHDSA every call below
+ * runs on the registered device, so this is what catches a callback that
+ * drops addRnd or mishandles the internal interface: a device that quietly
+ * substituted its own randomness would still produce a signature that
+ * verifies, and every round-trip test would still pass.
+ *
+ * M' for a pure signature is toByte(0,1) || toByte(|ctx|,1) || ctx || M
+ * (FIPS 205 Algorithm 22 Step 8), so signing that M' through the internal
+ * interface must reproduce the external signature byte for byte.
+ */
+int test_wc_slhdsa_sign_addrnd(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    SlhDsaKey key;
+    byte  seed[3 * WC_SLHDSA_MAX_SEED];
+    byte  addRnd[WC_SLHDSA_MAX_SEED];
+    byte  mprime[2 + 4 + 12];
+    const byte ctx[4] = { 'c', 't', 'x', '!' };
+    const byte msg[] = "hello slhdsa";
+    byte* sigExt = NULL;
+    byte* sigInt = NULL;
+    word32 sigExtLen;
+    word32 sigIntLen;
+    word32 n = (word32)TEST_SLHDSA_DEFAULT_SEED_LEN;
+    word32 idx = 0;
+
+    sigExt = (byte*)XMALLOC(WC_SLHDSA_MAX_SIG_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    sigInt = (byte*)XMALLOC(WC_SLHDSA_MAX_SIG_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sigExt);
+    ExpectNotNull(sigInt);
+
+    XMEMSET(seed, 0x2B, sizeof(seed));
+    XMEMSET(addRnd, 0x55, sizeof(addRnd));
+
+    /* M' = 0x00 || ctxSz || ctx || msg */
+    mprime[idx++] = 0x00;
+    mprime[idx++] = (byte)sizeof(ctx);
+    XMEMCPY(mprime + idx, ctx, sizeof(ctx));
+    idx += (word32)sizeof(ctx);
+    XMEMCPY(mprime + idx, msg, sizeof(msg) - 1);
+    idx += (word32)sizeof(msg) - 1;
+
+    /* A seeded key so the whole test is reproducible. */
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, seed, n, seed + n, n,
+        seed + 2 * n, n), 0);
+
+    /* Deterministic: addRnd is PK.seed on both paths, so the two signatures
+     * must be identical. */
+    sigExtLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignDeterministic(&key, ctx, (byte)sizeof(ctx),
+        msg, (word32)sizeof(msg) - 1, sigExt, &sigExtLen), 0);
+    sigIntLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignMsgDeterministic(&key, mprime, idx, sigInt,
+        &sigIntLen), 0);
+    ExpectIntEQ(sigIntLen, sigExtLen);
+    ExpectBufEQ(sigInt, sigExt, sigExtLen);
+
+    /* Both must verify through their own interface. */
+    ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sigExt, sigExtLen), 0);
+    ExpectIntEQ(wc_SlhDsaKey_VerifyMsg(&key, mprime, idx, sigInt, sigIntLen),
+        0);
+
+    /* A different addRnd must change the signature. This is what proves the
+     * value is honoured rather than replaced with fresh randomness. */
+    sigIntLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sigInt, &sigIntLen, addRnd), 0);
+    ExpectIntEQ(sigIntLen, sigExtLen);
+    ExpectIntNE(XMEMCMP(sigInt, sigExt, sigExtLen), 0);
+    ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sigInt, sigIntLen), 0);
+
+    /* The same explicit addRnd on the internal interface reproduces it. */
+    sigExtLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, mprime, idx, sigExt,
+        &sigExtLen, addRnd), 0);
+    ExpectIntEQ(sigExtLen, sigIntLen);
+    ExpectBufEQ(sigExt, sigInt, sigIntLen);
+
+    wc_SlhDsaKey_Free(&key);
+    XFREE(sigExt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sigInt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A key that lives on a device carries only a device id: no key material is
+ * imported and none of its flags are set. Every operation has to reach the
+ * callback rather than stop at the host side "do we hold a key" check.
+ *
+ * The pre-hash calls use a digest algorithm the host never approves, which
+ * likewise must not keep the device from a pre-hash it does support. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)
+    #define TEST_SLHDSA_DEV_ONLY
+    #define TEST_SLHDSA_DEV_ONLY_DEVID 0x51484431
+#endif
+
+#ifdef TEST_SLHDSA_DEV_ONLY
+/* Stands in for a device holding the whole key. Counts what it was asked to
+ * do so the test can tell a dispatched operation from a skipped one. */
+static int slhdsa_dev_only_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* calls = (int*)ctx;
+
+    (void)devIdArg;
+
+    if ((info == NULL) || (info->algo_type != WC_ALGO_TYPE_PK)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    switch (info->pk.type) {
+    case WC_PK_TYPE_PQC_SIG_SIGN:
+    case WC_PK_TYPE_PQC_SIG_SIGN_MSG:
+        if (info->pk.pqc_sign.type != WC_PQC_SIG_TYPE_SLHDSA) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        break;
+    case WC_PK_TYPE_PQC_SIG_VERIFY:
+    case WC_PK_TYPE_PQC_SIG_VERIFY_MSG:
+        if (info->pk.pqc_verify.type != WC_PQC_SIG_TYPE_SLHDSA) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        *info->pk.pqc_verify.res = 1;
+        break;
+    case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:
+        if (info->pk.pqc_sig_check.type != WC_PQC_SIG_TYPE_SLHDSA) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        break;
+    default:
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    if (calls != NULL) {
+        (*calls)++;
+    }
+    return 0;
+}
+#endif /* TEST_SLHDSA_DEV_ONLY */
+
+int test_wc_slhdsa_dev_only_key(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_DEV_ONLY
+    SlhDsaKey key;
+    WC_RNG rng;
+    byte  addRnd[WC_SLHDSA_MAX_SEED];
+    byte  hash[32];
+    const byte ctx[3] = { 'd', 'e', 'v' };
+    const byte msg[] = "device held key";
+    byte* sig = NULL;
+    word32 sigLen;
+    int calls = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(addRnd, 0x7C, sizeof(addRnd));
+    XMEMSET(hash, 0x3D, sizeof(hash));
+
+    sig = (byte*)XMALLOC(TEST_SLHDSA_DEFAULT_SIG_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_SLHDSA_DEV_ONLY_DEVID,
+        slhdsa_dev_only_cb, &calls), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* No import and no key generation: the key holds a device id and nothing
+     * else. */
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
+        TEST_SLHDSA_DEV_ONLY_DEVID), 0);
+
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_Sign(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sig, &sigLen, &rng), 0);
+    ExpectIntEQ(calls, 1);
+
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), 0);
+    ExpectIntEQ(calls, 2);
+
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, msg,
+        (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), 0);
+    ExpectIntEQ(calls, 3);
+
+    /* MD5 is not an approved SLH-DSA pre-hash, so the host would reject it.
+     * The device decides instead. */
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, (byte)sizeof(ctx), hash,
+        (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig, &sigLen, &rng), 0);
+    ExpectIntEQ(calls, 4);
+
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, (byte)sizeof(ctx),
+        hash, (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig, &sigLen, addRnd),
+        0);
+    ExpectIntEQ(calls, 5);
+
+    ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
+        (word32)sizeof(msg) - 1, sig, TEST_SLHDSA_DEFAULT_SIG_LEN), 0);
+    ExpectIntEQ(calls, 6);
+
+    ExpectIntEQ(wc_SlhDsaKey_VerifyMsg(&key, msg, (word32)sizeof(msg) - 1, sig,
+        TEST_SLHDSA_DEFAULT_SIG_LEN), 0);
+    ExpectIntEQ(calls, 7);
+
+    ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, (byte)sizeof(ctx), hash,
+        (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig,
+        TEST_SLHDSA_DEFAULT_SIG_LEN), 0);
+    ExpectIntEQ(calls, 8);
+
+    ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), 0);
+    ExpectIntEQ(calls, 9);
+
+    wc_SlhDsaKey_Free(&key);
+    wc_FreeRng(&rng);
+    wc_CryptoCb_UnRegisterDevice(TEST_SLHDSA_DEV_ONLY_DEVID);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* TEST_SLHDSA_DEV_ONLY */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SLHDSA_DEV_ONLY
+    #undef TEST_SLHDSA_DEV_ONLY
+    #undef TEST_SLHDSA_DEV_ONLY_DEVID
+#endif
+
+/*
  * Test export and import for SLH-DSA keys.
  */
 int test_wc_slhdsa_export_import(void)
