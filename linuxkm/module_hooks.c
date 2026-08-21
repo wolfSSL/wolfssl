@@ -864,6 +864,57 @@ static ssize_t wc_grb_user(struct iov_iter *iter)
     return done ? (ssize_t)done : -ENODEV;
 }
 
+/* The same userspace half for a kernel whose drivers/char/random.c predates the
+ * 5.17 rewrite.  There the read path is extract_crng_user(), which takes a raw
+ * __user pointer rather than an iov_iter; everything behind it is identical,
+ * including the bounce buffer, which is required because wc_grb_service() fills
+ * a kernel buffer while the copy out may fault.
+ *
+ * Both members are filled in unconditionally.  Which one a kernel calls was
+ * decided when that kernel was built, and both front the same DRBG tree, so
+ * this is a second entry point, not a run-time choice between implementations.
+ *
+ * Deliberately NOT a LINUX_VERSION_CODE test.  The 5.17 rewrite was backported
+ * into some LTS trees and never into the EOL ones, so the two sets interleave:
+ * 5.10.265 and 5.15.216 want get_random_bytes_user(), while 5.11.22, 5.12.19,
+ * 5.13.19 and 5.16.20 want extract_crng_user() -- 5.15 passes where 5.16
+ * fails.  Every kernel patch under linuxkm/patches/ declares both members of
+ * struct wolfssl_linuxkm_random_bytes_handlers, so supplying both is what makes
+ * the handler set track what a tree actually has instead of what its version
+ * number suggests.
+ *
+ * Omitting this member was not a scoping decision with a safe failure mode.
+ * The pre-rewrite register function requires it and rejects the whole
+ * registration with -EINVAL, after which the module serves nothing and the
+ * kernel's own CRNG answers every request -- unvalidated output, delivered
+ * silently. */
+static ssize_t wc_grb_extract_crng_user(void __user *ubuf, size_t nbytes)
+{
+    u8     buf[256];
+    size_t done = 0;
+
+    while (done < nbytes) {
+        size_t want = min_t(size_t, nbytes - done, sizeof(buf));
+
+        if (wc_grb_service(buf, want) != 0)
+            break;
+
+        if (copy_to_user((u8 __user *)ubuf + done, buf, want) != 0) {
+            memzero_explicit(buf, sizeof(buf));
+
+            return done ? (ssize_t)done : -EFAULT;
+        }
+
+        done += want;
+
+        cond_resched();
+    }
+
+    memzero_explicit(buf, sizeof(buf));
+
+    return done ? (ssize_t)done : -ENODEV;
+}
+
 /* Truthful readiness: the tree is usable only once wc_grb_init() has built the
  * root and the leaves.  Reporting ready early would let the kernel batch from
  * a service that is not yet answering. */
@@ -876,12 +927,11 @@ static const struct wolfssl_linuxkm_random_bytes_handlers
 wc_grb_handlers = {
     ._get_random_bytes     = wc_grb_service,
     .get_random_bytes_user = wc_grb_user,
+    .extract_crng_user     = wc_grb_extract_crng_user,
     .crng_ready            = wc_grb_ready
-    /* .extract_crng_user is the pre-5.17 userspace API; the RBGC targets
-     * kernels carrying the newer one.  .mix_pool_bytes, .credit_init_bits and
-     * .crng_reseed are not implemented yet: they let the module take part in
-     * the kernel's entropy lifecycle and are the next step, not a
-     * prerequisite for serving. */
+    /* .mix_pool_bytes, .credit_init_bits and .crng_reseed are not implemented
+     * yet: they let the module take part in the kernel's entropy lifecycle and
+     * are the next step, not a prerequisite for serving. */
 };
 
 #endif /* WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS */
@@ -2186,13 +2236,11 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wc_lkm_UnLockMutex = wc_lkm_UnLockMutex;
 #endif
 
-#ifdef CONFIG_ARM64
-#ifndef CONFIG_ARCH_TEGRA
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
-    wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
+#ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
+    wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_can_block = wc_linuxkm_can_block;
