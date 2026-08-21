@@ -166,6 +166,25 @@ struct wc_grb_nmi_slot {
      * steal has been measured on this hardware. */
     atomic_t          gen[2];
     atomic_t          pending;
+    /* One reseed at a time.  Three maintenance contexts can reach one leaf and
+     * none excluded another: the leaf's own pinned worker through
+     * wc_grb_maintain_cpu(cpu), the unbound sweep in wc_grb_root_tick() which
+     * passes want_cpu -1, and the service path's self-help
+     * wc_grb_maintain_cpu(-1).  wc_grb_maint_busy guards only
+     * wc_grb_root_tick() against itself.
+     *
+     * Two reseeders in one leaf break both of the things that keep an NMI out
+     * of an instantiation whose exclusion flag is held.  They derive the same
+     * spare from the same live, so the first to finish stores live = spare
+     * while the second is still inside wc_RNG_DRBG_Reseed(); and the second's
+     * own increment of gen[spare] returns that counter to EVEN while the first
+     * still holds the flag, so the odd-means-busy check below reads even and
+     * lets the caller in.  Measured on 6.12.59/x86_64 over 49 runs with the
+     * exclusion window widened: 10 runs wedged and every one of them had two
+     * reseeders in one leaf; of the 36 runs that never had two, none wedged.
+     * The race itself needs no widening -- at the natural window it fired
+     * about 4,000 times in a 20-second run. */
+    atomic_t          reseeding;
     struct wc_grb_ctr since;
     unsigned long     at;
 };
@@ -189,9 +208,10 @@ static struct wc_grb_ctr wc_grb_reseed_failed;
 static atomic_t wc_grb_any_pending;
 
 
-/* Maintenance reseeds skipped because CPU hotplug moved the work off the CPU
- * whose leaf it was going to write.  Not a decline: no caller was turned
- * away, and the leaf is picked up on the next tick. */
+/* Maintenance reseeds skipped: either CPU hotplug moved the work off the CPU
+ * whose leaf it was going to write, or another maintenance context was already
+ * inside that leaf.  Neither is a decline: no caller was turned away, and the
+ * leaf is picked up on the next tick. */
 static struct wc_grb_ctr wc_grb_maint_deferred;
 
 /* NMI requests answered by the leaf's other instantiation because the live one
@@ -449,6 +469,17 @@ static int wc_grb_reseed_nmi(int cpu, int want_cpu)
 
     ret = wc_RNG_GenerateBlock(&wc_grb_root, sl_seed,
                                (word32) sizeof(sl_seed));
+    if ((ret == 0) &&
+        (atomic_cmpxchg(&wc_grb_nmi[cpu].reseeding, 0, 1) != 0))
+    {
+        /* Another maintenance context is already inside this leaf.  Leave it
+         * pending; the next tick has it. */
+        atomic_set(&wc_grb_any_pending, 1);
+        wc_grb_ctr_inc(&wc_grb_maint_deferred);
+        ForceZero(sl_seed, sizeof(sl_seed));
+
+        return 0;
+    }
     if (ret == 0) {
         spare = atomic_read(&wc_grb_nmi[cpu].live) ? 0 : 1;
         /* Seqlock on this instantiation: odd while it is being rewritten.
@@ -472,6 +503,7 @@ static int wc_grb_reseed_nmi(int cpu, int want_cpu)
             atomic_set(&wc_grb_nmi[cpu].pending, 0);
             atomic_set(&wc_grb_nmi[cpu].live, spare);
         }
+        atomic_set(&wc_grb_nmi[cpu].reseeding, 0);
     }
 
     /* CSP: this leaf's seed material; see wc_grb_reseed_local(). */
@@ -745,13 +777,13 @@ int wc_grb_root_tick(void)
      * then failed 945,000 consecutive ones, never recovering, and the machine
      * hung.
      *
-     * The reseed writes rng[spare].  A caller normally reads rng[live], a
-     * separate instantiation, but the NMI path also reads rng[spare] when its
-     * live instance cannot answer, so "two separate instantiations" is not on
-     * its own a safety argument any more.  The generation counter carries it:
-     * wc_grb_reseed_nmi() leaves it odd for the duration of the reseed, and a
-     * caller that finds it odd stays out of that instance rather than waiting
-     * on the exclusion flag the reseed holds. */
+     * This sweep is not pinned, so it reseeds a leaf from a CPU other than the
+     * leaf's own and concurrently with that leaf's own pinned worker.  What
+     * makes that safe is wc_grb_nmi[].reseeding: one reseeder per leaf, so
+     * spare cannot go stale and the generation counter cannot be returned to
+     * even by a second incrementer while the first still holds the flag.
+     * Without it the generation check reads even on a held instance and the
+     * caller walks in. */
     {
         int i;
 
@@ -1046,6 +1078,7 @@ static int wc_grb_alloc_nmi(void)
         atomic_set(&wc_grb_nmi[i].gen[0], 0);
         atomic_set(&wc_grb_nmi[i].gen[1], 0);
         atomic_set(&wc_grb_nmi[i].pending, 0);
+        atomic_set(&wc_grb_nmi[i].reseeding, 0);
         wc_grb_ctr_zero(&wc_grb_nmi[i].since);
         wc_grb_nmi[i].at = wc_grb_reseed_base;
     }
