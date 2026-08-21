@@ -2371,17 +2371,12 @@ int test_TLSX_SNI_GetSize_overflow(void)
 
     /* Append many SNI nodes to force overflow in the size calculation */
     for (i = 1; EXPECT_SUCCESS() && i < num_sni; i++) {
-        sni = (SNI*)XMALLOC(sizeof(SNI), NULL, DYNAMIC_TYPE_TLSX);
+        sni = (SNI*)XMALLOC(sizeof(SNI) + 2, NULL, DYNAMIC_TYPE_TLSX);
         ExpectNotNull(sni);
         if (sni != NULL) {
-            XMEMSET(sni, 0, sizeof(SNI));
+            XMEMSET(sni, 0, sizeof(SNI) + 2);
             sni->type = WOLFSSL_SNI_HOST_NAME;
-            sni->data.host_name = (char*)XMALLOC(2, NULL, DYNAMIC_TYPE_TLSX);
-            ExpectNotNull(sni->data.host_name);
-            if (sni->data.host_name != NULL) {
-                sni->data.host_name[0] = 'a';
-                sni->data.host_name[1] = '\0';
-            }
+            sni->host_name[0] = 'a';
             sni->next = head->next;
             head->next = sni;
         }
