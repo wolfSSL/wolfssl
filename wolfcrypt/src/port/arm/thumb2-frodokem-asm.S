@@ -34,7 +34,7 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 	.text
 	.align	4
 	.globl	frodokem_add_thumb2
@@ -261,7 +261,7 @@ L_frodokem_mul_add_sb_plus_e_thumb2_j:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 97 */
 	.size	frodokem_mul_add_sb_plus_e_thumb2,.-frodokem_mul_add_sb_plus_e_thumb2
-#endif /* WOLFSSL_HAVE_FRODOKEM */
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

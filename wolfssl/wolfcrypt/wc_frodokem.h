@@ -255,6 +255,10 @@ typedef struct FrodoKemKey {
     void* heap;
     /* Device Id. */
     int devId;
+#ifdef WOLF_CRYPTO_CB
+    /* Device context for a hardware key handle. */
+    void* devCtx;
+#endif
     /* Flags indicating what is stored in the key. */
     int flags;
 
@@ -345,6 +349,18 @@ WOLFSSL_API int wc_FrodoKemKey_PrivateKeyDecode(FrodoKemKey* key,
 
 #ifdef __cplusplus
     } /* extern "C" */
+#endif
+
+/* Native implementation core (internal). The public wc_FrodoKemKey_* functions
+ * in wc_frodokem.c wrap it with cryptocb dispatch and argument checking. With
+ * WOLF_CRYPTO_CB_ONLY_FRODOKEM the lattice math is not compiled: key
+ * generation, encapsulation and decapsulation all go through the crypto
+ * callback. The key encode and decode helpers stay, since a callback that
+ * returns key material needs them. */
+#ifndef WOLF_CRYPTO_CB_ONLY_FRODOKEM
+/* Signals that native key generation, encapsulation and decapsulation are
+ * available. */
+#define WC_FRODOKEM_HAVE_NATIVE
 #endif
 
 #endif /* WOLFSSL_HAVE_FRODOKEM */
