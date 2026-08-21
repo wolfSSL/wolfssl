@@ -116,7 +116,8 @@ Published CVE advisories: https://www.wolfssl.com/docs/security-vulnerabilities/
 
 Material changes to this policy are announced via the wolfSSL blog.
 
-This file is the canonical policy. Reporting addresses also appear in
+The canonical policy is `SECURITY-POLICY.md` in the wolfSSL source
+repository. Reporting addresses also appear in
 <https://www.wolfssl.com/.well-known/security.txt>; keep them in step.
 
 *Last updated: 2026-08-21*
