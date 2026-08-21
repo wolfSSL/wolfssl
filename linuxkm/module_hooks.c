@@ -433,10 +433,27 @@ unsigned long long wc_linuxkm_mono_ns(void)
 #endif /* LINUXKM_RBGC */
 
 int wc_linuxkm_can_block(void) {
-    /* We can't use preemptible() for this, because we need an accurate test
-     * even in !CONFIG_PREEMPT_COUNT configs where preemptible() is always 0.
+    /* preempt_count() is NOT an accurate "may I sleep here" test on its own.
+     * In !CONFIG_PREEMPT_COUNT configs (PREEMPT_VOLUNTARY without
+     * PREEMPT_DYNAMIC -- the default through 5.15) preempt_disable() expands to
+     * barrier() and never touches __preempt_count
+     * (include/linux/preempt.h), so a task inside kernel_fpu_begin() still
+     * reads 0 here.  preempt_count() is exactly as blind as preemptible() in
+     * that configuration; the earlier comment claimed the opposite.
+     *
+     * The hardirq/softirq masks ARE still maintained there, so the irqs and
+     * interrupt-context halves of this test remain sound.  Only the
+     * preempt-disabled half is blind, which is why an open vector-register
+     * section has to be tested directly.
+     *
+     * Measured consequence when it was not: on 5.7.19 a cond_resched() from
+     * WC_RELAX_LONG_LOOP() inside an open bracket slept, the task migrated,
+     * and wc_restore_vector_registers_x86() ran on a CPU with no open section
+     * -- stranding kernel_fpu_begin()'s section on the origin CPU for the life
+     * of the module (1 event in 920,727 saves).
      */
-    return (preempt_count() == 0) && (! irqs_disabled());
+    return (preempt_count() == 0) && (! irqs_disabled())
+        && (! wc_linuxkm_in_svr_bracket());
 }
 
 /* for simplicity, we use a global count to suspend signal processing while any
