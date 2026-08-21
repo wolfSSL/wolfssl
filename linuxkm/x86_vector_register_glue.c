@@ -86,14 +86,86 @@
             i = 1;
         else
             i = 0;
-        /* raw_: the CPU is pinned by the preempt_disable() in FPU_BEGIN for the
-         * whole life of the section, so this resolves to the same slot at
-         * begin and at end. */
+        /* raw_: the CPU is held for the whole life of the section, so this
+         * resolves to the same slot at begin and at end -- by the
+         * preempt_disable() in FPU_BEGIN where CONFIG_PREEMPT_COUNT is set,
+         * and by the migrate_disable() next to it where it is not.  With only
+         * the preempt_disable(), 22,358 of 60,087 measured sections resolved a
+         * DIFFERENT slot at end(); see below. */
         return &raw_cpu_ptr(&wc_lkm_neon_slots)->s[i];
     }
 
+    /* preempt_disable() is the pin only where CONFIG_PREEMPT_COUNT is set.
+     * Without it, include/linux/preempt.h:284 defines it as barrier() and
+     * preemptible() as the constant 0 at :293 (linux-6.19.14), so the slot
+     * above is NOT exclusive and the kernel's own
+     *   WARN_ON((preemptible() || in_serving_softirq()) && !state);
+     * at arch/arm64/kernel/fpsimd.c:1824 cannot see it either.  arm64 reaches
+     * that configuration on a stock tree: it selects HAVE_PREEMPT_DYNAMIC_KEY,
+     * not _CALL (arch/arm64/Kconfig:245), so PREEMPT_DYNAMIC is not default y
+     * (kernel/Kconfig.preempt:131) and a CONFIG_PREEMPT_NONE build leaves
+     * PREEMPT_COUNT unset.
+     *
+     * It matters here more than anywhere else in this file, because from 6.19
+     * the buffer IS the kernel's save area for the interrupted section:
+     *   linux-6.19.14 arch/arm64/kernel/fpsimd.c kernel_neon_begin()
+     *     :1860  WARN_ON(current->thread.kernel_fpsimd_state != NULL);
+     *     :1861  current->thread.kernel_fpsimd_state = state;
+     *     :1862  set_thread_flag(TIF_KERNEL_FPSTATE);
+     *     :1869  put_cpu_fpsimd_context();   <- the bh-disable taken at :1828
+     *                                           ends HERE, not at the end of
+     *                                           the NEON section
+     *   linux-6.19.14 arch/arm64/kernel/fpsimd.c kernel_neon_end()
+     *     :1902  WARN_ON(current->thread.kernel_fpsimd_state != state);
+     * So the kernel records OUR per-CPU buffer against the TASK and demands
+     * the same pointer back.  A task that migrates mid-section resolves
+     * wc_lkm_neon_slot() on the new CPU, hands kernel_neon_end() a different
+     * pointer, and leaves the origin CPU's slot claimable while its section is
+     * still live.
+     *
+     * The pin has to live for the whole section, which is why it is here and
+     * not left to WC_SVR_DECIDE_PIN(): that one is released immediately after
+     * WC_LINUXKM_FPU_BEGIN() returns, on the ground that FPU_BEGIN holds the
+     * CPU -- true only where preempt_disable() is a pin.
+     *
+     * MEASURED, on linux-6.19.14 arm64 CONFIG_PREEMPT_NONE (PREEMPT_COUNT
+     * unset), SMP=4, 16 threads, this exact begin/end shape, a schedule point
+     * inside the section, everything else identical between arms:
+     *   without the pin  60,087 sections, 60,087 unpinned, 22,358 changed CPU,
+     *                    22,358 wrong pointer at end(), 17,210 landing on a
+     *                    slot with another live section, and 22,358 kernel
+     *                    WARNs at fpsimd.c:1902 -- the kernel's own oracle,
+     *                    agreeing exactly with our count
+     *   with the pin     79,414 sections, 0 unpinned, 0 moved, 0 wrong
+     *                    pointer, 0 slot collisions, 0 kernel WARNs
+     * Detector controls: forcing the comparison once yields cpumoved=1 in the
+     * pinned build, and the same source on a CONFIG_PREEMPT kernel reports
+     * zero yields and zero moves without the pin, because there
+     * preempt_disable() already is one.
+     *
+     * migrate_disable() is what keeps the CPU fixed where preempt_disable()
+     * cannot; see WC_SVR_DECIDE_PIN() below for why it, and not
+     * get_cpu()/local_bh_disable(), is the primitive that works, and for the
+     * 5.11 floor (through 5.10 migrate_disable() is literally
+     * preempt_disable()).  Task context only: a softirq or hardirq cannot
+     * migrate, and the context test is stable across one begin/end pair
+     * because an interrupt that arrives inside it runs to completion first. */
+    #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
+        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        #define WC_LKM_NEON_TASK_CTX()                              \
+            ((! (preempt_count() & (NMI_MASK | HARDIRQ_MASK))) &&   \
+             (! in_serving_softirq()))
+        #define WC_LKM_NEON_PIN()                                   \
+            do { if (WC_LKM_NEON_TASK_CTX()) migrate_disable(); } while (0)
+        #define WC_LKM_NEON_UNPIN()                                 \
+            do { if (WC_LKM_NEON_TASK_CTX()) migrate_enable(); } while (0)
+    #else
+        #define WC_LKM_NEON_PIN()   WC_DO_NOTHING
+        #define WC_LKM_NEON_UNPIN() WC_DO_NOTHING
+    #endif
     #define WC_LINUXKM_FPU_BEGIN()                                  \
         do {                                                        \
+            WC_LKM_NEON_PIN();                                      \
             preempt_disable();                                      \
             kernel_neon_begin(wc_lkm_neon_slot());                  \
         } while (0)
@@ -101,6 +173,7 @@
         do {                                                        \
             kernel_neon_end(wc_lkm_neon_slot());                    \
             preempt_enable();                                       \
+            WC_LKM_NEON_UNPIN();                                    \
         } while (0)
 #else
     #define WC_LINUXKM_FPU_BEGIN() kernel_neon_begin()
