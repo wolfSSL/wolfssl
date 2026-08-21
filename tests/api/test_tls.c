@@ -614,6 +614,27 @@ int test_tls_get_negotiated_group(void)
     ExpectStrEQ(wolfSSL_group_to_name(NULL, WOLFSSL_ML_KEM_768), "MLKEM768");
 #endif
     ExpectNull(wolfSSL_group_to_name(NULL, 9999));
+
+    /* SSL_CTX_set_tmp_ecdh() seeds ctx->ecdhCurveOID, which InitSSL() copies
+     * into the SSL. That is a configured preference, not a negotiated group,
+     * so it must not be reported before a handshake has run. */
+    {
+        WOLFSSL_CTX* ctx_e = NULL;
+        WOLFSSL* ssl_e = NULL;
+        WOLFSSL_EC_KEY* ecKey = NULL;
+
+        ExpectNotNull(ctx_e = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectNotNull(ecKey = wolfSSL_EC_KEY_new_by_curve_name(
+            WC_NID_X9_62_prime256v1));
+        ExpectIntEQ(wolfSSL_SSL_CTX_set_tmp_ecdh(ctx_e, ecKey),
+            WOLFSSL_SUCCESS);
+        ExpectNotNull(ssl_e = wolfSSL_new(ctx_e));
+        ExpectIntEQ(wolfSSL_get_negotiated_group(ssl_e), 0);
+
+        wolfSSL_EC_KEY_free(ecKey);
+        wolfSSL_free(ssl_e);
+        wolfSSL_CTX_free(ctx_e);
+    }
 #endif
     return EXPECT_RESULT();
 }
