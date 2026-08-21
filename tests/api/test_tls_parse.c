@@ -2274,10 +2274,7 @@ int test_TLSX_SupportedGroups_parse(void)
         extensions = NULL;
 
 #ifdef WOLFSSL_TEST_STATIC_BUILD
-        /* Offered group matches the local restriction, but recording it
-         * in the intersection list is forced to fail: a non-zero ret
-         * reaches the "no common curve" check below without commonCurves
-         * ever becoming non-NULL through the normal path. */
+        /* The intersection is made in place, so it allocates nothing. */
         {
             wolfSSL_Malloc_cb prevM = NULL;
             wolfSSL_Free_cb prevF = NULL;
@@ -2294,12 +2291,73 @@ int test_TLSX_SupportedGroups_parse(void)
             tls_parse_fail_after = 0;
 
             ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, goodBody,
-                        (word16)sizeof(goodBody), 1, &extensions),
-                        WC_NO_ERR_TRACE(MEMORY_E));
+                        (word16)sizeof(goodBody), 1, &extensions), 0);
+            ExpectIntEQ(tls_parse_alloc_seen, 0);
 
             tls_parse_fail_after = -1;
             (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
             TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* Unsupported FFDHE codepoints are appended until the list is full,
+         * then the regrow fails and the list in the extension survives. */
+        {
+            wolfSSL_Malloc_cb prevM = NULL;
+            wolfSSL_Free_cb prevF = NULL;
+            wolfSSL_Realloc_cb prevR = NULL;
+            byte ffdheMany[OPAQUE16_LEN +
+                           WOLFSSL_MAX_GROUP_COUNT * OPAQUE16_LEN];
+            TLSX* ext = NULL;
+            word16 cap = 0;
+            word16 len;
+            word16 i;
+
+            ExpectIntEQ(TLSX_UseSupportedCurve(&extensions,
+                        WOLFSSL_ECC_SECP256R1, ssl->heap,
+                        ssl->options.side), WOLFSSL_SUCCESS);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if ((ext != NULL) && (ext->data != NULL))
+                cap = ((SupportedCurves*)ext->data)->cap;
+            ExpectIntGT(cap, 0);
+            ExpectIntLE(cap, WOLFSSL_MAX_GROUP_COUNT);
+            if (cap > WOLFSSL_MAX_GROUP_COUNT)
+                cap = 0;
+
+            len = (word16)(cap * OPAQUE16_LEN);
+            ffdheMany[0] = (byte)(len >> 8);
+            ffdheMany[1] = (byte)len;
+            for (i = 0; i < cap; i++) {
+                word16 name = (word16)(0x0120 + i);
+
+                ffdheMany[OPAQUE16_LEN + i * OPAQUE16_LEN] = (byte)(name >> 8);
+                ffdheMany[OPAQUE16_LEN + i * OPAQUE16_LEN + 1] = (byte)name;
+            }
+
+            ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+            ExpectIntEQ(wolfSSL_SetAllocators(tls_parse_fail_malloc,
+                        tls_parse_fail_free, tls_parse_fail_realloc), 0);
+            tls_parse_alloc_seen = 0;
+            tls_parse_fail_after = 0;
+
+            ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, ffdheMany,
+                        (word16)(OPAQUE16_LEN + len), 1, &extensions),
+                        WC_NO_ERR_TRACE(MEMORY_E));
+            ExpectIntEQ(tls_parse_alloc_seen, 1);
+
+            tls_parse_fail_after = -1;
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if (ext != NULL) {
+                ExpectNotNull(ext->data);
+                if (ext->data != NULL) {
+                    ExpectIntEQ(((SupportedCurves*)ext->data)->count, cap);
+                }
+            }
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
         }
 #endif
     }
@@ -2325,6 +2383,13 @@ int test_TLSX_SupportedGroups_parse(void)
                     WOLFSSL_SUCCESS);
         ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, noMatch261,
                     (word16)sizeof(noMatch261), 0, &extensions), 0);
+        {
+            TLSX* ext = TLSX_Find(extensions, TLSX_SUPPORTED_GROUPS);
+
+            ExpectNotNull(ext);
+            if ((ext != NULL) && (ext->data != NULL))
+                ExpectIntEQ(((SupportedCurves*)ext->data)->count, 0);
+        }
         TLSX_FreeAll(extensions, NULL);
     }
     wolfSSL_free(ssl);
