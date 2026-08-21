@@ -2714,58 +2714,14 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 
 #ifdef HAVE_ALPN
 #ifndef NO_BIO
-/* Convert a wire-format ALPN protocol list into a comma-separated string.
- *
- * The wire format is a sequence of entries, each a length byte followed by
- * that many protocol-name bytes.
- *
- * @param [in]  p      ALPN protocol list in wire format.
- * @param [in]  p_len  Length of the protocol list in bytes.
- * @param [out] pt     Buffer to hold the comma-separated list. Must hold at
- *                     least p_len bytes.
- * @param [out] ptLen  Length of the comma-separated list written.
- * @return  1 on success.
- * @return  0 when the wire format is invalid.
- */
-static int wolfssl_alpn_protos_to_list(const unsigned char* p,
-    unsigned int p_len, char* pt, unsigned int* ptLen)
-{
-    unsigned int idx = 0;
-    unsigned int ptIdx = 0;
-    unsigned int sz;
-    int ret = 1;
-
-    /* Convert into a comma separated list. */
-    while (idx < p_len - 1) {
-        unsigned int i;
-
-        sz = p[idx++];
-        if (idx + sz > p_len) {
-            WOLFSSL_MSG("Bad list format");
-            ret = 0;
-            break;
-        }
-        if (sz > 0) {
-            for (i = 0; i < sz; i++) {
-                pt[ptIdx++] = p[idx++];
-            }
-            if (idx < p_len - 1) {
-                pt[ptIdx++] = ',';
-            }
-        }
-    }
-
-    if (ret == 1) {
-        *ptLen = ptIdx;
-    }
-
-    return ret;
-}
-
 /* Set the ALPN protocol list, in wire format, on the object.
  *
  * The list is length-prefixed, e.g.
  *     unsigned char p[] = { 8, 'h','t','t','p','/','1','.','1' };
+ *
+ * Each length-prefixed entry is added directly, so protocol names that contain
+ * any byte value, including a comma or a NUL, are preserved. Zero-length
+ * entries are rejected and the whole list must be consumed exactly.
  *
  * @param [in] ssl    SSL/TLS object.
  * @param [in] p      ALPN protocol list in wire format (length-prefixed).
@@ -2776,12 +2732,18 @@ static int wolfssl_alpn_protos_to_list(const unsigned char* p,
 int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         const unsigned char* p, unsigned int p_len)
 {
-    char* pt = NULL;
-    unsigned int ptIdx = 0;
+    unsigned int idx = 0;
+    unsigned int count = 0;
+    unsigned int i;
+    unsigned int sz;
+    int valid = 1;
+    int ok = 1;
     /* RFC 7301: a server that does not select any of the client's offered
      * protocols MUST send no_application_protocol. Match that contract on
      * the OpenSSL-compat surface rather than silently continuing. */
     int alpn_opt = WOLFSSL_ALPN_FAILED_ON_MISMATCH;
+    /* One pointer per entry, each pointing at that entry's length byte. */
+    const unsigned char** entries = NULL;
     #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     int ret = 1;
     #else
@@ -2791,18 +2753,42 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
     WOLFSSL_ENTER("wolfSSL_set_alpn_protos");
 
     if ((ssl != NULL) && (p_len > 1) && (p != NULL)) {
-        /* Replacing leading number with trailing ',' and adding '\0'. */
-        pt = (char*)XMALLOC(p_len + 1, ssl->heap, DYNAMIC_TYPE_OPENSSL);
-        if (pt != NULL) {
-            if (wolfssl_alpn_protos_to_list(p, p_len, pt, &ptIdx)) {
-                pt[ptIdx++] = '\0';
+        entries = (const unsigned char**)XMALLOC(
+            sizeof(*entries) * WOLFSSL_MAX_ALPN_NUMBER, ssl->heap,
+            DYNAMIC_TYPE_OPENSSL);
+        if (entries != NULL) {
+            /* Record each length-prefixed entry, rejecting zero-length names
+             * and any entry that runs past the end of the list. */
+            while (idx < p_len) {
+                sz = p[idx++];
+                if ((sz == 0) || (idx + sz > p_len) ||
+                        (count >= (unsigned int)WOLFSSL_MAX_ALPN_NUMBER)) {
+                    valid = 0;
+                    break;
+                }
+                entries[count++] = p + idx - 1;
+                idx += sz;
+            }
 
+            /* Require the whole list to be consumed exactly. */
+            if (valid && (idx == p_len) && (count > 0)) {
                 /* Clear out all currently set ALPN extensions. */
                 TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL,
                     ssl->heap);
 
-                if (wolfSSL_UseALPN(ssl, pt, ptIdx, (byte)alpn_opt) ==
-                        WOLFSSL_SUCCESS) {
+                /* Add in reverse so the offered order matches the input. */
+                i = count;
+                while (i > 0) {
+                    i--;
+                    if (TLSX_UseALPN(&ssl->extensions, entries[i] + 1,
+                            entries[i][0], (byte)alpn_opt, ssl->heap) !=
+                            WOLFSSL_SUCCESS) {
+                        ok = 0;
+                        break;
+                    }
+                }
+
+                if (ok) {
                     #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
                     ret = 0;
                     #else
@@ -2811,7 +2797,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
                 }
             }
 
-            XFREE(pt, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+            XFREE(entries, ssl->heap, DYNAMIC_TYPE_OPENSSL);
         }
     }
 

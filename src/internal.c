@@ -8704,7 +8704,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             if (!ret) {
         #endif
                 WOLFSSL_MSG("failed to set alpn protos to ssl object");
-                return ret;
+                /* Map the non-negative public API failure to a negative error
+                 * so wolfSSL_new frees the object instead of returning it. */
+                return BAD_FUNC_ARG;
             }
         }
     #endif
@@ -42330,7 +42332,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             alpn = (ALPN*)extension->data;
             if (alpn != NULL && alpn->negotiated == 1 &&
                     alpn->protocol_name != NULL) {
-                word32 protoLen = (word32)XSTRLEN(alpn->protocol_name);
+                word32 protoLen = (word32)alpn->protocol_nameSz;
                 if (protoLen > 0) {
                     return wc_Hash(TICKET_BINDING_HASH_TYPE,
                                    (const byte*)alpn->protocol_name,
