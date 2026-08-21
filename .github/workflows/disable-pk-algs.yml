@@ -76,6 +76,9 @@ jobs:
            "configs": [
           {"name": "rsa-dh", "minutes": 1.2,
            "configure": ["--enable-rsa", "--enable-dh"]},
+          {"name": "rsa-key-to-der-original-asn", "minutes": 1.2,
+           "configure": ["--enable-rsa", "--enable-asn=original",
+             "--disable-dsa", "CPPFLAGS=-DWOLFSSL_KEY_TO_DER"]},
           {"name": "ecc", "minutes": 1.2,
            "configure": ["--enable-ecc"]},
           {"name": "rsa-curve25519", "minutes": 1.2,
