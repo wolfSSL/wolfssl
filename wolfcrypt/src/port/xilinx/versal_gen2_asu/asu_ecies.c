@@ -66,8 +66,8 @@
 #define WC_ASU_ECIES_NONCE_SZ     12
 #define WC_ASU_ECIES_TAG_SZ       16
 
-/* Biggest curve we support here, P-384 at 48 bytes. */
-#define WC_ASU_ECIES_MAX_KEYLEN   XASU_ECC_P384_SIZE_IN_BYTES
+/* Biggest curve we support here, Brainpool P-512 at 64 bytes. */
+#define WC_ASU_ECIES_MAX_KEYLEN   XASU_ECC_P512_SIZE_IN_BYTES
 
 /* One ASU ECIES request. The fixed size fields live on the heap so the ASU
  * can reach them. The message stays in the caller buffers. */
@@ -169,9 +169,17 @@ static int wc_AsuEciesCurve(ecc_key* key, u8* curveType, u8* keyLen)
             *curveType = (u8)XASU_ECC_BRAINPOOL_P256;
             *keyLen    = (u8)XASU_ECC_P256_SIZE_IN_BYTES;
             break;
+        case ECC_BRAINPOOLP320R1:
+            *curveType = (u8)XASU_ECC_BRAINPOOL_P320;
+            *keyLen    = (u8)XASU_ECC_P320_SIZE_IN_BYTES;
+            break;
         case ECC_BRAINPOOLP384R1:
             *curveType = (u8)XASU_ECC_BRAINPOOL_P384;
             *keyLen    = (u8)XASU_ECC_P384_SIZE_IN_BYTES;
+            break;
+        case ECC_BRAINPOOLP512R1:
+            *curveType = (u8)XASU_ECC_BRAINPOOL_P512;
+            *keyLen    = (u8)XASU_ECC_P512_SIZE_IN_BYTES;
             break;
 #endif
         default:
