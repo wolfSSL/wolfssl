@@ -18889,7 +18889,22 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
             argc--;
             argv++;
             if (argc > 1) {
-                actual_freq = strtol(argv[1], NULL, 10);
+                /* Not XATOI(): it casts to (int) in BOTH the userspace and
+                 * the linuxkm definition (linuxkm/linuxkm_wc_port.h), so a
+                 * frequency in Hz above ~2.147e9 -- i.e. most aarch64 parts
+                 * this option exists for -- would silently truncate.  strtol()
+                 * does not exist in the kernel; kstrtoll() is what the kernel
+                 * XATOI is already built on, so it links. */
+#ifdef WOLFSSL_LINUXKM
+                {
+                    long long _freq = 0;
+                    if (kstrtoll(argv[1], 10, &_freq) == 0) {
+                        actual_freq = (word64)_freq;
+                    }
+                }
+#else
+                actual_freq = (word64)strtol(argv[1], NULL, 10);
+#endif
             }
         }
 #endif
