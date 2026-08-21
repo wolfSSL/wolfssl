@@ -37,9 +37,16 @@
     #include <asm/neon.h>
     #include <linux/version.h>
 
-#if defined(CONFIG_ARM64) && (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
-    /* Linux 7.0 changed the arm64 contract: the CALLER supplies the buffer that
-     * holds the interrupted kernel-mode FPSIMD state.
+#if defined(CONFIG_ARM64) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 19, 0))
+    /* Linux 6.19 changed the arm64 contract: the CALLER supplies the buffer that
+     * holds the interrupted kernel-mode FPSIMD state.  Verified by reading the
+     * header in each tree, not inferred from a release note:
+     *   linux-6.18.45  void kernel_neon_begin(void);
+     *   linux-6.19.14  void kernel_neon_begin(struct user_fpsimd_state *);
+     *   linux-7.0.14, linux-7.1.9  same as 6.19.
+     * This gate said 7.0.0 until 2026-08-21, so arm64 6.19.x through 6.x
+     * failed to compile: the call passed no argument to a function that
+     * requires one.
      *   arch/arm64/include/asm/neon.h
      *     void kernel_neon_begin(struct user_fpsimd_state *);
      *     void kernel_neon_end(struct user_fpsimd_state *);
