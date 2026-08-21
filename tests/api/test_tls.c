@@ -730,6 +730,12 @@ int test_tls_shutdown_in_init(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WOLFSSL_ERROR_WANT_READ);
 
+    /* Refusing must not disable the guard: ssl->error is left alone, so a
+     * second call still refuses rather than taking the failed-handshake
+     * branch and sending the alert this exists to suppress. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(test_ctx.s_len, len);
+
     /* Established connection still shuts down normally. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
