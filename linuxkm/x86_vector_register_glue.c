@@ -1518,10 +1518,10 @@ static inline int wc_svr_ctx(void)
      * THE ONE CONSTRAINT THAT DECIDES CORRECTNESS: writing V0-V31
      * architecturally ZEROES bits [VL-1:128] of Z0-Z31.  So saving and
      * restoring only the V registers is exact on a part with no SVE, and
-     * DESTRUCTIVE on a part where SVE state is live.  This path is therefore
-     * gated on !system_supports_sve() at run time; on an SVE or SME part the
-     * module keeps refusing, which is the pre-existing behaviour, until the
-     * wider save is implemented. */
+     * DESTRUCTIVE on a part where SVE state is live.  The save therefore
+     * covers the file the part actually has: V0-V31 with FPSR/FPCR without
+     * SVE, and Z0-Z31 with P0-P15, FFR and FPSR/FPCR with it.  SME is refused
+     * outright -- see wc_svr_nested_init(). */
     #define WC_SVR_HAVE_NESTED_SAVE
     #define WC_SVR_NESTED_ARM64
 #endif
@@ -1535,17 +1535,153 @@ static inline int wc_svr_ctx(void)
 
 #ifdef WC_SVR_NESTED_ARM64
 
-/* 32 x 128-bit V registers, then FPSR and FPCR.  That is the WHOLE vector
- * state on a part without SVE, which is exactly the part this path runs on. */
+#include <asm/sysreg.h>
+
+/* THE FPSIMD REGISTER FILE: 32 x 128-bit V registers, then FPSR and FPCR.
+ * That is the whole vector state on a part with no SVE. */
 #define WC_SVR_A64_VREG_BYTES   512
 #define WC_SVR_A64_AREA_BYTES   576   /* 512 + FPSR/FPCR, rounded to 64 */
+
+/* THE SVE REGISTER FILE.
+ *
+ * Writing V0-V31 architecturally ZEROES bits [VL-1:128] of Z0-Z31 (Arm ARM DDI
+ * 0487, "Effect of using AArch64 SIMD&FP instructions on SVE registers"), so on
+ * a part where SVE state can be live, saving and restoring only V0-V31 hands
+ * the interrupted context back a truncated register file.  Saving Z0-Z31,
+ * P0-P15 and FFR covers the whole file at any vector length, and restoring Z
+ * restores V with it, because V_n IS Z_n[127:0].
+ *
+ * The layout and the instruction encodings below are the kernel's own, so a
+ * reader can check every constant against a file that ships with the kernel:
+ * arch/arm64/include/asm/fpsimdmacros.h -- macros sve_save and sve_load, built
+ * from _sve_str_v, _sve_ldr_v, _sve_str_p, _sve_ldr_p, _sve_rdffr, _sve_wrffr,
+ * _sve_pfalse and _sve_rdvl.  There the base register is a macro argument; here
+ * it is fixed at x9 so every encoding is a constant.
+ *
+ *   area + 0             Z0..Z31,  VL bytes each     -> 32 * VL
+ *   area + 32*VL         P0..P15,  VL/8 bytes each   ->  2 * VL
+ *   area + 34*VL         FFR,      VL/8 bytes
+ *   area + META_OFF      FPSR (u32), FPCR (u32), VL (u32)
+ *
+ * META_OFF is a constant past the end of the register region at the LARGEST
+ * vector length, so the restore can read back the length the save used without
+ * already knowing it.
+ *
+ * The MUL VL addressing modes scale by the CURRENT vector length, so the base
+ * pointer is derived from RDVL at save time and the vector length is recorded
+ * in the area; the restore addresses the area with the length that was actually
+ * saved rather than re-reading it.  Save and restore both run inside one
+ * pinned, preemption-disabled section, so ZCR_EL1.LEN cannot move between them.
+ *
+ * SIZING.  ZCR_EL1.LEN is four bits -- ZCR_ELx_LEN_MASK is GENMASK(3, 0) in
+ * arch/arm64/include/generated/asm/sysreg-defs.h -- so VQ <= 16 and VL <= 256
+ * bytes.  The area is allocated for that architectural bound.  It is not
+ * allocated from a probed maximum, because probing the maximum means writing
+ * ZCR_EL1, and a write to ZCR_EL1 makes Z, P and FFR UNPREDICTABLE; a length
+ * outside the bound is refused at save time instead of overrunning the area. */
+#define WC_SVR_A64_SVE_VQ_MAX    16u
+#define WC_SVR_A64_SVE_VL_MAX    (WC_SVR_A64_SVE_VQ_MAX * 16u)
+#define WC_SVR_A64_SVE_REG_BYTES(vl) \
+    ((34u * (unsigned int)(vl)) + ((unsigned int)(vl) / 8u))
+#define WC_SVR_A64_SVE_META_OFF \
+    ((WC_SVR_A64_SVE_REG_BYTES(WC_SVR_A64_SVE_VL_MAX) + 15u) & ~15u)
+#define WC_SVR_A64_SVE_AREA_BYTES \
+    ((WC_SVR_A64_SVE_META_OFF + 16u + 63u) & ~63u)
+
+/* CPACR_EL1.FPEN and .ZEN gate FP and SVE at EL1.  The kernel does not promise
+ * either is enabled when this code runs, and it enables them the same way
+ * around its own EL1 SVE accesses -- cpacr_save_enable_kernel_sve() and
+ * cpacr_restore(), arch/arm64/include/asm/fpsimd.h.  Those are recent helpers,
+ * so the two register writes are open-coded here and the bit names are taken
+ * from the kernel when it defines them. */
+#ifndef CPACR_EL1_ZEN_EL1EN
+    #define CPACR_EL1_ZEN_EL1EN  (1UL << 16)
+#endif
+#ifndef CPACR_EL1_FPEN_EL1EN
+    #define CPACR_EL1_FPEN_EL1EN (1UL << 20)
+#endif
+#define WC_SVR_A64_CPACR_SVE (CPACR_EL1_FPEN_EL1EN | CPACR_EL1_ZEN_EL1EN)
+
+/* system_supports_sme() does not exist before the kernel grew SME support, and
+ * on a kernel built without it there is no SME state for anyone to have live. */
+#ifdef CONFIG_ARM64_SME
+    #define wc_svr_a64_sme_present() system_supports_sme()
+#else
+    #define wc_svr_a64_sme_present() 0
+#endif
+
+static inline unsigned long wc_svr_a64_sve_enable(void)
+{
+    unsigned long old = read_sysreg(cpacr_el1);
+    if ((old & WC_SVR_A64_CPACR_SVE) != WC_SVR_A64_CPACR_SVE) {
+        write_sysreg(old | WC_SVR_A64_CPACR_SVE, cpacr_el1);
+        isb();
+    }
+    return old;
+}
+
+static inline void wc_svr_a64_sve_disable(unsigned long old)
+{
+    if ((old & WC_SVR_A64_CPACR_SVE) != WC_SVR_A64_CPACR_SVE) {
+        write_sysreg(old, cpacr_el1);
+        isb();
+    }
+}
+
+/* Encodings, base register x9.  Every constant here is the corresponding macro
+ * body from arch/arm64/include/asm/fpsimdmacros.h with nxbase = 9.  The
+ * assembler evaluates the arithmetic, including the two's-complement masking of
+ * the negative MUL VL offsets, exactly as the kernel's macros do. */
+#define WC_SVE_STR_Z(n) ".inst (0xe5804000|(" #n ")|(9<<5)"                    \
+    "|((((" #n ")-34)&7)<<10)|((((" #n ")-34)&0x1f8)<<13))\n\t"
+#define WC_SVE_LDR_Z(n) ".inst (0x85804000|(" #n ")|(9<<5)"                    \
+    "|((((" #n ")-34)&7)<<10)|((((" #n ")-34)&0x1f8)<<13))\n\t"
+#define WC_SVE_STR_P(n) ".inst (0xe5800000|(" #n ")|(9<<5)"                    \
+    "|((((" #n ")-16)&7)<<10)|((((" #n ")-16)&0x1f8)<<13))\n\t"
+#define WC_SVE_LDR_P(n) ".inst (0x85800000|(" #n ")|(9<<5)"                    \
+    "|((((" #n ")-16)&7)<<10)|((((" #n ")-16)&0x1f8)<<13))\n\t"
+#define WC_SVE_PFALSE(n) ".inst (0x2518e400|(" #n "))\n\t"
+/* STR/LDR P0, [x9] -- offset 0 is the FFR slot. */
+#define WC_SVE_STR_P_FFR ".inst (0xe5800000|(9<<5))\n\t"
+#define WC_SVE_LDR_P_FFR ".inst (0x85800000|(9<<5))\n\t"
+#define WC_SVE_RDFFR_P0  ".inst 0x2519f000\n\t"
+#define WC_SVE_WRFFR_P0  ".inst 0x25289000\n\t"
+
+#define WC_SVE_Z_SEQ(M)                                                        \
+    M(0)  M(1)  M(2)  M(3)  M(4)  M(5)  M(6)  M(7)                             \
+    M(8)  M(9)  M(10) M(11) M(12) M(13) M(14) M(15)                            \
+    M(16) M(17) M(18) M(19) M(20) M(21) M(22) M(23)                            \
+    M(24) M(25) M(26) M(27) M(28) M(29) M(30) M(31)
+#define WC_SVE_P_SEQ(M)                                                        \
+    M(0)  M(1)  M(2)  M(3)  M(4)  M(5)  M(6)  M(7)                             \
+    M(8)  M(9)  M(10) M(11) M(12) M(13) M(14) M(15)
 
 static unsigned int wc_svr_save_size;
 static int          wc_svr_nested_ready;
 static u8         **wc_svr_save_area;
 static u8         **wc_svr_save_alloc;
+/* Fixed at init from system_supports_sve(), which is a boot-time-final
+ * capability.  It selects which register FILE is saved, not which of two
+ * implementations of one thing runs: a part without SVE has no Z, P or FFR and
+ * would take an undefined-instruction exception on the encodings above. */
+static int          wc_svr_a64_sve;
 
-static inline void wc_svr_regs_save(u8 *area)
+static inline unsigned int wc_svr_a64_rdvl(void)
+{
+    unsigned long vl;
+    /* RDVL X9, #1 */
+    asm volatile(".inst (0x04bf5000 | 9 | (1 << 5))\n\t"
+                 "mov %0, x9\n\t"
+                 : "=r"(vl) : : "x9");
+    return (unsigned int)vl;
+}
+
+static inline int wc_svr_a64_vl_ok(unsigned int vl)
+{
+    return (vl >= 16u) && (vl <= WC_SVR_A64_SVE_VL_MAX) && ((vl & 15u) == 0u);
+}
+
+static inline void wc_svr_a64_fpsimd_save(u8 *area)
 {
     u64 fpsr, fpcr;
     u8 *p = area;
@@ -1565,7 +1701,7 @@ static inline void wc_svr_regs_save(u8 *area)
     *(u64 *)(area + WC_SVR_A64_VREG_BYTES + 8) = fpcr;
 }
 
-static inline void wc_svr_regs_restore(const u8 *area)
+static inline void wc_svr_a64_fpsimd_restore(const u8 *area)
 {
     u64 fpsr = *(const u64 *)(area + WC_SVR_A64_VREG_BYTES);
     u64 fpcr = *(const u64 *)(area + WC_SVR_A64_VREG_BYTES + 8);
@@ -1582,6 +1718,100 @@ static inline void wc_svr_regs_restore(const u8 *area)
         : "+r"(p) : : "memory");
     asm volatile("msr fpsr, %0" : : "r"(fpsr));
     asm volatile("msr fpcr, %0" : : "r"(fpcr));
+}
+
+/* Returns 0 with the whole SVE file in the area, or -1 having written nothing
+ * and touched no register, so the caller can refuse the section. */
+static int wc_svr_a64_sve_save(u8 *area)
+{
+    unsigned long cpacr;
+    unsigned int vl, off;
+    u64 fpsr, fpcr;
+    u8 *pffr;
+
+    cpacr = wc_svr_a64_sve_enable();
+    vl = wc_svr_a64_rdvl();
+    if (! wc_svr_a64_vl_ok(vl)) {
+        wc_svr_a64_sve_disable(cpacr);
+        return -1;
+    }
+    pffr = area + (34u * vl);
+    asm volatile("mov x9, %0\n\t"
+                 WC_SVE_Z_SEQ(WC_SVE_STR_Z)
+                 WC_SVE_P_SEQ(WC_SVE_STR_P)
+                 /* FFR has no store of its own: read it into P0, store P0
+                  * into the FFR slot at offset 0, then reload P0 from P0's own
+                  * slot at offset -16.  This is sve_save() in
+                  * fpsimdmacros.h. */
+                 WC_SVE_RDFFR_P0
+                 WC_SVE_STR_P_FFR
+                 WC_SVE_LDR_P(0)
+                 : : "r"(pffr) : "x9", "memory");
+    asm volatile("mrs %0, fpsr" : "=r"(fpsr));
+    asm volatile("mrs %0, fpcr" : "=r"(fpcr));
+    off = WC_SVR_A64_SVE_META_OFF;
+    *(u32 *)(area + off)     = (u32)fpsr;
+    *(u32 *)(area + off + 4) = (u32)fpcr;
+    *(u32 *)(area + off + 8) = vl;
+    wc_svr_a64_sve_disable(cpacr);
+    return 0;
+}
+
+static void wc_svr_a64_sve_restore(const u8 *area)
+{
+    unsigned long cpacr;
+    unsigned int vl, off;
+    u64 fpsr, fpcr;
+    const u8 *pffr;
+
+    /* The length the save actually used, not a fresh RDVL: this must address
+     * the area the way it was written.  A save that returned 0 wrote it, and
+     * only a save that returned 0 opens a section to restore. */
+    off = WC_SVR_A64_SVE_META_OFF;
+    vl  = *(const u32 *)(area + off + 8);
+    if (! wc_svr_a64_vl_ok(vl)) {
+        /* Unreachable: the section was opened by a save that returned 0, and
+         * that save wrote this field.  Say so rather than return quietly --
+         * these are the interrupted context's registers, and leaving them
+         * wrong without a word is the one outcome worse than failing. */
+        pr_err_once("BUG: wc_restore_vector_registers_x86() found no vector"
+                    " length in the save area on CPU %d; the interrupted"
+                    " context's SVE registers are NOT being restored.\n",
+                    raw_smp_processor_id());
+        return;
+    }
+    fpsr = *(const u32 *)(area + off);
+    fpcr = *(const u32 *)(area + off + 4);
+    pffr = area + (34u * vl);
+
+    cpacr = wc_svr_a64_sve_enable();
+    asm volatile("mov x9, %0\n\t"
+                 WC_SVE_Z_SEQ(WC_SVE_LDR_Z)
+                 /* FFR through P0, then P0..P15 over the top of it. */
+                 WC_SVE_LDR_P_FFR
+                 WC_SVE_WRFFR_P0
+                 WC_SVE_P_SEQ(WC_SVE_LDR_P)
+                 : : "r"(pffr) : "x9", "memory");
+    asm volatile("msr fpsr, %0" : : "r"(fpsr));
+    asm volatile("msr fpcr, %0" : : "r"(fpcr));
+    wc_svr_a64_sve_disable(cpacr);
+}
+
+static inline int wc_svr_regs_save(u8 *area)
+{
+    if (wc_svr_a64_sve)
+        return wc_svr_a64_sve_save(area);
+    wc_svr_a64_fpsimd_save(area);
+    return 0;
+}
+
+static inline void wc_svr_regs_restore(const u8 *area)
+{
+    if (wc_svr_a64_sve) {
+        wc_svr_a64_sve_restore(area);
+        return;
+    }
+    wc_svr_a64_fpsimd_restore(area);
 }
 
 /* kernel_neon_begin() leaves FPCR/FPSR as the interrupted context had them, so
@@ -1632,7 +1862,9 @@ static inline u64 wc_svr_xgetbv0(void)
     return ((u64)hi << 32) | (u64)lo;
 }
 
-static inline void wc_svr_regs_save(u8 *area)
+/* int, not void, to match the arm64 save, which can decline -- see the SVE
+ * block above.  Nothing here can fail, so this always returns 0. */
+static inline int wc_svr_regs_save(u8 *area)
 {
     if (wc_svr_use_xsave) {
         u32 lo = (u32)wc_svr_save_mask, hi = (u32)(wc_svr_save_mask >> 32);
@@ -1642,6 +1874,7 @@ static inline void wc_svr_regs_save(u8 *area)
     else {
         asm volatile(WC_SVR_FXSAVE : : "r"(area) : "memory");
     }
+    return 0;
 }
 
 static inline void wc_svr_regs_restore(const u8 *area)
@@ -1749,6 +1982,177 @@ static inline void wc_svr_st_store(u8 *b)
 }
 #endif /* !WC_SVR_NESTED_ARM64 */
 
+#ifdef WC_SVR_NESTED_ARM64
+
+/* Clobber P0-P15 and FFR the way nothing in wolfCrypt does, so the self-test
+ * can tell a restored predicate from one that was never disturbed. */
+static inline void wc_svr_a64_sve_clobber_pffr(void)
+{
+    unsigned long cpacr = wc_svr_a64_sve_enable();
+    asm volatile(WC_SVE_P_SEQ(WC_SVE_PFALSE)
+                 WC_SVE_WRFFR_P0
+                 : : : "memory");
+    wc_svr_a64_sve_disable(cpacr);
+}
+
+/* Build the pattern with the SVE routines, exercise the pair under test, read
+ * the result back with the SVE routines.  Two things stop that from being the
+ * instrument vouching for itself:
+ *
+ *  - the clobber in the middle is what a wolfCrypt routine actually does, V
+ *    register writes, which the architecture defines as ZEROING bits
+ *    [VL-1:128] of every Z register; plus an explicit P/FFR clobber.  If the
+ *    save did not cover a byte, that byte comes back zeroed or false, not
+ *    merely inconsistent.
+ *
+ *  - the low 128 bits are checked a SECOND time through the FPSIMD store,
+ *    which addresses V_n by REGISTER NUMBER rather than by memory offset.  A
+ *    save and restore that agreed with each other on a wrong Z offset would
+ *    pass the byte compare and fail this one.
+ *
+ * WC_LINUXKM_SVR_SELFTEST_FPSIMD_ONLY_CONTROL swaps the pair under test for the
+ * FPSIMD-only save, which is the code this SVE path replaced.  A build with it
+ * defined MUST fail; that is what shows the wider save is load-bearing and not
+ * decoration. */
+#ifdef WC_LINUXKM_SVR_SELFTEST_FPSIMD_ONLY_CONTROL
+    #define WC_SVR_A64_ST_SAVE(a)    (wc_svr_a64_fpsimd_save(a), 0)
+    #define WC_SVR_A64_ST_RESTORE(a) wc_svr_a64_fpsimd_restore(a)
+#else
+    #define WC_SVR_A64_ST_SAVE(a)    wc_svr_a64_sve_save(a)
+    #define WC_SVR_A64_ST_RESTORE(a) wc_svr_a64_sve_restore(a)
+#endif
+
+static int wc_svr_a64_sve_selftest(void)
+{
+    u8 *pat = NULL, *sav = NULL, *got = NULL, *vec = NULL;
+    unsigned long cpacr;
+    unsigned int vl, regs, i;
+    u64 fpsr, fpcr;
+    int ret = 0, saved = 0;
+
+    cpacr = wc_svr_a64_sve_enable();
+    vl = wc_svr_a64_rdvl();
+    wc_svr_a64_sve_disable(cpacr);
+    if (! wc_svr_a64_vl_ok(vl)) {
+        pr_err("wolfCrypt: SVE vector length %u B is outside the range this"
+               " save area covers.\n", vl);
+        return -EIO;
+    }
+    regs = WC_SVR_A64_SVE_REG_BYTES(vl);
+
+    pat = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    sav = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    got = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    vec = (u8 *)kzalloc(WC_SVR_A64_VREG_BYTES, GFP_ATOMIC);
+    if ((pat == NULL) || (sav == NULL) || (got == NULL) || (vec == NULL)) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    for (i = 0; i < regs; i++)
+        pat[i] = (u8)((i * 31u) ^ 0x5au);
+    /* FFR is not a free-form predicate.  WRFFR with a value that is not "the
+     * low N element bits set, the rest clear" is CONSTRAINED UNPREDICTABLE
+     * (Arm ARM DDI 0487, WRFFR), and real silicon does not round-trip one --
+     * measured: an arbitrary pattern here fails on a Neoverse-N3 and passes
+     * under QEMU, which is the wrong way round for a self-test.  Give the FFR
+     * slot a legal value; every other slot takes the arbitrary pattern. */
+    memset(pat + (34u * vl), 0xffu, (vl / 8u) / 2u);
+    memset(pat + (34u * vl) + ((vl / 8u) / 2u), 0x00u,
+           (vl / 8u) - ((vl / 8u) / 2u));
+    /* FPCR is a control register: an arbitrary bit pattern would change the
+     * rounding mode or unmask an exception for the context this pretends to
+     * be, so the pattern carries what is live right now. */
+    asm volatile("mrs %0, fpsr" : "=r"(fpsr));
+    asm volatile("mrs %0, fpcr" : "=r"(fpcr));
+    *(u32 *)(pat + WC_SVR_A64_SVE_META_OFF)     = (u32)fpsr;
+    *(u32 *)(pat + WC_SVR_A64_SVE_META_OFF + 4) = (u32)fpcr;
+    *(u32 *)(pat + WC_SVR_A64_SVE_META_OFF + 8) = vl;
+    for (i = 0; i < WC_SVR_A64_VREG_BYTES; i++)
+        vec[i] = 0xc3u;
+
+    if (! may_use_simd()) {
+        pr_warn("wolfCrypt: vector registers unavailable at init; "
+                "save/restore self-test skipped.\n");
+        ret = -EAGAIN;
+        goto out;
+    }
+
+    preempt_disable();
+    WC_LINUXKM_FPU_BEGIN();
+
+    wc_svr_a64_sve_restore(pat);        /* the interrupted context's state */
+    saved = WC_SVR_A64_ST_SAVE(sav);    /* what a nested caller would do */
+#ifdef WC_LINUXKM_SVR_SELFTEST_NEGATIVE_CONTROL
+    /* Diagnostic only.  A self-test that has never been seen to fail has not
+     * been shown capable of failing.  One byte in each region the save is
+     * responsible for; a build with this defined that still reports OK is the
+     * finding. */
+    if (saved == 0) {
+        sav[0] ^= 0xffu;                        /* Z0, low 128 bits */
+        if (vl > 16u)
+            sav[16] ^= 0xffu;                   /* Z0, above bit 127 */
+        sav[32u * vl] ^= 0xffu;                 /* P0 */
+        sav[34u * vl] ^= 0xffu;                 /* FFR */
+    }
+#endif
+    wc_svr_st_load(vec);                /* V writes: Z truncated above 127 */
+    wc_svr_a64_sve_clobber_pffr();
+    if (saved == 0)
+        WC_SVR_A64_ST_RESTORE(sav);     /* hand them back */
+    wc_svr_a64_sve_save(got);           /* what the interrupted context sees */
+    wc_svr_st_store(vec);               /* V by register number, not offset */
+
+    WC_LINUXKM_FPU_END();
+    preempt_enable();
+
+    if (saved != 0) {
+        pr_err("wolfCrypt: SVE vector register save declined at VL %u B.\n",
+               vl);
+        ret = -EIO;
+        goto out;
+    }
+
+    for (i = 0; i < 32u; i++) {
+        if (memcmp(got + (i * vl), pat + (i * vl), vl) != 0) {
+            pr_err("wolfCrypt: Z%u did not survive save/restore at VL %u B.\n",
+                   i, vl);
+            ret = -EIO;
+            goto out;
+        }
+    }
+    for (i = 0; i < 16u; i++) {
+        if (memcmp(got + (32u * vl) + (i * (vl / 8u)),
+                   pat + (32u * vl) + (i * (vl / 8u)), vl / 8u) != 0) {
+            pr_err("wolfCrypt: P%u did not survive save/restore.\n", i);
+            ret = -EIO;
+            goto out;
+        }
+    }
+    if (memcmp(got + (34u * vl), pat + (34u * vl), vl / 8u) != 0) {
+        pr_err("wolfCrypt: FFR did not survive save/restore.\n");
+        ret = -EIO;
+        goto out;
+    }
+    for (i = 0; i < 32u; i++) {
+        if (memcmp(vec + (i * 16u), pat + (i * vl), 16u) != 0) {
+            pr_err("wolfCrypt: V%u (Z%u[127:0]) read back by register number"
+                   " does not match the saved state.\n", i, i);
+            ret = -EIO;
+            goto out;
+        }
+    }
+
+out:
+    kfree(pat);
+    kfree(sav);
+    kfree(got);
+    kfree(vec);
+    return ret;
+}
+
+#endif /* WC_SVR_NESTED_ARM64 */
+
 /* Returns 0 on an exact round trip, negative otherwise. */
 static int wc_svr_selftest(void)
 {
@@ -1757,6 +2161,8 @@ static int wc_svr_selftest(void)
     int ret = 0;
 
 #ifdef WC_SVR_NESTED_ARM64
+    if (wc_svr_a64_sve)
+        return wc_svr_a64_sve_selftest();
     /* Every V register is written in full, so the whole slot is compared. */
     step = WC_SVR_ST_STRIDE;
 #else
@@ -1797,7 +2203,7 @@ static int wc_svr_selftest(void)
 
     WC_LINUXKM_FPU_BEGIN();      /* own the registers legitimately for the test */
     wc_svr_st_load(want);        /* the "interrupted context's" data */
-    wc_svr_regs_save(area);      /* what a nested caller would do */
+    ret = wc_svr_regs_save(area);  /* what a nested caller would do */
 #ifdef WC_LINUXKM_SVR_SELFTEST_NEGATIVE_CONTROL
     /* Diagnostic only.  A self-test that has never been seen to fail has not
      * been shown capable of failing -- it is the instrument vouching for
@@ -1809,11 +2215,18 @@ static int wc_svr_selftest(void)
 #endif
     memset(got, 0, WC_SVR_ST_NREG * WC_SVR_ST_STRIDE);
     wc_svr_st_load(got);         /* destroy them, as wolfCrypt would */
-    wc_svr_regs_restore(area);   /* hand them back */
+    if (ret == 0)
+        wc_svr_regs_restore(area);   /* hand them back */
     wc_svr_st_store(got);        /* what the interrupted context would see */
     WC_LINUXKM_FPU_END();
 
     preempt_enable();
+
+    if (ret != 0) {
+        pr_err("wolfCrypt: vector register save declined at init.\n");
+        ret = -EIO;
+        goto out;
+    }
 
     for (i = 0; i < WC_SVR_ST_NREG; i++) {
         if (memcmp(got + (i * WC_SVR_ST_STRIDE), want + (i * WC_SVR_ST_STRIDE), step) != 0) {
@@ -1849,21 +2262,33 @@ static int wc_svr_nested_init(void)
 {
     unsigned int cpu;
 #ifdef WC_SVR_NESTED_ARM64
-    /* THE GATE.  Writing V0-V31 zeroes bits [VL-1:128] of Z0-Z31, so a V-only
-     * save/restore is exact without SVE and destructive with it.  Refuse
-     * rather than corrupt: on an SVE or SME part this leaves the module
-     * declining exactly as it did before, which is safe and honest. */
+    /* WHICH REGISTER FILE.  Writing V0-V31 zeroes bits [VL-1:128] of Z0-Z31,
+     * so on an SVE part the save has to cover Z0-Z31, P0-P15 and FFR; on a part
+     * without SVE those registers do not exist and V0-V31 with FPSR/FPCR is the
+     * whole file. */
     if (! system_supports_fpsimd()) {
         pr_info("wolfCrypt: no FPSIMD; nested vector save unavailable.\n");
         return 0;
     }
-    if (system_supports_sve()) {
-        pr_info("wolfCrypt: SVE is implemented; the FPSIMD-only nested save is"
-                " unsafe here (V writes truncate Z), so sections in hardirq and"
-                " IRQs-off contexts will continue to be refused.\n");
+    if (wc_svr_a64_sme_present()) {
+        /* THE REMAINING REFUSAL, stated narrowly.  SME adds ZA and ZT0, and a
+         * streaming-mode context has a second vector length and may not
+         * implement FFR at all, so the save below would not cover the state
+         * that is live.  Refuse rather than restore a subset: on an SME part
+         * this leaves the module declining exactly as it did before. */
+        pr_info("wolfCrypt: SME is implemented; the nested vector save does not"
+                " cover ZA, ZT0 or streaming mode, so sections in hardirq and"
+                " IRQs-off contexts continue to be refused.\n");
         return 0;
     }
-    wc_svr_save_size = WC_SVR_A64_AREA_BYTES;
+    if (system_supports_sve()) {
+        wc_svr_a64_sve = 1;
+        wc_svr_save_size = WC_SVR_A64_SVE_AREA_BYTES;
+    }
+    else {
+        wc_svr_a64_sve = 0;
+        wc_svr_save_size = WC_SVR_A64_AREA_BYTES;
+    }
 #else
     u32 eax, ebx, ecx, edx;
 #endif
@@ -1948,8 +2373,19 @@ static int wc_svr_nested_init(void)
         return 0;
     }
 #ifdef WC_SVR_NESTED_ARM64
-    pr_info("wolfCrypt: vector-register save/restore self-test OK "
-            "(FPSIMD V0-V31 + FPSR/FPCR, %u B/context).\n", wc_svr_save_size);
+    if (wc_svr_a64_sve) {
+        unsigned long cpacr = wc_svr_a64_sve_enable();
+        unsigned int vl = wc_svr_a64_rdvl();
+        wc_svr_a64_sve_disable(cpacr);
+        pr_info("wolfCrypt: vector-register save/restore self-test OK "
+                "(SVE Z0-Z31 + P0-P15 + FFR + FPSR/FPCR, VL %u B, "
+                "%u B/context).\n", vl, wc_svr_save_size);
+    }
+    else {
+        pr_info("wolfCrypt: vector-register save/restore self-test OK "
+                "(FPSIMD V0-V31 + FPSR/FPCR, %u B/context).\n",
+                wc_svr_save_size);
+    }
 #else
     pr_info("wolfCrypt: vector-register save/restore self-test OK "
             "(mask 0x%llx, %u B/context).\n",
@@ -2149,7 +2585,13 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
 #ifdef WC_SVR_HAVE_NESTED_SAVE
     if (wc_svr_nested_ready) {
-        wc_svr_regs_save(wc_svr_area(ctx));
+        /* The arm64 SVE save declines a vector length it cannot fit; a decline
+         * here has touched no register and written nothing, so the section is
+         * refused exactly as it would have been without nested save. */
+        if (wc_svr_regs_save(wc_svr_area(ctx)) != 0) {
+            WC_SVR_DECIDE_UNPIN();
+            return WC_ACCEL_INHIBIT_E;
+        }
         wc_svr_load_default_mxcsr();
         st = &this_cpu_ptr(&wc_svr_state)->c[ctx];  /* pinned by DECIDE_PIN */
         st->depth = 1;
