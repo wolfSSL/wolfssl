@@ -161,11 +161,15 @@ static void wc_RsaCleanup(RsaKey* key)
         /* SP 800-56B Rev2 sec 7.2.2.4: destroy the recovered keying material on
          * every exit.  PRIVATE-key operations only: those are the ones that
          * recover keying material (RSA key transport).  The public-decrypt
-         * (signature verification) path recovers no keying material and returns
-         * a pointer INTO key->data to the caller (RsaPublicDecryptEx sets
-         * *outPtr = pad, where pad points inside key->data), so wiping it here
-         * would destroy the recovered signature before the caller reads it.
-         * Wipe only a buffer this operation allocated, never a caller-owned one. */
+         * (signature verification) path is already excluded by the key->type
+         * test below, so it is not what dataIsAlloc is guarding.
+         *
+         * dataIsAlloc guards the aliasing case in RsaPrivateDecryptEx: when the
+         * caller supplies outPtr, that path takes the "else" branch that sets
+         * key->dataIsAlloc = 0 and key->data = out, so key->data IS the
+         * caller's output buffer.  Zeroizing it there would wipe the plaintext
+         * this call just produced.  Wipe only a buffer this operation
+         * allocated, never a caller-owned one. */
         if (key->dataIsAlloc && key->data != NULL && key->dataLen > 0 &&
             (key->type == RSA_PRIVATE_DECRYPT ||
              key->type == RSA_PRIVATE_ENCRYPT)) {
@@ -986,8 +990,10 @@ int wc_CheckRsaKey(RsaKey* key)
     /* Check dP, dQ and u if they exist */
     if (ret == 0 && !mp_iszero(&key->dP)) {
 #if FIPS_VERSION3_GE(7,0,0)
-        /* SP 800-56B Rev2 sec 6.4.1.2.1 steps 7a/7b/7c: 1 < dP, 1 < dQ and
-         * 1 < qInv. */
+        /* SP 800-56B Rev2 sec 6.4.1.4.3 item F, steps 7a/7b/7c: 1 < dP,
+         * 1 < dQ and 1 < qInv.  Not sec 6.4.1.2.1 step 7, which is the single
+         * line "Output an indication that the key pair is valid" and has no
+         * sub-items; crt_pkv replaces it with the CRT-component checks. */
         if ((mp_cmp_d(&key->dP, 1) != MP_GT) ||
             (mp_cmp_d(&key->dQ, 1) != MP_GT) ||
             (mp_cmp_d(&key->u, 1) != MP_GT)) {
