@@ -198,9 +198,8 @@ int test_TLSX_ALPN_parse(void)
 {
     EXPECT_DECLS;
 /* TLSX_ALPN_GetRequest() below is WOLFSSL_LOCAL: needs the static library. */
-#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_ALPN) && \
-    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT)
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_ALPN) &&  defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[300];
@@ -389,8 +388,8 @@ int test_TLSX_ALPN_parse(void)
 int test_TLSX_TCA_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_TRUSTED_CA) && defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA)
+#if defined(HAVE_TRUSTED_CA) && defined(HAVE_TLS_EXTENSIONS) &&  !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[64];
@@ -581,8 +580,8 @@ int test_TLSX_certtype_parse(void)
 int test_TLSX_Cookie_parse(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
-    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) &&  !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[16];
@@ -640,8 +639,9 @@ int test_TLSX_Cookie_parse(void)
 int test_TLSX_EncryptThenMac_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY) && \
-    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY) &&  !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8];
@@ -665,8 +665,9 @@ int test_TLSX_EncryptThenMac_parse(void)
 int test_TLSX_MFL_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION) \
-    && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION)  && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8];
@@ -716,8 +717,9 @@ int test_TLSX_MFL_parse(void)
 int test_TLSX_THM_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_TRUNCATED_HMAC) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_TRUNCATED_HMAC) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8];
@@ -753,9 +755,8 @@ int test_TLSX_THM_parse(void)
 int test_TLSX_SessionTicket_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SESSION_TICKET) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     WOLFSSL* ssl2 = NULL;
@@ -840,8 +841,9 @@ int test_TLSX_SessionTicket_parse(void)
 int test_TLSX_SecureRenegotiation_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8 + 2 * TLS_FINISHED_SZ];
@@ -966,8 +968,9 @@ int test_TLSX_SupportedVersions_parse(void)
      * before any other extension can be interpreted), and the main loop's
      * TLSX_SUPPORTED_VERSIONS case only re-validates the message type.
      * WOLFSSL_LOCAL: called directly (guarded). */
-#if defined(WOLFSSL_TLS13) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) \
-    && !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(WOLFSSL_TLS13) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)  && !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8 + MAX_SV_EXT_LEN];
@@ -1112,9 +1115,9 @@ int test_TLSX_SupportedVersions_parse(void)
 int test_TLSX_SignatureAlgorithms_parse(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) &&  (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[16];
@@ -1222,8 +1225,9 @@ int test_TLSX_SignatureAlgorithms_parse(void)
 int test_TLSX_CSR_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[32];
@@ -1426,9 +1430,9 @@ int test_TLSX_CSR_parse(void)
 int test_TLSX_PointFormat_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) &&  (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[16];
@@ -1580,8 +1584,9 @@ int test_TLSX_PointFormat_parse(void)
 int test_TLSX_SNI_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+#if defined(HAVE_SNI) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) &&  (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[64];
@@ -1718,11 +1723,9 @@ int test_TLSX_SNI_parse(void)
 int test_TLSX_ValidateSupportedCurves(void)
 {
     EXPECT_DECLS;
-#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
-     defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES) && \
-    !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_CURVE25519) && \
-    defined(HAVE_CURVE448)
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) ||  defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && defined(HAVE_CURVE25519) &&  defined(HAVE_CURVE448) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     word32 oid;
@@ -1923,9 +1926,9 @@ int test_TLSX_ValidateSupportedCurves(void)
 int test_TLSX_SupportedGroups_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) &&  !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     /* secp256r1: a real, locally supported curve. */
@@ -2176,9 +2179,8 @@ int test_TLSX_SupportedGroups_parse(void)
 int test_TLSX_KeyShare_negotiate(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2472,7 +2474,8 @@ int test_TLSX_KeyShare_negotiate(void)
 int test_TLSX_KeyShare_gen(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2692,9 +2695,8 @@ int test_TLSX_KeyShare_gen(void)
 int test_TLSX_KeyShare_freesizewrite(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
-    !defined(NO_DH) && defined(HAVE_FFDHE_2048) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_DH) && defined(HAVE_FFDHE_2048) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2834,8 +2836,8 @@ int test_TLSX_KeyShare_freesizewrite(void)
 int test_TLSX_KeyShare_process(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
