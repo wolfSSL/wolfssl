@@ -1,6 +1,6 @@
 --- 5.10.17/drivers/char/random.c.dist	2020-12-13 16:41:30.000000000 -0600
 +++ 5.10.17/drivers/char/random.c	2025-07-02 11:59:07.220250957 -0500
-@@ -344,6 +344,260 @@
+@@ -344,6 +344,303 @@
  #include <asm/irq_regs.h>
  #include <asm/io.h>
  
@@ -145,6 +145,49 @@
 +    atomic_dec(&random_bytes_cb_refcnt);
 +}
 +
++/* Requests a registered module handler declined WOLFSSL_LINUXKM_GRB_TRIES
++ * times.  READING 0 IS CORRECT AND EXPECTED on any machine that is up: the
++ * increment below is immediately followed by panic(), so a live system has
++ * by definition never taken that path.  A zero here is not a broken
++ * counter.  It is exported so a consumer can assert on it, and so that a
++ * future change which makes this path survivable stays measurable rather
++ * than only fatal.  See the note at the hook site in _get_random_bytes().
++ */
++#define WOLFSSL_LINUXKM_GRB_TRIES 3
++static atomic64_t wolfssl_linuxkm_grb_unserved = ATOMIC64_INIT(0);
++
++u64 wolfssl_linuxkm_random_bytes_unserved(void)
++{
++    return (u64)atomic64_read(&wolfssl_linuxkm_grb_unserved);
++}
++EXPORT_SYMBOL_GPL(wolfssl_linuxkm_random_bytes_unserved);
++
++/* in_hardirq() is the 5.13-and-later name for what earlier kernels call
++ * in_irq(); both expand to hardirq_count() in <linux/preempt.h>, and both
++ * are macros, so #ifdef selects correctly across every kernel this series
++ * targets.  in_nmi(), in_serving_softirq() and in_interrupt() are spelled
++ * the same on all of them.
++ */
++#ifdef in_hardirq
++#define WOLFSSL_LINUXKM_IN_HARDIRQ() in_hardirq()
++#else
++#define WOLFSSL_LINUXKM_IN_HARDIRQ() in_irq()
++#endif
++
++/* Named in the WARN and in the panic: which context lost service is the
++ * first thing anyone reading the crash will want.
++ */
++static const char *wolfssl_linuxkm_grb_ctx(void)
++{
++    if (in_nmi())
++        return "NMI";
++    if (WOLFSSL_LINUXKM_IN_HARDIRQ())
++        return "hardirq";
++    if (in_serving_softirq())
++        return "softirq";
++    return "task";
++}
++
 +static inline int call__get_random_bytes_cb(void *buf, size_t len)
 +{
 +    int ret;
@@ -261,7 +304,7 @@
  #define CREATE_TRACE_POINTS
  #include <trace/events/random.h>
  
-@@ -461,7 +715,22 @@ static struct crng_state primary_crng =
+@@ -461,7 +758,22 @@ static struct crng_state primary_crng =
   * its value (from 0->1->2).
   */
  static int crng_init = 0;
@@ -284,7 +327,7 @@
  static int crng_init_cnt = 0;
  static unsigned long crng_global_init_time = 0;
  #define CRNG_INIT_CNT_THRESH (2*CHACHA_KEY_SIZE)
-@@ -593,6 +862,11 @@ static void mix_pool_bytes(struct entrop
+@@ -593,6 +905,11 @@ static void mix_pool_bytes(struct entrop
  {
  	unsigned long flags;
  
@@ -296,7 +339,7 @@
  	trace_mix_pool_bytes(r->name, nbytes, _RET_IP_);
  	spin_lock_irqsave(&r->lock, flags);
  	_mix_pool_bytes(r, in, nbytes);
-@@ -664,6 +938,10 @@ static void credit_entropy_bits(struct e
+@@ -664,6 +981,10 @@ static void credit_entropy_bits(struct e
  	const int pool_size = r->poolinfo->poolfracbits;
  	int nfrac = nbits << ENTROPY_SHIFT;
  
@@ -307,7 +350,7 @@
  	if (!nbits)
  		return;
  
-@@ -1069,6 +1347,18 @@ static ssize_t extract_crng_user(void __
+@@ -1069,6 +1390,18 @@ static ssize_t extract_crng_user(void __
  	__u8 tmp[CHACHA_BLOCK_SIZE] __aligned(4);
  	int large_request = (nbytes > 256);
  
@@ -326,7 +369,7 @@
  	while (nbytes) {
  		if (large_request && need_resched()) {
  			if (signal_pending(current)) {
-@@ -1523,7 +1813,7 @@ static void _warn_unseeded_randomness(co
+@@ -1523,7 +1856,7 @@ static void _warn_unseeded_randomness(co
  #endif
  
  	if (print_once ||
@@ -335,22 +378,116 @@
  	    (previous && (caller == READ_ONCE(*previous))))
  		return;
  	WRITE_ONCE(*previous, caller);
-@@ -1552,6 +1842,14 @@ static void _get_random_bytes(void *buf,
+@@ -1552,6 +1885,108 @@ static void _get_random_bytes(void *buf,
  
  	trace_get_random_bytes(nbytes, _RET_IP_);
  
 +#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
-+        /* If call__get_random_bytes_cb() doesn't succeed, flow falls through to
-+         * the native implementation.  _get_random_bytes() must succeed.
++        /* THE MODULE IS THE SERVICE.  While a handler is registered, this does
++         * NOT fall through to the kernel's own generator when the module
++         * declines.  Bytes generated outside the module are not validated
++         * output, and the caller cannot tell which generator answered, because
++         * _get_random_bytes() returns void and so has no error channel.
++         *
++         * A decline is normally transient -- a leaf wanting a reseed it cannot
++         * take in the calling context -- so the module is asked again, up to
++         * WOLFSSL_LINUXKM_GRB_TRIES times.  Every attempt is non-blocking:
++         * cpu_relax() is a scheduling hint, not a sleep and not a lock, so the
++         * loop is legal with interrupts off and in NMI.  Three attempts, not
++         * more: a retry re-runs the whole failure path with interrupts off,
++         * which is most expensive exactly when something is already wrong.
++         *
++         * ON EXHAUSTION THIS PANICS.  Three behaviours are available and all
++         * three break something; this one is chosen because it is the only one
++         * that cannot be mistaken for working.
++         *
++         *   - Falling through to the kernel's generator takes
++         *     spin_lock_irqsave() on the CRNG.  From NMI that is a
++         *     self-deadlock if the interrupted context on this CPU already
++         *     holds that lock.  The resulting hang has been observed on this
++         *     path, not merely reasoned about.  It also silently substitutes
++         *     unvalidated bytes for module output.
++         *   - Returning without filling buf breaks the contract documented
++         *     above these interfaces -- that they "will return the requested
++         *     number of random bytes into the given buffer" -- and breaks it
++         *     INVISIBLY: the caller proceeds with stack residue and may use it
++         *     as key material.  Silent is the one property that cannot be
++         *     accepted here.
++         *   - Panicking is loud, diagnosable, and happens at a point we chose.
++         *
++         * Entering a FIPS error state instead is not a gentler option: this
++         * hook is system-wide, so a module that stops answering takes the
++         * whole machine's randomness with it -- a slower, messier death that
++         * is harder to diagnose than a panic with a message.
++         *
++         * THE KERNEL HAS NO NMI STORY FOR THIS INTERFACE AT ALL.  There is no
++         * reference to in_nmi() anywhere in this file, no NMI-safe variant in
++         * <linux/random.h>, and crypto/drbg.c -- the kernel's own SP 800-90A
++         * DRBG -- takes a mutex, so upstream never serves NMI from a 90A DRBG
++         * either.  Where the kernel does have to work in NMI it either fails
++         * fast rather than spinning (kernel/bpf/ringbuf.c, which trylocks and
++         * gives up when in_nmi()) or keeps a separate NMI-dedicated data path
++         * (___pcpu_freelist_push_nmi(), printk's per-CPU printk_count_nmi).
++         * The module's per-CPU NMI leaves are that second idiom, which is why
++         * 1,500,000 measured NMIs produced 0 declines.
++         *
++         * So this path is unreachable BY DESIGN, not merely unlikely, and
++         * reaching it means an invariant has already been violated.  That is
++         * precisely when a panic is the correct response rather than a
++         * heuristic.  The counter is kept so that the event is measurable if a
++         * future change ever makes it reachable, and WARN_ONCE() runs first so
++         * that a stack trace naming the caller is in the log ahead of the
++         * panic.
++         *
++         * With NO handler registered there is nothing to violate: -ENODEV ends
++         * the loop and flow falls through to the kernel exactly as before.
++         * That is the window before the module is inserted, and it is the only
++         * path out of here that reaches the kernel's generator.
 +         */
-+        if (call__get_random_bytes_cb(buf, nbytes) == 0)
-+            return;
++        {
++            int wolfssl_grb_try;
++            int wolfssl_grb_ret = -ENODEV;
++
++            for (wolfssl_grb_try = 0;
++                 wolfssl_grb_try < WOLFSSL_LINUXKM_GRB_TRIES;
++                 wolfssl_grb_try++) {
++                wolfssl_grb_ret =
++                    call__get_random_bytes_cb(buf, nbytes);
++                if (wolfssl_grb_ret == 0)
++                    return;
++                /* No handler registered: not a decline. */
++                if (wolfssl_grb_ret == -ENODEV)
++                    break;
++                cpu_relax();
++            }
++
++            if (wolfssl_grb_ret != -ENODEV) {
++                atomic64_inc(&wolfssl_linuxkm_grb_unserved);
++                WARN_ONCE(1,
++                    "wolfssl: get_random_bytes() declined %d times"
++                    " by the registered module in %s context\n",
++                    WOLFSSL_LINUXKM_GRB_TRIES,
++                    wolfssl_linuxkm_grb_ctx());
++                panic("wolfSSL FIPS: get_random_bytes() could not be"
++                    " serviced by the wolfCrypt module after %d"
++                    " attempts in %s context.  The module refuses both"
++                    " to fall through to the kernel's own generator"
++                    " (its output is not validated, and reaching it from"
++                    " NMI can self-deadlock on the CRNG lock) and to"
++                    " return an unfilled buffer (the caller would use"
++                    " stack residue as key material).  This path is"
++                    " unreachable by design; reaching it means a wolfSSL"
++                    " RBGC invariant is already broken.\n",
++                    WOLFSSL_LINUXKM_GRB_TRIES,
++                    wolfssl_linuxkm_grb_ctx());
++            }
++        }
 +#endif
 +
  	while (nbytes >= CHACHA_BLOCK_SIZE) {
  		extract_crng(buf);
  		buf += CHACHA_BLOCK_SIZE;
-@@ -1638,12 +1936,12 @@ static void try_to_generate_entropy(void
+@@ -1638,12 +2073,12 @@ static void try_to_generate_entropy(void
   */
  int wait_for_random_bytes(void)
  {
@@ -365,7 +502,7 @@
  		if (ret)
  			return ret > 0 ? 0 : ret;
  
-@@ -1665,7 +1963,7 @@ EXPORT_SYMBOL(wait_for_random_bytes);
+@@ -1665,7 +2100,7 @@ EXPORT_SYMBOL(wait_for_random_bytes);
   */
  bool rng_is_initialized(void)
  {
@@ -374,7 +511,7 @@
  }
  EXPORT_SYMBOL(rng_is_initialized);
  
-@@ -1843,7 +2141,7 @@ urandom_read(struct file *file, char __u
+@@ -1843,7 +2278,7 @@ urandom_read(struct file *file, char __u
  	unsigned long flags;
  	static int maxwarn = 10;
  
@@ -383,7 +520,7 @@
  		maxwarn--;
  		if (__ratelimit(&urandom_warning))
  			pr_notice("%s: uninitialized urandom read (%zd bytes read)\n",
-@@ -1872,6 +2170,11 @@ random_poll(struct file *file, poll_tabl
+@@ -1872,6 +2307,11 @@ random_poll(struct file *file, poll_tabl
  {
  	__poll_t mask;
  
@@ -395,7 +532,7 @@
  	poll_wait(file, &crng_init_wait, wait);
  	poll_wait(file, &random_write_wait, wait);
  	mask = 0;
-@@ -1970,6 +2273,16 @@ static long random_ioctl(struct file *f,
+@@ -1970,6 +2410,16 @@ static long random_ioctl(struct file *f,
  	case RNDRESEEDCRNG:
  		if (!capable(CAP_SYS_ADMIN))
  			return -EPERM;
@@ -412,7 +549,7 @@
  		if (crng_init < 2)
  			return -ENODATA;
  		crng_reseed(&primary_crng, NULL);
-@@ -2022,7 +2335,7 @@ SYSCALL_DEFINE3(getrandom, char __user *
+@@ -2022,7 +2472,7 @@ SYSCALL_DEFINE3(getrandom, char __user *
  	if (count > INT_MAX)
  		count = INT_MAX;
  
@@ -423,7 +560,7 @@
  		ret = wait_for_random_bytes();
 --- 5.10.17/include/linux/random.h.dist	2020-12-13 16:41:30.000000000 -0600
 +++ 5.10.17/include/linux/random.h	2025-06-30 12:05:59.106440700 -0500
-@@ -158,4 +158,37 @@ static inline bool __init arch_get_rando
+@@ -158,4 +158,42 @@ static inline bool __init arch_get_rando
  }
  #endif
  
@@ -459,5 +596,10 @@
 +    const struct wolfssl_linuxkm_random_bytes_handlers *handlers);
 +
 +int wolfssl_linuxkm_unregister_random_bytes_handlers(void);
++
++/* Count of get_random_bytes() requests NOT served by a registered module
++ * handler.  Must be 0 whenever a handler is registered.
++ */
++u64 wolfssl_linuxkm_random_bytes_unserved(void);
 +
  #endif /* _LINUX_RANDOM_H */
