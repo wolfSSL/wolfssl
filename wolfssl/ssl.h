@@ -6319,8 +6319,11 @@ WOLFSSL_API int wolfSSL_CTX_AllowEncryptThenMac(WOLFSSL_CTX* ctx, int set);
 WOLFSSL_API int wolfSSL_AllowEncryptThenMac(WOLFSSL *s, int set);
 #endif
 
-/* This feature is used to set a fixed ephemeral key and is for testing only */
-/* Currently allows ECDHE and DHE only */
+/* This feature is used to set a fixed ephemeral key and is for testing only.
+ * Reusing a key share across connections is incorrect behavior
+ * and is forbidden by RFC 9846 Section 1.2 so do not enable this in
+ * production. */
+/* Currently allows DHE, ECDHE, X25519 and X448 only */
 #ifdef WOLFSSL_STATIC_EPHEMERAL
 WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const char* key, unsigned int keySz, int format);
