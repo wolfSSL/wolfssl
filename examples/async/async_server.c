@@ -311,6 +311,7 @@ int server_async_test(int argc, char** argv)
     if (devId == INVALID_DEVID)
         devId = 1;
     XMEMSET(&cryptoCbCtx, 0, sizeof(cryptoCbCtx));
+    cryptoCbCtx.tls12 = tls12;
     if (wc_CryptoCb_RegisterDevice(devId, AsyncTlsCryptoCb, &cryptoCbCtx) != 0) {
         fprintf(stderr, "ERROR: wc_CryptoCb_RegisterDevice failed\n");
         goto exit;
@@ -666,6 +667,10 @@ int server_async_test(int argc, char** argv)
 #ifdef WOLFSSL_DEBUG_NONBLOCK
     printf("WANT_READ/WRITE count: %d\n", wouldblock_count);
     printf("WC_PENDING_E count: %d\n", pending_count);
+#ifdef WOLF_CRYPTO_CB
+    printf("Device WC_PENDING_E returns: %d (table-full completions: %d)\n",
+           cryptoCbCtx.pendingCount, cryptoCbCtx.jobFullCount);
+#endif
 #endif
     ret = 0;
 

@@ -162,6 +162,78 @@ int posix_getdevrandom(unsigned char *out, unsigned int sz)
 #define TEST_PEND_COUNT 2
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+/* Return 1 to simulate WC_PENDING_E. A request (hash of wc_CryptoInfo)
+ * pends TEST_PEND_COUNT times and completes on re-invocation, like a
+ * hardware crypto manager job table. A full table completes requests
+ * synchronously (jobFullCount records the degradation). */
+static int AsyncTlsCryptoCbPend(AsyncTlsCryptoCbCtx* myCtx,
+    wc_CryptoInfo* info)
+{
+    unsigned long h = 5381;
+    const unsigned char* b = (const unsigned char*)info;
+    size_t i;
+    int simulate = 0;
+
+    /* TLS 1.3 resumes every class below; TLS 1.2 only retries the
+     * signing set, so restrict when the app selected TLS 1.2. */
+    if (myCtx->tls12) {
+        if (info->algo_type == WC_ALGO_TYPE_PK) {
+            simulate = (info->pk.type == WC_PK_TYPE_RSA ||
+                        info->pk.type == WC_PK_TYPE_ECDSA_SIGN);
+        }
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_PK) {
+        simulate = (info->pk.type == WC_PK_TYPE_RSA ||
+                    info->pk.type == WC_PK_TYPE_EC_KEYGEN ||
+                    info->pk.type == WC_PK_TYPE_ECDSA_SIGN ||
+                    info->pk.type == WC_PK_TYPE_ECDSA_VERIFY ||
+                    info->pk.type == WC_PK_TYPE_ECDH ||
+                    info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN ||
+                    info->pk.type == WC_PK_TYPE_CURVE25519 ||
+                    info->pk.type == WC_PK_TYPE_ED25519_SIGN ||
+                    info->pk.type == WC_PK_TYPE_ED25519_VERIFY);
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_KDF) {
+        simulate = 1; /* TLS 1.3 HKDF key schedule */
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+        simulate = (info->cipher.type == WC_CIPHER_AES_GCM);
+    }
+    if (!simulate)
+        return 0;
+
+    for (i = 0; i < sizeof(*info); i++)
+        h = (h * 33) + b[i];
+
+    for (i = 0; i < (size_t)myCtx->jobCount; i++) {
+        if (myCtx->jobHash[i] == h) {
+            myCtx->jobTries[i]++;
+            if (myCtx->jobTries[i] <= TEST_PEND_COUNT) {
+                myCtx->pendingCount++;
+                return 1; /* still pending */
+            }
+            /* complete: remove job and run the operation below */
+            myCtx->jobCount--;
+            myCtx->jobHash[i] = myCtx->jobHash[myCtx->jobCount];
+            myCtx->jobTries[i] = myCtx->jobTries[myCtx->jobCount];
+            return 0;
+        }
+    }
+    if (myCtx->jobCount >= ASYNC_TLS_PEND_JOBS) {
+        /* Full (non-identical retries strand entries): complete
+         * synchronously and count the degradation. */
+        myCtx->jobFullCount++;
+        return 0;
+    }
+    myCtx->jobHash[myCtx->jobCount] = h;
+    myCtx->jobTries[myCtx->jobCount] = 1;
+    myCtx->jobCount++;
+    myCtx->pendingCount++;
+    return 1;
+}
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
 /* Example crypto dev callback function that calls software version */
 /* This is where you would plug-in calls to your own hardware crypto */
 int AsyncTlsCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
@@ -169,32 +241,20 @@ int AsyncTlsCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE); /* bypass HW by default */
     AsyncTlsCryptoCbCtx* myCtx = (AsyncTlsCryptoCbCtx*)ctx;
 
-    if (info == NULL)
+    if (info == NULL || myCtx == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef DEBUG_CRYPTOCB
     wc_CryptoCb_InfoString(info);
 #endif
 
-    if (info->algo_type == WC_ALGO_TYPE_PK) {
 #ifdef WOLFSSL_ASYNC_CRYPT
-        /* Simulate async pending for RSA and ECC signing operations.
-         * This matches a typical hardware crypto scenario (e.g., TPM) where
-         * only signing is offloaded to hardware. Keygen, verify, and ECDH
-         * are performed synchronously in software.
-         * Note: WOLFSSL_ASYNC_CRYPT + WOLF_CRYPTO_CB pending simulation
-         * requires operations whose TLS state machines properly handle retry
-         * via wolfSSL_AsyncPop. ECC keygen in TLSX_KeyShare_GenEccKey does
-         * not support this because the keygen call is inside the key
-         * allocation guard (kse->key == NULL) which is skipped on retry. */
-        if (info->pk.type == WC_PK_TYPE_RSA ||
-            info->pk.type == WC_PK_TYPE_ECDSA_SIGN)
-        {
-            if (myCtx->pendingCount++ < TEST_PEND_COUNT) return WC_PENDING_E;
-            myCtx->pendingCount = 0;
-        }
+    if (AsyncTlsCryptoCbPend(myCtx, info)) {
+        return WC_PENDING_E;
+    }
 #endif
 
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
     #ifndef NO_RSA
         if (info->pk.type == WC_PK_TYPE_RSA) {
             /* set devId to invalid, so software is used */
