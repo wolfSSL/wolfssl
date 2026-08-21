@@ -4413,8 +4413,9 @@ int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb);
 
     The returned pointer and size reference the inner content of the subject
     Name SEQUENCE (i.e. the bytes after the SEQUENCE tag and length). The
-    pointer aliases memory inside the DecodedCert and must not be freed by
-    the caller. The data remains valid until the DecodedCert is freed.
+    pointer aliases the DER buffer supplied to wc_InitDecodedCert(), which the
+    DecodedCert does not own, and must not be freed by the caller. The data
+    remains valid only while that buffer is alive and unmodified.
 
     This function is intended for use with wolfSSL_UseCertificateAuthority(),
     which expects the subject content without the outer SEQUENCE header.

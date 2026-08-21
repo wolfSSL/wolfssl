@@ -23487,8 +23487,9 @@ int wc_GetDecodedCertSubject(const struct DecodedCert* cert, char* buf,
 
 /* Return a pointer to the decoded certificate's subject Name contents
  * (the inside of the SEQUENCE, not the SEQUENCE header) and its length.
- * The pointer aliases storage owned by cert and is only valid while
- * cert is alive. */
+ * The pointer aliases the DER buffer passed to wc_InitDecodedCert(), which
+ * cert does not own, so it is only valid while that buffer is alive and
+ * unmodified. */
 int wc_GetDecodedCertSubjectRaw(const struct DecodedCert* cert,
                                 const byte** subjectRaw, int* subjectRawSz)
 {
