@@ -14369,6 +14369,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     byte tag = 0;
     byte padCheck = 0;
     int padIndex;
+    word32 segBase = 0;   /* where this segment decrypts to in the cache */
     word32 peekIdx = 0;
     int innerSz = 0;
     byte innerTag = 0;
@@ -14786,22 +14787,41 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
                 #endif
 
+                    /* When filling the caller's buffer the segments are
+                     * accumulated, because the trailing pad is only known once
+                     * the last one has been seen. A stream callback is handed
+                     * each segment as it arrives, so it needs room for one. */
+                    segBase = 0;
+                #ifdef ASN_BER_TO_DER
+                    if (pkcs7->streamOutCb == NULL)
+                #endif
+                        segBase = pkcs7->totalEncryptedContentSz;
+
                     if (ret == 0 &&
                          pkcs7->cachedEncryptedContentSz <
-                         (word32)encryptedContentSz) {
-                        if (pkcs7->cachedEncryptedContent != NULL) {
-                            XFREE(pkcs7->cachedEncryptedContent, pkcs7->heap,
-                                DYNAMIC_TYPE_PKCS7);
-                        }
-                        pkcs7->cachedEncryptedContent = (byte*)XMALLOC(
-                            (word32)encryptedContentSz, pkcs7->heap,
+                         segBase + (word32)encryptedContentSz) {
+                        byte* grown = (byte*)XMALLOC(
+                            segBase + (word32)encryptedContentSz, pkcs7->heap,
                             DYNAMIC_TYPE_PKCS7);
-                        if (pkcs7->cachedEncryptedContent == NULL) {
+                        if (grown == NULL) {
                             ret = MEMORY_E;
                         }
+                        else {
+                            if (pkcs7->cachedEncryptedContent != NULL) {
+                                if (segBase > 0) {
+                                    XMEMCPY(grown,
+                                        pkcs7->cachedEncryptedContent, segBase);
+                                }
+                                XFREE(pkcs7->cachedEncryptedContent,
+                                    pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                            }
+                            pkcs7->cachedEncryptedContent = grown;
+                        }
                     }
-                    pkcs7->cachedEncryptedContentSz =
-                        (word32)encryptedContentSz;
+                    if (ret == 0) {
+                        pkcs7->cachedEncryptedContentSz =
+                            segBase + (word32)encryptedContentSz;
+                    }
 
                     /* sanity check that the buffer has all of the data */
                     if (ret == 0 && (localIdx + (word32)encryptedContentSz) >
@@ -14825,7 +14845,8 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     if (ret == 0 && pkcs7->decryptionCb != NULL) {
                         ret = pkcs7->decryptionCb(pkcs7, (int)encOID, tmpIv,
                             expBlockSz, NULL, 0, NULL, 0, &pkiMsg[localIdx],
-                            encryptedContentSz, pkcs7->cachedEncryptedContent,
+                            encryptedContentSz,
+                            pkcs7->cachedEncryptedContent + segBase,
                             pkcs7->decryptionCtx);
                     }
 
@@ -14833,7 +14854,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                         ret = wc_PKCS7_DecryptContentEx(pkcs7, encOID,
                             tmpIv, expBlockSz, NULL, 0, NULL, 0,
                             &pkiMsg[localIdx], encryptedContentSz,
-                            pkcs7->cachedEncryptedContent);
+                            pkcs7->cachedEncryptedContent + segBase);
                     }
 
                 #ifndef NO_PKCS7_STREAM
@@ -14884,41 +14905,22 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
                 #endif
 
-                    /* flush this decrypted segment (the last segment is
-                     * flushed outside of the while loop, once the indef end
-                     * has been found and padding stripped) */
-                    if (ret == 0) {
-                    #ifdef ASN_BER_TO_DER
-                        if (pkcs7->streamOutCb) {
-                            ret = pkcs7->streamOutCb(pkcs7,
-                                pkcs7->cachedEncryptedContent,
-                                (word32)encryptedContentSz, pkcs7->streamCtx);
-                            if (ret != 0) {
-                                WOLFSSL_MSG("Stream out callback returned "
-                                            "failure");
-                                /* a positive result would read as a
-                                 * plaintext length */
-                                ret = BUFFER_E;
-                                break;
-                            }
-                        }
-                        else
-                    #endif /* ASN_BER_TO_DER */
-                        {
-                            /* copy segment to output; the return value counts
-                             * every segment so each one must be written out */
-                            word32 outIdx = pkcs7->totalEncryptedContentSz -
-                                (word32)encryptedContentSz;
-                            if (output == NULL ||
-                                    pkcs7->totalEncryptedContentSz > outputSz) {
-                                ret = BUFFER_E;
-                                break;
-                            }
-                            XMEMCPY(output + outIdx,
-                                pkcs7->cachedEncryptedContent,
-                                (word32)encryptedContentSz);
+                #ifdef ASN_BER_TO_DER
+                    /* hand this segment to the stream callback; the buffered
+                     * case is copied out once, after the pad is stripped */
+                    if (ret == 0 && pkcs7->streamOutCb) {
+                        ret = pkcs7->streamOutCb(pkcs7,
+                            pkcs7->cachedEncryptedContent,
+                            (word32)encryptedContentSz, pkcs7->streamCtx);
+                        if (ret != 0) {
+                            WOLFSSL_MSG("Stream out callback returned failure");
+                            /* a positive result would read as a plaintext
+                             * length */
+                            ret = BUFFER_E;
+                            break;
                         }
                     }
+                #endif /* ASN_BER_TO_DER */
 
                     idx = localIdx;
                 }
@@ -15004,17 +15006,14 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             else
         #endif /* ASN_BER_TO_DER */
             {
-                /* the return value counts every segment minus padding, so it
-                 * must be bounded by outputSz */
-                word32 outIdx = pkcs7->totalEncryptedContentSz -
-                    (word32)encryptedContentSz;
+                /* encryptedContent holds every segment, so what is written
+                 * here is the reported length and it fits outputSz */
                 if (output == NULL ||
-                        (pkcs7->totalEncryptedContentSz - (word32)padLen) >
-                        outputSz) {
+                        ((word32)encryptedContentSz - padLen) > outputSz) {
                     ret = BUFFER_E;
                     break;
                 }
-                XMEMCPY(output + outIdx, encryptedContent,
+                XMEMCPY(output, encryptedContent,
                                            (word32)encryptedContentSz - padLen);
             }
 
