@@ -7496,13 +7496,44 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     const byte* msg, word32 msgSz, byte* sig, word32* sigSz)
 {
-    int ret;
+    int ret = 0;
 
-    /* Validate parameters that will be used in this function. */
-    if ((key == NULL) || (key->params == NULL)) {
+    /* Validate parameters. Checked here as well as in the caller-supplied
+     * form below so a device is never handed an undersized buffer. */
+    if ((key == NULL) || (key->params == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) || (msg == NULL) || (sig == NULL) ||
+            (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    else {
+    else if (*sigSz < key->params->sigLen) {
+        ret = BAD_LENGTH_E;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    /* A NULL addRnd asks the device for the deterministic variant, which it
+     * can build from its own copy of PK.seed when this key holds none. */
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignEx(msg, msgSz, sig, sigSz, ctx, ctxSz,
+                WC_HASH_TYPE_NONE, NULL, NULL, 0, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Falling back to the caller-supplied form needs PK.seed here, which is
+     * only valid when the public key is present. Without it there is nothing
+     * to pass down but a zeroed buffer, which a device would sign with. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
+        ret = MISSING_KEY;
+    }
+    if (ret == 0) {
         /* Alg 22, Step 3: addrnd is the public key seed. */
         ret = wc_SlhDsaKey_SignWithRandom(key, ctx, ctxSz, msg, msgSz, sig,
             sigSz, key->sk + 2 * key->params->n);
@@ -7702,10 +7733,39 @@ int wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key, const byte* mprime,
 {
     int ret = 0;
 
-    if ((key == NULL) || (key->params == NULL)) {
+    if ((key == NULL) || (key->params == NULL) || (mprime == NULL) ||
+            (sig == NULL) || (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    else {
+    else if (*sigSz < key->params->sigLen) {
+        ret = BAD_LENGTH_E;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    /* A NULL addRnd asks the device for the deterministic variant, which it
+     * can build from its own copy of PK.seed when this key holds none. */
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignMsg(mprime, mprimeSz, sig, sigSz, NULL,
+                NULL, 0, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Falling back to the caller-supplied form needs PK.seed here, which is
+     * only valid when the public key is present. Without it there is nothing
+     * to pass down but a zeroed buffer, which a device would sign with. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
+        ret = MISSING_KEY;
+    }
+    if (ret == 0) {
         /* opt_rand is the public key seed. */
         ret = wc_SlhDsaKey_SignMsgWithRandom(key, mprime, mprimeSz, sig, sigSz,
             key->sk + 2 * key->params->n);
@@ -8521,17 +8581,53 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key, const byte* ctx,
     byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     byte* sig, word32* sigSz)
 {
-    int ret;
+    int ret = 0;
 
-    /* Validate parameters that will be used in this function. */
-    if ((key == NULL) || (key->params == NULL)) {
+    /* Validate parameters. Checked here as well as in the caller-supplied
+     * form below so a device is never handed an undersized buffer. */
+    if ((key == NULL) || (key->params == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) || (hash == NULL) ||
+            (sig == NULL) || (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check we have a private key to sign with. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+    else if (*sigSz < key->params->sigLen) {
+        ret = BAD_LENGTH_E;
+    }
+    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Rejected before any dispatch: the callback interface spells a pure
+     * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
+     * reach a device as a pure signature. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = NOT_COMPILED_IN;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    /* A NULL addRnd asks the device for the deterministic variant, which it
+     * can build from its own copy of PK.seed when this key holds none. */
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignEx(hash, hashSz, sig, sigSz, ctx, ctxSz,
+                (word32)hashType, NULL, NULL, 0, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Falling back to the caller-supplied form needs PK.seed here, which is
+     * only valid when the public key is present. Without it there is nothing
+     * to pass down but a zeroed buffer, which a device would sign with. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
         ret = MISSING_KEY;
     }
-    else {
+    if (ret == 0) {
         /* Alg 23, Step 3: addrnd is the public key seed. */
         ret = wc_SlhDsaKey_SignHashWithRandom(key, ctx, ctxSz, hash, hashSz,
             hashType, sig, sigSz, key->sk + 2 * key->params->n);

@@ -431,7 +431,14 @@ static int swdev_slhdsa_keygen(wc_CryptoInfo* info)
     return ret;
 }
 
-static int swdev_slhdsa_sign(wc_CryptoInfo* info)
+/* withRnd selects the WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND form, where the caller
+ * owns the signature randomness: addRnd holds the value to use, or is NULL to
+ * ask for the deterministic variant. Otherwise the randomness comes from rng.
+ *
+ * swdev runs against the caller's key rather than one of its own, so the
+ * deterministic variant needs the caller to hold the public key. A backend
+ * with its own copy has PK.seed and does not. */
+static int swdev_slhdsa_sign(wc_CryptoInfo* info, int withRnd)
 {
     SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_sign.key;
     const byte* addRnd = info->pk.pqc_sign.addRnd;
@@ -443,32 +450,44 @@ static int swdev_slhdsa_sign(wc_CryptoInfo* info)
     if (ret == 0) {
         if (hashType == WC_HASH_TYPE_NONE) {
             /* Pure SLH-DSA. */
-            if (addRnd != NULL) {
+            if (!withRnd) {
+                ret = wc_SlhDsaKey_Sign(key, info->pk.pqc_sign.context,
+                    info->pk.pqc_sign.contextLen, info->pk.pqc_sign.in,
+                    info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
+                    info->pk.pqc_sign.outlen, info->pk.pqc_sign.rng);
+            }
+            else if (addRnd != NULL) {
                 ret = wc_SlhDsaKey_SignWithRandom(key,
                     info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
                     info->pk.pqc_sign.in, info->pk.pqc_sign.inlen,
                     info->pk.pqc_sign.out, info->pk.pqc_sign.outlen, addRnd);
             }
             else {
-                ret = wc_SlhDsaKey_Sign(key, info->pk.pqc_sign.context,
-                    info->pk.pqc_sign.contextLen, info->pk.pqc_sign.in,
-                    info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
-                    info->pk.pqc_sign.outlen, info->pk.pqc_sign.rng);
+                ret = wc_SlhDsaKey_SignDeterministic(key,
+                    info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
+                    info->pk.pqc_sign.in, info->pk.pqc_sign.inlen,
+                    info->pk.pqc_sign.out, info->pk.pqc_sign.outlen);
             }
         }
         else {
             /* HashSLH-DSA over a caller supplied digest. */
-            if (addRnd != NULL) {
+            if (!withRnd) {
+                ret = wc_SlhDsaKey_SignHash(key, info->pk.pqc_sign.context,
+                    info->pk.pqc_sign.contextLen, info->pk.pqc_sign.in,
+                    info->pk.pqc_sign.inlen, hashType, info->pk.pqc_sign.out,
+                    info->pk.pqc_sign.outlen, info->pk.pqc_sign.rng);
+            }
+            else if (addRnd != NULL) {
                 ret = wc_SlhDsaKey_SignHashWithRandom(key,
                     info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
                     info->pk.pqc_sign.in, info->pk.pqc_sign.inlen, hashType,
                     info->pk.pqc_sign.out, info->pk.pqc_sign.outlen, addRnd);
             }
             else {
-                ret = wc_SlhDsaKey_SignHash(key, info->pk.pqc_sign.context,
-                    info->pk.pqc_sign.contextLen, info->pk.pqc_sign.in,
-                    info->pk.pqc_sign.inlen, hashType, info->pk.pqc_sign.out,
-                    info->pk.pqc_sign.outlen, info->pk.pqc_sign.rng);
+                ret = wc_SlhDsaKey_SignHashDeterministic(key,
+                    info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
+                    info->pk.pqc_sign.in, info->pk.pqc_sign.inlen, hashType,
+                    info->pk.pqc_sign.out, info->pk.pqc_sign.outlen);
             }
         }
     }
@@ -480,14 +499,22 @@ static int swdev_slhdsa_sign(wc_CryptoInfo* info)
 static int swdev_slhdsa_sign_msg(wc_CryptoInfo* info)
 {
     SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_sign.key;
+    const byte* addRnd = info->pk.pqc_sign.addRnd;
     int devId;
     int ret;
 
     ret = swdev_slhdsa_take(key, &devId);
     if (ret == 0) {
-        ret = wc_SlhDsaKey_SignMsgWithRandom(key, info->pk.pqc_sign.in,
-            info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
-            info->pk.pqc_sign.outlen, info->pk.pqc_sign.addRnd);
+        if (addRnd != NULL) {
+            ret = wc_SlhDsaKey_SignMsgWithRandom(key, info->pk.pqc_sign.in,
+                info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
+                info->pk.pqc_sign.outlen, addRnd);
+        }
+        else {
+            ret = wc_SlhDsaKey_SignMsgDeterministic(key, info->pk.pqc_sign.in,
+                info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
+                info->pk.pqc_sign.outlen);
+        }
     }
     swdev_slhdsa_give_back(key, devId);
 
@@ -596,7 +623,9 @@ static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
     case WC_PK_TYPE_PQC_SIG_KEYGEN:
         return swdev_slhdsa_keygen(info);
     case WC_PK_TYPE_PQC_SIG_SIGN:
-        return swdev_slhdsa_sign(info);
+        return swdev_slhdsa_sign(info, 0);
+    case WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND:
+        return swdev_slhdsa_sign(info, 1);
     case WC_PK_TYPE_PQC_SIG_SIGN_MSG:
         return swdev_slhdsa_sign_msg(info);
     case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:
@@ -1333,6 +1362,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
             return swdev_pqc_sig(info, info->pk.pqc_sig_kg.type,
                 info->pk.type);
         case WC_PK_TYPE_PQC_SIG_SIGN:
+        case WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND:
         case WC_PK_TYPE_PQC_SIG_SIGN_MSG:
             return swdev_pqc_sig(info, info->pk.pqc_sign.type, info->pk.type);
         case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:

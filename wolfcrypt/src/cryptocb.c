@@ -100,6 +100,8 @@ wc_static_assert((int)WC_PK_TYPE_PQC_SIG_SIGN_MSG >
     (int)WC_PK_TYPE_ED448_VERIFY);
 wc_static_assert((int)WC_PK_TYPE_PQC_SIG_VERIFY_MSG >
     (int)WC_PK_TYPE_PQC_SIG_SIGN_MSG);
+wc_static_assert((int)WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND >
+    (int)WC_PK_TYPE_PQC_SIG_VERIFY_MSG);
 #endif
 /* Fixed table, read without a lock on every offloaded operation. Lookups
  * match on devId, so an entry is filled before devId is stored and cleared
@@ -202,6 +204,7 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_PQC_SIG_VERIFY: return "PQC Sig Verify";
         case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY: return "PQC Sig CheckPrivKey";
         case WC_PK_TYPE_PQC_SIG_SIGN_MSG: return "PQC Sig SignMsg";
+        case WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND: return "PQC Sig SignWithRnd";
         case WC_PK_TYPE_PQC_SIG_VERIFY_MSG: return "PQC Sig VerifyMsg";
 #endif
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
@@ -1904,15 +1907,7 @@ int wc_CryptoCb_MakePqcSignatureKeyEx(WC_RNG* rng, int type, int keySize,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
-int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
-    const byte* context, byte contextLen, word32 preHashType, WC_RNG* rng,
-    int type, void* key)
-{
-    return wc_CryptoCb_PqcSignEx(in, inlen, out, outlen, context, contextLen,
-        preHashType, rng, NULL, 0, type, key);
-}
-
-int wc_CryptoCb_PqcSignEx(const byte* in, word32 inlen, byte* out,
+static int PqcSignDispatch(int pkType, const byte* in, word32 inlen, byte* out,
     word32 *outlen, const byte* context, byte contextLen, word32 preHashType,
     WC_RNG* rng, const byte* addRnd, byte addRndSz, int type, void* key)
 {
@@ -1932,7 +1927,7 @@ int wc_CryptoCb_PqcSignEx(const byte* in, word32 inlen, byte* out,
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_SIGN;
+        cryptoInfo.pk.type = pkType;
         cryptoInfo.pk.pqc_sign.in = in;
         cryptoInfo.pk.pqc_sign.inlen = inlen;
         cryptoInfo.pk.pqc_sign.out = out;
@@ -1950,6 +1945,27 @@ int wc_CryptoCb_PqcSignEx(const byte* in, word32 inlen, byte* out,
     }
 
     return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
+    const byte* context, byte contextLen, word32 preHashType, WC_RNG* rng,
+    int type, void* key)
+{
+    return PqcSignDispatch(WC_PK_TYPE_PQC_SIG_SIGN, in, inlen, out, outlen,
+        context, contextLen, preHashType, rng, NULL, 0, type, key);
+}
+
+/* Signing where the caller controls the randomness. A NULL addRnd asks for
+ * the deterministic variant, which a device serves from its own copy of the
+ * key. Dispatched under its own type so a callback that predates the
+ * caller-supplied randomness declines it and the software path runs. */
+int wc_CryptoCb_PqcSignEx(const byte* in, word32 inlen, byte* out,
+    word32 *outlen, const byte* context, byte contextLen, word32 preHashType,
+    WC_RNG* rng, const byte* addRnd, byte addRndSz, int type, void* key)
+{
+    return PqcSignDispatch(WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND, in, inlen, out,
+        outlen, context, contextLen, preHashType, rng, addRnd, addRndSz, type,
+        key);
 }
 
 int wc_CryptoCb_PqcSignMsg(const byte* mprime, word32 mprimeSz, byte* out,

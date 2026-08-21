@@ -81204,7 +81204,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 myCtx->exampleVar++;
             }
         }
-        else if (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN) {
+        else if ((info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN) ||
+                 (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND)) {
             int pqcType = info->pk.pqc_sign.type;
             (void)pqcType;
             if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
@@ -81212,9 +81213,23 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 enum wc_HashType phType =
                     (enum wc_HashType)info->pk.pqc_sign.preHashType;
                 const byte* addRnd = info->pk.pqc_sign.addRnd;
+                /* Under WITH_RND the caller owns the randomness: addRnd is the
+                 * value to use, or NULL for the deterministic variant. */
+                int withRnd =
+                    (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND);
                 sk->devId = INVALID_DEVID;
                 if (phType == WC_HASH_TYPE_NONE) {
-                    if (addRnd != NULL) {
+                    if (!withRnd) {
+                        ret = wc_SlhDsaKey_Sign(sk,
+                            info->pk.pqc_sign.context,
+                            info->pk.pqc_sign.contextLen,
+                            info->pk.pqc_sign.in,
+                            info->pk.pqc_sign.inlen,
+                            info->pk.pqc_sign.out,
+                            info->pk.pqc_sign.outlen,
+                            info->pk.pqc_sign.rng);
+                    }
+                    else if (addRnd != NULL) {
                         ret = wc_SlhDsaKey_SignWithRandom(sk,
                             info->pk.pqc_sign.context,
                             info->pk.pqc_sign.contextLen,
@@ -81225,18 +81240,28 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                             addRnd);
                     }
                     else {
-                        ret = wc_SlhDsaKey_Sign(sk,
+                        ret = wc_SlhDsaKey_SignDeterministic(sk,
                             info->pk.pqc_sign.context,
                             info->pk.pqc_sign.contextLen,
                             info->pk.pqc_sign.in,
                             info->pk.pqc_sign.inlen,
                             info->pk.pqc_sign.out,
-                            info->pk.pqc_sign.outlen,
-                            info->pk.pqc_sign.rng);
+                            info->pk.pqc_sign.outlen);
                     }
                 }
                 else {
-                    if (addRnd != NULL) {
+                    if (!withRnd) {
+                        ret = wc_SlhDsaKey_SignHash(sk,
+                            info->pk.pqc_sign.context,
+                            info->pk.pqc_sign.contextLen,
+                            info->pk.pqc_sign.in,
+                            info->pk.pqc_sign.inlen,
+                            phType,
+                            info->pk.pqc_sign.out,
+                            info->pk.pqc_sign.outlen,
+                            info->pk.pqc_sign.rng);
+                    }
+                    else if (addRnd != NULL) {
                         ret = wc_SlhDsaKey_SignHashWithRandom(sk,
                             info->pk.pqc_sign.context,
                             info->pk.pqc_sign.contextLen,
@@ -81248,15 +81273,14 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                             addRnd);
                     }
                     else {
-                        ret = wc_SlhDsaKey_SignHash(sk,
+                        ret = wc_SlhDsaKey_SignHashDeterministic(sk,
                             info->pk.pqc_sign.context,
                             info->pk.pqc_sign.contextLen,
                             info->pk.pqc_sign.in,
                             info->pk.pqc_sign.inlen,
                             phType,
                             info->pk.pqc_sign.out,
-                            info->pk.pqc_sign.outlen,
-                            info->pk.pqc_sign.rng);
+                            info->pk.pqc_sign.outlen);
                     }
                 }
                 sk->devId = devIdArg;
@@ -81268,13 +81292,23 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             (void)pqcType;
             if (pqcType == WC_PQC_SIG_TYPE_SLHDSA) {
                 SlhDsaKey* sk = (SlhDsaKey*)info->pk.pqc_sign.key;
+                const byte* addRnd = info->pk.pqc_sign.addRnd;
                 sk->devId = INVALID_DEVID;
-                ret = wc_SlhDsaKey_SignMsgWithRandom(sk,
-                    info->pk.pqc_sign.in,
-                    info->pk.pqc_sign.inlen,
-                    info->pk.pqc_sign.out,
-                    info->pk.pqc_sign.outlen,
-                    info->pk.pqc_sign.addRnd);
+                if (addRnd != NULL) {
+                    ret = wc_SlhDsaKey_SignMsgWithRandom(sk,
+                        info->pk.pqc_sign.in,
+                        info->pk.pqc_sign.inlen,
+                        info->pk.pqc_sign.out,
+                        info->pk.pqc_sign.outlen,
+                        addRnd);
+                }
+                else {
+                    ret = wc_SlhDsaKey_SignMsgDeterministic(sk,
+                        info->pk.pqc_sign.in,
+                        info->pk.pqc_sign.inlen,
+                        info->pk.pqc_sign.out,
+                        info->pk.pqc_sign.outlen);
+                }
                 sk->devId = devIdArg;
                 myCtx->exampleVar++;
             }

@@ -743,6 +743,9 @@ typedef struct SlhDsaParameters {
     word32 sigLen;              /* Signature length in bytes. */
 } SlhDsaParameters;
 
+/* Key data in SlhDsaKey.sk is SK.seed || SK.prf || PK.seed || PK.root.
+ * PRIVATE covers the first two, PUBLIC the last two, so PK.seed is valid
+ * exactly when PUBLIC is set. */
 #define WC_SLHDSA_FLAG_PRIVATE       0x0001
 #define WC_SLHDSA_FLAG_PUBLIC        0x0002
 #define WC_SLHDSA_FLAG_BOTH_KEYS     (WC_SLHDSA_FLAG_PRIVATE | \

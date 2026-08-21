@@ -1438,11 +1438,16 @@ int test_wc_slhdsa_sign_addrnd(void)
 #endif
 
 #ifdef TEST_SLHDSA_DEV_ONLY
+typedef struct {
+    int calls;          /* operations the device accepted */
+    int noDeterministic;/* decline the deterministic variant */
+} SlhDsaDevOnlyCtx;
+
 /* Stands in for a device holding the whole key. Counts what it was asked to
  * do so the test can tell a dispatched operation from a skipped one. */
 static int slhdsa_dev_only_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
-    int* calls = (int*)ctx;
+    SlhDsaDevOnlyCtx* devCtx = (SlhDsaDevOnlyCtx*)ctx;
 
     (void)devIdArg;
 
@@ -1453,7 +1458,15 @@ static int slhdsa_dev_only_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     switch (info->pk.type) {
     case WC_PK_TYPE_PQC_SIG_SIGN:
     case WC_PK_TYPE_PQC_SIG_SIGN_MSG:
+    case WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND:
         if (info->pk.pqc_sign.type != WC_PQC_SIG_TYPE_SLHDSA) {
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+        /* A NULL addRnd asks for the deterministic variant. A device that
+         * cannot build opt_rand itself declines and leaves it to the host. */
+        if ((info->pk.type != WC_PK_TYPE_PQC_SIG_SIGN) &&
+                (info->pk.pqc_sign.addRnd == NULL) &&
+                (devCtx != NULL) && devCtx->noDeterministic) {
             return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
         }
         break;
@@ -1473,8 +1486,8 @@ static int slhdsa_dev_only_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
 
-    if (calls != NULL) {
-        (*calls)++;
+    if (devCtx != NULL) {
+        devCtx->calls++;
     }
     return 0;
 }
@@ -1487,15 +1500,18 @@ int test_wc_slhdsa_dev_only_key(void)
     SlhDsaKey key;
     WC_RNG rng;
     byte  addRnd[WC_SLHDSA_MAX_SEED];
+    byte  pub[2 * TEST_SLHDSA_DEFAULT_SEED_LEN];
     byte  hash[32];
     const byte ctx[3] = { 'd', 'e', 'v' };
     const byte msg[] = "device held key";
     byte* sig = NULL;
     word32 sigLen;
-    int calls = 0;
+    SlhDsaDevOnlyCtx devCtx;
 
     XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&devCtx, 0, sizeof(devCtx));
     XMEMSET(addRnd, 0x7C, sizeof(addRnd));
+    XMEMSET(pub, 0x1E, sizeof(pub));
     XMEMSET(hash, 0x3D, sizeof(hash));
 
     sig = (byte*)XMALLOC(TEST_SLHDSA_DEFAULT_SIG_LEN, NULL,
@@ -1503,7 +1519,7 @@ int test_wc_slhdsa_dev_only_key(void)
     ExpectNotNull(sig);
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_SLHDSA_DEV_ONLY_DEVID,
-        slhdsa_dev_only_cb, &calls), 0);
+        slhdsa_dev_only_cb, &devCtx), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     /* No import and no key generation: the key holds a device id and nothing
@@ -1514,46 +1530,85 @@ int test_wc_slhdsa_dev_only_key(void)
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_Sign(&key, ctx, (byte)sizeof(ctx), msg,
         (word32)sizeof(msg) - 1, sig, &sigLen, &rng), 0);
-    ExpectIntEQ(calls, 1);
+    ExpectIntEQ(devCtx.calls, 1);
 
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, ctx, (byte)sizeof(ctx), msg,
         (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), 0);
-    ExpectIntEQ(calls, 2);
+    ExpectIntEQ(devCtx.calls, 2);
 
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignMsgWithRandom(&key, msg,
         (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), 0);
-    ExpectIntEQ(calls, 3);
+    ExpectIntEQ(devCtx.calls, 3);
 
     /* MD5 is not an approved SLH-DSA pre-hash, so the host would reject it.
      * The device decides instead. */
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignHash(&key, ctx, (byte)sizeof(ctx), hash,
         (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig, &sigLen, &rng), 0);
-    ExpectIntEQ(calls, 4);
+    ExpectIntEQ(devCtx.calls, 4);
 
     sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
     ExpectIntEQ(wc_SlhDsaKey_SignHashWithRandom(&key, ctx, (byte)sizeof(ctx),
         hash, (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig, &sigLen, addRnd),
         0);
-    ExpectIntEQ(calls, 5);
+    ExpectIntEQ(devCtx.calls, 5);
 
     ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, (byte)sizeof(ctx), msg,
         (word32)sizeof(msg) - 1, sig, TEST_SLHDSA_DEFAULT_SIG_LEN), 0);
-    ExpectIntEQ(calls, 6);
+    ExpectIntEQ(devCtx.calls, 6);
 
     ExpectIntEQ(wc_SlhDsaKey_VerifyMsg(&key, msg, (word32)sizeof(msg) - 1, sig,
         TEST_SLHDSA_DEFAULT_SIG_LEN), 0);
-    ExpectIntEQ(calls, 7);
+    ExpectIntEQ(devCtx.calls, 7);
 
     ExpectIntEQ(wc_SlhDsaKey_VerifyHash(&key, ctx, (byte)sizeof(ctx), hash,
         (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig,
         TEST_SLHDSA_DEFAULT_SIG_LEN), 0);
-    ExpectIntEQ(calls, 8);
+    ExpectIntEQ(devCtx.calls, 8);
 
     ExpectIntEQ(wc_SlhDsaKey_CheckKey(&key), 0);
-    ExpectIntEQ(calls, 9);
+    ExpectIntEQ(devCtx.calls, 9);
+
+    /* Deterministic signing builds opt_rand from PK.seed. The host holds
+     * none, so the device is asked to build it from its own copy. */
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignDeterministic(&key, ctx, (byte)sizeof(ctx),
+        msg, (word32)sizeof(msg) - 1, sig, &sigLen), 0);
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignMsgDeterministic(&key, msg,
+        (word32)sizeof(msg) - 1, sig, &sigLen), 0);
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(&key, ctx,
+        (byte)sizeof(ctx), hash, (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig,
+        &sigLen), 0);
+    ExpectIntEQ(devCtx.calls, 12);
+
+    /* A device that declines the deterministic variant leaves it to the host,
+     * which needs PK.seed. Without it the answer is MISSING_KEY, never a
+     * signature built over a zeroed opt_rand. */
+    devCtx.noDeterministic = 1;
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignDeterministic(&key, ctx, (byte)sizeof(ctx),
+        msg, (word32)sizeof(msg) - 1, sig, &sigLen),
+        WC_NO_ERR_TRACE(MISSING_KEY));
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignMsgDeterministic(&key, msg,
+        (word32)sizeof(msg) - 1, sig, &sigLen), WC_NO_ERR_TRACE(MISSING_KEY));
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignHashDeterministic(&key, ctx,
+        (byte)sizeof(ctx), hash, (word32)sizeof(hash), WC_HASH_TYPE_MD5, sig,
+        &sigLen), WC_NO_ERR_TRACE(MISSING_KEY));
+    ExpectIntEQ(devCtx.calls, 12);
+
+    /* The public key is not secret, so a device key can carry it. With
+     * PK.seed present the host builds opt_rand and the device signs. */
+    ExpectIntEQ(wc_SlhDsaKey_ImportPublic(&key, pub, (word32)sizeof(pub)), 0);
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignDeterministic(&key, ctx, (byte)sizeof(ctx),
+        msg, (word32)sizeof(msg) - 1, sig, &sigLen), 0);
+    ExpectIntEQ(devCtx.calls, 13);
 
     wc_SlhDsaKey_Free(&key);
     wc_FreeRng(&rng);
@@ -1566,6 +1621,105 @@ int test_wc_slhdsa_dev_only_key(void)
 #ifdef TEST_SLHDSA_DEV_ONLY
     #undef TEST_SLHDSA_DEV_ONLY
     #undef TEST_SLHDSA_DEV_ONLY_DEVID
+#endif
+
+/* A callback written before caller-supplied randomness existed knows
+ * WC_PK_TYPE_PQC_SIG_SIGN and declines everything else from its default arm.
+ * Caller-supplied and deterministic signing must not be handed to it: it
+ * would sign with randomness of its own choosing and the caller would never
+ * learn that the value it asked for was ignored. */
+/* Needs a software path to fall back to, so not under
+ * WOLF_CRYPTO_CB_ONLY_SLHDSA where there is none. */
+#if defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLFSSL_SLHDSA_VERIFY_ONLY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SLHDSA)
+    #define TEST_SLHDSA_LEGACY_CB
+    #define TEST_SLHDSA_LEGACY_CB_DEVID 0x51484432
+#endif
+
+#ifdef TEST_SLHDSA_LEGACY_CB
+static int slhdsa_legacy_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* taken = (int*)ctx;
+
+    (void)devIdArg;
+
+    if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_SIG_SIGN) &&
+            (info->pk.pqc_sign.type == WC_PQC_SIG_TYPE_SLHDSA)) {
+        if (taken != NULL) {
+            (*taken)++;
+        }
+        /* Where an old callback would sign. Returning an error instead makes
+         * a wrongly routed operation show up as a failure rather than as a
+         * signature over randomness the caller did not choose. */
+        return BAD_FUNC_ARG;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_SLHDSA_LEGACY_CB */
+
+int test_wc_slhdsa_legacy_cb(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SLHDSA_LEGACY_CB
+    SlhDsaKey key;
+    WC_RNG rng;
+    byte  seed[3 * WC_SLHDSA_MAX_SEED];
+    byte  addRnd[WC_SLHDSA_MAX_SEED];
+    const byte msg[] = "legacy callback";
+    byte* sig = NULL;
+    word32 sigLen;
+    word32 n = (word32)TEST_SLHDSA_DEFAULT_SEED_LEN;
+    int taken = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(seed, 0x4F, sizeof(seed));
+    XMEMSET(addRnd, 0x62, sizeof(addRnd));
+
+    sig = (byte*)XMALLOC(TEST_SLHDSA_DEFAULT_SIG_LEN, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_SLHDSA_LEGACY_CB_DEVID,
+        slhdsa_legacy_cb, &taken), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* A key with real material, so declining leaves a working software path. */
+    ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
+        TEST_SLHDSA_LEGACY_CB_DEVID), 0);
+    ExpectIntEQ(wc_SlhDsaKey_MakeKeyWithRandom(&key, seed, n, seed + n, n,
+        seed + 2 * n, n), 0);
+
+    /* Caller-supplied randomness goes out under its own type, which this
+     * callback does not know, so it runs in software. */
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_SignWithRandom(&key, NULL, 0, msg,
+        (word32)sizeof(msg) - 1, sig, &sigLen, addRnd), 0);
+    ExpectIntEQ(taken, 0);
+    ExpectIntEQ(wc_SlhDsaKey_Verify(&key, NULL, 0, msg,
+        (word32)sizeof(msg) - 1, sig, sigLen), 0);
+
+    /* Ordinary signing still routes to the old type, so an existing callback
+     * keeps seeing exactly what it saw before. */
+    sigLen = TEST_SLHDSA_DEFAULT_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_Sign(&key, NULL, 0, msg,
+        (word32)sizeof(msg) - 1, sig, &sigLen, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(taken, 1);
+
+    wc_SlhDsaKey_Free(&key);
+    wc_FreeRng(&rng);
+    wc_CryptoCb_UnRegisterDevice(TEST_SLHDSA_LEGACY_CB_DEVID);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* TEST_SLHDSA_LEGACY_CB */
+    return EXPECT_RESULT();
+}
+
+#ifdef TEST_SLHDSA_LEGACY_CB
+    #undef TEST_SLHDSA_LEGACY_CB
+    #undef TEST_SLHDSA_LEGACY_CB_DEVID
 #endif
 
 /*

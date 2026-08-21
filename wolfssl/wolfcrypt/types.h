@@ -1711,8 +1711,12 @@ enum wc_PkType {
      * representative rather than message and context. */
     WC_PK_TYPE_PQC_SIG_SIGN_MSG   = 44,
     WC_PK_TYPE_PQC_SIG_VERIFY_MSG = 45,
+    /* Signing where the caller controls the signature randomness. A separate
+     * type because a callback written against WC_PK_TYPE_PQC_SIG_SIGN would
+     * sign with its own randomness and ignore the caller's. */
+    WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND = 46,
     #undef _WC_PK_TYPE_MAX
-    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_VERIFY_MSG
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND
 #endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
