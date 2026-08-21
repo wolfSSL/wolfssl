@@ -2744,10 +2744,11 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
     wolfSSL_free(ssl);
     ssl = NULL;
 
-    /* OpenSSL compat: "ALL" is "all but eNULL" - it does not generate NULL
-     * suites, but it is not a delete directive, so a following "eNULL"
-     * re-enables them. (The earlier sticky excludeNull-for-ALL wrongly kept
-     * them disabled; only "!eNULL"/"DEFAULT" should.) */
+    /* The RFC 9150 integrity-only TLS 1.3 suites are zero-confidentiality:
+     * they are kept out of the default preference list (unless
+     * WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT is defined) and are never produced
+     * by "ALL" alone, but an explicit "eNULL" keyword or suite name requests
+     * them in either mode. */
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL"), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
@@ -2758,7 +2759,15 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ALL:eNULL"), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
-                TLS_SHA256_SHA256), 1); /* "eNULL" after "ALL" re-enables NULL */
+                TLS_SHA256_SHA256), 1); /* explicit "eNULL" requests them */
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-SHA256-SHA256"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_suites_contains(ssl, ECC_BYTE,
+                TLS_SHA256_SHA256), 1); /* explicit suite name works too */
     wolfSSL_free(ssl);
     ssl = NULL;
 #endif /* BUILD_TLS_SHA256_SHA256 */
@@ -2775,6 +2784,41 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
 #ifdef TEST_CIPHER_EXCLUDE_NULL
     #undef TEST_CIPHER_EXCLUDE_NULL
 #endif
+
+/* A client using the default cipher list must not offer the RFC 9150
+ * integrity-only TLS 1.3 suites unless WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
+ * is defined. The server accepts only TLS13-SHA256-SHA256, so the handshake
+ * outcome shows whether the default list contained it. */
+static int test_tls13_null_cipher_default_list(void)
+{
+    EXPECT_DECLS;
+#if defined(BUILD_TLS_SHA256_SHA256) && !defined(NO_RSA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* Client keeps the default cipher list. */
+    test_ctx.s_ciphers = "TLS13-SHA256-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+#ifdef WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_c->options.cipherSuite0, ECC_BYTE);
+    ExpectIntEQ(ssl_c->options.cipherSuite, TLS_SHA256_SHA256);
+#else
+    /* no common suite: the server rejects the ClientHello */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+#endif
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 
 static int test_wolfSSL_set_alpn_protos_default_fails(void)
 {
@@ -30262,8 +30306,15 @@ static int test_export_keying_material_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
 
 static int test_export_keying_material_ssl_cb(WOLFSSL* ssl)
 {
+    EXPECT_DECLS;
+    byte ekm[32] = {0};
+
     wolfSSL_KeepArrays(ssl);
-    return TEST_SUCCESS;
+    /* Export must be refused until the handshake has completed. */
+    ExpectIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), NULL, 0, 1),
+            WOLFSSL_FAILURE);
+    return EXPECT_RESULT();
 }
 
 static int test_export_keying_material(void)
@@ -34012,6 +34063,67 @@ static int test_ticket_ret_create(void)
     return TEST_SKIPPED;
 }
 #endif
+
+/* RFC 5077 Section 3.3: a stored ticket whose lifetime has expired must not
+ * be offered; the client falls back to a full handshake. */
+static int test_ticket_expired_full_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_RSA) && \
+    defined(HAVE_ECC) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
+    ExpectIntEQ(wolfSSL_CTX_UseSessionTicket(ctx_c), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Round 0: control, the ticket resumes as-is. Round 1: same ticket made
+     * to look expired; the client must do a full handshake instead. */
+    for (i = 0; i < 2; i++) {
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+
+        ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+        wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+        ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+        wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        if (i == 1 && ssl_c != NULL) {
+            ssl_c->session->bornOn -= ssl_c->session->timeout + 1;
+        }
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        if (ssl_c != NULL) {
+            ExpectIntEQ(ssl_c->options.resuming, i == 0 ? 1 : 0);
+        }
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* Build a valid TLS 1.2 ticket by completing an initial handshake, then tamper
  * with enc_len so it is larger than the true encrypted payload. */
@@ -40335,6 +40447,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_tls12_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_tls13_with_version),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
+    TEST_DECL(test_tls13_null_cipher_default_list),
     TEST_DECL(test_wolfSSL_set_alpn_protos_default_fails),
     TEST_DECL(test_wolfSSL_CTX_use_certificate),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
@@ -40609,6 +40722,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ticket_nonce_malloc),
 #endif
     TEST_DECL(test_ticket_ret_create),
+    TEST_DECL(test_ticket_expired_full_handshake),
     TEST_DECL(test_ticket_enc_corrupted),
     TEST_DECL(test_wrong_cs_downgrade),
     TEST_DECL(test_tls13_no_ext_sh_alert),
