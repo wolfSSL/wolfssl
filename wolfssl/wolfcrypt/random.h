@@ -471,6 +471,14 @@ struct WC_RNG {
      * _InitRng() zeroes the whole WC_RNG, so the flag starts FREE with no
      * constructor of its own and no way for construction to fail. */
     wolfSSL_Atomic_Int excl;
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    /* pid of the process that last entered RngExclEnter().  Zeroed by
+     * _InitRng(), which is not a valid userspace pid, so the first entry
+     * always claims it.  Read and written only by RngExclEnter(); distinct
+     * from rng->pid, which drives the post-fork reseed from inside the
+     * section. */
+    wolfSSL_Atomic_Int exclPid;
+#endif
 #endif
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)

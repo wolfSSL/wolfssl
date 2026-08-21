@@ -543,6 +543,42 @@ static int RngExclEnter(WC_RNG* rng)
         return 0;
     }
 
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    /* fork() clones only the calling thread, so a flag left HELD by a thread
+     * that did not survive the fork can never be released in the child: the
+     * child's copy of the WC_RNG is private and no other process can write
+     * it.  Detect the new process HERE, ahead of the spin -- the fork check in
+     * wc_RNG_GenerateBlock() is inside the section, so the spin would never
+     * reach it.  The compare-exchange makes exactly one thread perform the
+     * reclaim if the child spawns threads before its first generate; the rest
+     * fall through to the normal contention path.  A process that has not
+     * forked takes this branch on its first ever entry too, and a child whose
+     * parent was NOT in the section inherits the flag FREE, so the branch is
+     * reached with the flag already FREE far more often than not; that is why
+     * the reclaim below is conditional rather than an unconditional store. */
+    {
+        WC_ATOMIC_INT_ARG self = (WC_ATOMIC_INT_ARG)getpid();
+        WC_ATOMIC_INT_ARG owner = WOLFSSL_ATOMIC_LOAD(rng->exclPid);
+
+        if (owner != self) {
+            /* Sample the flag BEFORE claiming the pid.  A flag that is not
+             * HELD needs no reclaim, so no store is issued and no
+             * concurrently-acquired flag can be clobbered. */
+            WC_ATOMIC_INT_ARG inherited = WOLFSSL_ATOMIC_LOAD(rng->excl);
+
+            if (wolfSSL_Atomic_Int_CompareExchange(&rng->exclPid, &owner,
+                                                   self))
+            {
+                if (inherited == WC_RNG_EXCL_HELD) {
+                    WC_ATOMIC_INT_ARG e = WC_RNG_EXCL_HELD;
+                    (void)wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &e,
+                                                        WC_RNG_EXCL_FREE);
+                }
+            }
+        }
+    }
+#endif
+
     while (! wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected,
                                                 WC_RNG_EXCL_HELD))
     {
