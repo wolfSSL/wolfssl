@@ -268,11 +268,13 @@ int test_tls_msgtype_certificate_ext_offered(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     len = build_ext(buf, TLSX_MAX_FRAGMENT_LENGTH, 0);
-    savedCtx = ssl->ctx;
-    ssl->ctx = NULL;
-    ExpectIntEQ(TLSX_Parse(ssl, buf, len, certificate, NULL),
-                WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
-    ssl->ctx = savedCtx;
+    if (ssl != NULL) {
+        savedCtx = ssl->ctx;
+        ssl->ctx = NULL;
+        ExpectIntEQ(TLSX_Parse(ssl, buf, len, certificate, NULL),
+                    WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+        ssl->ctx = savedCtx;
+    }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif

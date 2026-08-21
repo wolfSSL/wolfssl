@@ -368,11 +368,13 @@ int test_TLSX_SupportExtensions_bounds(void)
      * third operand - checking that very same field for DTLS_MAJOR - is
      * false too. This is the only way to make IsTLS(ssl) false at all: every
      * ssl created through a real method sets a recognized major/minor. */
-    ssl->version.major = 0;
-    offset = 0;
-    ExpectIntEQ(TLSX_WriteRequest(ssl, out, client_hello, &offset), 0);
-    ssl->version.major = SSLv3_MAJOR;
-    ssl->version.minor = TLSv1_2_MINOR;
+    if (ssl != NULL) {
+        ssl->version.major = 0;
+        offset = 0;
+        ExpectIntEQ(TLSX_WriteRequest(ssl, out, client_hello, &offset), 0);
+        ssl->version.major = SSLv3_MAJOR;
+        ssl->version.minor = TLSv1_2_MINOR;
+    }
 
     /* TLSX_WriteRequest()'s own leading guard is
      * "!TLSX_SupportExtensions(ssl) || output == NULL": a supported ssl with
