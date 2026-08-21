@@ -364,7 +364,73 @@ static int test_peer_name_mismatch(int mode, const char* name, int expectErr)
 
     return EXPECT_RESULT();
 }
+
+static int test_peer_name_override_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    (void)store;
+    /* The application accepts the certificate despite the mismatch. */
+    return 1;
+}
+
+/* mode: 1 = set1_ip_asc(), 2 = set1_host() */
+static int test_peer_name_override(int mode, const char* name, int expectRet)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_peer_name_override_cb);
+
+    if (mode == 1) {
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(
+            wolfSSL_get0_param(ssl_c), name), WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(
+            wolfSSL_get0_param(ssl_c), name, 0), WOLFSSL_SUCCESS);
+    }
+
+    /* The callback overrides the mismatch, so the handshake completes... */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* ...but the result must still name it, or a certificate issued to
+     * another name reads back as fully verified. */
+    ExpectIntEQ((int)wolfSSL_get_verify_result(ssl_c), expectRet);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
 #endif
+
+/* An overridden X509_VERIFY_PARAM name mismatch must still be visible through
+ * SSL_get_verify_result(). */
+int test_tls_peer_name_mismatch_verify_result(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_SHA256)
+#ifdef WOLFSSL_IP_ALT_NAME
+    ExpectIntEQ(test_peer_name_override(1, "127.0.0.2",
+        WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_peer_name_override(2, "wrong.example.com",
+        WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH), TEST_SUCCESS);
+    /* A matching name still verifies clean. */
+    ExpectIntEQ(test_peer_name_override(2, "example.com",
+        WOLFSSL_X509_V_OK), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* A peer name mismatch must be reported through SSL_set_verify()'s callback,
  * whichever API named the expected peer. */
