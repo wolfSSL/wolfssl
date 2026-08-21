@@ -79,18 +79,34 @@
 
 
 /* avoid redefinition of structs */
-/* A build with no DRBG, no atomics, no threads, or no way for the acquire
- * spin to yield (WC_SPIN_RELAX_YIELDS, types.h) has nothing to implement this
- * with, so elect it off here rather than making every use site restate the
- * requirements.  Kept ahead of the FIPS-version guard below: the use
- * sites test !defined(WC_NO_DRBG_THREAD_SAFE), so this must be evaluated on
- * every path that reaches them, including the one where the WC_RNG defined
- * below is not the struct in use. */
-#if (!defined(HAVE_HASHDRBG) || defined(CUSTOM_RAND_GENERATE_BLOCK) || \
-     defined(SINGLE_THREADED) || defined(WOLFSSL_NO_ATOMICS) || \
-     !defined(WC_SPIN_RELAX_YIELDS) || \
-     (defined(HAVE_FIPS) && \
-      !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))) && \
+/* Kept ahead of the FIPS-version guard below: the use sites test
+ * !defined(WC_NO_DRBG_THREAD_SAFE), so this must be evaluated on every path
+ * that reaches them, including the one where the WC_RNG defined below is not
+ * the struct in use.
+ *
+ * LAYOUT.  Keys only on settings global to the build, never on which headers a
+ * translation unit happened to include, so struct WC_RNG has exactly one
+ * layout.  Deliberately excludes HAVE_GETPID: autotools defines that in
+ * config.h, which is internal to the library build, so an
+ * --enable-usersettings application never sees it.  getpid() only selects the
+ * owner token at run time. */
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(SINGLE_THREADED) && !defined(WOLFSSL_NO_ATOMICS) && \
+    !(defined(HAVE_FIPS) && \
+      !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    #define WC_RNG_HAVE_EXCL_FIELD
+#endif
+
+/* BEHAVIOUR.  May additionally depend on whether a real yield is in scope
+ * (WC_SPIN_RELAX_YIELDS) and, anywhere fork() exists, on having a per-owner
+ * token: without getpid() a hold inherited from the parent cannot be told from
+ * a live one and would never be released.  It is safe to key BEHAVIOUR on
+ * HAVE_GETPID even though it comes from config.h, because electing this on or
+ * off never changes the size or layout of WC_RNG -- only whether this
+ * translation unit's calls take the flag. */
+#if (!defined(WC_RNG_HAVE_EXCL_FIELD) || !defined(WC_SPIN_RELAX_YIELDS) || \
+     (!defined(WC_PLATFORM_NO_FORK) && \
+      (!defined(HAVE_GETPID) || defined(WOLFSSL_NO_GETPID)))) && \
     !defined(WC_NO_DRBG_THREAD_SAFE)
     #define WC_NO_DRBG_THREAD_SAFE
 #endif
@@ -383,7 +399,7 @@ enum wc_RngHealthState {
  * election, independent of SINGLE_THREADED -- a multi-threaded build that keeps
  * its WC_RNGs thread-local can opt out and keep the smaller struct. */
 
-#ifndef WC_NO_DRBG_THREAD_SAFE
+#ifdef WC_RNG_HAVE_EXCL_FIELD
     #define WC_RNG_EXCL_FREE  0
     /* Value stored while held.  Where getpid() is available the holder stores
      * its pid instead, so a hold inherited through fork() carries the parent's
@@ -455,8 +471,10 @@ struct WC_RNG {
 
 #endif /* WC_RNG_BANK_SUPPORT || HAVE_HASHDRBG */
 
-#ifndef WC_NO_DRBG_THREAD_SAFE
-    /* Serializes this instance's DRBG generate/reseed path.  Outside the union
+#ifdef WC_RNG_HAVE_EXCL_FIELD
+    /* Serializes this instance's DRBG generate/reseed path.  Present whenever
+     * the build could use it, so electing WC_NO_DRBG_THREAD_SAFE cannot change
+     * this struct's layout.  Outside the union
      * above, and left FREE by the _InitRng() XMEMSET. */
     wolfSSL_Atomic_Int excl;
 #endif

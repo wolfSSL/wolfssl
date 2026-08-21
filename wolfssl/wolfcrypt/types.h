@@ -44,6 +44,12 @@ library files.
     #include <AvailabilityMacros.h>
 #endif
 
+#if defined(WOLFSSL_PTHREADS) && !defined(SINGLE_THREADED)
+    /* sched_yield(), used by WC_SPIN_RELAX() further down.  Included here so
+     * the system header stays outside the extern "C" wrapper opened below. */
+    #include <sched.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -2431,50 +2437,73 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
  * one is in scope.  SINGLE_THREADED is excluded first: wc_port.h omits these
  * kernel headers in that configuration, so the yields have no declaration.
  * Any port may define WC_SPIN_RELAX ahead of this. */
-/* WC_SPIN_RELAX_YIELDS is defined alongside every mapping that really hands
- * the CPU over.  Where it is absent the spin cannot yield, and random.h elects
- * the thread-safe DRBG off rather than ship a wait that a priority-preemptive
- * scheduler can turn into a livelock. */
+/* Platforms with no fork(): a DRBG hold can never be inherited by a child, so
+ * random.h's owner-token requirement does not apply to them.  Kernel modules
+ * included -- fork() creates a user process and does not duplicate module
+ * state. */
+#if defined(USE_WINDOWS_API) || defined(WOLFSSL_ZEPHYR) || \
+    defined(THREADX) || defined(WOLFSSL_TIRTOS) || defined(RTTHREAD) || \
+    defined(FREERTOS) || defined(FREERTOS_TCP) || \
+    defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LINUXKM) || \
+    defined(WOLFSSL_BSDKM)
+    #define WC_PLATFORM_NO_FORK
+#endif
+
+/* May the current context afford to wait for the DRBG exclusion?  A port whose
+ * callers can run in interrupt or otherwise atomic context MUST override this:
+ * a spin taken there can be waiting on a holder that the spinner itself is
+ * preventing from running, which no timeout can rescue.  The default is the
+ * portable answer for ordinary threaded userspace. */
+#ifndef WC_RNG_EXCL_CAN_WAIT
+    #define WC_RNG_EXCL_CAN_WAIT() 1
+#endif
+
+/* WC_SPIN_RELAX_YIELDS is defined alongside every mapping whose scheduler
+ * makes waiting on the flag safe.  Where it is absent random.h elects the
+ * thread-safe DRBG off rather than ship a wait that can hang.
+ *
+ * Deliberately absent for the RTOS targets: k_yield(), taskYIELD(),
+ * tx_thread_relinquish() and Task_yield() all yield to threads of equal or
+ * higher priority and never let a *lower*-priority holder run, so on a strict
+ * priority-preemptive scheduler a high-priority waiter starves the holder
+ * regardless.  Note sched_yield() has the same limitation under the POSIX
+ * real-time policies (SCHED_FIFO / SCHED_RR): it is only the ordinary
+ * time-sharing scheduler that lets the holder make progress.  Callers
+ * running threads at real-time priorities should not share one WC_RNG
+ * across them.  An integrator who knows their priority assignment is safe opts
+ * in the same way a FreeRTOS port does -- by defining WC_SPIN_RELAX in
+ * user_settings.h (to k_yield(), say), which every translation unit sees
+ * alike and which takes the first branch below. */
 #ifdef WC_SPIN_RELAX
-    /* Supplied by the port; taken to be a real yield. */
+    /* Supplied by the port or the integrator; taken to be a safe wait. */
     #define WC_SPIN_RELAX_YIELDS
 #elif defined(SINGLE_THREADED)
     #define WC_SPIN_RELAX() WC_DO_NOTHING
-#elif defined(WOLFSSL_ZEPHYR)
-    #define WC_SPIN_RELAX() k_yield()
-    #define WC_SPIN_RELAX_YIELDS
-#elif (defined(FREERTOS) || defined(FREERTOS_TCP) || \
-       defined(WOLFSSL_SAFERTOS)) && defined(taskYIELD)
-    /* taskYIELD() is a macro from FreeRTOS task.h, which none of these paths
-     * include themselves, so key off the macro rather than assume it: a build
-     * without task.h falls through to the no-yield default. */
-    #define WC_SPIN_RELAX() taskYIELD()
-    #define WC_SPIN_RELAX_YIELDS
-#elif defined(THREADX)
-    #define WC_SPIN_RELAX() tx_thread_relinquish()
-    #define WC_SPIN_RELAX_YIELDS
-#elif defined(WOLFSSL_TIRTOS)
-    #define WC_SPIN_RELAX() Task_yield()
-    #define WC_SPIN_RELAX_YIELDS
-#elif defined(RTTHREAD)
-    #define WC_SPIN_RELAX() rt_thread_yield()
-    #define WC_SPIN_RELAX_YIELDS
 #elif defined(WOLFSSL_PTHREADS)
-    /* wc_port.h includes <pthread.h> on this path, which carries <sched.h>;
-     * wolfentropy.c and async.c already call sched_yield() the same way. */
+    /* sched.h is included near the top of this file, ahead of the extern "C"
+     * wrapper -- a system header must not be pulled in from inside it. */
     #define WC_SPIN_RELAX() (void)sched_yield()
     #define WC_SPIN_RELAX_YIELDS
-#elif defined(USE_WINDOWS_API) && !defined(_WIN32_WCE)
-    /* <windows.h> is included by wc_port.h on this path. */
+#elif defined(USE_WINDOWS_API) && !defined(_WIN32_WCE) && \
+      !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API) && \
+      !defined(WOLFSSL_GAME_BUILD)
+    /* Same guard wc_port.h uses around <windows.h>, including the
+     * WOLFSSL_GAME_BUILD case that takes system/xtl.h instead, so
+     * SwitchToThread() is only named where that header is actually in. */
     #define WC_SPIN_RELAX() (void)SwitchToThread()
     #define WC_SPIN_RELAX_YIELDS
 #elif defined(WC_HAVE_PORT_RELAX_LONG_LOOP)
-    /* linuxkm and anything else that installed its own relax hook. */
+    /* linuxkm and anything else that installed its own relax hook.  Note the
+     * port decides how far this goes: linuxkm's yields only where the caller
+     * can block and degrades to cpu_relax() in atomic context, so a port
+     * enabling the thread-safe DRBG owns the wait semantics its callers see.
+     */
     #define WC_SPIN_RELAX() WC_RELAX_LONG_LOOP()
     #define WC_SPIN_RELAX_YIELDS
 #else
     #define WC_SPIN_RELAX() WC_DO_NOTHING
 #endif
+
 #ifndef WC_CHECK_FOR_INTR_SIGNALS
     #define WC_CHECK_FOR_INTR_SIGNALS() 0
     #ifndef SAVE_NO_VECTOR_REGISTERS

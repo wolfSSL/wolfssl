@@ -27072,6 +27072,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
     byte* out = NULL;
     int rng_inited = 0;
     int started = 0;
+    int join_failed = 0;
     int nblocks;
     int i, j;
     wc_test_ret_t ret;
@@ -27087,10 +27088,45 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         return 0;
     }
 
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    /* INVALID_DEVID on purpose: a registered crypto-callback devId services
+     * wc_RNG_GenerateBlock() before the exclusion is reached, which would make
+     * this test pass without exercising anything. */
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_free);
     rng_inited = 1;
+
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    /* Fork-inherited hold.  A token stamped by another process has no owner
+     * here, so it must be reclaimed rather than waited on -- the branch that
+     * tells an inherited hold from a live one, which fails silently (broken
+     * mutual exclusion) rather than loudly when wrong.  Driven directly
+     * instead of through fork() so it runs everywhere.
+     *
+     * -2 is used as the foreign token deliberately: pids are positive, so it
+     * can never collide with this process's own token, and it is neither
+     * WC_RNG_EXCL_FREE (0), WC_RNG_EXCL_OWNER (-1) nor WC_RNG_EXCL_HELD (1).
+     * That also avoids needing getpid() declared in this file. */
+    {
+        const WC_ATOMIC_INT_ARG foreign = -2;
+
+        WOLFSSL_ATOMIC_STORE(rng.excl, foreign);
+        ret = wc_RNG_GenerateBlock(&rng, out, WC_RNG_THREAD_TEST_BLKSZ);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out_free);
+
+        if (WOLFSSL_ATOMIC_LOAD(rng.excl) == foreign) {
+            /* The generate was serviced before the DRBG core (RDRAND, crypto
+             * callback, async), so there was no exclusion to exercise.  Put
+             * the flag back and leave the rest of the test to run. */
+            WOLFSSL_ATOMIC_STORE(rng.excl, WC_RNG_EXCL_FREE);
+        }
+        else if (WOLFSSL_ATOMIC_LOAD(rng.excl) != WC_RNG_EXCL_FREE) {
+            /* Reached the DRBG core but did not release: reclaim is broken. */
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out_free);
+        }
+    }
+#endif
 
     for (i = 0; i < WC_RNG_THREAD_TEST_THREADS; i++) {
         args[i].rng = &rng;
@@ -27106,8 +27142,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         started++;
     }
 
-    for (i = 0; i < started; i++)
-        (void)wolfSSL_JoinThread(threads[i]);
+    for (i = 0; i < started; i++) {
+        /* A failed join leaves a worker possibly still running over buffers
+         * freed below, so record it rather than dropping it. */
+        if (wolfSSL_JoinThread(threads[i]) != 0)
+            join_failed = 1;
+    }
+    if (join_failed) {
+        /* A worker may still be running over rng and out, so deliberately
+         * neither frees them nor returns through out_free: leaking here is
+         * the lesser fault against a live thread writing freed memory. */
+        return WC_TEST_RET_ENC_NC;
+    }
 
     /* A generate failure is a real failure however many workers ran, so it is
      * inspected before the concurrency check below can skip out. */

@@ -692,8 +692,10 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
  * path so one WC_RNG can be shared between threads; it is not a lock discipline
  * and makes no claim about atomic-context callers.
  *
- * The wait is bounded the way the rng_bank spins are: it breaks out on an
- * interrupting signal, and on WC_RNG_EXCL_TIMEOUT_SEC when that is defined.
+ * The wait breaks out on an interrupting signal, and on
+ * WC_RNG_EXCL_TIMEOUT_SEC when that is defined.  Unlike the rng_bank spins,
+ * which always arm a timeout from a caller-supplied value, no timeout applies
+ * by default here -- there is no caller-supplied deadline to use.
  * No timeout is applied by default -- the holder can legitimately be blocked
  * in wc_GenerateSeed() for as long as the OS entropy source takes, and failing
  * a generate on a slow entropy read would be worse than waiting for it.
@@ -713,11 +715,49 @@ static int RngExclEnter(WC_RNG* rng)
 #endif
     WC_ATOMIC_INT_ARG expected = WC_RNG_EXCL_FREE;
 #ifdef WC_RNG_EXCL_TIMEOUT_SEC
-    time_t ts1 = XTIME(0);
+    time_t ts1 = (time_t)0;
+    int timing = 0;
+#endif
+
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    /* pid_t need not fit WC_ATOMIC_INT_ARG.  A value that lands on a sentinel
+     * would corrupt the protocol, so fall back to the generic held marker:
+     * correct, just without fork reclaim for that process. */
+    if ((self == WC_RNG_EXCL_FREE) || (self == WC_RNG_EXCL_OWNER)) {
+        self = WC_RNG_EXCL_HELD;
+    }
 #endif
 
     if (WOLFSSL_ATOMIC_LOAD(rng->excl) == WC_RNG_EXCL_OWNER) {
         return 0;
+    }
+
+    /* A caller that cannot wait gets one attempt, plus one chance to reclaim a
+     * hold inherited through fork().  Failing here is not a DRBG fault -- the
+     * instance is busy and this context cannot block for it -- so it returns
+     * BUSY_E, the same code rng_bank.c uses for a busy instance, rather than
+     * spinning.  Spinning would deadlock a single CPU outright whenever the
+     * holder is the very context this one interrupted. */
+    if (! WC_RNG_EXCL_CAN_WAIT()) {
+        if (wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected, self)) {
+            return 1;
+        }
+    #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+        /* expected now holds the observed value.  Reclaim it only if it is
+         * stamped by another process, exchanging from that exact value, so a
+         * live holder is never displaced -- the waiting path does the same. */
+        if ((expected != WC_RNG_EXCL_FREE) &&
+            (expected != WC_RNG_EXCL_OWNER) &&
+            (expected != self))
+        {
+            if (wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected,
+                                                   self))
+            {
+                return 1;
+            }
+        }
+    #endif
+        return BUSY_E;
     }
 
     while (! wolfSSL_Atomic_Int_CompareExchange(&rng->excl, &expected, self))
@@ -742,13 +782,23 @@ static int RngExclEnter(WC_RNG* rng)
         }
     #endif
 
+        /* WC_CHECK_FOR_INTR_SIGNALS() is a port-replaceable hook and the tree
+         * does not require its nonzero value to be negative, so normalize it:
+         * the caller reads any non-negative return as "flag acquired" and
+         * would release a hold it never took. */
         intr_ret = WC_CHECK_FOR_INTR_SIGNALS();
         if (intr_ret != 0) {
-            return intr_ret;
+            return (intr_ret < 0) ? intr_ret : INTERRUPTED_E;
         }
 
     #ifdef WC_RNG_EXCL_TIMEOUT_SEC
-        if (XTIME(0) - ts1 > (time_t)WC_RNG_EXCL_TIMEOUT_SEC) {
+        /* Started on first contention, so an uncontended acquire never reads
+         * the clock. */
+        if (! timing) {
+            ts1 = XTIME(0);
+            timing = 1;
+        }
+        else if (XTIME(0) - ts1 > (time_t)WC_RNG_EXCL_TIMEOUT_SEC) {
             return WC_TIMEOUT_E;
         }
     #endif
@@ -767,7 +817,9 @@ static void RngExclExit(WC_RNG* rng)
 }
 #endif /* !WC_NO_DRBG_THREAD_SAFE */
 
-/* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
+/* Returns: DRBG_SUCCESS, or DRBG_FAILURE / BAD_FUNC_ARG on fail.  Where the
+ * thread-safe DRBG is enabled, waiting for the instance can also fail with
+ * an interrupt code or WC_TIMEOUT_E. */
 int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
 #ifndef WC_NO_DRBG_THREAD_SAFE
@@ -2027,8 +2079,12 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     if (nonce == NULL && nonceSz != 0)
         return BAD_FUNC_ARG;
 
-    /* Also initializes rng->excl where the thread-safe DRBG is enabled. */
     XMEMSET(rng, 0, sizeof(*rng));
+#ifndef WC_NO_DRBG_THREAD_SAFE
+    /* XMEMSET already zeroed the storage, but initialize through the atomic
+     * API so the value is published the way every later access reads it. */
+    wolfSSL_Atomic_Int_Init(&rng->excl, WC_RNG_EXCL_FREE);
+#endif
 
 #ifdef WOLFSSL_HEAP_TEST
     rng->heap = (void*)WOLFSSL_HEAP_TEST;
