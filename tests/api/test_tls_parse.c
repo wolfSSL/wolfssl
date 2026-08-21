@@ -40,6 +40,7 @@
 /* Helper to build a server-side WOLFSSL_CTX with a certificate/key loaded,
  * as required for wolfSSL_new() to succeed on a server context.
  */
+TEST_TLS_PARSE_UNUSED
 static WOLFSSL_CTX* test_tls_parse_server_ctx(WOLFSSL_METHOD* method)
 {
     WOLFSSL_CTX* ctx = NULL;
