@@ -3269,6 +3269,68 @@ int test_TLSX_SignatureAlgorithmsCert_parse(void)
     return EXPECT_RESULT();
 }
 
+/* Appending keeps every group the build accepts, in order, and drops a
+ * repeat. */
+int test_TLSX_SupportedCurve_append(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_TLS_EXTENSIONS)
+    /* Every standalone group the API knows; a build rejects the rest. */
+    static const word16 known[] = {
+        WOLFSSL_ECC_SECP160K1, WOLFSSL_ECC_SECP160R1, WOLFSSL_ECC_SECP160R2,
+        WOLFSSL_ECC_SECP192K1, WOLFSSL_ECC_SECP192R1, WOLFSSL_ECC_SECP224K1,
+        WOLFSSL_ECC_SECP224R1, WOLFSSL_ECC_SECP256K1, WOLFSSL_ECC_SECP256R1,
+        WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP521R1,
+        WOLFSSL_ECC_BRAINPOOLP256R1, WOLFSSL_ECC_BRAINPOOLP384R1,
+        WOLFSSL_ECC_BRAINPOOLP512R1, WOLFSSL_ECC_SM2P256V1,
+        WOLFSSL_ECC_X25519, WOLFSSL_ECC_X448,
+        WOLFSSL_FFDHE_2048, WOLFSSL_FFDHE_3072, WOLFSSL_FFDHE_4096,
+        WOLFSSL_FFDHE_6144, WOLFSSL_FFDHE_8192,
+        WOLFSSL_ML_KEM_512, WOLFSSL_ML_KEM_768, WOLFSSL_ML_KEM_1024,
+        WOLFSSL_KYBER_LEVEL1, WOLFSSL_KYBER_LEVEL3, WOLFSSL_KYBER_LEVEL5
+    };
+    word16 added[sizeof(known) / sizeof(known[0])];
+    word16 addedCnt = 0;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    TLSX* extension = NULL;
+    SupportedCurves* curves = NULL;
+    word16 i;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    for (i = 0; (ssl != NULL) && (i < sizeof(known) / sizeof(known[0])); i++) {
+        if (wolfSSL_UseSupportedCurve(ssl, known[i]) == WOLFSSL_SUCCESS)
+            added[addedCnt++] = known[i];
+    }
+    ExpectIntGT(addedCnt, 0);
+    /* A repeat is dropped rather than appended. */
+    if (addedCnt > 0) {
+        ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl, added[0]),
+                    WOLFSSL_SUCCESS);
+    }
+
+    if (ssl != NULL)
+        extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    ExpectNotNull(extension);
+    if (extension != NULL)
+        curves = (SupportedCurves*)extension->data;
+    ExpectNotNull(curves);
+    ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, (int)addedCnt);
+    ExpectIntLE(curves == NULL ? 1 : (int)curves->count,
+                curves == NULL ? 0 : (int)curves->cap);
+    for (i = 0; (curves != NULL) && (i < addedCnt); i++) {
+        ExpectIntEQ(curves->name[i], added[i]);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 8422 Section 5.1.2: a client that sends the ec_point_formats extension
  * MUST include the uncompressed (0) point format. When the uncompressed format
  * is omitted the server records this (ssl->options.peerNoUncompPF) during
