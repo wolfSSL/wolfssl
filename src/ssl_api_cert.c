@@ -2812,8 +2812,13 @@ int CertSetupCbWrapper(WOLFSSL* ssl)
     int ret = 0;
 
     if (ssl->ctx->certSetupCb != NULL) {
+        WOLFSSL_CTX* prevCbCtx;
+
         WOLFSSL_MSG("Calling user cert setup callback");
+        prevCbCtx = CtxCallbackEnter(ssl->ctx);
         ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
+        /* The callback may have switched contexts; restore what was noted. */
+        CtxCallbackExit(prevCbCtx);
         if (ret == 1) {
             WOLFSSL_MSG("User cert callback returned success");
             ret = 0;
