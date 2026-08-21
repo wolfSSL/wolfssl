@@ -6,6 +6,8 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/Kbuild \
 	      linuxkm/Makefile \
 	      linuxkm/README.md \
+	      linuxkm/RBGC-design.md \
+	      linuxkm/SVR-FALLBACK-ANALYSIS.md \
 	      linuxkm/get_thread_size.c \
 	      linuxkm/linuxkm-fips-hash.c \
 	      linuxkm/linuxkm-fips-hash-wrapper.sh \
