@@ -9,8 +9,8 @@ generator.
 
 ## An unlisted kernel version is NOT an unsupported one
 
-There are ten directories here and thirty-four supported kernel versions. The
-ten are **bases**, not the list of what is supported. Most supported versions
+There are twelve directories here and thirty-four supported kernel versions. The
+twelve are **bases**, not the list of what is supported. Most supported versions
 are served by a patch derived from a base belonging to a different version --
 often a different series. If your version has no directory of its own, look it
 up in the coverage table below; it is almost certainly there.
@@ -46,7 +46,7 @@ no `DERIVED (unverified)` rows.
 | 5.13 | 5.13.19   | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                   | DERIVED (verified) |
 | 5.15 | 5.15.216  | `5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch` | DERIVED (verified) |
 | 5.16 | 5.16.20   | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                   | DERIVED (verified) |
-| 5.17 | 5.17.15   | `5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch` | DERIVED (verified) |
+| 5.17 | 5.17.15   | `5.17.14/WOLFSSL_KERNELv5_17_14_FIPS.patch`             | SHIPPED |
 | 5.18 | 5.18.19   | `5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch`           | DERIVED (verified) |
 | 5.19 | 5.19.17   | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`               | DERIVED (verified) |
 | 6.0  | 6.0.19    | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`               | DERIVED (verified) |
@@ -54,13 +54,13 @@ no `DERIVED (unverified)` rows.
 | 6.2  | 6.2.16    | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
 | 6.4  | 6.4.16    | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
 | 6.5  | 6.5.13    | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
-| 6.6  | 6.6.152   | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                     | DERIVED (verified) |
+| 6.6  | 6.6.152   | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`             | DERIVED (verified) |
 | 6.7  | 6.7.12    | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
 | 6.8  | 6.8.12    | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
 | 6.9  | 6.9.12    | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
 | 6.10 | 6.10.14   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
 | 6.11 | 6.11.11   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                   | DERIVED (verified) |
-| 6.12 | 6.12.104  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                     | DERIVED (verified) |
+| 6.12 | 6.12.104  | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`             | SHIPPED |
 | 6.13 | 6.13.12   | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                   | DERIVED (verified) |
 | 6.14 | 6.14.11   | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                   | DERIVED (verified) |
 | 6.15 | 6.15.11   | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                   | SHIPPED |
@@ -71,15 +71,15 @@ no `DERIVED (unverified)` rows.
 | 7.0  | 7.0.14    | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                     | SHIPPED |
 | 7.1  | 7.1.9     | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                     | DERIVED (verified) |
 
-Four of the ten directories are never the best base for any supported version
+Four of the twelve directories are never the best base for any supported version
 and are kept for the specific trees they were authored against:
 
 | directory | serves |
 |---|---|
 | `5.10.17`               | 5.10.17 itself, and the 5.6-5.9 derivations above |
 | `5.14.0-570.58.1.el9_6` | the RHEL 9.6 vendor kernel, which is not in the supported list |
-| `5.17`                  | a 5.17 patchlevel earlier than 5.17.15; see the warning below |
-| `6.12`                  | a 6.12 patchlevel earlier than 6.12.104; see the warning below |
+| `5.17`                  | 5.17.12 and 5.17.13 only; see "A series can change shape mid-series" |
+| `6.12`                  | 6.12.0 through 6.12.74; see "A series can change shape mid-series" |
 
 ### The row is per patchlevel, not per series
 
@@ -87,18 +87,43 @@ The table states the patchlevel each row was verified at, because the answer
 **changes within a series**. Do not read a row as covering every `.y` of that
 series.
 
-Two directories are named for a series they no longer serve at its current
-patchlevel:
+`5.10.17` does not apply to 5.10.265 and `5.15` does not apply to 5.15.216;
+both of those series took the 5.18 random.c rewrite as a stable backport
+partway through their lifetime.
 
-* **`5.17` does not apply to 5.17.15.** Hunk 2 of 14 fails, and it still fails
-  with `--fuzz=3`. Current 5.17 is served by `5.17-ubuntu-jammy-tegra`.
-* **`6.12` does not apply to 6.12.104.** Hunk 6 of 16 fails, and it still fails
-  with `--fuzz=3`. Current 6.12 -- the LTS patchlevel most users are on -- is
-  served by `7.0`.
+### A series can change shape mid-series
 
-Likewise `5.10.17` does not apply to 5.10.265 and `5.15` does not apply to
-5.15.216; both of those series took the 5.18 random.c rewrite as a stable
-backport partway through their lifetime.
+Two series change `random.c` API shape at a known patchlevel, so each needs two
+patches. The seam was measured by applying at `--fuzz=0` to every patchlevel
+across the boundary, not inferred:
+
+| series | patchlevels | patch |
+|---|---|---|
+| 5.17 | 5.17.12 - 5.17.13 | `5.17/WOLFSSL_KERNELv5_17_FIPS.patch` |
+| 5.17 | 5.17.14 - 5.17.15 | `5.17.14/WOLFSSL_KERNELv5_17_14_FIPS.patch` |
+| 6.12 | 6.12.0 - 6.12.74  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch` |
+| 6.12 | 6.12.75 - 6.12.104+ | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch` |
+
+**6.12 flips at 6.12.75.** Stable backported "Remove WARN_ALL_UNSEEDED_RANDOM
+kernel config option" (Linus Torvalds, 2026-03-04, mainline 6.18), which deletes
+the `warn_unseeded_randomness()` macro and its two call sites. That breaks two
+hunks of the `6.12` patch: hunk 6 *edits* the macro, and hunk 9 carries one of
+its calls in context. Fuzz rescues hunk 9 but never hunk 6, because the lines it
+edits no longer exist -- which is why `--fuzz=3` does not help. The `6.12.75`
+patch is the `6.12` patch with hunk 6 dropped and hunk 9's context refreshed;
+the `crng_ready()` -> `crng_ready_maybe_cb()` substitutions are unchanged and
+land at the same nine sites.
+
+The same backport reached **6.6 at 6.6.128**, which is why `6.12.75` -- not
+`7.0` -- is the closest fit for current 6.6 as well.
+
+**5.17 flips twice.** 5.17.0-5.17.11 predate the 5.18 `random.c` rewrite;
+5.17.12 took the rewrite *and* the `crng_is_ready` static key as a stable
+backport; 5.17.14 then **reverted the static key** while keeping the rewrite. So
+5.17 runs pre-rewrite -> static key -> no static key, and the middle window is
+two patchlevels wide. `5.17` serves that middle window; `5.17.14` serves the
+final two. 5.17.0-5.17.11 has no patch and no base that applies to it at any
+fuzz level.
 
 ### Why the numbers do not order the way you expect
 
@@ -138,9 +163,11 @@ of their full vendor version string, because the full string is unwieldy:
 | `5.14.0-570.58.1.el9_6`   | `WOLFSSL_KERNELv5_14_el9_6_FIPS.patch` |
 | `5.15`                    | `WOLFSSL_KERNELv5_15_FIPS.patch` |
 | `5.17`                    | `WOLFSSL_KERNELv5_17_FIPS.patch` |
+| `5.17.14`                 | `WOLFSSL_KERNELv5_17_14_FIPS.patch` |
 | `5.17-ubuntu-jammy-tegra` | `WOLFSSL_KERNELv5_17_tegra_FIPS.patch` |
 | `6.1.73`                  | `WOLFSSL_KERNELv6_1_73_FIPS.patch` |
 | `6.12`                    | `WOLFSSL_KERNELv6_12_FIPS.patch` |
+| `6.12.75`                 | `WOLFSSL_KERNELv6_12_75_FIPS.patch` |
 | `6.15`                    | `WOLFSSL_KERNELv6_15_FIPS.patch` |
 | `7.0`                     | `WOLFSSL_KERNELv7_0_FIPS.patch` |
 
