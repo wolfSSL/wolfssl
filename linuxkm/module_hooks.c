@@ -290,6 +290,22 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
     spin_lock_bh(&m->lock);
     return 0;
 }
+
+/* Out-of-boundary counterpart to wc_LockMutex()'s indirection.  In-boundary
+ * (WC_CONTAINERIZE_THIS) objects reach this through the PIE redirect table, so
+ * spin_unlock_bh()'s call to __local_bh_enable_ip() is emitted HERE, outside
+ * the wolfCrypt container, instead of inside it.  Returns -1 rather than
+ * BAD_FUNC_ARG on the debug magic check, preserving exactly what the inline it
+ * replaces returned. */
+int wc_lkm_UnLockMutex(wolfSSL_Mutex* m)
+{
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
+        return -1;
+#endif
+    spin_unlock_bh(&m->lock);
+    return 0;
+}
 #endif
 
 WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_install_node(struct kobj_attribute *node, int *installed_flag)
@@ -2128,6 +2144,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     wolfssl_linuxkm_pie_redirect_table.wc_lkm_LockMutex = wc_lkm_LockMutex;
+    wolfssl_linuxkm_pie_redirect_table.wc_lkm_UnLockMutex = wc_lkm_UnLockMutex;
 #endif
 
 #ifdef CONFIG_ARM64

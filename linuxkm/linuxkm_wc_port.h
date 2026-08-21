@@ -215,6 +215,7 @@
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     struct wolfSSL_Mutex;
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
+    extern int wc_lkm_UnLockMutex(struct wolfSSL_Mutex* m);
 #endif
 
     #ifndef WC_LINUXKM_INTR_SIGNALS
@@ -1507,6 +1508,7 @@
         typeof(_cond_resched) *_cond_resched;
         #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
+        typeof(wc_lkm_UnLockMutex) *wc_lkm_UnLockMutex;
         #endif
 
         typeof(wc_linuxkm_can_block) *wc_linuxkm_can_block;
@@ -2294,6 +2296,27 @@
 
         #endif /* !WC_CONTAINERIZE_THIS */
 
+        #ifdef WC_CONTAINERIZE_THIS
+        /* Same reason wc_LockMutex() is not inlined here: spin_unlock_bh()
+         * expands to local_bh_enable() -> __local_bh_enable_ip(), an external
+         * kernel symbol, and the wolfCrypt container must reference nothing
+         * outside itself.  The lock side was routed through the redirect table
+         * and the unlock side was left inline; that asymmetry WAS the bug.
+         *
+         * x86_64 happens not to emit the call, so the violation was invisible
+         * there (measured: 0 references in random.o/ecc.o/wolfentropy.o/
+         * wc_port.o).  aarch64 does emit it, and the boundary link then fails:
+         *     wolfCrypt container has unresolved symbols: U __local_bh_enable_ip
+         * referenced from UnlockDrbgState(), wc_Entropy_Get(), wc_ecc_mulmod_ex()
+         * and others.  Routing through the table makes the boundary
+         * self-contained on every architecture rather than by luck on one. */
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            return WC_PIE_INDIRECT_SYM(wc_lkm_UnLockMutex)(m);
+        }
+
+        #else /* !WC_CONTAINERIZE_THIS */
+
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
@@ -2303,6 +2326,8 @@
             spin_unlock_bh(&m->lock);
             return 0;
         }
+
+        #endif /* !WC_CONTAINERIZE_THIS */
 
     #endif
 
