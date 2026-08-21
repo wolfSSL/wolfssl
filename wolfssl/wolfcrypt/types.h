@@ -1709,6 +1709,15 @@ enum wc_PkType {
     WC_PK_TYPE_CURVE448_GENERIC  = 46,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_CURVE448_GENERIC
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+    /* Internal interface: the caller supplies the already built message
+     * representative rather than message and context. */
+    WC_PK_TYPE_PQC_SIG_SIGN_MSG   = 47,
+    WC_PK_TYPE_PQC_SIG_VERIFY_MSG = 48,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_VERIFY_MSG
+#endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 

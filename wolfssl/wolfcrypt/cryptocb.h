@@ -469,6 +469,12 @@ typedef struct wc_CryptoInfo {
                 int         size;
                 void*       key;
                 int         type; /* enum wc_PqcSignatureType */
+                /* Caller supplied key generation seed, in the order the
+                 * algorithm defines. NULL when the device is to generate
+                 * its own from rng. SLH-DSA is SK.seed || SK.prf ||
+                 * PK.seed, each of n bytes. */
+                const byte* seed;
+                word32      seedSz;
             } pqc_sig_kg;
             struct {
                 const byte* in;
@@ -481,6 +487,11 @@ typedef struct wc_CryptoInfo {
                 const byte* context;
                 byte        contextLen;
                 word32      preHashType; /* enum wc_HashType */
+                /* Caller supplied signing randomness. NULL when the device
+                 * is to generate its own from rng. context, contextLen and
+                 * preHashType are unused by the internal interface. */
+                const byte* addRnd;
+                byte        addRndSz;
             } pqc_sign;
             struct {
                 const byte* sig;
@@ -1046,13 +1057,28 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcSigGetDevId(int type, void* key);
 WOLFSSL_LOCAL int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type,
     int keySize, void* key);
 
+WOLFSSL_LOCAL int wc_CryptoCb_MakePqcSignatureKeyEx(WC_RNG* rng, int type,
+    int keySize, const byte* seed, word32 seedSz, void* key);
+
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out,
     word32 *outlen, const byte* context, byte contextLen, word32 preHashType,
     WC_RNG* rng, int type, void* key);
 
+WOLFSSL_LOCAL int wc_CryptoCb_PqcSignEx(const byte* in, word32 inlen,
+    byte* out, word32 *outlen, const byte* context, byte contextLen,
+    word32 preHashType, WC_RNG* rng, const byte* addRnd, byte addRndSz,
+    int type, void* key);
+
 WOLFSSL_LOCAL int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen,
     const byte* msg, word32 msglen, const byte* context, byte contextLen,
     word32 preHashType, int* res, int type, void* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_PqcSignMsg(const byte* mprime, word32 mprimeSz,
+    byte* out, word32* outlen, WC_RNG* rng, const byte* addRnd, byte addRndSz,
+    int type, void* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen,
+    const byte* mprime, word32 mprimeSz, int* res, int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz);
