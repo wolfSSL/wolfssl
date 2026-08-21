@@ -3334,7 +3334,6 @@ static int test_wolfSSL_set_alpn_protos_binary_safe(void)
             if (alpn != NULL) {
                 /* Exactly one protocol, named "a,b". */
                 ExpectNull(alpn->next);
-                ExpectNotNull(alpn->protocol_name);
                 ExpectStrEQ(alpn->protocol_name, "a,b");
             }
         }
@@ -3366,7 +3365,6 @@ static int test_wolfSSL_set_alpn_protos_binary_safe(void)
             if (alpn != NULL) {
                 ExpectNull(alpn->next);
                 ExpectIntEQ(alpn->protocol_nameSz, 3);
-                ExpectNotNull(alpn->protocol_name);
                 ExpectBufEQ(alpn->protocol_name, embeddedNul + 1, 3);
             }
         }
