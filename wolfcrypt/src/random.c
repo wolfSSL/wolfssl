@@ -2770,6 +2770,26 @@ static int PollAndReSeed(WC_RNG* rng)
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     devId = rng->devId;
 #endif
+#if defined(WOLFSSL_LINUXKM)
+    /* The seed source takes a mutex (entropy_mutex in wolfentropy.c), and
+     * wc_LockMutex() refuses NMI, hardirq and interrupts-disabled callers
+     * outright, so a reseed attempted from any of those contexts CANNOT
+     * succeed -- it can only arrive at BAD_MUTEX_E, which ReseedSourceFailure()
+     * turns into the deferral returned below.
+     *
+     * Everything between here and there was therefore work done to reach a
+     * foregone conclusion, and wc_RNG_HealthTestLocal() is not small work: it
+     * is a full SP 800-90A DRBG known-answer test.  On the measured NMI path
+     * it ran with interrupts disabled roughly 45,000 times a second on one
+     * CPU, for nothing.  Report the deferral first.
+     *
+     * The caller sees the same retryable BUSY_E it saw before; only the wasted
+     * computation and the interrupts-off window are removed. */
+    if (! wc_linuxkm_can_block()) {
+        return DRBG_RESEED_DEFERRED;
+    }
+#endif
+
     if (wc_RNG_HealthTestLocal(rng, 1, rng->heap, devId) == 0) {
     #if defined(WOLFSSL_SMALL_STACK_CACHE)
         byte* newSeed = rng->newSeed_buf;

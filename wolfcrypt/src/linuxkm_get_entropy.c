@@ -661,6 +661,38 @@ int wc_grb_root_tick(void)
         wc_grb_root_at = wc_grb_root_period - (span / 2) + j;
     }
 
+    /* Sweep the NMI leaves from here, which is unbound work in process
+     * context, in addition to each leaf's own pinned worker.
+     *
+     * The pinned worker alone was not enough, and the gap was not theoretical:
+     * a CPU taking NMIs back to back never schedules it, so that CPU's NMI
+     * leaf is never refreshed however overdue it gets.  Its live instance then
+     * reaches WC_RESEED_INTERVAL on its own and every further NMI generate
+     * lands in PollAndReSeed(), which cannot reseed from NMI.  Measured on
+     * 6.17.0/x86_64: the service answered exactly 499,999 NMI requests and
+     * then failed 945,000 consecutive ones, never recovering, and the machine
+     * hung.
+     *
+     * Reseeding a leaf from another CPU is safe by construction rather than by
+     * timing: the reseed writes rng[spare] while a caller reads rng[live], two
+     * separate instantiations, and the per-instance generation counter catches
+     * the one remaining case, a caller still inside an instance from before an
+     * earlier flip.  That is the same backstop wc_grb_reseed_nmi() already
+     * relies on for CPU hotplug, so nothing new is being assumed. */
+    {
+        int i;
+
+        for (i = 0; i < wc_grb_ncpu; i++) {
+            if (atomic_read(&wc_grb_nmi[i].pending)) {
+                int nret = wc_grb_reseed_nmi(i, -1);
+
+                if ((ret == 0) && (nret != 0)) {
+                    ret = nret;
+                }
+            }
+        }
+    }
+
     atomic_set(&wc_grb_maint_busy, 0);
 
     return ret;
@@ -698,8 +730,16 @@ int wc_grb_maintain_cpu(int cpu)
         ret = wc_grb_reseed_local(cpu);
     }
 
-    if ((ret == 0) && atomic_read(&wc_grb_nmi[target].pending)) {
-        ret = wc_grb_reseed_nmi(target, cpu);
+    /* Not conditional on the general leaf's reseed: a failure there is no
+     * reason to leave the NMI leaf stale, and the NMI leaf is the one whose
+     * staleness costs every NMI caller.  Also unpinned, for the reason given
+     * in wc_grb_root_tick(). */
+    if (atomic_read(&wc_grb_nmi[target].pending)) {
+        int nret = wc_grb_reseed_nmi(target, -1);
+
+        if ((ret == 0) && (nret != 0)) {
+            ret = nret;
+        }
     }
 
     return ret;
