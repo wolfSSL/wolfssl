@@ -117,6 +117,9 @@ jobs:
           {"name": "curve25519",
            "comment": "WOLF_CRYPTO_CB_ONLY_CURVE25519: strips software X25519 (keygen/shared-secret); swdev provides the software path via cryptocb. Nonblock and async X25519 have no callback path and are left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
+          {"name": "frodokem",
+           "comment": "WOLF_CRYPTO_CB_ONLY_FRODOKEM: strips the FrodoKEM lattice math (key generation, encapsulation, decapsulation, matrix-A generation, noise sampling, the matrix multiplies and pack/unpack, plus the x86 and ARM assembly). The matrix store/load and one-shot hash helpers stay, because the key encode/decode API a callback needs still uses them. FrodoKEM is not wired into TLS, so nothing else has to be turned off; it does need --enable-experimental, which the shared base does not set.",
+           "configure": ["--enable-experimental", "--enable-frodokem", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_FRODOKEM"]},
           {"name": "all",
            "comment": "All seven ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]}
