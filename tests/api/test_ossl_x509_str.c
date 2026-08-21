@@ -2052,8 +2052,13 @@ static int test_untrusted_inter_chain_excludes_rejected(X509* leaf, X509* inter,
     return EXPECT_RESULT();
 }
 
+#ifndef NO_TLS
 /* Terminal-anchor variant of the above: drive the failedCerts guard on the
  * issuer looked up after the CertManager verification succeeds.
+ *
+ * Needs an SSL_CTX (and therefore a TLS method constructor) because
+ * SSL_CTX_set_cert_store() is what moves the anchors into the CertManager, so
+ * this sub-case is unavailable when TLS is compiled out.
  *
  * The anchors live in the CertManager (loaded from file) rather than on
  * store->certs, so the terminal lookup consults set0_trusted_stack.  That
@@ -2117,6 +2122,7 @@ static int test_untrusted_inter_terminal_anchor_rejected(X509* leaf,
     SSL_CTX_free(sslCtx);
     return EXPECT_RESULT();
 }
+#endif /* !NO_TLS */
 
 /* The store's cert stack is shared by every X509_STORE_CTX (and every SSL
  * connection) using the store, so verification must not modify it.  Chain
@@ -2198,7 +2204,9 @@ int test_X509_verify_cert_untrusted_inter(void)
     int retryRes = 0;
     int noTempCaResidueRes = 0;
     int chainExcludesRes = 0;
+#ifndef NO_TLS
     int terminalAnchorRes = 0;
+#endif
     int storeStackRes = 0;
 
     ExpectNotNull(leaf = untrusted_inter_load(UA_CERT_DIR "leaf-cert.pem"));
@@ -2241,8 +2249,10 @@ int test_X509_verify_cert_untrusted_inter(void)
                             inter, root);
         chainExcludesRes = test_untrusted_inter_chain_excludes_rejected(leaf,
                             inter, tamperedInter, root);
+#ifndef NO_TLS
         terminalAnchorRes = test_untrusted_inter_terminal_anchor_rejected(leaf,
                             inter, tamperedInter, root);
+#endif
         storeStackRes = test_untrusted_inter_store_stack_unchanged(leaf, inter,
                             tamperedInter, inter2, root);
         ExpectIntEQ(sanityRes, 1);
@@ -2258,7 +2268,9 @@ int test_X509_verify_cert_untrusted_inter(void)
         ExpectIntEQ(retryRes, 1);
         ExpectIntEQ(noTempCaResidueRes, 1);
         ExpectIntEQ(chainExcludesRes, 1);
+#ifndef NO_TLS
         ExpectIntEQ(terminalAnchorRes, 1);
+#endif
         ExpectIntEQ(storeStackRes, 1);
     }
 
