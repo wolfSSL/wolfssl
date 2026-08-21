@@ -3671,26 +3671,6 @@ WOLFSSL_TEST_VIS void wolfSSL_CTX_SetProcessPeerCertCb(WOLFSSL_CTX* ctx,
        CallbackProcessPeerCert cb);
 #endif /* DecodedCert && HAVE_PK_CALLBACKS */
 
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-typedef struct SignatureAlgorithms {
-    /* Not const since it is modified in TLSX_SignatureAlgorithms_MapPss */
-    WOLFSSL*    ssl;
-    word16      hashSigAlgoSz; /* SigAlgo extension length in bytes */
-    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
-     * MSVC warning */
-    #ifdef _MSC_VER
-    #pragma warning(disable: 4200)
-    #endif
-    /* sig/algo to offer */
-    byte        hashSigAlgo[WC_FLEXIBLE_ARRAY_SIZE];
-} SignatureAlgorithms;
-
-WOLFSSL_LOCAL SignatureAlgorithms* TLSX_SignatureAlgorithms_New(
-        WOLFSSL* ssl, word16 hashSigAlgoSz, void* heap);
-WOLFSSL_LOCAL void TLSX_SignatureAlgorithms_FreeAll(SignatureAlgorithms* sa,
-                                                    void* heap);
-#endif
-
 /** Certificate Authorities - RFC 8446 section 4.2.4.
  * wolfSSL native list node holding the inner content of one DER-encoded Name
  * (no SEQUENCE header; that is added on the wire). */
