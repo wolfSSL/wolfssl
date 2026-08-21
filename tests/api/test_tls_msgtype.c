@@ -27,6 +27,13 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define TEST_TLS_MSGTYPE_UNUSED __attribute__((unused))
+#else
+    #define TEST_TLS_MSGTYPE_UNUSED
+#endif
+
+
 /* This file drives TLSX_Parse() (src/tls.c) directly with hand-built
  * extension records to exercise the per-extension "not permitted in this
  * message" gates from RFC 8446 Section 4.2, plus the argument validation and
@@ -41,6 +48,7 @@
  * bytes) into buf and return its total length. Content is all-zero: gates
  * are checked before an extension's data is interpreted, so the exact bytes
  * only need to satisfy the minimum-size gate, not be semantically valid. */
+TEST_TLS_MSGTYPE_UNUSED
 static word16 build_ext(byte* buf, word16 type, word16 dataSz)
 {
     buf[0] = (byte)(type >> 8);
@@ -56,6 +64,7 @@ static word16 build_ext(byte* buf, word16 type, word16 dataSz)
  * bytes copied verbatim from body) into buf and return its total length.
  * Unlike build_ext(), the data is caller-supplied, for extensions whose
  * gates require structurally meaningful content rather than zero bytes. */
+TEST_TLS_MSGTYPE_UNUSED
 static word16 build_ext_with_body(byte* buf, word16 type, const byte* body,
         word16 bodyLen)
 {
@@ -75,7 +84,7 @@ static word16 build_ext_with_body(byte* buf, word16 type, const byte* body,
 int test_tls_msgtype_arg_guard(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte dummy[4] = { 0 };
@@ -1200,10 +1209,12 @@ int test_tls_msgtype_ech(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
 /* Builds an SNI extension body: 2-byte list length, 1-byte name type
  * (WOLFSSL_SNI_HOST_NAME), 2-byte name length, name bytes. Returns the
  * total body length. */
+TEST_TLS_MSGTYPE_UNUSED
 static word16 build_sni_body(byte* buf, const char* host)
 {
     word16 hostLen = (word16)XSTRLEN(host);
@@ -1224,7 +1235,8 @@ static word16 build_sni_body(byte* buf, const char* host)
 int test_tls_msgtype_sni_find(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* host = "example.com";
@@ -1297,7 +1309,8 @@ int test_tls_msgtype_sni_parse_response_gate(void)
 int test_tls_msgtype_sni_parse_size_gates(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* host = "srv.example";
@@ -1324,9 +1337,11 @@ int test_tls_msgtype_sni_parse_size_gates(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
 /* SNI receive callback used to force cacheOnly in TLSX_SNI_Parse() when no
  * SNI has been configured on the SSL object. */
+TEST_TLS_MSGTYPE_UNUSED
 static int sni_recv_cb(WOLFSSL* ssl, int* ret, void* arg)
 {
     (void)ssl; (void)ret; (void)arg;
@@ -1398,7 +1413,8 @@ int test_tls_msgtype_sni_parse_cacheonly(void)
 int test_tls_msgtype_sni_parse_match(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -2016,7 +2032,8 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
 int test_tls_msgtype_cookie_parse_gates(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[24];

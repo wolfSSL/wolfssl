@@ -28,6 +28,13 @@
 #include <wolfssl/internal.h>
 #ifndef NO_DH
 #include <wolfssl/wolfcrypt/dh.h>
+
+#if defined(__GNUC__) || defined(__clang__)
+    #define TEST_TLS_PARSE_UNUSED __attribute__((unused))
+#else
+    #define TEST_TLS_PARSE_UNUSED
+#endif
+
 #endif
 
 /* Helper to build a server-side WOLFSSL_CTX with a certificate/key loaded,
@@ -94,6 +101,7 @@ static word16 test_tls_parse_build_ext(byte* out, word16 outCap,
 static int tls_parse_fail_after = -1;
 static int tls_parse_alloc_seen = 0;
 
+TEST_TLS_PARSE_UNUSED
 static void* tls_parse_fail_malloc(size_t size)
 {
     if (tls_parse_fail_after >= 0) {
@@ -106,11 +114,13 @@ static void* tls_parse_fail_malloc(size_t size)
     return malloc(size);
 }
 
+TEST_TLS_PARSE_UNUSED
 static void tls_parse_fail_free(void* ptr)
 {
     free(ptr);
 }
 
+TEST_TLS_PARSE_UNUSED
 static void* tls_parse_fail_realloc(void* ptr, size_t size)
 {
     return realloc(ptr, size);
@@ -1908,8 +1918,9 @@ int test_TLSX_ValidateSupportedCurves(void)
 int test_TLSX_SupportedGroups_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     /* secp256r1: a real, locally supported curve. */
