@@ -9771,15 +9771,17 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
         FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
         ssl->peerX25519KeyPresent = 0;
 
+        /* The key can outlive this function, and FreeKey() then releases it
+         * as DYNAMIC_TYPE_CURVE25519, so allocate it with that type. */
         ssl->peerX25519Key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
-                                        ssl->heap, DYNAMIC_TYPE_TLSX);
+                                        ssl->heap, DYNAMIC_TYPE_CURVE25519);
         if (ssl->peerX25519Key == NULL) {
             WOLFSSL_MSG("PeerX25519Key Memory error");
             return MEMORY_ERROR;
         }
         ret = wc_curve25519_init(ssl->peerX25519Key);
         if (ret != 0) {
-            XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+            XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_CURVE25519);
             ssl->peerX25519Key = NULL;
             return ret;
         }
@@ -9852,7 +9854,7 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
     if ((ssl->peerX25519Key != NULL) &&
             ((ret != 0) || !ssl->options.keepResources)) {
         wc_curve25519_free(ssl->peerX25519Key);
-        XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(ssl->peerX25519Key, ssl->heap, DYNAMIC_TYPE_CURVE25519);
         ssl->peerX25519Key = NULL;
         ssl->peerX25519KeyPresent = 0;
     }
@@ -9924,15 +9926,17 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
     }
 #endif
 
+    /* The key can outlive this function, and FreeKey() then releases it as
+     * DYNAMIC_TYPE_CURVE448, so allocate it with that type. */
     peerX448Key = (curve448_key*)XMALLOC(sizeof(curve448_key), ssl->heap,
-                                                             DYNAMIC_TYPE_TLSX);
+                                                        DYNAMIC_TYPE_CURVE448);
     if (peerX448Key == NULL) {
         WOLFSSL_MSG("PeerEccKey Memory error");
         return MEMORY_ERROR;
     }
     ret = wc_curve448_init(peerX448Key);
     if (ret != 0) {
-        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_CURVE448);
         return ret;
     }
 #ifdef WOLFSSL_DEBUG_TLS
@@ -9972,7 +9976,7 @@ static int TLSX_KeyShare_ProcessX448_ex(WOLFSSL* ssl,
     }
     else {
         wc_curve448_free(peerX448Key);
-        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_CURVE448);
     }
     wc_curve448_free((curve448_key*)keyShareEntry->key);
     XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
