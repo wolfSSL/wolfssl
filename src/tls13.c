@@ -8795,7 +8795,6 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     int    sendSz;
     word32 i;
     word32 reqSz;
-    SignatureAlgorithms* sa;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
     WOLFSSL_ENTER("SendTls13CertificateRequest");
@@ -8805,16 +8804,11 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
-    /* Use ssl->suites->hashSigAlgo so wolfSSL_set1_sigalgs_list() is honored.
-     * hashSigAlgoSz=0 makes GetSize/Write fall back to WOLFSSL_SUITES(ssl). */
-    sa = TLSX_SignatureAlgorithms_New(ssl, 0, ssl->heap);
-    if (sa == NULL)
-        return MEMORY_ERROR;
-    ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, sa, ssl->heap);
-    if (ret != 0) {
-        TLSX_SignatureAlgorithms_FreeAll(sa, ssl->heap);
+    /* The extension writes WOLFSSL_SUITES(ssl), honoring set1_sigalgs_list. */
+    ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, ssl,
+                    ssl->heap);
+    if (ret != 0)
         return ret;
-    }
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 #ifdef WOLFSSL_DTLS13
