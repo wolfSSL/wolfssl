@@ -469,7 +469,15 @@ int wc_linuxkm_can_block(void) {
      * of the module (1 event in 920,727 saves).
      */
     return (preempt_count() == 0) && (! irqs_disabled())
-        && (! wc_linuxkm_in_svr_bracket());
+/* Guarded exactly like the declaration at the top of this file and like the
+ * other caller: wc_linuxkm_in_svr_bracket() only exists when the vector
+ * register glue is compiled in.  Without it there are no brackets to be
+ * inside, so the term is vacuously true and its absence changes nothing. */
+#if !defined(WOLFSSL_LINUXKM_USE_MUTEXES) && \
+    defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+        && (! wc_linuxkm_in_svr_bracket())
+#endif
+        ;
 }
 
 /* for simplicity, we use a global count to suspend signal processing while any
@@ -795,6 +803,56 @@ static void wc_grb_maint_stop(void)
         wc_grb_cpu_works = NULL;
     }
 }
+
+/* ---------------------------------------------------------------------------
+ * WC_GRB_TEST_DIRECT -- harness-only entry point, never in a shipping build.
+ *
+ * The kernel-side hook needs a kernel patched with
+ * WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS; the NMI investigation runs on
+ * stock distro kernels on real hardware, where that symbol does not exist and
+ * module_hooks.c would not link.  This block supplies a local registry with
+ * the same shape (register / unregister / indirect dispatch) so the DRBG tree
+ * is built, maintained and driven exactly as it is in a hooked build, and an
+ * out-of-tree generator can reach wc_grb_service() through the same indirect
+ * call the patched kernel makes.
+ *
+ * It registers nothing with the kernel: get_random_bytes() is untouched and
+ * keeps going to the kernel's own CRNG, so this build serves no kernel caller
+ * and must never be shipped or measured as if it did.
+ * ------------------------------------------------------------------------- */
+#if defined(LINUXKM_RBGC) && defined(WC_GRB_TEST_DIRECT) && \
+    !defined(WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS)
+
+typedef int (*wc_grb_hook_fn)(void *buf, size_t len);
+static wc_grb_hook_fn wc_grb_test_hook;
+
+static int wc_grb_hook_register(wc_grb_hook_fn fn)
+{
+    WRITE_ONCE(wc_grb_test_hook, fn);
+    return 0;
+}
+
+static void wc_grb_hook_unregister(void)
+{
+    WRITE_ONCE(wc_grb_test_hook, NULL);
+    synchronize_rcu();
+}
+
+/* Dispatch through the stored pointer, as the patched kernel does.  buf is the
+ * caller's own object and is filled in place; nothing is retained here. */
+int wc_grb_test_call(void *buf, size_t len);
+int wc_grb_test_call(void *buf, size_t len)
+{
+    wc_grb_hook_fn fn = READ_ONCE(wc_grb_test_hook);
+
+    if (fn == NULL)
+        return -ENODEV;
+
+    return fn(buf, len);
+}
+EXPORT_SYMBOL_GPL(wc_grb_test_call);
+
+#endif /* LINUXKM_RBGC && WC_GRB_TEST_DIRECT && !..._CALLBACKS_FIPS */
 
 #ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS_FIPS
 
