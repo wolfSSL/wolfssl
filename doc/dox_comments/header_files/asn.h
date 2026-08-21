@@ -80,16 +80,22 @@ void FreeAltNames(DNS_entry* altNames, void* heap);
     \note This API is not public by default. Define WOLFSSL_PUBLIC_ASN to
     expose APIs marked WOLFSSL_ASN_API.
 
-    \note The oid argument passed to the callback is an array of word32
-    elements, one per OID arc, so that arcs > 65535 are represented without
-    truncation. Callbacks must declare their oid parameter as const word32*.
-    The same applies to wc_SetUnknownExtCallback.
+    \note The oid argument passed to the callback is an array of word16
+    elements, one per OID arc, so arcs with values > 65535 are truncated.
+    Callbacks must declare their oid parameter as const word16*. Use
+    wc_SetUnknownExtCallback32Ex() in new code to receive untruncated word32
+    arcs. When both a word16 and a word32 callback are registered on the same
+    DecodedCert, only the word32 callback is invoked.
+
+    \note wc_SetUnknownExtCallbackEx() and wc_SetUnknownExtCallback32Ex()
+    share a single context slot on the DecodedCert. Registering one overwrites
+    the context registered by the other.
 
     _Example_
     \code
     DecodedCert cert;
 
-    int UnknownExtCallback(const word32* oid, word32 oidSz, int crit,
+    int UnknownExtCallback(const word16* oid, word32 oidSz, int crit,
                           const byte* der, word32 derSz, void* ctx) {
         // handle unknown extension
         return 0;
@@ -101,10 +107,60 @@ void FreeAltNames(DNS_entry* altNames, void* heap);
     \endcode
 
     \sa wc_SetUnknownExtCallback
+    \sa wc_SetUnknownExtCallback32Ex
     \sa wc_InitDecodedCert
 */
 int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                wc_UnknownExtCallbackEx cb, void *ctx);
+
+/*!
+    \ingroup ASN
+    \brief This function sets an extended callback for handling unknown
+    certificate extensions during certificate parsing. It behaves exactly
+    like wc_SetUnknownExtCallbackEx() except that each OID arc is passed to
+    the callback as a word32, so arcs with values > 65535 are represented
+    without truncation.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG If cert is NULL.
+
+    \param cert pointer to the DecodedCert structure
+    \param cb callback function to handle unknown extensions
+    \param ctx context pointer passed to the callback
+
+    \note This API is not public by default. Define WOLFSSL_PUBLIC_ASN to
+    expose APIs marked WOLFSSL_ASN_API.
+
+    \note A word32 callback takes precedence over a word16 one: when both
+    wc_SetUnknownExtCallbackEx() and wc_SetUnknownExtCallback32Ex() (or their
+    non-Ex counterparts) have been called on the same DecodedCert, only the
+    word32 callback is invoked.
+
+    \note wc_SetUnknownExtCallbackEx() and wc_SetUnknownExtCallback32Ex()
+    share a single context slot on the DecodedCert. Registering one overwrites
+    the context registered by the other.
+
+    _Example_
+    \code
+    DecodedCert cert;
+
+    int UnknownExtCallback32(const word32* oid, word32 oidSz, int crit,
+                            const byte* der, word32 derSz, void* ctx) {
+        // handle unknown extension
+        return 0;
+    }
+
+    wc_InitDecodedCert(&cert, derCert, derCertSz, NULL);
+    wc_SetUnknownExtCallback32Ex(&cert, UnknownExtCallback32, myContext);
+    wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    \endcode
+
+    \sa wc_SetUnknownExtCallback32
+    \sa wc_SetUnknownExtCallbackEx
+    \sa wc_InitDecodedCert
+*/
+int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
+                                 wc_UnknownExtCallback32Ex cb, void *ctx);
 
 /*!
     \ingroup ASN
@@ -154,7 +210,9 @@ int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
     represented. Use wc_EncodeObjectId32() in new code.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG If in, inSz, or outSz are invalid.
+    \return BAD_FUNC_ARG If in or outSz is NULL, if inSz is less than 2, or
+    if the first arc in[0] is greater than 2. An OID must have at least two
+    arcs and, per X.690, its first arc must be 0, 1 or 2.
     \return BUFFER_E If out is not NULL and outSz is too small.
 
     \param in pointer to array of word16 values representing OID components
@@ -193,7 +251,10 @@ int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out,
     represented without truncation.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG If in, inSz, or outSz are invalid.
+    \return BAD_FUNC_ARG If in or outSz is NULL, if inSz is less than 2, if
+    the first arc in[0] is greater than 2, or if the combined first arc
+    (40 * in[0] + in[1]) would overflow a word32. An OID must have at least
+    two arcs and, per X.690, its first arc must be 0, 1 or 2.
     \return BUFFER_E If out is not NULL and outSz is too small.
 
     \param in pointer to array of word32 values representing OID components
