@@ -5710,6 +5710,31 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.onlyPskDheKe = ssl->ctx->onlyPskDheKe;
         #endif
     #endif
+        /* An abandoned handshake can leave a key-schedule or record-build
+         * resume marker set; a reused object must not resume into the new
+         * handshake. */
+        ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+        ssl->kdfMsgType = 0;
+        #if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
+        Tls13FreeHsHmac(ssl);
+        #endif
+        #ifdef WOLFSSL_ASYNC_CRYPT
+        ssl->options.buildArgs13Set = 0;
+        /* An abandoned handshake can leave a mid-flight handler resume
+         * state and a queued key-schedule event behind; a reused object
+         * must start fresh. */
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
+        if (ssl->asyncDev == &ssl->kdfAsyncDev) {
+            if (ssl->kdfAsyncDev.event.state == WOLF_EVENT_STATE_PENDING &&
+                    ssl->ctx != NULL) {
+                (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
+                                            &ssl->kdfAsyncDev.event);
+            }
+            XMEMSET(&ssl->kdfAsyncDev.event, 0, sizeof(WOLF_EVENT));
+            ssl->asyncDev = NULL;
+        }
+        #endif
     #endif
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13

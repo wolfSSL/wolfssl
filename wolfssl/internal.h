@@ -2365,6 +2365,19 @@ WOLFSSL_LOCAL int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                                 word16 sz, const byte* aad, word16 aadSz);
+WOLFSSL_LOCAL int  DoTls13MsgDerives(WOLFSSL* ssl, byte type);
+/* A crypto/PK callback pending is finished by re-invoking the provider:
+ * wolfSSL_AsyncPoll() never runs a callback. Exported so tests compile in
+ * only where a callback pend is resumable. */
+#if defined(WOLFSSL_ASYNC_CRYPT) && \
+    (defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)) && \
+    !defined(WOLFSSL_ASYNC_CRYPT_SW) && !defined(HAVE_INTEL_QA) && \
+    !defined(HAVE_CAVIUM)
+    #define WOLFSSL_ASYNC_REINVOKE
+#endif
+#if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
+WOLFSSL_LOCAL void Tls13FreeHsHmac(WOLFSSL* ssl);
+#endif
 WOLFSSL_LOCAL int  DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input,
                                            word32* inOutIdx, byte type,
                                            word32 size, word32 totalSz);
@@ -3949,6 +3962,12 @@ typedef struct KeyShareEntry {
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     word16                session;   /* NamedGroup that was in session    */
+#endif
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || \
+    defined(WOLFSSL_ASYNC_CRYPT)
+    /* Also under WOLFSSL_ASYNC_CRYPT: a pending operation retried on the
+     * same accept state re-enters the derive with the peer key freed, and
+     * this is the marker that stops the re-derive. */
     word16                derived;   /* preMaster has been derived        */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3968,7 +3987,7 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
         byte* searched);
 WOLFSSL_LOCAL int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE);
 WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl, int* doHelloRetry);
-WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* sclientKSEclientKSEsl);
+WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input,
         word16 length, byte msgType);
 WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
@@ -5558,6 +5577,11 @@ struct Options {
 #ifdef WOLFSSL_ASYNC_CRYPT
     word16            buildArgsSet:1;         /* buildArgs are set and need to
                                                * be free'd */
+#ifdef WOLFSSL_TLS13
+    word16            buildArgs13Set:1;       /* a TLS 1.3 record build is in
+                                               * progress and must resume,
+                                               * not restart */
+#endif
 #endif
 #ifdef WOLFSSL_DTLS13
     word16            dtls13SendMoreAcks:1;  /* Send more acks during the
@@ -6153,8 +6177,8 @@ typedef struct HS_Hashes {
 } HS_Hashes;
 
 
-#ifndef WOLFSSL_NO_TLS12
-/* Persistable BuildMessage arguments */
+#if !defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)
+/* Persistable BuildMessage/BuildTls13Message arguments */
 typedef struct BuildMsgArgs {
     word32 digestSz;
     word32 sz;
@@ -6174,8 +6198,11 @@ typedef struct BuildMsgArgs {
     typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
 
     struct WOLFSSL_ASYNC {
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_NO_TLS12)
-        BuildMsgArgs  buildArgs; /* holder for current BuildMessage args */
+#if defined(WOLFSSL_ASYNC_CRYPT) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+        /* Record builder resume args, shared by BuildMessage() and
+         * BuildTls13Message(): a connection runs only one of them. */
+        BuildMsgArgs  buildArgs;
 #endif
         FreeArgsCb    freeArgs; /* function pointer to cleanup args */
 #ifdef WC_NO_PTR_INT_CAST
@@ -6421,6 +6448,56 @@ enum ConnectionIdUsage {
         (ssl)->ctx->suites))
 
 /* wolfSSL ssl type */
+
+/* TLS 1.3 key-schedule resume steps (kdfMsgStep/kdfDeriveStep). A value is
+ * recorded after its named operation completes ("step <= X" = X not done);
+ * 0 = sequence not entered or finished. Values repeat across sequences. */
+
+/* Receive side (kdfMsgStep), driven by DoTls13MsgDerives(). */
+enum Tls13KdfMsgStep {
+    TLS13_MSG_KDF_NONE                    = 0,
+    /* client processing server_hello */
+    TLS13_MSG_KDF_SH_ENTERED              = 1,
+    TLS13_MSG_KDF_SH_EARLY_SECRET         = 2,
+    TLS13_MSG_KDF_SH_HS_SECRET            = 3,
+    TLS13_MSG_KDF_SH_HS_KEYS              = 4,
+    TLS13_MSG_KDF_SH_KEYS_SET             = 5,
+    TLS13_MSG_KDF_SH_DTLS_EPOCH           = 6,
+    /* client processing finished */
+    TLS13_MSG_KDF_FIN_ENTERED             = 1,
+    TLS13_MSG_KDF_FIN_MASTER_SECRET       = 2,
+    TLS13_MSG_KDF_FIN_QUIC_EARLY_KEYS     = 3,
+    TLS13_MSG_KDF_FIN_TRAFFIC_KEYS        = 4,
+    TLS13_MSG_KDF_FIN_TRAFFIC_DONE        = 5,
+    TLS13_MSG_KDF_FIN_KEYS_SET            = 6,
+    /* server processing finished (resumption secret for tickets) */
+    TLS13_MSG_KDF_SFIN_ENTERED            = 1,
+    TLS13_MSG_KDF_SFIN_RESUMPTION_SECRET  = 2
+};
+
+/* Send side (kdfDeriveStep), inside the senders themselves. */
+enum Tls13KdfSendStep {
+    TLS13_SEND_KDF_NONE                   = 0,
+    /* SendTls13EncryptedExtensions() */
+    TLS13_SEND_KDF_EE_HS_SECRET           = 1,
+    TLS13_SEND_KDF_EE_HS_KEYS             = 2,
+    TLS13_SEND_KDF_EE_ENC_KEYS_SET        = 3,
+    TLS13_SEND_KDF_EE_KEYS_SET            = 4,
+    TLS13_SEND_KDF_EE_DTLS_EPOCH          = 5,
+    /* SendTls13Finished() */
+    TLS13_SEND_KDF_FIN_ENTERED            = 1,
+    TLS13_SEND_KDF_FIN_MASTER_SECRET      = 2,
+    TLS13_SEND_KDF_FIN_ENC_TRAFFIC_KEYS   = 3,
+    TLS13_SEND_KDF_FIN_TRAFFIC_KEYS       = 4,
+    TLS13_SEND_KDF_FIN_ENC_KEYS_SET       = 5,
+    TLS13_SEND_KDF_FIN_DTLS_TRAFFIC_EPOCH = 6,
+    TLS13_SEND_KDF_FIN_EARLY_ENC_KEYS     = 7,
+    TLS13_SEND_KDF_FIN_EARLY_KEYS_SET     = 8,
+    TLS13_SEND_KDF_FIN_RESUMPTION_SECRET  = 9,
+    TLS13_SEND_KDF_FIN_DTLS_EPOCH_SET     = 10
+};
+
+
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
 #if defined(WOLFSSL_HAPROXY)
@@ -7002,6 +7079,27 @@ struct WOLFSSL {
      * ciphers; 0 means uncached and is never a valid AEAD overhead. EtM does
      * not apply to AEAD. */
     word32 recordSzOverhead;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Async device for the TLS 1.3 key schedule: HKDF has no key object
+     * to carry one. Event bookkeeping only, for the callback re-invoke
+     * path (never wolfAsync_DevCtxInit'd, no hardware context). */
+    WC_ASYNC_DEV kdfAsyncDev;
+#endif
+    /* Key-schedule resume steps: completed derives must not re-run (e.g.
+     * the extract is in place over preMasterSecret). Unconditional so the
+     * schedule needs no ifdefs; without async they stay 0. */
+    byte kdfDeriveStep;  /* enum Tls13KdfSendStep (send side) */
+    byte kdfMsgStep;     /* enum Tls13KdfMsgStep (receive side) */
+    byte kdfMsgType;     /* handshake type kdfMsgStep belongs to */
+#if defined(WOLFSSL_ASYNC_REINVOKE) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_HMAC)
+    /* Transcript HMAC (Finished verify_data, PSK binders) held across a
+     * WC_PENDING_E so the retry re-invokes the same object and arguments,
+     * bound to its output buffer. */
+    Hmac* hsHmac;
+    byte* hsHmacOut;
+    byte  hsHmacStep;
+#endif
 };
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
