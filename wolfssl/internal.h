@@ -3889,10 +3889,16 @@ typedef struct SupportedCurve {
     struct SupportedCurve* next; /* List Behavior */
 } SupportedCurve;
 
-typedef struct PointFormat {
-    byte format;                /* PointFormat */
-    struct PointFormat* next;   /* List Behavior */
-} PointFormat;
+typedef struct PointFormats {
+    byte count;                            /* Formats in use */
+    byte cap;                              /* Formats allocated */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte format[WC_FLEXIBLE_ARRAY_SIZE];   /* Point formats */
+} PointFormats;
 
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Copy(TLSX* src, TLSX** dst, void* heap);
 WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
