@@ -63433,11 +63433,16 @@ out:
     return ret;
 }
 
-/* Guard must match the call sites below, or the function is defined and never
- * referenced and -Wunused-function fires. */
-#if defined(WOLFSSL_SLHDSA_PARAM_192S) || defined(WOLFSSL_SLHDSA_PARAM_256S) || \
+/* Guard must match the call sites in slhdsa_test() exactly: every category 3
+ * (n=24) and category 5 (n=32) parameter set, "s" and "f" alike.  Narrower
+ * than the call sites and an "f"-only build fails to compile; wider and the
+ * function is defined but never referenced, so -Wunused-function fires. */
+#if defined(WOLFSSL_SLHDSA_PARAM_192S) || defined(WOLFSSL_SLHDSA_PARAM_192F) || \
+    defined(WOLFSSL_SLHDSA_PARAM_256S) || defined(WOLFSSL_SLHDSA_PARAM_256F) || \
     defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S) || \
-    defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_192F) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S) || \
+    defined(WOLFSSL_SLHDSA_PARAM_SHA2_256F)
 /* Negative test: HashSLH-DSA must reject a pre-hash whose collision resistance
  * is below the parameter set's claimed security strength (FIPS 205 sec.
  * 10.2.2 with sec. 11).  Asserts sigGen and sigVer both
@@ -63456,9 +63461,16 @@ static wc_test_ret_t slhdsa_hash_paramset_rejection_test(enum SlhDsaParam param)
     byte   sig[WC_SLHDSA_MAX_SIG_LEN];
 #endif
     word32 sigLen;
-    static const byte msg[] = {
-        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
-        0x72,0x6c,0x64,0x21
+    /* SHA-256("Hello World!").  It must be exactly 32 bytes: HashSLH-DSA
+     * takes an already-hashed message, and slhdsakey_validate_prehash()
+     * rejects a wrong-length digest with BAD_LENGTH_E before the caller can
+     * tell whether the PH-vs-paramSet gate fired.  A short buffer here would
+     * make this test pass on the wrong error. */
+    static const byte msg[32] = {
+        0x7f,0x83,0xb1,0x65,0x7f,0xf1,0xfc,0x53,
+        0xb9,0x2d,0xc1,0x81,0x48,0xa1,0xd6,0x5d,
+        0xfc,0x2d,0x4b,0x1f,0xa3,0xd6,0x77,0x28,
+        0x4a,0xdd,0xd2,0x00,0x12,0x6d,0x90,0x69
     };
     byte   ctx[1];
     /* SHA-256 (128-bit collision) is approved only for 128-bit paramSets, so
@@ -63513,8 +63525,10 @@ static wc_test_ret_t slhdsa_hash_paramset_rejection_test(enum SlhDsaParam param)
     ret = wc_SlhDsaKey_SignHash(key, ctx, 0, msg, (word32)sizeof(msg),
         badHash, sig, &sigLen, &rng);
     PRIVATE_KEY_LOCK();
-    if (ret == 0) {
-        /* Module accepted a disallowed pre-hash. */
+    /* Must be the FIPS 205 sec. 10.2.2 rejection specifically.  ret == 0 means
+     * the module accepted a disallowed pre-hash; any other non-zero code means
+     * something else rejected the call first and this test proved nothing. */
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         testRet = WC_TEST_RET_ENC_NC;
         goto out;
     }
@@ -63526,7 +63540,7 @@ static wc_test_ret_t slhdsa_hash_paramset_rejection_test(enum SlhDsaParam param)
     XMEMSET(sig, 0, sigLen);
     ret = wc_SlhDsaKey_VerifyHash(key, ctx, 0, msg, (word32)sizeof(msg),
         badHash, sig, sigLen);
-    if (ret == 0) {
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         testRet = WC_TEST_RET_ENC_NC;
         goto out;
     }
@@ -63543,7 +63557,7 @@ out:
 #endif
     return testRet;
 }
-#endif /* one of the 192S/256S param sets */
+#endif /* any category 3/5 param set */
 #endif
 
 /* True iff slhdsa_test() actually emits at least one `goto out;` /
@@ -65537,38 +65551,58 @@ wc_test_ret_t slhdsa_test(void)
     }
 #endif
 
-    /* FIPS 205 sec. 10.2.2, HashSLH-DSA must reject pre-hashes below the
-     * paramSet's security level.  Use any available 192/256-bit paramSet;
-     * 128-bit paramSets allow SHA-256 so are not useful targets here. */
+/* The block above is gated on WOLFSSL_TEST_PQC_SEED_KAT because those tests
+ * inject fixed NIST seeds, a service that returns WC_FIPS_NOT_APPROVED in a
+ * FIPS build.  The rejection tests below inject nothing -- they generate keys
+ * from the module's own DRBG -- so they must NOT inherit that gate, or they
+ * silently vanish from every FIPS build, which is the configuration the
+ * FIPS 205 sec. 10.2.2 rule exists to constrain. */
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY && WOLFSSL_TEST_PQC_SEED_KAT */
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+
+/* FIPS 205 Sec 10.2.2 p.39: SHA-256 and SHAKE128 are approved only for
+ * security category 1.  Every category 3 (n=24) and category 5 (n=32)
+ * parameter set must therefore REJECT a SHA-256 pre-hash.
+ *
+ * Each set is tested independently -- an #elif chain here would stop at the
+ * first one the build enables, which is how the four "f" variants went
+ * untested while this block appeared to provide coverage. */
+#define SLHDSA_REJECT_CASE(param)                                       \
+    if (ret == 0) {                                                          \
+        ret = slhdsa_hash_paramset_rejection_test(param);                    \
+        if (ret != 0) {                                                      \
+            wc_test_render_error_message(#param " (hash-paramset reject)",   \
+                0);                                                          \
+            goto out;                                                        \
+        }                                                                    \
+    }
+
 #ifdef WOLFSSL_SLHDSA_PARAM_192S
-    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHAKE192S);
-    if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE192S (hash-paramset reject)",
-            0);
-        goto out;
-    }
-#elif defined(WOLFSSL_SLHDSA_PARAM_256S)
-    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHAKE256S);
-    if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHAKE256S (hash-paramset reject)",
-            0);
-        goto out;
-    }
-#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_192S)
-    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHA2_192S);
-    if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_192S (hash-paramset reject)",
-            0);
-        goto out;
-    }
-#elif defined(WOLFSSL_SLHDSA_PARAM_SHA2_256S)
-    ret = slhdsa_hash_paramset_rejection_test(SLHDSA_SHA2_256S);
-    if (ret != 0) {
-        wc_test_render_error_message("SLHDSA_SHA2_256S (hash-paramset reject)",
-            0);
-        goto out;
-    }
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE192S)
 #endif
+#ifdef WOLFSSL_SLHDSA_PARAM_192F
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE192F)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256S
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE256S)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_256F
+    SLHDSA_REJECT_CASE(SLHDSA_SHAKE256F)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192S
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_192S)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_192F
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_192F)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256S
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_256S)
+#endif
+#ifdef WOLFSSL_SLHDSA_PARAM_SHA2_256F
+    SLHDSA_REJECT_CASE(SLHDSA_SHA2_256F)
+#endif
+#undef SLHDSA_REJECT_CASE
 
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
