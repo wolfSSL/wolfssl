@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
+/* Honor WC_SHA3_NO_ASM as sha3.c does: suppress this NEON BlockSha3 so it
+ * doesn't multiply-define against sha3.c's C BlockSha3 on arm32. */
+#ifdef WC_SHA3_NO_ASM
+    #undef WOLFSSL_ARMASM
+#endif
+
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifdef WOLFSSL_ARMASM_INLINE
@@ -358,6 +364,1310 @@ WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
     );
 }
 
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA)
+XALIGNED(16) static const word64 L_sha3_arm32_neon_x3_rt[] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL,
+};
+
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void sha3_blocksx3_neon(word64* state_p)
+#else
+WC_OMIT_FRAME_POINTER void sha3_blocksx3_neon(word64* state)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register word64* state __asm__ ("r0") = (word64*)state_p;
+    register word64* L_sha3_arm32_neon_x3_rt_c __asm__ ("r1") =
+        (word64*)&L_sha3_arm32_neon_x3_rt;
+#else
+    register word64* L_sha3_arm32_neon_x3_rt_c =
+        (word64*)&L_sha3_arm32_neon_x3_rt;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+        "sub	sp, sp, #16\n\t"
+        "mov	r1, %[L_sha3_arm32_neon_x3_rt]\n\t"
+        "mov	lr, #3\n\t"
+        "\n"
+    "L_sha3_arm32_neon_x3_state_%=:\n\t"
+        "vld1.8	{d0-d3}, [%[state]]!\n\t"
+        "vld1.8	{d4-d7}, [%[state]]!\n\t"
+        "vld1.8	{d8-d11}, [%[state]]!\n\t"
+        "vld1.8	{d12-d15}, [%[state]]!\n\t"
+        "vld1.8	{d16-d19}, [%[state]]!\n\t"
+        "vld1.8	{d20-d23}, [%[state]]!\n\t"
+        "vld1.8	{d24}, [%[state]]\n\t"
+        "sub	%[state], %[state], #0xc0\n\t"
+        "mov	r2, r1\n\t"
+        "mov	r3, #24\n\t"
+        "mov	r12, sp\n\t"
+        "\n"
+    "L_sha3_arm32_neon_x3_begin_%=:\n\t"
+        /* Calc b[0..4] */
+        "veor	d26, d0, d5\n\t"
+        "veor	d27, d1, d6\n\t"
+        "veor	d28, d2, d7\n\t"
+        "veor	d29, d3, d8\n\t"
+        "veor	d25, d4, d9\n\t"
+        "veor	d26, d26, d10\n\t"
+        "veor	d27, d27, d11\n\t"
+        "veor	d28, d28, d12\n\t"
+        "veor	d29, d29, d13\n\t"
+        "veor	d25, d25, d14\n\t"
+        "veor	d26, d26, d15\n\t"
+        "veor	d27, d27, d16\n\t"
+        "veor	d28, d28, d17\n\t"
+        "veor	d29, d29, d18\n\t"
+        "veor	d25, d25, d19\n\t"
+        "veor	d26, d26, d20\n\t"
+        "veor	d27, d27, d21\n\t"
+        "veor	d28, d28, d22\n\t"
+        "veor	d29, d29, d23\n\t"
+        "veor	d25, d25, d24\n\t"
+        "vst1.8	{d25-d26}, [r12]\n\t"
+        /* Calc t[0..4] and XOR into s[i*5..i*5+4] */
+        /* t[0] */
+        "vshr.u64	d30, d27, #63\n\t"
+        "vshl.u64	d31, d27, #1\n\t"
+        "veor	d25, d25, d30\n\t"
+        "veor	d25, d25, d31\n\t"
+        /* t[1] */
+        "vshr.u64	d30, d28, #63\n\t"
+        "vshl.u64	d31, d28, #1\n\t"
+        "veor	d26, d26, d30\n\t"
+        "veor	d26, d26, d31\n\t"
+        /* t[2] */
+        "vshr.u64	d30, d29, #63\n\t"
+        "vshl.u64	d31, d29, #1\n\t"
+        "veor	d27, d27, d30\n\t"
+        "veor	d27, d27, d31\n\t"
+        /* t[3] */
+        "vldr.8	d31, [r12]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d28, d28, d30\n\t"
+        "veor	d28, d28, d31\n\t"
+        /* t[4] */
+        "vldr.8	d31, [r12, #8]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d29, d29, d30\n\t"
+        "veor	d29, d29, d31\n\t"
+        "sub	r12, r12, #16\n\t"
+        "veor	d0, d0, d25\n\t"
+        /* s[1] => s[10] (tmp) */
+        "veor	d30, d1, d26\n\t"
+        "vshr.u64	d31, d30, #63\n\t"
+        "vshl.u64	d30, d30, #1\n\t"
+        "veor	d30, d30, d31\n\t"
+        /* s[6] => s[1] */
+        "veor	d1, d6, d26\n\t"
+        "vshr.u64	d31, d1, #20\n\t"
+        "vshl.u64	d1, d1, #44\n\t"
+        "veor	d1, d1, d31\n\t"
+        /* s[9] => s[6] */
+        "veor	d6, d9, d29\n\t"
+        "vshr.u64	d31, d6, #44\n\t"
+        "vshl.u64	d6, d6, #20\n\t"
+        "veor	d6, d6, d31\n\t"
+        /* s[22] => s[9] */
+        "veor	d9, d22, d27\n\t"
+        "vshr.u64	d31, d9, #3\n\t"
+        "vshl.u64	d9, d9, #61\n\t"
+        "veor	d9, d9, d31\n\t"
+        /* s[14] => s[22] */
+        "veor	d22, d14, d29\n\t"
+        "vshr.u64	d31, d22, #25\n\t"
+        "vshl.u64	d22, d22, #39\n\t"
+        "veor	d22, d22, d31\n\t"
+        /* s[20] => s[14] */
+        "veor	d14, d20, d25\n\t"
+        "vshr.u64	d31, d14, #46\n\t"
+        "vshl.u64	d14, d14, #18\n\t"
+        "veor	d14, d14, d31\n\t"
+        /* s[2] => s[20] */
+        "veor	d20, d2, d27\n\t"
+        "vshr.u64	d31, d20, #2\n\t"
+        "vshl.u64	d20, d20, #62\n\t"
+        "veor	d20, d20, d31\n\t"
+        /* s[12] => s[2] */
+        "veor	d2, d12, d27\n\t"
+        "vshr.u64	d31, d2, #21\n\t"
+        "vshl.u64	d2, d2, #43\n\t"
+        "veor	d2, d2, d31\n\t"
+        /* s[13] => s[12] */
+        "veor	d12, d13, d28\n\t"
+        "vshr.u64	d31, d12, #39\n\t"
+        "vshl.u64	d12, d12, #25\n\t"
+        "veor	d12, d12, d31\n\t"
+        /* s[19] => s[13] */
+        "veor	d13, d19, d29\n\t"
+        "vshr.u64	d31, d13, #56\n\t"
+        "vshl.u64	d13, d13, #8\n\t"
+        "veor	d13, d13, d31\n\t"
+        /* s[23] => s[19] */
+        "veor	d19, d23, d28\n\t"
+        "vshr.u64	d31, d19, #8\n\t"
+        "vshl.u64	d19, d19, #56\n\t"
+        "veor	d19, d19, d31\n\t"
+        /* s[15] => s[23] */
+        "veor	d23, d15, d25\n\t"
+        "vshr.u64	d31, d23, #23\n\t"
+        "vshl.u64	d23, d23, #41\n\t"
+        "veor	d23, d23, d31\n\t"
+        /* s[4] => s[15] */
+        "veor	d15, d4, d29\n\t"
+        "vshr.u64	d31, d15, #37\n\t"
+        "vshl.u64	d15, d15, #27\n\t"
+        "veor	d15, d15, d31\n\t"
+        /* s[24] => s[4] */
+        "veor	d4, d24, d29\n\t"
+        "vshr.u64	d31, d4, #50\n\t"
+        "vshl.u64	d4, d4, #14\n\t"
+        "veor	d4, d4, d31\n\t"
+        /* s[21] => s[24] */
+        "veor	d24, d21, d26\n\t"
+        "vshr.u64	d31, d24, #62\n\t"
+        "vshl.u64	d24, d24, #2\n\t"
+        "veor	d24, d24, d31\n\t"
+        /* s[8] => s[21] */
+        "veor	d21, d8, d28\n\t"
+        "vshr.u64	d31, d21, #9\n\t"
+        "vshl.u64	d21, d21, #55\n\t"
+        "veor	d21, d21, d31\n\t"
+        /* s[16] => s[8] */
+        "veor	d8, d16, d26\n\t"
+        "vshr.u64	d31, d8, #19\n\t"
+        "vshl.u64	d8, d8, #45\n\t"
+        "veor	d8, d8, d31\n\t"
+        /* s[5] => s[16] */
+        "veor	d16, d5, d25\n\t"
+        "vshr.u64	d31, d16, #28\n\t"
+        "vshl.u64	d16, d16, #36\n\t"
+        "veor	d16, d16, d31\n\t"
+        /* s[3] => s[5] */
+        "veor	d5, d3, d28\n\t"
+        "vshr.u64	d31, d5, #36\n\t"
+        "vshl.u64	d5, d5, #28\n\t"
+        "veor	d5, d5, d31\n\t"
+        /* s[18] => s[3] */
+        "veor	d3, d18, d28\n\t"
+        "vshr.u64	d31, d3, #43\n\t"
+        "vshl.u64	d3, d3, #21\n\t"
+        "veor	d3, d3, d31\n\t"
+        /* s[17] => s[18] */
+        "veor	d18, d17, d27\n\t"
+        "vshr.u64	d31, d18, #49\n\t"
+        "vshl.u64	d18, d18, #15\n\t"
+        "veor	d18, d18, d31\n\t"
+        /* s[11] => s[17] */
+        "veor	d17, d11, d26\n\t"
+        "vshr.u64	d31, d17, #54\n\t"
+        "vshl.u64	d17, d17, #10\n\t"
+        "veor	d17, d17, d31\n\t"
+        /* s[7] => s[11] */
+        "veor	d11, d7, d27\n\t"
+        "vshr.u64	d31, d11, #58\n\t"
+        "vshl.u64	d11, d11, #6\n\t"
+        "veor	d11, d11, d31\n\t"
+        /* s[10] => s[7] */
+        "veor	d7, d10, d25\n\t"
+        "vshr.u64	d31, d7, #61\n\t"
+        "vshl.u64	d7, d7, #3\n\t"
+        "veor	d7, d7, d31\n\t"
+        /* Row Mix */
+        "vmov	d25, d0\n\t"
+        "vmov	d26, d1\n\t"
+        "vbic	d31, d2, d26\n\t"
+        "veor	d0, d25, d31\n\t"
+        "vbic	d31, d3, d2\n\t"
+        "veor	d1, d26, d31\n\t"
+        "vbic	d31, d4, d3\n\t"
+        "veor	d2, d2, d31\n\t"
+        "vbic	d31, d25, d4\n\t"
+        "veor	d3, d3, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d4, d4, d31\n\t"
+        "vmov	d25, d5\n\t"
+        "vmov	d26, d6\n\t"
+        "vbic	d31, d7, d26\n\t"
+        "veor	d5, d25, d31\n\t"
+        "vbic	d31, d8, d7\n\t"
+        "veor	d6, d26, d31\n\t"
+        "vbic	d31, d9, d8\n\t"
+        "veor	d7, d7, d31\n\t"
+        "vbic	d31, d25, d9\n\t"
+        "veor	d8, d8, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d9, d9, d31\n\t"
+        "vmov	d26, d11\n\t"
+        "vbic	d31, d12, d26\n\t"
+        "veor	d10, d30, d31\n\t"
+        "vbic	d31, d13, d12\n\t"
+        "veor	d11, d26, d31\n\t"
+        "vbic	d31, d14, d13\n\t"
+        "veor	d12, d12, d31\n\t"
+        "vbic	d31, d30, d14\n\t"
+        "veor	d13, d13, d31\n\t"
+        "vbic	d31, d26, d30\n\t"
+        "veor	d14, d14, d31\n\t"
+        "vmov	d25, d15\n\t"
+        "vmov	d26, d16\n\t"
+        "vbic	d31, d17, d26\n\t"
+        "veor	d15, d25, d31\n\t"
+        "vbic	d31, d18, d17\n\t"
+        "veor	d16, d26, d31\n\t"
+        "vbic	d31, d19, d18\n\t"
+        "veor	d17, d17, d31\n\t"
+        "vbic	d31, d25, d19\n\t"
+        "veor	d18, d18, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d19, d19, d31\n\t"
+        "vmov	d25, d20\n\t"
+        "vmov	d26, d21\n\t"
+        "vbic	d31, d22, d26\n\t"
+        "veor	d20, d25, d31\n\t"
+        "vbic	d31, d23, d22\n\t"
+        "veor	d21, d26, d31\n\t"
+        "vbic	d31, d24, d23\n\t"
+        "veor	d22, d22, d31\n\t"
+        "vbic	d31, d25, d24\n\t"
+        "veor	d23, d23, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d24, d24, d31\n\t"
+        "vld1.8	{d30}, [r2]!\n\t"
+        "subs	r3, r3, #1\n\t"
+        "veor	d0, d0, d30\n\t"
+        "bne	L_sha3_arm32_neon_x3_begin_%=\n\t"
+        "vst1.8	{d0-d3}, [%[state]]!\n\t"
+        "vst1.8	{d4-d7}, [%[state]]!\n\t"
+        "vst1.8	{d8-d11}, [%[state]]!\n\t"
+        "vst1.8	{d12-d15}, [%[state]]!\n\t"
+        "vst1.8	{d16-d19}, [%[state]]!\n\t"
+        "vst1.8	{d20-d23}, [%[state]]!\n\t"
+        "vst1.8	{d24}, [%[state]]\n\t"
+        "add	%[state], %[state], #8\n\t"
+        "subs	lr, lr, #1\n\t"
+        "bne	L_sha3_arm32_neon_x3_state_%=\n\t"
+        "add	sp, sp, #16\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [state] "+r" (state),
+          [L_sha3_arm32_neon_x3_rt] "+r" (L_sha3_arm32_neon_x3_rt_c)
+        :
+#else
+        :
+        : [state] "r" (state),
+          [L_sha3_arm32_neon_x3_rt] "r" (L_sha3_arm32_neon_x3_rt_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r2", "r3", "r12", "lr", "d0", "d1", "d2", "d3", "d4",
+            "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
+            "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
+            "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"
+    );
+}
+
+XALIGNED(16) static const word64 L_sha3_128_blocksx3_seed_neon_rt[] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL,
+    0x8000000000000000UL
+};
+
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void sha3_128_blocksx3_seed_neon(word64* state_p,
+    byte* seed_p)
+#else
+WC_OMIT_FRAME_POINTER void sha3_128_blocksx3_seed_neon(word64* state,
+    byte* seed)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register word64* state __asm__ ("r0") = (word64*)state_p;
+    register byte* seed __asm__ ("r1") = (byte*)seed_p;
+    register word64* L_sha3_128_blocksx3_seed_neon_rt_c __asm__ ("r2") =
+        (word64*)&L_sha3_128_blocksx3_seed_neon_rt;
+#else
+    register word64* L_sha3_128_blocksx3_seed_neon_rt_c =
+        (word64*)&L_sha3_128_blocksx3_seed_neon_rt;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+        "sub	sp, sp, #16\n\t"
+        "mov	r2, %[L_sha3_128_blocksx3_seed_neon_rt]\n\t"
+        "mov	r4, #3\n\t"
+        "\n"
+    "L_sha3_128_blocksx3_seed_neon_state_%=:\n\t"
+        "vld1.8	{d0-d3}, [%[seed]]!\n\t"
+        "sub	%[seed], %[seed], #32\n\t"
+        "vldr.8	d4, [%[state], #32]\n\t"
+        "veor	d5, d5, d5\n\t"
+        "veor	d6, d6, d6\n\t"
+        "veor	d7, d7, d7\n\t"
+        "veor	d8, d8, d8\n\t"
+        "veor	d9, d9, d9\n\t"
+        "veor	d10, d10, d10\n\t"
+        "veor	d11, d11, d11\n\t"
+        "veor	d12, d12, d12\n\t"
+        "veor	d13, d13, d13\n\t"
+        "veor	d14, d14, d14\n\t"
+        "veor	d15, d15, d15\n\t"
+        "veor	d16, d16, d16\n\t"
+        "veor	d17, d17, d17\n\t"
+        "veor	d18, d18, d18\n\t"
+        "veor	d19, d19, d19\n\t"
+        "vldr.8	d20, [r2, #192]\n\t"
+        "veor	d21, d21, d21\n\t"
+        "veor	d22, d22, d22\n\t"
+        "veor	d23, d23, d23\n\t"
+        "veor	d24, d24, d24\n\t"
+        "mov	r3, r2\n\t"
+        "mov	r12, #24\n\t"
+        "mov	lr, sp\n\t"
+        "\n"
+    "L_sha3_128_blocksx3_seed_neon_begin_%=:\n\t"
+        /* Calc b[0..4] */
+        "veor	d26, d0, d5\n\t"
+        "veor	d27, d1, d6\n\t"
+        "veor	d28, d2, d7\n\t"
+        "veor	d29, d3, d8\n\t"
+        "veor	d25, d4, d9\n\t"
+        "veor	d26, d26, d10\n\t"
+        "veor	d27, d27, d11\n\t"
+        "veor	d28, d28, d12\n\t"
+        "veor	d29, d29, d13\n\t"
+        "veor	d25, d25, d14\n\t"
+        "veor	d26, d26, d15\n\t"
+        "veor	d27, d27, d16\n\t"
+        "veor	d28, d28, d17\n\t"
+        "veor	d29, d29, d18\n\t"
+        "veor	d25, d25, d19\n\t"
+        "veor	d26, d26, d20\n\t"
+        "veor	d27, d27, d21\n\t"
+        "veor	d28, d28, d22\n\t"
+        "veor	d29, d29, d23\n\t"
+        "veor	d25, d25, d24\n\t"
+        "vst1.8	{d25-d26}, [lr]\n\t"
+        /* Calc t[0..4] and XOR into s[i*5..i*5+4] */
+        /* t[0] */
+        "vshr.u64	d30, d27, #63\n\t"
+        "vshl.u64	d31, d27, #1\n\t"
+        "veor	d25, d25, d30\n\t"
+        "veor	d25, d25, d31\n\t"
+        /* t[1] */
+        "vshr.u64	d30, d28, #63\n\t"
+        "vshl.u64	d31, d28, #1\n\t"
+        "veor	d26, d26, d30\n\t"
+        "veor	d26, d26, d31\n\t"
+        /* t[2] */
+        "vshr.u64	d30, d29, #63\n\t"
+        "vshl.u64	d31, d29, #1\n\t"
+        "veor	d27, d27, d30\n\t"
+        "veor	d27, d27, d31\n\t"
+        /* t[3] */
+        "vldr.8	d31, [lr]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d28, d28, d30\n\t"
+        "veor	d28, d28, d31\n\t"
+        /* t[4] */
+        "vldr.8	d31, [lr, #8]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d29, d29, d30\n\t"
+        "veor	d29, d29, d31\n\t"
+        "sub	lr, lr, #16\n\t"
+        "veor	d0, d0, d25\n\t"
+        /* s[1] => s[10] (tmp) */
+        "veor	d30, d1, d26\n\t"
+        "vshr.u64	d31, d30, #63\n\t"
+        "vshl.u64	d30, d30, #1\n\t"
+        "veor	d30, d30, d31\n\t"
+        /* s[6] => s[1] */
+        "veor	d1, d6, d26\n\t"
+        "vshr.u64	d31, d1, #20\n\t"
+        "vshl.u64	d1, d1, #44\n\t"
+        "veor	d1, d1, d31\n\t"
+        /* s[9] => s[6] */
+        "veor	d6, d9, d29\n\t"
+        "vshr.u64	d31, d6, #44\n\t"
+        "vshl.u64	d6, d6, #20\n\t"
+        "veor	d6, d6, d31\n\t"
+        /* s[22] => s[9] */
+        "veor	d9, d22, d27\n\t"
+        "vshr.u64	d31, d9, #3\n\t"
+        "vshl.u64	d9, d9, #61\n\t"
+        "veor	d9, d9, d31\n\t"
+        /* s[14] => s[22] */
+        "veor	d22, d14, d29\n\t"
+        "vshr.u64	d31, d22, #25\n\t"
+        "vshl.u64	d22, d22, #39\n\t"
+        "veor	d22, d22, d31\n\t"
+        /* s[20] => s[14] */
+        "veor	d14, d20, d25\n\t"
+        "vshr.u64	d31, d14, #46\n\t"
+        "vshl.u64	d14, d14, #18\n\t"
+        "veor	d14, d14, d31\n\t"
+        /* s[2] => s[20] */
+        "veor	d20, d2, d27\n\t"
+        "vshr.u64	d31, d20, #2\n\t"
+        "vshl.u64	d20, d20, #62\n\t"
+        "veor	d20, d20, d31\n\t"
+        /* s[12] => s[2] */
+        "veor	d2, d12, d27\n\t"
+        "vshr.u64	d31, d2, #21\n\t"
+        "vshl.u64	d2, d2, #43\n\t"
+        "veor	d2, d2, d31\n\t"
+        /* s[13] => s[12] */
+        "veor	d12, d13, d28\n\t"
+        "vshr.u64	d31, d12, #39\n\t"
+        "vshl.u64	d12, d12, #25\n\t"
+        "veor	d12, d12, d31\n\t"
+        /* s[19] => s[13] */
+        "veor	d13, d19, d29\n\t"
+        "vshr.u64	d31, d13, #56\n\t"
+        "vshl.u64	d13, d13, #8\n\t"
+        "veor	d13, d13, d31\n\t"
+        /* s[23] => s[19] */
+        "veor	d19, d23, d28\n\t"
+        "vshr.u64	d31, d19, #8\n\t"
+        "vshl.u64	d19, d19, #56\n\t"
+        "veor	d19, d19, d31\n\t"
+        /* s[15] => s[23] */
+        "veor	d23, d15, d25\n\t"
+        "vshr.u64	d31, d23, #23\n\t"
+        "vshl.u64	d23, d23, #41\n\t"
+        "veor	d23, d23, d31\n\t"
+        /* s[4] => s[15] */
+        "veor	d15, d4, d29\n\t"
+        "vshr.u64	d31, d15, #37\n\t"
+        "vshl.u64	d15, d15, #27\n\t"
+        "veor	d15, d15, d31\n\t"
+        /* s[24] => s[4] */
+        "veor	d4, d24, d29\n\t"
+        "vshr.u64	d31, d4, #50\n\t"
+        "vshl.u64	d4, d4, #14\n\t"
+        "veor	d4, d4, d31\n\t"
+        /* s[21] => s[24] */
+        "veor	d24, d21, d26\n\t"
+        "vshr.u64	d31, d24, #62\n\t"
+        "vshl.u64	d24, d24, #2\n\t"
+        "veor	d24, d24, d31\n\t"
+        /* s[8] => s[21] */
+        "veor	d21, d8, d28\n\t"
+        "vshr.u64	d31, d21, #9\n\t"
+        "vshl.u64	d21, d21, #55\n\t"
+        "veor	d21, d21, d31\n\t"
+        /* s[16] => s[8] */
+        "veor	d8, d16, d26\n\t"
+        "vshr.u64	d31, d8, #19\n\t"
+        "vshl.u64	d8, d8, #45\n\t"
+        "veor	d8, d8, d31\n\t"
+        /* s[5] => s[16] */
+        "veor	d16, d5, d25\n\t"
+        "vshr.u64	d31, d16, #28\n\t"
+        "vshl.u64	d16, d16, #36\n\t"
+        "veor	d16, d16, d31\n\t"
+        /* s[3] => s[5] */
+        "veor	d5, d3, d28\n\t"
+        "vshr.u64	d31, d5, #36\n\t"
+        "vshl.u64	d5, d5, #28\n\t"
+        "veor	d5, d5, d31\n\t"
+        /* s[18] => s[3] */
+        "veor	d3, d18, d28\n\t"
+        "vshr.u64	d31, d3, #43\n\t"
+        "vshl.u64	d3, d3, #21\n\t"
+        "veor	d3, d3, d31\n\t"
+        /* s[17] => s[18] */
+        "veor	d18, d17, d27\n\t"
+        "vshr.u64	d31, d18, #49\n\t"
+        "vshl.u64	d18, d18, #15\n\t"
+        "veor	d18, d18, d31\n\t"
+        /* s[11] => s[17] */
+        "veor	d17, d11, d26\n\t"
+        "vshr.u64	d31, d17, #54\n\t"
+        "vshl.u64	d17, d17, #10\n\t"
+        "veor	d17, d17, d31\n\t"
+        /* s[7] => s[11] */
+        "veor	d11, d7, d27\n\t"
+        "vshr.u64	d31, d11, #58\n\t"
+        "vshl.u64	d11, d11, #6\n\t"
+        "veor	d11, d11, d31\n\t"
+        /* s[10] => s[7] */
+        "veor	d7, d10, d25\n\t"
+        "vshr.u64	d31, d7, #61\n\t"
+        "vshl.u64	d7, d7, #3\n\t"
+        "veor	d7, d7, d31\n\t"
+        /* Row Mix */
+        "vmov	d25, d0\n\t"
+        "vmov	d26, d1\n\t"
+        "vbic	d31, d2, d26\n\t"
+        "veor	d0, d25, d31\n\t"
+        "vbic	d31, d3, d2\n\t"
+        "veor	d1, d26, d31\n\t"
+        "vbic	d31, d4, d3\n\t"
+        "veor	d2, d2, d31\n\t"
+        "vbic	d31, d25, d4\n\t"
+        "veor	d3, d3, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d4, d4, d31\n\t"
+        "vmov	d25, d5\n\t"
+        "vmov	d26, d6\n\t"
+        "vbic	d31, d7, d26\n\t"
+        "veor	d5, d25, d31\n\t"
+        "vbic	d31, d8, d7\n\t"
+        "veor	d6, d26, d31\n\t"
+        "vbic	d31, d9, d8\n\t"
+        "veor	d7, d7, d31\n\t"
+        "vbic	d31, d25, d9\n\t"
+        "veor	d8, d8, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d9, d9, d31\n\t"
+        "vmov	d26, d11\n\t"
+        "vbic	d31, d12, d26\n\t"
+        "veor	d10, d30, d31\n\t"
+        "vbic	d31, d13, d12\n\t"
+        "veor	d11, d26, d31\n\t"
+        "vbic	d31, d14, d13\n\t"
+        "veor	d12, d12, d31\n\t"
+        "vbic	d31, d30, d14\n\t"
+        "veor	d13, d13, d31\n\t"
+        "vbic	d31, d26, d30\n\t"
+        "veor	d14, d14, d31\n\t"
+        "vmov	d25, d15\n\t"
+        "vmov	d26, d16\n\t"
+        "vbic	d31, d17, d26\n\t"
+        "veor	d15, d25, d31\n\t"
+        "vbic	d31, d18, d17\n\t"
+        "veor	d16, d26, d31\n\t"
+        "vbic	d31, d19, d18\n\t"
+        "veor	d17, d17, d31\n\t"
+        "vbic	d31, d25, d19\n\t"
+        "veor	d18, d18, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d19, d19, d31\n\t"
+        "vmov	d25, d20\n\t"
+        "vmov	d26, d21\n\t"
+        "vbic	d31, d22, d26\n\t"
+        "veor	d20, d25, d31\n\t"
+        "vbic	d31, d23, d22\n\t"
+        "veor	d21, d26, d31\n\t"
+        "vbic	d31, d24, d23\n\t"
+        "veor	d22, d22, d31\n\t"
+        "vbic	d31, d25, d24\n\t"
+        "veor	d23, d23, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d24, d24, d31\n\t"
+        "vld1.8	{d30}, [r3]!\n\t"
+        "subs	r12, r12, #1\n\t"
+        "veor	d0, d0, d30\n\t"
+        "bne	L_sha3_128_blocksx3_seed_neon_begin_%=\n\t"
+        "vst1.8	{d0-d3}, [%[state]]!\n\t"
+        "vst1.8	{d4-d7}, [%[state]]!\n\t"
+        "vst1.8	{d8-d11}, [%[state]]!\n\t"
+        "vst1.8	{d12-d15}, [%[state]]!\n\t"
+        "vst1.8	{d16-d19}, [%[state]]!\n\t"
+        "vst1.8	{d20-d23}, [%[state]]!\n\t"
+        "vst1.8	{d24}, [%[state]]\n\t"
+        "add	%[state], %[state], #8\n\t"
+        "subs	r4, r4, #1\n\t"
+        "bne	L_sha3_128_blocksx3_seed_neon_state_%=\n\t"
+        "add	sp, sp, #16\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [state] "+r" (state), [seed] "+r" (seed),
+          [L_sha3_128_blocksx3_seed_neon_rt] "+r" (L_sha3_128_blocksx3_seed_neon_rt_c)
+        :
+#else
+        :
+        : [state] "r" (state), [seed] "r" (seed),
+          [L_sha3_128_blocksx3_seed_neon_rt] "r" (L_sha3_128_blocksx3_seed_neon_rt_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r3", "r12", "lr", "r4", "d0", "d1", "d2", "d3", "d4",
+            "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
+            "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
+            "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"
+    );
+}
+
+XALIGNED(16) static const word64 L_sha3_256_blocksx3_seed_neon_rt[] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL,
+    0x8000000000000000UL
+};
+
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void sha3_256_blocksx3_seed_neon(word64* state_p,
+    byte* seed_p)
+#else
+WC_OMIT_FRAME_POINTER void sha3_256_blocksx3_seed_neon(word64* state,
+    byte* seed)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register word64* state __asm__ ("r0") = (word64*)state_p;
+    register byte* seed __asm__ ("r1") = (byte*)seed_p;
+    register word64* L_sha3_256_blocksx3_seed_neon_rt_c __asm__ ("r2") =
+        (word64*)&L_sha3_256_blocksx3_seed_neon_rt;
+#else
+    register word64* L_sha3_256_blocksx3_seed_neon_rt_c =
+        (word64*)&L_sha3_256_blocksx3_seed_neon_rt;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+        "sub	sp, sp, #16\n\t"
+        "mov	r2, %[L_sha3_256_blocksx3_seed_neon_rt]\n\t"
+        "mov	r4, #3\n\t"
+        "\n"
+    "L_sha3_256_blocksx3_seed_neon_state_%=:\n\t"
+        "vld1.8	{d0-d3}, [%[seed]]!\n\t"
+        "sub	%[seed], %[seed], #32\n\t"
+        "vldr.8	d4, [%[state], #32]\n\t"
+        "veor	d5, d5, d5\n\t"
+        "veor	d6, d6, d6\n\t"
+        "veor	d7, d7, d7\n\t"
+        "veor	d8, d8, d8\n\t"
+        "veor	d9, d9, d9\n\t"
+        "veor	d10, d10, d10\n\t"
+        "veor	d11, d11, d11\n\t"
+        "veor	d12, d12, d12\n\t"
+        "veor	d13, d13, d13\n\t"
+        "veor	d14, d14, d14\n\t"
+        "veor	d15, d15, d15\n\t"
+        "vldr.8	d16, [r2, #192]\n\t"
+        "veor	d17, d17, d17\n\t"
+        "veor	d18, d18, d18\n\t"
+        "veor	d19, d19, d19\n\t"
+        "veor	d20, d20, d20\n\t"
+        "veor	d21, d21, d21\n\t"
+        "veor	d22, d22, d22\n\t"
+        "veor	d23, d23, d23\n\t"
+        "veor	d24, d24, d24\n\t"
+        "mov	r3, r2\n\t"
+        "mov	r12, #24\n\t"
+        "mov	lr, sp\n\t"
+        "\n"
+    "L_sha3_256_blocksx3_seed_neon_begin_%=:\n\t"
+        /* Calc b[0..4] */
+        "veor	d26, d0, d5\n\t"
+        "veor	d27, d1, d6\n\t"
+        "veor	d28, d2, d7\n\t"
+        "veor	d29, d3, d8\n\t"
+        "veor	d25, d4, d9\n\t"
+        "veor	d26, d26, d10\n\t"
+        "veor	d27, d27, d11\n\t"
+        "veor	d28, d28, d12\n\t"
+        "veor	d29, d29, d13\n\t"
+        "veor	d25, d25, d14\n\t"
+        "veor	d26, d26, d15\n\t"
+        "veor	d27, d27, d16\n\t"
+        "veor	d28, d28, d17\n\t"
+        "veor	d29, d29, d18\n\t"
+        "veor	d25, d25, d19\n\t"
+        "veor	d26, d26, d20\n\t"
+        "veor	d27, d27, d21\n\t"
+        "veor	d28, d28, d22\n\t"
+        "veor	d29, d29, d23\n\t"
+        "veor	d25, d25, d24\n\t"
+        "vst1.8	{d25-d26}, [lr]\n\t"
+        /* Calc t[0..4] and XOR into s[i*5..i*5+4] */
+        /* t[0] */
+        "vshr.u64	d30, d27, #63\n\t"
+        "vshl.u64	d31, d27, #1\n\t"
+        "veor	d25, d25, d30\n\t"
+        "veor	d25, d25, d31\n\t"
+        /* t[1] */
+        "vshr.u64	d30, d28, #63\n\t"
+        "vshl.u64	d31, d28, #1\n\t"
+        "veor	d26, d26, d30\n\t"
+        "veor	d26, d26, d31\n\t"
+        /* t[2] */
+        "vshr.u64	d30, d29, #63\n\t"
+        "vshl.u64	d31, d29, #1\n\t"
+        "veor	d27, d27, d30\n\t"
+        "veor	d27, d27, d31\n\t"
+        /* t[3] */
+        "vldr.8	d31, [lr]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d28, d28, d30\n\t"
+        "veor	d28, d28, d31\n\t"
+        /* t[4] */
+        "vldr.8	d31, [lr, #8]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d29, d29, d30\n\t"
+        "veor	d29, d29, d31\n\t"
+        "sub	lr, lr, #16\n\t"
+        "veor	d0, d0, d25\n\t"
+        /* s[1] => s[10] (tmp) */
+        "veor	d30, d1, d26\n\t"
+        "vshr.u64	d31, d30, #63\n\t"
+        "vshl.u64	d30, d30, #1\n\t"
+        "veor	d30, d30, d31\n\t"
+        /* s[6] => s[1] */
+        "veor	d1, d6, d26\n\t"
+        "vshr.u64	d31, d1, #20\n\t"
+        "vshl.u64	d1, d1, #44\n\t"
+        "veor	d1, d1, d31\n\t"
+        /* s[9] => s[6] */
+        "veor	d6, d9, d29\n\t"
+        "vshr.u64	d31, d6, #44\n\t"
+        "vshl.u64	d6, d6, #20\n\t"
+        "veor	d6, d6, d31\n\t"
+        /* s[22] => s[9] */
+        "veor	d9, d22, d27\n\t"
+        "vshr.u64	d31, d9, #3\n\t"
+        "vshl.u64	d9, d9, #61\n\t"
+        "veor	d9, d9, d31\n\t"
+        /* s[14] => s[22] */
+        "veor	d22, d14, d29\n\t"
+        "vshr.u64	d31, d22, #25\n\t"
+        "vshl.u64	d22, d22, #39\n\t"
+        "veor	d22, d22, d31\n\t"
+        /* s[20] => s[14] */
+        "veor	d14, d20, d25\n\t"
+        "vshr.u64	d31, d14, #46\n\t"
+        "vshl.u64	d14, d14, #18\n\t"
+        "veor	d14, d14, d31\n\t"
+        /* s[2] => s[20] */
+        "veor	d20, d2, d27\n\t"
+        "vshr.u64	d31, d20, #2\n\t"
+        "vshl.u64	d20, d20, #62\n\t"
+        "veor	d20, d20, d31\n\t"
+        /* s[12] => s[2] */
+        "veor	d2, d12, d27\n\t"
+        "vshr.u64	d31, d2, #21\n\t"
+        "vshl.u64	d2, d2, #43\n\t"
+        "veor	d2, d2, d31\n\t"
+        /* s[13] => s[12] */
+        "veor	d12, d13, d28\n\t"
+        "vshr.u64	d31, d12, #39\n\t"
+        "vshl.u64	d12, d12, #25\n\t"
+        "veor	d12, d12, d31\n\t"
+        /* s[19] => s[13] */
+        "veor	d13, d19, d29\n\t"
+        "vshr.u64	d31, d13, #56\n\t"
+        "vshl.u64	d13, d13, #8\n\t"
+        "veor	d13, d13, d31\n\t"
+        /* s[23] => s[19] */
+        "veor	d19, d23, d28\n\t"
+        "vshr.u64	d31, d19, #8\n\t"
+        "vshl.u64	d19, d19, #56\n\t"
+        "veor	d19, d19, d31\n\t"
+        /* s[15] => s[23] */
+        "veor	d23, d15, d25\n\t"
+        "vshr.u64	d31, d23, #23\n\t"
+        "vshl.u64	d23, d23, #41\n\t"
+        "veor	d23, d23, d31\n\t"
+        /* s[4] => s[15] */
+        "veor	d15, d4, d29\n\t"
+        "vshr.u64	d31, d15, #37\n\t"
+        "vshl.u64	d15, d15, #27\n\t"
+        "veor	d15, d15, d31\n\t"
+        /* s[24] => s[4] */
+        "veor	d4, d24, d29\n\t"
+        "vshr.u64	d31, d4, #50\n\t"
+        "vshl.u64	d4, d4, #14\n\t"
+        "veor	d4, d4, d31\n\t"
+        /* s[21] => s[24] */
+        "veor	d24, d21, d26\n\t"
+        "vshr.u64	d31, d24, #62\n\t"
+        "vshl.u64	d24, d24, #2\n\t"
+        "veor	d24, d24, d31\n\t"
+        /* s[8] => s[21] */
+        "veor	d21, d8, d28\n\t"
+        "vshr.u64	d31, d21, #9\n\t"
+        "vshl.u64	d21, d21, #55\n\t"
+        "veor	d21, d21, d31\n\t"
+        /* s[16] => s[8] */
+        "veor	d8, d16, d26\n\t"
+        "vshr.u64	d31, d8, #19\n\t"
+        "vshl.u64	d8, d8, #45\n\t"
+        "veor	d8, d8, d31\n\t"
+        /* s[5] => s[16] */
+        "veor	d16, d5, d25\n\t"
+        "vshr.u64	d31, d16, #28\n\t"
+        "vshl.u64	d16, d16, #36\n\t"
+        "veor	d16, d16, d31\n\t"
+        /* s[3] => s[5] */
+        "veor	d5, d3, d28\n\t"
+        "vshr.u64	d31, d5, #36\n\t"
+        "vshl.u64	d5, d5, #28\n\t"
+        "veor	d5, d5, d31\n\t"
+        /* s[18] => s[3] */
+        "veor	d3, d18, d28\n\t"
+        "vshr.u64	d31, d3, #43\n\t"
+        "vshl.u64	d3, d3, #21\n\t"
+        "veor	d3, d3, d31\n\t"
+        /* s[17] => s[18] */
+        "veor	d18, d17, d27\n\t"
+        "vshr.u64	d31, d18, #49\n\t"
+        "vshl.u64	d18, d18, #15\n\t"
+        "veor	d18, d18, d31\n\t"
+        /* s[11] => s[17] */
+        "veor	d17, d11, d26\n\t"
+        "vshr.u64	d31, d17, #54\n\t"
+        "vshl.u64	d17, d17, #10\n\t"
+        "veor	d17, d17, d31\n\t"
+        /* s[7] => s[11] */
+        "veor	d11, d7, d27\n\t"
+        "vshr.u64	d31, d11, #58\n\t"
+        "vshl.u64	d11, d11, #6\n\t"
+        "veor	d11, d11, d31\n\t"
+        /* s[10] => s[7] */
+        "veor	d7, d10, d25\n\t"
+        "vshr.u64	d31, d7, #61\n\t"
+        "vshl.u64	d7, d7, #3\n\t"
+        "veor	d7, d7, d31\n\t"
+        /* Row Mix */
+        "vmov	d25, d0\n\t"
+        "vmov	d26, d1\n\t"
+        "vbic	d31, d2, d26\n\t"
+        "veor	d0, d25, d31\n\t"
+        "vbic	d31, d3, d2\n\t"
+        "veor	d1, d26, d31\n\t"
+        "vbic	d31, d4, d3\n\t"
+        "veor	d2, d2, d31\n\t"
+        "vbic	d31, d25, d4\n\t"
+        "veor	d3, d3, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d4, d4, d31\n\t"
+        "vmov	d25, d5\n\t"
+        "vmov	d26, d6\n\t"
+        "vbic	d31, d7, d26\n\t"
+        "veor	d5, d25, d31\n\t"
+        "vbic	d31, d8, d7\n\t"
+        "veor	d6, d26, d31\n\t"
+        "vbic	d31, d9, d8\n\t"
+        "veor	d7, d7, d31\n\t"
+        "vbic	d31, d25, d9\n\t"
+        "veor	d8, d8, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d9, d9, d31\n\t"
+        "vmov	d26, d11\n\t"
+        "vbic	d31, d12, d26\n\t"
+        "veor	d10, d30, d31\n\t"
+        "vbic	d31, d13, d12\n\t"
+        "veor	d11, d26, d31\n\t"
+        "vbic	d31, d14, d13\n\t"
+        "veor	d12, d12, d31\n\t"
+        "vbic	d31, d30, d14\n\t"
+        "veor	d13, d13, d31\n\t"
+        "vbic	d31, d26, d30\n\t"
+        "veor	d14, d14, d31\n\t"
+        "vmov	d25, d15\n\t"
+        "vmov	d26, d16\n\t"
+        "vbic	d31, d17, d26\n\t"
+        "veor	d15, d25, d31\n\t"
+        "vbic	d31, d18, d17\n\t"
+        "veor	d16, d26, d31\n\t"
+        "vbic	d31, d19, d18\n\t"
+        "veor	d17, d17, d31\n\t"
+        "vbic	d31, d25, d19\n\t"
+        "veor	d18, d18, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d19, d19, d31\n\t"
+        "vmov	d25, d20\n\t"
+        "vmov	d26, d21\n\t"
+        "vbic	d31, d22, d26\n\t"
+        "veor	d20, d25, d31\n\t"
+        "vbic	d31, d23, d22\n\t"
+        "veor	d21, d26, d31\n\t"
+        "vbic	d31, d24, d23\n\t"
+        "veor	d22, d22, d31\n\t"
+        "vbic	d31, d25, d24\n\t"
+        "veor	d23, d23, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d24, d24, d31\n\t"
+        "vld1.8	{d30}, [r3]!\n\t"
+        "subs	r12, r12, #1\n\t"
+        "veor	d0, d0, d30\n\t"
+        "bne	L_sha3_256_blocksx3_seed_neon_begin_%=\n\t"
+        "vst1.8	{d0-d3}, [%[state]]!\n\t"
+        "vst1.8	{d4-d7}, [%[state]]!\n\t"
+        "vst1.8	{d8-d11}, [%[state]]!\n\t"
+        "vst1.8	{d12-d15}, [%[state]]!\n\t"
+        "vst1.8	{d16-d19}, [%[state]]!\n\t"
+        "vst1.8	{d20-d23}, [%[state]]!\n\t"
+        "vst1.8	{d24}, [%[state]]\n\t"
+        "add	%[state], %[state], #8\n\t"
+        "subs	r4, r4, #1\n\t"
+        "bne	L_sha3_256_blocksx3_seed_neon_state_%=\n\t"
+        "add	sp, sp, #16\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [state] "+r" (state), [seed] "+r" (seed),
+          [L_sha3_256_blocksx3_seed_neon_rt] "+r" (L_sha3_256_blocksx3_seed_neon_rt_c)
+        :
+#else
+        :
+        : [state] "r" (state), [seed] "r" (seed),
+          [L_sha3_256_blocksx3_seed_neon_rt] "r" (L_sha3_256_blocksx3_seed_neon_rt_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r3", "r12", "lr", "r4", "d0", "d1", "d2", "d3", "d4",
+            "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
+            "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
+            "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"
+    );
+}
+
+XALIGNED(16) static const word64 L_sha3_256_blocksx3_seed_64_neon_rt[] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL,
+    0x8000000000000000UL
+};
+
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void sha3_256_blocksx3_seed_64_neon(word64* state_p,
+    byte* seed_p)
+#else
+WC_OMIT_FRAME_POINTER void sha3_256_blocksx3_seed_64_neon(word64* state,
+    byte* seed)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register word64* state __asm__ ("r0") = (word64*)state_p;
+    register byte* seed __asm__ ("r1") = (byte*)seed_p;
+    register word64* L_sha3_256_blocksx3_seed_64_neon_rt_c __asm__ ("r2") =
+        (word64*)&L_sha3_256_blocksx3_seed_64_neon_rt;
+#else
+    register word64* L_sha3_256_blocksx3_seed_64_neon_rt_c =
+        (word64*)&L_sha3_256_blocksx3_seed_64_neon_rt;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+        "sub	sp, sp, #16\n\t"
+        "mov	r2, %[L_sha3_256_blocksx3_seed_64_neon_rt]\n\t"
+        "mov	r4, #3\n\t"
+        "\n"
+    "L_sha3_256_blocksx3_seed_64_neon_state_%=:\n\t"
+        "vld1.8	{d0-d3}, [%[seed]]!\n\t"
+        "vld1.8	{d4-d7}, [%[seed]]!\n\t"
+        "sub	%[seed], %[seed], #0x40\n\t"
+        "vldr.8	d8, [%[state], #64]\n\t"
+        "veor	d9, d9, d9\n\t"
+        "veor	d10, d10, d10\n\t"
+        "veor	d11, d11, d11\n\t"
+        "veor	d12, d12, d12\n\t"
+        "veor	d13, d13, d13\n\t"
+        "veor	d14, d14, d14\n\t"
+        "veor	d15, d15, d15\n\t"
+        "vldr.8	d16, [r2, #192]\n\t"
+        "veor	d17, d17, d17\n\t"
+        "veor	d18, d18, d18\n\t"
+        "veor	d19, d19, d19\n\t"
+        "veor	d20, d20, d20\n\t"
+        "veor	d21, d21, d21\n\t"
+        "veor	d22, d22, d22\n\t"
+        "veor	d23, d23, d23\n\t"
+        "veor	d24, d24, d24\n\t"
+        "mov	r3, r2\n\t"
+        "mov	r12, #24\n\t"
+        "mov	lr, sp\n\t"
+        "\n"
+    "L_sha3_256_blocksx3_seed_64_neon_begin_%=:\n\t"
+        /* Calc b[0..4] */
+        "veor	d26, d0, d5\n\t"
+        "veor	d27, d1, d6\n\t"
+        "veor	d28, d2, d7\n\t"
+        "veor	d29, d3, d8\n\t"
+        "veor	d25, d4, d9\n\t"
+        "veor	d26, d26, d10\n\t"
+        "veor	d27, d27, d11\n\t"
+        "veor	d28, d28, d12\n\t"
+        "veor	d29, d29, d13\n\t"
+        "veor	d25, d25, d14\n\t"
+        "veor	d26, d26, d15\n\t"
+        "veor	d27, d27, d16\n\t"
+        "veor	d28, d28, d17\n\t"
+        "veor	d29, d29, d18\n\t"
+        "veor	d25, d25, d19\n\t"
+        "veor	d26, d26, d20\n\t"
+        "veor	d27, d27, d21\n\t"
+        "veor	d28, d28, d22\n\t"
+        "veor	d29, d29, d23\n\t"
+        "veor	d25, d25, d24\n\t"
+        "vst1.8	{d25-d26}, [lr]\n\t"
+        /* Calc t[0..4] and XOR into s[i*5..i*5+4] */
+        /* t[0] */
+        "vshr.u64	d30, d27, #63\n\t"
+        "vshl.u64	d31, d27, #1\n\t"
+        "veor	d25, d25, d30\n\t"
+        "veor	d25, d25, d31\n\t"
+        /* t[1] */
+        "vshr.u64	d30, d28, #63\n\t"
+        "vshl.u64	d31, d28, #1\n\t"
+        "veor	d26, d26, d30\n\t"
+        "veor	d26, d26, d31\n\t"
+        /* t[2] */
+        "vshr.u64	d30, d29, #63\n\t"
+        "vshl.u64	d31, d29, #1\n\t"
+        "veor	d27, d27, d30\n\t"
+        "veor	d27, d27, d31\n\t"
+        /* t[3] */
+        "vldr.8	d31, [lr]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d28, d28, d30\n\t"
+        "veor	d28, d28, d31\n\t"
+        /* t[4] */
+        "vldr.8	d31, [lr, #8]\n\t"
+        "vshr.u64	d30, d31, #63\n\t"
+        "vshl.u64	d31, d31, #1\n\t"
+        "veor	d29, d29, d30\n\t"
+        "veor	d29, d29, d31\n\t"
+        "sub	lr, lr, #16\n\t"
+        "veor	d0, d0, d25\n\t"
+        /* s[1] => s[10] (tmp) */
+        "veor	d30, d1, d26\n\t"
+        "vshr.u64	d31, d30, #63\n\t"
+        "vshl.u64	d30, d30, #1\n\t"
+        "veor	d30, d30, d31\n\t"
+        /* s[6] => s[1] */
+        "veor	d1, d6, d26\n\t"
+        "vshr.u64	d31, d1, #20\n\t"
+        "vshl.u64	d1, d1, #44\n\t"
+        "veor	d1, d1, d31\n\t"
+        /* s[9] => s[6] */
+        "veor	d6, d9, d29\n\t"
+        "vshr.u64	d31, d6, #44\n\t"
+        "vshl.u64	d6, d6, #20\n\t"
+        "veor	d6, d6, d31\n\t"
+        /* s[22] => s[9] */
+        "veor	d9, d22, d27\n\t"
+        "vshr.u64	d31, d9, #3\n\t"
+        "vshl.u64	d9, d9, #61\n\t"
+        "veor	d9, d9, d31\n\t"
+        /* s[14] => s[22] */
+        "veor	d22, d14, d29\n\t"
+        "vshr.u64	d31, d22, #25\n\t"
+        "vshl.u64	d22, d22, #39\n\t"
+        "veor	d22, d22, d31\n\t"
+        /* s[20] => s[14] */
+        "veor	d14, d20, d25\n\t"
+        "vshr.u64	d31, d14, #46\n\t"
+        "vshl.u64	d14, d14, #18\n\t"
+        "veor	d14, d14, d31\n\t"
+        /* s[2] => s[20] */
+        "veor	d20, d2, d27\n\t"
+        "vshr.u64	d31, d20, #2\n\t"
+        "vshl.u64	d20, d20, #62\n\t"
+        "veor	d20, d20, d31\n\t"
+        /* s[12] => s[2] */
+        "veor	d2, d12, d27\n\t"
+        "vshr.u64	d31, d2, #21\n\t"
+        "vshl.u64	d2, d2, #43\n\t"
+        "veor	d2, d2, d31\n\t"
+        /* s[13] => s[12] */
+        "veor	d12, d13, d28\n\t"
+        "vshr.u64	d31, d12, #39\n\t"
+        "vshl.u64	d12, d12, #25\n\t"
+        "veor	d12, d12, d31\n\t"
+        /* s[19] => s[13] */
+        "veor	d13, d19, d29\n\t"
+        "vshr.u64	d31, d13, #56\n\t"
+        "vshl.u64	d13, d13, #8\n\t"
+        "veor	d13, d13, d31\n\t"
+        /* s[23] => s[19] */
+        "veor	d19, d23, d28\n\t"
+        "vshr.u64	d31, d19, #8\n\t"
+        "vshl.u64	d19, d19, #56\n\t"
+        "veor	d19, d19, d31\n\t"
+        /* s[15] => s[23] */
+        "veor	d23, d15, d25\n\t"
+        "vshr.u64	d31, d23, #23\n\t"
+        "vshl.u64	d23, d23, #41\n\t"
+        "veor	d23, d23, d31\n\t"
+        /* s[4] => s[15] */
+        "veor	d15, d4, d29\n\t"
+        "vshr.u64	d31, d15, #37\n\t"
+        "vshl.u64	d15, d15, #27\n\t"
+        "veor	d15, d15, d31\n\t"
+        /* s[24] => s[4] */
+        "veor	d4, d24, d29\n\t"
+        "vshr.u64	d31, d4, #50\n\t"
+        "vshl.u64	d4, d4, #14\n\t"
+        "veor	d4, d4, d31\n\t"
+        /* s[21] => s[24] */
+        "veor	d24, d21, d26\n\t"
+        "vshr.u64	d31, d24, #62\n\t"
+        "vshl.u64	d24, d24, #2\n\t"
+        "veor	d24, d24, d31\n\t"
+        /* s[8] => s[21] */
+        "veor	d21, d8, d28\n\t"
+        "vshr.u64	d31, d21, #9\n\t"
+        "vshl.u64	d21, d21, #55\n\t"
+        "veor	d21, d21, d31\n\t"
+        /* s[16] => s[8] */
+        "veor	d8, d16, d26\n\t"
+        "vshr.u64	d31, d8, #19\n\t"
+        "vshl.u64	d8, d8, #45\n\t"
+        "veor	d8, d8, d31\n\t"
+        /* s[5] => s[16] */
+        "veor	d16, d5, d25\n\t"
+        "vshr.u64	d31, d16, #28\n\t"
+        "vshl.u64	d16, d16, #36\n\t"
+        "veor	d16, d16, d31\n\t"
+        /* s[3] => s[5] */
+        "veor	d5, d3, d28\n\t"
+        "vshr.u64	d31, d5, #36\n\t"
+        "vshl.u64	d5, d5, #28\n\t"
+        "veor	d5, d5, d31\n\t"
+        /* s[18] => s[3] */
+        "veor	d3, d18, d28\n\t"
+        "vshr.u64	d31, d3, #43\n\t"
+        "vshl.u64	d3, d3, #21\n\t"
+        "veor	d3, d3, d31\n\t"
+        /* s[17] => s[18] */
+        "veor	d18, d17, d27\n\t"
+        "vshr.u64	d31, d18, #49\n\t"
+        "vshl.u64	d18, d18, #15\n\t"
+        "veor	d18, d18, d31\n\t"
+        /* s[11] => s[17] */
+        "veor	d17, d11, d26\n\t"
+        "vshr.u64	d31, d17, #54\n\t"
+        "vshl.u64	d17, d17, #10\n\t"
+        "veor	d17, d17, d31\n\t"
+        /* s[7] => s[11] */
+        "veor	d11, d7, d27\n\t"
+        "vshr.u64	d31, d11, #58\n\t"
+        "vshl.u64	d11, d11, #6\n\t"
+        "veor	d11, d11, d31\n\t"
+        /* s[10] => s[7] */
+        "veor	d7, d10, d25\n\t"
+        "vshr.u64	d31, d7, #61\n\t"
+        "vshl.u64	d7, d7, #3\n\t"
+        "veor	d7, d7, d31\n\t"
+        /* Row Mix */
+        "vmov	d25, d0\n\t"
+        "vmov	d26, d1\n\t"
+        "vbic	d31, d2, d26\n\t"
+        "veor	d0, d25, d31\n\t"
+        "vbic	d31, d3, d2\n\t"
+        "veor	d1, d26, d31\n\t"
+        "vbic	d31, d4, d3\n\t"
+        "veor	d2, d2, d31\n\t"
+        "vbic	d31, d25, d4\n\t"
+        "veor	d3, d3, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d4, d4, d31\n\t"
+        "vmov	d25, d5\n\t"
+        "vmov	d26, d6\n\t"
+        "vbic	d31, d7, d26\n\t"
+        "veor	d5, d25, d31\n\t"
+        "vbic	d31, d8, d7\n\t"
+        "veor	d6, d26, d31\n\t"
+        "vbic	d31, d9, d8\n\t"
+        "veor	d7, d7, d31\n\t"
+        "vbic	d31, d25, d9\n\t"
+        "veor	d8, d8, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d9, d9, d31\n\t"
+        "vmov	d26, d11\n\t"
+        "vbic	d31, d12, d26\n\t"
+        "veor	d10, d30, d31\n\t"
+        "vbic	d31, d13, d12\n\t"
+        "veor	d11, d26, d31\n\t"
+        "vbic	d31, d14, d13\n\t"
+        "veor	d12, d12, d31\n\t"
+        "vbic	d31, d30, d14\n\t"
+        "veor	d13, d13, d31\n\t"
+        "vbic	d31, d26, d30\n\t"
+        "veor	d14, d14, d31\n\t"
+        "vmov	d25, d15\n\t"
+        "vmov	d26, d16\n\t"
+        "vbic	d31, d17, d26\n\t"
+        "veor	d15, d25, d31\n\t"
+        "vbic	d31, d18, d17\n\t"
+        "veor	d16, d26, d31\n\t"
+        "vbic	d31, d19, d18\n\t"
+        "veor	d17, d17, d31\n\t"
+        "vbic	d31, d25, d19\n\t"
+        "veor	d18, d18, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d19, d19, d31\n\t"
+        "vmov	d25, d20\n\t"
+        "vmov	d26, d21\n\t"
+        "vbic	d31, d22, d26\n\t"
+        "veor	d20, d25, d31\n\t"
+        "vbic	d31, d23, d22\n\t"
+        "veor	d21, d26, d31\n\t"
+        "vbic	d31, d24, d23\n\t"
+        "veor	d22, d22, d31\n\t"
+        "vbic	d31, d25, d24\n\t"
+        "veor	d23, d23, d31\n\t"
+        "vbic	d31, d26, d25\n\t"
+        "veor	d24, d24, d31\n\t"
+        "vld1.8	{d30}, [r3]!\n\t"
+        "subs	r12, r12, #1\n\t"
+        "veor	d0, d0, d30\n\t"
+        "bne	L_sha3_256_blocksx3_seed_64_neon_begin_%=\n\t"
+        "vst1.8	{d0-d3}, [%[state]]!\n\t"
+        "vst1.8	{d4-d7}, [%[state]]!\n\t"
+        "vst1.8	{d8-d11}, [%[state]]!\n\t"
+        "vst1.8	{d12-d15}, [%[state]]!\n\t"
+        "vst1.8	{d16-d19}, [%[state]]!\n\t"
+        "vst1.8	{d20-d23}, [%[state]]!\n\t"
+        "vst1.8	{d24}, [%[state]]\n\t"
+        "add	%[state], %[state], #8\n\t"
+        "subs	r4, r4, #1\n\t"
+        "bne	L_sha3_256_blocksx3_seed_64_neon_state_%=\n\t"
+        "add	sp, sp, #16\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [state] "+r" (state), [seed] "+r" (seed),
+          [L_sha3_256_blocksx3_seed_64_neon_rt] "+r" (L_sha3_256_blocksx3_seed_64_neon_rt_c)
+        :
+#else
+        :
+        : [state] "r" (state), [seed] "r" (seed),
+          [L_sha3_256_blocksx3_seed_64_neon_rt] "r" (L_sha3_256_blocksx3_seed_64_neon_rt_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r3", "r12", "lr", "r4", "d0", "d1", "d2", "d3", "d4",
+            "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
+            "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
+            "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"
+    );
+}
+
+#endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) */
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
 XALIGNED(16) static const word64 L_sha3_arm32_rt[] = {

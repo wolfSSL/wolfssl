@@ -32,6 +32,7 @@ EXTRA_DIST += wolfcrypt/src/wc_mldsa_asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-aes-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-chacha-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-curve25519.asm
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-mldsa-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-mlkem-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-poly1305-asm.asm
 EXTRA_DIST += wolfcrypt/src/port/arm/armv8-sha256-asm.asm
