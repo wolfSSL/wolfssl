@@ -18078,12 +18078,14 @@ static int test_wolfSSL_set_options(void)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     char appData[] = "extra msg";
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ALPN) && !defined(NO_BIO)
     unsigned char protos[] = {
         7, 't', 'l', 's', '/', '1', '.', '2',
         8, 'h', 't', 't', 'p', '/', '1', '.', '1'
     };
     unsigned int len = sizeof(protos);
+#endif
+#ifdef OPENSSL_EXTRA
     void *arg = (void *)TEST_ARG;
 #endif
 
@@ -18168,10 +18170,12 @@ static int test_wolfSSL_set_options(void)
 #ifdef OPENSSL_EXTRA
     ExpectTrue(wolfSSL_set_msg_callback(ssl, msg_cb) == WOLFSSL_SUCCESS);
     wolfSSL_set_msg_callback_arg(ssl, arg);
+#if defined(HAVE_ALPN) && !defined(NO_BIO)
 #ifdef WOLFSSL_ERROR_CODE_OPENSSL
     ExpectTrue(wolfSSL_CTX_set_alpn_protos(ctx, protos, len) == 0);
 #else
     ExpectTrue(wolfSSL_CTX_set_alpn_protos(ctx, protos, len) == WOLFSSL_SUCCESS);
+#endif
 #endif
 #endif
 
