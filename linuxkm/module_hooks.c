@@ -792,9 +792,19 @@ static void wc_grb_maint_stop(void)
     unsigned int cpu;
 
     WRITE_ONCE(wc_grb_maint_running, 0);
-    cancel_delayed_work_sync(&wc_grb_root_work);
 
+    /* Both objects are established together in wc_grb_maint_start(): the
+     * kcalloc() runs first and returns early on failure, so a non-NULL
+     * wc_grb_cpu_works is exactly the condition under which
+     * INIT_DELAYED_WORK() ran on wc_grb_root_work.  Cancelling the root work
+     * outside this guard reaches an uninitialised delayed_work whenever
+     * maint_start() never ran -- which happens on the handler-registration
+     * failure path -- and cancel_delayed_work_sync() then hits
+     * WARN_ON(!work->func) in __flush_work() (kernel/workqueue.c), printing a
+     * kernel warning and stack trace on every rmmod. */
     if (wc_grb_cpu_works != NULL) {
+        cancel_delayed_work_sync(&wc_grb_root_work);
+
         for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
             cancel_delayed_work_sync(&wc_grb_cpu_works[cpu].dw);
         }
