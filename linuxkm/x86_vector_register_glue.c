@@ -1474,6 +1474,41 @@ static inline int wc_svr_ctx(void)
     #define WC_SVR_UNPIN_CPU() local_bh_enable()
 #endif
 
+/* WHETHER kernel_fpu_begin()/kernel_neon_begin() MAY BE CALLED, which on arm32
+ * is not what may_use_simd() answers on every supported kernel.
+ *
+ * arch/arm/include/asm/simd.h, read out of the trees rather than quoted from a
+ * comment:
+ *   <= 6.5   no such file; the asm-generic fallback is !in_interrupt()
+ *   6.6      IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq()
+ *   6.16 ..  the same, plus && !irqs_disabled()
+ *
+ * So before 6.16 a task- or softirq-context caller with interrupts DISABLED is
+ * told yes.  Acting on that opens a kernel_neon section, and the matching
+ * kernel_neon_end() calls local_bh_enable(); __local_bh_enable_ip() opens with
+ * lockdep_assert_irqs_enabled() (kernel/softirq.c:386 in linux-6.6.99) and,
+ * under CONFIG_TRACE_IRQFLAGS, ends with an unconditional local_irq_enable()
+ * (:411) -- which re-enables interrupts inside the CALLER's interrupts-off
+ * region.  Measured on emulated armv7 6.6.99, in this module's own frame:
+ *   WARNING: at kernel/softirq.c:386 __local_bh_enable_ip
+ *     __local_bh_enable_ip from wc_restore_vector_registers_x86 [libwolfssl]
+ *   WARNING: at kernel/locking/irqflag-debug.c:10
+ *     raw_local_irq_restore() called with IRQs enabled
+ *
+ * ARM ONLY, and deliberately.  x86's irq_fpu_usable() and arm64's
+ * may_use_simd() already give the right answer with interrupts off, and
+ * narrowing them here would refuse sections those architectures can serve.
+ *
+ * Refusing here does not refuse the caller: control falls through to the
+ * nested save, which is the path that already serves this context on 6.16+.
+ * Measured there, lockdep-clean: 11,583 nested saves in softirq-with-IRQs-off
+ * and 3,958,560 in task-with-IRQs-off on 6.16.12 with zero reports. */
+#ifdef CONFIG_ARM
+    #define WC_SVR_MAY_USE_SIMD() (may_use_simd() && (! irqs_disabled()))
+#else
+    #define WC_SVR_MAY_USE_SIMD() may_use_simd()
+#endif
+
 /* ---- diagnostic counters, off in every shipped build ----------------------
  *
  * "Declines went to zero" is a statement about what the module did NOT do, and
@@ -3226,7 +3261,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         return BAD_STATE_E;
     }
 
-    if (may_use_simd()) {
+    if (WC_SVR_MAY_USE_SIMD()) {
         WC_LINUXKM_FPU_BEGIN();
         st = &this_cpu_ptr(&wc_svr_state)->c[ctx];  /* pinned by FPU_BEGIN */
         st->depth = 1;
