@@ -14893,8 +14893,14 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                             ret = pkcs7->streamOutCb(pkcs7,
                                 pkcs7->cachedEncryptedContent,
                                 (word32)encryptedContentSz, pkcs7->streamCtx);
-                            if (ret != 0)
+                            if (ret != 0) {
+                                WOLFSSL_MSG("Stream out callback returned "
+                                            "failure");
+                                /* a positive result would read as a
+                                 * plaintext length */
+                                ret = BUFFER_E;
                                 break;
+                            }
                         }
                         else
                     #endif /* ASN_BER_TO_DER */
