@@ -2123,7 +2123,9 @@ static int wc_linuxkm_rng_bank_init(struct wc_rng_bank *ctx)
     int ret;
     word32 flags = WC_RNG_BANK_FLAG_CAN_WAIT;
 
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    !defined(WC_SVR_USE_NATIVE_REG_BUFS) && \
+    defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
     /* before v7, the SHA-2 implementations couldn't dynamically switch between
      * C and asm in a given wc_Sha256 instance.
      */
@@ -2205,6 +2207,11 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
         WC_RNG_BANK_FLAG_CAN_WAIT |
         WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
 
+#ifdef WC_SVR_USE_NATIVE_REG_BUFS
+    if (wc_linuxkm_svr_native_is_ready())
+        flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
+    else
+#endif
     if (wc_linuxkm_can_block())
         flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
     else
