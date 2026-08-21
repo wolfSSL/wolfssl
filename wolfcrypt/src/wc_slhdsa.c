@@ -7681,12 +7681,20 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A (TE10.35.02):
-     * sign with the new sk, verify with the matching pk.  SLH-DSA (FIPS 205)
-     * is stateless, so the relaxed PCT rule for stateful HBS (LMS/XMSS) does
-     * not apply, PCT runs on every KeyGen.  SignDeterministic avoids
-     * consuming RNG state.  Placed here, not in wc_SlhDsaKey_MakeKey(), because
-     * this is the one function every SLH-DSA generation path reaches. */
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A Additional
+     * Comment 1 (TE10.35.02): sign with the new sk, verify with the matching
+     * pk, on every KeyGen.  SignDeterministic avoids consuming RNG state.
+     * Placed here, not in wc_SlhDsaKey_MakeKey(), because this is the one
+     * function every SLH-DSA generation path reaches.
+     *
+     * STRONGER THAN THE IG REQUIRES, DELIBERATELY.  That Additional Comment
+     * names FIPS 205 alongside SP 800-208 and permits the PCT to "be limited
+     * to confirming the same key identifier (I in the case of LMS, SEED in the
+     * case of XMSS and PK.SEED for SLH-DSA) is shared by the resulting public
+     * and private keys".  The relaxation does apply here; a full sign plus
+     * verify simply exceeds it, at the cost of the slowest operation in the
+     * module.  A future reader may shorten this to the PK.SEED comparison and
+     * still be compliant. */
     if (ret == 0) {
         static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
         word32 pct_sigLen = key->params->sigLen;
