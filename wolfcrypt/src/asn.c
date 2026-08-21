@@ -7460,8 +7460,10 @@ static int CheckCurve(word32 oid)
  *                         On out, number of bytes in buffer.
  * @return  0 on success
  * @return  BAD_FUNC_ARG when in or outSz is NULL, when inSz is less than 2,
- *          or when the first arc in[0] is greater than 2. An OID must have
- *          at least two arcs and, per X.690, its first arc must be 0, 1 or 2.
+ *          when the first arc in[0] is greater than 2, or when in[0] is 0 or
+ *          1 and the second arc in[1] is greater than 39. An OID must have
+ *          at least two arcs and, per X.690, its first arc must be 0, 1 or 2,
+ *          with the second arc limited to 0..39 unless the first arc is 2.
  * @return  BUFFER_E when buffer too small.
  */
 int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
@@ -7478,19 +7480,21 @@ int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
  *                         On out, number of bytes in buffer.
  * @return  0 on success
  * @return  BAD_FUNC_ARG when in or outSz is NULL, when inSz is less than 2,
- *          when the first arc in[0] is greater than 2, or when the combined
+ *          when the first arc in[0] is greater than 2, when in[0] is 0 or 1
+ *          and the second arc in[1] is greater than 39, or when the combined
  *          first arc (40 * in[0] + in[1]) would overflow a word32. An OID
  *          must have at least two arcs and, per X.690, its first arc must be
- *          0, 1 or 2.
+ *          0, 1 or 2, with the second arc limited to 0..39 unless the first
+ *          arc is 2.
  * @return  BUFFER_E when buffer too small.
  */
 int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
 {
-    int i, x, len;
-    word32 d, t;
+    word32 d, t, i, x, len;
 
     /* check args */
-    if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2) {
+    if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2 ||
+            ((in[0] < 2) && (in[1] > 39))) {
         return BAD_FUNC_ARG;
     }
 
@@ -7504,7 +7508,7 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
     /* compute length of encoded OID */
     d = (in[0] * 40) + in[1];
     len = 0;
-    for (i = 1; i < (int)inSz; i++) {
+    for (i = 1; i < inSz; i++) {
         x = 0;
         t = d;
         while (t) {
@@ -7513,14 +7517,14 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
         }
         len += (x / 7) + ((x % 7) ? 1 : 0) + (d == 0 ? 1 : 0);
 
-        if (i < (int)inSz - 1) {
+        if (i < inSz - 1) {
             d = in[i + 1];
         }
     }
 
     if (out) {
         /* verify length */
-        if ((int)*outSz < len) {
+        if (*outSz < len) {
             return BUFFER_E; /* buffer provided is not large enough */
         }
 
@@ -7529,9 +7533,9 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
 
         /* encode bytes */
         x = 0;
-        for (i = 1; i < (int)inSz; i++) {
+        for (i = 1; i < inSz; i++) {
             if (d) {
-                int y = x, z;
+                word32 y = x, z;
                 byte mask = 0;
                 while (d) {
                     out[x++] = (byte)((d & 0x7F) | mask);
@@ -7553,14 +7557,14 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
             }
 
             /* next word */
-            if (i < (int)inSz - 1) {
+            if (i < inSz - 1) {
                 d = in[i + 1];
             }
         }
     }
 
     /* return length */
-    *outSz = (word32)len;
+    *outSz = len;
 
     return 0;
 }
@@ -7579,24 +7583,26 @@ int wc_EncodeObjectId32(const word32* in, word32 inSz, byte* out, word32* outSz)
  *                         On out, number of bytes in buffer.
  * @return  0 on success
  * @return  BAD_FUNC_ARG when in or outSz is NULL, when inSz is less than 2,
- *          or when the first arc in[0] is greater than 2. An OID must have
- *          at least two arcs and, per X.690, its first arc must be 0, 1 or 2.
+ *          when the first arc in[0] is greater than 2, or when in[0] is 0 or
+ *          1 and the second arc in[1] is greater than 39. An OID must have
+ *          at least two arcs and, per X.690, its first arc must be 0, 1 or 2,
+ *          with the second arc limited to 0..39 unless the first arc is 2.
  * @return  BUFFER_E when buffer too small.
  */
 int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 {
-    int i, x, len;
-    word32 d, t;
+    word32 d, t, i, x, len;
 
     /* check args */
-    if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2) {
+    if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2 ||
+            ((in[0] < 2) && (in[1] > 39))) {
         return BAD_FUNC_ARG;
     }
 
     /* compute length of encoded OID */
     d = ((word32)in[0] * 40) + in[1];
     len = 0;
-    for (i = 1; i < (int)inSz; i++) {
+    for (i = 1; i < inSz; i++) {
         x = 0;
         t = d;
         while (t) {
@@ -7605,14 +7611,14 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
         }
         len += (x / 7) + ((x % 7) ? 1 : 0) + (d == 0 ? 1 : 0);
 
-        if (i < (int)inSz - 1) {
+        if (i < inSz - 1) {
             d = in[i + 1];
         }
     }
 
     if (out) {
         /* verify length */
-        if ((int)*outSz < len) {
+        if (*outSz < len) {
             return BUFFER_E; /* buffer provided is not large enough */
         }
 
@@ -7621,9 +7627,9 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 
         /* encode bytes */
         x = 0;
-        for (i = 1; i < (int)inSz; i++) {
+        for (i = 1; i < inSz; i++) {
             if (d) {
-                int y = x, z;
+                word32 y = x, z;
                 byte mask = 0;
                 while (d) {
                     out[x++] = (byte)((d & 0x7F) | mask);
@@ -7645,14 +7651,14 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
             }
 
             /* next word */
-            if (i < (int)inSz - 1) {
+            if (i < inSz - 1) {
                 d = in[i + 1];
             }
         }
     }
 
     /* return length */
-    *outSz = (word32)len;
+    *outSz = len;
 
     return 0;
 }
@@ -7697,9 +7703,6 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
         cnt++;
         if (!(in[x] & 0x80)) {
             if (y == 0) {
-                if ((int)*outSz < 2) {
-                    return BUFFER_E;
-                }
                 if (t < 80) {
                     out[0] = (word16)(t / 40);
                     out[1] = (word16)(t % 40);
@@ -7747,7 +7750,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 int DecodeObjectId32(const byte* in, word32 inSz, word32* out, word32* outSz)
 {
     int x = 0, y = 0;
-    word32 t = 0;
+    word32 t = 0, cnt = 0;
 
     /* check args */
     if (in == NULL || outSz == NULL) {
@@ -7759,15 +7762,15 @@ int DecodeObjectId32(const byte* in, word32 inSz, word32* out, word32* outSz)
 
     /* decode bytes */
     while (inSz--) {
-        if (t > 0xFFFFFFFFU >> 7) {
+        /* Reject an arc encoded in more than 5 bytes, and one whose next
+         * 7 bits would shift a set bit out of the word32. */
+        if ((cnt == 5) || (t > (0xFFFFFFFFU >> 7))) {
             return ASN_OBJECT_ID_E;
         }
+        cnt++;
         t = (t << 7) | (in[x] & 0x7F);
         if (!(in[x] & 0x80)) {
             if (y == 0) {
-                if ((int)*outSz < 2) {
-                    return BUFFER_E;
-                }
                 if (t < 80) {
                     out[0] = t / 40;
                     out[1] = t % 40;
@@ -7785,6 +7788,7 @@ int DecodeObjectId32(const byte* in, word32 inSz, word32* out, word32* outSz)
                 out[y++] = t;
             }
             t = 0; /* reset tmp */
+            cnt = 0;
         }
         x++;
     }
@@ -13380,6 +13384,7 @@ static int SetCurve(ecc_key* key, byte* output, size_t outSz)
 #endif
     int idx;
     word32 oidSz = 0;
+
     /* validate key */
     if (key == NULL || key->dp == NULL) {
         return BAD_FUNC_ARG;
@@ -13387,7 +13392,7 @@ static int SetCurve(ecc_key* key, byte* output, size_t outSz)
 
 #ifdef HAVE_OID_ENCODING
     /* ecc_oid_t cannot be changed due to it being in the FIPS boundary so we
-     * have a work around of upsizing its representation*/
+     * have a work around of upsizing its representation. */
     /* Get the size of the encoded OID without having an encoded output */
     ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, NULL, &oidSz);
     if (ret != 0) {
@@ -38627,7 +38632,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
 #ifdef WC_ASN_UNKNOWN_EXT_CB
                     if (dcrl->unknownExtCallback32Ex != NULL ||
                             dcrl->unknownExtCallback32 != NULL) {
-                        word32 decOid[MAX_OID_SZ];
+                        word32 decOid[MAX_OID_SZ] = {0};
                         word32 decOidSz = MAX_OID_SZ;
                         ret = DecodeObjectId32(
                             dataASN[CERTEXTASN_IDX_OID].data.oid.data,
@@ -38660,7 +38665,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     }
                     else if (dcrl->unknownExtCallbackEx != NULL ||
                              dcrl->unknownExtCallback != NULL) {
-                        word16 decOid[MAX_OID_SZ];
+                        word16 decOid[MAX_OID_SZ] = {0};
                         word32 decOidSz = MAX_OID_SZ;
                         ret = DecodeObjectId(
                             dataASN[CERTEXTASN_IDX_OID].data.oid.data,
@@ -40145,7 +40150,7 @@ static void PrintObjectIdNum(XFILE file, unsigned char* oid, word32 len)
     if (DecodeObjectId32(oid, len, dotted_nums, &num) == 0) {
         /* Print out each number of dotted form. */
         for (i = 0; i < num; i++) {
-            XFPRINTF(file, "%d", dotted_nums[i]);
+            XFPRINTF(file, "%u", dotted_nums[i]);
             /* Add separator. */
             if (i < num - 1) {
                 XFPRINTF(file, ".");

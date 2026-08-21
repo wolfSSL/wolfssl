@@ -210,9 +210,11 @@ int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap,
     represented. Use wc_EncodeObjectId32() in new code.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG If in or outSz is NULL, if inSz is less than 2, or
-    if the first arc in[0] is greater than 2. An OID must have at least two
-    arcs and, per X.690, its first arc must be 0, 1 or 2.
+    \return BAD_FUNC_ARG If in or outSz is NULL, if inSz is less than 2, if
+    the first arc in[0] is greater than 2, or if in[0] is 0 or 1 and the
+    second arc in[1] is greater than 39. An OID must have at least two arcs
+    and, per X.690, its first arc must be 0, 1 or 2, with the second arc
+    limited to 0..39 unless the first arc is 2.
     \return BUFFER_E If out is not NULL and outSz is too small.
 
     \param in pointer to array of word16 values representing OID components
@@ -252,9 +254,11 @@ int wc_EncodeObjectId(const word16* in, word32 inSz, byte* out,
 
     \return 0 On success.
     \return BAD_FUNC_ARG If in or outSz is NULL, if inSz is less than 2, if
-    the first arc in[0] is greater than 2, or if the combined first arc
+    the first arc in[0] is greater than 2, if in[0] is 0 or 1 and the second
+    arc in[1] is greater than 39, or if the combined first arc
     (40 * in[0] + in[1]) would overflow a word32. An OID must have at least
-    two arcs and, per X.690, its first arc must be 0, 1 or 2.
+    two arcs and, per X.690, its first arc must be 0, 1 or 2, with the second
+    arc limited to 0..39 unless the first arc is 2.
     \return BUFFER_E If out is not NULL and outSz is too small.
 
     \param in pointer to array of word32 values representing OID components

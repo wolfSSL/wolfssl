@@ -2800,16 +2800,46 @@ int test_wc_DecodeObjectId32(void)
         }
 
         /* Test 9: an arc that does not fit in a word32 must be rejected by
-         * the overflow guard rather than silently wrapping. The first byte
-         * (0x2a) decodes to 1.2; the following five continuation bytes encode
-         * a single sub-identifier that needs more than 32 bits. */
+         * the overflow guard rather than silently wrapping. In each vector
+         * the first byte (0x2a) decodes to 1.2 and the remaining bytes encode
+         * a single sub-identifier. */
         {
+            /* Five continuation bytes: 35 significant bits. */
             static const byte oid_overflow_arc[] = {
                 0x2a, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F
             };
+            /* Six continuation bytes: more than the encoder ever emits. */
+            static const byte oid_overflow_arc_long[] = {
+                0x2a, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F
+            };
+            /* Exactly 2^32 - 1: the largest arc that does fit. */
+            static const byte oid_max_arc[] = {
+                0x2a, 0x8F, 0xFF, 0xFF, 0xFF, 0x7F
+            };
+            /* Exactly 2^32: one more than fits. */
+            static const byte oid_over_max_arc[] = {
+                0x2a, 0x90, 0x80, 0x80, 0x80, 0x00
+            };
+
             outSz = MAX_OID_SZ;
             ExpectIntEQ(DecodeObjectId32(oid_overflow_arc,
                         sizeof(oid_overflow_arc), out, &outSz),
+                        WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId32(oid_overflow_arc_long,
+                        sizeof(oid_overflow_arc_long), out, &outSz),
+                        WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
+
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId32(oid_max_arc, sizeof(oid_max_arc),
+                        out, &outSz), 0);
+            ExpectIntEQ((int)outSz, 3);
+            ExpectTrue(out[2] == 0xFFFFFFFFU);
+
+            outSz = MAX_OID_SZ;
+            ExpectIntEQ(DecodeObjectId32(oid_over_max_arc,
+                        sizeof(oid_over_max_arc), out, &outSz),
                         WC_NO_ERR_TRACE(ASN_OBJECT_ID_E));
         }
     }

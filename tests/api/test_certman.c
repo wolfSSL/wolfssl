@@ -3646,6 +3646,94 @@ int test_wolfSSL_CRL_unknown_ext_cb_noctx(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+/* Which unknown-extension callback the parser last invoked:
+ * -1 = neither, 0 = the word16 one, 1 = the word32 one. */
+static int crl_unk_ext_last_cb = -1;
+
+/* When both a word16 and a word32 unknown-extension callback are registered,
+ * only the word32 one may run.  The word16 callback here rejects the CRL and
+ * the word32 callback accepts it, so a successful load proves the word32
+ * callback took precedence. */
+static int crl_unk_ext_cb_16_reject(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    ((CRLUnkExtCtx*)ctxIn)->calls++;
+    crl_unk_ext_last_cb = 0;
+    return 1;
+}
+
+static int crl_unk_ext_cb_32_accept(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    ((CRLUnkExtCtx*)ctxIn)->calls++;
+    crl_unk_ext_last_cb = 1;
+    return 0;
+}
+#endif
+
+int test_wolfSSL_CRL_unknown_ext_cb_32_preferred(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+    int reg32First;
+
+    /* Precedence must not depend on registration order, so run it both
+     * ways. */
+    for (reg32First = 0; reg32First < 2; reg32First++) {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        CRLUnkExtCtx ctx = { 0, 0, 0 };
+
+        crl_unk_ext_last_cb = -1;
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+            "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        if (reg32First) {
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                crl_unk_ext_cb_16_reject, &ctx), WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                crl_unk_ext_cb_16_reject, &ctx), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
+        }
+
+        /* This CRL carries an unknown critical entry extension, so it only
+         * loads when a callback accepts it (see
+         * test_wolfSSL_CRL_unknown_critical_entry_ext above).  The word16
+         * callback rejects, so success means the word32 callback ran. */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+            "./certs/crl/extra-crls/crl_critical_entry.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(crl_unk_ext_last_cb, 1);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s callback registered first; "
+                "last callback invoked: %s)\n",
+                reg32First ? "word32" : "word16",
+                (crl_unk_ext_last_cb < 0) ? "none" :
+                    (crl_unk_ext_last_cb == 0) ? "word16" : "word32");
+            break;
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CertManagerCheckOCSPResponse(void)
 {
     EXPECT_DECLS;
