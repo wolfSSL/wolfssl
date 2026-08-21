@@ -1267,10 +1267,6 @@ if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64") &&
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
 fi
-if test "$host_cpu" = "x86"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_BUILD"
-fi
 
 
 AC_ARG_ENABLE([leanpsk],
@@ -5039,11 +5035,13 @@ then
     then
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_X86_64_BUILD"
     fi
-    if test "$host_cpu" = "x86"
-    then
+    case $host_cpu in
+    x86 | i?86)
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_BUILD"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_X86_BUILD"
         ENABLED_X86_ASM=yes
-    fi
+        ;;
+    esac
 fi
 AC_SUBST([ENABLED_AESNI])
 AC_SUBST([ENABLED_AESNI_WITH_AVX])
