@@ -142,6 +142,21 @@
     #undef WC_C_DYNAMIC_FALLBACK
 #endif
 
+#if defined(WOLFSSL_ARMASM) && defined(LINUXKM_RBGC)
+    /* src/include.am compiles exactly one SHA-512 transform under
+     * BUILD_LINUXKM_RBGC -- the portable C one in this file -- and emits no
+     * ARM assembly object for it.  The dispatch below has to agree with what
+     * is actually compiled: left defined, it installs
+     * Transform_Sha512_Len_neon, which nothing then defines, and the wolfCrypt
+     * PIE container fails to link with "U Transform_Sha512_Len_neon".
+     * This is the ARM counterpart of the !defined(LINUXKM_RBGC) already on the
+     * Intel dispatch immediately below.  Both pin the implementation at build
+     * time; neither introduces a run-time choice, and the scalar transform is
+     * what makes the RBGC DRBG callable with interrupts off, where the vector
+     * registers are not available. */
+    #undef WOLFSSL_ARMASM
+#endif
+
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     !defined(LINUXKM_RBGC)
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
