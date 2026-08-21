@@ -276,8 +276,25 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
      * FATAL.  This was diagnostic-only while the SP fixed-point ECC cache
      * locks were still taken inside the bracket; those now take the bracket
      * themselves, after the lock (see sp/ecc_mul.rb mul_mod_point() and
-     * sp/ecc.rb in kh-fork-scripts), so there is no known violator left and
-     * refusing is the correct response rather than a self-inflicted outage. */
+     * sp/ecc.rb in kh-fork-scripts).
+     *
+     * ONE KNOWN VIOLATOR REMAINS, AND IT IS NOT IN THE MODULE.  Under
+     * --enable-linuxkm-benchmarks, bench_stats_start() in
+     * wolfcrypt/benchmark/benchmark.c is redefined to open
+     * SAVE_VECTOR_REGISTERS() and hold it across an entire timed run, closing
+     * it only in bench_stats_*_finish().  A mutex the benchmarked operation
+     * takes is therefore taken inside a bracket the HARNESS opened, not one
+     * the crypto opened: sp_256_ecc_mulmod_avx2_4() takes the SP point cache
+     * lock correctly, before its own bracket, but the harness bracket is
+     * already open around it.  MEASURED 2026-08-21 on 6.17.0-1022-gcp: this
+     * refusal returns BAD_MUTEX_E (-106) to "ECC key gen" and "ECDHE agree".
+     * That -106 is a harness artifact confined to benchmark builds, NOT a
+     * module defect and NOT a leaked bracket -- the bracket is legitimately
+     * held and is released by the matching finish.
+     *
+     * Refusing stays the correct response rather than a self-inflicted
+     * outage.  Do not weaken this check to quiet the benchmark; the harness
+     * is what has to stop holding the bracket across a mutex. */
     if (wc_linuxkm_in_svr_bracket()) {
         pr_err_once("BUG: wc_LockMutex() called inside SAVE_VECTOR_REGISTERS()"
                     " on CPU %d -- illegal, this is an atomic region.\n",

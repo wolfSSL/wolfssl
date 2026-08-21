@@ -14874,16 +14874,21 @@ void bench_eccEncrypt(int curveId)
                                 BENCH_ECCENCRYPT_MSG_SIZE, out, &outSz, cliCtx);
                     if (ret != 0) {
                         printf("wc_ecc_encrypt failed! %d\n", ret);
-                        goto exit_ecies;
+                        break;
                     }
                     RECORD_MULTI_VALUE_STATS();
                 }
                 count += i;
-            } while (bench_stats_check(start)
+            /* The inner for() breaks on failure; stop the timed loop too, so
+             * bench_stats_asym_finish() below runs and releases the bracket
+             * bench_stats_start() opened.  Grouped explicitly: with
+             * MULTI_VALUE_STATISTICS the || arm would otherwise re-enter. */
+            } while ((ret == 0) &&
+                     (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
-               || runs < minimum_runs
+                      || runs < minimum_runs
 #endif
-               );
+                     ));
             bench_stats_asym_finish(name, keySize * 8, encDesc, 0, count, start,
                                     ret);
 #ifdef MULTI_VALUE_STATISTICS
@@ -14904,16 +14909,21 @@ void bench_eccEncrypt(int curveId)
                                 bench_plain, &bench_plainSz, srvCtx);
                     if (ret != 0) {
                         printf("wc_ecc_decrypt failed! %d\n", ret);
-                        goto exit_ecies;
+                        break;
                     }
                     RECORD_MULTI_VALUE_STATS();
                 }
                 count += i;
-            } while (bench_stats_check(start)
+            /* The inner for() breaks on failure; stop the timed loop too, so
+             * bench_stats_asym_finish() below runs and releases the bracket
+             * bench_stats_start() opened.  Grouped explicitly: with
+             * MULTI_VALUE_STATISTICS the || arm would otherwise re-enter. */
+            } while ((ret == 0) &&
+                     (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
-               || runs < minimum_runs
+                      || runs < minimum_runs
 #endif
-               );
+                     ));
             bench_stats_asym_finish(name, keySize * 8, decDesc, 0, count, start,
                                     ret);
 #ifdef MULTI_VALUE_STATISTICS
@@ -14922,7 +14932,6 @@ void bench_eccEncrypt(int curveId)
             RESET_MULTI_VALUE_STATS_VARS();
         }
 
-exit_ecies:
         wc_ecc_ctx_free(cliCtx);
         wc_ecc_ctx_free(srvCtx);
     }
