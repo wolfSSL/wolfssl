@@ -70,6 +70,7 @@ Crypto Callback Build Options:
  * WOLF_CRYPTO_CB_ONLY_MLDSA: Use only callbacks for ML-DSA    default: off
  * WOLF_CRYPTO_CB_ONLY_LMS: Use only callbacks for LMS/HSS     default: off
  * WOLF_CRYPTO_CB_ONLY_XMSS: Use only callbacks for XMSS       default: off
+ * WOLF_CRYPTO_CB_ONLY_FRODOKEM: Use only callbacks for FrodoKEM default: off
  * WOLF_CRYPTO_CB_SHAKE_XOF: Dispatch SHAKE absorb and squeeze  default: off
  *                      as well as update and final. Off by
  *                      default because a callback that predates

@@ -42,7 +42,7 @@
 #endif /* HAVE_INTEL_AVX512 */
 #endif /* NO_AVX512_SUPPORT */
 
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .text
@@ -887,8 +887,8 @@ L_frodokem_gen_a_rows_aes_aesni_next:
 .size	frodokem_gen_a_rows_aes_aesni,.-frodokem_gen_a_rows_aes_aesni
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
-#ifdef WOLFSSL_HAVE_FRODOKEM
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
+#if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
 .text
@@ -1600,7 +1600,7 @@ L_frodokem_gen_a_rows_aes_avx512_aes:
 .size	frodokem_gen_a_rows_aes_avx512,.-frodokem_gen_a_rows_aes_avx512
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512 */
-#endif /* WOLFSSL_HAVE_FRODOKEM */
+#endif /* WOLFSSL_HAVE_FRODOKEM && !WOLF_CRYPTO_CB_ONLY_FRODOKEM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
