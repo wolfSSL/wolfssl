@@ -19080,6 +19080,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_MSG("DomainName match on verify param failed");
                         ret = DOMAIN_NAME_MISMATCH;
                         WOLFSSL_ERROR_VERBOSE(ret);
+                        /* Record it: a verify callback may clear ret, and
+                         * get_verify_result() must not then report success on
+                         * a certificate issued to another name. */
+                        if ((ssl->peerVerifyRet == 0) ||
+                                (ssl->peerVerifyRet == WOLFSSL_X509_V_OK)) {
+                            ssl->peerVerifyRet = (unsigned long)
+                                WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
+                        }
                     }
                 }
             #endif
@@ -19103,6 +19111,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_MSG("IPAddr match on verify param failed");
                         ret = IPADDR_MISMATCH;
                         WOLFSSL_ERROR_VERBOSE(ret);
+                        if ((ssl->peerVerifyRet == 0) ||
+                                (ssl->peerVerifyRet == WOLFSSL_X509_V_OK)) {
+                            ssl->peerVerifyRet = (unsigned long)
+                                WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
+                        }
                     }
                 }
             #endif
