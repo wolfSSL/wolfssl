@@ -925,12 +925,42 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
          * preempt_disable() further down for why the asymmetry mattered.
          */
 
-        /* I feel the migrate_disable() is an OVERSTEP because: it compiles
-         * only under !CONFIG_PREEMPT_COUNT, where preemptible() is constant
-         * 0 and local_bh_disable() already raises preempt_count.  It pins
-         * nothing new. */
+        /* RENDERED: not an overstep from 5.11 on, but the 5.7 floor was, and
+         * it is raised here.
+         *
+         * The judgement this replaces read "preemptible() is constant 0 and
+         * local_bh_disable() already raises preempt_count, so it pins nothing
+         * new".  Both premises are true -- preemptible() is literally 0 under
+         * !CONFIG_PREEMPT_COUNT (include/linux/preempt.h:293 in
+         * linux-6.19.14), and __local_bh_disable_ip() is preempt_count_add()
+         * then barrier() (include/linux/bottom_half.h:11-14, same text in
+         * 5.7.19, 5.11.22, 6.6.152 and 6.19.14) -- and the conclusion does not
+         * follow.  A raised preempt_count blocks only INVOLUNTARY preemption,
+         * which this configuration does not have; a VOLUNTARY schedule still
+         * runs, and the task can come back on a different CPU, where the
+         * per-CPU slot claimed below is somebody else's.  migrate_disable() is
+         * the one primitive whose effect does not route through PREEMPT_MASK:
+         * it sets current->migration_disabled, which migrate_disable_switch()
+         * reads from __schedule() (linux-5.11.22/kernel/sched/core.c:1728) and
+         * is_migration_disabled() reads on the wakeup path
+         * (linux-5.11.22/kernel/sched/sched.h:1101), neither of them gated on
+         * CONFIG_PREEMPT_COUNT.
+         *
+         * FLOOR 5.11, NOT 5.7.  Through 5.10 migrate_disable() IS
+         * preempt_disable(), read verbatim:
+         *   linux-5.7.19/include/linux/preempt.h:335-338
+         *   linux-5.10.265/include/linux/preempt.h:336-339
+         *     static __always_inline void migrate_disable(void)
+         *     { preempt_disable(); }
+         * so under this guard's own !CONFIG_PREEMPT_COUNT it was barrier() and
+         * compensated for nothing.  Confirmed by compiling this exact guard
+         * against every tree's own headers and .config: 0 emitted calls on
+         * 5.6.19 through 5.10.265, exactly 1 from 5.11.22, against a
+         * schedule() control that emitted 1 on all of them.  See
+         * WC_SVR_DECIDE_PIN() below for the same argument in the certifiable
+         * half. */
         #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-            (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+            (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
         migrate_disable();
         #endif
         local_bh_disable();
@@ -956,7 +986,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
              * per-CPU slot can go stale mid-unwind. */
             local_bh_enable();
             #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
             migrate_enable();
             #endif
             return WC_ACCEL_INHIBIT_E;
@@ -1013,7 +1043,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             #endif
             local_bh_enable();
             #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
             migrate_enable();
             #endif
             return BAD_STATE_E;
@@ -1057,12 +1087,21 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
          * explicitly.  All of these calls are recursion-safe.
          */
 
-        /* I feel this is an OVERSTEP because: the local_bh_disable() and RT
-         * preempt_disable() here are fpregs_lock() rewritten, and from 6.15
-         * kernel_fpu_begin() calls fpregs_lock() itself, so both run on
-         * every outermost section. */
+        /* RENDERED, on the local_bh_disable() and RT preempt_disable() below:
+         * they are fpregs_lock() rewritten, and from 6.15 kernel_fpu_begin()
+         * does call fpregs_lock() itself -- but only when interrupts are on:
+         *   linux-6.14.11 arch/x86/kernel/fpu/core.c:423   preempt_disable();
+         *   linux-6.15.11 arch/x86/kernel/fpu/core.c:430   if (!irqs_disabled())
+         *                                                          fpregs_lock();
+         * so on 6.15+ they are redundant on the outermost section and are
+         * still the only bh-disable below 6.15.  That is an argument about
+         * those two calls, not about the pin.
+         *
+         * RENDERED, on migrate_disable(): kept, floor raised 5.7 -> 5.11.  The
+         * reasoning and the citations are on the sibling site in the INHIBIT
+         * path above; nothing here differs. */
         #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-            (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+            (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
         migrate_disable();
         #endif
         local_bh_disable();
@@ -1078,7 +1117,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             #endif
             local_bh_enable();
             #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
             migrate_enable();
             #endif
             return BAD_STATE_E;
@@ -1324,7 +1363,7 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
              * caller.  Paired with the bracket, it unwinds in reverse
              * acquisition order like every other path here. */
             #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
             migrate_enable();
             #endif
         }
@@ -1385,7 +1424,7 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
     }
 
     #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
-        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
     migrate_enable();
     #endif
 
@@ -3173,8 +3212,10 @@ static void wc_svr_nested_free(void) { }
  * nothing.  The per-task migration_disabled machinery, and
  * EXPORT_SYMBOL_GPL(migrate_disable), arrive in 5.11
  * (linux-5.11.22/kernel/sched/core.c:1756).  The uncertified half of this file
- * carries a 5.7 floor at eight sites; those eight are no-ops on 5.7 - 5.10 for
- * this reason, and 5.6 and earlier have no migrate_disable() at all.  On
+ * carries the same 5.11 floor at its SEVEN sites -- counted, not recalled; an
+ * earlier revision of this paragraph said eight, which is the drift this file
+ * warns about elsewhere -- raised there from 5.7 for exactly this reason.  5.6
+ * and earlier have no migrate_disable() at all.  On
  * !CONFIG_PREEMPT_COUNT kernels below 5.11 there is no primitive that pins
  * this region short of disabling interrupts, and this code does not pretend
  * otherwise.
