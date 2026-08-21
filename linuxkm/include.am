@@ -24,13 +24,14 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/lkcapi_ecdh_glue.c \
 	      linuxkm/lkcapi_rsa_glue.c \
 	      linuxkm/wolfcrypt.lds \
-	      linuxkm/patches/5.10.17/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v17.patch \
-	      linuxkm/patches/5.10.236/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v236.patch \
-	      linuxkm/patches/5.14.0-570.58.1.el9_6/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v14-570v58v1-el9_6.patch \
-	      linuxkm/patches/5.15/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v15.patch \
-	      linuxkm/patches/5.17/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v17.patch \
-	      linuxkm/patches/5.17-ubuntu-jammy-tegra/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v17-ubuntu-jammy-tegra.patch \
-	      linuxkm/patches/6.1.73/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v1v73.patch \
-	      linuxkm/patches/6.12/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v12.patch \
-	      linuxkm/patches/6.15/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v15.patch \
-	      linuxkm/patches/7.0/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-7v0.patch
+	      linuxkm/patches/README.md \
+	      linuxkm/patches/5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch \
+	      linuxkm/patches/5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch \
+	      linuxkm/patches/5.14.0-570.58.1.el9_6/WOLFSSL_KERNELv5_14_el9_6_FIPS.patch \
+	      linuxkm/patches/5.15/WOLFSSL_KERNELv5_15_FIPS.patch \
+	      linuxkm/patches/5.17/WOLFSSL_KERNELv5_17_FIPS.patch \
+	      linuxkm/patches/5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch \
+	      linuxkm/patches/6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch \
+	      linuxkm/patches/6.12/WOLFSSL_KERNELv6_12_FIPS.patch \
+	      linuxkm/patches/6.15/WOLFSSL_KERNELv6_15_FIPS.patch \
+	      linuxkm/patches/7.0/WOLFSSL_KERNELv7_0_FIPS.patch
