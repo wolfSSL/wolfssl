@@ -8215,29 +8215,21 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     /* arrays */
     if (!writeDup && ssl->arrays == NULL) {
-        ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
-                                                           DYNAMIC_TYPE_ARRAYS);
+        /* The pre-master secret is carried at the end of the same allocation,
+         * so the two are always created and released together. */
+        ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays) + ENCRYPT_LEN,
+                                       ssl->heap, DYNAMIC_TYPE_ARRAYS);
         if (ssl->arrays == NULL) {
             WOLFSSL_MSG("Arrays Memory error");
             return MEMORY_E;
         }
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("SSL Arrays", ssl->arrays, sizeof(*ssl->arrays));
+        wc_MemZero_Add("SSL Arrays", ssl->arrays,
+                       sizeof(*ssl->arrays) + ENCRYPT_LEN);
 #endif
-        XMEMSET(ssl->arrays, 0, sizeof(Arrays));
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)
+        XMEMSET(ssl->arrays, 0, sizeof(Arrays) + ENCRYPT_LEN);
+        ssl->arrays->preMasterSecret = (byte*)ssl->arrays + sizeof(Arrays);
         ssl->arrays->preMasterSz = ENCRYPT_LEN;
-        ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
-            DYNAMIC_TYPE_SECRET);
-        if (ssl->arrays->preMasterSecret == NULL) {
-            WOLFSSL_MSG("preMasterSecret Memory error");
-            return MEMORY_E;
-        }
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("SSL Arrays", ssl->arrays->preMasterSecret, ENCRYPT_LEN);
-#endif
-        XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
-#endif
     }
 
     /* RNG */
@@ -8954,12 +8946,8 @@ void FreeArrays(WOLFSSL* ssl, int keep)
             XMEMCPY(ssl->session->sessionID, ssl->arrays->sessionID, ID_LEN);
             ssl->session->sessionIDSz = ssl->arrays->sessionIDSz;
         }
-        if (ssl->arrays->preMasterSecret) {
-            ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
-            XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-            ssl->arrays->preMasterSecret = NULL;
-        }
-        ForceZero(ssl->arrays, sizeof(Arrays)); /* clear arrays struct */
+        /* Clears the arrays struct and the pre-master secret behind it. */
+        ForceZero(ssl->arrays, sizeof(Arrays) + ENCRYPT_LEN);
     }
     XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_ARRAYS);
     ssl->arrays = NULL;
@@ -36741,15 +36729,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             if (args->encSecret == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scke);
             }
-            if (ssl->arrays->preMasterSecret == NULL) {
-                ssl->arrays->preMasterSz = ENCRYPT_LEN;
-                ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN,
-                                                ssl->heap, DYNAMIC_TYPE_SECRET);
-                if (ssl->arrays->preMasterSecret == NULL) {
-                    ERROR_OUT(MEMORY_E, exit_scke);
-                }
-                XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
-            }
+            /* The buffer lives with the arrays, so only its contents need
+             * to be readied here. */
+            ssl->arrays->preMasterSz = ENCRYPT_LEN;
+            XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
 
             switch(ssl->specs.kea)
             {
@@ -44706,15 +44689,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 }
             #endif
 
-                if (ssl->arrays->preMasterSecret == NULL) {
-                    ssl->arrays->preMasterSz = ENCRYPT_LEN;
-                    ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN,
-                                                ssl->heap, DYNAMIC_TYPE_SECRET);
-                    if (ssl->arrays->preMasterSecret == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_dcke);
-                    }
-                    XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
-                }
+                /* The buffer lives with the arrays, so only its contents
+                 * need to be readied here. */
+                ssl->arrays->preMasterSz = ENCRYPT_LEN;
+                XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
 
                 switch (ssl->specs.kea) {
                 #ifndef NO_RSA

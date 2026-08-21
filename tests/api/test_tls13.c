@@ -8311,14 +8311,10 @@ int test_tls13_fragmented_session_ticket(void)
      * configurations that already release the arrays (e.g. no HAVE_SESSION_TICKET)
      * they are NULL at this point and the free is skipped. */
     if (EXPECT_SUCCESS() && ssl_c->arrays != NULL) {
-        /* Zero before freeing so WOLFSSL_CHECK_MEM_ZERO builds don't abort. */
-        if (ssl_c->arrays->preMasterSecret != NULL) {
-            ForceZero(ssl_c->arrays->preMasterSecret, ENCRYPT_LEN);
-            XFREE(ssl_c->arrays->preMasterSecret, ssl_c->heap,
-                  DYNAMIC_TYPE_SECRET);
-            ssl_c->arrays->preMasterSecret = NULL;
-        }
-        ForceZero(ssl_c->arrays, sizeof(Arrays));
+        /* The pre-master secret is carried at the end of the same allocation,
+         * so it goes with it. Zero before freeing so WOLFSSL_CHECK_MEM_ZERO
+         * builds don't abort. */
+        ForceZero(ssl_c->arrays, sizeof(Arrays) + ENCRYPT_LEN);
         XFREE(ssl_c->arrays, ssl_c->heap, DYNAMIC_TYPE_ARRAYS);
         ssl_c->arrays = NULL;
     }
