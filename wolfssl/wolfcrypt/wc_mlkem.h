@@ -865,6 +865,19 @@ WOLFSSL_LOCAL unsigned int mlkem_arm32_rej_uniform(sword16* p, unsigned int len,
     } /* extern "C" */
 #endif
 
+/* Native implementation core (internal). The public wc_MlKemKey_* functions
+ * in wc_mlkem.c wrap it with cryptocb dispatch and argument checking. With
+ * WOLF_CRYPTO_CB_ONLY_MLKEM the lattice math is not compiled: key generation,
+ * encapsulation and decapsulation all go through the crypto callback. The
+ * encode and decode helpers stay, since a callback that returns key material
+ * needs them. */
+#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
+/* Signals that native key generation, encapsulation and decapsulation are
+ * available. Tests gate on this rather than on the build switch, so a test
+ * says what it needs rather than which configuration removed it. */
+#define WC_MLKEM_HAVE_NATIVE
+#endif
+
 #endif /* WOLFSSL_HAVE_MLKEM */
 
 #endif /* WOLF_CRYPT_WC_MLKEM_H */
