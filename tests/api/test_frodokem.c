@@ -100,7 +100,8 @@ static const int frodokem_types[] = {
 
 /* The KAT data is only used by the make-key/encapsulate/decapsulate KAT tests,
  * all of which need key generation to reconstruct the key. */
-#if !defined(NO_SHA256) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
+#if !defined(NO_SHA256) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 
 /* Known-answer test data derived from the official FrodoKEM and eFrodoKEM
  * KAT vectors (PQCkemKAT_*.rsp, count 0), for both the SHAKE and AES matrix A
@@ -755,6 +756,7 @@ int test_wc_frodokem_make_key_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(NO_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
     int i;
     FrodoKemKey* key = NULL;
@@ -801,6 +803,7 @@ int test_wc_frodokem_encapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(NO_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE)
     int i;
@@ -850,6 +853,7 @@ int test_wc_frodokem_decapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(NO_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -915,6 +919,7 @@ int test_wc_frodokem_roundtrip(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -969,6 +974,7 @@ int test_wc_frodokem_encode_decode(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1061,6 +1067,7 @@ int test_wc_frodokem_decap_implicit_reject(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1148,6 +1155,7 @@ int test_wc_frodokem_decapsulate_pubonly_fails(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1216,6 +1224,7 @@ int test_wc_frodokem_decode_privkey_bad_pkh(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
     int i;
     FrodoKemKey* key = NULL;
@@ -1439,6 +1448,7 @@ int test_wc_frodokem_op_len_checks(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1579,6 +1589,7 @@ int test_wc_frodokem_asn1(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
@@ -1768,6 +1779,7 @@ int test_wc_frodokem_key_pem(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WOLFSSL_DER_TO_PEM) && defined(WOLFSSL_PEM_TO_DER) && \
@@ -1867,6 +1879,7 @@ int test_wc_frodokem_x509(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ASN_TEMPLATE) && \
     defined(HAVE_ECC) && \
     defined(WOLFSSL_WC_FRODOKEM_976) && defined(WOLFSSL_FRODOKEM_SHAKE) && \
