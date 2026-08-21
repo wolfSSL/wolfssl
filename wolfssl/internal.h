@@ -3718,9 +3718,14 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* clientHello,
 
 typedef struct TCA {
     byte                       type;    /* TCA Type            */
-    byte*                      id;      /* TCA identifier      */
     word16                     idSz;    /* TCA identifier size */
     struct TCA*                next;    /* List Behavior       */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte id[WC_FLEXIBLE_ARRAY_SIZE];    /* TCA identifier      */
 } TCA;
 
 WOLFSSL_LOCAL int TLSX_UseTrustedCA(TLSX** extensions, byte type,

@@ -2492,13 +2492,7 @@ static void* tca_fail_realloc(void* ptr, size_t size)
 }
 #endif /* HAVE_TRUSTED_CA && !NO_WOLFSSL_CLIENT && !NO_TLS */
 
-/* ---- TLSX_TCA_New(): id allocation failure ------------------------------ */
-/* KEY_SHA1/CERT_SHA1: if (idSz == WC_SHA_DIGEST_SIZE &&
- *     (tca->id = XMALLOC(idSz, ...))) {...}
- * X509_NAME:          if (idSz > 0 &&
- *     (tca->id = XMALLOC(idSz, ...))) {...}
- * In both cases the length operand's pair is already covered elsewhere;
- * only the allocation succeeding vs. failing is exercised here. */
+/* ---- TLSX_TCA_New(): allocation failure ---------------------------------- */
 int test_tls_msgtype_tca_new_alloc(void)
 {
     EXPECT_DECLS;
@@ -2518,15 +2512,14 @@ int test_tls_msgtype_tca_new_alloc(void)
     };
     const byte nameId[] = { 5, 6, 7, 8 };
 
-    /* CERT_SHA1: the TCA struct itself (allocation #0) succeeds, the id
-     * buffer (allocation #1) fails. */
+    /* CERT_SHA1: the TCA and its identifier share one allocation. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
     ExpectIntEQ(wolfSSL_SetAllocators(tca_fail_malloc, tca_fail_free,
                 tca_fail_realloc), 0);
     tca_alloc_seen = 0;
-    tca_fail_after = 1;
+    tca_fail_after = 0;
     ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_CERT_SHA1,
                 sha1Id, sizeof(sha1Id)), WC_NO_ERR_TRACE(MEMORY_E));
     tca_fail_after = -1;
@@ -2536,15 +2529,14 @@ int test_tls_msgtype_tca_new_alloc(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
-    /* X509_NAME: same shape - struct allocation succeeds, id buffer
-     * allocation fails. */
+    /* X509_NAME: the same single allocation. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
     ExpectIntEQ(wolfSSL_SetAllocators(tca_fail_malloc, tca_fail_free,
                 tca_fail_realloc), 0);
     tca_alloc_seen = 0;
-    tca_fail_after = 1;
+    tca_fail_after = 0;
     ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_X509_NAME,
                 nameId, (word32)sizeof(nameId)), WC_NO_ERR_TRACE(MEMORY_E));
     tca_fail_after = -1;

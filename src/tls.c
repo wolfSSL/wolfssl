@@ -2943,52 +2943,47 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 /** Creates a new TCA object. */
 static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
 {
-    TCA* tca = (TCA*)XMALLOC(sizeof(TCA), heap, DYNAMIC_TYPE_TLSX);
-
-    if (tca) {
-        XMEMSET(tca, 0, sizeof(TCA));
-        tca->type = type;
-
-        switch (type) {
-            case WOLFSSL_TRUSTED_CA_PRE_AGREED:
-                break;
-
-            #ifndef NO_SHA
-            case WOLFSSL_TRUSTED_CA_KEY_SHA1:
-            case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (idSz == WC_SHA_DIGEST_SIZE &&
-                        (tca->id =
-                            (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
-                    XMEMCPY(tca->id, id, idSz);
-                    tca->idSz = idSz;
-                }
-                else {
-                    XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
-                    tca = NULL;
-                }
-                break;
-            #endif
-
-            case WOLFSSL_TRUSTED_CA_X509_NAME:
-                if (idSz > 0 &&
-                        (tca->id =
-                            (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
-                    XMEMCPY(tca->id, id, idSz);
-                    tca->idSz = idSz;
-                }
-                else {
-                    XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
-                    tca = NULL;
-                }
-                break;
-
-            default: /* invalid type */
-                XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
-                tca = NULL;
-        }
-    }
+    TCA* tca;
+    word32 allocSz;
 
     (void)heap;
+
+    switch (type) {
+        case WOLFSSL_TRUSTED_CA_PRE_AGREED:
+            idSz = 0;
+            break;
+
+        #ifndef NO_SHA
+        case WOLFSSL_TRUSTED_CA_KEY_SHA1:
+        case WOLFSSL_TRUSTED_CA_CERT_SHA1:
+            if (idSz != WC_SHA_DIGEST_SIZE)
+                return NULL;
+            break;
+        #endif
+
+        case WOLFSSL_TRUSTED_CA_X509_NAME:
+            if (idSz == 0)
+                return NULL;
+            break;
+
+        default: /* invalid type */
+            return NULL;
+    }
+
+    allocSz = (word32)sizeof(TCA) + idSz;
+    /* Fails where size_t is too narrow to hold the sum. */
+    if ((word32)(size_t)allocSz != allocSz)
+        return NULL;
+    tca = (TCA*)XMALLOC((size_t)allocSz, heap, DYNAMIC_TYPE_TLSX);
+    if (tca == NULL)
+        return NULL;
+
+    XMEMSET(tca, 0, sizeof(TCA));
+    tca->type = type;
+    if (idSz > 0) {
+        XMEMCPY(tca->id, id, idSz);
+        tca->idSz = idSz;
+    }
 
     return tca;
 }
@@ -2999,7 +2994,6 @@ static void TLSX_TCA_Free(TCA* tca, void* heap)
     (void)heap;
 
     if (tca) {
-        XFREE(tca->id, heap, DYNAMIC_TYPE_TLSX);
         XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
     }
 }
@@ -3063,29 +3057,15 @@ static word16 TLSX_TCA_Write(TCA* list, byte* output)
             #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (tca->id != NULL) {
-                    XMEMCPY(output + offset, tca->id, tca->idSz);
-                    offset += tca->idSz;
-                }
-                else {
-                    /* ID missing. Set to an empty string. */
-                    c16toa(0, output + offset);
-                    offset += OPAQUE16_LEN;
-                }
+                XMEMCPY(output + offset, tca->id, tca->idSz);
+                offset += tca->idSz;
                 break;
             #endif
             case WOLFSSL_TRUSTED_CA_X509_NAME:
-                if (tca->id != NULL) {
-                    c16toa(tca->idSz, output + offset); /* tca length */
-                    offset += OPAQUE16_LEN;
-                    XMEMCPY(output + offset, tca->id, tca->idSz);
-                    offset += tca->idSz;
-                }
-                else {
-                    /* ID missing. Set to an empty string. */
-                    c16toa(0, output + offset);
-                    offset += OPAQUE16_LEN;
-                }
+                c16toa(tca->idSz, output + offset); /* tca length */
+                offset += OPAQUE16_LEN;
+                XMEMCPY(output + offset, tca->id, tca->idSz);
+                offset += tca->idSz;
                 break;
             default:
                 /* ID unknown. Set to an empty string. */
