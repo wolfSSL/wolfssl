@@ -3678,12 +3678,17 @@ WOLFSSL_LOCAL int TLSX_Append(TLSX** list, TLSX_Type type,
 
 typedef struct SNI {
     byte                       type;    /* SNI Type         */
-    union { char* host_name; } data;    /* SNI Data         */
     struct SNI*                next;    /* List Behavior    */
     byte                       status;  /* Matching result  */
 #ifndef NO_WOLFSSL_SERVER
     byte                       options; /* Behavior options */
 #endif
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    char host_name[WC_FLEXIBLE_ARRAY_SIZE]; /* SNI Data   */
 } SNI;
 
 WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,

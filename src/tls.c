@@ -2277,37 +2277,27 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 /** Creates a new SNI object. */
 static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 {
-    SNI* sni = (SNI*)XMALLOC(sizeof(SNI), heap, DYNAMIC_TYPE_TLSX);
+    SNI* sni;
 
     (void)heap;
 
-    if (sni) {
-        sni->type = type;
-        sni->next = NULL;
+    if (type != WOLFSSL_SNI_HOST_NAME) /* invalid type */
+        return NULL;
 
-    #ifndef NO_WOLFSSL_SERVER
-        sni->options = 0;
-        sni->status  = WOLFSSL_SNI_NO_MATCH;
-    #endif
+    sni = (SNI*)XMALLOC(sizeof(SNI) + size + 1, heap, DYNAMIC_TYPE_TLSX);
+    if (sni == NULL)
+        return NULL;
 
-        switch (sni->type) {
-            case WOLFSSL_SNI_HOST_NAME:
-                sni->data.host_name = (char*)XMALLOC(size + 1, heap,
-                                                     DYNAMIC_TYPE_TLSX);
-                if (sni->data.host_name) {
-                    XSTRNCPY(sni->data.host_name, (const char*)data, size);
-                    sni->data.host_name[size] = '\0';
-                } else {
-                    XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
-                    sni = NULL;
-                }
-            break;
+    sni->type = type;
+    sni->next = NULL;
 
-            default: /* invalid type */
-                XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
-                sni = NULL;
-        }
-    }
+#ifndef NO_WOLFSSL_SERVER
+    sni->options = 0;
+    sni->status  = WOLFSSL_SNI_NO_MATCH;
+#endif
+
+    XSTRNCPY(sni->host_name, (const char*)data, size);
+    sni->host_name[size] = '\0';
 
     return sni;
 }
@@ -2316,12 +2306,6 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 static void TLSX_SNI_Free(SNI* sni, void* heap)
 {
     if (sni) {
-        switch (sni->type) {
-            case WOLFSSL_SNI_HOST_NAME:
-                XFREE(sni->data.host_name, heap, DYNAMIC_TYPE_TLSX);
-            break;
-        }
-
         XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
     }
     (void)heap;
@@ -2351,7 +2335,7 @@ WOLFSSL_TEST_VIS word16 TLSX_SNI_GetSize(SNI* list)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                length += (word32)XSTRLEN((char*)sni->data.host_name);
+                length += (word32)XSTRLEN((char*)sni->host_name);
             break;
         }
 
@@ -2377,12 +2361,12 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                length = (word16)XSTRLEN((char*)sni->data.host_name);
+                length = (word16)XSTRLEN((char*)sni->host_name);
 
                 c16toa(length, output + offset); /* sni length */
                 offset += OPAQUE16_LEN;
 
-                XMEMCPY(output + offset, sni->data.host_name, length);
+                XMEMCPY(output + offset, sni->host_name, length);
 
                 offset += length;
             break;
@@ -2579,7 +2563,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
     {
         const char* hostName;
-        hostName = (sni != NULL) ? sni->data.host_name : NULL;
+        hostName = (sni != NULL) ? sni->host_name : NULL;
         matched = cacheOnly || (hostName != NULL &&
             XSTRLEN(hostName) == size &&
             XSTRNCMP(hostName, (const char*)input + offset, size) == 0);
@@ -2756,7 +2740,7 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data,
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
                 if (data) {
-                    *data = sni->data.host_name;
+                    *data = sni->host_name;
                     return (word16)XSTRLEN((char*)*data);
                 }
         }

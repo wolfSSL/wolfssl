@@ -44,9 +44,8 @@
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     defined(HAVE_TLS_EXTENSIONS)
 
-/* TLSX_SNI_Free() is file-static in src/tls.c. A test that detaches an SNI
- * list from its extension has to release it the same way: the host name, then
- * the node. */
+/* TLSX_SNI_Free() is file-static in src/tls.c. Each SNI node is one
+ * allocation that also holds the host name. */
 #ifdef HAVE_SNI
 TEST_TLS_MSGTYPE_UNUSED
 static void test_tls_msgtype_free_sni(void* p, void* heap)
@@ -56,8 +55,6 @@ static void test_tls_msgtype_free_sni(void* p, void* heap)
     while (sni != NULL) {
         SNI* next = sni->next;
 
-        if (sni->type == WOLFSSL_SNI_HOST_NAME)
-            XFREE(sni->data.host_name, heap, DYNAMIC_TYPE_TLSX);
         XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
         sni = next;
     }
