@@ -451,12 +451,22 @@ static int wc_grb_reseed_nmi(int cpu, int want_cpu)
                                (word32) sizeof(sl_seed));
     if (ret == 0) {
         spare = atomic_read(&wc_grb_nmi[cpu].live) ? 0 : 1;
-        /* Published BEFORE the write, so an NMI still inside this instance
-         * from before a previous flip sees the change and discards its
-         * result rather than reading state being rewritten. */
+        /* Seqlock on this instantiation: odd while it is being rewritten.
+         * The first increment lets an NMI still inside this instance from
+         * before a previous flip discard its result.  The odd value in
+         * between lets an NMI that arrives DURING the reseed see that this
+         * instance is held and stay out of it: wc_RNG_DRBG_Reseed() takes the
+         * instance's exclusion flag (RngExclEnter() in random.c, a CAS spin
+         * on rng->excl), and an NMI cannot wait for that flag -- when the
+         * holder is this CPU's own process context it cannot run again until
+         * the NMI returns.
+         *
+         * The second increment is unconditional, so a failed reseed still
+         * leaves the counter even and the instance usable. */
         atomic_inc(&wc_grb_nmi[cpu].gen[spare]);
         ret = wc_RNG_DRBG_Reseed(&wc_grb_nmi[cpu].rng[spare], sl_seed,
                                  (word32) sizeof(sl_seed));
+        atomic_inc(&wc_grb_nmi[cpu].gen[spare]);
         if (ret == 0) {
             wc_grb_ctr_zero(&wc_grb_nmi[cpu].since);
             atomic_set(&wc_grb_nmi[cpu].pending, 0);
@@ -567,7 +577,7 @@ int wc_grb_service(void *buf, size_t len)
                      * bytes are not validated output and the caller cannot tell
                      * which it got. */
                     int other = live ? 0 : 1;
-                    int og = atomic_read(&sl->gen[other]);
+                    int og;
 
                     /* Ask for a reseed NOW.  The counters below only advance
                      * on a SUCCESSFUL generate, so an instance that has
@@ -581,6 +591,17 @@ int wc_grb_service(void *buf, size_t len)
                      * legal in NMI. */
                     atomic_set(&sl->pending, 1);
                     atomic_set(&wc_grb_any_pending, 1);
+
+                    /* Read AFTER raising the flag above, which is what can
+                     * start a reseed of this very instance.  An odd count
+                     * means maintenance is inside it now, holding its
+                     * exclusion flag; wc_RNG_GenerateBlock() would spin in
+                     * RngExclEnter() waiting for a holder this NMI is itself
+                     * blocking.  Decline instead -- the hook retries. */
+                    og = atomic_read(&sl->gen[other]);
+                    if (og & 1) {
+                        break;
+                    }
 
                     ret = wc_RNG_GenerateBlock(&sl->rng[other],
                                                (byte *) buf + done,
@@ -724,12 +745,13 @@ int wc_grb_root_tick(void)
      * then failed 945,000 consecutive ones, never recovering, and the machine
      * hung.
      *
-     * Reseeding a leaf from another CPU is safe by construction rather than by
-     * timing: the reseed writes rng[spare] while a caller reads rng[live], two
-     * separate instantiations, and the per-instance generation counter catches
-     * the one remaining case, a caller still inside an instance from before an
-     * earlier flip.  That is the same backstop wc_grb_reseed_nmi() already
-     * relies on for CPU hotplug, so nothing new is being assumed. */
+     * The reseed writes rng[spare].  A caller normally reads rng[live], a
+     * separate instantiation, but the NMI path also reads rng[spare] when its
+     * live instance cannot answer, so "two separate instantiations" is not on
+     * its own a safety argument any more.  The generation counter carries it:
+     * wc_grb_reseed_nmi() leaves it odd for the duration of the reseed, and a
+     * caller that finds it odd stays out of that instance rather than waiting
+     * on the exclusion flag the reseed holds. */
     {
         int i;
 
