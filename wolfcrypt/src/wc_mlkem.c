@@ -706,10 +706,11 @@ int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng)
         ret = wc_MlKemKey_MakeKeyWithRandom(key, rand, sizeof(rand));
     }
 
-    /* PCT (FIPS 140-3 IG 10.3.A 1.B) runs in wc_MlKemKey_MakeKeyWithRandom(),
-     * called above, not here: EncapsulateWithRandom() with a fixed `m` needs no
-     * RNG, so the test sits in the deterministic path both entry points share.
-     * An inline PCT here would repeat it per keygen for no added coverage. */
+    /* PCT (FIPS 140-3 IG 10.3.A Additional Comment 1) runs in
+     * wc_MlKemKey_MakeKeyWithRandom(), called above, not here:
+     * EncapsulateWithRandom() with a fixed `m` needs no RNG, so the test sits
+     * in the deterministic path both entry points share.  An inline PCT here
+     * would repeat it per keygen for no added coverage. */
 
     /* Ensure seeds are zeroized. */
     ForceZero((void*)rand, (word32)sizeof(rand));
@@ -991,8 +992,9 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
 
 #if FIPS_VERSION3_GE(7,0,0)
-    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A 1.B and
-     * ISO/IEC 19790:2012 Section 7.10.3.3: encapsulate with the generated
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A Additional
+     * Comment 1 and ISO/IEC 19790:2012 Section 7.10.3.3, which for a FIPS 203
+     * KEM is the TE10.35.01 test: encapsulate with the generated
      * encapsulation key (ek), decapsulate with the matching decapsulation
      * key (dk), and verify the recovered shared secret matches.  This is a
      * deterministic key-gen path with no caller RNG, so the PCT uses
@@ -1065,9 +1067,11 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 
         WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-        /* FIPS 140-3 IG 10.3.A (TE10.35.02): a key pair that fails the PCT
-         * must be rendered unusable.  Zeroize the generated key material so
-         * a caller that ignores the return value cannot use it. */
+        /* FIPS 140-3 IG 10.3.A Additional Comment 1 (TE10.35.01, the key
+         * transport PCT -- TE10.35.02 is the signature one and the footnote
+         * makes them non-interchangeable in this direction): a key pair that
+         * fails the PCT must be rendered unusable.  Zeroize the generated key
+         * material so a caller that ignores the return value cannot use it. */
         if (ret != 0) {
             wc_MlKemKey_Free(key);
         }
