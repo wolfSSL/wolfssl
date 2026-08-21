@@ -8163,6 +8163,7 @@ int test_tls13_client_cookie_echo(void)
     ExpectIntLE(length, (word32)sizeof(out));
     if (EXPECT_SUCCESS()) {
         ExpectIntEQ(TLSX_WriteRequest(ssl, out, client_hello, &offset), 0);
+        ExpectIntEQ(offset, length);
     }
     if (EXPECT_SUCCESS()) {
         int found = 0;
