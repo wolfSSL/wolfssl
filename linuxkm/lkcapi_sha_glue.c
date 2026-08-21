@@ -1327,7 +1327,10 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
     if (ctx->failed || (ctx->sha3_state == NULL))                          \
         return -EINVAL;                                                    \
                                                                            \
-    int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
+    int ret;                                                               \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
+    ret = update_f(&ctx->sha3_state-> name ## _state, data, len);          \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -1348,7 +1351,10 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     if (ctx->failed || (ctx->sha3_state == NULL))                          \
         return -EINVAL;                                                    \
                                                                            \
-    int ret = final_f(&ctx->sha3_state-> name ## _state, out);             \
+    int ret;                                                               \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
+    ret = final_f(&ctx->sha3_state-> name ## _state, out);                 \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     km_sha3_free_tstate(desc);                                             \
     if (ret == 0)                                                          \
@@ -1369,7 +1375,10 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
     if (ctx->failed || (ctx->sha3_state == NULL))                          \
         return -EINVAL;                                                    \
                                                                            \
-    int ret = update_f(&ctx->sha3_state-> name ## _state, data, len);      \
+    int ret;                                                               \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
+    ret = update_f(&ctx->sha3_state-> name ## _state, data, len);          \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     if (ret != 0) {                                                        \
         ctx->failed = 1;                                                   \
@@ -1387,12 +1396,19 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
     int ret;                                                               \
                                                                            \
     (void)desc;                                                            \
+    /* One-shot: bracket the whole operation, so a refusal means NOTHING   \
+     * ran and -EBUSY is safe to retry.  See KM_SHA_SVR_BEGIN.          \
+     */                                                                    \
+    KM_SHA_SVR_BEGIN(ret);                                                 \
     ret = init_f(&sha3_state. name ## _state, NULL, INVALID_DEVID);        \
-    if (ret != 0)                                                          \
+    if (ret != 0) {                                                        \
+        KM_SHA_SVR_END();                                                  \
         return -EINVAL;                                                    \
+    }                                                                      \
     ret = update_f(&sha3_state. name ## _state, data, len);                \
     if (ret == 0)                                                          \
         ret = final_f(&sha3_state. name ## _state, out);                   \
+    KM_SHA_SVR_END();                                                      \
                                                                            \
     free_f(&sha3_state. name ## _state);                                   \
     ForceZero(&sha3_state, sizeof sha3_state);                             \
