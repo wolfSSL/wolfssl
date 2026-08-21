@@ -5030,11 +5030,7 @@ static int TLSX_SupportedCurve_Grow(SupportedCurves** curves, word16 cnt,
 
 /* Allocate a list holding one name.
  *
- * *curves is written unconditionally, so it must not already hold a list:
- * unlike TLSX_SupportedCurve_Grow(), this does not read what is there and
- * would leak it. Both callers pass a NULL-initialised pointer.
- *
- * curves  Receives the new list.
+ * curves  Receives the new list. Must not already hold one, which would leak.
  * name    The first name to store.
  * heap    The heap used for allocation.
  * returns 0 on success, otherwise failure.
@@ -5045,7 +5041,7 @@ static int TLSX_SupportedCurve_New(SupportedCurves** curves, word16 name,
     SupportedCurves* list = NULL;
     int ret;
 
-    if (curves == NULL)
+    if ((curves == NULL) || (*curves != NULL))
         return BAD_FUNC_ARG;
 
     ret = TLSX_SupportedCurve_Grow(&list, 1, heap);
@@ -5434,55 +5430,53 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
         }
     }
     else {
-        /* Find the intersection with what the user has set */
-        SupportedCurves* ourCurves = (SupportedCurves*)extension->data;
-        SupportedCurves* commonCurves = NULL;
+        /* Intersect in place: the groups both sides have move to the front
+         * of our own list, in the peer's order. */
+        SupportedCurves* curves = (SupportedCurves*)extension->data;
+        word16 common = 0;
         word16 i;
 
-        for (; (ourCurves != NULL) && (offset < length);
-                offset += OPAQUE16_LEN) {
+        for (; offset < length; offset += OPAQUE16_LEN) {
+            word16 count = (curves != NULL) ? curves->count : 0;
+
             ato16(input + offset, &name);
 
-            for (i = 0; i < ourCurves->count; i++) {
-                if (ourCurves->name[i] == name)
+            for (i = 0; i < count; i++) {
+                if (curves->name[i] == name)
                     break;
             }
-
-            if (i < ourCurves->count) {
-                ret = commonCurves == NULL ?
-                      TLSX_SupportedCurve_New(&commonCurves, name, ssl->heap) :
-                      TLSX_SupportedCurve_Append(&commonCurves, name,
-                                                 ssl->heap);
-                if (ret != 0)
-                    break;
+            if (i < count) {
+                /* Below common it is a repeat in the peer list. */
+                if (i >= common) {
+                    curves->name[i] = curves->name[common];
+                    curves->name[common++] = name;
+                }
             }
 #if !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_SERVER)
-            /* RFC 7919 Section 4 (see comment above). */
+            /* RFC 7919 Section 4 (see above): an unsupported FFDHE codepoint
+             * is not in our list yet, so append it before keeping it. */
             else if (isRequest && WOLFSSL_NAMED_GROUP_IS_FFDHE(name) &&
                     !TLSX_IsGroupSupported(name, ssl->options.side)) {
-                ret = commonCurves == NULL ?
-                      TLSX_SupportedCurve_New(&commonCurves, name, ssl->heap) :
-                      TLSX_SupportedCurve_Append(&commonCurves, name,
-                                                 ssl->heap);
+                if (curves == NULL)
+                    ret = TLSX_SupportedCurve_New(&curves, name, ssl->heap);
+                else
+                    ret = TLSX_SupportedCurve_Append(&curves, name, ssl->heap);
                 if (ret != 0)
                     break;
+                extension->data = curves;
+                curves->name[curves->count - 1] = curves->name[common];
+                curves->name[common++] = name;
             }
 #endif /* !NO_DH && !WOLFSSL_NO_TLS12 && !NO_WOLFSSL_SERVER */
         }
-        /* If no common curves return error. In TLS 1.3 we can still try to save
-         * this by using HRR. */
-        if (ret == 0 && commonCurves == NULL &&
-                !IsAtLeastTLSv1_3(ssl->version))
-            ret = ECC_CURVE_ERROR;
+        /* Commit only on success; a failed handshake never reads it again. */
         if (ret == 0) {
-            /* Now swap out the curves in the extension */
-            TLSX_SupportedCurve_FreeAll((SupportedCurves*)extension->data,
-                                        ssl->heap);
-            extension->data = commonCurves;
-            commonCurves = NULL;
+            if (common == 0 && !IsAtLeastTLSv1_3(ssl->version))
+                ret = ECC_CURVE_ERROR;
+            else if (curves != NULL)
+                curves->count = common;
         }
-        TLSX_SupportedCurve_FreeAll(commonCurves, ssl->heap);
     }
 
     return ret;
