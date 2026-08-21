@@ -44,6 +44,25 @@
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     defined(HAVE_TLS_EXTENSIONS)
 
+/* TLSX_SNI_Free() is file-static in src/tls.c. A test that detaches an SNI
+ * list from its extension has to release it the same way: the host name, then
+ * the node. */
+TEST_TLS_MSGTYPE_UNUSED
+static void test_tls_msgtype_free_sni(void* p, void* heap)
+{
+    SNI* sni = (SNI*)p;
+
+    while (sni != NULL) {
+        SNI* next = sni->next;
+
+        if (sni->type == WOLFSSL_SNI_HOST_NAME)
+            XFREE(sni->data.host_name, heap, DYNAMIC_TYPE_TLSX);
+        XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
+        sni = next;
+    }
+}
+
+
 /* Build one extension record (2-byte type, 2-byte length, N zero data
  * bytes) into buf and return its total length. Content is all-zero: gates
  * are checked before an extension's data is interpreted, so the exact bytes
@@ -84,7 +103,8 @@ static word16 build_ext_with_body(byte* buf, word16 type, const byte* body,
 int test_tls_msgtype_arg_guard(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte dummy[4] = { 0 };
@@ -140,8 +160,8 @@ static const byte psk_ch_body[] = {
 int test_tls_msgtype_psk_duplicate(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[64];
@@ -184,8 +204,8 @@ int test_tls_msgtype_psk_duplicate(void)
 int test_tls_msgtype_certificate_ext_offered(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-    defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_NO_TLS12)
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) &&  defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -264,9 +284,8 @@ int test_tls_msgtype_sni_tls13(void)
     EXPECT_DECLS;
 /* Drives TLSX_SNI_Parse's isRequest path, which is server-side code and
  * is compiled out by NO_WOLFSSL_SERVER. */
-#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(NO_TLS)
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&  !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -296,8 +315,8 @@ int test_tls_msgtype_sni_tls13(void)
 int test_tls_msgtype_sni_tls12(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SNI) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -327,7 +346,8 @@ int test_tls_msgtype_sni_tls12(void)
 int test_tls_msgtype_tca(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -357,7 +377,8 @@ int test_tls_msgtype_tca(void)
 int test_tls_msgtype_mfl_tls13(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -387,7 +408,8 @@ int test_tls_msgtype_mfl_tls13(void)
 int test_tls_msgtype_mfl_tls12(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -417,8 +439,8 @@ int test_tls_msgtype_mfl_tls12(void)
 int test_tls_msgtype_supported_groups_tls13(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -448,7 +470,8 @@ int test_tls_msgtype_supported_groups_tls13(void)
 int test_tls_msgtype_point_formats(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -478,8 +501,8 @@ int test_tls_msgtype_point_formats(void)
 int test_tls_msgtype_csr_tls13(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -517,8 +540,8 @@ int test_tls_msgtype_csr_tls13(void)
 int test_tls_msgtype_csr_tls12(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -548,8 +571,8 @@ int test_tls_msgtype_csr_tls12(void)
 int test_tls_msgtype_csr2_tls12(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -579,8 +602,8 @@ int test_tls_msgtype_csr2_tls12(void)
 int test_tls_msgtype_extms(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -610,8 +633,8 @@ int test_tls_msgtype_extms(void)
 int test_tls_msgtype_renegotiation_info(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -641,8 +664,8 @@ int test_tls_msgtype_renegotiation_info(void)
 int test_tls_msgtype_session_ticket_tls12(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -672,8 +695,8 @@ int test_tls_msgtype_session_ticket_tls12(void)
 int test_tls_msgtype_alpn_tls13(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ALPN) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_ALPN) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -704,8 +727,8 @@ int test_tls_msgtype_alpn_tls13(void)
 int test_tls_msgtype_alpn_tls12(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ALPN) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_ALPN) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -737,8 +760,8 @@ int test_tls_msgtype_alpn_tls12(void)
 int test_tls_msgtype_sigalgs_tls13(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && \
-    defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) &&  defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -768,8 +791,8 @@ int test_tls_msgtype_sigalgs_tls13(void)
 int test_tls_msgtype_etm(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY) &&  !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -799,7 +822,8 @@ int test_tls_msgtype_etm(void)
 int test_tls_msgtype_supported_versions(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -832,7 +856,8 @@ int test_tls_msgtype_supported_versions(void)
 int test_tls_msgtype_cookie(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -862,8 +887,8 @@ int test_tls_msgtype_cookie(void)
 int test_tls_msgtype_psk(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -893,8 +918,8 @@ int test_tls_msgtype_psk(void)
 int test_tls_msgtype_cert_with_extern_psk(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) && \
-    !defined(NO_PSK) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_WITH_EXTERN_PSK) &&  !defined(NO_PSK) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -928,8 +953,8 @@ int test_tls_msgtype_cert_with_extern_psk(void)
 int test_tls_msgtype_early_data(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -962,8 +987,8 @@ int test_tls_msgtype_early_data(void)
 int test_tls_msgtype_sigalgs_cert(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && \
-    defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) &&  defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[16];
@@ -993,8 +1018,8 @@ int test_tls_msgtype_sigalgs_cert(void)
 int test_tls_msgtype_key_share(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1027,8 +1052,8 @@ int test_tls_msgtype_key_share(void)
 int test_tls_msgtype_client_cert_type_tls13(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1058,8 +1083,8 @@ int test_tls_msgtype_client_cert_type_tls13(void)
 int test_tls_msgtype_client_cert_type_tls12(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_RPK) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_RPK) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1089,8 +1114,8 @@ int test_tls_msgtype_client_cert_type_tls12(void)
 int test_tls_msgtype_server_cert_type_tls13(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1120,8 +1145,8 @@ int test_tls_msgtype_server_cert_type_tls13(void)
 int test_tls_msgtype_server_cert_type_tls12(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_RPK) && !defined(WOLFSSL_NO_TLS12) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(HAVE_RPK) && !defined(WOLFSSL_NO_TLS12) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1151,7 +1176,8 @@ int test_tls_msgtype_server_cert_type_tls12(void)
 int test_tls_msgtype_connection_id(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1181,8 +1207,8 @@ int test_tls_msgtype_connection_id(void)
 int test_tls_msgtype_ech(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1238,9 +1264,8 @@ static word16 build_sni_body(byte* buf, const char* host)
 int test_tls_msgtype_sni_find(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(NO_TLS)
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&  !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* host = "example.com";
@@ -1274,11 +1299,12 @@ int test_tls_msgtype_sni_find(void)
 int test_tls_msgtype_sni_parse_response_gate(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-    !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) &&  !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     TLSX* extension = NULL;
+    void*  savedExtData = NULL;
     const char* host = "example.com";
     byte buf[8];
     word16 len;
@@ -1291,13 +1317,21 @@ int test_tls_msgtype_sni_parse_response_gate(void)
     ExpectIntEQ(wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, host,
                 (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
     ExpectNotNull(extension = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME));
-    if (extension != NULL)
+    if (extension != NULL) {
+        savedExtData = extension->data;
         extension->data = NULL;
+    }
 
     len = build_ext(buf, TLSX_SERVER_NAME, 0);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, server_hello, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
 
+    if (extension != NULL) {
+        if (extension->data == NULL)
+            extension->data = savedExtData;
+        else if (extension->data != savedExtData)
+            test_tls_msgtype_free_sni(savedExtData, ssl->heap);
+    }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
@@ -1315,9 +1349,8 @@ int test_tls_msgtype_sni_parse_size_gates(void)
     EXPECT_DECLS;
 /* Drives TLSX_SNI_Parse's isRequest path, which is server-side code and
  * is compiled out by NO_WOLFSSL_SERVER. */
-#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(NO_TLS)
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&  !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* host = "srv.example";
@@ -1364,11 +1397,12 @@ static int sni_recv_cb(WOLFSSL* ssl, int* ret, void* arg)
 int test_tls_msgtype_sni_parse_cacheonly(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-    !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) &&  !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     TLSX* extension = NULL;
+    void*  savedExtData = NULL;
     const char* host = "example.com";
     byte sniBody[24];
     byte buf[32];
@@ -1385,14 +1419,22 @@ int test_tls_msgtype_sni_parse_cacheonly(void)
     ExpectIntEQ(wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, host,
                 (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
     ExpectNotNull(extension = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME));
-    if (extension != NULL)
+    if (extension != NULL) {
+        savedExtData = extension->data;
         extension->data = NULL;
+    }
 
     sniLen = build_sni_body(sniBody, "test.example");
     len = build_ext_with_body(buf, TLSX_SERVER_NAME, sniBody, sniLen);
     XMEMSET(&suites, 0, sizeof(suites));
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
 
+    if (extension != NULL) {
+        if (extension->data == NULL)
+            extension->data = savedExtData;
+        else if (extension->data != savedExtData)
+            test_tls_msgtype_free_sni(savedExtData, ssl->heap);
+    }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
@@ -1420,10 +1462,8 @@ int test_tls_msgtype_sni_parse_cacheonly(void)
 int test_tls_msgtype_sni_parse_match(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13)
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&  !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte sniBody[24];
@@ -1526,9 +1566,8 @@ int test_tls_msgtype_sni_parse_match(void)
 int test_tls_msgtype_sni_parse_ech_public(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && defined(HAVE_ECH) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+#if defined(HAVE_SNI) && defined(WOLFSSL_TLS13) && defined(HAVE_ECH) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(NO_WOLFSSL_CLIENT) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     WOLFSSL_EchConfig echConfig;
@@ -1596,8 +1635,8 @@ int test_tls_msgtype_sni_parse_ech_public(void)
 int test_tls_msgtype_psk_ch_id_gates(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[MAX_PSK_ID_LEN + 64];
@@ -1703,8 +1742,8 @@ static const byte psk_ch_body_two[] = {
 int test_tls_msgtype_psk_sh_index(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     TLSX* extension = NULL;
@@ -1770,8 +1809,8 @@ int test_tls_msgtype_psk_sh_index(void)
 int test_tls_msgtype_psk_sh_resumption(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte chBuf[64];
@@ -1874,8 +1913,8 @@ int test_tls_msgtype_psk_sh_resumption(void)
 int test_tls_msgtype_psk_ch_binder_gates(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[128];
@@ -2040,8 +2079,8 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
 int test_tls_msgtype_cookie_parse_gates(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[24];
@@ -2129,12 +2168,12 @@ int test_tls_msgtype_cookie_parse_gates(void)
 int test_tls_msgtype_tca_parse_gates(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
-    !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) &&  !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     TLSX* extension = NULL;
+    void*  savedExtData = NULL;
     const byte id[] = { 1, 2, 3, 4 };
     byte buf[16];
     word16 len;
@@ -2157,11 +2196,15 @@ int test_tls_msgtype_tca_parse_gates(void)
                 id, (word32)sizeof(id)), WOLFSSL_SUCCESS);
     ExpectNotNull(extension = TLSX_Find(ssl->extensions,
                 TLSX_TRUSTED_CA_KEYS));
-    if (extension != NULL)
+    if (extension != NULL) {
+        savedExtData = extension->data;
         extension->data = NULL;
+    }
     len = build_ext(buf, TLSX_TRUSTED_CA_KEYS, 0);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, server_hello, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+    if (extension != NULL)
+        extension->data = savedExtData;
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
@@ -2184,8 +2227,10 @@ int test_tls_msgtype_tca_parse_gates(void)
                 id, (word32)sizeof(id)), WOLFSSL_SUCCESS);
     ExpectNotNull(extension = TLSX_Find(ssl->extensions,
                 TLSX_TRUSTED_CA_KEYS));
-    if (extension != NULL)
+    if (extension != NULL) {
+        savedExtData = extension->data;
         extension->data = NULL;
+    }
     /* A ClientHello TCA extension must be at least WOLFSSL_TCA_MIN_SIZE_CLIENT
      * bytes to pass TLSX_Parse()'s own minimum-size gate; the body content
      * is irrelevant here since extension->data == NULL returns before the
@@ -2196,6 +2241,8 @@ int test_tls_msgtype_tca_parse_gates(void)
         XMEMSET(&suites, 0, sizeof(suites));
         ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     }
+    if (extension != NULL)
+        extension->data = savedExtData;
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
@@ -2208,8 +2255,9 @@ int test_tls_msgtype_tca_parse_gates(void)
 int test_tls_msgtype_tca_find(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && !defined(NO_SHA)
+#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && !defined(NO_SHA) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[24];
@@ -2340,8 +2388,9 @@ static void* tca_fail_realloc(void* ptr, size_t size)
 int test_tls_msgtype_tca_new_alloc(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-    !defined(NO_SHA)
+#if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) &&  !defined(NO_SHA) && \
+    defined(HAVE_TLS_EXTENSIONS) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     wolfSSL_Malloc_cb prevM = NULL;
@@ -2393,9 +2442,8 @@ int test_tls_msgtype_tca_new_alloc(void)
 int test_tls_msgtype_psk_write_chosen(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-    defined(WOLFSSL_TEST_STATIC_BUILD)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) &&  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     TLSX* extension = NULL;
