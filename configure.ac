@@ -2696,6 +2696,28 @@ then
 fi
 
 
+# TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
+AC_ARG_ENABLE([tls13-middlebox-compat],
+    [AS_HELP_STRING([--enable-tls13-middlebox-compat],[Enable TLS v1.3 middlebox compatibility mode (default: disabled)])],
+    [ ENABLED_TLS13_MIDDLEBOX_COMPAT=$enableval ],
+    [ ENABLED_TLS13_MIDDLEBOX_COMPAT=no ]
+    )
+if test "$ENABLED_TLS13_MIDDLEBOX_COMPAT" = "yes"
+then
+    if test "x$ENABLED_TLS13" = "xno"
+    then
+        AC_MSG_NOTICE([TLS 1.3 is disabled - disabling middlebox compatibility])
+        ENABLED_TLS13_MIDDLEBOX_COMPAT="no"
+    elif test "x$ENABLED_ECH" = "xyes"
+    then
+        AC_MSG_NOTICE([ECH is incompatible with middlebox compatibility - disabling middlebox compatibility])
+        ENABLED_TLS13_MIDDLEBOX_COMPAT="no"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+    fi
+fi
+
+
 # RNG
 AC_ARG_ENABLE([rng],
     [AS_HELP_STRING([--enable-rng],[Enable compiling and using RNG (default: enabled)])],
@@ -9623,7 +9645,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+    if test "x$ENABLED_ECH" = "xyes"
+    then
+        AC_MSG_NOTICE([ECH is incompatible with middlebox compatibility - not enabling middlebox compatibility for JNI])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
 
     # Enable openssl compat layer AES-CTS to maintain FIPS compatibility

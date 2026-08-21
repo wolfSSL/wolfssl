@@ -2655,6 +2655,32 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
     ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_TLS)
+    /* RFC 8446 Section 8.2: a freshly started server should reject 0-RTT.
+     * Tickets minted before this time cannot carry early data. Rounded
+     * down to a whole second because stateful tickets only store second
+     * resolution. */
+    ctx->ticketStartTime = TimeNowInMilliseconds();
+    if (ctx->ticketStartTime == 0) {
+        /* TimeNowInMilliseconds() reports failure as 0. Without a reference
+         * point the check cannot run, so turn it off for this ctx. */
+        ctx->noFreshStartCheck = 1;
+    }
+    else {
+        ctx->ticketStartTime -= ctx->ticketStartTime % 1000;
+    #ifdef WOLFSSL_32BIT_MILLI_TIME
+        /* A 32 bit ms clock is truncated mod 2^32, which is not a multiple
+         * of 1000, so the modulo above does not remove the true sub-second
+         * part. Drop a whole further second so a ticket minted in the same
+         * second as this ctx is never flagged as predating it. */
+        if (ctx->ticketStartTime > 1000) {
+            ctx->ticketStartTime -= 1000;
+        }
+    #endif
+    }
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_TLS_READ_AHEAD)
     /* Default the read-ahead window to one full record. Contexts (and the
      * WOLFSSL objects that inherit it) then always carry a concrete window, so
@@ -25422,8 +25448,12 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 #endif /* WOLFSSL_DTLS */
                 #ifdef WOLFSSL_EARLY_DATA
                     if (ssl->options.tls1_3) {
+                        /* RFC 8446 Section 4.2.10: only skip records when
+                         * early data was rejected. After accepting early data
+                         * a decrypt failure is a fatal bad_record_mac. */
                          if (ssl->options.side == WOLFSSL_SERVER_END &&
-                                 ssl->earlyData != no_early_data &&
+                                 (ssl->earlyData == early_data_ext ||
+                                  ssl->earlyData == expecting_early_data) &&
                                  ssl->options.clientState <
                                                      CLIENT_FINISHED_COMPLETE) {
                             ssl->earlyDataSz += ssl->curSize;

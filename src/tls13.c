@@ -6508,6 +6508,10 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     wc_MemZero_Add("DoPreSharedKeys binderKey", binderKey, sizeof(binderKey));
 #endif
 
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_EARLY_DATA)
+    ssl->options.ticketPredatesCtx = 0;
+#endif
+
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
     if (ext == NULL) {
         WOLFSSL_MSG("No pre shared extension keys found");
@@ -6636,6 +6640,42 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
         #ifdef WOLFSSL_EARLY_DATA
             ssl->options.maxEarlyDataSz = ssl->session->maxEarlyDataSz;
+            /* RFC 8446 Section 8.2: fresh servers should reject 0-RTT.
+             * Flag tickets minted before this ctx was created. */
+            if (!ssl->ctx->noFreshStartCheck) {
+        #ifdef WOLFSSL_32BIT_MILLI_TIME
+                /* A 32 bit ms clock wraps every ~49.7 days, so the ctx age is
+                 * only exact while it stays below the max ticket age. Past
+                 * that point DoClientTicketCheck has already rejected
+                 * anything old enough to predate the ctx, so the check can be
+                 * skipped.
+                 *
+                 * ctxAge is unsigned, so a clock reading before the ctx start
+                 * time (a backward step) wraps to just under 2^32. Letting
+                 * that count as an old ctx would silently disable the check
+                 * and admit 0-RTT for tickets minted before a restart, so the
+                 * near-wrap band stays in the checked range.
+                 *
+                 * The two cases are indistinguishable on a wrapping 32 bit
+                 * clock, so a ctx aged between (2^32 - max ticket age) and
+                 * 2^32 ms also lands in the band and refuses 0-RTT until it
+                 * wraps out. Refusing 0-RTT only costs the early data round
+                 * trip, so the ambiguity is resolved that way. */
+                word32 maxAge = (word32)TLS13_MAX_TICKET_AGE * 1000;
+                word32 now = TimeNowInMilliseconds();
+                word32 ctxAge = now - ssl->ctx->ticketStartTime;
+                word32 delta = ssl->ctx->ticketStartTime -
+                               ssl->session->ticketSeen;
+                ssl->options.ticketPredatesCtx =
+                    (now != 0 &&
+                     (ctxAge <= maxAge || ctxAge >= (word32)0u - maxAge) &&
+                     delta != 0 &&
+                     delta <= maxAge);
+        #else
+                ssl->options.ticketPredatesCtx =
+                    (ssl->session->ticketSeen < ssl->ctx->ticketStartTime);
+        #endif
+            }
         #endif
             /* Use the same cipher suite as before and set up for use. */
             ssl->options.cipherSuite0   = ssl->session->cipherSuite0;
@@ -6901,6 +6941,12 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
              * cert_with_extern_psk, so skip key derivation in that case. */
             if (ssl->earlyData != no_early_data && first
                 && ssl->options.maxEarlyDataSz > 0
+    #ifdef HAVE_SESSION_TICKET
+                /* RFC 8446 section 8.2: freshly started servers should
+                 * reject 0-RTT. Tickets minted before this ctx was created
+                 * belong to a previous instance. */
+                && !ssl->options.ticketPredatesCtx
+    #endif
     #ifdef WOLFSSL_CERT_WITH_EXTERN_PSK
                 && !hasCertWithExternPsk
     #endif
@@ -17119,6 +17165,32 @@ int wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx, unsigned int sz)
 #else
     return 0;
 #endif
+}
+
+/* Disable the RFC 8446 Section 8.2 fresh start protection. Early data is
+ * then accepted for tickets minted before this ctx was created. Only use
+ * this when the anti-replay state reliably survives server restarts.
+ *
+ * The check needs TimeNowInMilliseconds() to be comparable across restarts.
+ * On ports where it counts from boot the check never fires for tickets
+ * minted before a reboot.
+ *
+ * ctx  The SSL/TLS CTX object.
+ * returns BAD_FUNC_ARG when ctx is NULL or not TLS v1.3, SIDE_ERROR when
+ * called with a client and 0 on success.
+ */
+int wolfSSL_CTX_no_early_data_fresh_start_check(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version))
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+
+#ifdef HAVE_SESSION_TICKET
+    ctx->noFreshStartCheck = 1;
+#endif
+
+    return 0;
 }
 
 /* Sets the maximum amount of early data that a client or server would like

@@ -46,6 +46,7 @@ int test_tls13_duplicate_extension(void);
 int test_tls13_duplicate_ech_extension(void);
 int test_key_share_mismatch(void);
 int test_tls13_middlebox_compat_empty_session_id(void);
+int test_tls13_middlebox_compat_session_id(void);
 int test_tls13_plaintext_alert(void);
 int test_tls13_warning_alert_is_fatal(void);
 int test_tls13_unknown_ext_rejected(void);
@@ -64,6 +65,9 @@ int test_tls13_0rtt_default_off(void);
 int test_tls13_0rtt_stateless_replay(void);
 int test_tls13_remove_session_return(void);
 int test_tls13_0rtt_ext_cache_eviction(void);
+int test_tls13_early_data_bad_record_mac(void);
+int test_tls13_0rtt_fresh_start(void);
+int test_tls13_0rtt_fresh_start_check_args(void);
 int test_tls13_corrupted_finished(void);
 int test_tls13_certificate_verify_bad_sigalgo(void);
 int test_tls13_peerauth_failsafe(void);
@@ -138,6 +142,7 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_duplicate_ech_extension), \
     TEST_DECL_GROUP("tls13", test_key_share_mismatch),          \
     TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_empty_session_id), \
+    TEST_DECL_GROUP("tls13", test_tls13_middlebox_compat_session_id), \
     TEST_DECL_GROUP("tls13", test_tls13_plaintext_alert),       \
     TEST_DECL_GROUP("tls13", test_tls13_warning_alert_is_fatal), \
     TEST_DECL_GROUP("tls13", test_tls13_cert_req_sigalgs),       \
@@ -154,6 +159,9 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_stateless_replay), \
     TEST_DECL_GROUP("tls13", test_tls13_remove_session_return), \
     TEST_DECL_GROUP("tls13", test_tls13_0rtt_ext_cache_eviction), \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_bad_record_mac), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start), \
+    TEST_DECL_GROUP("tls13", test_tls13_0rtt_fresh_start_check_args), \
     TEST_DECL_GROUP("tls13", test_tls13_unknown_ext_rejected),  \
     TEST_DECL_GROUP("tls13", test_tls13_hrr_recognized_ext_downgrade), \
     TEST_DECL_GROUP("tls13", test_tls13_corrupted_finished),     \

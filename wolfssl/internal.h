@@ -4401,6 +4401,16 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && !defined(NO_TLS)
+    /* RFC 8446 Section 8.2: reject 0-RTT for tickets minted before this
+     * context was created. */
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+    word32          ticketStartTime;    /* Ctx creation time (ms) */
+#else
+    sword64         ticketStartTime;    /* Ctx creation time (ms) */
+#endif
+    byte            noFreshStartCheck:1; /* Skip the fresh start check */
+#endif
 #endif
 #ifdef HAVE_ANON
     byte        useAnon;               /* User wants to allow Anon suites */
@@ -5483,6 +5493,9 @@ struct Options {
     word16            noTicketTls12:1;    /* TLS 1.2 server won't send ticket */
 #ifdef WOLFSSL_TLS13
     word16            noTicketTls13:1;    /* Server won't create new Ticket */
+#ifdef WOLFSSL_EARLY_DATA
+    word16            ticketPredatesCtx:1; /* PSK ticket minted before ctx */
+#endif
 #endif
 #endif
 #ifdef WOLFSSL_DTLS

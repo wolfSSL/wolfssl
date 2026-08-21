@@ -5429,6 +5429,220 @@ int test_tls13_0rtt_ext_cache_eviction(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.2.10: after the server accepts early data, a 0-RTT
+ * record that fails to decrypt must result in a fatal bad_record_mac
+ * alert. Fails without the fix because the corrupted record was skipped
+ * as ignored early data. */
+int test_tls13_early_data_bad_record_mac(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    WOLFSSL_ALERT_HISTORY h;
+    const char earlyMsg[] = "early-data-bad-mac";
+    char earlyBuf[sizeof(earlyMsg)];
+    char buf[64];
+    int written = 0;
+    int earlyRead = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(earlyBuf, 0, sizeof(earlyBuf));
+
+    /* Mint a ticket that permits 0-RTT. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Resume with early data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c, earlyMsg,
+                    (int)sizeof(earlyMsg), &written), (int)sizeof(earlyMsg));
+    ExpectIntEQ(written, (int)sizeof(earlyMsg));
+
+    /* Corrupt the first encrypted application_data record from the client
+     * before the server decrypts it. */
+    if (EXPECT_SUCCESS()) {
+        int off = 0;
+        int corrupted = 0;
+        while (off + 5 <= test_ctx.s_len) {
+            int recLen = ((int)test_ctx.s_buff[off + 3] << 8) |
+                          (int)test_ctx.s_buff[off + 4];
+            /* A record whose length runs past the buffer means the scan has
+             * lost sync; stop rather than index out of bounds. */
+            if (recLen <= 0 || off + 5 + recLen > test_ctx.s_len)
+                break;
+            if (test_ctx.s_buff[off] == 0x17) {
+                test_ctx.s_buff[off + 5] ^= 0x01;
+                corrupted = 1;
+                break;
+            }
+            off += 5 + recLen;
+        }
+        ExpectIntEQ(corrupted, 1);
+    }
+
+    /* Server must send a fatal bad_record_mac alert. */
+    ExpectIntEQ(test_tls13_early_data_read_until_write_ok(ssl_s, earlyBuf,
+                    (int)sizeof(earlyBuf), &earlyRead), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, bad_record_mac);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Section 8.2: a freshly started server should reject 0-RTT.
+ * Simulate a restart by minting a ticket, recreating the server ctx with
+ * the ticket encryption keys preserved and resuming with early data. The
+ * ticket predates the new ctx so early data must be rejected while the
+ * resumption handshake still completes. */
+int test_tls13_0rtt_fresh_start(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    byte ticketKeys[WOLFSSL_TICKET_KEYS_SZ];
+    const char earlyMsg[] = "fresh-start-0rtt";
+    char earlyBuf[sizeof(earlyMsg)];
+    char buf[64];
+    int written = 0;
+    int earlyRead = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(earlyBuf, 0, sizeof(earlyBuf));
+
+    /* Mint a ticket that permits 0-RTT. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ctx_s, ticketKeys,
+                    sizeof(ticketKeys)), WOLFSSL_SUCCESS);
+
+    /* "Restart" the server: new ctx with the ticket keys preserved. */
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ctx_s, ticketKeys,
+                    sizeof(ticketKeys)), WOLFSSL_SUCCESS);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    /* Pretend the restart happened later so that the ticket clearly
+     * predates the new ctx. Avoids sub-second timing flakiness. */
+    if (EXPECT_SUCCESS()) {
+        ctx_s->ticketStartTime += 5000;
+    }
+
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c, earlyMsg,
+                    (int)sizeof(earlyMsg), &written), (int)sizeof(earlyMsg));
+    (void)test_tls13_early_data_read_until_write_ok(ssl_s, earlyBuf,
+            (int)sizeof(earlyBuf), &earlyRead);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* 0-RTT refused, resumption handshake still completes. */
+    ExpectIntEQ(earlyRead, 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Disabling the check admits early data from pre-ctx tickets. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(earlyBuf, 0, sizeof(earlyBuf));
+    written = 0;
+    earlyRead = 0;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+    ExpectIntEQ(wolfSSL_CTX_no_early_data_fresh_start_check(ctx_s), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c, earlyMsg,
+                    (int)sizeof(earlyMsg), &written), (int)sizeof(earlyMsg));
+    (void)test_tls13_early_data_read_until_write_ok(ssl_s, earlyBuf,
+            (int)sizeof(earlyBuf), &earlyRead);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(earlyRead, (int)sizeof(earlyMsg));
+    ExpectStrEQ(earlyMsg, earlyBuf);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Error returns of wolfSSL_CTX_no_early_data_fresh_start_check(). */
+int test_tls13_0rtt_fresh_start_check_args(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+
+    ExpectIntEQ(wolfSSL_CTX_no_early_data_fresh_start_check(NULL),
+                BAD_FUNC_ARG);
+
+#ifndef WOLFSSL_NO_TLS12
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_no_early_data_fresh_start_check(ctx),
+                BAD_FUNC_ARG);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_no_early_data_fresh_start_check(ctx), SIDE_ERROR);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 
 /* Check that the client won't send the same CH after a HRR. An HRR without
  * a KeyShare or a Cookie extension will trigger the error. */
@@ -6253,6 +6467,49 @@ int test_tls13_middlebox_compat_empty_session_id(void)
      * had an empty legacy_session_id. If found_ccs is 1, this demonstrates
      * the bug from issue #9156. */
     ExpectIntEQ(found_ccs, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Section 4.1.2: in middlebox compatibility mode a client not
+ * offering a pre-TLS 1.3 session must send a non-empty 32-byte
+ * legacy_session_id. */
+int test_tls13_middlebox_compat_session_id(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Client sends ClientHello. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+    /* 5 byte record header + 4 byte handshake header + 2 byte
+     * legacy_version + 32 byte random = offset 43 holds the
+     * legacy_session_id length. */
+    ExpectIntGT(test_ctx.s_len, 43 + ID_LEN);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_ctx.s_buff[0], 0x16); /* handshake */
+        ExpectIntEQ(test_ctx.s_buff[43], ID_LEN);
+    }
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
