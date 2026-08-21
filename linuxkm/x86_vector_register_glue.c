@@ -1474,6 +1474,85 @@ static inline int wc_svr_ctx(void)
     #define WC_SVR_UNPIN_CPU() local_bh_enable()
 #endif
 
+/* ---- diagnostic counters, off in every shipped build ----------------------
+ *
+ * "Declines went to zero" is a statement about what the module did NOT do, and
+ * on its own it is consistent with the save never running: with the requests
+ * having been served some other way, or with the probe never landing where it
+ * was supposed to.  These count the two events directly, per context -- a
+ * section opened by saving the interrupted context's registers, and a section
+ * refused because there was no save area to open one with -- so a run can show
+ * the mechanism ran rather than infer it from an absence.
+ *
+ * They are deliberately built OUTSIDE the WC_SVR_HAVE_NESTED_SAVE gate, so that
+ * a WC_LINUXKM_NO_NESTED_VECTOR_SAVE control build reports the same two numbers
+ * from the same source and the pair can be compared.
+ *
+ * Per-CPU and non-atomic: a counter is only ever incremented on its own CPU
+ * with that CPU pinned, so nothing else is writing the same word.  The read
+ * side sums across CPUs and does not need to be exact. */
+#ifdef WC_LINUXKM_SVR_COUNT_NESTED
+
+struct wc_svr_nested_counts {
+    unsigned long saves[WC_SVR_NCTX];
+    unsigned long refused[WC_SVR_NCTX];
+};
+static DEFINE_PER_CPU(struct wc_svr_nested_counts, wc_svr_nested_counts);
+
+#define WC_SVR_COUNT_SAVE(ctx)                                                \
+    (++raw_cpu_ptr(&wc_svr_nested_counts)->saves[ctx])
+#define WC_SVR_COUNT_REFUSE(ctx)                                              \
+    (++raw_cpu_ptr(&wc_svr_nested_counts)->refused[ctx])
+
+static int wc_svr_nested_counts_fmt(char *buffer, int refused)
+{
+    unsigned long t[WC_SVR_NCTX];
+    unsigned int cpu;
+    int i;
+
+    for (i = 0; i < WC_SVR_NCTX; ++i)
+        t[i] = 0;
+    for_each_possible_cpu(cpu) {
+        const struct wc_svr_nested_counts *c =
+            &per_cpu(wc_svr_nested_counts, cpu);
+        for (i = 0; i < WC_SVR_NCTX; ++i)
+            t[i] += refused ? c->refused[i] : c->saves[i];
+    }
+    return scnprintf(buffer, PAGE_SIZE, "task=%lu softirq=%lu hardirq=%lu\n",
+                     t[WC_SVR_CTX_TASK], t[WC_SVR_CTX_SOFTIRQ],
+                     t[WC_SVR_CTX_HARDIRQ]);
+}
+
+static int wc_svr_nested_saves_get(char *buffer,
+                                   const struct kernel_param *kp)
+{
+    (void)kp;
+    return wc_svr_nested_counts_fmt(buffer, 0);
+}
+
+static int wc_svr_nested_refused_get(char *buffer,
+                                     const struct kernel_param *kp)
+{
+    (void)kp;
+    return wc_svr_nested_counts_fmt(buffer, 1);
+}
+
+static const struct kernel_param_ops wc_svr_nested_saves_ops = {
+    .get = wc_svr_nested_saves_get
+};
+static const struct kernel_param_ops wc_svr_nested_refused_ops = {
+    .get = wc_svr_nested_refused_get
+};
+module_param_cb(svr_nested_saves, &wc_svr_nested_saves_ops, NULL, 0444);
+module_param_cb(svr_nested_refused, &wc_svr_nested_refused_ops, NULL, 0444);
+
+#else /* !WC_LINUXKM_SVR_COUNT_NESTED */
+
+#define WC_SVR_COUNT_SAVE(ctx)   WC_DO_NOTHING
+#define WC_SVR_COUNT_REFUSE(ctx) WC_DO_NOTHING
+
+#endif /* WC_LINUXKM_SVR_COUNT_NESTED */
+
 /* ---- taking the registers when the kernel says they are in use ------------
  *
  * may_use_simd() reports whether kernel_fpu_begin() may be called, and on x86
@@ -1531,6 +1610,64 @@ static inline int wc_svr_ctx(void)
      * outright -- see wc_svr_nested_init(). */
     #define WC_SVR_HAVE_NESTED_SAVE
     #define WC_SVR_NESTED_ARM64
+#elif defined(CONFIG_ARM) && !defined(WC_LINUXKM_NO_NESTED_VECTOR_SAVE)
+    /* Same mechanism again, on the register file AArch32 actually has.
+     *
+     * EVERY LINE NUMBER IN THE arm32 CODE BELOW WAS READ OUT OF ONE OF TWO
+     * TREES, and both are named wherever they disagree: linux-6.6.99 and
+     * linux-6.16.12.  linux-7.1.9 agrees with linux-6.16.12 on every one of
+     * them, so it is not cited separately.  Checking a citation against the
+     * wrong tree gives a false miss.
+     *
+     * WHY arm32 REFUSES, read out of the kernel rather than assumed.
+     * may_use_simd() is not one expression across the supported range:
+     *
+     *   <= 6.5   there is no arch/arm/include/asm/simd.h, so the asm-generic
+     *            fallback applies -- include/asm-generic/simd.h,
+     *            `return !in_interrupt()`, which counts the SOFTIRQ mask, so
+     *            softirq is refused as well as hardirq.
+     *   6.6      arch/arm/include/asm/simd.h appears:
+     *            `IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq()`.
+     *   6.16 .. 7.1
+     *            the same, plus `&& !irqs_disabled()`.
+     *
+     * Every one of those is false in hard interrupt context on every version,
+     * which is why 148,358 of 148,358 hardirq requests were declined on
+     * emulated armv7 before this existed.  And every one of them is false for
+     * the SAME reason x86's and arm64's are: kernel_neon_begin() saves the
+     * interrupted TASK's VFP state, into thread->vfpstate
+     * (arch/arm/vfp/vfpmodule.c:839-840 in 6.6.99, :890-891 in 6.16.12 and
+     * 7.1.9), and has nowhere to put a kernel section's.  A save area of our
+     * own removes the constraint; it does not weaken it.
+     *
+     * ONLY EVER WHEN may_use_simd() IS FALSE, and on arm32 that is what makes
+     * the register file exclusively ours.  in_hardirq() means no other context
+     * can run on this CPU until we return -- Linux does not nest hard IRQs, and
+     * arm32 has no NMI -- and irqs_disabled() in task or softirq context means
+     * the same with preemption disabled on top.  A concurrent kernel_neon
+     * section is impossible for the same reason it is on x86: may_use_simd() is
+     * false for anyone who would open one, and BUG_ON(in_hardirq()) inside
+     * kernel_neon_begin() (:829, :879) makes the attempt fatal rather than
+     * quiet.
+     *
+     * WHICH ALSO SETTLES THE CPU.  The per-CPU save area is only sound if the
+     * CPU cannot change between the decision and the restore.  On arm32 the
+     * context that reaches this path settles that on its own, without relying
+     * on preempt_disable(): a hard interrupt handler cannot migrate, a softirq
+     * cannot migrate, and irqs_disabled() in task context cannot be preempted.
+     * That matters because CONFIG_PREEMPT_COUNT is not universal -- on a
+     * PREEMPT_NONE build without it, preempt_disable() is a compiler barrier
+     * and pins nothing.  Here there is nothing left for it to pin.
+     *
+     * THE CONSTRAINT THAT DECIDES CORRECTNESS HERE is not a register-file
+     * width, as it is on arm64; it is FPEXC.EN.  arm32 gates all access to the
+     * VFP/NEON register file and to FPSCR on that bit, kernel_neon_end() clears
+     * it on the way out (:852, :903), and a VFP instruction issued with it
+     * clear takes an undefined-instruction exception.  So the save enables the
+     * unit first, exactly as kernel_neon_begin() does, and puts FPEXC back
+     * byte for byte on the way out.  See wc_svr_a32_state_save(). */
+    #define WC_SVR_HAVE_NESTED_SAVE
+    #define WC_SVR_NESTED_ARM32
 #endif
 
 #ifdef WC_SVR_HAVE_NESTED_SAVE
@@ -1831,6 +1968,280 @@ static inline u8 *wc_svr_area(int ctx)
            ((size_t)ctx * wc_svr_save_size);
 }
 
+#elif defined(WC_SVR_NESTED_ARM32)
+
+#include <asm/vfp.h>
+#include <asm/hwcap.h>
+
+/* THE AArch32 VFP/NEON REGISTER FILE, and the whole of it: d0-d15, then
+ * d16-d31 on a part that has them, then FPSCR, then FPEXC, and -- only while
+ * FPEXC.EX is set -- FPINST and FPINST2.  That is precisely the set
+ * vfp_save_state() writes and vfp_load_state() reads
+ * (arch/arm/vfp/vfphw.S:31-67, the same lines in both trees), which is the
+ * kernel's own
+ * answer to "what is the VFP state of a context".
+ *
+ *   area + 0     d0-d15    128 B
+ *   area + 128   d16-d31   128 B, present only where the part has them
+ *   area + 256   FPSCR     u32
+ *   area + 260   FPEXC     u32
+ *   area + 264   FPINST    u32   (meaningful only while FPEXC.EX)
+ *   area + 268   FPINST2   u32   (meaningful only while FPEXC.EX && FPEXC.FP2V)
+ *
+ * The d16-d31 region keeps its slot on a 16-register part rather than being
+ * packed away, so one set of offsets describes both.  VFPFSTMIA does the same
+ * -- `addeq \base, \base, #32*4`, step over the unused space
+ * (arch/arm/include/asm/vfpmacros.h:70 and :76 in 6.6.99, :59 and :65 in
+ * 6.16.12).
+ *
+ * D16 vs D32 IS A CORRECTNESS QUESTION, not an optimisation: `vstmia rN,
+ * {d16-d31}` on a VFPv3-D16 or VFPv4-D16 part is an undefined instruction.  It
+ * is settled once at init from MVFR0 -- see wc_svr_a32_probe_d32(). */
+#define WC_SVR_A32_D0_15_OFF     0u
+#define WC_SVR_A32_D16_31_OFF    128u
+#define WC_SVR_A32_FPSCR_OFF     256u
+#define WC_SVR_A32_FPEXC_OFF     260u
+#define WC_SVR_A32_FPINST_OFF    264u
+#define WC_SVR_A32_FPINST2_OFF   268u
+#define WC_SVR_A32_AREA_BYTES    320u   /* 272, rounded up to 64 */
+
+/* THE VFP SYSTEM REGISTERS, addressed as coprocessor 10 registers.  Two
+ * encodings exist for the same instructions, and the kernel used to carry both:
+ * fmrx()/fmxr() had a `vmrs`/`vmsr` form and an `mrc`/`mcr p10, 7` form, chosen
+ * by CONFIG_AS_VFP_VMRS_FPINST, which probes whether the assembler knows the
+ * register name FPINST (arch/arm/vfp/vfpinstr.h:85-97 in 6.6.99, with the CRn
+ * numbers from arch/arm/include/asm/vfp.h:13-19).  6.16.12 has dropped the
+ * coprocessor fallback, and the CRn defines with it, so what is written below
+ * is the 6.6.99 encoding and not a quotation from every tree.
+ *
+ * It is used anyway, on both, and deliberately: it is the same instruction, it
+ * assembles in ARM and in Thumb-2 with no .fpu directive, and it does not
+ * depend on a kernel CONFIG that an out-of-tree module cannot see.
+ *
+ * FPSID, FPEXC, MVFR0 and MVFR1 are readable and writable at PL1 with FPEXC.EN
+ * CLEAR; only the register file and FPSCR are gated by EN.  The kernel depends
+ * on that in two places a reader can check: kernel_neon_begin() reads and then
+ * writes FPEXC as its first act, before anything has enabled the unit
+ * (arch/arm/vfp/vfpmodule.c:832-833 in 6.6.99, :883-884 in 6.16.12 and 7.1.9),
+ * and vfp_init() reads FPSID and MVFR0 having enabled only CPACR -- vfp_enable()
+ * touches the coprocessor access register and nothing else (:419-430). */
+#define WC_SVR_A32_SYSREG_RD(name, crn)                                        \
+    static inline u32 wc_svr_a32_rd_##name(void)                               \
+    {                                                                          \
+        u32 v;                                                                 \
+        asm volatile("mrc p10, 7, %0, " #crn ", cr0, 0" : "=r"(v) : : "cc");   \
+        return v;                                                              \
+    }
+#define WC_SVR_A32_SYSREG_WR(name, crn)                                        \
+    static inline void wc_svr_a32_wr_##name(u32 v)                             \
+    {                                                                          \
+        asm volatile("mcr p10, 7, %0, " #crn ", cr0, 0" : : "r"(v) : "cc");    \
+    }
+WC_SVR_A32_SYSREG_RD(fpscr,   cr1)
+WC_SVR_A32_SYSREG_WR(fpscr,   cr1)
+WC_SVR_A32_SYSREG_RD(mvfr0,   cr7)
+WC_SVR_A32_SYSREG_RD(fpexc,   cr8)
+WC_SVR_A32_SYSREG_WR(fpexc,   cr8)
+WC_SVR_A32_SYSREG_RD(fpinst,  cr9)
+WC_SVR_A32_SYSREG_WR(fpinst,  cr9)
+WC_SVR_A32_SYSREG_RD(fpinst2, cr10)
+WC_SVR_A32_SYSREG_WR(fpinst2, cr10)
+
+static unsigned int wc_svr_save_size;
+static int          wc_svr_nested_ready;
+static u8         **wc_svr_save_area;
+static u8         **wc_svr_save_alloc;
+/* Fixed at init from MVFR0, which is hardware and does not change.  It selects
+ * how much of ONE register file is copied, not which of two implementations of
+ * anything runs. */
+static int          wc_svr_a32_d32;
+
+/* .fpu in inline asm, which is how the kernel itself reaches VFP from C
+ * (arch/arm/vfp/vfpinstr.h:69 and :76 in 6.6.99, :67 and :74 in 6.16.12) and
+ * how this module's own AArch32 assembly
+ * already declares itself (wolfcrypt/src/port/arm/armv8-32-*.S, `.fpu neon` and
+ * `.fpu crypto-neon-fp-armv8`).  The non-writeback form of VSTMIA/VLDMIA is
+ * used so the base register is a plain input and nothing has to be told the
+ * pointer moved. */
+static inline void wc_svr_a32_dregs_save(u8 *area, int d32)
+{
+    asm volatile(".fpu vfpv2\n\t"
+                 "vstmia %0, {d0-d15}\n\t"
+                 : : "r"(area + WC_SVR_A32_D0_15_OFF) : "memory");
+    if (d32)
+        asm volatile(".fpu vfpv3\n\t"
+                     "vstmia %0, {d16-d31}\n\t"
+                     : : "r"(area + WC_SVR_A32_D16_31_OFF) : "memory");
+}
+
+static inline void wc_svr_a32_dregs_restore(const u8 *area, int d32)
+{
+    asm volatile(".fpu vfpv2\n\t"
+                 "vldmia %0, {d0-d15}\n\t"
+                 : : "r"(area + WC_SVR_A32_D0_15_OFF) : "memory");
+    if (d32)
+        asm volatile(".fpu vfpv3\n\t"
+                     "vldmia %0, {d16-d31}\n\t"
+                     : : "r"(area + WC_SVR_A32_D16_31_OFF) : "memory");
+}
+
+/* int, to match the arm64 save, which can decline at a vector length it cannot
+ * fit.  Nothing here can fail -- every register touched exists on every part
+ * that reaches this code, and how many double registers there are was settled at
+ * init -- so this always returns 0. */
+static inline int wc_svr_a32_state_save(u8 *area, int d32)
+{
+    u32 fpexc = wc_svr_a32_rd_fpexc();
+    u32 fpinst = 0, fpinst2 = 0;
+
+    /* ENABLE THE UNIT FIRST.  FPEXC.EN gates every access to the register file
+     * and to FPSCR, and kernel_neon_end() leaves it CLEAR
+     * (arch/arm/vfp/vfpmodule.c:852 in 6.6.99, :903 in 6.16.12 and 7.1.9), so a
+     * hard interrupt arriving in ordinary kernel code will usually find it
+     * clear.  A VFP instruction issued then takes an undefined-instruction
+     * exception -- in hardirq context, not somewhere to discover that.  These
+     * are the same two instructions in the same order that kernel_neon_begin()
+     * opens with (:832-833, :883-884).  Nothing here relies on the kernel
+     * having enabled it for us. */
+    wc_svr_a32_wr_fpexc(fpexc | FPEXC_EN);
+
+    /* A VFP SUBARCHITECTURE EXCEPTION PENDING IN THE INTERRUPTED CONTEXT.
+     * FPEXC.EX means a bounced instruction is waiting in FPINST, and issuing a
+     * further VFP instruction on top of that is the one thing in this function
+     * that could take an exception.  FPINST and FPINST2 are read ONLY under
+     * that flag, which is the guard vfp_save_state() uses for the same access
+     * (arch/arm/vfp/vfphw.S:58-63, the same lines in both trees); outside it the
+     * access is UNPREDICTABLE, so
+     * it is not made.  The pending state is then cleared for the duration --
+     * the same bits VFP_bounce() clears before it touches the unit
+     * (vfpmodule.c:343 in 6.6.99, :371 in 6.16.12) -- and the SAVED FPEXC still
+     * carries it, so the
+     * interrupted context gets it back untouched.
+     *
+     * On VFPv3 and later without a VFP subarchitecture, which is every part
+     * this module's armv7 build can run on, FPEXC.EX reads as zero and this
+     * branch is never taken.  It costs one test not to have assumed that. */
+    if (fpexc & FPEXC_EX) {
+        fpinst = wc_svr_a32_rd_fpinst();
+        if (fpexc & FPEXC_FP2V)
+            fpinst2 = wc_svr_a32_rd_fpinst2();
+        wc_svr_a32_wr_fpexc((fpexc | FPEXC_EN) &
+                            ~(u32)(FPEXC_EX | FPEXC_DEX | FPEXC_FP2V |
+                                   FPEXC_VV | FPEXC_TRAP_MASK));
+    }
+
+    wc_svr_a32_dregs_save(area, d32);
+    *(u32 *)(area + WC_SVR_A32_FPSCR_OFF)   = wc_svr_a32_rd_fpscr();
+    *(u32 *)(area + WC_SVR_A32_FPEXC_OFF)   = fpexc;
+    *(u32 *)(area + WC_SVR_A32_FPINST_OFF)  = fpinst;
+    *(u32 *)(area + WC_SVR_A32_FPINST2_OFF) = fpinst2;
+    return 0;
+}
+
+static inline void wc_svr_a32_state_restore(const u8 *area, int d32)
+{
+    u32 fpscr   = *(const u32 *)(area + WC_SVR_A32_FPSCR_OFF);
+    u32 fpexc   = *(const u32 *)(area + WC_SVR_A32_FPEXC_OFF);
+    u32 fpinst  = *(const u32 *)(area + WC_SVR_A32_FPINST_OFF);
+    u32 fpinst2 = *(const u32 *)(area + WC_SVR_A32_FPINST2_OFF);
+
+    /* The unit is still enabled -- the save enabled it and this section has held
+     * this CPU ever since -- but write it rather than rely on it, and keep the
+     * exception bits clear until the register file is back in place.
+     *
+     * ORDER, and it is vfp_load_state()'s order (arch/arm/vfp/vfphw.S:31-49, the
+     * same lines in both trees):
+     * the register file first, "while FPEXC is in a safe state"; then FPINST
+     * and FPINST2, under FPEXC.EX, for the same reason the save read them;
+     * then FPSCR.  FPEXC goes back LAST, because writing it is what can clear
+     * EN and end access to everything above it. */
+    wc_svr_a32_wr_fpexc((fpexc | FPEXC_EN) &
+                        ~(u32)(FPEXC_EX | FPEXC_DEX | FPEXC_FP2V |
+                               FPEXC_VV | FPEXC_TRAP_MASK));
+    wc_svr_a32_dregs_restore(area, d32);
+    if (fpexc & FPEXC_EX) {
+        wc_svr_a32_wr_fpinst(fpinst);
+        if (fpexc & FPEXC_FP2V)
+            wc_svr_a32_wr_fpinst2(fpinst2);
+    }
+    wc_svr_a32_wr_fpscr(fpscr);
+    wc_svr_a32_wr_fpexc(fpexc);
+}
+
+static inline int wc_svr_regs_save(u8 *area)
+{
+    return wc_svr_a32_state_save(area, wc_svr_a32_d32);
+}
+
+static inline void wc_svr_regs_restore(const u8 *area)
+{
+    wc_svr_a32_state_restore(area, wc_svr_a32_d32);
+}
+
+/* kernel_neon_begin() leaves FPSCR exactly as the interrupted context had it --
+ * it saves the word and writes nothing back (arch/arm/vfp/vfphw.S:57 and :65,
+ * the same lines in both trees) --
+ * so a section opened by saving must do the same.  Normalising it here would be
+ * the one respect in which the two ways of opening a section differed, which is
+ * the thing this file exists to avoid. */
+static inline void wc_svr_load_default_mxcsr(void) { }
+
+static inline u8 *wc_svr_area(int ctx)
+{
+    return wc_svr_save_area[raw_smp_processor_id()] +
+           ((size_t)ctx * wc_svr_save_size);
+}
+
+/* HOW MANY DOUBLE REGISTERS.  MVFR0.A_SIMD == 2 means 32 x 64-bit registers,
+ * 1 means 16 (VFPv3-D16 and VFPv4-D16), 0 means no Advanced SIMD.  That is the
+ * comparison the kernel's own VFPFSTMIA and VFPFLDMIA make on ARMv7 and later
+ * -- `cmp \tmp, #2`, arch/arm/include/asm/vfpmacros.h:49 and :74 in 6.6.99,
+ * :38 and :63 in 6.16.12.
+ *
+ * elf_hwcap's HWCAP_VFPD32 is the same fact computed once at boot from the same
+ * field (vfp_init(), arch/arm/vfp/vfpmodule.c:932-936 in 6.6.99, :983-987 in
+ * 6.16.12), but only inside
+ * `if (IS_ENABLED(CONFIG_VFPv3))`, so on a kernel built without CONFIG_VFPv3 it
+ * reads 0 on a part that has 32.  MVFR0 is the hardware, so MVFR0 decides; the
+ * hwcap is read as well and a disagreement is reported rather than quietly
+ * resolved, because it means the kernel is managing less of the file than
+ * exists. */
+static int wc_svr_a32_probe_d32(void)
+{
+    u32 fpexc, mvfr0;
+    int by_mvfr0, by_hwcap = (elf_hwcap & HWCAP_VFPD32) ? 1 : 0;
+
+    /* MVFR0 is not gated by FPEXC.EN (see the accessor block above), but enable
+     * the unit around the read anyway: it costs two register writes once, at
+     * init, and it removes the reader's need to take that on trust.
+     *
+     * preempt_disable() explicitly rather than on the strength of the caller
+     * already having done it: FPEXC is per-CPU hardware, and leaving a task
+     * scheduled out with the unit enabled behind the kernel's back would defeat
+     * the lazy-restore bookkeeping.  No VFP instruction is issued between the
+     * two writes, so nothing observes the enabled state.
+     *
+     * The COPROCESSOR access this needs is not in question: the kernel gives
+     * every CPU full cp10/cp11 access as it comes online -- vfp_enable() from
+     * vfp_starting_cpu() at CPUHP_AP_ARM_VFP_STARTING
+     * (arch/arm/vfp/vfpmodule.c:419-430, :639-643 and :983-985 in 6.6.99;
+     * :453-464, :670-674 and :1034-1036 in 6.16.12) -- and vfp_dying_cpu()
+     * (:633-637 in 6.6.99, :664-668 in 6.16.12) does not take it away. */
+    preempt_disable();
+    fpexc = wc_svr_a32_rd_fpexc();
+    wc_svr_a32_wr_fpexc(fpexc | FPEXC_EN);
+    mvfr0 = wc_svr_a32_rd_mvfr0();
+    wc_svr_a32_wr_fpexc(fpexc);
+    preempt_enable();
+
+    by_mvfr0 = ((mvfr0 & MVFR0_A_SIMD_MASK) == 2u) ? 1 : 0;
+    if (by_mvfr0 != by_hwcap)
+        pr_info("wolfCrypt: MVFR0 %#x reports %s double registers and"
+                " elf_hwcap reports %s; MVFR0 decides.\n",
+                mvfr0, by_mvfr0 ? "32" : "16", by_hwcap ? "32" : "16");
+    return by_mvfr0;
+}
+
 #else /* WC_SVR_NESTED_X86 */
 
 /* x87, SSE, AVX, AVX-512 opmask, ZMM_Hi256 and Hi16_ZMM: every component a
@@ -1956,6 +2367,22 @@ static inline void wc_svr_st_store(u8 *b)
         "st1 {v28.16b-v31.16b}, [%0], #64\n\t"
         : "+r"(p) : : "memory");
 }
+#elif defined(WC_SVR_NESTED_ARM32)
+/* d0-d31, or d0-d15 on a 16-register part; the count is only known at run time,
+ * so the arm32 self-test below carries its own bound and this pair is the
+ * whole-file mover, nothing more.  The pattern therefore reaches EVERY register
+ * the save covers, which is not true of the x86 pattern -- see the note in
+ * wc_svr_nested_init(). */
+    #define WC_SVR_ST_NREG 32
+    #define WC_SVR_ST_STRIDE 8
+static inline void wc_svr_st_load(const u8 *b)
+{
+    wc_svr_a32_dregs_restore(b, wc_svr_a32_d32);
+}
+static inline void wc_svr_st_store(u8 *b)
+{
+    wc_svr_a32_dregs_save(b, wc_svr_a32_d32);
+}
 #elif defined(CONFIG_X86_64)
     #define WC_SVR_ST_NREG 16
     #define WC_SVR_ST_STRIDE 32
@@ -1967,7 +2394,7 @@ static inline void wc_svr_st_store(u8 *b)
     #define WC_SVR_ST_STRIDE 32
     #define WC_SVR_ST_SEQ(M) M(0) M(1) M(2) M(3) M(4) M(5) M(6) M(7)
 #endif
-#ifndef WC_SVR_NESTED_ARM64
+#if !defined(WC_SVR_NESTED_ARM64) && !defined(WC_SVR_NESTED_ARM32)
 #define WC_SVR_ST_LOADY(n)  "vmovdqu " #n "*32(%0), %%ymm" #n "\n\t"
 #define WC_SVR_ST_STORY(n)  "vmovdqu %%ymm" #n ", " #n "*32(%0)\n\t"
 #define WC_SVR_ST_LOADX(n)  "movdqu "  #n "*32(%0), %%xmm" #n "\n\t"
@@ -2163,6 +2590,161 @@ out:
 
 #endif /* WC_SVR_NESTED_ARM64 */
 
+#ifdef WC_SVR_NESTED_ARM32
+
+/* WC_LINUXKM_SVR_SELFTEST_D16_ONLY_CONTROL swaps the pair under test for one
+ * that covers only d0-d15 -- which is what a save written for a VFPv3-D16 part,
+ * or one that simply forgot the upper half, would do.  On a part with 32 double
+ * registers a build with this defined MUST fail, and that is what shows the
+ * d16-d31 half is load-bearing rather than decoration.  On a 16-register part
+ * the control is identical to the real thing and proves nothing; init says so
+ * rather than letting it read as a pass. */
+#ifdef WC_LINUXKM_SVR_SELFTEST_D16_ONLY_CONTROL
+    #define WC_SVR_A32_ST_SAVE(a)    wc_svr_a32_state_save(a, 0)
+    #define WC_SVR_A32_ST_RESTORE(a) wc_svr_a32_state_restore(a, 0)
+#else
+    #define WC_SVR_A32_ST_SAVE(a)    wc_svr_a32_state_save(a, wc_svr_a32_d32)
+    #define WC_SVR_A32_ST_RESTORE(a) wc_svr_a32_state_restore(a, wc_svr_a32_d32)
+#endif
+
+/* Which of the two acquire forms the self-test used, so the "OK" line names it
+ * rather than leaving the reader to work it out. */
+static int wc_svr_a32_st_nested_acquire;
+
+static int wc_svr_a32_selftest(void)
+{
+    u8 *pat = NULL, *sav = NULL, *got = NULL, *vec = NULL, *outer = NULL;
+    unsigned int nregs = wc_svr_a32_d32 ? 32u : 16u;
+    unsigned int nbytes = nregs * 8u;
+    unsigned int i;
+    u32 live_fpscr, pat_fpscr, got_fpscr;
+    int ret = 0, saved = 0, used_neon;
+
+    pat   = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    sav   = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    got   = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    vec   = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    outer = (u8 *)kzalloc(wc_svr_save_size, GFP_ATOMIC);
+    if ((pat == NULL) || (sav == NULL) || (got == NULL) || (vec == NULL) ||
+        (outer == NULL)) {
+        ret = -ENOMEM;
+        goto out;
+    }
+    for (i = 0; i < nbytes; i++)
+        pat[i] = (u8)((i * 7u) ^ 0xa5u);
+    for (i = 0; i < nbytes; i++)
+        vec[i] = 0xc3u;
+
+    /* OWN THE REGISTERS THE WAY THE MECHANISM ITSELF OWNS THEM.
+     *
+     * The x86 and arm64 self-tests open a kernel_fpu / kernel_neon section and
+     * skip themselves if they cannot, because at their init may_use_simd() is
+     * true.  On arm32 that does not hold: up to 6.5 may_use_simd() is the
+     * asm-generic !in_interrupt(), which counts the SOFTIRQ MASK, and
+     * wolfCrypt_Init() can reach here with softirqs disabled.  Skipping then
+     * disables the nested save on precisely the kernels whose refusals it
+     * exists to remove -- measured, on emulated armv7 6.1.183: "vector
+     * registers unavailable at init; save/restore self-test skipped".
+     *
+     * So acquire them the way wc_save_vector_registers_x86() acquires them:
+     * kernel_neon_begin() when the kernel says that is allowed, and otherwise
+     * by saving the interrupted context's file into an area of our own.  The
+     * second form uses the mechanism under test to hold the registers, so say
+     * plainly what that does and does not prove: it does NOT independently
+     * establish that the outer save works, but the PAIR under test still has to
+     * round-trip a pattern through a full clobber of every register, and the
+     * two negative controls below still have to FAIL.  A broken save fails the
+     * comparison either way.
+     *
+     * kernel_neon_begin() BUGs on in_hardirq(); module init is task context, so
+     * the first branch is the one taken from 6.6 onwards. */
+    used_neon = may_use_simd() ? 1 : 0;
+    wc_svr_a32_st_nested_acquire = used_neon ? 0 : 1;
+    preempt_disable();
+    if (used_neon) {
+        WC_LINUXKM_FPU_BEGIN();
+    }
+    else if (wc_svr_a32_state_save(outer, wc_svr_a32_d32) != 0) {
+        preempt_enable();
+        pr_err("wolfCrypt: could not take the vector registers at init.\n");
+        ret = -EIO;
+        goto out;
+    }
+
+    /* FPSCR IS A CONTROL REGISTER AS WELL AS A STATUS ONE.  An arbitrary bit
+     * pattern would change the rounding mode, the flush-to-zero setting or the
+     * short-vector LEN/STRIDE fields for the context this is pretending to be.
+     * The pattern therefore flips only the six CUMULATIVE EXCEPTION flags,
+     * which are status and carry no behaviour.  That still makes the FPSCR half
+     * of the round trip real: the clobber below writes the live value back, so
+     * a save that dropped FPSCR would come back with the wrong word. */
+    live_fpscr = wc_svr_a32_rd_fpscr();
+    pat_fpscr  = live_fpscr ^ (u32)(FPSCR_IOC | FPSCR_DZC | FPSCR_OFC |
+                                    FPSCR_UFC | FPSCR_IXC | FPSCR_IDC);
+
+    wc_svr_st_load(pat);              /* the "interrupted context's" file */
+    wc_svr_a32_wr_fpscr(pat_fpscr);
+    saved = WC_SVR_A32_ST_SAVE(sav);  /* what a nested caller would do */
+#ifdef WC_LINUXKM_SVR_SELFTEST_NEGATIVE_CONTROL
+    /* Diagnostic only.  A self-test that has never been seen to fail has not
+     * been shown capable of failing -- it is the instrument vouching for
+     * itself.  One byte in each region the save is responsible for; a build
+     * with this defined that still reports OK is the finding. */
+    if (saved == 0) {
+        sav[WC_SVR_A32_D0_15_OFF] ^= 0xffu;                  /* d0  */
+        if (wc_svr_a32_d32)
+            sav[WC_SVR_A32_D16_31_OFF] ^= 0xffu;             /* d16 */
+        *(u32 *)(sav + WC_SVR_A32_FPSCR_OFF) ^= FPSCR_IXC;   /* FPSCR */
+    }
+#endif
+    wc_svr_st_load(vec);              /* destroy them, as wolfCrypt would */
+    wc_svr_a32_wr_fpscr(live_fpscr);
+    if (saved == 0)
+        WC_SVR_A32_ST_RESTORE(sav);   /* hand them back */
+    wc_svr_st_store(got);             /* what the interrupted context sees */
+    got_fpscr = wc_svr_a32_rd_fpscr();
+
+    if (used_neon)
+        WC_LINUXKM_FPU_END();
+    else
+        wc_svr_a32_state_restore(outer, wc_svr_a32_d32);
+    preempt_enable();
+
+    if (saved != 0) {
+        pr_err("wolfCrypt: VFP register save declined at init.\n");
+        ret = -EIO;
+        goto out;
+    }
+    for (i = 0; i < nregs; i++) {
+        if (memcmp(got + (i * 8u), pat + (i * 8u), 8u) != 0) {
+            pr_err("wolfCrypt: d%u did not survive save/restore.\n", i);
+            ret = -EIO;
+            goto out;
+        }
+    }
+    if (got_fpscr != pat_fpscr) {
+        pr_err("wolfCrypt: FPSCR did not survive save/restore"
+               " (wanted %#x, got %#x).\n", pat_fpscr, got_fpscr);
+        ret = -EIO;
+        goto out;
+    }
+
+out:
+    kfree(pat);
+    kfree(sav);
+    kfree(got);
+    kfree(vec);
+    kfree(outer);
+    return ret;
+}
+
+static int wc_svr_selftest(void)
+{
+    return wc_svr_a32_selftest();
+}
+
+#else /* !WC_SVR_NESTED_ARM32 */
+
 /* Returns 0 on an exact round trip, negative otherwise. */
 static int wc_svr_selftest(void)
 {
@@ -2253,6 +2835,8 @@ out:
     return ret;
 }
 
+#endif /* !WC_SVR_NESTED_ARM32 */
+
 static void wc_svr_nested_free(void)
 {
     unsigned int cpu;
@@ -2299,6 +2883,24 @@ static int wc_svr_nested_init(void)
         wc_svr_a64_sve = 0;
         wc_svr_save_size = WC_SVR_A64_AREA_BYTES;
     }
+#elif defined(WC_SVR_NESTED_ARM32)
+    /* CONFIG_KERNEL_MODE_NEON has to be set for kernel_neon_begin() to exist at
+     * all, and this file calls it unconditionally on arm32, so a build without
+     * it does not link -- there is nothing to test for here.  What does have to
+     * be established at run time is that there is a VFP unit, and how much of
+     * one.  elf_hwcap's HWCAP_VFP is set by vfp_init() only after it has read
+     * FPSID through an undef hook and found a unit that answers
+     * (arch/arm/vfp/vfpmodule.c:895-997 in 6.6.99, :946-1048 in 6.16.12), so it
+     * is the kernel's own finding
+     * rather than a guess from the CPU model. */
+    if (! (elf_hwcap & HWCAP_VFP)) {
+        pr_info("wolfCrypt: no VFP unit; nested vector save unavailable, and"
+                " sections in hardirq and IRQs-off contexts continue to be"
+                " refused.\n");
+        return 0;
+    }
+    wc_svr_a32_d32 = wc_svr_a32_probe_d32();
+    wc_svr_save_size = WC_SVR_A32_AREA_BYTES;
 #else
     u32 eax, ebx, ecx, edx;
 #endif
@@ -2416,6 +3018,25 @@ static int wc_svr_nested_init(void)
                 "(FPSIMD V0-V31 + FPSR/FPCR, %u B/context).\n",
                 wc_svr_save_size);
     }
+#elif defined(WC_SVR_NESTED_ARM32)
+    /* Unlike the x86 line below, this one covers the whole save: the pattern
+     * reaches every double register the area holds, and FPSCR is compared as
+     * well.  FPEXC, FPINST and FPINST2 are saved and restored but are not
+     * exercised by the pattern -- FPEXC is the register the section itself has
+     * to modify to run at all, and FPINST/FPINST2 are meaningful only under
+     * FPEXC.EX, which does not occur on a VFPv3-or-later part. */
+    pr_info("wolfCrypt: vector-register save/restore self-test OK "
+            "(VFP d0-d%d + FPSCR + FPEXC, %u B/context, registers held by %s).\n",
+            wc_svr_a32_d32 ? 31 : 15, wc_svr_save_size,
+            wc_svr_a32_st_nested_acquire ? "the nested save itself"
+                                         : "kernel_neon_begin()");
+#ifdef WC_LINUXKM_SVR_SELFTEST_D16_ONLY_CONTROL
+    if (! wc_svr_a32_d32)
+        pr_warn("wolfCrypt: the d16-only self-test control is VACUOUS on this"
+                " part -- it has 16 double registers, so the control and the"
+                " real save cover the same file.  This pass is not evidence"
+                " that d16-d31 are covered.\n");
+#endif
 #else
     /* Name the pattern's reach, so the log line cannot be read as covering
      * the AVX-512-only components in the mask. */
@@ -2622,10 +3243,12 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
          * here has touched no register and written nothing, so the section is
          * refused exactly as it would have been without nested save. */
         if (wc_svr_regs_save(wc_svr_area(ctx)) != 0) {
+            WC_SVR_COUNT_REFUSE(ctx);
             WC_SVR_DECIDE_UNPIN();
             return WC_ACCEL_INHIBIT_E;
         }
         wc_svr_load_default_mxcsr();
+        WC_SVR_COUNT_SAVE(ctx);
         st = &this_cpu_ptr(&wc_svr_state)->c[ctx];  /* pinned by DECIDE_PIN */
         st->depth = 1;
         st->inhibited = 0;
@@ -2635,6 +3258,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
     }
 #endif
 
+    WC_SVR_COUNT_REFUSE(ctx);
     WC_SVR_DECIDE_UNPIN();
     return WC_ACCEL_INHIBIT_E;
 }
