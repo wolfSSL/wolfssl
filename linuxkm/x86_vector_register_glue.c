@@ -539,9 +539,12 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
                  * per-CPU in_kernel_fpu; arm64 reads per-CPU
                  * fpsimd_context_busy.  Both refuse, so on those OEs this
                  * branch cannot run against a live owner.  arm32 has neither
-                 * (arch/arm/include/asm/simd.h is only !in_hardirq()), and is
-                 * the one OE where it can; there the premise holds because the
-                 * OE kernel is built PREEMPTION=0.  Evidence, with quoted
+                 * -- arch/arm/include/asm/simd.h is only !in_hardirq(), and
+                 * before 6.3 there is no such file at all, so the asm-generic
+                 * !in_interrupt() applies; neither form reads a per-CPU busy
+                 * flag -- and is the one OE where it can; the premise holds
+                 * there because the OE kernel is built PREEMPTION=0.
+                 * Evidence, with quoted
                  * sources, in linuxkm/SVR-FALLBACK-ANALYSIS.md sec 13.4.
                  *
                  * Separately, no such reasoning holds on CONFIG_PREEMPT_RT:
@@ -2684,7 +2687,7 @@ static int wc_svr_a32_selftest(void)
      *
      * The x86 and arm64 self-tests open a kernel_fpu / kernel_neon section and
      * skip themselves if they cannot, because at their init may_use_simd() is
-     * true.  On arm32 that does not hold: up to 6.5 may_use_simd() is the
+     * true.  On arm32 that does not hold: up to 6.2 may_use_simd() is the
      * asm-generic !in_interrupt(), which counts the SOFTIRQ MASK, and
      * wolfCrypt_Init() can reach here with softirqs disabled.  Skipping then
      * disables the nested save on precisely the kernels whose refusals it
@@ -2702,7 +2705,10 @@ static int wc_svr_a32_selftest(void)
      * comparison either way.
      *
      * kernel_neon_begin() BUGs on in_hardirq(); module init is task context, so
-     * the first branch is the one taken from 6.6 onwards. */
+     * the first branch is the one taken from 6.3 onwards -- 6.3 is where
+     * arch/arm/include/asm/simd.h appears and stops counting the SOFTIRQ mask.
+     * Read out of the trees: the file is absent in 6.2.16 and present in
+     * 6.3.13, 6.4.16, 6.5.13 and 6.6.152. */
     used_neon = may_use_simd() ? 1 : 0;
     wc_svr_a32_st_nested_acquire = used_neon ? 0 : 1;
     preempt_disable();
