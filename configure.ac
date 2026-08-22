@@ -11536,19 +11536,31 @@ AC_ARG_ENABLE([cryptodev],
 # Support for crypto callbacks
 AC_ARG_ENABLE([cryptocb],
     [AS_HELP_STRING([--enable-cryptocb],
-        [Enable crypto callbacks (default: disabled). Use 'no-default-devid' to enable without a platform-specific default device ID])],
-[
-    case "$enableval" in
+        [Enable crypto callbacks (default: disabled). Use 'only' to also strip the software implementation of every algorithm that has a crypto callback only mode, so all crypto operations are offloaded. Use 'no-default-devid' to enable without a platform-specific default device ID])],
+    [ ENABLED_CRYPTOCB=$enableval ],
+    [ ENABLED_CRYPTOCB=no ])
+
+ENABLED_CRYPTOCB_ONLY=no
+if test "$ENABLED_CRYPTOCB" != "no"
+then
+    for v in `echo $ENABLED_CRYPTOCB | tr "," " "`
+    do
+        case $v in
+        yes)
+            ;;
+        only)
+            ENABLED_CRYPTOCB_ONLY=yes
+            ;;
         no-default-devid)
-            ENABLED_CRYPTOCB=yes
             AM_CPPFLAGS="$AM_CPPFLAGS -DWC_NO_DEFAULT_DEVID"
             ;;
         *)
-            ENABLED_CRYPTOCB="$enableval"
-            ;;
-    esac
-],
-[ ENABLED_CRYPTOCB=no ])
+            AC_MSG_ERROR([Invalid cryptocb option. Valid are: yes, only, no-default-devid or no. Seen: $ENABLED_CRYPTOCB.])
+            break;;
+        esac
+    done
+    ENABLED_CRYPTOCB=yes
+fi
 
 # Enable testing of cryptoCb using software crypto. On platforms where wolfCrypt tests
 # are used to test a custom cryptoCb, it may be desired to disable this so wolfCrypt tests
@@ -11592,6 +11604,38 @@ fi
 if test "$ENABLED_CRYPTOCB" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
+fi
+
+# Crypto callback only: strip the software implementation of every algorithm
+# that has a crypto callback only mode, so all crypto operations are offloaded.
+# A flag is added only when its algorithm is enabled; the requirement and
+# conflict checks live in wolfssl/wolfcrypt/settings.h, not here.
+if test "$ENABLED_CRYPTOCB_ONLY" = "yes"
+then
+    if test "$ENABLED_SHA256" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_SHA256"
+    fi
+    if test "$ENABLED_SHA512" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_SHA512"
+    fi
+    if test "$ENABLED_AES" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_AES"
+    fi
+    if test "$ENABLED_RSA" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_RSA"
+    fi
+    if test "$ENABLED_ECC" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_ECC"
+    fi
+    if test "$ENABLED_ED25519" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_ED25519"
+    fi
+    if test "$ENABLED_CURVE25519" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_CURVE25519"
+    fi
+    if test "$ENABLED_FALCON" != "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_ONLY_FALCON"
+    fi
 fi
 
 if test "$ENABLED_CRYPTOCB_SW_TEST" = "no"
@@ -14054,6 +14098,7 @@ echo "   * Linux KCAPI:                $ENABLED_KCAPI"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * PK callbacks:               $ENABLED_PKCALLBACKS"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
+echo "   * Crypto callbacks only:      $ENABLED_CRYPTOCB_ONLY"
 echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * WISeKey/SealSQ VaultIC:     $ENABLED_VAULTIC"
