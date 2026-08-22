@@ -1778,9 +1778,13 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
 
     ret = wc_HmacCopy(&p_ctx->wc_hmac, &s_ctx->node->wc_hmac);
     if (ret != 0) {
-        s_ctx->failed = 1;
+        /* A transient vector-register refusal is retryable and must NOT latch
+         * the desc failed -- drop the tstate so a retry re-allocates, and
+         * report -EBUSY.  Any other error is a real failure and still latches. */
+        if (ret != WC_ACCEL_INHIBIT_E)
+            s_ctx->failed = 1;
         km_hmac_free_tstate(desc);
-        return -EINVAL;
+        return wc_lkm_errno(ret);
     }
 
     return 0;
@@ -1795,14 +1799,32 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
     if (ctx->failed || (ctx->node == NULL))
         return -EINVAL;
 
-    int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
+    int ret;
+
+    /* Take the bracket ONCE here, for the same reason as KM_SHA_SVR_BEGIN():
+     * wc_HmacUpdate() saves the vector registers per block, so a refusal part
+     * way through would leave bytes already absorbed and a retry of the same
+     * buffer would absorb them twice -- a WRONG MAC.  Acquired here, either the
+     * registers were unavailable and NOTHING ran, or they are held for the
+     * whole call and every inner save is a no-op (wc_save_vector_registers_x86()
+     * returns 0 on depth > 0 for WC_SVR_FLAG_NONE).
+     *
+     * On refusal the ctx is left EXACTLY as it was: not latched failed, node
+     * not freed, so the caller can retry.  Before this, a transient refusal
+     * spent the desc permanently and reported it as -EINVAL, which the kernel
+     * hook patch does not retry on. */
+    KM_SHA_SVR_BEGIN(ret);
+
+    ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
+
+    KM_SHA_SVR_END();
 
     if (ret == 0)
         return 0;
     else {
         ctx->failed = 1;
         km_hmac_free_tstate(desc);
-        return -EINVAL;
+        return wc_lkm_errno(ret);
     }
 }
 
@@ -1818,14 +1840,22 @@ WC_MAYBE_UNUSED static int km_hmac_final(struct shash_desc *desc, u8 *out) {
     if (ctx->failed || (ctx->node == NULL))
         return -EINVAL;
 
-    int ret = wc_HmacFinal(&ctx->node->wc_hmac, out);
+    int ret;
+
+    /* Bracket once, before the node is freed: a refusal here must leave the
+     * desc finalizable on retry, not consumed. */
+    KM_SHA_SVR_BEGIN(ret);
+
+    ret = wc_HmacFinal(&ctx->node->wc_hmac, out);
+
+    KM_SHA_SVR_END();
 
     km_hmac_free_tstate(desc);
 
     if (ret == 0)
         return 0;
     else
-        return -EINVAL;
+        return wc_lkm_errno(ret);
 }
 
 WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data,
@@ -1837,15 +1867,26 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
     if (ctx->failed || (ctx->node == NULL))
         return -EINVAL;
 
-    int ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
+    int ret;
+
+    /* One bracket for the whole update+final pair.  km_hmac_final() below
+     * takes a nested one, which is a no-op at depth > 0. */
+    KM_SHA_SVR_BEGIN(ret);
+
+    ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
 
     if (ret != 0) {
+        KM_SHA_SVR_END();
         ctx->failed = 1;
         km_hmac_free_tstate(desc);
-        return -EINVAL;
+        return wc_lkm_errno(ret);
     }
 
-    return km_hmac_final(desc, out);
+    ret = km_hmac_final(desc, out);
+
+    KM_SHA_SVR_END();
+
+    return ret;
 }
 
 WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *data,
@@ -1868,11 +1909,26 @@ WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *dat
     if (ret != 0) {
         ForceZero(h, sizeof *h);
         free(h);
-        return -EINVAL;
+        return wc_lkm_errno(ret);
     }
+
+    /* Bracket the whole one-shot.  Refused here means nothing was absorbed, so
+     * the caller can retry; taken here means every inner per-block save is a
+     * no-op and the MAC cannot be split across two acquisitions. */
+    {
+        int svr_ret = SAVE_VECTOR_REGISTERS2();
+        if (svr_ret != 0) {
+            ForceZero(h, sizeof *h);
+            free(h);
+            return wc_lkm_errno(svr_ret);
+        }
+    }
+
     ret = wc_HmacUpdate(h, data, len);
     if (ret == 0)
         ret = wc_HmacFinal(h, out);
+
+    RESTORE_VECTOR_REGISTERS();
 
     wc_HmacFree(h);
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
@@ -1880,7 +1936,7 @@ WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *dat
 #endif
     free(h);
 
-    return ret == 0 ? 0 : -EINVAL;
+    return ret == 0 ? 0 : wc_lkm_errno(ret);
 }
 
 /* Note that km_hmac_export() is implementing a pseudo-export -- the "out"
