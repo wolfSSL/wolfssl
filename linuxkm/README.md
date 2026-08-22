@@ -225,3 +225,25 @@ $ make -j
 # make modules_install
 # make install
 ```
+
+5. Build `libwolfssl.ko` with `--enable-linuxkm-rbgc`.  **Both halves are
+   required.** The patch on its own changes nothing: with no module registered,
+   `drivers/char/random.c` behaves exactly as it did before, and a module built
+   without `--enable-linuxkm-rbgc` registers nothing.  A patched kernel plus a
+   default-configured module is a kernel serving its own randomness, and
+   nothing says so.
+
+### What happens if the kernel is NOT patched
+
+Measured on 6.6.99, x86_64, at the code-freeze candidate:
+
+| you do this | what happens |
+|---|---|
+| build `libwolfssl.ko` **without** `--enable-linuxkm-rbgc` | builds and `insmod`s normally.  `get_random_bytes()` stays with the kernel; the module never claimed it, and registers nothing. |
+| `./configure --enable-linuxkm-rbgc` against unpatched kernel source | **`configure` succeeds.** It does not check the kernel source, so there is no diagnostic at this step. |
+| `make module` after that configure | **fails**, on `linuxkm/module_hooks.c`: `#error LINUXKM_RBGC requires a kernel carrying one of the patches in linuxkm/patches/.` |
+| `insmod` an RBGC `libwolfssl.ko` that was built against a *patched* tree, on an *unpatched* kernel of the same version | **refuses to load**: `libwolfssl: Unknown symbol wolfssl_linuxkm_register_random_bytes_handlers (err -2)`.  Nothing is registered and no wolfCrypt driver appears in `/proc/crypto`.  The vermagic matches, so the symbol check is the whole defence -- and it holds. |
+
+There is no configuration in which an unpatched kernel silently ends up with a
+half-installed hook.  Either the build stops, or the load stops, or the module
+runs without ever claiming `get_random_bytes()`.
