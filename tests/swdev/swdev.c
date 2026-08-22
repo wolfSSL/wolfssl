@@ -46,6 +46,9 @@
 #ifdef HAVE_CURVE25519
 #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+#include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 
 static int swdev_initialized = 0;
 
@@ -355,6 +358,288 @@ static int swdev_curve25519_generic(wc_CryptoInfo* info)
         info->pk.curve25519generic.basepoint);
 }
 #endif /* HAVE_CURVE25519 */
+
+#ifdef WOLFSSL_HAVE_SLHDSA
+/* Take the key over for the duration of one operation.
+ *
+ * The key handed across the callback boundary still carries the device id, so
+ * the software calls below would dispatch straight back into swdev. Detach it
+ * and hand the old value back to the caller to restore.
+ *
+ * The parent library skips deriving the SHA-2 midstates from PK.seed when the
+ * software implementation is stripped, so re-import the public key here to
+ * bring them up to date. Importing the public key only sets the public flag,
+ * which is already set, so it is safe for private keys too.
+ */
+static int swdev_slhdsa_take(SlhDsaKey* key, int* devId)
+{
+    int ret = 0;
+
+    *devId = INVALID_DEVID;
+    if ((key == NULL) || (key->params == NULL))
+        return BAD_FUNC_ARG;
+
+    *devId = key->devId;
+    key->devId = INVALID_DEVID;
+
+    if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) != 0) {
+        byte pub[2 * WC_SLHDSA_MAX_SEED];
+        word32 pubSz = 2U * key->params->n;
+
+        /* Stage through a local buffer: import copies into the key and the
+         * source would otherwise be the destination. */
+        XMEMCPY(pub, key->sk + 2 * key->params->n, pubSz);
+        ret = wc_SlhDsaKey_ImportPublic(key, pub, pubSz);
+    }
+
+    return ret;
+}
+
+static void swdev_slhdsa_give_back(SlhDsaKey* key, int devId)
+{
+    if (key != NULL)
+        key->devId = devId;
+}
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+static int swdev_slhdsa_keygen(wc_CryptoInfo* info)
+{
+    SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_sig_kg.key;
+    const byte* seed = info->pk.pqc_sig_kg.seed;
+    int devId;
+    int ret;
+
+    ret = swdev_slhdsa_take(key, &devId);
+    if (ret == 0) {
+        if (seed != NULL) {
+            byte n = key->params->n;
+
+            if (info->pk.pqc_sig_kg.seedSz != 3U * (word32)n) {
+                ret = BUFFER_E;
+            }
+            else {
+                ret = wc_SlhDsaKey_MakeKeyWithRandom(key, seed, n, seed + n, n,
+                    seed + 2 * n, n);
+            }
+        }
+        else {
+            ret = wc_SlhDsaKey_MakeKey(key, info->pk.pqc_sig_kg.rng);
+        }
+    }
+    swdev_slhdsa_give_back(key, devId);
+
+    return ret;
+}
+
+/* withRnd selects the WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND form, where the caller
+ * owns the signature randomness: addRnd holds the value to use, or is NULL to
+ * ask for the deterministic variant. Otherwise the randomness comes from rng.
+ *
+ * swdev runs against the caller's key rather than one of its own, so the
+ * deterministic variant needs the caller to hold the public key. A backend
+ * with its own copy has PK.seed and does not. */
+static int swdev_slhdsa_sign(wc_CryptoInfo* info, int withRnd)
+{
+    SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_sign.key;
+    const byte* addRnd = info->pk.pqc_sign.addRnd;
+    enum wc_HashType hashType = (enum wc_HashType)info->pk.pqc_sign.preHashType;
+    int devId;
+    int ret;
+
+    ret = swdev_slhdsa_take(key, &devId);
+    if (ret == 0) {
+        if (hashType == WC_HASH_TYPE_NONE) {
+            /* Pure SLH-DSA. */
+            if (!withRnd) {
+                ret = wc_SlhDsaKey_Sign(key, info->pk.pqc_sign.context,
+                    info->pk.pqc_sign.contextLen, info->pk.pqc_sign.in,
+                    info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
+                    info->pk.pqc_sign.outlen, info->pk.pqc_sign.rng);
+            }
+            else if (addRnd != NULL) {
+                ret = wc_SlhDsaKey_SignWithRandom(key,
+                    info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
+                    info->pk.pqc_sign.in, info->pk.pqc_sign.inlen,
+                    info->pk.pqc_sign.out, info->pk.pqc_sign.outlen, addRnd);
+            }
+            else {
+                ret = wc_SlhDsaKey_SignDeterministic(key,
+                    info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
+                    info->pk.pqc_sign.in, info->pk.pqc_sign.inlen,
+                    info->pk.pqc_sign.out, info->pk.pqc_sign.outlen);
+            }
+        }
+        else {
+            /* HashSLH-DSA over a caller supplied digest. */
+            if (!withRnd) {
+                ret = wc_SlhDsaKey_SignHash(key, info->pk.pqc_sign.context,
+                    info->pk.pqc_sign.contextLen, info->pk.pqc_sign.in,
+                    info->pk.pqc_sign.inlen, hashType, info->pk.pqc_sign.out,
+                    info->pk.pqc_sign.outlen, info->pk.pqc_sign.rng);
+            }
+            else if (addRnd != NULL) {
+                ret = wc_SlhDsaKey_SignHashWithRandom(key,
+                    info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
+                    info->pk.pqc_sign.in, info->pk.pqc_sign.inlen, hashType,
+                    info->pk.pqc_sign.out, info->pk.pqc_sign.outlen, addRnd);
+            }
+            else {
+                ret = wc_SlhDsaKey_SignHashDeterministic(key,
+                    info->pk.pqc_sign.context, info->pk.pqc_sign.contextLen,
+                    info->pk.pqc_sign.in, info->pk.pqc_sign.inlen, hashType,
+                    info->pk.pqc_sign.out, info->pk.pqc_sign.outlen);
+            }
+        }
+    }
+    swdev_slhdsa_give_back(key, devId);
+
+    return ret;
+}
+
+static int swdev_slhdsa_sign_msg(wc_CryptoInfo* info)
+{
+    SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_sign.key;
+    const byte* addRnd = info->pk.pqc_sign.addRnd;
+    int devId;
+    int ret;
+
+    ret = swdev_slhdsa_take(key, &devId);
+    if (ret == 0) {
+        if (addRnd != NULL) {
+            ret = wc_SlhDsaKey_SignMsgWithRandom(key, info->pk.pqc_sign.in,
+                info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
+                info->pk.pqc_sign.outlen, addRnd);
+        }
+        else {
+            ret = wc_SlhDsaKey_SignMsgDeterministic(key, info->pk.pqc_sign.in,
+                info->pk.pqc_sign.inlen, info->pk.pqc_sign.out,
+                info->pk.pqc_sign.outlen);
+        }
+    }
+    swdev_slhdsa_give_back(key, devId);
+
+    return ret;
+}
+
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+static int swdev_slhdsa_verify(wc_CryptoInfo* info)
+{
+    SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_verify.key;
+    enum wc_HashType hashType =
+        (enum wc_HashType)info->pk.pqc_verify.preHashType;
+    int devId;
+    int ret;
+
+    ret = swdev_slhdsa_take(key, &devId);
+    if (ret == 0) {
+        if (hashType == WC_HASH_TYPE_NONE) {
+            ret = wc_SlhDsaKey_Verify(key, info->pk.pqc_verify.context,
+                info->pk.pqc_verify.contextLen, info->pk.pqc_verify.msg,
+                info->pk.pqc_verify.msglen, info->pk.pqc_verify.sig,
+                info->pk.pqc_verify.siglen);
+        }
+        else {
+            ret = wc_SlhDsaKey_VerifyHash(key, info->pk.pqc_verify.context,
+                info->pk.pqc_verify.contextLen, info->pk.pqc_verify.msg,
+                info->pk.pqc_verify.msglen, hashType, info->pk.pqc_verify.sig,
+                info->pk.pqc_verify.siglen);
+        }
+    }
+    swdev_slhdsa_give_back(key, devId);
+
+    /* A bad signature is reported through res, not the return code. */
+    if (ret == WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+        *info->pk.pqc_verify.res = 0;
+        ret = 0;
+    }
+    else if (ret == 0) {
+        *info->pk.pqc_verify.res = 1;
+    }
+
+    return ret;
+}
+
+static int swdev_slhdsa_verify_msg(wc_CryptoInfo* info)
+{
+    SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_verify.key;
+    int devId;
+    int ret;
+
+    ret = swdev_slhdsa_take(key, &devId);
+    if (ret == 0) {
+        ret = wc_SlhDsaKey_VerifyMsg(key, info->pk.pqc_verify.msg,
+            info->pk.pqc_verify.msglen, info->pk.pqc_verify.sig,
+            info->pk.pqc_verify.siglen);
+    }
+    swdev_slhdsa_give_back(key, devId);
+
+    /* A bad signature is reported through res, not the return code. */
+    if (ret == WC_NO_ERR_TRACE(SIG_VERIFY_E)) {
+        *info->pk.pqc_verify.res = 0;
+        ret = 0;
+    }
+    else if (ret == 0) {
+        *info->pk.pqc_verify.res = 1;
+    }
+
+    return ret;
+}
+
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+static int swdev_slhdsa_check_priv_key(wc_CryptoInfo* info)
+{
+    SlhDsaKey* key = (SlhDsaKey*)info->pk.pqc_sig_check.key;
+    int devId;
+    int ret;
+
+    /* The public key travels alongside the private key data, so check the
+     * caller's copy agrees before recomputing the root from the seeds. */
+    if ((info->pk.pqc_sig_check.pubKey != NULL) &&
+            (info->pk.pqc_sig_check.pubKeySz != 2U * key->params->n)) {
+        return BUFFER_E;
+    }
+
+    ret = swdev_slhdsa_take(key, &devId);
+    if (ret == 0) {
+        ret = wc_SlhDsaKey_CheckKey(key);
+    }
+    swdev_slhdsa_give_back(key, devId);
+
+    return ret;
+}
+
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+
+/* Dispatch a PQC signature operation, declining the families swdev has no
+ * handler for so the caller can fall back. */
+static int swdev_pqc_sig(wc_CryptoInfo* info, int type, int pkType)
+{
+    if (type != WC_PQC_SIG_TYPE_SLHDSA)
+        return CRYPTOCB_UNAVAILABLE;
+
+    switch (pkType) {
+#ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+    case WC_PK_TYPE_PQC_SIG_KEYGEN:
+        return swdev_slhdsa_keygen(info);
+    case WC_PK_TYPE_PQC_SIG_SIGN:
+        return swdev_slhdsa_sign(info, 0);
+    case WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND:
+        return swdev_slhdsa_sign(info, 1);
+    case WC_PK_TYPE_PQC_SIG_SIGN_MSG:
+        return swdev_slhdsa_sign_msg(info);
+    case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:
+        return swdev_slhdsa_check_priv_key(info);
+#endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+    case WC_PK_TYPE_PQC_SIG_VERIFY:
+        return swdev_slhdsa_verify(info);
+    case WC_PK_TYPE_PQC_SIG_VERIFY_MSG:
+        return swdev_slhdsa_verify_msg(info);
+    default:
+        return CRYPTOCB_UNAVAILABLE;
+    }
+}
+#endif /* WOLFSSL_HAVE_SLHDSA */
 
 #ifndef NO_SHA256
 /* Copy hash state between caller's wc_Sha256 and swdev's shadow, leaving
@@ -1008,7 +1293,7 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
 
     switch (info->algo_type) {
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE25519)
+    defined(HAVE_CURVE25519) || defined(WOLFSSL_HAVE_SLHDSA)
     case WC_ALGO_TYPE_PK:
         switch (info->pk.type) {
     #ifndef NO_RSA
@@ -1071,6 +1356,23 @@ WC_SWDEV_EXPORT int wc_SwDev_Callback(int devId, wc_CryptoInfo* info,
         case WC_PK_TYPE_CURVE25519_GENERIC:
             return swdev_curve25519_generic(info);
     #endif /* HAVE_CURVE25519 */
+    #ifdef WOLFSSL_HAVE_SLHDSA
+        #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+        case WC_PK_TYPE_PQC_SIG_KEYGEN:
+            return swdev_pqc_sig(info, info->pk.pqc_sig_kg.type,
+                info->pk.type);
+        case WC_PK_TYPE_PQC_SIG_SIGN:
+        case WC_PK_TYPE_PQC_SIG_SIGN_WITH_RND:
+        case WC_PK_TYPE_PQC_SIG_SIGN_MSG:
+            return swdev_pqc_sig(info, info->pk.pqc_sign.type, info->pk.type);
+        case WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY:
+            return swdev_pqc_sig(info, info->pk.pqc_sig_check.type,
+                info->pk.type);
+        #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
+        case WC_PK_TYPE_PQC_SIG_VERIFY:
+        case WC_PK_TYPE_PQC_SIG_VERIFY_MSG:
+            return swdev_pqc_sig(info, info->pk.pqc_verify.type, info->pk.type);
+    #endif /* WOLFSSL_HAVE_SLHDSA */
         default:
             return CRYPTOCB_UNAVAILABLE;
         }

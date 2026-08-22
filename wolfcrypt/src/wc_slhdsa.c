@@ -309,6 +309,7 @@ typedef word32 HashAddress[8];
     #define WC_HASHADDRESS_TYPE_DEFINED
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 /* Encode a HashAddress.
  *
  * @param [in]  adrs     HashAddress to encode.
@@ -333,6 +334,7 @@ static void HA_Encode(const word32* adrs, byte* address)
     }
 #endif
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
 /******************************************************************************
  * Index Tree - 3 x 32-bit words
@@ -440,6 +442,11 @@ static const SlhDsaParameters SlhDsaParams[] =
 /******************************************************************************
  * Hashes
  ******************************************************************************/
+
+/* Everything from here to the SLH-DSA API section is the software
+ * implementation: hashes, WOTS+, XMSS, the hypertree and FORS. Under
+ * WOLF_CRYPTO_CB_ONLY_SLHDSA the registered device performs all of it. */
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 
 #ifndef WOLFSSL_WC_SLHDSA_SMALL
 /* Hash three data elements with SHAKE-256.
@@ -6661,6 +6668,8 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
     return ret;
 }
 
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
+
 /******************************************************************************
  * SLH-DSA API
  ******************************************************************************/
@@ -6948,6 +6957,7 @@ void wc_SlhDsaKey_Free(SlhDsaKey* key)
  * @param [out] t     Tree index as 3 32-bit integers.
  * @param [out] l     Tree leaf index.
  */
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 static void slhdsakey_set_ha_from_md(SlhDsaKey* key, const byte* md,
     HashAddress adrs, word32* t, word32* l)
 {
@@ -6983,6 +6993,7 @@ static void slhdsakey_set_ha_from_md(SlhDsaKey* key, const byte* md,
     /* Step 13/16: Set key pair address. */
     HA_SetKeyPairAddress(adrs, *l);
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 /* Generate an SLH-DSA key with a random number generator.
@@ -7031,6 +7042,11 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Steps 1-5: Generate the 3 random hashes. */
         ret = wc_RNG_GenerateBlock(rng, key->sk, 3U * key->params->n);
@@ -7042,6 +7058,7 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
         ret = wc_SlhDsaKey_MakeKeyWithRandom(key, key->sk, n, key->sk + n, n,
             key->sk + 2 * n, n);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     return ret;
 }
@@ -7095,7 +7112,6 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
     else {
         byte n = key->params->n;
-        HashAddress adrs;
 
         /* Step 4: Copy the seeds into the key if they didn't come from the key.
          */
@@ -7104,6 +7120,35 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             XMEMCPY(key->sk +     n, sk_prf , n);
             XMEMCPY(key->sk + 2 * n, pk_seed, n);
         }
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            /* The seeds are now staged in the key as the contiguous
+             * SK.seed || SK.prf || PK.seed the callback expects. */
+            ret = wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
+                WC_PQC_SIG_TYPE_SLHDSA, (int)key->params->param, key->sk,
+                3U * key->params->n, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+    if (ret == 0) {
+        byte n = key->params->n;
+        HashAddress adrs;
 
 #ifdef WOLFSSL_SLHDSA_SHA2
         /* Pre-compute SHA2 midstates now that PK.seed is set. */
@@ -7126,6 +7171,7 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     return ret;
 }
@@ -7160,6 +7206,7 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 static int slhdsakey_sign(SlhDsaKey* key, byte* md, byte* sig)
 {
     int ret;
@@ -7424,6 +7471,7 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
 /* Generate a deterministic SLH-DSA signature.
  *
@@ -7448,16 +7496,47 @@ static int slhdsakey_sign_external(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     const byte* msg, word32 msgSz, byte* sig, word32* sigSz)
 {
-    int ret;
+    int ret = 0;
 
-    /* Validate parameters that will be used in this function. */
-    if ((key == NULL) || (key->params == NULL)) {
+    /* Validate parameters. Checked here as well as in the caller-supplied
+     * form below so a device is never handed an undersized buffer. */
+    if ((key == NULL) || (key->params == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) || (msg == NULL) || (sig == NULL) ||
+            (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    else {
-        /* Pure sign. */
-        ret = slhdsakey_sign_external(key, ctx, ctxSz, msg, msgSz, sig, sigSz,
-            key->sk + 2 * key->params->n);
+    else if (*sigSz < key->params->sigLen) {
+        ret = BAD_LENGTH_E;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    /* A NULL addRnd asks the device for the deterministic variant, which it
+     * can build from its own copy of PK.seed when this key holds none. */
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignEx(msg, msgSz, sig, sigSz, ctx, ctxSz,
+                WC_HASH_TYPE_NONE, NULL, NULL, 0, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Falling back to the caller-supplied form needs PK.seed here, which is
+     * only valid when the public key is present. Without it there is nothing
+     * to pass down but a zeroed buffer, which a device would sign with. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
+        ret = MISSING_KEY;
+    }
+    if (ret == 0) {
+        /* Alg 22, Step 3: addrnd is the public key seed. */
+        ret = wc_SlhDsaKey_SignWithRandom(key, ctx, ctxSz, msg, msgSz, sig,
+            sigSz, key->sk + 2 * key->params->n);
     }
 
     return ret;
@@ -7485,9 +7564,60 @@ int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 int wc_SlhDsaKey_SignWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     const byte* msg, word32 msgSz, byte* sig, word32* sigSz, const byte* addRnd)
 {
-    /* Pure sign. */
-    return slhdsakey_sign_external(key, ctx, ctxSz, msg, msgSz, sig, sigSz,
-        addRnd);
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (key->params == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) || (msg == NULL) || (sig == NULL) ||
+            (sigSz == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Check sig buffer is large enough to hold generated signature. */
+    else if (*sigSz < key->params->sigLen) {
+        ret = BAD_LENGTH_E;
+    }
+    /* Alg 22, Step 5: Check addrnd is not NULL. */
+    else if (addRnd == NULL) {
+        /* Alg 22, Step 6: Return error. */
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignEx(msg, msgSz, sig, sigSz, ctx, ctxSz,
+                WC_HASH_TYPE_NONE, NULL, addRnd, key->params->n,
+                WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Check we have a private key to sign with. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
+        ret = MISSING_KEY;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+    if (ret == 0) {
+        /* Pure sign. */
+        ret = slhdsakey_sign_external(key, ctx, ctxSz, msg, msgSz, sig, sigSz,
+            addRnd);
+    }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
+
+    return ret;
 }
 
 /* Generate a pure SLH-DSA signature with a random number generator.
@@ -7526,10 +7656,6 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if (*sigSz < key->params->sigLen) {
         ret = BAD_LENGTH_E;
     }
-    /* Check we have a private key to sign with. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
-        ret = MISSING_KEY;
-    }
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
@@ -7547,6 +7673,17 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 #endif
 
+    /* Check we have a private key to sign with. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
+        ret = MISSING_KEY;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Generate n bytes of random. */
         ret = wc_RNG_GenerateBlock(rng, addRnd, key->params->n);
@@ -7557,10 +7694,12 @@ int wc_SlhDsaKey_Sign(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 #endif
     }
     if (ret == 0) {
-        /* Pure sign. */
-        ret = wc_SlhDsaKey_SignWithRandom(key, ctx, ctxSz, msg, msgSz, sig,
-            sigSz, addRnd);
+        /* Pure sign. The device was already offered this operation above, so
+         * go straight to software rather than back through SignWithRandom. */
+        ret = slhdsakey_sign_external(key, ctx, ctxSz, msg, msgSz, sig, sigSz,
+            addRnd);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     ForceZero(addRnd, sizeof(addRnd));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -7601,11 +7740,34 @@ int wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key, const byte* mprime,
     else if (*sigSz < key->params->sigLen) {
         ret = BAD_LENGTH_E;
     }
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+
+#ifdef WOLF_CRYPTO_CB
+    /* A NULL addRnd asks the device for the deterministic variant, which it
+     * can build from its own copy of PK.seed when this key holds none. */
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignMsg(mprime, mprimeSz, sig, sigSz, NULL,
+                NULL, 0, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Falling back to the caller-supplied form needs PK.seed here, which is
+     * only valid when the public key is present. Without it there is nothing
+     * to pass down but a zeroed buffer, which a device would sign with. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
         ret = MISSING_KEY;
     }
     if (ret == 0) {
-        ret = slhdsakey_sign_internal_msg(key, mprime, mprimeSz, sig, sigSz,
+        /* opt_rand is the public key seed. */
+        ret = wc_SlhDsaKey_SignMsgWithRandom(key, mprime, mprimeSz, sig, sigSz,
             key->sk + 2 * key->params->n);
     }
 
@@ -7644,13 +7806,39 @@ int wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key, const byte* mprime,
     else if (*sigSz < key->params->sigLen) {
         ret = BAD_LENGTH_E;
     }
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignMsg(mprime, mprimeSz, sig, sigSz, NULL,
+                addRnd, key->params->n, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Check we have a private key to sign with. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
         ret = MISSING_KEY;
     }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         ret = slhdsakey_sign_internal_msg(key, mprime, mprimeSz, sig, sigSz,
             addRnd);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     return ret;
 }
@@ -7676,6 +7864,7 @@ int wc_SlhDsaKey_SignMsgWithRandom(SlhDsaKey* key, const byte* mprime,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 static int slhdsakey_verify(SlhDsaKey* key, byte* md, const byte* sig)
 {
     int ret;
@@ -7703,6 +7892,7 @@ static int slhdsakey_verify(SlhDsaKey* key, byte* md, const byte* sig)
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
 /* Verify SLH-DSA signature.
  *
@@ -7759,10 +7949,6 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         /* Alg 20, Step 2: Return error  */
         ret = BAD_LENGTH_E;
     }
-    /* Check we have a public key to verify with. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
-        ret = MISSING_KEY;
-    }
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0) {
@@ -7784,6 +7970,17 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 #endif
 
+    /* Check we have a public key to verify with. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
+        ret = MISSING_KEY;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         byte md[SLHDSA_MAX_MD];
         byte n = key->params->n;
@@ -7831,6 +8028,7 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
             ret = slhdsakey_verify(key, md, sig);
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     return ret;
 }
@@ -7861,9 +8059,38 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
     else if (sigSz != key->params->sigLen) {
         ret = BAD_LENGTH_E;
     }
-    else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            int res = 0;
+            ret = wc_CryptoCb_PqcVerifyMsg(sig, sigSz, mprime, mprimeSz, &res,
+                WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+                if (ret != 0)
+                    return ret;
+                return (res == 1) ? 0 : SIG_VERIFY_E;
+            }
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Check we have a public key to verify with. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
         ret = MISSING_KEY;
     }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         byte md[SLHDSA_MAX_MD];
         byte n = key->params->n;
@@ -7900,6 +8127,7 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
             ret = slhdsakey_verify(key, md, sig);
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     return ret;
 }
@@ -8126,6 +8354,8 @@ static int slhdsakey_validate_prehash(word32 hashSz,
 }
 
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
+
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
 /* Generate pre-hash SLH-DSA signature.
  *
  * FIPS 205. Section 10.2.2. Algorithm 23.
@@ -8320,6 +8550,8 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
     return ret;
 }
 
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
+
 /* Generate a deterministic HashSLH-DSA signature.
  *
  * addrnd is the public key seed. The caller MUST pre-hash the application
@@ -8349,19 +8581,55 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key, const byte* ctx,
     byte ctxSz, const byte* hash, word32 hashSz, enum wc_HashType hashType,
     byte* sig, word32* sigSz)
 {
-    int ret;
+    int ret = 0;
 
-    /* Validate parameters that will be used in this function. */
-    if ((key == NULL) || (key->params == NULL)) {
+    /* Validate parameters. Checked here as well as in the caller-supplied
+     * form below so a device is never handed an undersized buffer. */
+    if ((key == NULL) || (key->params == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) || (hash == NULL) ||
+            (sig == NULL) || (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check we have a private key to sign with. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+    else if (*sigSz < key->params->sigLen) {
+        ret = BAD_LENGTH_E;
+    }
+    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Rejected before any dispatch: the callback interface spells a pure
+     * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
+     * reach a device as a pure signature. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = NOT_COMPILED_IN;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    /* A NULL addRnd asks the device for the deterministic variant, which it
+     * can build from its own copy of PK.seed when this key holds none. */
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignEx(hash, hashSz, sig, sigSz, ctx, ctxSz,
+                (word32)hashType, NULL, NULL, 0, WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Falling back to the caller-supplied form needs PK.seed here, which is
+     * only valid when the public key is present. Without it there is nothing
+     * to pass down but a zeroed buffer, which a device would sign with. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
         ret = MISSING_KEY;
     }
-    else {
-        /* HashSLH-DSA sign with caller-supplied digest. */
-        ret = slhdsakey_signhash_external(key, ctx, ctxSz, hash, hashSz,
+    if (ret == 0) {
+        /* Alg 23, Step 3: addrnd is the public key seed. */
+        ret = wc_SlhDsaKey_SignHashWithRandom(key, ctx, ctxSz, hash, hashSz,
             hashType, sig, sigSz, key->sk + 2 * key->params->n);
     }
 
@@ -8399,9 +8667,64 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     const byte* hash, word32 hashSz, enum wc_HashType hashType, byte* sig,
     word32* sigSz, const byte* addRnd)
 {
-    /* HashSLH-DSA sign with caller-supplied digest. */
-    return slhdsakey_signhash_external(key, ctx, ctxSz, hash, hashSz, hashType,
-        sig, sigSz, addRnd);
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (key->params == NULL) ||
+            ((ctx == NULL) && (ctxSz > 0)) || (hash == NULL) || (sig == NULL) ||
+            (sigSz == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Check sig buffer is large enough to hold generated signature. */
+    else if (*sigSz < key->params->sigLen) {
+        ret = BAD_LENGTH_E;
+    }
+    /* Alg 23, Step 5: Check addrnd is not NULL. */
+    else if (addRnd == NULL) {
+        /* Alg 23, Step 6: Return error. */
+        ret = BAD_FUNC_ARG;
+    }
+    /* First sanity check on hashType before the detailed validation. */
+    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Rejected before any dispatch: the callback interface spells a pure
+     * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
+     * reach a device as a pure signature. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = NOT_COMPILED_IN;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSignEx(hash, hashSz, sig, sigSz, ctx, ctxSz,
+                (word32)hashType, NULL, addRnd, key->params->n,
+                WC_PQC_SIG_TYPE_SLHDSA, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+    if (ret == 0) {
+        /* HashSLH-DSA sign with caller-supplied digest. */
+        ret = slhdsakey_signhash_external(key, ctx, ctxSz, hash, hashSz,
+            hashType, sig, sigSz, addRnd);
+    }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
+
+    return ret;
 }
 
 /* Generate a HashSLH-DSA signature using an RNG for added randomness.
@@ -8438,11 +8761,7 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     int ret = 0;
     byte addRnd[SLHDSA_MAX_N];
 
-    /* Validate parameters before generating random.
-     * hashSz / hashType validation lives in the internal worker and therefore
-     * runs after wc_RNG_GenerateBlock. A call with a bad hashSz/hashType will
-     * waste n bytes of DRBG output before the error is reported (similar to
-     * ML-DSA pre-hash handling). */
+    /* Validate parameters before generating random. */
     if ((key == NULL) || (key->params == NULL) ||
             ((ctx == NULL) && (ctxSz > 0)) || (hash == NULL) || (sig == NULL) ||
             (sigSz == NULL) || (rng == NULL)) {
@@ -8452,14 +8771,15 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     else if (*sigSz < key->params->sigLen) {
         ret = BAD_LENGTH_E;
     }
-    /* Check we have a private key to sign with. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
-        ret = MISSING_KEY;
-    }
-    /* First sanity check on hashType; the downstream prehash validator does
-     * the detailed check for the actual type. */
+    /* First sanity check on hashType before the detailed validation. */
     else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Rejected before any dispatch: the callback interface spells a pure
+     * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
+     * reach a device as a pure signature. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = NOT_COMPILED_IN;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8478,6 +8798,27 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 #endif
 
+    /* Check we have a private key to sign with. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
+        ret = MISSING_KEY;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+    if (ret == 0) {
+        const byte* oid = NULL;
+        byte oidLen = 0;
+
+        /* Alg 23, Steps 8-23: Validate the caller-supplied digest length and
+         * that the hash algorithm is approved. Done before the random is
+         * drawn. The device was already offered the operation above, so this
+         * host side check cannot keep it from a pre-hash it supports. */
+        ret = slhdsakey_validate_prehash(hashSz, hashType, &oid, &oidLen);
+    }
     if (ret == 0) {
         /* Generate n bytes of random. */
         ret = wc_RNG_GenerateBlock(rng, addRnd, key->params->n);
@@ -8488,10 +8829,12 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
 #endif
     }
     if (ret == 0) {
-        /* HashSLH-DSA sign with caller-supplied digest. */
-        ret = wc_SlhDsaKey_SignHashWithRandom(key, ctx, ctxSz, hash, hashSz,
+        /* HashSLH-DSA sign with caller-supplied digest. The device was
+         * already offered this operation above, so go straight to software. */
+        ret = slhdsakey_signhash_external(key, ctx, ctxSz, hash, hashSz,
             hashType, sig, sigSz, addRnd);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     ForceZero(addRnd, sizeof(addRnd));
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -8571,8 +8914,10 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     word32 sigSz)
 {
     int ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
     const byte* oid = NULL;
     byte oidLen = 0;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (key->params == NULL) ||
@@ -8584,14 +8929,15 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         /* Alg 20, Step 2: Return error  */
         ret = BAD_LENGTH_E;
     }
-    /* Check we have a public key to verify with. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
-        ret = MISSING_KEY;
-    }
-    /* First sanity check on hashType; the downstream prehash validator does
-     * the detailed check for the actual type. */
+    /* First sanity check on hashType before the detailed validation. */
     else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Rejected before any dispatch: the callback interface spells a pure
+     * signature as WC_HASH_TYPE_NONE, so a pre-hash call carrying it would
+     * reach a device as a pure signature. */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = NOT_COMPILED_IN;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8614,9 +8960,22 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     }
 #endif
 
+    /* Check we have a public key to verify with. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0)) {
+        ret = MISSING_KEY;
+    }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         /* Alg 25, Steps 4-19: Validate caller-supplied pre-hashed digest length
-         * and select OID for the chosen hash algorithm. */
+         * and select OID for the chosen hash algorithm. The device was already
+         * offered the operation above, so this host side check cannot keep it
+         * from a pre-hash it supports. */
         ret = slhdsakey_validate_prehash(hashSz, hashType, &oid, &oidLen);
     }
     if (ret == 0) {
@@ -8675,6 +9034,7 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
             ret = slhdsakey_verify(key, md, sig);
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     return ret;
 }
@@ -8707,7 +9067,9 @@ int wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* priv, word32 privLen)
         /* Copy private and public key data into SLH-DSA key object. */
         XMEMCPY(key->sk, priv, 4U * key->params->n);
         key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
-#ifdef WOLFSSL_SLHDSA_SHA2
+/* Under crypto callback only the device performs every hash, so it derives
+ * the SHA2 midstates for the imported PK.seed itself. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLF_CRYPTO_CB_ONLY_SLHDSA)
         if (SLHDSA_IS_SHA2(key->params->param)) {
             ret = slhdsakey_precompute_sha2_midstates(key);
         }
@@ -8743,7 +9105,9 @@ int wc_SlhDsaKey_ImportPublic(SlhDsaKey* key, const byte* pub, word32 pubLen)
         /* Copy public key data into SLH-DSA key object. */
         XMEMCPY(key->sk + 2U * key->params->n, pub, 2U * key->params->n);
         key->flags |= WC_SLHDSA_FLAG_PUBLIC;
-#ifdef WOLFSSL_SLHDSA_SHA2
+/* Under crypto callback only the device performs every hash, so it derives
+ * the SHA2 midstates for the imported PK.seed itself. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(WOLF_CRYPTO_CB_ONLY_SLHDSA)
         if (SLHDSA_IS_SHA2(key->params->param)) {
             ret = slhdsakey_precompute_sha2_midstates(key);
         }
@@ -8773,10 +9137,43 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check we have a private key to validate. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            const byte* pub = NULL;
+            word32 pubSz = 0;
+
+            /* Public key is PK.seed || PK.root at the end of the key data.
+             * A device or id backed key has none locally. */
+            if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) != 0) {
+                pub = key->sk + 2 * key->params->n;
+                pubSz = 2U * key->params->n;
+            }
+            ret = wc_CryptoCb_PqcSignatureCheckPrivKey(key,
+                WC_PQC_SIG_TYPE_SLHDSA, pub, pubSz);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    /* Check we have a private key to validate. Done after dispatch: a
+     * device or id backed key has no local key material. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
         ret = MISSING_KEY;
     }
+
+#ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     if (ret == 0) {
         byte root[SLHDSA_MAX_N];
         byte n = key->params->n;
@@ -8790,6 +9187,7 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
             ret = WC_KEY_MISMATCH_E;
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
     return ret;
 }

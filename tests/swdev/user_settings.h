@@ -29,6 +29,7 @@
 #undef WOLF_CRYPTO_CB_ONLY_AES
 #undef WOLF_CRYPTO_CB_ONLY_ED25519
 #undef WOLF_CRYPTO_CB_ONLY_CURVE25519
+#undef WOLF_CRYPTO_CB_ONLY_SLHDSA
 
 #ifndef WOLF_CRYPTO_CB
     #error "wc_swdev requires the main build to define WOLF_CRYPTO_CB"

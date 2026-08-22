@@ -17,6 +17,7 @@ The switches it supports are:
 | `WOLF_CRYPTO_CB_ONLY_AES`      | software AES   | AES via CryptoCb   |
 | `WOLF_CRYPTO_CB_ONLY_ED25519`  | software Ed25519 | Ed25519 via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_CURVE25519` | software X25519 | X25519 via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_SLHDSA`   | software SLH-DSA | SLH-DSA via CryptoCb |
 
 When a test program calls e.g. `wc_AesCbcEncrypt()` against a libwolfssl
 built with `-DWOLF_CRYPTO_CB_ONLY_AES`, the software AES path is gone;
@@ -161,3 +162,22 @@ testable on a generic Linux runner. Real deployments are expected to
 provide their own CryptoCb backed by a hardware engine (TPM, HSM, SoC
 crypto block, etc.). swdev is not API-stable, not benchmarked, and not
 audited as a production cryptographic provider.
+
+## Backends That Reuse the Caller's Key Object
+
+swdev runs the software implementation against the very `SlhDsaKey` /
+`ecc_key` / `RsaKey` the caller allocated, rather than against a copy of
+its own. Two consequences worth knowing if you write a similar backend:
+
+- The key still carries the `devId` that routed the call here. swdev
+  clears it for the duration of each operation
+  (`swdev_slhdsa_take` / `swdev_slhdsa_give_back`) so the software call
+  does not dispatch straight back into the callback.
+- Any derived state the stripped code would normally maintain becomes the
+  backend's problem. For SLH-DSA the SHA-2 midstates over `PK.seed` are
+  computed by the software import path, which is gone from the parent
+  under `WOLF_CRYPTO_CB_ONLY_SLHDSA`; swdev re-imports the public key at
+  the start of each operation to bring them back.
+
+A backend that holds its own key material (an HSM handle, say) has
+neither problem.
