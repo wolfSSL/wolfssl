@@ -2819,11 +2819,15 @@ struct WOLFSSL_CERT_MANAGER {
     short           minMlDsaKeySz;      /* minimum allowed ML-DSA key size */
 #endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-    wc_UnknownExtCallback unknownExtCallback;
+    wc_UnknownExtCallback     unknownExtCallback;
+    wc_UnknownExtCallback32   unknownExtCallback32;
 #if defined(HAVE_CRL)
-    wc_UnknownExtCallback   crlUnknownExtCallback;
-    wc_UnknownExtCallbackEx crlUnknownExtCallbackEx;
-    void*                   crlUnknownExtCallbackExCtx;
+    wc_UnknownExtCallback     crlUnknownExtCallback;
+    wc_UnknownExtCallback32   crlUnknownExtCallback32;
+    wc_UnknownExtCallbackEx   crlUnknownExtCallbackEx;
+    wc_UnknownExtCallback32Ex crlUnknownExtCallback32Ex;
+    /* Shared by crlUnknownExtCallbackEx and crlUnknownExtCallback32Ex. */
+    void*                     crlUnknownExtCallbackExCtx;
 #endif
 #endif
 #ifdef HAVE_CRL_UPDATE_CB

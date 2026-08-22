@@ -57,7 +57,7 @@
  *
  * Sections (asn.c line numbers as of this writing):
  *   1.  wc_BerToDer() ber/derSz NULL OR ......................... :4269
- *   2.  EncodeObjectId() in/outSz NULL, inSz<=0 OR ............... :7403
+ *   2.  EncodeObjectId() in/outSz NULL, inSz<2, in[0]>2 OR ...... :7403
  *   3.  wc_oid_sum() input NULL / length>MAX_OID_SZ OR ........... :7835
  *   4.  wc_CheckPrivateKeyCert() key/der NULL OR ................. :9956
  *   5.  wc_GetKeyOID() key/algoID NULL OR ......................... :10234
@@ -170,17 +170,19 @@ static void wb_ber_to_der_null_args(void) { WB_NOTE("ASN_BER_TO_DER off; skipped
 
 /* ------------------------------------------------------------------------- *
  * Section 2: EncodeObjectId() (:7403).
- *   if (in == NULL || outSz == NULL || inSz <= 0) return BAD_FUNC_ARG;
+ *   if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2)
+ *       return BAD_FUNC_ARG;
  * ------------------------------------------------------------------------- */
 #ifdef HAVE_OID_ENCODING
 static void wb_encode_object_id_null_args(void)
 {
     word16 dotted[3] = { 1, 2, 3 };
+    word16 badDotted[3] = { 3, 2, 3 };
     byte   out[16];
     word32 outSz;
     int    ret;
 
-    WB_NOTE("EncodeObjectId(): in/outSz NULL, inSz<=0 OR [:7403]");
+    WB_NOTE("EncodeObjectId(): in/outSz NULL, inSz<2, in[0]>2 OR [:7403]");
 
     outSz = sizeof(out);
     ret = EncodeObjectId(dotted, 3, out, &outSz);
@@ -195,7 +197,11 @@ static void wb_encode_object_id_null_args(void)
 
     outSz = sizeof(out);
     ret = EncodeObjectId(dotted, 0, out, &outSz);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<=0");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<2");
+
+    outSz = sizeof(out);
+    ret = EncodeObjectId(badDotted, 3, out, &outSz);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "in[0]>2");
 }
 #else
 static void wb_encode_object_id_null_args(void) { WB_NOTE("HAVE_OID_ENCODING off; skipped"); }

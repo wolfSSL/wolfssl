@@ -4526,9 +4526,20 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm);
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    /* Register a callback invoked for each certificate extension whose OID
+     * the parser does not recognize.  Returning 0 accepts the extension; a
+     * non-zero return rejects the certificate.
+     *
+     * The word16 form truncates OID arcs with values > 65535; the ...32 form
+     * receives every arc untruncated and should be preferred in new code.
+     * A registered word32 callback takes precedence: when both are set on the
+     * same cert manager only the word32 callback is invoked. */
     WOLFSSL_API void wolfSSL_CertManagerSetUnknownExtCallback(
         WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallback cb);
+    WOLFSSL_API void wolfSSL_CertManagerSetUnknownExtCallback32(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32 cb);
 #if defined(HAVE_CRL)
     /* Register a callback invoked for each CRL extension (CRL-level and
      * revoked-entry) whose OID the parser does not recognize, critical or
@@ -4545,6 +4556,27 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(
         WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallbackEx cb,
+        void* ctx);
+
+    /* word32 forms of the two registration calls above.  Each OID arc is
+     * passed to the callback as a word32, so arcs with values > 65535 are
+     * not truncated; prefer these in new code.
+     *
+     * A registered word32 callback takes precedence: when both a word16 and
+     * a word32 CRL callback are set on the same cert manager, only the word32
+     * callback is invoked.
+     *
+     * The Ex variants share one context slot with
+     * wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(), so registering one
+     * overwrites the context registered by the other.
+     *
+     * Both return WOLFSSL_SUCCESS, or BAD_FUNC_ARG when cm is NULL. */
+    WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallback32(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32 cb);
+    WOLFSSL_API int wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(
+        WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32Ex cb,
         void* ctx);
 #endif
 #endif

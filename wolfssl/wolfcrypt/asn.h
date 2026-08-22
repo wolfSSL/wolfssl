@@ -1852,11 +1852,23 @@ typedef struct WOLFSSL_AIA_ENTRY {
 #endif /* WOLFSSL_AIA_ENTRY_DEFINED */
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+/* Unknown extension callbacks.  The word16 forms truncate OID arcs with
+ * values > 65535; the ...32 forms receive every arc untruncated and should be
+ * preferred in new code.  When both a word16 and a word32 callback are
+ * registered on the same object, only the word32 callback is invoked.  The
+ * two Ex forms share a single context slot, so registering one overwrites the
+ * context registered by the other. */
 typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
                                      const unsigned char* der, word32 derSz);
 typedef int (*wc_UnknownExtCallbackEx)(const word16* oid, word32 oidSz,
                                        int crit, const unsigned char* der,
                                        word32 derSz, void *ctx);
+typedef int (*wc_UnknownExtCallback32)(const word32* oid, word32 oidSz,
+                                       int crit, const unsigned char* der,
+                                       word32 derSz);
+typedef int (*wc_UnknownExtCallback32Ex)(const word32* oid, word32 oidSz,
+                                         int crit, const unsigned char* der,
+                                         word32 derSz, void *ctx);
 #endif
 
 struct DecodedCert {
@@ -2234,9 +2246,11 @@ struct DecodedCert {
                                          * TRUSTED CERTIFICATE auxiliary trust
                                          * info. */
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-    wc_UnknownExtCallback unknownExtCallback;
-    wc_UnknownExtCallbackEx unknownExtCallbackEx;
-    void *unknownExtCallbackExCtx;
+    wc_UnknownExtCallback     unknownExtCallback;
+    wc_UnknownExtCallback32   unknownExtCallback32;
+    wc_UnknownExtCallbackEx   unknownExtCallbackEx;
+    wc_UnknownExtCallback32Ex unknownExtCallback32Ex;
+    void*                     unknownExtCallbackExCtx;
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     /* Subject Alternative Public Key Info */
@@ -2472,6 +2486,7 @@ typedef enum MimeStatus
     #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
         defined(OPENSSL_ALL)
         #define DecodeObjectId wc_DecodeObjectId
+        #define DecodeObjectId32 wc_DecodeObjectId32
     #endif
     #if defined(WOLFSSL_AKID_NAME) && !defined(GetCAByAKID)
         /* GetCAByAKID() has two implementations, a full implementation in
@@ -2527,6 +2542,11 @@ WOLFSSL_API int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
 WOLFSSL_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                                wc_UnknownExtCallbackEx cb,
+                                               void *ctx);
+WOLFSSL_API int wc_SetUnknownExtCallback32(DecodedCert* cert,
+                                             wc_UnknownExtCallback32 cb);
+WOLFSSL_API int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
+                                               wc_UnknownExtCallback32Ex cb,
                                                void *ctx);
 #endif
 
@@ -2718,13 +2738,19 @@ WOLFSSL_LOCAL word32 wc_oid_sum(const byte* input, int length);
 #ifdef HAVE_OID_ENCODING
     WOLFSSL_API int wc_EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
+    WOLFSSL_API int wc_EncodeObjectId32(const word32* in, word32 inSz,
+        byte* out, word32* outSz);
+    /* Unchangeable due to being called from FIPS code expecting word16 in */
     WOLFSSL_LOCAL int EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
 #endif
 #if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
     defined(OPENSSL_ALL)
+    /* Unchangeable due to being called from FIPS code expecting word16 out */
     WOLFSSL_TEST_VIS int DecodeObjectId(const byte* in, word32 inSz,
         word16* out, word32* outSz);
+    WOLFSSL_TEST_VIS int DecodeObjectId32(const byte* in, word32 inSz,
+        word32* out, word32* outSz);
 #endif
 WOLFSSL_LOCAL int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
                                  word32 maxIdx);
@@ -3277,9 +3303,11 @@ struct DecodedCRL {
 #endif
     WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-    wc_UnknownExtCallback   unknownExtCallback;
-    wc_UnknownExtCallbackEx unknownExtCallbackEx;
-    void*                   unknownExtCallbackExCtx;
+    wc_UnknownExtCallback     unknownExtCallback;
+    wc_UnknownExtCallback32   unknownExtCallback32;
+    wc_UnknownExtCallbackEx   unknownExtCallbackEx;
+    wc_UnknownExtCallback32Ex unknownExtCallback32Ex;
+    void*                     unknownExtCallbackExCtx;
 #endif
 };
 
