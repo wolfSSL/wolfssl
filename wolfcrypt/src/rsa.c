@@ -5499,8 +5499,10 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
 
     if (q != NULL) {
         int valid = 0;
-        /* 5.4 (186-4) 5.5 (186-5) -
-         * check that |p-q| <= (2^(1/2))(2^((nlen/2)-1)) */
+        /* 5.4 (186-4) 5.5 (186-5) - reject q unless |p-q| > 2^((nlen/2)-100).
+         * wc_CompareDiffPQ() computes c = 2^((nlen/2)-100), d = |p-q| and sets
+         * valid = (d > c); the standard's step discards the candidate in the
+         * complementary case, |p-q| <= 2^(nlen/2-100). */
         ret = wc_CompareDiffPQ(p, q, nlen, &valid);
         if ((ret != MP_OKAY) || (!valid)) goto notOkay;
         prime = q;
