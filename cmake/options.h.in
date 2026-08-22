@@ -611,6 +611,8 @@ extern "C" {
 #cmakedefine MAX_EX_DATA @MAX_EX_DATA@
 #undef ECC_MIN_KEY_SZ
 #cmakedefine ECC_MIN_KEY_SZ @ECC_MIN_KEY_SZ@
+#undef WC_RNG_SEED_DEVICE
+#cmakedefine WC_RNG_SEED_DEVICE @WC_RNG_SEED_DEVICE@
 
 /* parity: crypto/TLS feature options (wave B) */
 #undef WOLFSSL_MD2
