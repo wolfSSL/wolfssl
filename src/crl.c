@@ -2547,10 +2547,42 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     }
 
     {
-        const byte* serial = rev->serialNumber->data;
-        int serialSz = rev->serialNumber->length;
+        const byte* serial;
+        int serialSz;
         int i;
         int allZero = 1;
+
+        if (rev->serialNumber->isDer) {
+            /* serialNumber->data is a DER encoded INTEGER, as produced by
+             * wolfSSL_X509_CRL_get_REVOKED(). Skip the tag and the length
+             * octets so the checks below see the content octets only. */
+            word32 idx = 1;
+            int len = 0;
+
+            if (rev->serialNumber->data == NULL ||
+                    rev->serialNumber->length < 2 ||
+                    rev->serialNumber->data[0] != ASN_INTEGER) {
+                return BAD_FUNC_ARG;
+            }
+            /* Bound the header parse by the allocation, then require the
+             * encoding to exactly fill the declared length. */
+            if (GetLength_ex(rev->serialNumber->data, &idx, &len,
+                    rev->serialNumber->dataMax, 1) < 0) {
+                return BAD_FUNC_ARG;
+            }
+            if (idx + (word32)len != (word32)rev->serialNumber->length) {
+                return BAD_FUNC_ARG;
+            }
+
+            serial = rev->serialNumber->data + idx;
+            serialSz = len;
+        }
+        else {
+            /* Bare serial value. This is the public input contract of this
+             * API and must keep working byte for byte. */
+            serial = rev->serialNumber->data;
+            serialSz = rev->serialNumber->length;
+        }
 
         if (serial == NULL || serialSz <= 0) {
             return BAD_FUNC_ARG;
