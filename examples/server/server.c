@@ -2784,7 +2784,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             method = wolfDTLSv1_3_server_method_ex;
             break;
 #endif
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)) && \
+        !defined(WOLFSSL_NO_TLS12)
         case -3:
             method = wolfDTLSv1_2_method_ex;
             break;

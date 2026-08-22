@@ -48,7 +48,8 @@
 int test_dtls12_basic_connection_id(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS_CID)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_TLS12)
     unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
     unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5 };
     unsigned char readBuf[40];
@@ -1116,6 +1117,8 @@ int test_dtls13_cid_msg_malformed(void)
 
 int test_dtls_version_checking(void)
 {
+/* The test drives a DTLS 1.2 handshake, which needs TLS 1.2. */
+#ifndef WOLFSSL_NO_TLS12
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -1161,6 +1164,9 @@ int test_dtls_version_checking(void)
     wolfSSL_CTX_free(ctx_s);
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_DTLS */
     return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
 }
 
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
@@ -1341,6 +1347,7 @@ int test_dtls_drop_invalid_record_during_handshake(void)
 {
     EXPECT_DECLS;
 
+#ifndef WOLFSSL_NO_TLS12
     /* Client drops a corrupted server flight: unknown type, then over-length. */
     ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_2_client_method,
         wolfDTLSv1_2_server_method, 0, 1), TEST_SUCCESS);
@@ -1353,6 +1360,7 @@ int test_dtls_drop_invalid_record_during_handshake(void)
         wolfDTLSv1_2_server_method, 1, 0), TEST_SUCCESS);
     ExpectIntEQ(test_dtls_drop_invalid_record(wolfDTLSv1_2_client_method,
         wolfDTLSv1_2_server_method, 1, 1), TEST_SUCCESS);
+#endif
 
 #ifdef WOLFSSL_DTLS13
     /* Same silent-drop behavior on the DTLS 1.3 receive path (all four
@@ -1583,6 +1591,8 @@ int test_dtls13_oversized_msg_length(void)
 #if !defined(WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS)
 int test_dtls12_short_read(void)
 {
+/* The test drives a DTLS 1.2 handshake, which needs TLS 1.2. */
+#ifndef WOLFSSL_NO_TLS12
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -1634,6 +1644,9 @@ int test_dtls12_short_read(void)
     }
 
     return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
 }
 #else
 int test_dtls12_short_read(void)
@@ -1645,6 +1658,8 @@ int test_dtls12_short_read(void)
 #if !defined(WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS)
 int test_dtls12_record_length_mismatch(void)
 {
+/* The test drives a DTLS 1.2 handshake, which needs TLS 1.2. */
+#ifndef WOLFSSL_NO_TLS12
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -1681,11 +1696,24 @@ int test_dtls12_record_length_mismatch(void)
     ExpectIntEQ(ret, TEST_SUCCESS);
 
     return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
 }
 
 int test_dtls_record_cross_boundaries(void)
 {
+/* A record must not span datagrams in either DTLS version, so run whichever
+ * one the build has. */
+#if !defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13)
     EXPECT_DECLS;
+#ifdef WOLFSSL_NO_TLS12
+    #define TEST_DTLS_CLIENT_METHOD wolfDTLSv1_3_client_method
+    #define TEST_DTLS_SERVER_METHOD wolfDTLSv1_3_server_method
+#else
+    #define TEST_DTLS_CLIENT_METHOD wolfDTLSv1_2_client_method
+    #define TEST_DTLS_SERVER_METHOD wolfDTLSv1_2_server_method
+#endif
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
@@ -1696,11 +1724,20 @@ int test_dtls_record_cross_boundaries(void)
 
     /* Setup DTLS contexts */
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                    wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method),
+                    TEST_DTLS_CLIENT_METHOD, TEST_DTLS_SERVER_METHOD),
         0);
 
     /* Complete handshake */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* The handshake does not drain the transport, and DTLS 1.3 can leave an
+     * ACK behind, so start from an empty buffer to keep the two records that
+     * follow at indices 0 and 1. DTLS 1.2 leaves nothing, and that is still
+     * worth checking rather than clearing away. */
+#ifdef WOLFSSL_NO_TLS12
+    test_memio_clear_buffer(&test_ctx, 0);
+#else
+    ExpectIntEQ(test_ctx.s_len, 0);
+#endif
 
     /* create a first record in the buffer */
     wolfSSL_SetLoggingPrefix("client");
@@ -1744,7 +1781,12 @@ int test_dtls_record_cross_boundaries(void)
     wolfSSL_CTX_free(ctx_s);
     wolfSSL_CTX_free(ctx_c);
 
+#undef TEST_DTLS_CLIENT_METHOD
+#undef TEST_DTLS_SERVER_METHOD
     return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
 }
 #else
 int test_dtls12_record_length_mismatch(void)
@@ -1759,6 +1801,8 @@ int test_dtls_record_cross_boundaries(void)
 
 int test_dtls_short_ciphertext(void)
 {
+/* The test drives a DTLS 1.2 handshake, which needs TLS 1.2. */
+#ifndef WOLFSSL_NO_TLS12
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -1801,6 +1845,9 @@ int test_dtls_short_ciphertext(void)
     ExpectIntEQ(ret, TEST_SUCCESS);
 
     return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
 }
 #else
 int test_dtls_drop_invalid_record_during_handshake(void)
@@ -2960,7 +3007,8 @@ int test_dtls_set_session_min_downgrade(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
-    defined(WOLFSSL_DTLS13) && defined(HAVE_SESSION_TICKET)
+    defined(WOLFSSL_DTLS13) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION *sess = NULL;
@@ -7629,7 +7677,7 @@ int test_wolfSSL_dtls_srtp_keying_material(void)
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
     (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
 static int test_dtls_mcast_highwater_cb(unsigned short peerId,
     unsigned int maxSeq, unsigned int curSeq, void* ctx)
 {
@@ -7646,7 +7694,7 @@ int test_wolfSSL_mcast_peers(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
     (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     int hwCtx = 0;
@@ -7891,7 +7939,7 @@ int test_wolfSSL_set_mtu_compat(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA) && \
     (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -7944,7 +7992,7 @@ int test_wolfSSL_CTX_mcast_set_member_id(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
     (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
 
     ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(NULL, 0),
@@ -7967,7 +8015,7 @@ int test_wolfSSL_mcast_read(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
     (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     word16 id = 0;
@@ -8080,8 +8128,16 @@ int test_wolfSSL_dtls_got_timeout(void)
 int test_wolfSSL_DTLS_SetCookieSecret(void)
 {
     EXPECT_DECLS;
+/* Only the argument handling is under test, which is the same in either DTLS
+ * version, so run whichever one the build has. */
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13)) && \
     (defined(NO_CERTS) || !defined(NO_RSA))
+#ifdef WOLFSSL_NO_TLS12
+    #define TEST_DTLS_COOKIE_METHOD wolfDTLSv1_3_server_method
+#else
+    #define TEST_DTLS_COOKIE_METHOD wolfDTLSv1_2_server_method
+#endif
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte secret1[32];
@@ -8094,7 +8150,7 @@ int test_wolfSSL_DTLS_SetCookieSecret(void)
     ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(NULL, secret1, sizeof(secret1)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method()));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(TEST_DTLS_COOKIE_METHOD()));
 #ifndef NO_CERTS
     /* A server WOLFSSL needs a key and certificate set on the context. */
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE),
@@ -8117,6 +8173,7 @@ int test_wolfSSL_DTLS_SetCookieSecret(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#undef TEST_DTLS_COOKIE_METHOD
 #endif
     return EXPECT_RESULT();
 }
@@ -8126,7 +8183,7 @@ int test_wolfSSL_set_secret(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
     (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte preMasterSecret[16];

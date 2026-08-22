@@ -460,7 +460,7 @@ int test_x509_set_serialNumber(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
     !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
 
 /* Verify callback that accepts all certificates regardless of errors. */
 static int accept_all_verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
@@ -558,7 +558,7 @@ int test_x509_time_field_overread_via_tls(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
     !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX* ctx_c = NULL;
     WOLFSSL_CTX* ctx_s = NULL;
