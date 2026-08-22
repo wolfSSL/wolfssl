@@ -3252,10 +3252,20 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         else
     #endif /* WOLFSSL_TLS13 */
         {
+#ifndef WOLFSSL_NO_TLS12
             ret  = MakeMasterSecret(session->sslServer);
             ret += MakeMasterSecret(session->sslClient);
             ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
             ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+#else
+            /* No master secret is computed here, so installing cipher state
+             * would be wrong. */
+            SetError(UNSUPPORTED_TLS_VER_STR, error, session,
+                     FATAL_ERROR_STATE);
+            session->verboseErr = 1;
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+#endif
         }
         if (ret != 0) {
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
@@ -3698,6 +3708,7 @@ static int DoResume(SnifferSession* session, char* error)
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         if (IsTLS(session->sslServer)) {
             ret =  DeriveTlsKeys(session->sslServer);
             ret += DeriveTlsKeys(session->sslClient);
@@ -3710,6 +3721,12 @@ static int DoResume(SnifferSession* session, char* error)
         }
         ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
         ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+#else
+        /* No keys were derived, so installing cipher state would be wrong. */
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+#endif
     }
 
     if (ret != 0) {
@@ -4570,8 +4587,14 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         ret = DoFinished(ssl, input, &inOutIdx, (word32)size,
             (word32)*sslBytes, SNIFF);
+#else
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+#endif
     }
     *sslBytes -= (int)inOutIdx;
 
@@ -4915,6 +4938,9 @@ exit:
 
 /* For ciphers that use AEAD use the encrypt routine to
  * bypass the auth tag checking */
+/* The record layout below TLS 1.3 carries an explicit IV and its own
+ * additional data, so this path exists only where TLS 1.2 does. */
+#ifndef WOLFSSL_NO_TLS12
 static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
@@ -5167,13 +5193,16 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
 
     return ret;
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 
 
 /* Decrypt input message into output, adjust output steam if needed */
 static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
                 byte* output, int* error, int* advance, RecordLayerHeader* rh)
 {
+#ifndef WOLFSSL_AEAD_ONLY
     int ivExtra = 0;
+#endif
     int ret;
 
 #ifdef WOLFSSL_TLS13
@@ -5187,8 +5216,13 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
         ret = DecryptTls(ssl, output, input, sz);
+#else
+        *error = VERSION_ERROR;
+        return NULL;
+#endif
     }
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
@@ -5209,11 +5243,13 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 
     ssl->curSize = sz;
     ssl->keys.encryptSz = sz;
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
         output += ssl->specs.block_size; /* go past TLSv1.1 IV */
         ivExtra = ssl->specs.block_size;
         *advance = ssl->specs.block_size;
     }
+#endif
 
     if (ssl->specs.cipher_type == aead) {
         *advance = ssl->specs.aead_mac_size;
@@ -5222,6 +5258,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
         ssl->keys.padSz = ssl->specs.hash_size;
 
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block) {
         /* last pad bytes indicates length */
         word32 pad = 0;
@@ -5231,6 +5268,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         }
         ssl->keys.padSz += pad;
     }
+#endif
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -6084,6 +6122,7 @@ static int FindNextRecordInAssembly(SnifferSession* session,
 
             return 0;
         }
+#ifndef WOLFSSL_AEAD_ONLY
         else if (ssl->specs.cipher_type == block) {
             int ivPos = (int)(curr->end - curr->begin -
                                                      ssl->specs.block_size + 1);
@@ -6100,6 +6139,7 @@ static int FindNextRecordInAssembly(SnifferSession* session,
 #endif
             }
         }
+#endif /* !WOLFSSL_AEAD_ONLY */
 
         Trace(DROPPING_LOST_FRAG_STR);
 #ifdef WOLFSSL_SNIFFER_STATS

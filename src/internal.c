@@ -15721,8 +15721,15 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
 }
 #endif /* WOLFSSL_ACERT */
 
+/* ProcessCSR() below needs this block under TLS 1.2, and TLS 1.3 reaches
+ * ProcessCSR_ex() from ProcessPeerCertsChainOCSPStatusCheck(), which is built
+ * for status_request only. Naming both keeps a status_request_v2-only build
+ * with TLS 1.2 compiled out from having no caller left. */
 #if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && !defined(WOLFSSL_NO_TLS12)
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+    (!defined(WOLFSSL_NO_TLS12) || \
+     (defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) && \
+      defined(HAVE_CERTIFICATE_STATUS_REQUEST)))
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 #ifndef NO_WOLFSSL_SERVER
 static int CsrDoStatusVerifyCb(WOLFSSL* ssl, byte* input, word32 inputSz, word32 idx,
@@ -15747,8 +15754,10 @@ static int CsrDoStatusVerifyCb(WOLFSSL* ssl, byte* input, word32 inputSz, word32
     }
     return ret;
 }
-#endif
+#endif /* !NO_WOLFSSL_SERVER */
 
+/* Parses one certificate_status message. TLS 1.3 reads the per-certificate
+ * entries of the chain through this, so it is not tied to TLS 1.2. */
 static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                       word32 status_length, int idx)
 {
@@ -15871,11 +15880,13 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     return ret;
 }
 
+#ifndef WOLFSSL_NO_TLS12
 static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                       word32 status_length)
 {
     return ProcessCSR_ex(ssl, input, inOutIdx, status_length, 0);
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 #endif
 #endif
 
@@ -26509,7 +26520,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     const byte* encInput = NULL;
 #endif
 
-#ifdef WOLFSSL_DTLS_CID
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_TLS12)
     byte cidSz = 0;
 #endif
 

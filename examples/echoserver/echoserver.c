@@ -151,7 +151,8 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     tcp_listen(&sockfd, &port, useAnyAddr, 0, 0);
 
 #if !defined(NO_TLS)
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER) && \
+        !defined(WOLFSSL_NO_TLS12)
     method = wolfTLSv1_2_server_method();
     #else
     method = wolfSSLv23_server_method();
@@ -264,10 +265,13 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     }
 #endif
 
-#if defined(WOLFSSL_SNIFFER)
+#if defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_NO_TLS12)
     /* Only set if not running testsuite */
     if (XSTRSTR(argv[0], "testsuite") == NULL) {
-        /* don't use EDH, can't sniff tmp keys */
+        /* don't use EDH, can't sniff tmp keys. A TLS 1.3 sniffer needs a key
+         * log file or static ephemeral keys instead, so this static RSA suite
+         * is only pinned where TLS 1.2 exists. Advisory: a build without the
+         * suite's ciphers keeps the default list. */
         wolfSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
     }
 #endif

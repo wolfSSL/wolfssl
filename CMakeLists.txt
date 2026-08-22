@@ -1918,12 +1918,6 @@ add_option("WOLFSSL_TLSV12"
     "Enable TLS versions 1.2 (default: enabled)"
     "yes" "yes;no")
 
-if(NOT WOLFSSL_TLSV12)
-    list(APPEND WOLFSSL_DEFINITIONS
-        "-DWOLFSSL_NO_TLS12"
-        "-DNO_OLD_TLS")
-endif()
-
 # TODO: - TLSv1.0
 #       - SSLv3
 #       - Stack size
@@ -2569,6 +2563,34 @@ if (WOLFSSL_TLS13)
         "-DWOLFSSL_TLS13"
         "-DHAVE_TLS_EXTENSIONS"
         )
+endif()
+
+if(NOT WOLFSSL_TLSV12)
+    # Compiling the pre-TLS-1.3 handshake out leaves the versions built on
+    # top of it with nothing to run on, so reject them the way configure does.
+    if(WOLFSSL_OLD_TLS)
+        message(FATAL_ERROR
+            "WOLFSSL_TLSV12=no cannot be combined with WOLFSSL_OLD_TLS=yes: "
+            "TLS 1.0 and 1.1 use the TLS 1.2 handshake.")
+    endif()
+    if(NOT WOLFSSL_TLS13)
+        message(FATAL_ERROR
+            "WOLFSSL_TLSV12=no needs WOLFSSL_TLS13=yes: no TLS version would "
+            "be left to negotiate.")
+    endif()
+    if(WOLFSSL_MCAST)
+        message(FATAL_ERROR
+            "WOLFSSL_TLSV12=no cannot be combined with WOLFSSL_MCAST: "
+            "multicast rides on DTLS 1.2 and its NULL cipher suite.")
+    endif()
+    if(WOLFSSL_DTLS AND NOT WOLFSSL_DTLS13)
+        message(FATAL_ERROR
+            "WOLFSSL_TLSV12=no with WOLFSSL_DTLS=yes needs WOLFSSL_DTLS13=yes: "
+            "DTLS 1.2 uses the TLS 1.2 handshake.")
+    endif()
+    # NO_OLD_TLS is already in the list: the check above leaves
+    # WOLFSSL_OLD_TLS off, which is what adds it.
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_TLS12")
 endif()
 
 # Session Ticket Extension

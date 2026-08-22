@@ -1390,8 +1390,11 @@ int test_tls12_ec_point_formats_no_uncompressed_non_ecc(void)
 int test_dtls_fallback_scsv(void)
 {
     EXPECT_DECLS;
+/* The fallback is to DTLS 1.2, so the server needs that version to downgrade
+ * to for the alert to be the one under test. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13)
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS13) && \
+    !defined(WOLFSSL_NO_TLS12)
     const byte clientHello[] = {
         /* DTLS record header: handshake, DTLS 1.2, epoch 0, seq 0, length 56 */
         0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00,
