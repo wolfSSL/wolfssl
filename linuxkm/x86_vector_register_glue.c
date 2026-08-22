@@ -2973,6 +2973,19 @@ static int wc_svr_selftest(void)
     if (ret == 0)
         wc_svr_regs_restore(area);   /* hand them back */
     wc_svr_st_store(got);        /* what the interrupted context would see */
+#ifdef WC_SVR_NESTED_X86
+    /* The VEX arm of wc_svr_st_load()/_store() leaves the upper halves of
+     * %ymm0-%ymm15 dirty, and kernel_fpu_end() does not clear them: it drops
+     * in_kernel_fpu and re-enables preemption, nothing else
+     * (arch/x86/kernel/fpu/core.c:446-452 in linux-6.12.59), and the KFPU_MXCSR
+     * / KFPU_387 work in kernel_fpu_begin_mask() is on the way IN (:438-442).
+     * That leaves the AVX-SSE transition penalty for whatever runs next, which
+     * is what the kernel's own AVX crypto asm avoids by ending with
+     * VZEROUPPER.  The same omission in aes_xts_asm.S was worth 15-17% when it
+     * was fixed.  One instruction, once, at init. */
+    if (wc_svr_st_avx)
+        asm volatile("vzeroupper" ::: "memory");
+#endif
     WC_LINUXKM_FPU_END();
 
     preempt_enable();
