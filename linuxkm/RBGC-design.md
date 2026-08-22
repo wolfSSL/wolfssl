@@ -1,7 +1,11 @@
 # How the kernel module serves `get_random_bytes()`
 
-Enabled with `--enable-linuxkm-rbgc`.  Needs a kernel patched to offer the
-`wc_grb_hook_register()` hook.
+Enabled with `--enable-linuxkm-rbgc`.  Needs a kernel carrying one of the
+patches in `linuxkm/patches/`, which export
+`wolfssl_linuxkm_register_random_bytes_handlers()` and its unregister
+counterpart from `drivers/char/random.c`.  Without one of those patches the
+module does not build: `linuxkm/module_hooks.c` stops on an `#error` naming
+this directory.
 
 ## The idea in one paragraph
 

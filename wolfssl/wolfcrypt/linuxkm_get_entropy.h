@@ -90,12 +90,14 @@ WOLFSSL_LOCAL int wc_grb_irq_hist(int ctx, long long *out, int n);
 
 /* Bring the tree up and tear it down.  These do not install the kernel hook:
  * the container must have no unresolved symbols, so an in-boundary file cannot
- * call wc_grb_hook_register().  The glue does that. */
+ * call wolfssl_linuxkm_register_random_bytes_handlers().  The glue does
+ * that. */
 WOLFSSL_LOCAL int wc_grb_init(int ncpus);
 WOLFSSL_LOCAL void wc_grb_cleanup(void);
 
-/* The service.  Signature matches wc_grb_hook_fn from <linux/random.h>.
- * Returns 0 if it filled buf; non-zero lets the kernel's own CRNG answer. */
+/* The service.  Signature matches _get_random_bytes_cb_t from
+ * <linux/random.h>, i.e. the ._get_random_bytes member of
+ * struct wolfssl_linuxkm_random_bytes_handlers. */
 WOLFSSL_LOCAL int wc_grb_service(void *buf, size_t len);
 
 /* Told to us by the glue after a successful registration. */

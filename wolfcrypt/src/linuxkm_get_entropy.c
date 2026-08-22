@@ -523,11 +523,10 @@ static int wc_grb_reseed_nmi(int cpu, int want_cpu)
     return 0;
 }
 
-/* The hook.  Returns 0 if it filled buf; non-zero lets the kernel's own CRNG
- * answer.  Not static and does not self-register: wc_grb_hook_register() is a
- * kernel symbol outside the boundary and the container must resolve every
- * symbol it references, so the boundary provides this and
- * linuxkm/module_hooks.c registers it. */
+/* The hook.  Not static and does not self-register:
+ * wolfssl_linuxkm_register_random_bytes_handlers() is a kernel symbol outside
+ * the boundary and the container must resolve every symbol it references, so
+ * the boundary provides this and linuxkm/module_hooks.c registers it. */
 int wc_grb_service(void *buf, size_t len)
 {
     int    ctx = wc_grb_ctx();
