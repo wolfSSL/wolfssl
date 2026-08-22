@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     /* Wait for the peer's close_notify so the socket is not torn down under
      * the client while it is still shutting down. */
     ret = wolfSSL_shutdown(ssl);
-    if (ret == WOLFSSL_SHUTDOWN_NOT_DONE)
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE))
         ret = wolfSSL_shutdown(ssl);
     if (ret != WOLFSSL_SUCCESS)
         err_ssl(ssl, ret, "ssl shutdown failed");

@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     }
 
     ret = wolfSSL_shutdown(ssl);
-    if (ret == WOLFSSL_SHUTDOWN_NOT_DONE)
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE))
         ret = wolfSSL_shutdown(ssl);
     if (ret != WOLFSSL_SUCCESS)
         err_ssl(ssl, ret, "ssl shutdown failed");
