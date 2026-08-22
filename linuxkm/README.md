@@ -173,19 +173,34 @@ seedsize     : 0
 ```
 
 
-Patches are provided for several kernel versions, ranging from `5.10.x` to
-`6.15`, with the most recent patchset tested nightly with the latest Linux
-release and RC kernels, and with the latest linux-next snapshot.  Use the
-patchset with the most recent target kernel version not greater than that of the
-kernel you're targeting.
+Patches are provided for thirty-four kernel versions, 5.6 through 7.1, with the
+most recent patchset tested nightly with the latest Linux release and RC
+kernels, and with the latest linux-next snapshot.
+
+**Look your version up in `patches/README.md`; do not pick by version number.**
+The directories under `patches/` are *bases*, not the list of what is
+supported, and the mapping from version to base is neither one-to-one nor
+nearest-by-number.  `drivers/char/random.c` was rewritten in 5.18 and the
+rewrite was then backported into the LTS branches and not into the others, so
+5.10 is newer in API shape than 5.13 and 5.15 is newer than 5.16.  Two series
+change shape mid-series as well.  Picking the nearest base by number lands you
+on the wrong side of one of those seams, where a hunk can still apply -- with
+fuzz -- into the wrong function and leave a tree that will not build.
+
+The coverage table in `patches/README.md` was produced by applying every base
+to every supported version at `--fuzz=0`, so it says which patch to use and it
+is derived from measurement rather than arithmetic.
 
 ### Patch procedure
 
-1. Verify that the patcheset applies cleanly, using a dry run:
+1. Verify that the patchset applies cleanly, using a dry run.  Use `--fuzz=0`:
+   the default fuzz of 2 drops context lines until a hunk matches *something*,
+   so a hunk can land in the wrong function and still be reported as applied.
+
 
 ```console
 $ cd ~/kernelsrc/
-$ patch -p1 --dry-run  < ~/wolfssl-5.8.2/linuxkm/patches/6.12/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v12.patch
+$ patch -p1 --dry-run --fuzz=0 < ~/wolfssl-5.8.2/linuxkm/patches/6.12/WOLFSSL_KERNELv6_12_FIPS.patch
 checking file drivers/char/random.c
 checking file include/linux/random.h
 ```
@@ -199,7 +214,7 @@ $ make mrproper
 3. Patch the kernel:
 
 ```console
-$ patch -p1 < ~/wolfssl-5.8.2/linuxkm/patches/6.12/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-6v12.patch
+$ patch -p1 --fuzz=0 < ~/wolfssl-5.8.2/linuxkm/patches/6.12/WOLFSSL_KERNELv6_12_FIPS.patch
 patching file drivers/char/random.c
 patching file include/linux/random.h
 ```
