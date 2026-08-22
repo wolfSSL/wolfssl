@@ -7758,6 +7758,12 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
 /* Certificate Authorities                                                       */
 /******************************************************************************/
 
+/* Smallest legal authorities list from RFC 8446 section 4.2.4: a 2 byte
+ * length plus at least 1 byte of name. */
+#ifndef WC_CA_NAMES_MIN_SZ
+    #define WC_CA_NAMES_MIN_SZ 3
+#endif
+
 static word16 TLSX_CA_Names_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
@@ -7809,6 +7815,25 @@ static word16 TLSX_CA_Names_Write(void* data, byte* output)
     return (word16)(output - len);
 }
 
+/* Count the CA names TLSX_CA_Names_Write() would write. RFC 8446 section
+ * 4.2.4 needs at least one, so send the extension only when this is non-zero.
+ * An empty list is one node with a NULL name, which counts as zero. */
+static int TLSX_CA_Names_Count(WOLFSSL* ssl)
+{
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
+    int cnt = 0;
+
+    if (ssl == NULL)
+        return 0;
+
+    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL;
+            names = names->next) {
+        if (names->data.name != NULL)
+            cnt++;
+    }
+    return cnt;
+}
+
 static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
                                   word16 length, byte isRequest)
 {
@@ -7829,6 +7854,14 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     length -= OPAQUE16_LEN;
     if (extLen != length)
         return BUFFER_ERROR;
+
+    /* RFC 8446 section 4.2.4 says authorities<3..2^16-1>, and the size table
+     * in TLSX_Parse skips certificate_request. Set WC_CA_NAMES_MIN_SZ to 0
+     * to accept short lists the way older versions did. */
+#if WC_CA_NAMES_MIN_SZ > 0
+    if (extLen < WC_CA_NAMES_MIN_SZ)
+        return BUFFER_ERROR;
+#endif
 
     while (length) {
         word16 idx = 0;
@@ -16581,7 +16614,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #ifdef WOLFSSL_TLS13
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (IsAtLeastTLSv1_3(ssl->version) &&
-                SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
+                TLSX_CA_Names_Count(ssl) > 0) {
             WOLFSSL_MSG("Adding certificate authorities extension");
             if ((ret = TLSX_Push(&ssl->extensions,
                     TLSX_CERTIFICATE_AUTHORITIES, ssl, ssl->heap)) != 0) {
@@ -17626,7 +17659,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (!IsAtLeastTLSv1_3(ssl->version) ||
-                SSL_CA_NAMES(ssl) == NULL) {
+                TLSX_CA_Names_Count(ssl) == 0) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17651,7 +17684,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
+        if (TLSX_CA_Names_Count(ssl) > 0) {
             TURN_OFF(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17865,7 +17898,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         }
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (!IsAtLeastTLSv1_3(ssl->version) || SSL_CA_NAMES(ssl) == NULL) {
+        if (!IsAtLeastTLSv1_3(ssl->version) || TLSX_CA_Names_Count(ssl) == 0) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17896,7 +17929,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
+        if (TLSX_CA_Names_Count(ssl) > 0) {
             TURN_OFF(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
