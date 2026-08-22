@@ -1008,20 +1008,43 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
     }                                                                      \
                                                                            \
     int ret;                                                               \
+                                                                           \
+    /* ONE bracket for the update AND the final.  Two brackets meant a     \
+     * refusal of the second returned an error with the bytes ALREADY      \
+     * ABSORBED, so repeating the call absorbed them twice and produced a  \
+     * wrong digest with a success status.  The refusal is reachable       \
+     * without any debug option: wc_save_vector_registers_x86() consults   \
+     * WC_CHECK_FOR_INTR_SIGNALS() on the OUTERMOST acquisition only, so a \
+     * signal that becomes pending while the first bracket is open is      \
+     * invisible to it and fatal to the second.  Measured.                 \
+     *                                                                     \
+     * free_f() stays OUTSIDE the bracket: km_hmac_finup() learned that    \
+     * the hard way in 32feac15f, where the free took a mutex inside the   \
+     * section and the guard skipped it, leaking the node.  free_f() here  \
+     * takes no lock, but the placement is the same rule. */               \
     KM_SHA_SVR_BEGIN(ret);                                                 \
     ret = update_f(ctx, data, len);                                        \
+    if (ret == 0)                                                          \
+        ret = final_f(ctx, out);                                           \
+    else                                                                   \
+        wrap->failed = 1;                                                  \
     KM_SHA_SVR_END();                                                      \
                                                                            \
-    if (ret != 0) {                                                        \
-        wrap->failed = 1;                                                  \
-        free_f(ctx);                                                       \
+    free_f(ctx);                                                           \
+    if (wrap->failed) {                                                    \
         /* Wipe the message state, but NOT the latch: ForceZero(wrap)      \
          * would clear ->failed.  ISO/IEC 19790:2012 7.9. */               \
         ForceZero(ctx, sizeof(*ctx));                                      \
         return -EINVAL;                                                    \
     }                                                                      \
+    /* Digest emitted, or the final failed; the desc is spent either way.  \
+     * free_f() leaves the message state in place, so clear it here. */    \
+    ForceZero(wrap, sizeof(*wrap));                                        \
                                                                            \
-    return km_ ## name ## _final(desc, out);                               \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
@@ -1246,30 +1269,38 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
         return -EINVAL;                                                    \
     }                                                                      \
                                                                            \
+    /* ONE bracket for the update AND the final.  Two brackets meant a     \
+     * refusal of the second returned an error with the bytes ALREADY      \
+     * ABSORBED, so repeating the call absorbed them twice and produced a  \
+     * wrong digest with a success status.  The refusal is reachable       \
+     * without any debug option: wc_save_vector_registers_x86() consults   \
+     * WC_CHECK_FOR_INTR_SIGNALS() on the OUTERMOST acquisition only, so a \
+     * signal that becomes pending while the first bracket is open is      \
+     * invisible to it and fatal to the second.  Measured.                 \
+     *                                                                     \
+     * free_f() stays OUTSIDE the bracket: km_hmac_finup() learned that    \
+     * the hard way in 32feac15f, where the free took a mutex inside the   \
+     * section and the guard skipped it, leaking the node.  free_f() here  \
+     * takes no lock, but the placement is the same rule. */               \
     KM_SHA_SVR_BEGIN(ret);                                                 \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
     ret = update_f(ctx, data, len);                                        \
+    if (ret == 0)                                                          \
+        ret = final_f(ctx, out);                                           \
+    else                                                                   \
+        wrap->failed = 1;                                                  \
     WC_LINUXKM_SHA2_POP_W(ctx);                                            \
     KM_SHA_SVR_END();                                                      \
                                                                            \
-    if (ret != 0) {                                                        \
-        wrap->failed = 1;                                                  \
-        free_f(ctx);                                                       \
+    free_f(ctx);                                                           \
+    if (wrap->failed) {                                                    \
         /* Wipe the message state, but NOT the latch: ForceZero(wrap)      \
          * would clear ->failed.  ISO/IEC 19790:2012 7.9. */               \
         ForceZero(ctx, sizeof(*ctx));                                      \
         return -EINVAL;                                                    \
     }                                                                      \
-                                                                           \
-    KM_SHA_SVR_BEGIN(ret);                                                 \
-    WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
-    ret = final_f(ctx, out);                                               \
-    WC_LINUXKM_SHA2_POP_W(ctx);                                            \
-    KM_SHA_SVR_END();                                                      \
-                                                                           \
-    free_f(ctx);                                                           \
-    /* Digest emitted; the message state is spent.  free_f() leaves it in  \
-     * place, so clear it here too. */                                     \
+    /* Digest emitted, or the final failed; the desc is spent either way.  \
+     * free_f() leaves the message state in place, so clear it here. */    \
     ForceZero(wrap, sizeof(*wrap));                                        \
                                                                            \
     if (ret == 0)                                                          \
@@ -1438,17 +1469,34 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
         return -EINVAL;                                                    \
                                                                            \
     int ret;                                                               \
+                                                                           \
+    /* ONE bracket for the update AND the final.  Two brackets meant a     \
+     * refusal of the second returned an error with the bytes ALREADY      \
+     * ABSORBED, so repeating the call absorbed them twice and produced a  \
+     * wrong digest with a success status.  The refusal is reachable       \
+     * without any debug option: wc_save_vector_registers_x86() consults   \
+     * WC_CHECK_FOR_INTR_SIGNALS() on the OUTERMOST acquisition only, so a \
+     * signal that becomes pending while the first bracket is open is      \
+     * invisible to it and fatal to the second.  Measured.                 \
+     *                                                                     \
+     * km_sha3_free_tstate() STAYS OUTSIDE the bracket -- it takes         \
+     * desc_list_lock, and wc_lkm_LockMutex() refuses a mutex inside a     \
+     * vector-register section, which is exactly the leak 32feac15f fixed  \
+     * in km_hmac_finup(). */                                              \
     KM_SHA_SVR_BEGIN(ret);                                                 \
     ret = update_f(&ctx->sha3_state-> name ## _state, data, len);          \
+    if (ret == 0)                                                          \
+        ret = final_f(&ctx->sha3_state-> name ## _state, out);             \
     KM_SHA_SVR_END();                                                      \
                                                                            \
-    if (ret != 0) {                                                        \
+    if (ret != 0)                                                          \
         ctx->failed = 1;                                                   \
-        km_sha3_free_tstate(desc);                                         \
-        return -EINVAL;                                                    \
-    }                                                                      \
+    km_sha3_free_tstate(desc);                                             \
                                                                            \
-    return km_ ## name ## _final(desc, out);                               \
+    if (ret == 0)                                                          \
+        return 0;                                                          \
+    else                                                                   \
+        return -EINVAL;                                                    \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
