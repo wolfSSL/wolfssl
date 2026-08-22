@@ -5640,7 +5640,13 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
         ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
     }
 
-    ret = (ret == MP_OKAY) ? 0 : PRIME_GEN_E;
+    /* SP 800-90A Rev1 sec 11.4.2: a DRBG failure shall report its own error
+     * indicator.  _CheckProbablePrime() reaches the DRBG through
+     * mp_prime_is_prime_ex(), and a composite p or q is reported through
+     * *isPrime with a zero return, so a non-zero return here is always a real
+     * error that has to reach the caller unchanged. */
+    if (ret == MP_OKAY)
+        ret = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
     if (p != NULL) {
