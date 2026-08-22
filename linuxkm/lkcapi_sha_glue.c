@@ -2963,7 +2963,11 @@ static int wc__get_random_bytes(void *buf, size_t len)
                                            NULL, 0, buf, (unsigned int)len);
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         if (ret) {
-            pr_warn("BUG: wc__get_random_bytes falling through to native get_random_bytes with wc_linuxkm_drbg_default_instance_registered, ret=%d.\n", ret);
+            /* NOT a fall-through.  A registered handler that returns non-zero
+             * is retried by drivers/char/random.c and then panic()s; the
+             * kernel's own generator is reached only when nothing is
+             * registered at all. */
+            pr_warn("BUG: wc__get_random_bytes declined with wc_linuxkm_drbg_default_instance_registered, ret=%d.\n", ret);
         }
         return ret;
     }

@@ -603,10 +603,13 @@ int wc_grb_service(void *buf, size_t len)
                      * caller-owned buffer -- nothing is held, nothing is
                      * produced ahead of the request.
                      *
-                     * Giving up here is not a neutral outcome: a non-zero
-                     * return lets the kernel's own generator answer, and those
-                     * bytes are not validated output and the caller cannot tell
-                     * which it got. */
+                     * Giving up here is not a neutral outcome.  The kernel
+                     * patch retries this hook WOLFSSL_LINUXKM_GRB_TRIES times
+                     * and then panic()s rather than let its own generator
+                     * answer, because those bytes would not be validated
+                     * output and _get_random_bytes() returns void, so the
+                     * caller could not tell which generator it got.  A decline
+                     * that survives the retries takes the machine down. */
                     int other = live ? 0 : 1;
                     int og;
 
