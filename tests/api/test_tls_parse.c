@@ -1395,7 +1395,7 @@ int test_TLSX_CSR_parse(void)
 #endif
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
     {
         WOLFSSL_CTX* ctx2 = test_tls_parse_server_ctx(
                 wolfTLSv1_2_server_method());
