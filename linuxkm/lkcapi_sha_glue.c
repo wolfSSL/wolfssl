@@ -802,7 +802,14 @@ out:
  * back to us rather than to somebody else's crypto.
  *
  * wc_lkm_errno() maps WC_ACCEL_INHIBIT_E -> -EBUSY and everything else to
- * -EINVAL, which is the distinction the kernel hook patch retries on.
+ * -EINVAL.  Nothing retries this automatically: no kernel hook patch under
+ * linuxkm/patches/ touches the shash API at all, and the generic crypto layer
+ * retries -EBUSY only for asynchronous requests that asked for a backlog
+ * (CRYPTO_TFM_REQ_MAY_BACKLOG).  The distinction is a report to the caller in
+ * the kernel's own vocabulary -- -EBUSY says "transient, this request may be
+ * repeated", -EINVAL says "this request is wrong" -- and it matters because
+ * dm-crypt turns the latter into BLK_STS_IOERR.  An earlier version of this
+ * comment claimed the hook patch retried on it; it does not.
  */
 #define KM_SHA_SVR_BEGIN(ret_var)                                          \
     do {                                                                   \
