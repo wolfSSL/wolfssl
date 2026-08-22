@@ -108,6 +108,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/caam_error.h \
                          wolfssl/wolfcrypt/port/caam/caam_qnx.h \
+                         wolfssl/wolfcrypt/port/caam/caam_linux.h \
                          wolfssl/wolfcrypt/port/silabs/silabs_aes.h \
                          wolfssl/wolfcrypt/port/silabs/silabs_ecc.h \
                          wolfssl/wolfcrypt/port/silabs/silabs_hash.h \
@@ -218,6 +219,7 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_aes.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_linux.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h
 endif

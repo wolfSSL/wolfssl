@@ -27,9 +27,21 @@
     #include "caam_qnx.h"
 #endif
 
+#if defined(WOLFSSL_CAAM_LINUX)
+    int InitCAAM(void);
+    int CleanupCAAM(void);
+    #include "caam_linux.h"
+#endif
+
 
 #ifndef CAAM_BASE
-#if (defined(__INTEGRITY) || defined(INTEGRITY))
+#if defined(WOLFSSL_CAAM_LINUX)
+    /* The Linux port maps the block itself, by physical address, in
+     * caam_linux.c. These only satisfy references elsewhere in the header;
+     * secure memory is not used (WOLFSSL_CAAM_NO_SM). */
+    #define CAAM_BASE 0
+    #define CAAM_PAGE 0
+#elif (defined(__INTEGRITY) || defined(INTEGRITY))
     #define CAAM_BASE 0xf2100000
     #define CAAM_PAGE 0xf0100000
 #elif defined(__aarch64__)
@@ -49,13 +61,26 @@
 #endif /* !CAAM_BASE */
 
 
-#ifdef WOLFSSL_CAAM_PRINT
-    #include <stdio.h>
-    #define WOLFSSL_MSG(in) printf("%s\n", (in))
-    void DEBUG_PRINT_ARRAY(void* a, int aSz, char* str);
-#else
-    #define WOLFSSL_MSG(in) do {} while (0)
-    #define DEBUG_PRINT_ARRAY(a,aSz,str) do {} while (0)
+/* The driver is built standalone for QNX and INTEGRITY, with no wolfSSL
+ * logging available, so it supplies its own. Guarded because a build that
+ * compiles the driver into the library has already defined the real ones from
+ * logging.h, and silently replacing them there would compile out every
+ * diagnostic in the shim layer. */
+#ifndef WOLFSSL_MSG
+    #ifdef WOLFSSL_CAAM_PRINT
+        #include <stdio.h>
+        #define WOLFSSL_MSG(in) printf("%s\n", (in))
+        void DEBUG_PRINT_ARRAY(void* a, int aSz, char* str);
+    #else
+        #define WOLFSSL_MSG(in) do {} while (0)
+    #endif
+#endif
+#ifndef DEBUG_PRINT_ARRAY
+    #ifdef WOLFSSL_CAAM_PRINT
+        void DEBUG_PRINT_ARRAY(void* a, int aSz, char* str);
+    #else
+        #define DEBUG_PRINT_ARRAY(a,aSz,str) do {} while (0)
+    #endif
 #endif
 
 #define CAAM_PAGE_MAX 6
@@ -380,9 +405,14 @@ int caamAead(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4]);
 int caamAesCmac(DESCSTRUCT *desc, int sz, unsigned int args[4]);
 int caamBlob(DESCSTRUCT *desc);
 
+#ifndef WOLFSSL_CAAM_NO_SM
+/* Secure memory. Not every part has the block, and the shim layer declares
+ * its own wrappers of the same names, so keep these out of a build with
+ * secure memory turned off. */
 CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag);
 int caamFreePart(unsigned int part);
 int caamFindUnusedPartition(void);
+#endif
 
 
 

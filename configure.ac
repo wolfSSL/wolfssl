@@ -4739,6 +4739,14 @@ then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6UL_CAAM"
             ;;
 
+        linux)
+            # Drive a job ring from Linux user space. Needs a reserved
+            # physical DMA pool (boot with mem=) and the in-tree caam driver
+            # unbound; see wolfcrypt/src/port/caam/README.md.
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_LINUX -DWOLFSSL_CAAM_NO_SM"
+            ENABLED_CAAM_LINUX="yes"
+            ;;
+
         seco)
             SECO_DIR=$trylibsecodir
             AM_CPPFLAGS="$AM_CPPFLAGS -I$SECO_DIR/include"
@@ -13443,6 +13451,7 @@ AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_CUDA],[test "x$ENABLED_CUDA" = "xyes"])
 AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
+AM_CONDITIONAL([BUILD_CAAM_LINUX],[test "x$ENABLED_CAAM_LINUX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])

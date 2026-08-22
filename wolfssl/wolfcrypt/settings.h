@@ -3202,6 +3202,22 @@
 #endif
 
 /* OS specific support so far */
+#ifdef WOLFSSL_CAAM_LINUX
+    #undef  WOLFSSL_CAAM
+    #define WOLFSSL_CAAM
+    /* The driver core carries no hash descriptors, so hashing stays in
+     * software, the same as QNX. */
+    #undef  WOLFSSL_NO_CAAM_HASH
+    #define WOLFSSL_NO_CAAM_HASH
+    /* No i.MX style secure memory block, so no blobs or black keys. */
+    #undef  WOLFSSL_NO_CAAM_BLOB
+    #define WOLFSSL_NO_CAAM_BLOB
+    /* Public key is not dispatched by this port yet, so leave ECC in
+     * software rather than half offloading it. */
+    #undef  WOLFSSL_NO_CAAM_ECC
+    #define WOLFSSL_NO_CAAM_ECC
+#endif
+
 #ifdef WOLFSSL_QNX_CAAM
     /* shim layer for QNX hashing not yet implemented */
     #define WOLFSSL_NO_CAAM_HASH
