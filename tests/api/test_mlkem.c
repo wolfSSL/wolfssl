@@ -39,6 +39,7 @@ int test_wc_mlkem_make_key_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -1498,6 +1499,7 @@ int test_wc_mlkem_encapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -2472,6 +2474,7 @@ int test_wc_mlkem_decapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -3885,7 +3888,8 @@ int test_wc_mlkem_decapsulate_kats(void)
 int test_wc_mlkem_decapsulate_pubonly_fails(void)
 {
     EXPECT_DECLS;
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(WC_MLKEM_HAVE_NATIVE)
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
@@ -3962,7 +3966,8 @@ int test_wc_mlkem_decapsulate_pubonly_fails(void)
 int test_wc_mlkem_decap_fo_reject(void)
 {
     EXPECT_DECLS;
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(WC_MLKEM_HAVE_NATIVE)
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
@@ -4037,7 +4042,8 @@ int test_wc_mlkem_decap_fo_reject(void)
 int test_wc_mlkem_decode_privkey_bad_pubhash(void)
 {
     EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    defined(WC_MLKEM_HAVE_NATIVE)
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey* key = NULL;
@@ -4104,6 +4110,7 @@ int test_wc_mlkem_decode_privkey_bad_pubhash(void)
  *****************************************************************************/
 
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
@@ -4208,6 +4215,7 @@ int test_wc_MlkemFeatureCoverage(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
@@ -4227,7 +4235,8 @@ int test_wc_MlkemFeatureCoverage(void)
 int test_wc_MlkemDecisionCoverage(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE)
     MlKemKey* key = NULL;
 #ifndef WC_NO_CONSTRUCTORS
     MlKemKey* newKey = NULL;
@@ -4603,6 +4612,7 @@ int test_wc_mlkem_encode_key_len_decision(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM) && \
+    defined(WC_MLKEM_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey* key;
     WC_RNG rng;

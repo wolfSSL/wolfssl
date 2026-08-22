@@ -72,6 +72,26 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef WOLF_CRYPTO_CB_ONLY_MLKEM
+/* Only the encode/decode helpers and the hash/PRF object lifecycle are needed:
+ * every operation that uses the lattice math is serviced by a crypto callback.
+ * These are set for this file alone, so the public API in wc_mlkem.c keeps
+ * every entry point.
+ *
+ * This has to sit below the include above: that is what reads settings.h and
+ * user_settings.h, so a build that sets WOLF_CRYPTO_CB_ONLY_MLKEM there
+ * rather than on the command line would otherwise not be seen here at all. */
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+    #define WOLFSSL_MLKEM_NO_MAKE_KEY
+#endif
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+    #define WOLFSSL_MLKEM_NO_ENCAPSULATE
+#endif
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
+    #define WOLFSSL_MLKEM_NO_DECAPSULATE
+#endif
+#endif /* WOLF_CRYPTO_CB_ONLY_MLKEM */
+
 #ifdef WC_MLKEM_NO_ASM
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
@@ -197,6 +217,9 @@ const sword16 zetas[MLKEM_N / 2] = {
 
 
 #if !defined(WOLFSSL_ARMASM)
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Number-Theoretic Transform.
  *
  * FIPS 203, Algorithm 9: NTT(f)
@@ -549,6 +572,8 @@ static void mlkem_ntt(sword16* r)
     }
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
@@ -1217,6 +1242,9 @@ static void mlkem_basemul_mont_add(sword16* r, const sword16* a,
 }
 #endif
 
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Pointwise multiply elements of a and b, into r, and multiply by 2^-16.
  *
  * @param  [out]  r  Result polynomial.
@@ -1241,6 +1269,8 @@ static void mlkem_pointwise_acc_mont(sword16* r, const sword16* a,
     mlkem_basemul_mont_add(r, a + (k - 1) * MLKEM_N, b + (k - 1) * MLKEM_N);
 #endif
 }
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY || !WOLFSSL_MLKEM_NO_ENCAPSULATE ||
+        * !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 /******************************************************************************/
 

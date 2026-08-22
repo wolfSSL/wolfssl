@@ -43,7 +43,7 @@
 #endif /* HAVE_INTEL_AVX512 */
 #endif /* NO_AVX512_SUPPORT */
 
-#ifdef WOLFSSL_HAVE_MLKEM
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .data
@@ -15918,8 +15918,8 @@ _mlkem_redistribute_8_rand_avx2:
 .size	mlkem_redistribute_8_rand_avx2,.-mlkem_redistribute_8_rand_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_HAVE_MLKEM */
-#ifdef WOLFSSL_HAVE_MLKEM
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLF_CRYPTO_CB_ONLY_MLKEM */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 #ifndef NO_AVX512_SUPPORT
 #ifndef HAVE_INTEL_AVX512
 #define HAVE_INTEL_AVX512
@@ -35274,8 +35274,8 @@ L_mlkem_rej_uniform_n_avx512_vbmi2_tail_end:
 .size	mlkem_rej_uniform_n_avx512_vbmi2,.-mlkem_rej_uniform_n_avx512_vbmi2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512_VBMI2 */
-#endif /* WOLFSSL_HAVE_MLKEM */
-#ifdef WOLFSSL_HAVE_MLKEM
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLF_CRYPTO_CB_ONLY_MLKEM */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 #ifndef NO_AVX512_SUPPORT
 #ifndef NO_AVX512_VBMI_SUPPORT
 #ifndef HAVE_INTEL_AVX512_VBMI
@@ -36969,7 +36969,7 @@ L_mlkem_rej_uniform_n_avx512_vbmi_vbmi2_tail_end:
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512_VBMI2 */
 #endif /* HAVE_INTEL_AVX512_VBMI */
-#endif /* WOLFSSL_HAVE_MLKEM */
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLF_CRYPTO_CB_ONLY_MLKEM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

@@ -121,9 +121,15 @@ jobs:
           {"name": "curve25519", "minutes": 3.6,
            "comment": "WOLF_CRYPTO_CB_ONLY_CURVE25519: strips software X25519 (keygen/shared-secret); swdev provides the software path via cryptocb. Nonblock and async X25519 have no callback path and are left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
+          {"name": "mlkem", "minutes": 3.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_MLKEM: strips the ML-KEM lattice math (key generation, encapsulation, decapsulation, the NTT, matrix generation, noise sampling and compression, plus the x86 and ARM assembly). The encode/decode helpers and the hash/PRF object lifecycle stay, because a callback that returns key material needs them. Built with --enable-cryptonly: TLS 1.3 offers ML-KEM key shares by default, and with the software path gone every such handshake needs a registered device, which no test device provides yet.",
+           "configure": ["--enable-cryptonly", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_MLKEM"]},
           {"name": "all", "minutes": 4.1,
-           "comment": "All seven ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
-           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]}
+           "comment": "All seven TLS-compatible ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths. MLKEM is not here because it needs --enable-cryptonly; the all-cryptonly entry below covers it alongside the rest.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
+          {"name": "all-cryptonly", "minutes": 3.2,
+           "comment": "The 'all' set plus MLKEM, built --enable-cryptonly so ML-KEM can join. This is the only entry where a stripped ML-KEM meets the other stripped primitives; TLS is off because TLS 1.3 offers ML-KEM key shares by default and no test device services them.",
+           "configure": ["--enable-cryptonly", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_MLKEM"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \
