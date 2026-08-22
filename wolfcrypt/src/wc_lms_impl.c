@@ -2873,7 +2873,7 @@ static int wc_lms_verify(LmsState* state, const byte* pub, const byte* msg,
         ret = wc_lms_compute_root(state, q, kc, sig_path, tc);
     }
     /* Algorithm 6. Step 4. */
-    if ((ret == 0) && (XMEMCMP(pub_k, tc, params->hash_len) != 0)) {
+    if ((ret == 0) && (ConstantCompare(pub_k, tc, (int)params->hash_len) != 0)) {
         ret = SIG_VERIFY_E;
     }
 

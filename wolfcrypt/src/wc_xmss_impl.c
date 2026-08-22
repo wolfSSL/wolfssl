@@ -4384,7 +4384,7 @@ int wc_xmssmt_verify(XmssState* state, const unsigned char* m, word32 mlen,
         ret = state->ret;
     }
     /* Compare calculated node with public key root. */
-    if ((ret == 0) && (XMEMCMP(node, pub_root, n) != 0)) {
+    if ((ret == 0) && (ConstantCompare(node, pub_root, (int)n) != 0)) {
         ret = SIG_VERIFY_E;
     }
 

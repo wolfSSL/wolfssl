@@ -92,7 +92,6 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
  * RSA_LOW_MEM:             Non-CRT private ops, less memory        default: off
  * WC_RSA_NONBLOCK:         Non-blocking RSA operations             default: off
  * WC_RSA_NONBLOCK_TIME:    Time-based non-blocking RSA             default: off
- * WOLFSSL_MP_INVMOD_CONSTANT_TIME: Constant-time modular inverse  default: off
  * WC_RSA_NO_FERMAT_CHECK:  Skip Fermat factorization check on     default: off
  *                           key generation (p and q closeness)
  *
@@ -4642,7 +4641,7 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, const byte* sig,
                       sigCheck, inSz);
     }
     if (ret == 0) {
-        if (XMEMCMP(sigCheck, sig + saltLen, inSz) != 0) {
+        if (ConstantCompare(sigCheck, sig + saltLen, (int)inSz) != 0) {
             WOLFSSL_MSG("RsaPSS_CheckPadding: Padding Error");
             ret = BAD_PADDING_E;
         }
@@ -5910,15 +5909,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = mp_mod(&key->d, tmp1, &key->dP);
     if (err == MP_OKAY)                /* key->dQ = d mod(q-1) */
         err = mp_mod(&key->d, tmp2, &key->dQ);
-#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-    if (err == MP_OKAY)                /* key->u = 1/q mod p */
-        err = mp_invmod(q, p, &key->u);
-#else
+    /* key->u = 1/q mod p = q^(p-2) mod p */
     if (err == MP_OKAY)
         err = mp_sub_d(p, 2, tmp3);
-    if (err == MP_OKAY)                /* key->u = 1/q mod p = q^p-2 mod p */
+    if (err == MP_OKAY)
         err = mp_exptmod(q, tmp3, p, &key->u);
-#endif
     if (err == MP_OKAY)
         err = mp_copy(p, &key->p);
     if (err == MP_OKAY)

@@ -13954,7 +13954,9 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
    return err;
 }
 
-/* perform a fixed point ECC mulmod */
+#ifndef ECC_TIMING_RESISTANT
+/* perform a fixed point ECC mulmod. Not constant-time; do not use with
+ * secret scalars. */
 static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
                         mp_int* modulus, mp_digit mp, int map)
 {
@@ -14134,6 +14136,7 @@ done:
 
    return err;
 }
+#endif /* !ECC_TIMING_RESISTANT */
 #endif
 
 #ifdef ECC_SHAMIR
@@ -14638,6 +14641,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       }
 
 
+#ifndef ECC_TIMING_RESISTANT
       if (err == MP_OKAY) {
         /* if it's 2 build the LUT, if it's higher just use the LUT */
         if (idx >= 0 && fp_cache[idx].lru_count >= 2 && !fp_cache[idx].LUT_set) {
@@ -14668,6 +14672,15 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
            err = normal_ecc_mulmod(k, G, R, a, modulus, NULL, map, heap);
         }
       }
+#else
+      /* No RNG here, so FP-cache LUT can't be blinded; skip building/using
+       * it and always take the constant-time ladder. */
+      if (err == MP_OKAY) {
+         err = normal_ecc_mulmod(k, G, R, a, modulus, NULL, map, heap);
+      }
+#endif
+      (void)mp;
+      (void)mpSetup;
 
   out:
 
@@ -14798,6 +14811,12 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       }
 
 
+#if !defined(ECC_TIMING_RESISTANT) || defined(ECC_SHAMIR)
+      /* Build/refresh the FP-cache LUT for this point. Needed directly by
+       * accel_fp_mul below when not timing-resistant, and also pre-warms
+       * the cache for accel_fp_mul2add's Shamir-trick path (public-scalar
+       * only, safe without RNG blinding), which may hit this same point
+       * later even when the ladder is used here. */
       if (err == MP_OKAY) {
         /* if it's 2 build the LUT, if it's higher just use the LUT */
         if (idx >= 0 && fp_cache[idx].lru_count >= 2 && !fp_cache[idx].LUT_set) {
@@ -14815,7 +14834,16 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
              err = build_lut(idx, a, modulus, mp, mu);
         }
       }
+#endif
 
+#ifdef ECC_TIMING_RESISTANT
+      if (err == MP_OKAY) {
+        /* accel_fp_mul is not safe for secret scalars. Fall back to ladder. */
+        (void)mpSetup;
+        (void)mp;
+        err = normal_ecc_mulmod(k, G, R, a, modulus, rng, map, heap);
+      }
+#else
       if (err == MP_OKAY) {
         if (idx >= 0 && fp_cache[idx].LUT_set) {
            if (mpSetup == 0) {
@@ -14828,6 +14856,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
           err = normal_ecc_mulmod(k, G, R, a, modulus, rng, map, heap);
         }
       }
+#endif
 
   out:
 
