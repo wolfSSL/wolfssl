@@ -476,6 +476,13 @@ struct km_sha3_state_by_pointer {
     /* Latched by a failed ->update().  Needed as well as the NULL test because
      * km_sha3_free_tstate() leaves sha3_state intact if the lock is refused. */
     int failed;
+    /* LIVENESS MARKER -- see km_sha3_alloc_tstate().  Equal to the owning
+     * tfm's non-zero tfm_cookie exactly while sha3_state points at a node on
+     * that tfm's desc_list; zero otherwise.  The kernel does not zero
+     * shash_desc_ctx() for a fresh desc, so sha3_state alone cannot be tested
+     * for liveness -- it is whatever bytes the caller's buffer happened to
+     * hold. */
+    word64 live_cookie;
 };
 
 wc_static_assert(sizeof(struct km_sha3_state_by_pointer) <= HASH_MAX_DESCSIZE);
@@ -497,6 +504,8 @@ PRAGMA("GCC diagnostic ignored \"-Wnested-externs\"");
 struct km_Sha3TfmCtx {
     wolfSSL_Mutex desc_list_lock;
     struct list_head desc_list;
+    /* Identifies this tfm to its descs; see km_sha3_alloc_tstate(). */
+    word64 tfm_cookie;
 };
 
 WC_MAYBE_UNUSED static int km_sha3_init_tfm(struct crypto_shash *tfm)
@@ -505,6 +514,11 @@ WC_MAYBE_UNUSED static int km_sha3_init_tfm(struct crypto_shash *tfm)
     if (wc_InitMutex(&t_ctx->desc_list_lock) != 0)
         return -EINVAL;
     INIT_LIST_HEAD(&t_ctx->desc_list);
+    /* Never zero: zero is the desc-side "no live state" value, so a cookie of
+     * zero would make an uninitialized desc look live. */
+    do {
+        t_ctx->tfm_cookie = get_random_u64();
+    } while (t_ctx->tfm_cookie == 0);
     return 0;
 }
 
@@ -533,10 +547,41 @@ WC_MAYBE_UNUSED static void km_sha3_exit_tfm(struct crypto_shash *tfm)
     (void)wc_FreeMutex(&t_ctx->desc_list_lock);
 }
 
+WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct shash_desc *desc);
+
 WC_MAYBE_UNUSED static int km_sha3_alloc_tstate(struct shash_desc *desc) {
     struct km_Sha3TfmCtx *t_ctx =
         (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
     struct km_sha3_state_by_pointer *s_ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
+
+    /* ->init() ON A DESC THAT STILL HOLDS A STATE.
+     *
+     * The shash API lets a caller restart a desc without finalizing it, and
+     * the retryable -EBUSY on ->update() invites exactly that: a
+     * vector-register refusal leaves the state in place on purpose so the desc
+     * stays usable, and a caller that restarts instead of repeating the same
+     * ->update() arrives here with one still attached.  Assigning over it
+     * stranded the old allocation on t_ctx->desc_list until ->exit_tfm().
+     * Measured before this reclaim, 6.6.152 x86_64, 20,000 restarts of one
+     * sha3-256 desc: 19,999 nodes survived to ->exit_tfm() and Slab grew
+     * 9,980 kB, against a paired init/update/final arm that stranded none.
+     *
+     * The test CANNOT be "sha3_state != NULL".  shash_desc_ctx() is not zeroed
+     * for a fresh desc, so on first use that pointer is whatever the caller's
+     * buffer held; treating it as a node and freeing it faults, and does so
+     * inside this module's own export/import self-test, which reaches here via
+     * km_sha3_*_import() with a deliberately poisoned desc.  live_cookie is a
+     * marker the desc state actually carries: it equals this tfm's non-zero
+     * random cookie only if THIS tfm installed the node it accompanies.
+     *
+     * If the reclaim cannot take desc_list_lock the state is still attached;
+     * refuse retryably rather than strand it. */
+    if (s_ctx->live_cookie == t_ctx->tfm_cookie) {
+        km_sha3_free_tstate(desc);
+        if (s_ctx->live_cookie == t_ctx->tfm_cookie)
+            return -EBUSY;
+    }
+    s_ctx->live_cookie = 0;
 
     /* Fresh desc: clear any latch left by a previous use of this descsize. */
     s_ctx->failed = 0;
@@ -559,6 +604,10 @@ WC_MAYBE_UNUSED static int km_sha3_alloc_tstate(struct shash_desc *desc) {
     list_add(&s_ctx->sha3_state->desc_ent, &t_ctx->desc_list);
     (void)wc_UnLockMutex(&t_ctx->desc_list_lock);
 
+    /* Installed and listed: the desc now demonstrably holds one of this tfm's
+     * nodes, so mark it so. */
+    s_ctx->live_cookie = t_ctx->tfm_cookie;
+
     return 0;
 }
 
@@ -567,8 +616,13 @@ WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct shash_desc *desc) {
         (struct km_Sha3TfmCtx *)crypto_shash_ctx(desc->tfm);
     struct km_sha3_state_by_pointer *s_ctx = (struct km_sha3_state_by_pointer *)shash_desc_ctx(desc);
 
-    if (s_ctx->sha3_state == NULL)
+    if (s_ctx->sha3_state == NULL) {
+        /* Nothing to release, so nothing is live.  Clearing here as well as
+         * below keeps a marker set without a state from wedging
+         * km_sha3_alloc_tstate() at a permanent -EBUSY. */
+        s_ctx->live_cookie = 0;
         return;
+    }
 
     if (wc_LockMutex(&t_ctx->desc_list_lock) != 0)
         return;
@@ -579,6 +633,7 @@ WC_MAYBE_UNUSED static void km_sha3_free_tstate(struct shash_desc *desc) {
     ForceZero(s_ctx->sha3_state, sizeof *s_ctx->sha3_state);
     free(s_ctx->sha3_state);
     s_ctx->sha3_state = NULL;
+    s_ctx->live_cookie = 0;
 }
 
 WC_MAYBE_UNUSED static int sha3_test_once(void) {
@@ -1585,6 +1640,12 @@ struct km_sha_hmac_state {
     /* Latched by a failed ->update().  Needed as well as the NULL test because
      * km_hmac_free_tstate() leaves node intact if the lock is refused. */
     int failed;
+    /* LIVENESS MARKER -- see km_hmac_alloc_tstate().  Equal to the owning
+     * tfm's non-zero tfm_cookie exactly while node points at a node on that
+     * tfm's desc_list; zero otherwise.  The kernel does not zero
+     * shash_desc_ctx() for a fresh desc, so node alone cannot be tested for
+     * liveness -- it is whatever bytes the caller's buffer happened to hold. */
+    word64 live_cookie;
 };
 struct km_sha_hmac_pstate {
     /* keyed, pristine Hmac, deep-copied into each desc's node at .init */
@@ -1671,10 +1732,25 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, 
         return -EINVAL;
 }
 
+WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct shash_desc *desc);
+
 WC_MAYBE_UNUSED static int km_hmac_alloc_tstate(struct shash_desc *desc) {
     struct km_sha_hmac_pstate *p_ctx =
         (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
     struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
+
+    /* ->init() ON A DESC THAT STILL HOLDS A NODE.  Same case as
+     * km_sha3_alloc_tstate(); read the reasoning there.  Measured before this
+     * reclaim, 6.6.152 x86_64, 20,000 restarts of one
+     * hmac-sha256-avx2-wolfcrypt-fips-140-3 desc: 19,999 nodes survived to
+     * ->exit_tfm() and Slab grew 19,972 kB (kmalloc-1k +20,016 objects),
+     * against a paired init/update/final arm that stranded none. */
+    if (s_ctx->live_cookie == p_ctx->tfm_cookie) {
+        km_hmac_free_tstate(desc);
+        if (s_ctx->live_cookie == p_ctx->tfm_cookie)
+            return -EBUSY;
+    }
+    s_ctx->live_cookie = 0;
 
     /* Fresh desc: clear any latch left by a previous use of this descsize. */
     s_ctx->failed = 0;
@@ -1696,6 +1772,10 @@ WC_MAYBE_UNUSED static int km_hmac_alloc_tstate(struct shash_desc *desc) {
     list_add(&s_ctx->node->desc_ent, &p_ctx->desc_list);
     (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
 
+    /* Installed and listed: the desc now demonstrably holds one of this tfm's
+     * nodes, so mark it so. */
+    s_ctx->live_cookie = p_ctx->tfm_cookie;
+
     return 0;
 }
 
@@ -1704,8 +1784,13 @@ WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct shash_desc *desc) {
         (struct km_sha_hmac_pstate *)crypto_shash_ctx(desc->tfm);
     struct km_sha_hmac_state *s_ctx = (struct km_sha_hmac_state *)shash_desc_ctx(desc);
 
-    if (s_ctx->node == NULL)
+    if (s_ctx->node == NULL) {
+        /* Nothing to release, so nothing is live.  Clearing here as well as
+         * below keeps a marker set without a node from wedging
+         * km_hmac_alloc_tstate() at a permanent -EBUSY. */
+        s_ctx->live_cookie = 0;
         return;
+    }
 
     if (wc_LockMutex(&p_ctx->desc_list_lock) != 0)
         return;
@@ -1721,6 +1806,7 @@ WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct shash_desc *desc) {
 #endif
     free(s_ctx->node);
     s_ctx->node = NULL;
+    s_ctx->live_cookie = 0;
 }
 
 WC_MAYBE_UNUSED static int km_hmac_init_tfm(struct crypto_shash *tfm)
@@ -1737,7 +1823,11 @@ WC_MAYBE_UNUSED static int km_hmac_init_tfm(struct crypto_shash *tfm)
     INIT_LIST_HEAD(&p_ctx->export_list);
     p_ctx->export_list_len = 0;
     p_ctx->cur_desc_id = 0;
-    p_ctx->tfm_cookie = get_random_u64();
+    /* Never zero: zero is the desc-side "no live state" value, so a cookie of
+     * zero would make an uninitialized desc look live. */
+    do {
+        p_ctx->tfm_cookie = get_random_u64();
+    } while (p_ctx->tfm_cookie == 0);
     return 0;
 }
 
@@ -2035,6 +2125,7 @@ WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *i
     const struct km_sha_hmac_export_state *blob = (const struct km_sha_hmac_export_state *)in;
     struct km_sha_hmac_node *node_i;
     struct km_sha_hmac_node *newnode;
+    struct km_sha_hmac_node *oldnode = NULL;
     int found = 0;
     int ret;
 
@@ -2085,17 +2176,37 @@ WC_MAYBE_UNUSED static int km_hmac_import(struct shash_desc *desc, const void *i
         free(newnode);
         return -EINVAL;
     }
-    /* Publish: link the working node onto desc_list and into the desc ctx,
-     * overwriting any poisoned prior pointer without reading it.  A real prior
-     * node orphans onto desc_list and is reaped at exit_tfm.
+    /* Publish: link the working node onto desc_list and into the desc ctx.
+     *
+     * A prior node belonging to THIS tfm is released rather than orphaned --
+     * the same stranding km_hmac_alloc_tstate() fixes, reached by importing
+     * into a desc that already holds a state instead of by re-initializing it.
+     * live_cookie is what makes that safe: a poisoned or foreign prior pointer
+     * does not match, and is overwritten without ever being read.  Unlink here,
+     * under the lock we already hold; free below, outside it, because
+     * wc_HmacFree() may touch the heap.
      */
+    if ((s_ctx->live_cookie == p_ctx->tfm_cookie) && (s_ctx->node != NULL)) {
+        oldnode = s_ctx->node;
+        list_del(&oldnode->desc_ent);
+    }
     newnode->desc_id = p_ctx->cur_desc_id++;
     list_add(&newnode->desc_ent, &p_ctx->desc_list);
     s_ctx->node = newnode;
-    /* This path does not go through km_hmac_alloc_tstate(), so clear the latch
-     * explicitly: a successful import is a live state, whatever the desc held. */
+    /* This path does not go through km_hmac_alloc_tstate(), so set the marker
+     * and clear the latch explicitly: a successful import is a live state,
+     * whatever the desc held. */
+    s_ctx->live_cookie = p_ctx->tfm_cookie;
     s_ctx->failed = 0;
     (void)wc_UnLockMutex(&p_ctx->desc_list_lock);
+
+    if (oldnode != NULL) {
+        wc_HmacFree(&oldnode->wc_hmac);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        ForceZero(oldnode, sizeof(*oldnode));
+#endif
+        free(oldnode);
+    }
 
     return 0;
 }
