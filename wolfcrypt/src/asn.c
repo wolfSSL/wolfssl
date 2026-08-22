@@ -21565,8 +21565,25 @@ int DecodeExtKeyUsage(const byte* input, word32 sz,
             ret = 0;
         }
         else if (ret == 0) {
+            word32 oidSum = dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.sum;
+        #ifndef NO_VERIFY_OID
+            const byte* knownOid;
+            word32 knownOidSz = 0;
+
+            /* The sum is only a checksum, so confirm the bytes match the OID
+             * it maps to - oidIgnoreType above skipped that check. */
+            knownOid = OidFromId(oidSum, oidCertKeyUseType, &knownOidSz);
+            if ((knownOid == NULL) ||
+                    (knownOidSz !=
+                        dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.length) ||
+                    (XMEMCMP(dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.data,
+                        knownOid, knownOidSz) != 0)) {
+                /* Not the OID this sum stands for - treat as unknown. */
+                oidSum = 0;
+            }
+        #endif
             /* Store the bit for the OID. */
-            switch (dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.sum) {
+            switch (oidSum) {
                 case EKU_ANY_OID:
                     *extExtKeyUsage |= EXTKEYUSE_ANY;
                     break;

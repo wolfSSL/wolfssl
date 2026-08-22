@@ -3265,6 +3265,106 @@ int test_wc_DecodeKeyUsage_decipherOnly(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_ASN) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_EKU_OID) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN_TIME) && \
+    !defined(WC_NO_RNG) && !defined(NO_ASN_CRYPT) && !defined(NO_VERIFY_OID)
+    /* NO_VERIFY_OID compiles out the OID check this covers. */
+    #define TEST_EKU_OID_SUM_COLLISION
+#endif
+
+/* A KeyPurposeId whose wc_oid_sum() collides with id-kp-serverAuth must not
+ * authorize server authentication, while the real OID still does. */
+int test_wc_DecodeExtKeyUsage_oidSumCollision(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_EKU_OID_SUM_COLLISION
+    static const struct {
+        const char* oid;   /* custom EKU OID, NULL to use a named purpose */
+        const char* name;  /* named purpose, used when oid is NULL */
+        byte        expected;
+    } ekuCases[] = {
+        /* id-kp-serverAuth. */
+        { NULL, "serverAuth", EXTKEYUSE_SERVER_AUTH },
+#ifdef WOLFSSL_OLD_OID_SUM
+        /* 1.5.6.1.5.5.3.1, the same byte sum (71) as id-kp-serverAuth. */
+        { "1.5.6.1.5.5.3.1", NULL, 0 },
+#else
+        /* 1.19.6.1.5.21.7.3.1, the same XOR-shift sum (0x0402012e) as
+         * id-kp-serverAuth. */
+        { "1.19.6.1.5.21.7.3.1", NULL, 0 },
+#endif
+    };
+    WC_RNG      rng;
+    RsaKey      key;
+    byte*       der = NULL;
+    word32      idx = 0;
+    int         rngInit = 0;
+    int         keyInit = 0;
+    size_t      c;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+
+    for (c = 0; c < XELEM_CNT(ekuCases); c++) {
+        Cert        cert;
+        DecodedCert dCert;
+        int         dCertInit = 0;
+        int         derSz = 0;
+
+        if (!EXPECT_SUCCESS()) break;
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        if (EXPECT_SUCCESS()) {
+            cert.sigType = CTC_SHA256wRSA;
+            cert.isCA = 0;
+            XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+            XSTRNCPY(cert.subject.commonName, "extKeyUsage", CTC_NAME_SIZE);
+        }
+        if (ekuCases[c].oid != NULL) {
+            ExpectIntEQ(wc_SetExtKeyUsageOID(&cert, ekuCases[c].oid,
+                (word32)XSTRLEN(ekuCases[c].oid), 0, HEAP_HINT), 0);
+        }
+        else {
+            ExpectIntEQ(wc_SetExtKeyUsage(&cert, ekuCases[c].name), 0);
+        }
+        ExpectIntGT(derSz = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng),
+            0);
+
+        if (EXPECT_SUCCESS() && (der != NULL)) {
+            wc_InitDecodedCert(&dCert, der, (word32)derSz, HEAP_HINT);
+            dCertInit = 1;
+            ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+            /* The extension must be seen in both cases - an unrecognized
+             * KeyPurposeId is skipped, not an error - but only the real OID
+             * may authorize a purpose. */
+            ExpectIntNE(dCert.extExtKeyUsageSet, 0);
+            ExpectIntEQ(dCert.extExtKeyUsage, ekuCases[c].expected);
+        }
+        if (dCertInit) wc_FreeDecodedCert(&dCert);
+    }
+
+    if (keyInit) wc_FreeRsaKey(&key);
+    if (rngInit) wc_FreeRng(&rng);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* TEST_EKU_OID_SUM_COLLISION */
+    return EXPECT_RESULT();
+}
+
 int test_wc_SignCert_buffer_bounds(void)
 {
     EXPECT_DECLS;
