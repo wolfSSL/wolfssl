@@ -124,7 +124,7 @@ int test_wolfSSL_X509_NAME(void)
         0x01, 0x16, 0x00
     };
 #endif
-#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
+#ifdef OPENSSL_EXTRA
     byte   digest[64]; /* max digest size */
     word32 digestSz;
 #endif
@@ -181,7 +181,6 @@ int test_wolfSSL_X509_NAME(void)
     ExpectIntEQ(X509_NAME_cmp(a, NULL), -2);
     ExpectIntEQ(X509_NAME_cmp(a, b), 0); /* self signed should be 0 */
 
-#if !defined(NO_PWDBASED)
     ExpectIntEQ(wolfSSL_X509_NAME_digest(NULL, NULL, NULL, NULL), 0);
     ExpectIntEQ(wolfSSL_X509_NAME_digest(a, NULL, NULL, NULL), 0);
 #ifndef NO_SHA256
@@ -202,10 +201,6 @@ int test_wolfSSL_X509_NAME(void)
     ExpectIntEQ(wolfSSL_X509_NAME_digest(a, wolfSSL_EVP_sha256(), digest,
         &digestSz), 1);
     ExpectTrue(digestSz == 32);
-#endif
-#else
-    ExpectIntEQ(wolfSSL_X509_NAME_digest(NULL, NULL, NULL, NULL),
-        NOT_COMPILED_IN);
 #endif
 #endif /* OPENSSL_EXTRA */
 
