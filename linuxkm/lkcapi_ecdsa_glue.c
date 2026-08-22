@@ -38,14 +38,6 @@
     #undef LINUXKM_LKCAPI_REGISTER_ECDSA
 #endif
 
-#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
-    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
-        /* only register p192 if specifically enabled, and if not fips. */
-        #define LINUXKM_ECC192
-    #endif
-#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
     /*
      * note: In linux 6.13 the sign/verify callbacks were removed from
@@ -127,9 +119,9 @@ static int ecdsa_nist_p192_loaded = 0;
 #endif /* LINUXKM_ECC192 */
 static int ecdsa_nist_p256_loaded = 0;
 static int ecdsa_nist_p384_loaded = 0;
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int ecdsa_nist_p521_loaded = 0;
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 struct km_ecdsa_ctx {
     ecc_key *    key;
@@ -161,9 +153,9 @@ static int          km_ecdsa_nist_p192_init(struct ecdsa_tfm_type *tfm);
 #endif /* LINUXKM_ECC192 */
 static int          km_ecdsa_nist_p256_init(struct ecdsa_tfm_type *tfm);
 static int          km_ecdsa_nist_p384_init(struct ecdsa_tfm_type *tfm);
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int          km_ecdsa_nist_p521_init(struct ecdsa_tfm_type *tfm);
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 #if defined(LINUXKM_ECC192)
 #ifdef LINUXKM_ECDSA_SIG_ALG
@@ -254,7 +246,7 @@ static struct akcipher_alg ecdsa_nist_p384 = {
 };
 #endif /* !LINUXKM_ECDSA_SIG_ALG */
 
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 #ifdef LINUXKM_ECDSA_SIG_ALG
 static struct sig_alg ecdsa_nist_p521 = {
     .base.cra_name        = WOLFKM_ECDSA_P521_NAME,
@@ -283,7 +275,7 @@ static struct akcipher_alg ecdsa_nist_p521 = {
     .exit                 = km_ecdsa_exit,
 };
 #endif /* !LINUXKM_ECDSA_SIG_ALG */
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 /**
  * Decodes and sets the ECDSA pub key.
@@ -310,7 +302,7 @@ static int km_ecdsa_set_pub(struct ecdsa_tfm_type *tfm, const void *key,
     #endif
     case 32: /* p256 */
     case 48: /* p384 */
-    #if defined(HAVE_ECC521)
+    #if defined(LINUXKM_ECC521)
     case 66: /* p521 */
     #endif
         break;
@@ -481,12 +473,12 @@ static int km_ecdsa_nist_p384_init(struct ecdsa_tfm_type *tfm)
     return km_ecdsa_init(tfm, ECC_SECP384R1);
 }
 
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int km_ecdsa_nist_p521_init(struct ecdsa_tfm_type *tfm)
 {
     return km_ecdsa_init(tfm, ECC_SECP521R1);
 }
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 #ifdef LINUXKM_ECDSA_SIG_ALG
 
@@ -912,7 +904,7 @@ static int linuxkm_test_ecdsa_nist_p384(void)
     return rc;
 }
 
-#if defined(HAVE_ECC521)
+#if defined(LINUXKM_ECC521)
 static int linuxkm_test_ecdsa_nist_p521(void)
 {
     int rc = 0;
@@ -987,7 +979,7 @@ static int linuxkm_test_ecdsa_nist_p521(void)
     return rc;
 
 }
-#endif /* HAVE_ECC521 */
+#endif /* LINUXKM_ECC521 */
 
 #ifdef LINUXKM_ECDSA_SIG_ALG
 

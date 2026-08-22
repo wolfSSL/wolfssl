@@ -138,7 +138,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
                 esp_start_heap = esp_this_heap;                              \
             }                                                                \
             ESP_LOGI(ESPIDF_TAG, "%s #%d; Heap free: %d",                    \
-                                ((b) ? (b) : ""),  /* breadcumb string */    \
+                                ((b) ? (b) : ""),  /* breadcrumb string */   \
                                 ((i) ? (i) : 0),   /* index */               \
                                  esp_this_heap);
 
@@ -23766,49 +23766,59 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
     /* Drive wc_AesKeyWrap_ex/wc_AesKeyUnWrap_ex directly with a caller Aes; the
      * KAT loop above already covers every vector via the key-based wrappers. */
     {
-        Aes* aes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
-        if (aes == NULL)
-            return WC_TEST_RET_ENC_NC;
-
+        int aes_inited = 0;
+        int ret;
+        WC_DECLARE_VAR(aes, Aes, 1, HEAP_HINT);
+        WC_ALLOC_VAR_EX(aes, Aes, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+                        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out));
         XMEMSET(output, 0, sizeof(output));
         XMEMSET(plain,  0, sizeof(plain));
 
-        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
-            return WC_TEST_RET_ENC_NC;
-        }
-        if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
-                         AES_ENCRYPTION) != 0) {
-            wc_AesFree(aes);
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
-            return WC_TEST_RET_ENC_NC;
-        }
-        wrapSz = wc_AesKeyWrap_ex(aes, test_wrap[0].data, test_wrap[0].dataLen,
+        ret = wc_AesInit(aes, HEAP_HINT, devId);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        aes_inited = 1;
+        ret = wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen,
+                           NULL, AES_ENCRYPTION);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        wrapSz = wc_AesKeyWrap_ex(aes, test_wrap[0].data,
+                                  test_wrap[0].dataLen,
                                   output, sizeof(output), NULL);
-        wc_AesFree(aes);
-        if ( (wrapSz < 0) || (wrapSz != (int)test_wrap[0].verifyLen) ||
-             XMEMCMP(output, test_wrap[0].verify, test_wrap[0].verifyLen) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
-            return WC_TEST_RET_ENC_NC;
-        }
+        if (wrapSz < 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(wrapSz), out);
+        if (wrapSz != (int)test_wrap[0].verifyLen)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (XMEMCMP(output, test_wrap[0].verify, test_wrap[0].verifyLen) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-        if (wc_AesInit(aes, HEAP_HINT, devId) != 0) {
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
-            return WC_TEST_RET_ENC_NC;
-        }
-        if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
-                         AES_DECRYPTION) != 0) {
-            wc_AesFree(aes);
-            XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
-            return WC_TEST_RET_ENC_NC;
-        }
+        wc_AesFree(aes);
+        aes_inited = 0;
+        ret = wc_AesInit(aes, HEAP_HINT, devId);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        aes_inited = 1;
+
+        ret = wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
+                           AES_DECRYPTION);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz,
                                      plain, sizeof(plain), NULL);
-        wc_AesFree(aes);
-        XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
-        if ( (plainSz < 0) || (plainSz != (int)test_wrap[0].dataLen) ||
-             XMEMCMP(plain, test_wrap[0].data, test_wrap[0].dataLen) != 0)
-            return WC_TEST_RET_ENC_NC;
+        if (plainSz < 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(plainSz), out);
+        if (plainSz != (int)test_wrap[0].dataLen)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        if (XMEMCMP(plain, test_wrap[0].data, test_wrap[0].dataLen) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    out:
+
+        if (aes_inited)
+            wc_AesFree(aes);
+        WC_FREE_VAR_EX(aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret != 0)
+            return ret;
     }
 
     /* In-place round-trip (in == out): wrap then unwrap a single buffer.
@@ -27129,6 +27139,30 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
+    {
+        struct wc_rng_bank_inst *neg_inst = NULL;
+
+        ret = wc_rng_bank_inst_checkin(NULL);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        ret = wc_rng_bank_inst_checkin(&neg_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        /* A misaligned pointer within the instance array is memory-safe to
+         * probe through wc_rng_bank_checkin() -- the caller-supplied bank is
+         * validated before any instance dereference -- and exercises
+         * rng_inst_matches_bank()'s mid-instance alignment rejection.
+         * (The same probe through wc_rng_bank_inst_checkin() would be
+         * undefined behavior: that API must read (*rng_inst)->bank before
+         * any validation can run.) */
+        neg_inst = (struct wc_rng_bank_inst *)((wc_ptr_t)bank->rngs + 1);
+        ret = wc_rng_bank_checkin(bank, &neg_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
     ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -27142,9 +27176,39 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (rng_inst != bank->rngs + 3)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* A duplicate (stale-copy) check-in must be rejected with BAD_STATE_E --
+     * the instance's HELD flag is already clear -- without mutating the
+     * bank, through both entry points.  Hold a second instance across the
+     * stale check-ins: with the bank refcount at 1, rng_inst_matches_bank()
+     * rejects with BAD_STATE_E before the HELD-flag guard in
+     * wc_rng_bank_checkin() -- the guard under test here -- is reached. */
+    ret = wc_rng_bank_checkout(bank, &rng_inst, 3, 10, WC_RNG_BANK_FLAG_NONE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    {
+        struct wc_rng_bank_inst *stale_inst = rng_inst;
+        struct wc_rng_bank_inst *held_inst = NULL;
+        ret = wc_rng_bank_checkout(bank, &held_inst, 2, 10,
+                                   WC_RNG_BANK_FLAG_NONE);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_inst_checkin(&rng_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_rng_bank_checkin(bank, &stale_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_inst_checkin(&stale_inst);
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+        ret = wc_rng_bank_inst_checkin(&held_inst);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
 
     rng_bank_affinity_get_id_id = 3;
     ret = wc_rng_bank_checkout(bank, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
@@ -27157,7 +27221,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (rng_inst != NULL)
@@ -27168,8 +27232,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
 #ifdef WC_HAVE_RNG_BANKREF
     ret = wc_InitRng_BankRef(NULL, rng);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_InitRng_BankRef(bank, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -27189,8 +27258,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif
 
     ret = wc_rng_bank_reseed(NULL, 10, WC_RNG_BANK_FLAG_NONE);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_rng_bank_reseed(bank, 10, WC_RNG_BANK_FLAG_NONE);
     if (ret != 0)
@@ -27237,7 +27311,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(rng_inst), outbuf2, sizeof(outbuf2));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -27263,15 +27337,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     /* can't wc_rng_bank_seed() while holding an inst (deadlock/timeout) --
      * check in then check back out.
      */
-    ret = wc_rng_bank_checkin(bank, &rng_inst);
+    ret = wc_rng_bank_inst_checkin(&rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_rng_bank_seed(NULL, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_rng_bank_seed(bank, (byte *)bank_arg, (word32)sizeof(bank_arg), 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* seedSz == 0 short-circuits: no-op success for an explicit inited
+     * bank, and for the default form while a default is set.  (The
+     * seed pointer is never read on these paths.) */
+    ret = wc_rng_bank_seed(bank, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -27290,8 +27376,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+    /* NULL bank to wc_rng_bank_inst_reinit() tells it to use the bank with
+     * which rng_inst is associated. */
     ret = wc_rng_bank_inst_reinit(NULL, rng_inst, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* bogus pointer test */
@@ -27310,17 +27398,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (XMEMCMP(outbuf1, outbuf2, sizeof(outbuf1)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    ret = wc_rng_bank_checkin(NULL, &rng_inst);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
     ret = wc_rng_bank_checkin(bank, &rng_inst);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_rng_bank_checkout(NULL, &rng_inst, -1, 10, WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST | WC_RNG_BANK_FLAG_AFFINITY_LOCK);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
 #ifdef WC_HAVE_RNG_BANKREF
     if (wolfSSL_RefCur(bank->refcount) != 2)
@@ -27394,9 +27483,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
     ret = wc_rng_bank_default_clear(bank);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* seedSz == 0 probe with no default bank set: NO_DEFAULT_FOUND_E. */
+    ret = wc_rng_bank_seed(NULL, NULL, 0, 10, WC_RNG_BANK_FLAG_CAN_WAIT);
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #endif /* WC_RNG_BANK_DEFAULT_SUPPORT */
 
@@ -27492,8 +27590,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 
 #ifdef WC_HAVE_RNG_BANKREF
     ret = wc_rng_new_bankref(NULL, &rng2);
+#ifdef WC_RNG_BANK_DEFAULT_SUPPORT
+    if (ret != WC_NO_ERR_TRACE(NO_DEFAULT_FOUND_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#else
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_rng_new_bankref(bank2, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -83699,9 +83802,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif
 
     /* Driver coverage for the new CryptoCb hooks: confirm each op is routed
-     * through myCryptoDevCb (counter bumped) and the round-trip is correct. */
+     * through myCryptoDevCb (counter bumped) and the round-trip is correct.
+     *
+     * The FIPS wrappers force the devId to FIPS_INVALID_DEVID, so we skip
+     * the check for FIPS. */
 #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN) && \
-    defined(HAVE_ED448_VERIFY) && !defined(WC_NO_RNG)
+    defined(HAVE_ED448_VERIFY) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
     if (ret == 0) {
         WC_RNG ed448Rng;
         int    ed448RngInit = 0;
@@ -83765,7 +83872,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif /* HAVE_ED448 */
 
 #if defined(WOLFSSL_CMAC) && defined(WOLF_CRYPTO_CB_FREE) && \
-    !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+    !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) && \
+    !defined(HAVE_FIPS)
     if (ret == 0) {
         byte   cmacKey[WC_AES_BLOCK_SIZE] = {
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -83825,7 +83933,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
 #if defined(WC_RSA_PSS) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
     !defined(NO_RSA) && !defined(WC_NO_RNG) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(NO_SHA256)
+    !defined(NO_SHA256) && !defined(HAVE_FIPS)
     if (ret == 0) {
         WC_RNG rsaRng;
         int    rsaRngInit = 0;

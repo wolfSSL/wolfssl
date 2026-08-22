@@ -748,6 +748,9 @@ const char* wc_GetErrorString(int error)
         return "Requested operation succeeded, but supplied "
                "parameters are unapproved for FIPS";
 
+    case NO_DEFAULT_FOUND_E:
+        return "No default object registered for request type";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

@@ -331,12 +331,15 @@ enum {
         CONST_NUM_ERR_DRBG_CONT_FAILURE = DRBG_CONT_FAILURE,
         CONST_NUM_ERR_DRBG_NO_SEED_CB = DRBG_NO_SEED_CB
     };
-    #define DRBG_FAILURE WC_ERR_TRACE(DRBG_FAILURE)
-    #define DRBG_NEED_RESEED WC_ERR_TRACE(DRBG_NEED_RESEED)
-    #define DRBG_CONT_FAILURE WC_ERR_TRACE(DRBG_CONT_FAILURE)
-    #define DRBG_NO_SEED_CB WC_ERR_TRACE(DRBG_NO_SEED_CB)
-    #define WC_DRBG_FAILED WC_ERR_TRACE(WC_DRBG_FAILED)
-    #define WC_DRBG_CONT_FAILED WC_ERR_TRACE(WC_DRBG_CONT_FAILED)
+    /* DRBG_SUCCESS needs to be macroized to avoid "enumerated and
+     * non-enumerated type in conditional expression" in C++. */
+    #define DRBG_SUCCESS (byte)DRBG_SUCCESS
+    #define DRBG_FAILURE (byte)WC_ERR_TRACE(DRBG_FAILURE)
+    #define DRBG_NEED_RESEED (byte)WC_ERR_TRACE(DRBG_NEED_RESEED)
+    #define DRBG_CONT_FAILURE (byte)WC_ERR_TRACE(DRBG_CONT_FAILURE)
+    #define DRBG_NO_SEED_CB (byte)WC_ERR_TRACE(DRBG_NO_SEED_CB)
+    #define WC_DRBG_FAILED (byte)WC_ERR_TRACE(WC_DRBG_FAILED)
+    #define WC_DRBG_CONT_FAILED (byte)WC_ERR_TRACE(WC_DRBG_CONT_FAILED)
 #endif
 
 /* RNG health states */
@@ -2002,7 +2005,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
 
 #ifdef HAVE_INTEL_RDRAND
-    /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
+    /* if CPU supports RDRAND, use it directly and bypass DRBG init */
     if (IS_INTEL_RDRAND(intel_flags)) {
     #ifdef HAVE_HASHDRBG
         rng->status = DRBG_OK;
@@ -2667,11 +2670,11 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         ret = wc_local_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(bank_inst),
                                          output, sz);
         {
-            int checkin_ret = wc_rng_bank_checkin(rng->bankref, &bank_inst);
+            int checkin_ret = wc_rng_bank_inst_checkin(&bank_inst);
             if (checkin_ret != 0) {
 #ifdef WC_VERBOSE_RNG
                 WOLFSSL_DEBUG_PRINTF(
-                    "ERROR: wc_RNG_GenerateBlock() wc_rng_bank_checkin() "
+                    "ERROR: wc_RNG_GenerateBlock() wc_rng_bank_inst_checkin() "
                     "failed with err %d.", checkin_ret);
 #endif
                 if (ret == 0)

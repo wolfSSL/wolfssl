@@ -26,7 +26,7 @@
     #error lkcapi_sha_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
-#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && defined(USE_INTEL_SPEEDUP)
+#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && defined(USE_INTEL_SPEEDUP) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
     #error SHA* WC_LINUXKM_C_FALLBACK_IN_SHIMS is not currently supported.
 #endif
 
@@ -1927,7 +1927,7 @@ out:
     return ret;
 }
 
-PRAGMA_DIAG_POP
+PRAGMA_DIAG_POP /* -Wno-pointer-arith -Wno-nested-externs, for linux/list.h */
 
 WC_MAYBE_UNUSED static int hmac_sha3_test_once(void) {
     static int once = 0;
@@ -2221,10 +2221,10 @@ static struct wc_rng_bank_inst *linuxkm_get_drbg(struct wc_rng_bank *ctx) {
     return ret;
 }
 
-static void linuxkm_put_drbg(struct wc_rng_bank *ctx, struct wc_rng_bank_inst **drbg) {
-    int ret = wc_rng_bank_checkin(ctx, drbg);
+static void linuxkm_put_drbg(struct wc_rng_bank_inst **drbg) {
+    int ret = wc_rng_bank_inst_checkin(drbg);
     if (ret != 0) {
-        pr_err("ERROR: wc_rng_bank_checkin() in linuxkm_put_drbg() returned err %d.\n", ret);
+        pr_err("ERROR: wc_rng_bank_inst_checkin() in linuxkm_put_drbg() returned err %d.\n", ret);
         WC_DUMP_BACKTRACE_NONDEBUG;
     }
 }
@@ -2267,11 +2267,54 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT && HAVE_HASHDRBG */
 
+#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256)
+    /* Both DRBGs compiled in: dispatch on the runtime drbgType. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+            ? ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+            : ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            if ((rng_ptr)->drbgType == WC_DRBG_SHA512) \
+                ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                    = (val); \
+            else \
+                ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL && (rng_ptr)->drbg512 == NULL)
+#elif defined(WOLFSSL_DRBG_SHA512)
+    /* SHA-512 DRBG only (NO_SHA256 defined); the SHA-256 struct and
+     * rng->drbg field do not exist in this build. */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
+                = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg512 == NULL)
+#else
+    /* SHA-256 DRBG only (the historical default). */
+    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
+        (((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
+    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
+        do { \
+            ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
+        } while (0)
+    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
+        ((rng_ptr)->drbg == NULL)
+#endif
+
 static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                     const u8 *src, unsigned int slen,
                                     u8 *dst, unsigned int dlen)
 {
     int ret, retried = 0;
+    /* can_block() is false whenever the affinity lock is held -- blockability
+     * must be sampled before checkout. */
+    int can_wait = wc_linuxkm_can_block();
     struct wc_rng_bank_inst *drbg = linuxkm_get_drbg(ctx);
 
     if (! drbg) {
@@ -2286,6 +2329,53 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             ret = -EINVAL;
             goto out;
         }
+    }
+    else if ((! WC_RNG_BANK_DRBG_NULL(WC_RNG_BANK_INST_TO_RNG(drbg))) &&
+             (WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg)) > WC_RESEED_INTERVAL / 2) &&
+             can_wait)
+    {
+        byte scratch[4];
+        word64 cur_counter = WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg));
+        WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), WC_RESEED_INTERVAL);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+        /* carefully restore preemptibility for the reseed operation. */
+
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        migrate_disable();
+        #endif
+
+        /* note, no need to use formal atomic accessors on drbg->lock --
+         * WC_RNG_BANK_INST_LOCK_HELD is held invariantly across the span, and
+         * is the only bit considered by contending threads. */
+        if (drbg->lock & (WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH))
+            RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
+#endif
+
+        ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(drbg), scratch,
+                                   (word32)sizeof scratch);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+            int ret2 = DISABLE_VECTOR_REGISTERS();
+            if (ret2 != 0)
+                drbg->lock &= ~(WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH);
+        }
+        else if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+            int ret2 = SAVE_VECTOR_REGISTERS2();
+            if (ret2 != 0)
+                drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+        }
+
+        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+        migrate_enable();
+        #endif
+#endif
+
+        if ((ret != 0) && (WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg)) >= WC_RESEED_INTERVAL)) {
+            WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), cur_counter + 1);
+        }
+        ForceZero(scratch, sizeof scratch);
     }
 
     for (;;) {
@@ -2318,10 +2408,40 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                 break;
             retried = 1;
 
-            ret = wc_rng_bank_inst_reinit(ctx,
-                                          drbg,
+            if (! can_wait)
+                break;
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+            /* carefully restore preemptibility for the reinit operation. */
+
+            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+            migrate_disable();
+            #endif
+
+            if (drbg->lock & (WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH))
+                RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
+#endif
+
+            ret = wc_rng_bank_inst_reinit(NULL, drbg,
                                           WC_LINUXKM_INITRNG_TIMEOUT_SEC,
                                           WC_RNG_BANK_FLAG_CAN_WAIT);
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+                int ret2 = DISABLE_VECTOR_REGISTERS();
+                if (ret2 != 0)
+                    drbg->lock &= ~(WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH);
+            }
+            else if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+                int ret2 = SAVE_VECTOR_REGISTERS2();
+                if (ret2 != 0)
+                    drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+            }
+
+            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+            migrate_enable();
+            #endif
+#endif
 
             if (ret == 0) {
                 pr_warn_ratelimited("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E from wc_RNG_GenerateBlock().\n", raw_smp_processor_id());
@@ -2343,7 +2463,7 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
 
 out:
 
-    linuxkm_put_drbg(ctx, &drbg);
+    linuxkm_put_drbg(&drbg);
 
     return ret;
 }
@@ -2439,9 +2559,7 @@ static int wc__get_random_bytes(void *buf, size_t len)
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-#ifdef WC_VERBOSE_RNG
         pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc__get_random_bytes() returned %d.\n", ret);
-#endif
         return -EFAULT;
     }
     else {
@@ -2449,7 +2567,7 @@ static int wc__get_random_bytes(void *buf, size_t len)
                                            NULL, 0, buf, (unsigned int)len);
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         if (ret) {
-            pr_warn("BUG: wc__get_random_bytes falling through to native get_random_bytes with wc_linuxkm_drbg_default_instance_registered, ret=%d.\n", ret);
+            pr_err_ratelimited("ERROR: wc__get_random_bytes(): wc_linuxkm_drbg_generate() failed with code %d.\n", ret);
         }
         return ret;
     }
@@ -2579,15 +2697,22 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
     __builtin_unreachable();
 }
 
+/* Note, wc_mix_pool_bytes() only injects the supplied entropy into one RNG,
+ * CPU-local when uncontended.  This routine can be pegged by unprivileged
+ * users, so its impact needs to stay as CPU-local as possible. */
 static int wc_mix_pool_bytes(const void *buf, size_t len) {
     int ret;
-    struct wc_rng_bank *ctx;
-    size_t i;
-    int n;
-    int can_sleep = wc_linuxkm_can_block();
+    struct wc_rng_bank *ctx = NULL;
+    word32 flags =
+        WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
+        WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
+    struct wc_rng_bank_inst *drbg = NULL;
+    word64 cur_counter;
 
-    if (len == 0)
-        return 0;
+    if (len > WC_MAX_UINT_OF(word32))
+        return -EFBIG;
+
+    /* Continue even if len == 0 -- churning the DRBG is still meaningful. */
 
     ret = wc_rng_bank_default_checkout(&ctx);
     if (ret) {
@@ -2597,45 +2722,38 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         return -EFAULT;
     }
 
-    ret = 0;
+    if (wc_linuxkm_can_block())
+        flags |= WC_RNG_BANK_FLAG_AFFINITY_LOCK;
+    else
+        flags |= WC_RNG_BANK_FLAG_NO_VECTOR_OPS;
 
-    for (n = ctx->n_rngs - 1; n >= 0; --n) {
-        struct wc_rng_bank_inst *drbg;
-
-        int V_offset;
-
-        if (wc_rng_bank_checkout(ctx, &drbg, n, 0, WC_RNG_BANK_FLAG_NONE) != 0)
-            continue;
-
-#ifdef WOLFSSL_DRBG_SHA512
-        if (WC_RNG_BANK_INST_TO_RNG(drbg)->drbgType == WC_DRBG_SHA512) {
-            for (i = 0, V_offset = 0; i < len; ++i) {
-                ((struct DRBG_SHA512_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg512)->V[V_offset++] += ((byte *)buf)[i];
-                if (V_offset == (int)sizeof ((struct DRBG_SHA512_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg512)->V)
-                    V_offset = 0;
-            }
-        }
-        else
-#endif /* WOLFSSL_DRBG_SHA512 */
-        {
-            for (i = 0, V_offset = 0; i < len; ++i) {
-                ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V[V_offset++] += ((byte *)buf)[i];
-                if (V_offset == (int)sizeof ((struct DRBG_internal *)WC_RNG_BANK_INST_TO_RNG(drbg)->drbg)->V)
-                    V_offset = 0;
-            }
-        }
-
-        wc_rng_bank_checkin(ctx, &drbg);
-        if (can_sleep) {
-            if (signal_pending(current)) {
-                ret = -EINTR;
-                break;
-            }
-            cond_resched();
-        }
+    ret = wc_rng_bank_checkout(ctx, &drbg, 0, 0, flags);
+    if (ret != 0) {
+        ret = -EINVAL;
+        goto out;
     }
 
-    (void)wc_rng_bank_default_checkin(&ctx);
+    if (WC_RNG_BANK_DRBG_NULL(WC_RNG_BANK_INST_TO_RNG(drbg))) {
+        ret = 0; /* consistent with wc_RNG_DRBG_Reseed() behavior in RDRAND configs. */
+        goto out;
+    }
+
+    cur_counter = WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg));
+
+    ret = wc_RNG_DRBG_Reseed(WC_RNG_BANK_INST_TO_RNG(drbg), buf, (word32)len);
+    if (ret != 0)
+        ret = -EINVAL;
+
+    /* Unconditionally restore the reseed counter -- don't credit the
+     * contributed entropy. */
+    WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), cur_counter);
+
+out:
+
+    if (drbg)
+        (void)wc_rng_bank_inst_checkin(&drbg);
+    if (ctx)
+        (void)wc_rng_bank_default_checkin(&ctx);
 
     return ret;
 }
