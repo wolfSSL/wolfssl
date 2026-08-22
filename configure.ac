@@ -9252,10 +9252,15 @@ AC_ARG_WITH([wnr],
 # SNI
 # enable SNI automatically for x86_64/x86/aarch64/amd64
 SNI_DEFAULT=no
-if test "$host_cpu" = "x86_64" || test "$host_cpu" = "x86" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"
-then
-    SNI_DEFAULT=yes
-fi
+# config.guess reports i386/i486/i586/i686 for 32-bit x86, never the literal
+# "x86", so the old `test "$host_cpu" = "x86"` arm never fired and SNI silently
+# defaulted off on every 32-bit x86 host.  Match the same pattern the AES-NI
+# gate uses.
+case $host_cpu in
+    x86_64 | amd64 | x86 | i?86 | aarch64)
+        SNI_DEFAULT=yes
+        ;;
+esac
 
 if test "$ENABLED_TLS" = "no"
 then
