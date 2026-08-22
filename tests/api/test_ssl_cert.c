@@ -819,7 +819,9 @@ int test_wolfSSL_get0_verified_chain(void)
 int test_wolfSSL_CA_list_add(void)
 {
     EXPECT_DECLS;
+/* The CA-list setters/getters exercised here are the OpenSSL compat layer. */
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(OPENSSL_EXTRA) && \
     !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_TLS) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER) && \
     defined(WOLFSSL_PEM_TO_DER)
@@ -890,7 +892,9 @@ int test_wolfSSL_CA_list_add(void)
 int test_wolfSSL_CA_list_get(void)
 {
     EXPECT_DECLS;
+/* The CA-list setters/getters exercised here are the OpenSSL compat layer. */
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(OPENSSL_EXTRA) && \
     !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_TLS) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_WOLFSSL_CLIENT) && \

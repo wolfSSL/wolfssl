@@ -7752,74 +7752,176 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
 #endif
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && \
-    !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
-/* Currently only settable through compatibility API */
+    !defined(WOLFSSL_NO_CA_NAMES)
 /******************************************************************************/
-/* Certificate Authorities                                                       */
+/* Certificate Authorities                                                    */
 /******************************************************************************/
 
-static word16 TLSX_CA_Names_GetSize(void* data)
+/* Append a copy of dn/dnSz to the list so wire order matches call order.
+ * tail, when not NULL, caches the append point across calls: parsing a
+ * maximum sized extension adds thousands of entries and walking from the
+ * head each time would be quadratic. */
+int TLSX_CertificateAuthorities_Add_ex(CertificateAuthority** head,
+        CertificateAuthority** tail, const byte* dn, word16 dnSz, void* heap)
 {
-    WOLFSSL* ssl = (WOLFSSL*)data;
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    word32 size = 0;
+    CertificateAuthority* node;
+    size_t sz;
 
-    /* Length of names */
-    size += OPAQUE16_LEN;
-    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL; names = names->next) {
-        byte seq[MAX_SEQ_SZ];
-        WOLFSSL_X509_NAME* name = names->data.name;
+    if (head == NULL || dn == NULL || dnSz == 0)
+        return BAD_FUNC_ARG;
 
-        if (name != NULL) {
-            /* 16-bit length | SEQ | Len | DER of name */
-            size += (word32)(OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
-                             name->rawLen);
-            if (size > WOLFSSL_MAX_16BIT) {
-                return 0;
+    sz = sizeof(*node) + (size_t)dnSz;
+    node = (CertificateAuthority*)XMALLOC(sz, heap, DYNAMIC_TYPE_TLSX);
+    if (node == NULL)
+        return MEMORY_ERROR;
+    XMEMCPY(node->dn, dn, dnSz);
+    node->dnSz = dnSz;
+    node->next = NULL;
+
+    if ((tail != NULL) && (*tail != NULL)) {
+        (*tail)->next = node;
+    }
+    else {
+        CertificateAuthority** end = head;
+
+        while (*end != NULL)
+            end = &(*end)->next;
+        *end = node;
+    }
+    if (tail != NULL)
+        *tail = node;
+    return 0;
+}
+
+int TLSX_CertificateAuthorities_Add(CertificateAuthority** head,
+        const byte* dn, word16 dnSz, void* heap)
+{
+    return TLSX_CertificateAuthorities_Add_ex(head, NULL, dn, dnSz, heap);
+}
+
+void TLSX_CertificateAuthorities_FreeAll(CertificateAuthority* head, void* heap)
+{
+    while (head != NULL) {
+        CertificateAuthority* next = head->next;
+        XFREE(head, heap, DYNAMIC_TYPE_TLSX);
+        head = next;
+    }
+}
+
+/* Certificate_authorities extension emitter. Walks the optional OPENSSL_EXTRA
+ * compat stack and the native list and either accumulates the payload size
+ * into *pSz (output == NULL) or serializes the payload into output and
+ * accumulates the written length.
+ *
+ * RFC 8446 4.2.4:
+ *     opaque DistinguishedName<1..2^16-1>;
+ *     struct {
+ *         DistinguishedName authorities<3..2^16-1>;
+ *     } CertificateAuthoritiesExtension;
+ *
+ * Each DN entry is at most 2^16-1 bytes and the whole authorities vector is
+ * also at most 2^16-1 bytes. Returns 0 on success, BUFFER_ERROR if any entry
+ * or the combined total would exceed either cap. */
+static int TLSX_CA_Names_Write(const WOLFSSL* ssl, byte* output, word16* pSz)
+{
+    CertificateAuthority* cur;
+    word32 total = OPAQUE16_LEN;  /* outer 16-bit length */
+    byte* outerLen = output;
+
+    if (output != NULL)
+        output += OPAQUE16_LEN;
+
+#ifdef OPENSSL_EXTRA
+    {
+        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
+        for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL;
+                names = names->next) {
+            byte seq[MAX_SEQ_SZ];
+            word32 seqSz;
+            word32 entrySz;
+            WOLFSSL_X509_NAME* name = names->data.name;
+
+            if (name == NULL || name->rawLen <= 0)
+                continue;
+            seqSz = SetSequence((word32)name->rawLen, seq);
+            entrySz = seqSz + (word32)name->rawLen;
+            /* Per-DN cap, and cumulative cap on the whole extension payload
+             * (outer length included) so *pSz below stays exact. */
+            if (entrySz > WOLFSSL_MAX_16BIT ||
+                    total + OPAQUE16_LEN + entrySz > WOLFSSL_MAX_16BIT)
+                return BUFFER_ERROR;
+            /* 16-bit entry length | SEQ hdr | DER of name */
+            total += OPAQUE16_LEN + entrySz;
+            if (output != NULL) {
+                c16toa((word16)entrySz, output);
+                output += OPAQUE16_LEN;
+                XMEMCPY(output, seq, seqSz);
+                output += seqSz;
+                XMEMCPY(output, name->raw, name->rawLen);
+                output += name->rawLen;
             }
         }
     }
-    return (word16)size;
-}
+#endif
 
-static word16 TLSX_CA_Names_Write(void* data, byte* output)
-{
-    WOLFSSL* ssl = (WOLFSSL*)data;
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
-    byte* len;
-
-    /* Reserve space for the length value */
-    len = output;
-    output += OPAQUE16_LEN;
-    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL; names = names->next) {
+    /* Native entries store the inner subject content; wrap with a SEQUENCE
+     * header to form the full DER Name expected on the wire. */
+    for (cur = WS_CA_NAMES(ssl); cur != NULL; cur = cur->next) {
         byte seq[MAX_SEQ_SZ];
-        WOLFSSL_X509_NAME* name = names->data.name;
-
-        if (name != NULL) {
-            c16toa((word16)name->rawLen +
-                   (word16)SetSequence(name->rawLen, seq), output);
+        word32 seqSz = SetSequence(cur->dnSz, seq);
+        word32 entrySz = seqSz + (word32)cur->dnSz;
+        if (entrySz > WOLFSSL_MAX_16BIT ||
+                total + OPAQUE16_LEN + entrySz > WOLFSSL_MAX_16BIT)
+            return BUFFER_ERROR;
+        total += OPAQUE16_LEN + entrySz;
+        if (output != NULL) {
+            c16toa((word16)entrySz, output);
             output += OPAQUE16_LEN;
-            output += SetSequence(name->rawLen, output);
-            XMEMCPY(output, name->raw, name->rawLen);
-            output += name->rawLen;
+            XMEMCPY(output, seq, seqSz);
+            output += seqSz;
+            XMEMCPY(output, cur->dn, cur->dnSz);
+            output += cur->dnSz;
         }
     }
-    /* Write the total length */
-    c16toa((word16)(output - len - OPAQUE16_LEN), len);
-    return (word16)(output - len);
+
+    if (outerLen != NULL)
+        c16toa((word16)(total - OPAQUE16_LEN), outerLen);
+    *pSz += (word16)total;
+    return 0;
+}
+
+/* True if the emitter would produce at least one DN. Asks the emitter itself
+ * rather than restating its filtering, so the two cannot drift and an
+ * all-empty compat stack never yields an empty authorities vector. On error
+ * report true, so an oversized list fails at write time instead of silently
+ * dropping the extension. */
+static int HasAnyCANames(const WOLFSSL* ssl)
+{
+    word16 sz = 0;
+
+    if (TLSX_CA_Names_Write(ssl, NULL, &sz) != 0)
+        return 1;
+    return sz > OPAQUE16_LEN;
 }
 
 static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
                                   word16 length, byte isRequest)
 {
     word16 extLen;
+    CertificateAuthority* tail = NULL;
 
     (void)isRequest;
 
+    /* Reset the wolfSSL native peer list. */
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
+    ssl->ws_peer_ca_names = NULL;
+
+#ifdef OPENSSL_EXTRA
     wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
     ssl->peer_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
     if (ssl->peer_ca_names == NULL)
         return MEMORY_ERROR;
+#endif
 
     if (length < OPAQUE16_LEN)
         return BUFFER_ERROR;
@@ -7829,75 +7931,91 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     length -= OPAQUE16_LEN;
     if (extLen != length)
         return BUFFER_ERROR;
+    /* authorities<3..2^16-1>: the extension is only parsed when present, so
+     * an empty vector is a framing error too. */
+    if (length < 3)
+        return BUFFER_ERROR;
 
     while (length) {
-        word16 idx = 0;
-        WOLFSSL_X509_NAME* name = NULL;
-        int ret = 0;
-        int didInit = FALSE;
-        /* Use a DecodedCert struct to get access to GetName to
-         * parse DN name */
-#ifdef WOLFSSL_SMALL_STACK
-        DecodedCert *cert = (DecodedCert *)XMALLOC(
-            sizeof(*cert), ssl->heap, DYNAMIC_TYPE_DCERT);
-        if (cert == NULL)
-            return MEMORY_ERROR;
-#else
-        DecodedCert cert[1];
-#endif
+        word16 entrySz;
+        word32 seqIdx = 0;
+        int    innerLen = 0;
+        int    ret;
 
-        if (length < OPAQUE16_LEN) {
-            ret = BUFFER_ERROR;
-        }
+        if (length < OPAQUE16_LEN)
+            return BUFFER_ERROR;
+        ato16(input, &entrySz);
+        /* DistinguishedName<1..2^16-1>: each entry must be at least 1 byte. */
+        if (entrySz == 0)
+            return BUFFER_ERROR;
+        if ((word16)(length - OPAQUE16_LEN) < entrySz)
+            return BUFFER_ERROR;
 
-        if (ret == 0) {
-            ato16(input, &extLen);
-            idx += OPAQUE16_LEN;
+        /* Strip the outer SEQUENCE so that the native list stores subject
+         * content only, mirroring the send path. */
+        if (GetSequence(input + OPAQUE16_LEN, &seqIdx, &innerLen,
+                        entrySz) < 0)
+            return BUFFER_ERROR;
+        if ((word32)innerLen + seqIdx != entrySz)
+            return BUFFER_ERROR;
 
-            if (extLen > length - idx)
-                ret = BUFFER_ERROR;
-        }
-
-        if (ret == 0) {
-            InitDecodedCert(cert, input + idx, extLen, ssl->heap);
-            didInit = TRUE;
-            idx += extLen;
-            ret = GetName(cert, ASN_SUBJECT, extLen);
-        }
-
-        if (ret == 0 && (name = wolfSSL_X509_NAME_new()) == NULL)
-            ret = MEMORY_ERROR;
-
-        if (ret == 0) {
-            CopyDecodedName(name, cert, ASN_SUBJECT);
-            if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0) {
-                wolfSSL_X509_NAME_free(name);
-                ret = MEMORY_ERROR;
-            }
-        }
-
-        if (didInit)
-            FreeDecodedCert(cert);
-
-        WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+        ret = TLSX_CertificateAuthorities_Add_ex(&ssl->ws_peer_ca_names,
+                &tail, input + OPAQUE16_LEN + seqIdx, (word16)innerLen,
+                ssl->heap);
         if (ret != 0)
             return ret;
 
-        input += idx;
-        length -= idx;
+#ifdef OPENSSL_EXTRA
+        {
+            WOLFSSL_X509_NAME* name = NULL;
+            int didInit = FALSE;
+#ifdef WOLFSSL_SMALL_STACK
+            DecodedCert *cert = (DecodedCert *)XMALLOC(
+                sizeof(*cert), ssl->heap, DYNAMIC_TYPE_DCERT);
+            if (cert == NULL)
+                return MEMORY_ERROR;
+#else
+            DecodedCert cert[1];
+#endif
+            InitDecodedCert(cert, input + OPAQUE16_LEN, entrySz, ssl->heap);
+            didInit = TRUE;
+            ret = GetName(cert, ASN_SUBJECT, entrySz);
+
+            if (ret == 0 && (name = wolfSSL_X509_NAME_new()) == NULL)
+                ret = MEMORY_ERROR;
+
+            if (ret == 0) {
+                CopyDecodedName(name, cert, ASN_SUBJECT);
+                if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0) {
+                    wolfSSL_X509_NAME_free(name);
+                    ret = MEMORY_ERROR;
+                }
+            }
+
+            if (didInit)
+                FreeDecodedCert(cert);
+
+            WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+            if (ret != 0)
+                return ret;
+        }
+#endif /* OPENSSL_EXTRA */
+
+        input += OPAQUE16_LEN + entrySz;
+        length -= OPAQUE16_LEN + entrySz;
     }
     return 0;
 }
 
-#define CAN_GET_SIZE(data)      TLSX_CA_Names_GetSize(data)
-#define CAN_WRITE(data, output) TLSX_CA_Names_Write(data, output)
+#define CAN_GET_SIZE(ssl, pSz)       TLSX_CA_Names_Write(ssl, NULL, pSz)
+#define CAN_WRITE(ssl, output, pSz)  TLSX_CA_Names_Write(ssl, output, pSz)
 #define CAN_PARSE(ssl, input, length, isRequest) \
                                 TLSX_CA_Names_Parse(ssl, input, length, isRequest)
 
 #else
 
-#define CAN_GET_SIZE(data)                       0
-#define CAN_WRITE(data, output)                  0
+#define CAN_GET_SIZE(ssl, pSz)                   0
+#define CAN_WRITE(ssl, output, pSz)              0
 #define CAN_PARSE(ssl, input, length, isRequest) 0
 
 #endif
@@ -15681,16 +15799,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
     #endif
 
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-            case TLSX_CERTIFICATE_AUTHORITIES: {
-                word16 canSz = CAN_GET_SIZE(extension->data);
-                /* 0 on non-empty list means 16-bit overflow. */
-                if (canSz == 0) {
-                    ret = LENGTH_ERROR;
-                    break;
-                }
-                length += canSz;
+            case TLSX_CERTIFICATE_AUTHORITIES:
+                cbShim = 0;
+                ret = CAN_GET_SIZE((WOLFSSL*)extension->data, &cbShim);
+                length += cbShim;
                 break;
-            }
     #endif
 #endif
 #ifdef WOLFSSL_SRTP
@@ -15745,6 +15858,10 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
         /* marks the extension as processed so ctx level */
         /* extensions don't overlap with ssl level ones. */
         TURN_ON(semaphore, TLSX_ToSemaphore((word16)extension->type));
+
+        /* if we encountered an error propagate it */
+        if (ret != 0)
+            break;
     }
 
     if ((word32)*pLength + length > WOLFSSL_MAX_16BIT) {
@@ -15986,7 +16103,10 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 WOLFSSL_MSG("Certificate Authorities extension to write");
-                offset += CAN_WRITE(extension->data, output + offset);
+                cbShim = 0;
+                ret = CAN_WRITE((WOLFSSL*)extension->data,
+                        output + offset, &cbShim);
+                offset += cbShim;
                 break;
     #endif
 #endif
@@ -16580,8 +16700,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 #ifdef WOLFSSL_TLS13
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (IsAtLeastTLSv1_3(ssl->version) &&
-                SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
+        if (IsAtLeastTLSv1_3(ssl->version) && HasAnyCANames(ssl)) {
             WOLFSSL_MSG("Adding certificate authorities extension");
             if ((ret = TLSX_Push(&ssl->extensions,
                     TLSX_CERTIFICATE_AUTHORITIES, ssl, ssl->heap)) != 0) {
@@ -17625,8 +17744,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         }
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (!IsAtLeastTLSv1_3(ssl->version) ||
-                SSL_CA_NAMES(ssl) == NULL) {
+        if (!IsAtLeastTLSv1_3(ssl->version) || !HasAnyCANames(ssl)) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17651,7 +17769,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
+        if (HasAnyCANames(ssl)) {
             TURN_OFF(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17865,7 +17983,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         }
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (!IsAtLeastTLSv1_3(ssl->version) || SSL_CA_NAMES(ssl) == NULL) {
+        if (!IsAtLeastTLSv1_3(ssl->version) || !HasAnyCANames(ssl)) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
@@ -17896,7 +18014,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
+        if (HasAnyCANames(ssl)) {
             TURN_OFF(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }

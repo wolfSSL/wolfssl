@@ -5731,6 +5731,15 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.rpkState.received_ServerCertTypeCnt = 0;
     #endif
 
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+        defined(WOLFSSL_TLS13)
+        /* The peer list belongs to the connection that just ended. Left in
+         * place, the getters report the previous peer's authorities when the
+         * next one sends no certificate_authorities extension. */
+        TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
+        ssl->ws_peer_ca_names = NULL;
+    #endif
+
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
         ssl->extensions = NULL;
