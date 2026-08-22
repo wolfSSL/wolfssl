@@ -23082,6 +23082,7 @@ static int test_wolfSSL_get_ciphers_compat_empty(void)
     return EXPECT_RESULT();
 }
 
+
 static int test_wolfSSL_CTX_ctrl(void)
 {
     EXPECT_DECLS;
@@ -23388,6 +23389,103 @@ static int test_wolfSSL_NCONF_negative_paths(void)
     return EXPECT_RESULT();
 }
 #endif /* OPENSSL_ALL */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+/* SSL_get_cipher_list() walks the cipher list configured on the SSL, highest
+ * priority first, and returns NULL once past the end. No handshake has run
+ * here, so there is no negotiated suite to report. */
+static int test_wolfSSL_get_cipher_list_compat(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    SSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const char* name = NULL;
+    int count = 0;
+
+    ExpectNotNull(ctx = SSL_CTX_new(SSLv23_client_method()));
+    ExpectNotNull(ssl = SSL_new(ctx));
+
+    ExpectNull(SSL_get_cipher_list(NULL, 0));
+    ExpectNull(SSL_get_cipher_list(ssl, -1));
+
+    ExpectNotNull(name = SSL_get_cipher_list(ssl, 0));
+    /* Sentinel differs between the IANA and short-name builds. */
+    ExpectStrNE(name, "None");
+    ExpectStrNE(name, "NONE");
+
+    /* Walk to the end of the list. */
+    while (EXPECT_SUCCESS() && SSL_get_cipher_list(ssl, count) != NULL)
+        count++;
+    ExpectIntGT(count, 0);
+    ExpectNull(SSL_get_cipher_list(ssl, count));
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
+    /* Must agree with the stack SSL_get_ciphers() returns, entry for entry. */
+    {
+        STACK_OF(SSL_CIPHER)* ciphers = NULL;
+        int num = 0;
+        int i;
+
+        ExpectNotNull(ciphers = SSL_get_ciphers(ssl));
+        ExpectIntEQ(num = sk_SSL_CIPHER_num(ciphers), count);
+        for (i = 0; i < num; i++) {
+            ExpectNotNull(name = SSL_get_cipher_list(ssl, i));
+            ExpectStrEQ(name,
+                SSL_CIPHER_get_name(sk_SSL_CIPHER_value(ciphers, i)));
+        }
+    }
+#endif
+
+    SSL_free(ssl);
+    ssl = NULL;
+
+    /* Masking every version filters out all suites, so priority 0 is NULL. */
+    ExpectNotNull(ssl = SSL_new(ctx));
+    wolfSSL_set_options(ssl, SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
+        SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3);
+    ExpectNull(SSL_get_cipher_list(ssl, 0));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The list stays the configured suites after a handshake. The old
+ * SSL_get_cipher_list() reported the negotiated suite at priority 0. */
+static int test_wolfSSL_get_cipher_list_compat_after_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char* before = NULL;
+    const char* after = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+
+    ExpectNotNull(before = SSL_get_cipher_list(ssl_c, 0));
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(after = SSL_get_cipher_list(ssl_c, 0));
+    ExpectStrEQ(before, after);
+
+    /* More than one suite is still reachable after the handshake. */
+    ExpectNotNull(SSL_get_cipher_list(ssl_c, 1));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 static int test_wolfSSL_d2i_and_i2d_PublicKey(void)
 {
@@ -40225,6 +40323,11 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_CTX_ctrl),
 #endif /* OPENSSL_ALL */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    TEST_DECL(test_wolfSSL_get_cipher_list_compat),
+    TEST_DECL(test_wolfSSL_get_cipher_list_compat_after_handshake),
+#endif
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     TEST_DECL(test_wolfSSL_CTX_use_certificate_ASN1),
 #endif /* (OPENSSL_ALL || WOLFSSL_ASIO) && !NO_RSA */
