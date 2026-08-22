@@ -42,9 +42,40 @@ runs:
         if command -v ccache >/dev/null 2>&1; then
           echo "ccache already installed: $(ccache --version | head -1)"
         elif [ "${{ runner.os }}" = "Linux" ]; then
-          sudo apt-get update -q
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            --no-install-recommends ccache
+          export DEBIAN_FRONTEND=noninteractive
+          # install-apt-deps stages the WHOLE ghcr bundle into
+          # /var/cache/apt/archives, and ccache is in the -minimal/-full
+          # lists, so in a job that ran it first the .deb is already on disk.
+          # Take it offline (--no-download): no apt-get update, nothing to
+          # stall on. Every other path here reaches the mirror, which is what
+          # used to hang these jobs for 10-40 min after the bundle had
+          # already installed cleanly.
+          sudo dpkg --configure -a >/dev/null 2>&1 || true
+          if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+               --no-install-recommends --no-download ccache; then
+            echo "ccache installed offline from the staged .deb bundle"
+          else
+            # Same defence in depth as install-apt-deps: Acquire timeouts drop
+            # a stalled connection, `timeout` hard-kills a wedged apt-get, and
+            # only then does the retry loop get a non-zero exit to act on.
+            APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
+                      -o Acquire::https::Timeout=30)
+            ok=""
+            for i in 1 2; do
+              sudo dpkg --configure -a >/dev/null 2>&1 || true
+              if sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 60 \
+                     apt-get "${APT_OPTS[@]}" update -q && \
+                 sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 180 \
+                     apt-get "${APT_OPTS[@]}" install -y \
+                     --no-install-recommends ccache; then
+                ok=1
+                break
+              fi
+              echo "::warning::ccache apt install failed (attempt $i/2)"
+              sleep 5
+            done
+            [ -n "$ok" ] || { echo "::error::could not install ccache"; exit 1; }
+          fi
         elif [ "${{ runner.os }}" = "macOS" ]; then
           brew install ccache
         else
