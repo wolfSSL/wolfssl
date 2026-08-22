@@ -804,7 +804,7 @@ static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t 
         printf("[%s] send_alert: level=%d, err=%d\n", ctx->name, level, err);
     }
     ctx->alert_level = (int)level;
-    ctx->alert = alert;
+    ctx->alert = (int)err;
     return 1;
 }
 
@@ -2142,6 +2142,77 @@ static int test_quic_resumption(int verbose) {
 }
 
 #ifdef WOLFSSL_EARLY_DATA
+/* RFC 9001 Section 4.6.1: "Servers MUST NOT send the early_data extension with
+ * a max_early_data_size field set to any value other than 0xffffffff. A client
+ * MUST treat receipt of a NewSessionTicket that contains an early_data
+ * extension with any other value as a connection error of type
+ * PROTOCOL_VIOLATION." */
+static int test_quic_ticket_max_early_data(int verbose) {
+    EXPECT_DECLS;
+    WOLFSSL_CTX *    ctx_c = NULL;
+    WOLFSSL_CTX *    ctx_s = NULL;
+    QuicTestContext  tclient, tserver;
+    QuicConversation conv;
+    /* A NewSessionTicket carrying only an early_data extension. */
+    byte             ticket[] = {
+        0x04,                        /* NewSessionTicket */
+        0x00, 0x00, 0x1d,            /* body length */
+        0x00, 0x00, 0x0e, 0x10,      /* ticket_lifetime */
+        0x00, 0x00, 0x00, 0x00,      /* ticket_age_add */
+        0x00,                        /* ticket_nonce<0..255> */
+        0x00, 0x08,                  /* ticket<1..2^16-1> */
+        't', 'e', 's', 't', 'i', 'c', 'k', 't',
+        0x00, 0x08,                  /* extensions<0..2^16-2> */
+        0x00, 0x2a, 0x00, 0x04,      /* early_data */
+        0xff, 0xff, 0xff, 0xff       /* max_early_data_size */
+    };
+    /* Offset of max_early_data_size within the message. */
+    const size_t     edOff = sizeof(ticket) - OPAQUE32_LEN;
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+               WOLFSSL_FILETYPE_PEM));
+
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+    QuicConversation_init(&conv, &tclient, &tserver);
+    QuicConversation_do(&conv);
+    ExpectIntEQ(wolfSSL_get_error(tclient.ssl, 0), 0);
+
+    /* The sentinel is the only value a QUIC server may send. */
+    ExpectIntEQ(wolfSSL_provide_quic_data(tclient.ssl,
+        wolfssl_encryption_application, ticket, sizeof(ticket)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_process_quic_post_handshake(tclient.ssl),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(tclient.ssl);
+    ExpectTrue(tclient.ssl->session->maxEarlyDataSz == WOLFSSL_MAX_32BIT);
+
+    /* Any other size is a connection error of type PROTOCOL_VIOLATION, handed
+     * to the QUIC stack through send_alert. */
+    ticket[edOff + 0] = 0x00;
+    ticket[edOff + 1] = 0x00;
+    ticket[edOff + 2] = 0x40;
+    ticket[edOff + 3] = 0x00;
+    ExpectIntEQ(wolfSSL_provide_quic_data(tclient.ssl,
+        wolfssl_encryption_application, ticket, sizeof(ticket)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_process_quic_post_handshake(tclient.ssl),
+        WC_NO_ERR_TRACE(INVALID_PARAMETER));
+    ExpectIntEQ(tclient.alert, WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
+
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    printf("    test_quic_ticket_max_early_data: %s\n",
+           EXPECT_SUCCESS() ? pass : fail);
+    return EXPECT_RESULT();
+}
+
 static int test_quic_early_data(int verbose) {
     EXPECT_DECLS;
     WOLFSSL_CTX *     ctx_c = NULL;
@@ -2460,6 +2531,8 @@ int QuicTest(void)
     if ((ret = test_quic_key_share(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_resumption(verbose)) != TEST_SUCCESS) goto leave;
 #ifdef WOLFSSL_EARLY_DATA
+    if ((ret = test_quic_ticket_max_early_data(verbose)) != TEST_SUCCESS)
+        goto leave;
     if ((ret = test_quic_early_data(verbose)) != TEST_SUCCESS) goto leave;
     if ((ret = test_quic_big_early_data(verbose)) != TEST_SUCCESS) goto leave;
 #endif /* WOLFSSL_EARLY_DATA */

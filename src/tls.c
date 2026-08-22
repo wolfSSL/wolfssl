@@ -13248,6 +13248,20 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             return BUFFER_E;
         ato32(input, &maxSz);
 
+#ifdef WOLFSSL_QUIC
+        /* RFC 9001 Section 4.6.1: "Servers MUST NOT send the early_data
+         * extension with a max_early_data_size field set to any value other
+         * than 0xffffffff. A client MUST treat receipt of a NewSessionTicket
+         * that contains an early_data extension with any other value as a
+         * connection error of type PROTOCOL_VIOLATION." */
+        if (WOLFSSL_IS_QUIC(ssl) && maxSz != WOLFSSL_MAX_32BIT) {
+            WOLFSSL_MSG("QUIC ticket early data size not 0xffffffff");
+            SendAlert(ssl, alert_fatal, WOLFSSL_QUIC_ERR_PROTOCOL_VIOLATION);
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+#endif /* WOLFSSL_QUIC */
+
         ssl->session->maxEarlyDataSz = maxSz;
         return 0;
     }
@@ -18971,7 +18985,6 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
-                WOLFSSL_MSG("Skipping Supported Versions - already processed");
             #ifdef WOLFSSL_DEBUG_TLS
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
@@ -18980,6 +18993,18 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     msgType != hello_retry_request)
                     return EXT_NOT_ALLOWED;
 
+                /* RFC 8446 Section 4.2.1: "A server which negotiates a version
+                 * of TLS prior to TLS 1.3 MUST set ServerHello.version and MUST
+                 * NOT send the "supported_versions" extension."  If TLS version
+                 * is <1.3, supported_versions is invalid. */
+                if (msgType == server_hello &&
+                        !IsAtLeastTLSv1_3(ssl->version)) {
+                    WOLFSSL_MSG("Supported Versions in older ServerHello");
+                    WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
+                    return VERSION_ERROR;
+                }
+
+                WOLFSSL_MSG("Skipping Supported Versions - already processed");
                 break;
 
             case TLSX_COOKIE:
