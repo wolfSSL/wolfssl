@@ -5856,9 +5856,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_set_int(tmp3, (unsigned long)e);
 
-    /* The failCount value comes from NIST FIPS 186-4, section B.3.3,
-     * process steps 4.7 and 5.8. */
-    failCount = 5 * (size / 2);
+    /* FIPS 186-5 App. A.1.3 step 4.7 bounds the p search at 5*nlen candidates.
+     * This supersedes the 5*(nlen/2) of the withdrawn FIPS 186-4 App. B.3.3
+     * step 4.7.  size is nlen in bits.  Note that A.1.3 steps 4.4/5.4/5.5
+     * discard a candidate with "go to step 4.2", bypassing the i increment at
+     * step 4.6/5.7, whereas the loops below count every candidate; the bound
+     * is therefore still reached sooner here than in A.1.3. */
+    failCount = 5 * size;
     primeSz = (word32)size / 16; /* size is the size of n in bits.
                             primeSz is in bytes. */
 
@@ -5925,6 +5929,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY) {
         isPrime = 0;
         i = 0;
+        /* FIPS 186-5 App. A.1.3 step 5.8 bounds the q search at 10*nlen. */
+        failCount = 10 * size;
         do {
 #ifdef SHOW_GEN
             printf(".");
