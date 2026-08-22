@@ -6299,13 +6299,17 @@ exit_aes_gcm:
     if (cipher_same_buffer) {
         ret = wc_AesGcmSetKey(enc[0], key, keySz);
         if (ret != 0) {
-            goto exit_aes_gcm;
+            /* exit_aes_gcm: has already run its finish and released the
+             * bracket; re-entering it would restore a section that is not
+             * open and loop on the same failure.  Go to the cleanup. */
+            goto exit;
         }
         ret = BENCH_FIPS_OK(wc_AesGcmEncrypt(enc[0], bench_cipher, bench_plain, bench_size,
             iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
             bench_additional, aesAuthAddSz));
         if (ret != 0) {
-            goto exit_aes_gcm;
+            /* Same as above: the finish at exit_aes_gcm: is already done. */
+            goto exit;
         }
     }
 
@@ -12248,7 +12252,7 @@ void bench_dh(int useDeviceID)
         ret = wc_InitDhKey_ex(dhKey[i], HEAP_HINT,
                         useDeviceID ? devId : INVALID_DEVID);
         if (ret != 0)
-            goto exit;
+            goto exit_dh_cleanup;
 
         /* setup key */
         if (!use_ffdhe) {
@@ -12275,7 +12279,7 @@ void bench_dh(int useDeviceID)
     #endif
         if (ret != 0) {
             printf("DhKeyDecode failed %d, can't benchmark\n", ret);
-            goto exit;
+            goto exit_dh_cleanup;
         }
     }
 
@@ -12321,7 +12325,9 @@ exit_dh_gen:
 #endif
 
     if (ret < 0) {
-        goto exit;
+        /* exit_dh_gen: released the bracket and reported the failure; the
+         * agree loop never started, so skip its finish too. */
+        goto exit_dh_cleanup;
     }
 
     RESET_MULTI_VALUE_STATS_VARS();
@@ -12371,6 +12377,11 @@ exit:
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+
+    /* Reached from every path that never opened a bracket, so that the
+     * finish above -- and the RESTORE_VECTOR_REGISTERS() inside it -- is not
+     * executed without a matching SAVE_VECTOR_REGISTERS(). */
+exit_dh_cleanup:
 
     /* cleanup */
     if (WC_ARRAY_OK(dhKey)) {
@@ -13219,13 +13230,13 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     ret = wc_LmsKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret) {
         printf("wc_LmsKey_Init failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
 
     ret = wc_LmsKey_SetLmsParm(&key, parm);
     if (ret) {
         printf("wc_LmsKey_SetLmsParm failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
 
 #ifndef WOLFSSL_WC_LMS_SERIALIZE_STATE
@@ -13384,19 +13395,19 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
     if (ret) {
         printf("error: wc_LmsKey_SetWriteCb failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
 
     ret = wc_LmsKey_SetReadCb(&key, lms_read_key_mem);
     if (ret) {
         printf("error: wc_LmsKey_SetReadCb failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
 
     ret = wc_LmsKey_SetContext(&key, (void*)lms_priv);
     if (ret) {
         printf("error: wc_LmsKey_SetContext failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
 
     /* Even with saved priv/pub keys, we must still reload the private
@@ -13465,7 +13476,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
         printf("bench_lms_sign_verify malloc failed\n");
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
 
     count = 0;
@@ -13532,6 +13543,11 @@ exit_lms_sign_verify:
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 
+    /* Reached from every path that never opened a bracket, so that the
+     * finish above -- and the RESTORE_VECTOR_REGISTERS() inside it -- is not
+     * executed without a matching SAVE_VECTOR_REGISTERS().  `loaded` is 0 and
+     * `sig` is NULL on all of those paths, so the cleanup below is safe. */
+exit_lms_cleanup:
 
     if (loaded) {
         wc_LmsKey_Free(&key);
@@ -13690,7 +13706,7 @@ static void bench_xmss_sign_verify(const char * params)
 #endif
     if (ret != 0) {
         printf("error: wc_InitRng failed: %d\n", ret);
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     freeRng = 1;
@@ -13698,63 +13714,63 @@ static void bench_xmss_sign_verify(const char * params)
     ret = wc_XmssKey_Init(&key, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         printf("wc_XmssKey_Init failed: %d\n", ret);
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     ret = wc_XmssKey_SetParamStr(&key, params);
     if (ret != 0) {
         printf("wc_XmssKey_SetParamStr failed: %d\n", ret);
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     ret = wc_XmssKey_GetPubLen(&key, &pkSz);
     if (ret != 0) {
         printf("wc_XmssKey_GetPubLen failed: %d\n", ret);
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     ret = wc_XmssKey_GetPrivLen(&key, &skSz);
     if (ret != 0 || skSz <= 0) {
         printf("error: wc_XmssKey_GetPrivLen failed\n");
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     ret = wc_XmssKey_GetSigLen(&key, &sigSz);
     if (ret != 0 || sigSz <= 0) {
         printf("error: wc_XmssKey_GetSigLen failed\n");
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     /* Allocate secret keys.*/
     sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) {
         printf("error: allocate xmss sk failed\n");
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     /* Allocate signature array. */
     sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
         printf("error: allocate xmss sig failed\n");
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     ret = wc_XmssKey_SetWriteCb(&key, xmss_write_key_mem);
     if (ret != 0) {
         printf("error: wc_XmssKey_SetWriteCb failed: %d\n", ret);
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     ret = wc_XmssKey_SetReadCb(&key, xmss_read_key_mem);
     if (ret != 0) {
         printf("error: wc_XmssKey_SetReadCb failed: %d\n", ret);
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
     ret = wc_XmssKey_SetContext(&key, (void *)sk);
     if (ret != 0) {
         printf("error: wc_XmssKey_SetContext failed: %d\n", ret);
-        goto exit_xmss_sign_verify;
+        goto exit_xmss_cleanup;
     }
 
 #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
@@ -13823,6 +13839,12 @@ static void bench_xmss_sign_verify(const char * params)
 
 exit_xmss_sign_verify:
     bench_stats_asym_finish(params, (int)sigSz, "verify", 0, count, start, ret);
+
+    /* Reached from every path that never opened a bracket, so that the
+     * finish above -- and the RESTORE_VECTOR_REGISTERS() inside it -- is not
+     * executed without a matching SAVE_VECTOR_REGISTERS().  `sig`, `sk`,
+     * `freeRng` and `freeKey` are all zero on those paths. */
+exit_xmss_cleanup:
 
     /* Cleanup everything. */
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
