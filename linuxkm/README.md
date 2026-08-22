@@ -16,10 +16,33 @@ Supported features:
 - crypto acceleration: AES-NI, AVX, etc.
 - kernel crypto API registration (wolfCrypt algs appear as drivers in `/proc/crypto`.).
 - `CONFIG_CRYPTO_FIPS`, and crypto-manager self-tests.
-- FIPS-compliant patches to `drivers/char/random.c`, covering kernels 5.10 to
-  6.15.
+- FIPS-compliant patches to `drivers/char/random.c`, covering 34 kernel
+  versions from 5.6 through 7.1.  Every supported version maps to a base patch
+  that applies at `--fuzz=0`; see `patches/README.md` for the full
+  version-to-patch table.  If your version is not listed there, it is not
+  covered -- do not assume a nearby base will apply, because a fuzzed hunk can
+  land in the wrong function and still report success.
 - Supports FIPS-compliant WireGuard (https://github.com/wolfssl/wolfguard).
 - TLS 1.3 and DTLS 1.3 kernel offload.
+
+## Kernel configuration prerequisites
+
+`libwolfssl.ko` registers with the kernel crypto API, so the API's own
+registration symbols must be resolvable at `insmod` time.
+
+**On 7.1 and later, `CRYPTO_AEAD`, `CRYPTO_RNG` and `CRYPTO_KPP` must be built
+in (`=y`), not modular.** Through 7.0.14 these land in `vmlinux` regardless of
+how they are configured, so the requirement is invisible. From 7.1.9 they can
+land in `crypto/aead.ko` instead, and `insmod libwolfssl.ko` then fails with:
+
+```
+libwolfssl: Unknown symbol crypto_register_aead (err -2)
+```
+
+This is a kernel-configuration prerequisite, not a module defect: the module is
+asking for a symbol the running kernel did not export. Set the three options to
+`y` in the kernel `.config` before building the kernel for any 7.1 or later
+operational environment.
 
 ## Building and Installing
 
