@@ -8203,8 +8203,15 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             while (blocks--) {
                 XMEMCPY(aes->tmp, in, WC_AES_BLOCK_SIZE);
                 ret = AesDecrypt_preFetchOpt(aes, in, out, &did_prefetches);
+                /* break, not return: this sits between
+                 * VECTOR_REGISTERS_PUSH and VECTOR_REGISTERS_POP.  Under
+                 * WC_C_DYNAMIC_FALLBACK the PUSH may have cleared
+                 * aes->use_aesni and stashed the old value in
+                 * orig_use_aesni, and only the POP puts it back -- so a
+                 * return here downgrades this Aes object for good.  Carry
+                 * the status out through the POP instead. */
                 if (ret != 0)
-                    return ret;
+                    break;
                 xorbuf(out, (byte*)aes->reg, WC_AES_BLOCK_SIZE);
                 /* store iv for next call */
                 XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
