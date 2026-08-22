@@ -865,11 +865,17 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
+        /* Pass the encrypt its nonce out of ivOut rather than aes->reg -
+         * AesAuthSetIv() leaves the GHASH result in aes->reg for a nonce that
+         * is not 96 bits, so aes->reg does not survive the call. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
         ret = wc_AesGcmEncrypt(aes, out, in, sz,
-                               (byte*)aes->reg, ivOutSz,
+                               ivOut, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
+        /* Put the nonce back over any scratch data the driver left behind,
+         * then advance so the next record cannot reuse this nonce. */
+        XMEMCPY(aes->reg, ivOut, ivOutSz);
         if (ret == 0)
             IncCtr((byte*)aes->reg, ivOutSz);
     }
@@ -1036,14 +1042,16 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
+        /* Keep the nonce being consumed in ivOut - see wc_AesGcmEncrypt_ex()
+         * for why aes->reg does not survive the call. */
+        XMEMCPY(ivOut, aes->reg, aes->nonceSz);
         ret = wc_AesCcmEncrypt(aes, out, in, sz,
-                               (byte*)aes->reg, aes->nonceSz,
+                               ivOut, aes->nonceSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        if (ret == 0) {
-            XMEMCPY(ivOut, aes->reg, aes->nonceSz);
+        XMEMCPY(aes->reg, ivOut, aes->nonceSz);
+        if (ret == 0)
             IncCtr((byte*)aes->reg, aes->nonceSz);
-        }
     }
 
     return ret;
