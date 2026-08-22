@@ -687,15 +687,23 @@ struct ecc_key {
 #define ecc_get_k(key)              (key)->k
 #define ecc_blind_k(key, b)         (void)b
 #define ecc_blind_k_rng(key, rng)   0
+#define ecc_forcezero_k(key)        mp_forcezero((key)->k)
 
 #define wc_ecc_key_get_priv(key)    (key)->k
 #else
 mp_int* ecc_get_k(ecc_key* key);
 void ecc_blind_k(ecc_key* key, mp_int* b);
 int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng);
+WOLFSSL_LOCAL void ecc_forcezero_k(ecc_key* key);
 
 WOLFSSL_API mp_int* wc_ecc_key_get_priv(ecc_key* key);
 #endif
+/* Writable handle on the stored private scalar. With blinding enabled,
+ * wc_ecc_key_get_priv() returns a value regenerated into scratch, so it is
+ * read-only: writes through it are discarded and erasing it leaves the
+ * secret in place. Write a new scalar through this instead, then install a
+ * fresh blind with ecc_blind_k_rng(); erase with ecc_forcezero_k(). */
+#define ecc_get_k_raw(key)          (key)->k
 
 #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 

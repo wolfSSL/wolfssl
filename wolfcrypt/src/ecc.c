@@ -378,15 +378,33 @@ ECC Curve Sizes:
 #endif
 
 #ifdef WOLFSSL_ECC_BLIND_K
+/* Number of digits covered by the fixed-width XORs below. */
+#define ECC_BLIND_K_DIGITS(key) \
+    ((int)(((key)->dp->size + sizeof(mp_digit) - 1) / sizeof(mp_digit)))
+
+/* The XORs read this many whole digits regardless of each operand's current
+ * length, so operands written at partial width (e.g. by mp_copy()) must be
+ * zero-extended first or stale digits fold into the value. mp_grow() cannot
+ * fail for a curve-sized key; fail closed if it ever does. */
 mp_int* ecc_get_k(ecc_key* key)
 {
-    mp_xor_ct(key->k, key->kb, key->dp->size, key->ku);
+    if ((mp_grow(key->k, ECC_BLIND_K_DIGITS(key)) != MP_OKAY) ||
+        (mp_grow(key->kb, ECC_BLIND_K_DIGITS(key)) != MP_OKAY)) {
+        mp_forcezero(key->ku);
+    }
+    else {
+        mp_xor_ct(key->k, key->kb, key->dp->size, key->ku);
+    }
     return key->ku;
 }
 void ecc_blind_k(ecc_key* key, mp_int* b)
 {
-    mp_xor_ct(key->k, b, key->dp->size, key->k);
-    mp_xor_ct(key->kb, b, key->dp->size, key->kb);
+    if ((mp_grow(key->k, ECC_BLIND_K_DIGITS(key)) == MP_OKAY) &&
+        (mp_grow(key->kb, ECC_BLIND_K_DIGITS(key)) == MP_OKAY) &&
+        (mp_grow(b, ECC_BLIND_K_DIGITS(key)) == MP_OKAY)) {
+        mp_xor_ct(key->k, b, key->dp->size, key->k);
+        mp_xor_ct(key->kb, b, key->dp->size, key->kb);
+    }
 }
 int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng)
 {
@@ -405,10 +423,16 @@ int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng)
         }
     }
     if (ret == 0) {
-        ret = mp_rand(key->kb, (key->dp->size + sizeof(mp_digit) - 1) /
-            sizeof(mp_digit), rng);
+        ret = mp_rand(key->kb, ECC_BLIND_K_DIGITS(key), rng);
+        if (ret == 0) {
+            ret = mp_grow(key->k, ECC_BLIND_K_DIGITS(key));
+        }
         if (ret == 0) {
             mp_xor_ct(key->k, key->kb, key->dp->size, key->k);
+        }
+        else {
+            /* No blind installed - keep the stored pair consistent. */
+            mp_forcezero(key->kb);
         }
     }
 
@@ -416,6 +440,13 @@ int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng)
         wc_FreeRng(&local_rng);
     }
     return ret;
+}
+
+void ecc_forcezero_k(ecc_key* key)
+{
+    mp_forcezero(key->k);
+    mp_forcezero(key->kb);
+    mp_forcezero(key->ku);
 }
 
 mp_int* wc_ecc_key_get_priv(ecc_key* key)
