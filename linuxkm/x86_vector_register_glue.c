@@ -1552,6 +1552,13 @@ struct wc_svr_ctx_state {
      * only it needs the flag recorded here; every other path carries it in a
      * local.  See WC_SVR_DECIDE_PIN(). */
     unsigned int migrate_pinned;
+#ifdef WC_LINUXKM_SVR_ASSERT_PINNED
+    /* The task that opened this section, recorded so the restore can tell
+     * "the slot I opened" from "the slot on whatever CPU I am now".  See the
+     * comment on WC_SVR_ASSERT_* below for why this is per-CPU rather than
+     * per-task storage, and why a CPU id would not work. */
+    void *owner;
+#endif
 };
 struct wc_svr_cpu_state {
     struct wc_svr_ctx_state c[WC_SVR_NCTX];
@@ -1711,6 +1718,166 @@ module_param_cb(svr_nested_refused, &wc_svr_nested_refused_ops, NULL, 0444);
 #define WC_SVR_COUNT_REFUSE(ctx) WC_DO_NOTHING
 
 #endif /* WC_LINUXKM_SVR_COUNT_NESTED */
+
+/* ---- did the section stay on the CPU that opened it? ----------------------
+ *
+ * WHY THIS EXISTS RATHER THAN CONFIG_PROVE_LOCKING.  The pin under test is
+ * compiled only when CONFIG_PREEMPT_COUNT is unset (WC_SVR_DECIDE_PIN() below),
+ * and every kernel instrument that would watch a migration or a sleep in an
+ * atomic section turns CONFIG_PREEMPT_COUNT on, which compiles the pin out:
+ *   lib/Kconfig.debug  PROVE_LOCKING      select PREEMPT_COUNT if !ARCH_NO_PREEMPT
+ *                      DEBUG_ATOMIC_SLEEP select PREEMPT_COUNT
+ *                      DEBUG_PREEMPT      depends on PREEMPTION
+ *   kernel/Kconfig.preempt  PREEMPTION    select PREEMPT_COUNT
+ * (linux-6.6.99 :1304, :1505, :1276 and :92-94; linux-6.19.14 :1380, :122-124.)
+ * arch/arm, arch/arm64 and arch/x86 do not select ARCH_NO_PREEMPT -- only
+ * alpha, m68k, hexagon and um do -- so the `if !ARCH_NO_PREEMPT` never spares
+ * them.  Measured on 6.6.99 arm and arm64, config the only variable: asking for
+ * PROVE_LOCKING or DEBUG_ATOMIC_SLEEP yields CONFIG_PREEMPT_COUNT=y, asking for
+ * DEBUG_PREEMPT yields no DEBUG_PREEMPT at all, and the same config with none
+ * of them leaves PREEMPT_COUNT unset.  There is no lockdep verdict to be had on
+ * this code; the instrument has to be one that does not need preempt_count.
+ *
+ * WHAT IT CHECKS.  A section is opened on one CPU and closed by a second call
+ * that resolves its per-CPU state with raw_cpu_ptr(), i.e. on whatever CPU is
+ * current THEN.  If the task moved in between, the restore silently operates on
+ * a different CPU's slot and save area.  Recording an id and comparing it would
+ * not detect that -- the slot found on the new CPU holds the new CPU's id.  What
+ * distinguishes them is the OWNER: one task can only be in one place, so a slot
+ * whose owner is not `current` is not the slot this call opened.
+ *
+ * OFF IN EVERY SHIPPED BUILD, and reported through the same read-only module
+ * parameters the nested counters use.  svr_pin_force fires each comparison once
+ * so a run reporting zeros is shown to be a working detector rather than a
+ * blind one. */
+#ifdef WC_LINUXKM_SVR_ASSERT_PINNED
+
+struct wc_svr_pin_counts {
+    unsigned long sections[WC_SVR_NCTX];
+    unsigned long wrongslot[WC_SVR_NCTX];
+    unsigned long pinlost[WC_SVR_NCTX];
+};
+static DEFINE_PER_CPU(struct wc_svr_pin_counts, wc_svr_pin_counts);
+
+/* How often the PRE-90d9c532a wc_linuxkm_can_block() expression --
+ * (preempt_count() == 0) && (! irqs_disabled()) -- would have answered "you may
+ * sleep here" while a vector-register section was open on this CPU.  Each count
+ * is one window in which WC_RELAX_LONG_LOOP()'s cond_resched(), or a GFP_KERNEL
+ * allocation, could have slept inside the section and migrated the task.  It is
+ * the mechanism number behind codefreeze-evidence/02, and it exists so that
+ * number can be reproduced from a commit rather than from a working tree.
+ * On a CONFIG_PREEMPT_COUNT kernel it reads 0 by construction, because
+ * preempt_count() is nonzero inside every section -- that is the natural
+ * control, not a separate build. */
+static DEFINE_PER_CPU(unsigned long, wc_svr_block_suppressed);
+static int wc_svr_pin_force;
+module_param_named(svr_pin_force, wc_svr_pin_force, int, 0644);
+static atomic_t wc_svr_pin_force_armed = ATOMIC_INIT(1);
+
+/* Is anything actually holding this task on this CPU right now?  Deliberately
+ * NOT preempt_count(): on the builds this instrument exists for, preempt_count()
+ * is a constant zero. */
+static int wc_svr_pin_held(void)
+{
+    if (irqs_disabled())
+        return 1;
+    if (preempt_count() != 0)
+        return 1;
+#if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+    if (current->migration_disabled)
+        return 1;
+#endif
+    if (in_hardirq() || in_serving_softirq() || in_nmi())
+        return 1;
+    return 0;
+}
+
+#define WC_SVR_ASSERT_OPEN(st_, ctx_)                                         \
+    do {                                                                      \
+        (st_)->owner = (void *)current;                                       \
+        ++raw_cpu_ptr(&wc_svr_pin_counts)->sections[ctx_];                    \
+    } while (0)
+
+/* Called with the slot the RESTORE resolved, before anything is done to it. */
+#define WC_SVR_ASSERT_CLOSE(st_, ctx_)                                        \
+    do {                                                                      \
+        const void *owner_ = (st_)->owner;                                    \
+        int pinned_ = 1;                                                      \
+        if (wc_svr_pin_force &&                                               \
+            atomic_xchg(&wc_svr_pin_force_armed, 0) == 1)                     \
+        {                                                                     \
+            owner_ = NULL;                                                    \
+            pinned_ = 0;                                                      \
+        }                                                                     \
+        else {                                                                \
+            pinned_ = wc_svr_pin_held();                                      \
+        }                                                                     \
+        if (owner_ != (void *)current)                                        \
+            ++raw_cpu_ptr(&wc_svr_pin_counts)->wrongslot[ctx_];               \
+        if (! pinned_)                                                        \
+            ++raw_cpu_ptr(&wc_svr_pin_counts)->pinlost[ctx_];                 \
+        (st_)->owner = NULL;                                                  \
+    } while (0)
+
+static int wc_svr_pin_counts_fmt(char *buffer, int which)
+{
+    unsigned long t[WC_SVR_NCTX];
+    unsigned int cpu;
+    int i;
+
+    for (i = 0; i < WC_SVR_NCTX; ++i)
+        t[i] = 0;
+    for_each_possible_cpu(cpu) {
+        const struct wc_svr_pin_counts *c = &per_cpu(wc_svr_pin_counts, cpu);
+        for (i = 0; i < WC_SVR_NCTX; ++i)
+            t[i] += (which == 0) ? c->sections[i] :
+                    (which == 1) ? c->wrongslot[i] : c->pinlost[i];
+    }
+    return scnprintf(buffer, PAGE_SIZE, "task=%lu softirq=%lu hardirq=%lu\n",
+                     t[WC_SVR_CTX_TASK], t[WC_SVR_CTX_SOFTIRQ],
+                     t[WC_SVR_CTX_HARDIRQ]);
+}
+
+static int wc_svr_block_suppressed_get(char *b, const struct kernel_param *kp)
+{
+    unsigned long t = 0;
+    unsigned int cpu;
+    (void)kp;
+    for_each_possible_cpu(cpu)
+        t += per_cpu(wc_svr_block_suppressed, cpu);
+    return scnprintf(b, PAGE_SIZE, "%lu\n", t);
+}
+static const struct kernel_param_ops wc_svr_block_suppressed_ops = {
+    .get = wc_svr_block_suppressed_get
+};
+module_param_cb(svr_block_suppressed, &wc_svr_block_suppressed_ops, NULL, 0444);
+
+static int wc_svr_pin_sections_get(char *b, const struct kernel_param *kp)
+{ (void)kp; return wc_svr_pin_counts_fmt(b, 0); }
+static int wc_svr_pin_wrongslot_get(char *b, const struct kernel_param *kp)
+{ (void)kp; return wc_svr_pin_counts_fmt(b, 1); }
+static int wc_svr_pin_lost_get(char *b, const struct kernel_param *kp)
+{ (void)kp; return wc_svr_pin_counts_fmt(b, 2); }
+
+static const struct kernel_param_ops wc_svr_pin_sections_ops = {
+    .get = wc_svr_pin_sections_get
+};
+static const struct kernel_param_ops wc_svr_pin_wrongslot_ops = {
+    .get = wc_svr_pin_wrongslot_get
+};
+static const struct kernel_param_ops wc_svr_pin_lost_ops = {
+    .get = wc_svr_pin_lost_get
+};
+module_param_cb(svr_pin_sections, &wc_svr_pin_sections_ops, NULL, 0444);
+module_param_cb(svr_pin_wrongslot, &wc_svr_pin_wrongslot_ops, NULL, 0444);
+module_param_cb(svr_pin_lost, &wc_svr_pin_lost_ops, NULL, 0444);
+
+#else /* !WC_LINUXKM_SVR_ASSERT_PINNED */
+
+#define WC_SVR_ASSERT_OPEN(st_, ctx_)  WC_DO_NOTHING
+#define WC_SVR_ASSERT_CLOSE(st_, ctx_) WC_DO_NOTHING
+
+#endif /* WC_LINUXKM_SVR_ASSERT_PINNED */
 
 /* ---- taking the registers when the kernel says they are in use ------------
  *
@@ -3359,10 +3526,18 @@ static void wc_svr_nested_free(void) { }
 static int wc_linuxkm_in_svr_bracket(void)
 {
     const struct wc_svr_cpu_state *st = raw_cpu_ptr(&wc_svr_state);
+    int open = (st->c[WC_SVR_CTX_TASK].depth |
+                st->c[WC_SVR_CTX_SOFTIRQ].depth |
+                st->c[WC_SVR_CTX_HARDIRQ].depth) > 0;
 
-    return (st->c[WC_SVR_CTX_TASK].depth |
-            st->c[WC_SVR_CTX_SOFTIRQ].depth |
-            st->c[WC_SVR_CTX_HARDIRQ].depth) > 0;
+#ifdef WC_LINUXKM_SVR_ASSERT_PINNED
+    /* The two leading terms are re-tested rather than assumed: && short
+     * circuits in wc_linuxkm_can_block(), but this function has a second
+     * caller, and a counter that is only correct for one caller is a trap. */
+    if (open && (preempt_count() == 0) && (! irqs_disabled()))
+        ++(*raw_cpu_ptr(&wc_svr_block_suppressed));
+#endif
+    return open;
 }
 
 /* The counters are static per-CPU storage; the save areas are not.  Both are
@@ -3495,6 +3670,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         st->inhibited = 1;
         st->nested = 0;
         st->migrate_pinned = 0;
+        WC_SVR_ASSERT_OPEN(st, ctx);
         return 0;
     }
 
@@ -3521,6 +3697,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         st->inhibited = 0;
         st->nested = 0;
         st->migrate_pinned = 0;
+        WC_SVR_ASSERT_OPEN(st, ctx);
         /* FPU_BEGIN holds the CPU only where CONFIG_PREEMPT_COUNT is set: on
          * x86 it is kernel_fpu_begin()'s preempt_disable()
          * (linux-6.14.11 arch/x86/kernel/fpu/core.c:423, and fpregs_lock()
@@ -3557,6 +3734,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         st->inhibited = 0;
         st->nested = 1;
         st->migrate_pinned = (unsigned int)migrate_pinned;
+        WC_SVR_ASSERT_OPEN(st, ctx);
         /* The pin IS this section's pin, and is released by the restore. */
         return 0;
     }
@@ -3602,6 +3780,7 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 
     /* Clear the count before unpinning: once bh or preemption is back on, a
      * softirq or another task may read this CPU's state. */
+    WC_SVR_ASSERT_CLOSE(st, ctx);
     st->depth = 0;
     if (st->inhibited) {
         st->inhibited = 0;
