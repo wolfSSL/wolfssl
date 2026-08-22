@@ -7521,6 +7521,20 @@ AS_CASE([$FIPS_VERSION],
                test "$ENABLED_FIPS_DEV" != "yes"],
             [AC_MSG_ERROR([Can not disable SHA512-DRBG at build time in FIPS mode.  Disable it at run-time with wc_Sha512Drbg_Disable() or wc_Sha512Drbg_Disable_fips()])])
 
+# AES-CBC -- cannot be disabled at build time in FIPS mode.
+# AES-CBC is an approved algorithm the module claims, and its CAST is
+# additionally what IG 10.3.A 1.c relies on to cover AES key UNWRAP, which is
+# why FIPS_CAST_AES_KW (28) runs no KAT of its own.  With --disable-aescbc the
+# AES-CBC KAT is compiled out, the CTR/OFB arm of that DoCAST case stores a
+# terminal SUCCESS with no test having run, and wc_AesKeyUnWrap_fips() stays
+# exported and gates on that CAST -- so the inverse-cipher self-test the IG
+# requires never runs while the service still answers.  Refuse the
+# configuration rather than ship a module whose key-unwrap coverage argument is
+# false.  (Precedent: --enable-she already refuses --disable-aescbc.)
+        AS_IF([test "$ENABLED_AESCBC" = "no" &&
+               test "$ENABLED_FIPS_DEV" != "yes"],
+            [AC_MSG_ERROR([Can not disable AES-CBC at build time in FIPS mode.  AES-CBC is approved and its CAST covers AES key unwrap per IG 10.3.A 1.c.])])
+
 # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],
             [AC_MSG_WARN([Forcing off oldtls for FIPS ${FIPS_VERSION}.])
