@@ -6126,10 +6126,26 @@ typedef struct MsgsReceived {
 } MsgsReceived;
 
 
+/* configure and CMake refuse this; a user_settings.h build reaches neither
+ * and would fail with "no member named hashSha512" instead. */
+#if defined(WOLFSSL_TLS13_SHA512) && !defined(WOLFSSL_SHA512)
+    #error "WOLFSSL_TLS13_SHA512 requires WOLFSSL_SHA512"
+#endif
+
+/* Hashed for the TLS 1.2 signature algorithms, and kept for TLS 1.3 when
+ * WOLFSSL_TLS13_SHA512 allows SHA-512 as its handshake hash. No suite selects
+ * SHA-512, so TLS 1.3 reaches it only for the HRR cookie HMAC. */
+#if defined(WOLFSSL_SHA512) && (!defined(WOLFSSL_NO_TLS12) || \
+                                defined(WOLFSSL_TLS13_SHA512))
+    #define WOLFSSL_HS_HASH_SHA512
+#endif
+
 /* Handshake hashes */
 typedef struct HS_Hashes {
+#ifndef WOLFSSL_NO_TLS12
     Hashes          verifyHashes;
     Hashes          certHashes;         /* for cert verify */
+#endif
 #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                           defined(WOLFSSL_ALLOW_TLS_SHA1))
     wc_Sha          hashSha;            /* sha hash of handshake msgs */
@@ -6143,7 +6159,7 @@ typedef struct HS_Hashes {
 #ifdef WOLFSSL_SHA384
     wc_Sha384       hashSha384;         /* sha384 hash of handshake msgs */
 #endif
-#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_HS_HASH_SHA512
     wc_Sha512       hashSha512;         /* sha512 hash of handshake msgs */
 #endif
 #ifdef WOLFSSL_SM3
