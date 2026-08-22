@@ -760,9 +760,10 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
  * @param [in]      serverRandom     Server random data (RAN_LEN bytes).
  * @param [in]      suite            Cipher suite bytes (2).
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments and a
- *          failure to allocate the pre-master secret. The specific code is
- *          recorded in ssl->error and can be read with wolfSSL_get_error().
+ * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments, a
+ *          secret longer than MAX_PREMASTER_SZ, and handshake arrays that
+ *          have already been released. The specific code is recorded in
+ *          ssl->error and can be read with wolfSSL_get_error().
  */
 int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
                        const byte* preMasterSecret, word32 preMasterSz,
@@ -774,7 +775,7 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
     WOLFSSL_ENTER("wolfSSL_set_secret");
 
     if (ssl == NULL || preMasterSecret == NULL ||
-        preMasterSz == 0 || preMasterSz > ENCRYPT_LEN ||
+        preMasterSz == 0 || preMasterSz > MAX_PREMASTER_SZ ||
         clientRandom == NULL || serverRandom == NULL || suite == NULL) {
 
         ret = BAD_FUNC_ARG;
@@ -790,7 +791,7 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
     if (ret == 0) {
         XMEMCPY(ssl->arrays->preMasterSecret, preMasterSecret, preMasterSz);
         XMEMSET(ssl->arrays->preMasterSecret + preMasterSz, 0,
-            ENCRYPT_LEN - preMasterSz);
+            MAX_PREMASTER_SZ - preMasterSz);
         ssl->arrays->preMasterSz = preMasterSz;
         XMEMCPY(ssl->arrays->clientRandom, clientRandom, RAN_LEN);
         XMEMCPY(ssl->arrays->serverRandom, serverRandom, RAN_LEN);
@@ -802,6 +803,14 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
 
     if (ret == 0)
         ret = MakeTlsMasterSecret(ssl);
+
+    /* MakeTlsMasterSecret() does not clean it and the buffer now lives as
+     * long as the object. This is the multicast entry point, so what was
+     * copied in is a long-lived group secret. */
+    if (ssl != NULL && ssl->arrays != NULL) {
+        ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
+        ssl->arrays->preMasterSz = 0;
+    }
 
     if (ret == 0) {
         ssl->keys.encryptionOn = 1;
