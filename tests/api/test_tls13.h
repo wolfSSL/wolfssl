@@ -116,6 +116,16 @@ int test_tls13_AEAD_limit_KU_aes256_gcm_sha384(void);
 int test_tls13_AEAD_limit_KU_aes128_ccm_sha256(void);
 int test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256(void);
 int test_tls13_KeyUpdate_sender_limit(void);
+int test_tls13_KeyUpdate_limit_ignores_update_requested(void);
+int test_tls13_KeyUpdate_limit_writedup(void);
+int test_tls13_extension_trailing_data_alert(void);
+int test_tls13_early_data_AEAD_limit(void);
+int test_tls13_early_data_AEAD_limit_partial(void);
+int test_tls13_early_data_AEAD_limit_exact(void);
+int test_tls13_user_canceled_fatal_level(void);
+int test_tls13_user_canceled_keeps_session(void);
+int test_tls13_user_canceled_encrypted(void);
+int test_tls12_fatal_alert_closes_and_evicts(void);
 int test_tls13_pqc_hybrid_async_server(void);
 int test_tls13_pha_status_request(void);
 
@@ -212,6 +222,16 @@ int test_tls13_pha_status_request(void);
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_AEAD_limit_KU_aes128_ccm_8_sha256), \
     TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_sender_limit), \
+    TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_limit_ignores_update_requested), \
+    TEST_DECL_GROUP("tls13", test_tls13_KeyUpdate_limit_writedup), \
+    TEST_DECL_GROUP("tls13", test_tls13_extension_trailing_data_alert), \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_AEAD_limit), \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_AEAD_limit_partial), \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data_AEAD_limit_exact), \
+    TEST_DECL_GROUP("tls13", test_tls13_user_canceled_fatal_level), \
+    TEST_DECL_GROUP("tls13", test_tls13_user_canceled_keeps_session), \
+    TEST_DECL_GROUP("tls13", test_tls13_user_canceled_encrypted), \
+    TEST_DECL_GROUP("tls13", test_tls12_fatal_alert_closes_and_evicts), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
     TEST_DECL_GROUP("tls13", test_tls13_pha_status_request)
 

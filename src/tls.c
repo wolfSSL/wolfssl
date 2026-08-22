@@ -73,6 +73,8 @@
  * WOLFSSL_OLD_PRIME_CHECK:  Use old DH prime checking method      default: off
  * WOLFSSL_STATIC_DH:        Enable static DH cipher suites       default: off
  * WOLFSSL_STATIC_EPHEMERAL: Enable static ephemeral key loading   default: off
+ *                           Reuses a key share across connections, which
+ *                           RFC 9846 4.3.8 forbids. Inspection/debug only.
  *
  * Post-Quantum:
  * WOLFSSL_HAVE_MLKEM:       Enable ML-KEM (Kyber) support         default: off

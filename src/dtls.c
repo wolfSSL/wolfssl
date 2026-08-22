@@ -88,6 +88,16 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->keys.dtls_sequence_number_hi = 0;
     ssl->keys.dtls_sequence_number_lo = 0;
 
+    /* Forget any alert this object sent for the ClientHello being abandoned.
+     * DoClientHello() can send a fatal alert on the stateless path and then
+     * swallow the error (DtlsIgnoreError) so the object stays up waiting for
+     * the next ClientHello. A leftover alert_fatal in the history makes the
+     * "already sent a more specific fatal alert" guards suppress every later
+     * alert on this object, so a single malformed ClientHello from a spoofed
+     * address would mute alerts for every peer that follows. */
+    ssl->alert_history.last_tx.code  = -1;
+    ssl->alert_history.last_tx.level = -1;
+
     /* Reset states */
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;

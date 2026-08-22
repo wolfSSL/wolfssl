@@ -9623,6 +9623,793 @@ int test_tls13_KeyUpdate_sender_limit(void)
     return EXPECT_RESULT();
 }
 
+/* The other user_canceled tests inject a plaintext record while the client has
+ * only sent its ClientHello, so DoProcessAlertRecord() never sees the alert
+ * arrive over the encrypted channel with keys.decryptedCur set. That is the
+ * case RFC 9846 Section 6.1 is actually about: a peer cancels after the
+ * handshake, and the receiver "SHOULD continue to read data from the peer
+ * until a 'close_notify' is received".
+ *
+ * Drive it end to end: complete the handshake, have the server send
+ * user_canceled over the established connection, and confirm the client reads
+ * past it and the connection still carries data in both directions.
+ *
+ * wolfSSL_SendUserCanceled() emits the alert at warning level, which is what
+ * a conforming peer sends; no public API produces a fatal-level
+ * user_canceled, so the level-independence of the exemption is covered by
+ * test_tls13_user_canceled_fatal_level instead. */
+int test_tls13_user_canceled_encrypted(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "survives-user-canceled";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Application data first, then the cancel. On the wire the client now has
+     * three encrypted records queued: data, user_canceled, close_notify. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    /* Return value is deliberately not asserted: under
+     * WOLFSSL_ERROR_CODE_OPENSSL a shutdown still awaiting the peer's
+     * close_notify reports 0, which is also WOLFSSL_FAILURE. The reads
+     * below are the real proof that both alerts went out. */
+    (void)wolfSSL_SendUserCanceled(ssl_s);
+
+    /* The data behind the alert is delivered normally. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* Records are being decrypted, so the alert really did arrive over
+         * the encrypted channel rather than as a plaintext record. */
+        ExpectIntEQ(ssl_c->keys.decryptedCur, 1);
+        ExpectIntEQ(ssl_c->options.isClosed, 0);
+    }
+
+    /* The next read walks past user_canceled and stops at close_notify - the
+     * "keep reading until close_notify" behaviour, rather than failing on the
+     * cancel itself. */
+    ExpectIntLE(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_ZERO_RETURN);
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* Proof it got past the cancel: the last alert seen is the one
+         * behind it. */
+        ExpectIntEQ(ssl_c->alert_history.last_rx.code, close_notify);
+        ExpectIntEQ(ssl_c->options.isClosed, 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Companion to test_tls13_user_canceled_fatal_level, covering the second half
+ * of the DoAlert() rework: the session-invalidation exemption.
+ *
+ * That test injects the alert pre-handshake on a fresh connection, where
+ * InvalidateSessionOnFatalAlert() returns early ("neither handShakeDone nor
+ * resuming") before the reworked TLS 1.3 branch is reached - so it proves the
+ * isClosed half only. Here the alert lands on a connection that is resuming,
+ * which gets past that early return, and the cached session must survive.
+ *
+ * The probe is wolfSSL_SSL_CTX_remove_session()'s return value: 1 when it
+ * found the entry still cached, 0 when something already evicted it. */
+int test_tls13_user_canceled_keeps_session(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    static const unsigned char fatalUserCanceled[] =
+        { 0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x5a };
+    char buf[64];
+
+    /* Full handshake so the client caches a resumable session. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Pump the NewSessionTicket through so the session is cached. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Second connection on the same contexts, resuming. test_memio_setup
+     * keeps a non-NULL context, so the cache entry stays reachable. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Required for the invalidation path to be reached at all. */
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.resuming, 1);
+    }
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+        (const char *)fatalUserCanceled, sizeof(fatalUserCanceled)), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* Still cached. Without the TLS 1.3 user_canceled exemption the fatal
+     * level would have evicted it and this would return 0. */
+    ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(ctx_c, sess), 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The DoAlert() rework split isClosed and session invalidation into explicit
+ * TLS 1.3 and pre-1.3 branches. The other new tests only drive the TLS 1.3
+ * side, so a regression that stopped a TLS 1.2 fatal alert from closing the
+ * connection or evicting the session would go unnoticed.
+ *
+ * Over TLS 1.2 the AlertLevel byte does carry meaning, so the outcome is the
+ * opposite of the TLS 1.3 case: the connection closes and the session is
+ * evicted.
+ *
+ * wolfSSL_SSL_CTX_remove_session() returns 0 both for "the alert evicted it"
+ * and for "it was never cached", so asserting 0 on its own would pass
+ * vacuously. The flow therefore runs twice on independent contexts: pass 0
+ * injects nothing and must find the session still cached (1), pass 1 injects
+ * the alert and must find it gone (0). The control pass is what makes the 0
+ * meaningful. */
+int test_tls12_fatal_alert_closes_and_evicts(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SESSION_CACHE)
+    /* Same alert as the TLS 1.3 test: fatal level, user_canceled(90). */
+    static const unsigned char fatalUserCanceled[] =
+        { 0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x5a };
+    int pass;
+
+    for (pass = 0; pass < 2 && !EXPECT_FAIL(); pass++) {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        WOLFSSL_SESSION *sess = NULL;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+        wolfSSL_free(ssl_c); ssl_c = NULL;
+        wolfSSL_free(ssl_s); ssl_s = NULL;
+
+        /* Resume, so options.resuming is set: InvalidateSessionOnFatalAlert()
+         * returns early on a connection that is neither done nor resuming. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        if (EXPECT_SUCCESS() && ssl_c != NULL) {
+            ExpectIntEQ(ssl_c->options.resuming, 1);
+        }
+
+        if (pass == 1) {
+            ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+                (const char *)fatalUserCanceled,
+                sizeof(fatalUserCanceled)), 0);
+            /* In TLS 1.2 the fatal level is authoritative: connection dies. */
+            ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+            ExpectIntNE(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            if (EXPECT_SUCCESS() && ssl_c != NULL) {
+                ExpectIntEQ(ssl_c->options.isClosed, 1);
+            }
+        }
+
+        /* Pass 0 proves the session is cached at this point in the flow;
+         * pass 1 proves the alert removed it. */
+        ExpectIntEQ(wolfSSL_SSL_CTX_remove_session(ctx_c, sess),
+            (pass == 0) ? 1 : 0);
+
+        wolfSSL_SESSION_free(sess);
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 4.7.3, write-duplicate path. The read side of a write dup
+ * cannot send, so a peer KeyUpdate(update_requested) is delegated to the write
+ * side via dupWrite->keyUpdateRespond and sent from
+ * wolfssl_write_dup_do_tls13_work(). That route bypassed the cap check in
+ * DoTls13KeyUpdate, so at the ceiling Tls13UpdateKeys() still returned
+ * BAD_STATE_E and the next wolfSSL_write() failed the connection - the exact
+ * outcome the "ignore the update_requested flag" rule forbids.
+ *
+ * The cap is checked on the write side because the two sides are separate
+ * WOLFSSL objects with separate keys; only the write side sends KeyUpdates, so
+ * only its counter is meaningful. */
+int test_tls13_KeyUpdate_limit_writedup(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_WRITE_DUP) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL, *ssl_w = NULL;
+    const char msg[] = "after-ignored-delegated-request";
+    w64wrapper ceiling;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* ssl_c becomes read-only; ssl_w is the write side. */
+    ExpectNotNull(ssl_w = wolfSSL_write_dup(ssl_c));
+
+    ceiling = w64From32(TLS13_KEY_UPDATE_MAX_HI32, TLS13_KEY_UPDATE_MAX_LO32);
+
+    if (EXPECT_SUCCESS() && ssl_w != NULL) {
+        /* Write side has exhausted its key update budget, and the read side
+         * has delegated a response to it. */
+        ssl_w->keys.keyUpdateCount = ceiling;
+        ssl_w->dupWrite->keyUpdateRespond = 1;
+    }
+
+    /* The write settles the delegated work first. It must drop the response
+     * rather than fail. Before the fix this returned WOLFSSL_FATAL_ERROR and
+     * left BAD_STATE_E on the write-side object. */
+    ExpectIntEQ(wolfSSL_write(ssl_w, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+
+    if (EXPECT_SUCCESS() && ssl_w != NULL) {
+        ExpectTrue(w64Equal(ssl_w->keys.keyUpdateCount, ceiling));
+        ExpectIntEQ(ssl_w->keys.keyUpdateRespond, 0);
+        ExpectIntEQ(ssl_w->dupWrite->keyUpdateRespond, 0);
+    }
+
+    /* The application data still arrives, so the connection survived. */
+    if (EXPECT_SUCCESS()) {
+        char buf[sizeof(msg)];
+        XMEMSET(buf, 0, sizeof(buf));
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+                (int)sizeof(msg));
+        ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+    }
+
+    wolfSSL_free(ssl_w);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The AEAD limit check runs at the top of every SendData() record loop
+ * iteration, including the one after the last record. When the final record
+ * lands exactly on the limit the check fires with sent == sz - a complete
+ * write. It must not leave TOO_MUCH_EARLY_DATA behind: wolfSSL_get_error()
+ * would call a fully successful write a failure, and ReceiveData() refuses to
+ * read on an object with a stored error.
+ *
+ * Park the sequence number one below the limit and write a single record's
+ * worth, so the write completes and simultaneously exhausts the budget. */
+int test_tls13_early_data_AEAD_limit_exact(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    const char earlyMsg[] = "exactly-at-the-limit";
+    char buf[64];
+    int written = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    /* Drive the ClientHello out and leave early data in flight. */
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c, "x", 1,
+            &written), 1);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* One below the AES-GCM limit of 2^24.5, so the single record below
+         * both completes the write and reaches the limit. */
+        ssl_c->keys.sequence_number_hi = 0;
+        ssl_c->keys.sequence_number_lo = 0x016A09E6 - 1;
+    }
+
+    /* Complete write: full count, and no error left on the object. */
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+            &written), (int)sizeof(earlyMsg));
+    ExpectIntEQ(written, (int)sizeof(earlyMsg));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), 0);
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->error, 0);
+    }
+
+    /* The budget really is exhausted, so the next attempt fails cleanly. */
+    written = 0;
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+            &written), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(TOO_MUCH_EARLY_DATA));
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Companion to test_tls13_early_data_AEAD_limit: crossing the limit part way
+ * through a multi-record early data write must report the records that did go
+ * out, not discard them.
+ *
+ * CheckTLS13AEADSendLimit() runs at the top of every SendData() record loop
+ * iteration, and a non-zero result used to return WOLFSSL_FATAL_ERROR
+ * immediately, throwing away the local sent counter. The caller was then told
+ * (by the documented behaviour) to resend the remainder over the completed
+ * handshake, but *outSz was 0 so it could not work out what the remainder
+ * was. SendData() now breaks out and returns the short count instead.
+ *
+ * Park the sequence number one below the limit and write more than one
+ * record: the first goes out, the second trips the limit. */
+int test_tls13_early_data_AEAD_limit_partial(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    /* Comfortably more than one record, so the write must split. */
+    static byte earlyMsg[20000];
+    char buf[64];
+    int written = 0;
+    int first = 0;
+
+    XMEMSET(earlyMsg, 'E', sizeof(earlyMsg));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, sizeof(earlyMsg) * 2), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, sizeof(earlyMsg) * 2), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    /* Drive the ClientHello out and leave early data in flight. */
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c, "x", 1,
+            &written), 1);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* One below the AES-GCM limit of 2^24.5: the next record is fine, the
+         * one after it trips the check. */
+        ssl_c->keys.sequence_number_hi = 0;
+        ssl_c->keys.sequence_number_lo = 0x016A09E6 - 1;
+    }
+
+    /* Short write rather than a hard failure: some records made it out. */
+    first = wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+            &written);
+    ExpectIntGT(first, 0);
+    ExpectIntLT(first, (int)sizeof(earlyMsg));
+    ExpectIntEQ(written, first);
+    /* A short write here is not the partialWrite contract, so the reason is
+     * left on the object for the caller to find. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0),
+            WC_NO_ERR_TRACE(TOO_MUCH_EARLY_DATA));
+
+    /* Nothing more can go out: the retry fails, and reports why. */
+    written = 0;
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+            &written), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(TOO_MUCH_EARLY_DATA));
+    ExpectIntEQ(written, 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 4.3, text with no counterpart in RFC 8446: "Unless
+ * otherwise specified, trailing data is forbidden. ... When processing an
+ * extension, receivers MUST abort the handshake with a 'decode_error' alert if
+ * there is data left over after parsing the structure."
+ *
+ * The extension parsers do detect malformed structures, but a third of them
+ * report it as the wolfCrypt BUFFER_E rather than BUFFER_ERROR, and only
+ * BUFFER_ERROR was mapped to an alert. TranslateErrorToAlert returned
+ * invalid_alert for BUFFER_E, and every caller skips SendAlert when the
+ * translation is invalid_alert - so the handshake aborted with nothing on the
+ * wire and the peer saw only a dropped connection.
+ *
+ * Inject a ServerHello whose pre_shared_key body is 3 bytes rather than the
+ * required 2. TLSX_PreSharedKey_Parse rejects that with BUFFER_E before it
+ * looks at whether the client offered the extension, so this reaches the
+ * mapping. The client must send decode_error. */
+int test_tls13_extension_trailing_data_alert(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && \
+    (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    /* Handshake record holding a ServerHello with supported_versions (TLS 1.3)
+     * and a pre_shared_key whose body is one byte too long. */
+    static const unsigned char badPskSh[] = {
+        0x16, 0x03, 0x03, 0x00, 0x39,       /* record: handshake, len 57     */
+        0x02, 0x00, 0x00, 0x35,             /* server_hello, len 53          */
+        0x03, 0x03,                         /* legacy_version                */
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,   /* random[32]      */
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x00,                               /* legacy_session_id, empty      */
+        0x13, 0x01,                         /* TLS_AES_128_GCM_SHA256        */
+        0x00,                               /* legacy_compression_method     */
+        0x00, 0x0d,                         /* extensions, 13 bytes          */
+        0x00, 0x2b, 0x00, 0x02, 0x03, 0x04, /* supported_versions = TLS 1.3  */
+        0x00, 0x29, 0x00, 0x03,             /* pre_shared_key, 3-byte body   */
+        0xaa, 0xbb, 0xcc                    /* ...must be exactly 2          */
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfTLSv1_3_client_method, NULL), 0);
+
+    /* Client sends ClientHello, then waits for the server response. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+        (const char *)badPskSh, sizeof(badPskSh)), 0);
+
+    /* The handshake must fail... */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntNE(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* ...and it must say so on the wire, with decode_error. Before the fix the
+     * BUFFER_E from the parser mapped to invalid_alert and nothing was sent. */
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_tx.code, decode_error);
+    ExpectIntEQ(h.last_tx.level, alert_fatal);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 4.7.3: "If a sending implementation receives a KeyUpdate
+ * with request_update set to 'update_requested', it MUST NOT send its own
+ * KeyUpdate if that would cause it to exceed these limits and SHOULD instead
+ * ignore the 'update_requested' flag."
+ *
+ * Park the client's key update count on the 2^48-1 ceiling, have the server
+ * request an update, and confirm the client ignores the request and keeps the
+ * connection usable rather than failing. Before the fix DoTls13KeyUpdate
+ * called SendTls13KeyUpdate unconditionally, which refuses at the ceiling with
+ * BAD_STATE_E and tore the connection down.
+ *
+ * An application-initiated wolfSSL_update_keys() at the ceiling must still
+ * report BAD_STATE_E - the "ignore" rule is specific to responding to a peer's
+ * update_requested. That case is covered by
+ * test_tls13_KeyUpdate_sender_limit above. */
+int test_tls13_KeyUpdate_limit_ignores_update_requested(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "after-ignored-request";
+    char buf[sizeof(msg)];
+    w64wrapper ceiling;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ceiling = w64From32(TLS13_KEY_UPDATE_MAX_HI32, TLS13_KEY_UPDATE_MAX_LO32);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* Client has exhausted its key update budget. */
+        ssl_c->keys.keyUpdateCount = ceiling;
+    }
+
+    /* Server asks the client to update. A fresh KeyUpdate from the server has
+     * request_update set, since it has neither an outstanding request of its
+     * own nor a pending response to make. */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+
+    /* Client processes the KeyUpdate. It must not error out. */
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntLT(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* The request was ignored, not answered: no KeyUpdate was sent, so the
+         * count is untouched and no response is left pending. */
+        ExpectTrue(w64Equal(ssl_c->keys.keyUpdateCount, ceiling));
+        ExpectIntEQ(ssl_c->keys.keyUpdateRespond, 0);
+        ExpectIntEQ(ssl_c->options.isClosed, 0);
+    }
+
+    /* The connection still works in both directions. The server reads with the
+     * keys it already had, since the client never rekeyed its send side. */
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 5.5: "it is not possible to perform a KeyUpdate for early
+ * data; therefore, implementations MUST NOT exceed the limits when sending
+ * early data."
+ *
+ * Resume with 0-RTT, park the client's encrypt sequence number on the AES-GCM
+ * limit while early data is still in flight, and write again. The write must
+ * fail. Before the fix CheckTLS13AEADSendLimit called Tls13UpdateKeys here
+ * regardless, emitting a KeyUpdate in the CLIENT_HELLO_COMPLETE state - before
+ * the handshake had finished, where the peer must reject it. */
+int test_tls13_early_data_AEAD_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(BUILD_TLS_AES_128_GCM_SHA256)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    const char earlyMsg[] = "early-data-at-limit";
+    char buf[64];
+    int written = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+
+    /* Step 1: full handshake to obtain a ticket that permits early data. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Pump the NewSessionTicket through to the client. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Step 2: resume with early data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    /* The first early-data write also drives the ClientHello out, leaving the
+     * client in CLIENT_HELLO_COMPLETE with early data still in flight. */
+    ExpectIntEQ(test_tls13_early_data_write_until_write_ok(ssl_c, earlyMsg,
+            (int)sizeof(earlyMsg), &written), (int)sizeof(earlyMsg));
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        /* Still mid-early-data, so no KeyUpdate is possible from here. */
+        ExpectIntNE(ssl_c->earlyData, no_early_data);
+        ExpectIntNE(ssl_c->earlyData, done_early_data);
+        ExpectIntEQ(ssl_c->specs.bulk_cipher_algorithm, wolfssl_aes_gcm);
+
+        /* Park the encrypt counter on the AES-GCM limit of 2^24.5. */
+        ssl_c->keys.sequence_number_hi = 0;
+        ssl_c->keys.sequence_number_lo = 0x016A09E6;
+    }
+
+    /* Limit reached with no way to rekey: the write must fail rather than
+     * send a KeyUpdate. */
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg,
+            (int)sizeof(earlyMsg), &written), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(TOO_MUCH_EARLY_DATA));
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 9846 Section 6.1: "user_canceled" only "generally" carries
+ * AlertLevel=warning, and "Receiving implementations SHOULD continue to read
+ * data from the peer until a 'close_notify' is received". The level byte is
+ * meaningless in TLS 1.3, so an alert sent at fatal level must not tear the
+ * connection down.
+ *
+ * The exemption is gated on a *negotiated* TLS 1.3 connection, not on
+ * ssl->version, which still holds the highest version this side offered until
+ * the peer's choice is known. Both sides of that gate are covered here:
+ *
+ *   - before negotiation the alert is acted on, so a pre-1.3 peer's fatal
+ *     alert is not silently swallowed and the caller is not left waiting;
+ *   - once TLS 1.3 is settled the alert is ignored whatever level was used.
+ *
+ * Before the DoAlert() rework the second case failed: both DoAlert() and
+ * DoProcessAlertRecord() branched on the AlertLevel byte ahead of the TLS 1.3
+ * exemptions, so a fatal-level user_canceled closed the connection. */
+int test_tls13_user_canceled_fatal_level(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    /* TLS record: content_type=alert(0x15), version=TLS1.2(0x0303), len=2,
+     *             level=fatal(0x02), code=user_canceled(0x5a=90) */
+    static const unsigned char fatalUserCanceled[] =
+        { 0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x5a };
+    int negotiated;
+
+    for (negotiated = 0; negotiated < 2 && !EXPECT_FAIL(); negotiated++) {
+        WOLFSSL_CTX *ctx_c = NULL;
+        WOLFSSL *ssl_c = NULL;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_ALERT_HISTORY h;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+            wolfTLSv1_3_client_method, NULL), 0);
+
+        /* Client sends ClientHello, then waits for the server response. */
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        if (EXPECT_SUCCESS() && ssl_c != NULL) {
+            /* Nothing is negotiated yet, whatever version we offered. */
+            ExpectIntEQ(ssl_c->options.tls1_3, 0);
+            if (negotiated) {
+                /* Stand in for a settled TLS 1.3 connection. Read-side keys
+                 * are not installed yet, so the plaintext alert is still
+                 * accepted and the exemption is what decides the outcome. */
+                ssl_c->options.tls1_3 = 1;
+            }
+        }
+
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char *)fatalUserCanceled, sizeof(fatalUserCanceled)), 0);
+        ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+
+        if (negotiated) {
+            /* Ignored: the client keeps waiting for the server. */
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            if (EXPECT_SUCCESS() && ssl_c != NULL) {
+                ExpectIntEQ(ssl_c->options.isClosed, 0);
+            }
+        }
+        else {
+            /* Acted on: the version is unknown, so a fatal alert is fatal. */
+            ExpectIntNE(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            if (EXPECT_SUCCESS() && ssl_c != NULL) {
+                ExpectIntEQ(ssl_c->options.isClosed, 1);
+            }
+        }
+
+        /* Recorded either way. RFC 9846 6.1 permits a receiver to "log or
+         * otherwise record" the alert. */
+        ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+        ExpectIntEQ(h.last_rx.code, user_canceled);
+        ExpectIntEQ(h.last_rx.level, alert_fatal);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
