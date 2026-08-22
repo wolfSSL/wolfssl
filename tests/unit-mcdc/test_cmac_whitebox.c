@@ -197,7 +197,7 @@ int main(void)
     wb_cross_combos();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
-     * campaign treats a nonzero exit as a failed variant and discards its
+     * suite treats a nonzero exit as a failed variant and discards its
      * coverage. */
     return 0;
 #endif

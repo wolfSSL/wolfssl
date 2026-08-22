@@ -50,11 +50,11 @@
  *
  * SCOPE NOTE: wc_mlkem_poly.c's uncovered decisions are NOT addressed here.
  * Its only heap-allocation sites are all guarded by WOLFSSL_SMALL_STACK (which
- * no ML-KEM campaign variant defines), and its remaining `(ret==0) && ...` loop
+ * no ML-KEM suite variant defines), and its remaining `(ret==0) && ...` loop
  * guards go non-zero only via a mid-loop PRF/XOF failure, not via an allocation
  * -- neither is reachable through a pass-through allocation fault. The bulk of
  * wc_mlkem_poly.c's residuals are AVX2 cpuid-dispatch and rejection-sampling
- * data-path decisions (a separate, input-driven effort). See the campaign
+ * data-path decisions (a separate, input-driven effort). See the harness
  * report for the full accounting.
  *
  * It #includes wc_mlkem.c directly (like the other unit-mcdc white-boxes) to
@@ -70,7 +70,7 @@
  *   ./test_mlkem_fault_whitebox            full fault-index sweep (default)
  *   ./test_mlkem_fault_whitebox baseline   unarmed valid ops only (delta base)
  *   ./test_mlkem_fault_whitebox probe      print per-entry-point alloc counts
- * (The campaign run_whitebox harness runs the binary with NO arguments, so the
+ * (The white-box harness runs the binary with NO arguments, so the
  * default action is the full sweep.)
  */
 

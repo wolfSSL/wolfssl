@@ -30,11 +30,11 @@
  *   else                            poly1305_*_avx(...);
  *
  * Each of these is a single-condition branch (not a compound MC/DC decision:
- * poly1305.c's own db/modules.json-measured MC/DC total is unaffected by
+ * poly1305.c's own the module registry-measured MC/DC total is unaffected by
  * which of these paths a given build takes), so this white-box does not
- * change the campaign's covered/total counts. It is kept anyway, matching
+ * change the covered/total counts. It is kept anyway, matching
  * the intel-dispatch technique used by the aes/sha3 white-boxes and this
- * campaign's chacha sibling, for FEATURE/branch-coverage evidence that the
+ * suite's chacha sibling, for FEATURE/branch-coverage evidence that the
  * AVX2-false (AVX1-only) side is reachable and correct: on an AVX2-capable
  * CI host, cpuid_get_flags_ex()'s real detection always takes the AVX2
  * branch through the public API, so tests/api alone never demonstrates the
@@ -45,7 +45,7 @@
  * WC_CPUID_INITIALIZER. Forcing intel_flags to a real (non-initializer)
  * value before calling wc_Poly1305SetKey() makes it trust our forced value
  * instead of re-detecting. Crash-safety: this host has real AVX1 hardware
- * (see db/modules.json poly1305 notes), so forcing intel_flags to "AVX1
+ * (see the module registry poly1305 notes), so forcing intel_flags to "AVX1
  * only" and letting the dispatch call the real poly1305_*_avx asm is always
  * safe: we never claim a capability the CPU lacks, only hide one it has.
  *
@@ -402,7 +402,7 @@ int main(void)
     wb_poly1305_avx512_dispatch();
     wb_poly1305_setkey_guard();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the campaign
+    /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
     return 0;
 #endif

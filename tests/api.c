@@ -268,6 +268,9 @@
 #include <tests/api/test_evp.h>
 #include <tests/api/test_tls_ext.h>
 #include <tests/api/test_tls.h>
+#include <tests/api/test_tls_bounds.h>
+#include <tests/api/test_tls_msgtype.h>
+#include <tests/api/test_tls_parse.h>
 #include <tests/api/test_session.h>
 #include <tests/api/test_x509.h>
 #include <tests/api/test_asn.h>
@@ -309,6 +312,8 @@
 #include <tests/api/test_evp_pkey.h>
 #include <tests/api/test_certman.h>
 #include <tests/api/test_tls13.h>
+#include <tests/api/test_tls13_bounds.h>
+#include <tests/api/test_tls13_features.h>
 #if !defined(NO_CERTS) && defined(WOLFSSL_ASN_TEMPLATE) && defined(HAVE_ECC)
 #include <tests/api/test_x500_unique_id_certs.h>
 #endif
@@ -40276,6 +40281,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_options),
 
     TEST_TLS13_DECLS,
+    TEST_TLS13_BOUNDS_DECLS,
+    TEST_TLS13_FEATURES_DECLS,
 
     TEST_DECL(test_wolfSSL_tmp_dh),
     TEST_DECL(test_wolfSSL_tmp_dh_regression),
@@ -40678,6 +40685,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_responder),
     TEST_DECL(test_wolfIO_DecodeUrl_crlf_reject),
     TEST_TLS_DECLS,
+    TEST_TLS_BOUNDS_DECLS,
+    TEST_TLS_MSGTYPE_DECLS,
+    TEST_TLS_PARSE_DECLS,
     TEST_SESSION_DECLS,
     TEST_DECL(test_wc_DhSetNamedKey),
     TEST_DECL(test_DhAgree_rejects_p_minus_1),

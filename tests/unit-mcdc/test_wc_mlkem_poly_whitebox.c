@@ -37,12 +37,12 @@
  *   - mlkem_ntt / mlkem_invntt / mlkem_csubq_c: exercised per-variant so each of
  *     the four code-size arms (default / WOLFSSL_MLKEM_SMALL /
  *     WOLFSSL_MLKEM_NO_LARGE_CODE / WOLFSSL_MLKEM_NTT_UNROLL) gets its reduction
- *     and butterfly loops driven when the campaign rebuilds this TU per arm.
+ *     and butterfly loops driven when the harness rebuilds this TU per arm.
  *
  * This TU #includes wc_mlkem_poly.c so those static helpers are in scope, then calls
  * each with both halves of every targeted pair on tiny fixed-size buffers.
  * Memory-safe by construction (all buffers are MLKEM_N sword16 / bounded byte
- * arrays); prints skips and returns 0 on any unexpected result so the campaign
+ * arrays); prints skips and returns 0 on any unexpected result so the harness
  * keeps the variant.
  */
 
@@ -355,7 +355,7 @@ static void wb_transform(void)
  *     module's intel-dispatch skip).
  *   - The USE_INTEL_SPEEDUP AVX2 rejection-sampling while-loops: USE_INTEL_SPEEDUP
  *     is OFF by default and only compiled with the separate `--enable-intelasm`
- *     axis, which this campaign build does not use.
+ *     axis, which this suite build does not use.
  *   - `(ret == 0) && ...` chain guards in mlkem_gen_matrix_c/_i and
  *     mlkem_get_noise_c: ret can only go non-zero via a mid-chain PRF/hash
  *     failure, which is not selectable without corrupting library state.
@@ -526,7 +526,7 @@ static const int wb_kem_types[] = {
 /* One key generation only: the matrix generators and their rejection-sampling
  * loops all hang off wc_MlKemKey_MakeKey(), and keeping the per-pass work to a
  * single keygen is what lets the lane sweep below afford ~100 passes inside the
- * campaign's wall-clock budget. */
+ * suite's wall-clock budget. */
 static void wb_run_keygen(WC_RNG* rng, int type)
 {
     MlKemKey key;
@@ -881,7 +881,7 @@ int main(void)
     wb_rej_uniform();
     wb_transform();
     if (wb_fail) {
-        /* Do not fail the campaign variant on a behavioural surprise; the
+        /* Do not fail the harness variant on a behavioural surprise; the
          * coverage is still valid. Report and exit 0. */
         printf("  [wb] note: one or more sanity checks were unexpected\n");
     }

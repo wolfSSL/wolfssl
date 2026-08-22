@@ -277,7 +277,7 @@ int test_wc_Poly1305_PadEncodeSizes(void)
      * of the (paddingLen > 0) decision. (paddingLen < WC_POLY1305_PAD_SZ is
      * structurally always true whenever paddingLen > 0 is true -- the mod-16
      * formula bounds paddingLen to 0..15 -- so that operand's FALSE side is
-     * an unsatisfiable residual; see campaign RESIDUALS notes.) */
+     * an unsatisfiable residual; an argued residual.) */
     ExpectIntEQ(wc_Poly1305SetKey(&ctx, key, sizeof(key)), 0);
     ExpectIntEQ(wc_Poly1305_Pad(&ctx, 16), 0);
 

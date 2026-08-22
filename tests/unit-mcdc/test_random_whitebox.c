@@ -22,7 +22,7 @@
 /* White-box supplement for wolfcrypt/src/random.c.
  *
  * Two Hash_DRBG-core MC/DC leaves are structurally unreachable from the
- * public wc_* API in this campaign, no matter what combination of public
+ * public wc_* API in this suite, no matter what combination of public
  * arguments a caller supplies:
  *
  *   - Hash_gen()/Hash512_gen()'s "out != NULL && outSz != 0" guard around
@@ -50,17 +50,17 @@
  *     sizeof(reseedCtr)) that always satisfy the guard, so the false side
  *     needs a direct call with mismatched/zero lengths.
  *
- * Two further GAPS.md residual classes remain justified SKIPS, deliberately
- * NOT chased by this white-box (per the campaign's no-fault-injection
+ * Two further the uncovered-condition report residual classes remain justified SKIPS, deliberately
+ * NOT chased by this white-box (per the no-fault-injection
  * convention -- same class as the documented rsa/sp-math residuals):
  *
  *   - Hash_gen()/Hash512_gen()'s "data == NULL || digest == NULL" XMALLOC
  *     guard (only compiled under WOLFSSL_SMALL_STACK &&
  *     !WOLFSSL_SMALL_STACK_CACHE): reaching either operand's true side needs
  *     the shared allocator to fail on one of two back-to-back XMALLOC()
- *     calls; this campaign injects no allocation-failure fault (same
+ *     calls; this suite injects no allocation-failure fault (same
  *     documented residual class as the rsa/sp-math allocation-failure
- *     branches -- see db/modules.json's "random" entry).
+ *     branches -- see the module registry's "random" entry).
  *   - Hash_DRBG_Init()/Hash512_DRBG_Init()'s chained
  *     "Hash_df(...)==DRBG_SUCCESS && Hash_df(...)==DRBG_SUCCESS" (resp.
  *     Hash512_df) compound: showing either operand's false side needs
@@ -649,7 +649,7 @@ static void wb_hash512_gen_alloc_guard(void)
  * BUILD-AXIS GUARD: that chain compiles exactly ONE wc_GenerateSeed body, and
  * the other arms neither share this guard nor, in the CUSTOM_RAND_GENERATE_BLOCK
  * case, define wc_GenerateSeed at all (that variant would not even link this
- * TU). The condition below excludes every arm reachable from this campaign's
+ * TU). The condition below excludes every arm reachable from this suite's
  * variant set and from a host build, so the NULL vectors are only compiled
  * where the guard that catches them is.
  * ------------------------------------------------------------------------ */
@@ -718,7 +718,7 @@ int main(void)
     wb_hash512_gen_alloc_guard();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the
-     * campaign treats a nonzero exit as a failed variant and discards its
+     * suite treats a nonzero exit as a failed variant and discards its
      * coverage. */
     return 0;
 #endif

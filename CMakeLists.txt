@@ -4543,6 +4543,9 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_evp.c
         tests/api/test_tls_ext.c
         tests/api/test_tls.c
+        tests/api/test_tls_bounds.c
+        tests/api/test_tls_msgtype.c
+        tests/api/test_tls_parse.c
         tests/api/test_session.c
         tests/api/test_x509.c
         tests/api/test_asn.c
@@ -4583,6 +4586,8 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_evp_pkey.c
         tests/api/test_certman.c
         tests/api/test_tls13.c
+        tests/api/test_tls13_bounds.c
+        tests/api/test_tls13_features.c
         tests/srp.c
         tests/suites.c
         tests/w64wrapper.c

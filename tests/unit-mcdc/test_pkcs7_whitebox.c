@@ -23,7 +23,7 @@
  * First white-box MC/DC supplement for wolfcrypt/src/pkcs7.c (Part 5).
  *
  * 17.8k lines, 245/1058 conditions covered by tests/api at the start of this
- * file's existence -- the largest deficit left in the campaign after asn.c.
+ * file's existence -- the largest deficit left in the harness after asn.c.
  * Most of the file-static parsing/encoding helpers guard against argument
  * combinations that every public wrapper already rejects before calling in
  * (NULL/size cross-checks), or are internal state machines (streaming,
@@ -32,8 +32,8 @@
  * drives those helpers by hand.
  *
  * Coverage is unioned by source line:col with the tests/api pkcs7 run in the
- * per-module campaign; only conditions NOT already shown by tests/api are
- * targeted below (cross-checked against campaign/reports/pkcs7/GAPS.md at
+ * per-module suite; only conditions NOT already shown by tests/api are
+ * targeted below (cross-checked against suite/reports/pkcs7/the uncovered-condition report at
  * the time of writing).
  *
  * NOT covered here (residual, needs follow-up):
@@ -46,7 +46,7 @@
  *   - wc_PKCS7_DecryptKtri/Kari/Kekri/Pwri/Ori internal chains past the
  *     first ASN.1 element (need a valid partial RecipientInfo body).
  *   - wc_PKCS7_AddRecipient_KTRI's WOLFSSL_SMALL_STACK alloc-fail guard
- *     (needs fault-injection, deferred technique per campaign notes).
+ *     (needs fault-injection, deferred technique per suite notes).
  *   - ML-DSA SignedData sign/verify (WC_PKCS7_HAVE_MLDSA not defined in
  *     this module's config base -- WOLFSSL_HAVE_MLDSA is off).
  *   - wc_PKCS7_CertMatchesSignerInfo's IssuerAndSerialNumber compare
@@ -2061,7 +2061,7 @@ int main(void)
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always return 0: a nonzero exit discards this variant's coverage
-     * entirely in the campaign harness. Failures are surfaced via the
+     * entirely in the test harness. Failures are surfaced via the
      * printed [FAIL] lines instead. */
     (void)wb_fail;
     return 0;

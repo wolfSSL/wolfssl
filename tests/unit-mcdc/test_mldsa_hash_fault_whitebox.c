@@ -67,7 +67,7 @@
  *     needs key == NULL, which the public wrapper rejects before calling. The
  *     static helper is in scope here and is called directly.
  *
- * DOCUMENTED RESIDUALS (mirrored in campaign/db/exclusions.json):
+ * DOCUMENTED RESIDUALS (mirrored in the exclusion record):
  *   - `for (; (ret == 0) && valid && (r < params->k); r++)` and
  *     `if ((ret == 0) && valid)`: `valid` is assigned 1 unconditionally and is
  *     only ever assigned 0 inside `#ifdef WOLFSSL_MLDSA_SIGN_CHECK_Y`,
@@ -308,7 +308,7 @@ static void wb_sign_no_private(void)
 
     /* The partner row: the SAME entry point on a key that DOES have a private
      * key, so the operand is false with the decision reaching its other
-     * outcome. Nothing else in the campaign calls the seeded pre-hash signer,
+     * outcome. Nothing else in the harness calls the seeded pre-hash signer,
      * so without this the operand above has no vector to pair against. */
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
     XMEMSET(&key, 0, sizeof(key));
@@ -442,7 +442,7 @@ static void wb_verify_ctx_hash_null(void)
  * two. An empty privateKey with no seed falls to asn.c:33992 and returns
  * ASN_PARSE_E. privKeyLen != 0 therefore holds on every arrival at both
  * else-ifs, and all three operands are recorded in
- * campaign/db/exclusions.json rather than left open. The rows below stay: they
+ * the exclusion record rather than left open. The rows below stay: they
  * are what establishes the rejection, and they cost two decodes.
  *
  * The AlgorithmIdentifier carries id-ml-dsa-44 (2.16.840.1.101.3.4.3.17)
@@ -667,7 +667,7 @@ int main(void)
 
     mcdc_fh_disarm();
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
-    /* A non-zero exit makes the campaign discard this binary's coverage. */
+    /* A non-zero exit makes the harness discard this binary's coverage. */
     return 0;
 }
 

@@ -34,7 +34,7 @@
  * Every open "(ret == 0)" operand left in ed448.c takes its `ret` from the
  * SHAKE256 chain (ed448_hash_init/update/final -> wc_InitShake256 /
  * wc_Shake256_Update / wc_Shake256_Final) and from nothing else. ed448.c
- * performs no allocation on these paths in this campaign's configs
+ * performs no allocation on these paths in this suite's configs
  * (WOLFSSL_SMALL_STACK is unset, so WC_DECLARE_VAR/WC_ALLOC_VAR_EX are a plain
  * stack object and a no-op), so mcdc_fault_alloc.h has nothing to fault --
  * only a failing hash primitive can break the chain. mcdc_fault_hash.h shadows
@@ -102,7 +102,7 @@
  * wall clock: fixed seeds, fixed message, fixed sweep length. main() always
  * returns 0 -- a nonzero exit would discard the variant's whole coverage.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with ed448.o removed. Not part of the wolfSSL build.
  */

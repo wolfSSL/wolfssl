@@ -30620,7 +30620,7 @@ int test_dilithium_hash(void)
 }
 
 /* =====================================================================
- * MC/DC coverage supplements (ISO 26262 per-module campaign).
+ * MC/DC coverage supplements (per-module MC/DC suite).
  *
  * test_wc_MldsaDecisionCoverage: one negative call per public-entry
  * argument / state check, each asserting the specific error, driving both

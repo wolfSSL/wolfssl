@@ -68,9 +68,9 @@
  * This is a coverage-driving supplement, not a known-answer test: only
  * "did this fail outright" is checked, never a specific expected value.
  * Coverage from this binary is unioned with the tests/api variant coverage
- * by source line:col in the per-module campaign (iso26262/mcdc-per-module).
+ * by source line:col in the per-module suite.
  *
- * Build: compiled by run-mcdc.sh's white-box step with the SAME MC/DC CFLAGS
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC CFLAGS
  * (including -DSP_WORD_SIZE=32, which selects sp_c32.c's body), -DHAVE_CONFIG_H
  * and -I<workspace> as the instrumented library, then linked against that
  * variant's libwolfssl.a with its sp_c32.o removed (this TU supplies the

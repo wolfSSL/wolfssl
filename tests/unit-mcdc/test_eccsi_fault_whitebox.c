@@ -42,7 +42,7 @@
  * the map guard sees err != 0. It #includes eccsi.c directly (like the sibling
  * test_eccsi_whitebox.c) so the file-static helpers are in scope.
  *
- * Not driven here (justified, documented in test_eccsi_whitebox.c and GAPS.md):
+ * Not driven here (justified, documented in test_eccsi_whitebox.c and the uncovered-condition report):
  *   - eccsi_load_ecc_params() 196/202/208 `err == 0` FALSE halves: reaching them
  *     requires eccsi_load_order() / the a/b radix reads to fail. Those are
  *     mp_read_radix() calls on fixed, static, in-struct sp_int members of known-
@@ -64,7 +64,7 @@
  *
  * Invocation:
  *   ./test_eccsi_fault_whitebox            default: full fault sweep (used by the
- *                                          campaign run_whitebox, no args)
+ *                                          suite run_whitebox, no args)
  *   ./test_eccsi_fault_whitebox baseline   unarmed valid ops only (delta baseline)
  *   ./test_eccsi_fault_whitebox probe      per-target allocation-site counts
  */
@@ -79,6 +79,75 @@
  * mp_* call and every later one. Predicates (mp_iszero/mp_cmp) and teardown
  * (mp_free/mp_forcezero) are NOT interposed, so cleanup keeps working. */
 #include "mcdc_fault_mp.h"
+
+/* --------------------------------------------------------------------------
+ * Value-forcing mp_addmod() interposer for eccsi_gen_sig()'s rejection loop
+ * (eccsi.c:1934):
+ *
+ *     do { ... err = mp_mulmod(r, &key->ssk, &key->params.order, s);
+ *              err = mp_addmod(he, s, &key->params.order, s); }
+ *     while ((err == 0) && (mp_iszero(s) || (mp_cmp(s, he) == MP_EQ)));
+ *
+ * RFC 6507 step 4 rejects the candidate when s == 0 or s == HE. Both are
+ * ~2^-256 events on real entropy, so no amount of API driving reaches them,
+ * and a seeded RNG cannot force them either: s is the output of a modular
+ * multiply-and-add over an ephemeral scalar, not a value the generator hands
+ * out. Without one of the two rejecting draws the decision only ever records
+ * (T,F,F), which is a single vector -- that is why ALL THREE conditions were
+ * open, including `err == 0`, whose independence pair needs a vector where the
+ * loop actually REPEATS.
+ *
+ * eccsi.c has exactly two mp_addmod() call sites -- eccsi_make_pair() at 920
+ * and this one at 1931 -- and only the second is reached from
+ * wc_SignEccsiHash(), so a one-shot armed immediately around a sign call needs
+ * no disambiguation.
+ *
+ * The modes are ONE-SHOT, so the loop's SECOND iteration computes a genuine s
+ * and terminates on real data: no retry loop here depends on a random draw
+ * going a particular way, and the accepting (T,F,F) row is produced by that
+ * same iteration in the same binary as the rejecting rows.
+ *
+ * Ordering is the load-bearing trick from mcdc_fault_mp.h: the wrapper is
+ * compiled while mp_addmod still names the (already interposed) real thing,
+ * and only then is the name redefined. eccsi.c is #included AFTER this block.
+ * ----------------------------------------------------------------------- */
+#define WB_EA_OFF   0   /* pass through */
+#define WB_EA_ZERO  1   /* succeed, but hand back s == 0        -> 1934 idx1 */
+#define WB_EA_EQ    2   /* succeed, but hand back s == he       -> 1934 idx2 */
+#define WB_EA_FAIL  3   /* fail the add                         -> 1934 idx0 */
+
+static int wb_ea_mode = WB_EA_OFF;
+
+MCDC_FM_MAYBE_UNUSED static int wb_ea_addmod(const mp_int* a, const mp_int* b,
+    const mp_int* m, mp_int* r)
+{
+    int mode = wb_ea_mode;
+    int err;
+
+    if (mode != WB_EA_OFF) {
+        wb_ea_mode = WB_EA_OFF;   /* one-shot */
+    }
+    if (mode == WB_EA_FAIL) {
+        return MCDC_FM_ERR;
+    }
+
+    err = mp_addmod(a, b, m, r);
+    if (err == 0) {
+        if (mode == WB_EA_ZERO) {
+            /* s = 0: RFC 6507's first rejection test. */
+            mp_zero(r);
+        }
+        else if (mode == WB_EA_EQ) {
+            /* s = HE: the second rejection test. `a` IS he at the 1931 call
+             * site, so this needs no extra handle on the key. */
+            err = mp_copy(a, r);
+        }
+    }
+    return err;
+}
+
+#undef  mp_addmod
+#define mp_addmod(a, b, c, d)   wb_ea_addmod((a), (b), (c), (d))
 
 #include <wolfcrypt/src/eccsi.c>
 
@@ -165,6 +234,81 @@ static int wb_mp_expired(void)
         printf("  [wb] mp sweep %s: K=%ld\n", (lbl), k_);                 \
     } while (0)
 
+/* ---- eccsi_gen_sig() 1934 rejection loop -------------------------------
+ *      while ((err == 0) && (mp_iszero(s) || (mp_cmp(s, he) == MP_EQ)));
+ *
+ * Three conditions, and before this vector set ALL THREE were open, because
+ * the loop had only ever been observed taking the single (T,F,F) exit: the two
+ * RFC 6507 step-4 rejections (s == 0, s == HE) are ~2^-256 draws, and `err==0`
+ * cannot show independence without a partner vector in which the decision is
+ * TRUE -- i.e. in which the loop actually repeats.
+ *
+ * The one-shot mp_addmod modes at the top of this file supply all of it:
+ *   WB_EA_ZERO -> (T,T,-) TRUE, retries; the retry is the accepting (T,F,F)
+ *   WB_EA_EQ   -> (T,F,T) TRUE, likewise
+ *   WB_EA_FAIL -> (F,-,-) FALSE
+ *
+ * Self-contained fixture on purpose: the shared fixture in wb_mp_sweeps() is
+ * driven through armed sweeps before the sign path is reached, and one of them
+ * currently leaves the key in a state wc_SetEccsiPair rejects (see the note
+ * there). A fresh key here means these vectors cannot be lost to that.
+ */
+static void wb_gen_sig_reject(WC_RNG* rng)
+{
+    EccsiKey   k;
+    ecc_point* pvt = NULL;
+    mp_int     ssk;
+    byte       id[] = "eccsi-gensig@wolfssl.com";
+    byte       hash[WC_MAX_DIGEST_SIZE];
+    byte       hashSz = 0;
+    int        ready = 0;
+    int        mode;
+
+    mcdc_fm_disarm();
+    XMEMSET(&k, 0, sizeof(k));
+    XMEMSET(&ssk, 0, sizeof(ssk));
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (wc_InitEccsiKey(&k, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("gen_sig fixture: wc_InitEccsiKey failed; 1934 skipped");
+        return;
+    }
+    pvt = wc_ecc_new_point_h(NULL);
+    if ((pvt != NULL) && (mp_init(&ssk) == 0) &&
+            (wc_MakeEccsiKey(&k, rng) == 0) &&
+            (wc_MakeEccsiPair(&k, rng, WC_HASH_TYPE_SHA256, id,
+                (word32)sizeof(id), &ssk, pvt) == 0) &&
+            (wc_SetEccsiPair(&k, &ssk, pvt) == 0) &&
+            (wc_HashEccsiId(&k, WC_HASH_TYPE_SHA256, id, (word32)sizeof(id),
+                pvt, hash, &hashSz) == 0) &&
+            (wc_SetEccsiHash(&k, hash, hashSz) == 0)) {
+        ready = 1;
+    }
+    if (!ready) {
+        WB_NOTE("gen_sig fixture setup failed; 1934 skipped");
+        wb_fail = 1;
+    }
+    else {
+        for (mode = WB_EA_ZERO; mode <= WB_EA_FAIL; mode++) {
+            byte   sg[257];
+            word32 z = (word32)sizeof(sg);
+            int    e;
+
+            XMEMSET(sg, 0, sizeof(sg));
+            wb_ea_mode = mode;
+            e = wc_SignEccsiHash(&k, rng, WC_HASH_TYPE_SHA256, hash,
+                    WC_SHA256_DIGEST_SIZE, sg, &z);
+            wb_ea_mode = WB_EA_OFF;
+            printf("  [wb] gen_sig reject mode %d -> %d\n", mode, e);
+        }
+    }
+
+    mp_free(&ssk);
+    if (pvt != NULL)
+        wc_ecc_del_point_h(pvt, NULL);
+    wc_FreeEccsiKey(&k);
+}
+
 static void wb_mp_sweeps(WC_RNG* rng)
 {
     EccsiKey  k;
@@ -172,12 +316,17 @@ static void wb_mp_sweeps(WC_RNG* rng)
     mp_int     ssk;
     byte       id[] = "eccsi-mp-fault@wolfssl.com";
     byte       hash[WC_MAX_DIGEST_SIZE];
+    byte       hashSz = 0;
     byte       sig[257];
     word32     sigSz;
     int        verified = 0;
     int        ready = 0;
 
     wb_mp_t0 = time(NULL);
+    mcdc_fm_disarm();
+
+    /* Runs first, on its own fixture: see wb_gen_sig_reject(). */
+    wb_gen_sig_reject(rng);
     mcdc_fm_disarm();
 
     XMEMSET(&k, 0, sizeof(k));
@@ -219,8 +368,8 @@ static void wb_mp_sweeps(WC_RNG* rng)
     mcdc_fm_disarm();
     if ((wc_SetEccsiPair(&k, &ssk, pvt) == 0) &&
             (wc_HashEccsiId(&k, WC_HASH_TYPE_SHA256, id, (word32)sizeof(id),
-                pvt, hash, NULL) == 0) &&
-            (wc_SetEccsiHash(&k, hash, WC_SHA256_DIGEST_SIZE) == 0)) {
+                pvt, hash, &hashSz) == 0) &&
+            (wc_SetEccsiHash(&k, hash, hashSz) == 0)) {
         WB_MP_SWEEP("SignEccsiHash", 200,
             {
                 byte   s2[257];
@@ -242,8 +391,16 @@ static void wb_mp_sweeps(WC_RNG* rng)
         }
     }
     else {
-        WB_NOTE("SetEccsiPair/HashEccsiId/SetEccsiHash failed; sign+verify "
-                "sweeps skipped");
+        /* Print WHICH step refused, so this never has to be bisected again:
+         * the original spelling passed hashSz = NULL to wc_HashEccsiId(),
+         * which rejects it with BAD_FUNC_ARG, and the SignEccsiHash /
+         * VerifyEccsiHash sweeps below were silently skipped on every run. */
+        int e1 = wc_SetEccsiPair(&k, &ssk, pvt);
+        int e2 = wc_HashEccsiId(&k, WC_HASH_TYPE_SHA256, id,
+                     (word32)sizeof(id), pvt, hash, &hashSz);
+        int e3 = wc_SetEccsiHash(&k, hash, hashSz);
+        printf("  [wb] SetEccsiPair=%d HashEccsiId=%d SetEccsiHash=%d; "
+               "sign+verify sweeps skipped\n", e1, e2, e3);
     }
 
     /* 196/202/208 eccsi_load_ecc_params():

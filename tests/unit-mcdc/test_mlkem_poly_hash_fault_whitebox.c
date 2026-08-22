@@ -22,7 +22,7 @@
 /*
  * MC/DC hash-fault white-box supplement for wolfcrypt/src/wc_mlkem_poly.c.
  *
- * campaign/reports/mlkem/GAPS.md leaves ten residuals on this file and all ten
+ * suite/reports/mlkem/the uncovered-condition report leaves ten residuals on this file and all ten
  * are the FALSE half of a success chain or an optional-argument guard that the
  * public wc_MlKemKey_* API never produces:
  *
@@ -40,7 +40,7 @@
  * All four helpers are file-static (or WOLFSSL_LOCAL) and this TU #includes
  * wc_mlkem_poly.c, so each is called DIRECTLY with the operand combination the
  * API cannot produce. No key generation is performed at all, which keeps the
- * whole binary well inside the campaign's wall-clock budget.
+ * whole binary well inside the wall-clock budget.
  *
  *   1. mlkem_hash512()'s three conditions need no injector:
  *        - data2 == NULL and data2Len == 0 are simply passed in;
@@ -72,7 +72,7 @@
  * NOT REACHABLE HERE: under USE_INTEL_SPEEDUP mlkem_prf() writes the Keccak
  * state directly (sha3_block_bmi2 / sha3_block_avx2 / BlockSha3) and returns a
  * literal 0, so mlkem_get_noise_c()'s chain cannot be broken in the mlkem_avx2
- * variant. The six portable-C variants supply those rows and the campaign
+ * variant. The six portable-C variants supply those rows and the harness
  * unions by line:col.
  *
  * VARIANT COVERAGE (HARD RULE 2): every helper is behind the same #if the
@@ -313,6 +313,6 @@ int main(void)
     mcdc_fh_disarm();
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
-    /* A non-zero exit makes the campaign discard this binary's coverage. */
+    /* A non-zero exit makes the harness discard this binary's coverage. */
     return 0;
 }

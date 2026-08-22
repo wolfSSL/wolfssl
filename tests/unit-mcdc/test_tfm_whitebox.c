@@ -12,9 +12,9 @@
  * editing library source. This translation unit reaches them by compiling
  * tfm.c directly (#include) and calling the static helpers with BOTH halves of each
  * targeted pair in this one binary (llvm-cov computes MC/DC per binary; the
- * campaign unions the "independence shown" bit across binaries by line:col).
+ * suite unions the "independence shown" bit across binaries by line:col).
  *
- * Build: compiled by run-mcdc.sh's white-box step with the SAME MC/DC CFLAGS
+ * Build: compiled by the coverage runner's white-box step with the SAME MC/DC CFLAGS
  * and -I<workspace> as the instrumented library, then linked against that
  * variant's libwolfssl.a with its tfm.o removed (this TU supplies the
  * instrumented tfm.c). NOT part of the wolfSSL build; not registered in
@@ -22,7 +22,7 @@
  *
  * Every call is memory-safe (static helpers are handed initialized fp_ints and
  * in-range selectors); setup failures print a skip and return 0 (a nonzero
- * exit makes the campaign discard the variant and its coverage).
+ * exit makes the harness discard the variant and its coverage).
  */
 
 #include <wolfcrypt/src/tfm.c>
@@ -697,9 +697,17 @@ static void wb_TfmExptModDecisionCoverage(void)
      * point complete both operands' independence pairs:
      *   call A: G=3, X=-3, P=7  (invmod succeeds: err==0 T; P ZPOS: F)
      *   call B: G=3, X=-3, P=-7 (invmod succeeds: err==0 T; P NEG: T)
-     *   call C: G=7, X=-3, P=-7 (invmod fails (gcd=7): err==0 F; P NEG: T)
-     * Pair (A,B) isolates the P->sign operand (err==0 held true);
-     * pair (B,C) isolates the err==0 operand (P->sign held negative). */
+     *   call C: G=7, X=-3, P=-7 (invmod fails (gcd=7))
+     * Pair (A,B) isolates the P->sign operand (err==0 held true).
+     *
+     * CORRECTION (step 7): call C does NOT isolate the err==0 operand. The
+     * decision sits inside `if (err == FP_OKAY) { ... }`, so an fp_invmod
+     * failure skips the whole block and never reaches the test - `err` there
+     * can only come from _fp_exptmod_ct/_nct. Call C is kept because it does
+     * cover the invmod-failure return path, but the err==0 operand's FALSE
+     * half is closed in test_tfm_fault_whitebox.c, by an even |P| that lets
+     * fp_invmod succeed (via fp_invmod_slow) and then makes
+     * fp_montgomery_setup reject the modulus inside the engine. */
     fp_set(&g, 3);
     fp_set(&x, 3);
     fp_setneg(&x);
@@ -795,7 +803,7 @@ static void wb_TfmExptModDecisionCoverage(void)
 /* ------------------------------------------------------------------------
  * Public-entry ARGUMENT-GUARD residuals.
  *
- * campaign/reports/bigint-tfm/GAPS.md lists several multi-operand OR guards at
+ * suite/reports/bigint-tfm/the uncovered-condition report lists several multi-operand OR guards at
  * the top of public entry points whose operands the ordinary tests only ever
  * present all-false (they always pass valid arguments), so no operand's
  * independence pair is shown. Each is closed here by calling the entry point
@@ -909,6 +917,7 @@ static void wb_entry_arg_guards(void)
 
 int main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("tfm.c white-box MC/DC supplement\n");
 #if !defined(USE_FAST_MATH)
     printf("  USE_FAST_MATH not defined; nothing to exercise\n");
@@ -935,7 +944,7 @@ int main(void)
     wb_entry_arg_guards();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures surface as skips, not failures: a nonzero exit makes the
-     * campaign discard this variant's coverage. */
+     * suite discard this variant's coverage. */
     return 0;
 #endif
 }

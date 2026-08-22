@@ -48,7 +48,7 @@
  * buffer guard.
  *
  * These working-buffer allocations exist in every variant with the base
- * campaign config (the WC_MLDSA_CACHE_* caching macros are OFF, so sign/verify
+ * suite config (the WC_MLDSA_CACHE_* caching macros are OFF, so sign/verify
  * XMALLOC their scratch on every call); they multiply under the small-memory
  * arms (WOLFSSL_MLDSA_SIGN_SMALL_MEM / _VERIFY_SMALL_MEM /
  * _SIGN_SMALL_MEM_PRECALC_A), whose per-column recompute blocks add extra
@@ -86,7 +86,7 @@
  *   ./test_mldsa_fault_whitebox            default: baseline + fault sweeps
  *   ./test_mldsa_fault_whitebox baseline   unarmed valid ops only (delta base)
  *   ./test_mldsa_fault_whitebox probe      print per-entry-point alloc counts
- * (The campaign run_whitebox harness runs this binary with NO arguments, so the
+ * (The white-box harness runs this binary with NO arguments, so the
  * default action is the full sweep.)
  *
  * WHY WOLFSSL_SMALL_STACK IS FORCED BELOW

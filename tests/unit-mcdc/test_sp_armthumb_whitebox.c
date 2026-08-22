@@ -28,7 +28,7 @@
  * (--target=arm-linux-gnueabihf -mthumb) and run under an ARM emulator
  * (qemu-arm). That is why this white-box is a LANE-only supplement (the
  * "qemu-armthumb" lane in db/lanes.json / the sp-arm-lanes "armthumb" variant
- * in db/modules.json), never a native host build: the host x86-64 toolchain
+ * in the module registry), never a native host build: the host x86-64 toolchain
  * cannot even assemble the file.
  *
  * Unlike the asm-dispatch backends (sp_x86_64.c, the AArch64 armasm files),
@@ -106,6 +106,8 @@
 #include "mcdc_fault_mutex.h"
 
 
+#include "mcdc_fault_alloc.h"
+
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/dh.h>
@@ -115,6 +117,18 @@
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+
+/* Crafted-input driver shared with the SP host-backend white-boxes. The four
+ * ARM backends implement the SAME public API (sp_ecc_verify_<n>,
+ * sp_ecc_sign_<n>, sp_ecc_check_key_<n>, sp_ModExp_<n>, ...), so the same
+ * body drives them. It supplies two vectors this file's own drivers cannot:
+ * a verify whose public point is the Jacobian point at infinity (pZ == 0),
+ * which is the only way `(err == MP_OKAY) && sp_<n>_iszero_<w>(p2->z)` goes
+ * true, and a sign with a zero private scalar against an all-zero hash,
+ * which makes s == 0 on EVERY attempt so the SP_ECC_MAX_SIG_GEN retry loop
+ * runs to exhaustion and leaves its `i > 0` operand false. Both are
+ * deterministic -- no RNG luck is involved, contrary to the note above. */
+#include "test_sp_crafted_common.h"
 
 #if defined(WOLFSSL_HAVE_SP_ECC) || defined(WOLFSSL_HAVE_SP_RSA) || \
     defined(WOLFSSL_HAVE_SP_DH)
@@ -661,7 +675,7 @@ static void wb_mod_top_bit_odd(mp_int* m, int bits)
  *      false; base=2 with a non-all-ones modulus forces the shape
  *      operand false; base=2 with an all-ones modulus gives the
  *      all-true baseline (self-contained -- not relying on real DH
- *      traffic elsewhere in the campaign for this size).
+ *      traffic elsewhere in the harness for this size).
  *   3. Leading-zero-strip loop: base=1 gives a result of 1 (every byte
  *      but the last is 0, closing the "out[i]==0" operand's both
  *      sides in one call); base=0 gives an all-zero result (closing
@@ -1845,6 +1859,7 @@ int main(void)
     wb_run_gap_521();
     wb_run_residual_extra_all();
     wb_run_mod_inv();
+    wb_spc_all();
 
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
 #else

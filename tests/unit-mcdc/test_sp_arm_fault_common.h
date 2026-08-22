@@ -46,9 +46,9 @@
  * mean a whole extra cross build + emulator pass per lane.
  *
  * The including TU therefore defines WOLFSSL_SP_SMALL_STACK for ITSELF, before
- * it #includes the sp_arm*.c under test. That is sound for this campaign and
+ * it #includes the sp_arm*.c under test. That is sound for this suite and
  * cheaper than a variant:
- *   - the lane's white-box recipe (campaign/lanes/qemu-entry.sh) compiles the
+ *   - the lane's white-box recipe (suite/lanes/qemu-entry.sh) compiles the
  *     wb TU with the library's own captured compile line and links it against
  *     libwolfssl.a with the target file's object REMOVED, so the wb binary
  *     contains exactly one copy of sp_arm*.c -- this one -- and there is no
@@ -365,7 +365,7 @@ static void wb_fa_curve(int curveId, int fieldSz, const char* label,
      *    its first operand's false row) but it must NOT be driven through
      *    P-256 on sp_arm64.c: sp_256_mod_inv_4() there is hand-written
      *    AArch64 assembly whose loop does not terminate for a == m, and the
-     *    white-box hung until TEST_TIMEOUT killed it -- which the campaign
+     *    white-box hung until TEST_TIMEOUT killed it -- which the harness
      *    records as a silent skip of the whole row. The C mod_inv bodies are
      *    reached instead by the direct sweep in the ordinary white-boxes
      *    (wb_run_mod_inv), which can pick the curves it calls. */

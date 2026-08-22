@@ -34,7 +34,7 @@
  *
  * wc_accept_cloexec()'s guard `if (errno != ENOSYS && errno != EINVAL)`
  * (wc_port.c ~:5684) can only see errno == ENOSYS on a kernel that does not
- * implement accept4(). Every host this campaign runs on does, so the first
+ * implement accept4(). Every host this suite runs on does, so the first
  * operand has no reachable independence pair from the outside.
  *
  * The white-box TU #includes wc_port.c directly, so accept4() can be
@@ -296,7 +296,7 @@ int main(void)
     wb_strnstr();
     wb_cloexec_wrappers();
     printf("  [wb] failures: %d\n", wb_fail);
-    /* Always 0: a non-zero exit makes the campaign harness discard the
+    /* Always 0: a non-zero exit makes the test harness discard the
      * whole variant rather than record its coverage. */
     return 0;
 }

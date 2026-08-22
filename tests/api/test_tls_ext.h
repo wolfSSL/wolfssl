@@ -56,4 +56,25 @@ int test_wolfSSL_custom_ext_resumption_fallback(void);
 int test_wolfSSL_custom_ext_ticket_fallback(void);
 int test_wolfSSL_custom_ext_add_null(void);
 
+#define TEST_TLS_EXT_DECLS                                                    \
+        TEST_DECL_GROUP("tls", test_tls_ems_downgrade),                      \
+        TEST_DECL_GROUP("tls", test_tls_ems_resumption_downgrade),           \
+        TEST_DECL_GROUP("tls", test_tls_ems_resumption_server_downgrade),    \
+        TEST_DECL_GROUP("tls", test_scr_verify_data_mismatch),               \
+        TEST_DECL_GROUP("tls", test_scr_no_renegotiation_option),            \
+        TEST_DECL_GROUP("tls", test_helloRequest_no_renegotiation_option),   \
+        TEST_DECL_GROUP("tls", test_helloRequest_advertise_only_refused),    \
+        TEST_DECL_GROUP("tls", test_tls13_hrr_cipher_suite_mismatch),        \
+        TEST_DECL_GROUP("tls", test_tls13_ticket_age_out_of_window),         \
+        TEST_DECL_GROUP("tls", test_certificate_authorities_certificate_request), \
+        TEST_DECL_GROUP("tls", test_certificate_authorities_client_hello),   \
+        TEST_DECL_GROUP("tls", test_TLSX_TCA_Find),                          \
+        TEST_DECL_GROUP("tls", test_TLSX_SNI_GetSize_overflow),              \
+        TEST_DECL_GROUP("tls", test_TLSX_ECH_msg_type_validation),           \
+        TEST_DECL_GROUP("tls", test_TLSX_CSR2_tls13_msg_type_validation),    \
+        TEST_DECL_GROUP("tls", test_TLSX_SRTP_msg_type_validation),          \
+        TEST_DECL_GROUP("tls", test_TLSX_ALPN_server_response_count),        \
+        TEST_DECL_GROUP("tls", test_TLSX_SupportedCurve_empty_or_unsupported), \
+        TEST_DECL_GROUP("tls", test_TLSX_PointFormat_uncompressed_required)
+
 #endif /* TESTS_API_TEST_TLS_EXT_H */

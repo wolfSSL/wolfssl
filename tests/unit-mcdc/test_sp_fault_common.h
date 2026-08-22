@@ -28,7 +28,7 @@
  *
  *     if ((err == MP_OKAY) && <next step>)
  *
- * whose `err == MP_OKAY` operand has no false side in the campaign's builds.
+ * whose `err == MP_OKAY` operand has no false side in the builds.
  * The reason is not that the failure is hard to produce, it is that nothing in
  * the compiled code can produce it: SP_ALLOC_VAR is
  *
@@ -47,7 +47,7 @@
  * WOLFSSL_SP_SMALL_STACK. Elsewhere it runs the same operations with the
  * injector never armed, which costs one quick pass and keeps the file building
  * in every variant of the module (a white-box that fails to build is a silent
- * skip, and the campaign has lost a module's evidence to that twice).
+ * skip, and the harness has lost a module's evidence to that twice).
  *
  * HOW
  * ---

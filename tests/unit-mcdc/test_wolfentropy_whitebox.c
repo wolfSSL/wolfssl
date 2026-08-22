@@ -45,7 +45,7 @@
  * The higher-level Entropy_Init()/wc_Entropy_OnDemandTest()/wc_Entropy_Get()
  * exercise the MemUse/GetSample/GetNoise/Condition path best-effort; any
  * setup failure is reported as a skip (return 0), never a test failure, so
- * the campaign never discards the variant's coverage.
+ * the harness never discards the variant's coverage.
  *
  * wc_Entropy_Get() itself has two decisions whose operands reference the
  * SAME file-static health-test state, but are not independently selectable
@@ -69,6 +69,51 @@
  */
 
 #include "mcdc_fault_mutex.h"
+
+/* ---- SHA3-256 interposer, for the startup health test's noise fill -------
+ *
+ * Entropy_GetNoise() is a file-static in wolfentropy.c itself, so it cannot be
+ * macro-interposed the way mcdc_fault_hash.h interposes primitives that live
+ * in another translation unit: a macro on its name renames the DEFINITION as
+ * well as the call sites and changes nothing. But every failure it can report
+ * originates in Entropy_MemUse(), whose only fallible operations are
+ * wc_Sha3_256_Update()/wc_Sha3_256_Final() on the shared conditioner -- and
+ * those DO come from sha3.o in the archive. Refusing one of them is therefore
+ * the reachable equivalent: Entropy_MemUse() -> Entropy_GetNoise() ->
+ * Entropy_HealthTest_Startup() propagates it into `ret` before the sample
+ * loop at :781 is ever evaluated. mcdc_fault_hash.h does not carry SHA-3 (no
+ * white-box has needed it before), so the wrapper is local to this TU.
+ *
+ * The wrapper is defined BEFORE the macro exists, so it still reaches the
+ * real primitive; ordering is load-bearing, exactly as in mcdc_fault_hash.h.
+ *
+ * libwolfssl_sources.h has to come first (mcdc_fault_mutex.h deliberately
+ * includes nothing, so no configuration has been read yet): without it
+ * WOLFSSL_SHA3 is undefined at this point, the whole interposer is
+ * preprocessed away, and wb_startup_noise_fail() below -- which is guarded on
+ * the same macro but sits AFTER wolfentropy.c has pulled settings.h in --
+ * refers to a wb_sha3_refuse that does not exist. That is a compile failure,
+ * which the harness scores as a SILENT SKIP.
+ */
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
+#ifdef WOLFSSL_SHA3
+#include <wolfssl/wolfcrypt/sha3.h>
+
+static int wb_sha3_refuse = 0;
+
+static int wb_Sha3_256_Update(wc_Sha3* sha3, const byte* data, word32 len)
+{
+    if (wb_sha3_refuse) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+    return wc_Sha3_256_Update(sha3, data, len);
+}
+
+#define wc_Sha3_256_Update(s, d, l) wb_Sha3_256_Update((s), (d), (l))
+#endif /* WOLFSSL_SHA3 */
 
 #include <wolfcrypt/src/wolfentropy.c>
 
@@ -192,7 +237,7 @@ static void wb_collect_path(void)
  * -- is never shown from tests/api. Both globals are file-static: drive
  * each operand's independence pair directly, holding the other operand
  * false (the "both false" side is already exercised by every other
- * steady-state call in this campaign, e.g. wb_collect_path() above). */
+ * steady-state call in this suite, e.g. wb_collect_path() above). */
 static void wb_startup_retrigger(void)
 {
     int ret;
@@ -280,6 +325,54 @@ static void wb_get_loop_early_exit(void)
     Entropy_Final();
 }
 
+/* Entropy_HealthTest_Startup()'s sample loop:
+ *   "for (i = 0; (ret == 0) && (i < ENTROPY_INITIAL_COUNT); i++)"
+ * On a healthy host the loop always runs to completion, so idx0 ("ret == 0")
+ * only ever shows TRUE and the loop is only ever left through idx1. `ret` is
+ * assignable inside the loop (the two health tests at :782-:786), but real
+ * MemUse jitter never trips REP_CUTOFF/PROP_CUTOFF, and the noise buffer is
+ * filled by the file-static Entropy_GetNoise() which cannot be rigged
+ * directly. The reachable lever is the one thing Entropy_GetNoise() depends on
+ * from outside this file: refuse the conditioner's SHA3-256 update, so
+ * Entropy_MemUse() fails, Entropy_GetNoise() returns that error at :779, and
+ * the loop condition is evaluated once with ret != 0 -- idx0 FALSE, the
+ * missing half. The healthy call immediately before it (same binary) supplies
+ * (T,T) and, at i == ENTROPY_INITIAL_COUNT, (T,F). */
+#ifdef WOLFSSL_SHA3
+static void wb_startup_noise_fail(void)
+{
+    int ret;
+
+    if (Entropy_Init() != 0) {
+        WB_NOTE("Entropy_Init failed; skipping startup noise-failure vector");
+        return;
+    }
+
+    /* Armed: the first conditioner update inside Entropy_MemUse() refuses, so
+     * Entropy_GetNoise() never fills the buffer. */
+    wb_sha3_refuse = 1;
+    ret = Entropy_HealthTest_Startup();
+    wb_sha3_refuse = 0;
+    if (ret == 0) {
+        WB_NOTE("refused SHA3 update did not fail the startup health test");
+        wb_fail = 1;
+    }
+
+    /* Unarmed partner in the same binary, which also leaves the health-test
+     * globals primed for whatever runs next. */
+    if (Entropy_HealthTest_Startup() != 0) {
+        WB_NOTE("healthy startup health test failed (skip, not fail)");
+    }
+
+    Entropy_Final();
+
+    WB_NOTE("Entropy_HealthTest_Startup ret==0 pair exercised");
+}
+#else
+static void wb_startup_noise_fail(void)
+{ WB_NOTE("WOLFSSL_SHA3 off; startup noise-failure vector skipped"); }
+#endif /* WOLFSSL_SHA3 */
+
 #else /* !HAVE_ENTROPY_MEMUSE */
 
 static void wb_repetition(void)
@@ -292,6 +385,8 @@ static void wb_startup_retrigger(void)
 { WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped startup retrigger"); }
 static void wb_get_loop_early_exit(void)
 { WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped loop early exit"); }
+static void wb_startup_noise_fail(void)
+{ WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped startup noise fail"); }
 
 #endif /* HAVE_ENTROPY_MEMUSE */
 
@@ -364,9 +459,10 @@ int main(void)
     wb_proportion();
     wb_startup_retrigger();
     wb_get_loop_early_exit();
+    wb_startup_noise_fail();
     wb_entropy_get_mutex();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
-     * campaign discard this variant's coverage. */
+     * suite discard this variant's coverage. */
     return 0;
 }

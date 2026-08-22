@@ -53,7 +53,10 @@
 #ifdef HAVE_POLY1305
     #include <wolfssl/wolfcrypt/poly1305.h>
 #endif
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && defined(OPENSSL_EXTRA)
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    /* Not OPENSSL_EXTRA-only: the TLS record layer calls the persistent-key
+     * helpers wc_ChaCha20Poly1305_{Encrypt,Decrypt}_ex(), so this header has
+     * to be visible whenever the ChaCha20-Poly1305 suites are built. */
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #endif
 #ifdef HAVE_ARIA
@@ -7023,14 +7026,15 @@ struct SystemCryptoPolicy {
 do {                                                                           \
     (err) = wolfSSL_ERR_peek_last_error();                                     \
     if (wolfSSL_ERR_GET_LIB(err) == WOLFSSL_ERR_LIB_PEM &&                     \
-        wolfSSL_ERR_GET_REASON(err) == -WOLFSSL_PEM_R_NO_START_LINE_E) {       \
+        wolfSSL_ERR_GET_REASON(err) ==                                         \
+            -WC_NO_ERR_TRACE(WOLFSSL_PEM_R_NO_START_LINE_E)) {                 \
         unsigned long peekErr;                                                 \
         do {                                                                   \
             wc_RemoveErrorNode(-1);                                            \
             peekErr = wolfSSL_ERR_peek_last_error();                           \
         } while (wolfSSL_ERR_GET_LIB(peekErr) == WOLFSSL_ERR_LIB_PEM &&        \
                  wolfSSL_ERR_GET_REASON(peekErr) ==                            \
-                                              -WOLFSSL_PEM_R_NO_START_LINE_E); \
+                 -WC_NO_ERR_TRACE(WOLFSSL_PEM_R_NO_START_LINE_E));             \
     }                                                                          \
 } while(0)
 #else

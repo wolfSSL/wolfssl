@@ -34,7 +34,7 @@
  * Residuals left uncovered on purpose: wc_open_cloexec / wc_accept_cloexec's
  * "fd < 0 && errno == EINVAL" and "errno != ENOSYS && errno != EINVAL" arms are
  * the fallback for kernels without O_CLOEXEC / SOCK_CLOEXEC, unreachable on any
- * host the campaign runs on.
+ * host the harness runs on.
  */
 
 #ifndef SINGLE_THREADED

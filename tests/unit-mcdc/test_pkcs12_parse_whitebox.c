@@ -505,7 +505,7 @@ int main(void)
     wb_d2i_eoc_skip();
     wb_encrypted_zero_check();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Always return 0: a nonzero exit makes the campaign discard the whole
+    /* Always return 0: a nonzero exit makes the harness discard the whole
      * variant's coverage, including the parts that did succeed. */
     return 0;
 }

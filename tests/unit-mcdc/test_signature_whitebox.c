@@ -75,11 +75,11 @@
  * Nothing is read through plain_ptr on this vector -- the guard is FALSE, so
  * the XMEMCMP at line 313 is not executed.
  *
- * If the campaign prefers not to admit interposition-driven evidence here,
+ * If the harness prefers not to admit interposition-driven evidence here,
  * the alternative is to EXCLUDE 311:21:311:42:1 (and, with it, the (T,F)
  * half only) on the argument above; V1/V2 still close idx0 on their own.
  *
- * Build: compiled by the campaign's white-box step with the same MC/DC CFLAGS
+ * Build: compiled by the white-box step with the same MC/DC CFLAGS
  * as the instrumented library, then linked against that variant's
  * libwolfssl.a with signature.o removed. Not part of the wolfSSL build.
  */
