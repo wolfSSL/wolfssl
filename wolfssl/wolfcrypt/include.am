@@ -116,6 +116,8 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
                          wolfssl/wolfcrypt/port/realtek/rtl8735b.h \
                          wolfssl/wolfcrypt/port/tropicsquare/tropic01.h \
+                         wolfssl/wolfcrypt/port/wolfHAL/wolfhal.h \
+                         wolfssl/wolfcrypt/port/wolfHAL/wolfhal_settings.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
                          wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h \
@@ -240,6 +242,11 @@ endif
 
 if BUILD_TROPIC01
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/tropicsquare/tropic01.h
+endif
+
+if BUILD_WOLFHAL
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/wolfHAL/wolfhal.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/wolfHAL/wolfhal_settings.h
 endif
 
 if BUILD_MAXQ10XX

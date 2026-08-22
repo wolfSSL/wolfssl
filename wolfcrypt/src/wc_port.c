@@ -198,6 +198,10 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cryptocb.h>
 #endif
 
+#if defined(WOLFSSL_WOLFHAL)
+    #include <wolfssl/wolfcrypt/port/wolfHAL/wolfhal.h>
+#endif
+
 #ifdef HAVE_INTEL_QA_SYNC
     #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
 #endif
@@ -579,6 +583,17 @@ int wolfCrypt_Init(void)
     #if defined(WOLFSSL_VERSAL_GEN2_ASU) && defined(WOLF_CRYPTO_CB)
         ret = wc_AsuCryptoCb_RegisterDevice(WOLFSSL_VERSAL_GEN2_ASU_DEVID);
         if (ret != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
+    /* Register the wolfHAL device so wolfCrypt operations route to the board's
+     * crypto accelerator. The board's peripherals must already be brought up
+     * by the application with whal_Board_Init(). */
+    #if defined(WOLFSSL_WOLFHAL) && defined(WOLF_CRYPTO_CB)
+        ret = wc_wolfHAL_RegisterDevice(WOLFSSL_WOLFHAL_DEVID);
+        if (ret != 0) {
+            WOLFSSL_MSG("wolfHAL init failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif

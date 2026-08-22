@@ -127,6 +127,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/realtek/README.md \
               wolfcrypt/src/port/tropicsquare/tropic01.c \
               wolfcrypt/src/port/tropicsquare/README.md \
+              wolfcrypt/src/port/wolfHAL/wolfhal.c \
+              wolfcrypt/src/port/wolfHAL/README.md \
               wolfcrypt/src/port/af_alg/afalg_aes.c \
               wolfcrypt/src/port/af_alg/afalg_hash.c \
               wolfcrypt/src/port/kcapi/kcapi_aes.c \
@@ -270,6 +272,10 @@ endif
 
 if BUILD_RTL8735B
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/realtek/rtl8735b.c
+endif
+
+if BUILD_WOLFHAL
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/wolfHAL/wolfhal.c
 endif
 
 if BUILD_PSA
