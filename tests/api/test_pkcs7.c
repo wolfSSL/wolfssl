@@ -4744,9 +4744,9 @@ int test_wc_PKCS7_stream_encode_chunk_boundary(void)
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
 
-        /* 8192 is encode-only: a final segment above BER_OCTET_LENGTH does
-         * not decode, which is a separate pre-existing decoder limit */
-        if (encSz > 0 && contentSz == 4096) {
+        /* decode back: a mis-sized or mis-split chunk shows up as corrupt
+         * plaintext or a parse failure */
+        if (encSz > 0) {
             ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
             ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
             if (pkcs7 != NULL) {
