@@ -1869,24 +1869,28 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 
     int ret;
 
-    /* One bracket for the whole update+final pair.  km_hmac_final() below
-     * takes a nested one, which is a no-op at depth > 0. */
+    /* One bracket for the update+final pair, so the MAC cannot be split across
+     * two acquisitions.  Do NOT call km_hmac_final() from inside it: that ends
+     * with km_hmac_free_tstate(), which takes desc_list_lock, and the module
+     * refuses a mutex inside a vector-register section -- the guard WARNs
+     * ("wc_LockMutex() called inside SAVE_VECTOR_REGISTERS()") and then SKIPS
+     * the list_del() and wc_HmacFree(), leaking the node.  Latent until 6.16
+     * made crypto_shash_final() an inline over ->finup(), which is what made
+     * this path reachable.  Inline the final here and free after the bracket
+     * closes. */
     KM_SHA_SVR_BEGIN(ret);
 
     ret = wc_HmacUpdate(&ctx->node->wc_hmac, data, len);
-
-    if (ret != 0) {
-        KM_SHA_SVR_END();
+    if (ret == 0)
+        ret = wc_HmacFinal(&ctx->node->wc_hmac, out);
+    else
         ctx->failed = 1;
-        km_hmac_free_tstate(desc);
-        return wc_lkm_errno(ret);
-    }
-
-    ret = km_hmac_final(desc, out);
 
     KM_SHA_SVR_END();
 
-    return ret;
+    km_hmac_free_tstate(desc);
+
+    return (ret == 0) ? 0 : wc_lkm_errno(ret);
 }
 
 WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *data,
