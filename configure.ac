@@ -9063,6 +9063,13 @@ then
     ENABLED_ALPN=yes
 fi
 
+# Mosquitto calls SSL_CTX_set_alpn_protos() unconditionally for its
+# bridge_alpn option, so the OpenSSL-compat ALPN surface has to be present.
+if test "x$ENABLED_MOSQUITTO" = "xyes"
+then
+    ENABLED_ALPN=yes
+fi
+
 if test "x$ENABLED_ALPN" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_ALPN"

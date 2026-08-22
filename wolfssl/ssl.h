@@ -6009,10 +6009,12 @@ WOLFSSL_API int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
 WOLFSSL_API int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
     int *line, const char **data, int *flags);
+#if defined(HAVE_ALPN) && !defined(NO_BIO)
 WOLFSSL_API int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx,
     const unsigned char *protos, unsigned int protos_len);
 WOLFSSL_API int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         const unsigned char* protos, unsigned int protos_len);
+#endif /* HAVE_ALPN && !NO_BIO */
 WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
     size_t siz, const char* file, int line);
 WOLFSSL_API void wolfSSL_OPENSSL_cleanse(void *ptr, size_t len);

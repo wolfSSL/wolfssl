@@ -2659,6 +2659,9 @@ int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
 
 #ifdef OPENSSL_EXTRA
 
+#ifdef HAVE_ALPN
+#ifndef NO_BIO
+
 /* Set the ALPN protocol list, in wire format, on the context.
  *
  * @param [in] ctx    SSL/TLS context object.
@@ -2712,8 +2715,6 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 }
 
 
-#ifdef HAVE_ALPN
-#ifndef NO_BIO
 /* Convert a wire-format ALPN protocol list into a comma-separated string.
  *
  * The wire format is a sequence of entries, each a length byte followed by

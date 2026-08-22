@@ -947,7 +947,8 @@ int test_wolfSSL_CTX_set_servername_arg_inval_ext(void)
 int test_wolfSSL_CTX_set_alpn_protos_inval_ext(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) \
+    && defined(HAVE_ALPN) && !defined(NO_BIO)
     WOLFSSL_CTX* ctx = NULL;
     const unsigned char protos[] = { 2, 'h', '2' };
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
