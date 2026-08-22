@@ -19757,7 +19757,12 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
 #endif /* !WC_NO_RNG */
 
     if (result != NULL) {
-        *result = ret;
+        /* On failure primality was never decided: _sp_prime_random_trials()
+         * leaves *result untouched when its first wc_RNG_GenerateBlock() call
+         * fails, and the argument checks above run before anything is tested.
+         * ret still holds its MP_YES initializer in both cases, so report
+         * MP_NO rather than a primality claim for an untested value. */
+        *result = (err == MP_OKAY) ? ret : MP_NO;
     }
 
     return err;
