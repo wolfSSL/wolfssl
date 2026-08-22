@@ -1210,11 +1210,10 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         if (key->priv_data == NULL) {
             ret = MEMORY_E;
         }
-    #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
         else {
+            /* Loading reads the state before it is computed over. */
             XMEMSET(key->priv_data, 0, priv_data_len);
         }
-    #endif
     }
     if (ret == 0) {
         WC_DECLARE_VAR(state, LmsState, 1, 0);
@@ -1333,6 +1332,10 @@ int wc_LmsKey_Reload(LmsKey* key)
         /* Check pointer is valid. */
         if (key->priv_data == NULL) {
             ret = MEMORY_E;
+        }
+        else {
+            /* Loading reads the state before it is computed over. */
+            XMEMSET(key->priv_data, 0, priv_data_len);
         }
     }
     if (ret == 0) {

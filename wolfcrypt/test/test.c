@@ -61719,6 +61719,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
     int             ret2 = -1;
     int             ret = WC_TEST_RET_ENC_NC;
+#ifndef WOLFSSL_NO_MALLOC
+    byte *          sk_snapshot = NULL;
+#endif
     WOLFSSL_ENTER("xmss_test");
 
 #ifndef HAVE_FIPS
@@ -61827,6 +61830,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
         ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
+#ifndef WOLFSSL_NO_MALLOC
+        /* Keep an early state - it still has a tree hash in progress, which
+         * is what the traversal counters below drive. */
+        if ((i == 2) && (sk_snapshot == NULL)) {
+            sk_snapshot = (byte *)XMALLOC(skSz, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (sk_snapshot == NULL) { ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out); }
+            XMEMCPY(sk_snapshot, sk, skSz);
+        }
+#endif
+
         /* Flip bits in a few places throughout the signature, stepping in multiple
          * of hash size. These should all fail with -1. */
         for (j = 0; j < (int) sigSz; j+= 4 * 32) {
@@ -61844,10 +61858,67 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
         }
     }
 
+#ifndef WOLFSSL_NO_MALLOC
+    /* The BDS traversal counters sit at the end of the persisted private key
+     * and are re-parsed on every sign. Corrupt them and the library must come
+     * back with an error, having stayed inside the key's own buffers. */
+    if (sk_snapshot != NULL) {
+        XmssKey reloadKey;
+
+        /* One extra pass with the state left alone, to show that a good state
+         * is still accepted. */
+        for (j = (int)skSz - 16; j <= (int)skSz; j++) {
+            XMEMCPY(sk, sk_snapshot, skSz);
+            if (j < (int)skSz) {
+                sk[j] = 0xc8;
+            }
+
+            ret = wc_XmssKey_Init(&reloadKey, NULL, devId);
+            if (ret == 0) {
+                ret = wc_XmssKey_SetParamStr(&reloadKey, param);
+            }
+            if (ret == 0) {
+                ret = wc_XmssKey_SetWriteCb(&reloadKey, xmss_write_key_mem);
+            }
+            if (ret == 0) {
+                ret = wc_XmssKey_SetReadCb(&reloadKey, xmss_read_key_mem);
+            }
+            if (ret == 0) {
+                ret = wc_XmssKey_SetContext(&reloadKey, (void *) sk);
+            }
+            if (ret == 0) {
+                ret = wc_XmssKey_Reload(&reloadKey);
+            }
+            if (ret == 0) {
+                sigSz = bufSz;
+                ret = wc_XmssKey_Sign(&reloadKey, sig, &sigSz, (byte *) msg,
+                                      msgSz);
+            }
+            if ((ret == 0) && (j == (int)skSz)) {
+                /* Untouched state - the signature must be the real one. */
+                ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg,
+                                        msgSz);
+            }
+            wc_XmssKey_Free(&reloadKey);
+
+            /* A corrupt state may sign or may fail; an untouched one may not
+             * fail. Under a sanitizer this is also what catches a write that
+             * left the key's buffers. */
+            if ((ret != 0) && (j == (int)skSz)) {
+                ERROR_OUT(WC_TEST_RET_ENC_I(j), out);
+            }
+        }
+        ret = 0;
+    }
+#endif /* !WOLFSSL_NO_MALLOC */
+
 out:
 
     /* Cleanup everything. */
 #ifndef WOLFSSL_NO_MALLOC
+    XFREE(sk_snapshot, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sk_snapshot = NULL;
+
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     sig = NULL;
 
