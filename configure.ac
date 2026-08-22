@@ -2706,6 +2706,16 @@ then
 fi
 
 
+# SHA-512 handshake transcript for TLS v1.3
+AC_ARG_ENABLE([tls13-sha512],
+    [AS_HELP_STRING([--enable-tls13-sha512],[Keep the SHA-512 handshake transcript for TLS v1.3 (default: disabled)])],
+    [ ENABLED_TLS13_SHA512=$enableval ],
+    [ ENABLED_TLS13_SHA512=no ]
+    )
+# ENABLED_TLS13 is still mutable here - the key exchange prerequisite check
+# further down can force it off - so the macro is only added to AM_CFLAGS in
+# the consistency check section near the end, once it has settled.
+
 # TLS v1.3 middlebox compatibility (RFC 8446 Appendix D.4)
 AC_ARG_ENABLE([tls13-middlebox-compat],
     [AS_HELP_STRING([--enable-tls13-middlebox-compat],[Enable TLS v1.3 middlebox compatibility mode (default: disabled)])],
@@ -13085,6 +13095,21 @@ AS_IF([test "x$ENABLED_SRTP" = "xyes"],
 AS_IF([test "x$ENABLED_MCAST" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTICAST"])
 
+# Settled here rather than beside the option itself: ENABLED_TLS13 can still
+# be forced off by the key exchange prerequisite check above, and appending
+# the macro earlier would leave it in a build with TLS 1.3 disabled. The macro
+# also decides whether the handshake transcript carries a SHA-512 hash at all,
+# so a stale value changes a struct layout rather than just enabling dead code.
+AS_IF([test "x$ENABLED_TLS13_SHA512" = "xyes" && test "x$ENABLED_TLS13" = "xno"],
+      [AC_MSG_NOTICE([TLS 1.3 is disabled - not keeping the SHA-512 handshake transcript for it])
+       ENABLED_TLS13_SHA512="no"])
+# The transcript cannot hash with SHA-512 unless SHA-512 is built.
+AS_IF([test "x$ENABLED_TLS13_SHA512" = "xyes" && \
+       test "x$ENABLED_SHA512" = "xno"],
+      [AC_MSG_ERROR([--enable-tls13-sha512 requires sha512.])])
+AS_IF([test "x$ENABLED_TLS13_SHA512" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_SHA512"])
+
 # WOLFSSL_AFALG does not support SHA224 yet
 AS_IF([(test "x$ENABLED_AFALG" = "xyes") && (test "x$ENABLED_SHA224" = "xyes")],
       [AC_MSG_ERROR([--enable-sha224 with --enable-afalg not yet supported])])
@@ -14109,6 +14134,7 @@ echo "   * TLS v1.0 (Old):             $ENABLED_TLSV10"
 echo "   * TLS v1.1 (Old):             $ENABLED_OLD_TLS"
 echo "   * TLS v1.2:                   $ENABLED_TLSV12"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
+echo "   * TLS v1.3 SHA-512:           $ENABLED_TLS13_SHA512"
 echo "   * Tiny TLS 1.3:               $ENABLED_TINYTLS13"
 echo "   * RPK:                        $ENABLED_RPK"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"

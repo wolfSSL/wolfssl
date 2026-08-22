@@ -451,5 +451,16 @@
 {"name": "lowresource-tls13-session-ticket", "minutes": 0.8,
  "comment": "--enable-lowresource defines NO_SESSION_CACHE, so this reaches the src/internal.c no-cache ticket paths purely through configure options, with no CPPFLAGS to get wrong. It does not cover src/dtls.c, whose TlsSessionIdIsValid needs WOLFSSL_DTLS_NO_HVR_ON_RESUME, so no-session-cache-session-ticket is the entry for that and the two are not interchangeable. Examples are off for the same reason as that entry.",
  "configure": ["--enable-lowresource", "--enable-tls13", "--enable-session-ticket",
-  "--disable-examples"]}
+  "--disable-examples"]},
+{"name": "tls13-only-sha512-transcript", "minutes": 0.8,
+ "comment": "WOLFSSL_NO_TLS12 with SHA-512 still enabled. That is the only shape where WOLFSSL_HS_HASH_SHA512 is false while WOLFSSL_SHA512 is true. dtls13-client-minimal compiles the same HS_Hashes layout without hashSha512, verifyHashes and certHashes, but it gets there with --disable-sha512, so it does not cover this combination. --disable-tlsv12 alone does not define the macro. Examples are off because tests/api/test_tls13.c calls wolfTLSv1_2_server_method() unguarded, so this entry is compile coverage for the library.",
+ "configure": ["--enable-tls13", "--disable-tlsv12", "--disable-oldtls",
+  "--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_TLS12"]},
+{"name": "tls13-sha512-transcript-only", "minutes": 0.8,
+ "comment": "The other side of WOLFSSL_HS_HASH_SHA512: --enable-tls13-sha512 without TLS 1.2, so the SHA-512 transcript is kept for TLS 1.3 alone. Examples are off for the same reason as tls13-only-sha512-transcript.",
+ "configure": ["--enable-tls13", "--enable-tls13-sha512", "--disable-tlsv12",
+  "--disable-oldtls", "--disable-examples", "CPPFLAGS=-DWOLFSSL_NO_TLS12"]},
+{"name": "tls13-sha512-runtime", "minutes": 1.6,
+ "comment": "--enable-tls13-sha512 with TLS 1.2 left in, so the examples and unit tests build and run with WOLFSSL_HS_HASH_SHA512 set. No cipher suite sets mac_algorithm to sha512_mac, so the sha512_mac arms in src/tls13.c stay unreached; what this entry proves is that the option does not break an otherwise ordinary build, which the two compile-only entries above cannot show.",
+ "configure": ["--enable-tls13", "--enable-tls13-sha512", "--enable-sha512"]}
 ]
