@@ -1314,7 +1314,12 @@ static bench_real_t wc_bench_rsqrt(bench_real_t in)
  *
  * Wrap the CALL, not the check, so the existing `ret != 0` / `ret == 0` /
  * bench_async_handle() logic downstream needs no edits. */
-#ifdef HAVE_FIPS
+/* Gate on WC_HAVE_FIPS_INDICATOR, not HAVE_FIPS: an enumerator cannot be
+ * tested with #ifdef, and not every FIPS bundle declares wc_FipsIndicator --
+ * the FIPS Ready headers used by --enable-fips=dev-no-post do not, so keying
+ * this off HAVE_FIPS alone broke that build with
+ * "'WC_FIPS_NOT_APPROVED' undeclared". */
+#if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR)
     #define BENCH_FIPS_OK(x) (((x) == WC_FIPS_NOT_APPROVED) ? 0 : (x))
 #else
     #define BENCH_FIPS_OK(x) (x)
