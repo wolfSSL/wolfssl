@@ -1625,10 +1625,16 @@ static void wolfssl_exit(void)
      * with msleep_interruptible(10) while callers are still inside; it does
      * not use RCU.  It can return -EBUSY, which this call discards -- see
      * drivers/char/random.c in the patch for this kernel. */
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+    /* Guarded like the register call in wolfssl_init().  Without this the
+     * unpatched-kernel build emits an implicit-declaration error here as well
+     * as the #error there, and the second one buries the message that tells
+     * the builder what to do. */
     if (wc_grb_service_active()) {
         (void)wolfssl_linuxkm_unregister_random_bytes_handlers();
         wc_grb_set_registered(0);
     }
+#endif
     wc_grb_maint_stop();
     wc_grb_cleanup();
 #endif /* LINUXKM_RBGC */
