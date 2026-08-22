@@ -420,6 +420,21 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set1_groups_list        wolfSSL_CTX_set1_groups_list
 #define SSL_set1_groups_list            wolfSSL_set1_groups_list
 
+/* Both aliases are skipped for nginx. Note that --enable-all defines
+ * WOLFSSL_NGINX too. Only the aliases are dropped, the wolfSSL_* functions stay
+ * available.
+ * - SSL_group_to_name(): nginx defines its own fallback unconditionally in
+ *   ngx_event_openssl.h, after this header, so the alias would be a macro
+ *   redefinition and nginx builds with -Werror.
+ * - SSL_get_negotiated_group(): nginx keys off the macro to pick an
+ *   OpenSSL-only branch of ngx_ssl_get_curve() that needs TLSEXT_nid_unknown,
+ *   which wolfSSL does not have. Without the alias nginx keeps using
+ *   wolfSSL_get_curve_name(), as it did before this API existed. */
+#ifndef WOLFSSL_NGINX
+#define SSL_get_negotiated_group        wolfSSL_get_negotiated_group
+#define SSL_group_to_name               wolfSSL_group_to_name
+#endif
+
 #define SSL_set_ex_data                 wolfSSL_set_ex_data
 #define SSL_get_shutdown                wolfSSL_get_shutdown
 #define SSL_get_finished                wolfSSL_get_finished

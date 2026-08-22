@@ -16208,62 +16208,6 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         use_cb = 1;
     }
 #endif
-#if defined(OPENSSL_EXTRA)
-    /* Perform domain and IP check only for the leaf certificate */
-    if (args->certIdx == 0) {
-        size_t ipascLen = ((ssl != NULL) && (ssl->param != NULL)) ?
-                              XSTRLEN(ssl->param->ipasc) : 0;
-
-        /* perform domain name check on the peer certificate */
-        if (args->dCertInit && args->dCert && (ssl != NULL) &&
-                ssl->param && ssl->param->hostName[0]) {
-            /* If altNames names is present, then subject common name is ignored */
-            if (args->dCert->altNames != NULL) {
-                if (CheckForAltNames(args->dCert, ssl->param->hostName,
-                    (word32)XSTRLEN(ssl->param->hostName), NULL, 0, 0) != 1) {
-                    if (cert_err == 0) {
-                        ret = DOMAIN_NAME_MISMATCH;
-                        WOLFSSL_ERROR_VERBOSE(ret);
-                    }
-                }
-            }
-        #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
-            else {
-                if (args->dCert->subjectCN) {
-                    if (MatchDomainName(
-                            args->dCert->subjectCN,
-                            args->dCert->subjectCNLen,
-                            ssl->param->hostName,
-                            (word32)XSTRLEN(ssl->param->hostName), 0) == 0) {
-                        if (cert_err == 0) {
-                            ret = DOMAIN_NAME_MISMATCH;
-                            WOLFSSL_ERROR_VERBOSE(ret);
-                        }
-                    }
-                }
-            }
-        #else
-            else {
-                if (cert_err == 0) {
-                    ret = DOMAIN_NAME_MISMATCH;
-                    WOLFSSL_ERROR_VERBOSE(ret);
-                }
-            }
-        #endif /* !WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY */
-        }
-
-        /* perform IP address check on the peer certificate */
-        if ((args->dCertInit != 0) && (args->dCert != NULL) && (ssl != NULL) &&
-            (ssl->param != NULL) && (ipascLen > 0)) {
-            if (CheckIPAddr(args->dCert, ssl->param->ipasc, ipascLen) != 0) {
-                if (cert_err == 0) {
-                    ret = IPADDR_MISMATCH;
-                    WOLFSSL_ERROR_VERBOSE(ret);
-                }
-            }
-        }
-    }
-#endif
     /* if verify callback has been set */
     if ((use_cb && (ssl != NULL) && ((ssl->verifyCallback != NULL)
     #ifdef OPENSSL_ALL
@@ -17889,6 +17833,46 @@ static int RpkIsTrusted(WOLFSSL* ssl, const byte* spki, word32 spkiSz)
 }
 #endif /* HAVE_RPK */
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+/* Match one configured name against the leaf certificate, using the same
+ * rules as the wolfSSL_check_domain_name() check in ProcessPeerCerts().
+ * Returns 0 on match, DOMAIN_NAME_MISMATCH otherwise. */
+static int CheckPeerHostName(DecodedCert* dCert, const char* name)
+{
+    word32 nameLen = (word32)XSTRLEN(name);
+
+#ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
+    /* Per RFC 5280 section 4.2.1.6, subject alternative names take
+     * precedence over the subject common name. */
+    if (dCert->altNames != NULL) {
+        if (CheckForAltNames(dCert, name, nameLen, NULL, 0, 0) != 1) {
+            return DOMAIN_NAME_MISMATCH;
+        }
+        return 0;
+    }
+#ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
+    if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen, name,
+            nameLen, 0) == 0)
+#endif
+    {
+        return DOMAIN_NAME_MISMATCH;
+    }
+    return 0;
+#else /* WOLFSSL_ALLOW_NO_CN_IN_SAN */
+#ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
+    if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen, name,
+            nameLen, 0) == 0)
+#endif
+    {
+        if (CheckForAltNames(dCert, name, nameLen, NULL, 0, 0) != 1) {
+            return DOMAIN_NAME_MISMATCH;
+        }
+    }
+    return 0;
+#endif /* !WOLFSSL_ALLOW_NO_CN_IN_SAN */
+}
+#endif /* OPENSSL_EXTRA && !NO_CERTS */
+
 int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      word32 totalSz)
 {
@@ -19074,8 +19058,32 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_ALL_NO_CN_IN_SAN */
                 }
 
-#ifndef OPENSSL_EXTRA
-                if (!ssl->options.verifyNone && ssl->buffers.ipasc.buffer) {
+            #ifdef OPENSSL_EXTRA
+                /* X509_VERIFY_PARAM_set1_host() names the expected peer
+                 * independently of wolfSSL_check_domain_name(), so check it
+                 * on its own rather than as a fallback. DoVerifyCallback()
+                 * ran it regardless of verifyNone; keep that. */
+                if ((ret == 0) && (ssl->param != NULL) &&
+                        (ssl->param->hostName[0] != '\0')) {
+                    if (CheckPeerHostName(args->dCert,
+                            ssl->param->hostName) != 0) {
+                        WOLFSSL_MSG("DomainName match on verify param failed");
+                        ret = DOMAIN_NAME_MISMATCH;
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                        /* Record it: a verify callback may clear ret, and
+                         * get_verify_result() must not then report success on
+                         * a certificate issued to another name. */
+                        if ((ssl->peerVerifyRet == 0) ||
+                                (ssl->peerVerifyRet == WOLFSSL_X509_V_OK)) {
+                            ssl->peerVerifyRet = (unsigned long)
+                                WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
+                        }
+                    }
+                }
+            #endif
+
+                if (!ssl->options.verifyNone &&
+                        (ssl->buffers.ipasc.buffer != NULL)) {
                     if (CheckIPAddr(args->dCert,
                             (const char*)ssl->buffers.ipasc.buffer,
                             (size_t)ssl->buffers.ipasc.length) != 0) {
@@ -19084,7 +19092,23 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_ERROR_VERBOSE(ret);
                     }
                 }
-#endif
+            #ifdef OPENSSL_EXTRA
+                /* Same for X509_VERIFY_PARAM_set1_ip(). */
+                if ((ret == 0) && (ssl->param != NULL) &&
+                        (ssl->param->ipasc[0] != '\0')) {
+                    if (CheckIPAddr(args->dCert, ssl->param->ipasc,
+                            XSTRLEN(ssl->param->ipasc)) != 0) {
+                        WOLFSSL_MSG("IPAddr match on verify param failed");
+                        ret = IPADDR_MISMATCH;
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                        if ((ssl->peerVerifyRet == 0) ||
+                                (ssl->peerVerifyRet == WOLFSSL_X509_V_OK)) {
+                            ssl->peerVerifyRet = (unsigned long)
+                                WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
+                        }
+                    }
+                }
+            #endif
 
                 /* decode peer key */
                 if (ProcessPeerCertDecodeKey(ssl, args, &ret))
@@ -24108,6 +24132,13 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
         }
     }
     else {
+        /* Only report alerts that survived the TLS 1.3 plaintext-alert
+         * rejection above, so an injected alert cannot drive the callback. */
+#ifdef OPENSSL_EXTRA
+        if (ssl->CBIS != NULL) {
+            ssl->CBIS(ssl, WOLFSSL_CB_READ_ALERT, (level << 8) | code);
+        }
+#endif
         if (*type == close_notify) {
             ssl->options.closeNotify = 1;
         }
@@ -29427,7 +29458,9 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
 
    #ifdef OPENSSL_EXTRA
         if (ssl->CBIS != NULL) {
-            ssl->CBIS(ssl, WOLFSSL_CB_ALERT, type);
+            /* OpenSSL flags the direction and packs the alert as
+             * (level << 8) | description. */
+            ssl->CBIS(ssl, WOLFSSL_CB_WRITE_ALERT, (severity << 8) | type);
         }
    #endif
    #ifdef WOLFSSL_DTLS

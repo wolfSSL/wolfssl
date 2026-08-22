@@ -57,6 +57,15 @@
 
 /* Start EC_curve */
 
+/* kNistCurves also carries the finite field (FFDHE) groups, which are not EC
+ * curves. OpenSSL's EC_curve_nid2nist()/nist2nid() do not resolve them, so
+ * skip any row whose group is in the RFC 7919 code point range. */
+static int wolfssl_ec_nist_row_is_curve(const WOLF_EC_NIST_NAME* nist_name)
+{
+    return (nist_name->curve < WOLFSSL_FFDHE_START) ||
+           (nist_name->curve > WOLFSSL_FFDHE_END);
+}
+
 /* Get the NIST name for the numeric ID.
  *
  * @param [in] nid  Numeric ID of an EC curve.
@@ -70,7 +79,8 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
 
     /* Attempt to find the curve info matching the NID passed in. */
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-        if (nist_name->nid == nid) {
+        if (wolfssl_ec_nist_row_is_curve(nist_name) &&
+                (nist_name->nid == nid)) {
             /* NID found - return name. */
             name = nist_name->name;
             break;
@@ -93,7 +103,8 @@ int wolfSSL_EC_curve_nist2nid(const char* name)
 
     /* Attempt to find the curve info matching the NIST name passed in. */
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-        if (XSTRCMP(nist_name->name, name) == 0) {
+        if (wolfssl_ec_nist_row_is_curve(nist_name) &&
+                (XSTRCMP(nist_name->name, name) == 0)) {
             /* Name found - return NID. */
             nid = nist_name->nid;
             break;

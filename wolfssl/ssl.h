@@ -1505,6 +1505,13 @@ WOLFSSL_API int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
 #endif
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+WOLFSSL_API int  wolfSSL_get_negotiated_group(const WOLFSSL* ssl);
+WOLFSSL_API const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id);
+#endif
+#endif
+
 #ifdef WOLFSSL_TLS13
 WOLFSSL_API int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
