@@ -718,7 +718,7 @@ int wc_grb_service(void *buf, size_t len)
         wc_grb_ctr_inc(&wc_grb_stat[ctx].failed_boot);
     }
 
-    if (ret == WC_ACCEL_INHIBIT_E) {
+    if (ret == WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E)) {
         wc_grb_ctr_inc(&wc_grb_stat[ctx].inhibit);
     }
 

@@ -4208,9 +4208,12 @@
     /* defined for all ECC non FIPS builds and for FIPS v7+ (including
      * fips-ready/fips-dev which track the latest in-development source),
      * unless the user explicitly opts in to allowing an all-zero digest with
-     * WC_ALLOW_ECC_ZERO_HASH or is building with HAVE_SELFTEST */
+     * WC_ALLOW_ECC_ZERO_HASH or is building with selftest v1 (v2 uses the
+     * wolfCrypt ECC implementation, which does reject it) */
     #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
-        !defined(HAVE_SELFTEST) && !defined(WC_ALLOW_ECC_ZERO_HASH)
+        (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                     (HAVE_SELFTEST_VERSION >= 2))) && \
+        !defined(WC_ALLOW_ECC_ZERO_HASH)
         /* sign/verify of an all-zero digest in wolfCrypt rejected */
         #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
     #endif

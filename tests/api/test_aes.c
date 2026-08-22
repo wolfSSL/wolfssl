@@ -4295,7 +4295,11 @@ int test_wc_AesGcmNonStdNonce(void)
         XMEMSET(&enc, 0, sizeof(enc));
         ExpectIntEQ(wc_AesInit(&enc, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesGcmSetKey(&enc, key_z, sizeof(key_z)), 0);
-#ifdef HAVE_SELFTEST
+    /* selftest v1 accepted a zero-length IV; v2 uses the wolfCrypt AES-GCM
+     * implementation, which rejects it with BAD_FUNC_ARG like every other
+     * build, so only v1 takes the accept arm. */
+#if defined(HAVE_SELFTEST) && (!defined(HAVE_SELFTEST_VERSION) || \
+                               (HAVE_SELFTEST_VERSION < 2))
         ExpectIntEQ(wc_AesGcmEncrypt(&enc, ct, pt_z, sizeof(pt_z),
             NULL, 0, tag, sizeof(tag), NULL, 0), 0);
 #else

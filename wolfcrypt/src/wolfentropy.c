@@ -38,7 +38,27 @@ data, use this implementation to seed and re-seed the DRBG.
 
 #include <wolfssl/wolfcrypt/wolfentropy.h>
 
+/* Declares wc_OE_TimeHiRes(), defined OUTSIDE the FIPS module boundary in
+ * wolfcrypt/src/oe_timers.c.  It has its own header so that this module's
+ * headers declare nothing that lives outside the module. */
+#include <wolfssl/wolfcrypt/oe_timers.h>
+
 #include <wolfssl/wolfcrypt/sha3.h>
+
+/* SHA-256/3 conditioning entry points, named explicitly rather than left to the
+ * header remap in fips.h.  This file sits OUTSIDE the FIPS module boundary, so
+ * its conditioning hash is a one-way SERVICE request into the module */
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+    #define ESV_SHA3_INIT       wc_InitSha3_256_fips
+    #define ESV_SHA3_UPDATE     wc_Sha3_256_Update_fips
+    #define ESV_SHA3_FINAL      wc_Sha3_256_Final_fips
+    #define ESV_SHA3_FREE       wc_Sha3_256_Free_fips
+#else
+    #define ESV_SHA3_INIT       wc_InitSha3_256
+    #define ESV_SHA3_UPDATE     wc_Sha3_256_Update
+    #define ESV_SHA3_FINAL      wc_Sha3_256_Final
+    #define ESV_SHA3_FREE       wc_Sha3_256_Free
+#endif
 #if defined(__APPLE__) || defined(__MACH__)
     #include <mach/mach_time.h>
 #endif
@@ -64,111 +84,19 @@ static wc_Sha3 entropyHash;
 /* Reset the health tests. */
 static void Entropy_HealthTest_Reset(void);
 
-#ifdef CUSTOM_ENTROPY_TIMEHIRES
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    return CUSTOM_ENTROPY_TIMEHIRES();
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && \
-      (defined(__x86_64__) || defined(__i386__))
-/* Get the high resolution time counter.
+/* The high resolution counter read lives in wolfcrypt/src/oe_timers.c, kept in
+ * its own translation unit so that supporting new hardware means adding an arm
+ * there and touching nothing else.  A new platform still needs its own
+ * SP 800-90B raw-data collection and ESV entry: separating the file makes that
+ * an ESV change alone, it does not make a port free.
  *
- * @return  64-bit count of CPU cycles.
- */
+ * The condition mirrors the one guarding the ladder in oe_timers.c: a custom
+ * counter always wins, as it did before, and otherwise the hardware counter is
+ * used unless the build asked for the threaded proxy below. */
+#if defined(CUSTOM_ENTROPY_TIMEHIRES) || !defined(ENTROPY_MEMUSE_THREAD)
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
-    unsigned int lo_c, hi_c;
-    __asm__ __volatile__ (
-        "rdtsc"
-            : "=a"(lo_c), "=d"(hi_c)   /* out */
-            : "a"(0)                   /* in */
-            : "%ebx", "%ecx");         /* clobber */
-    return ((word64)lo_c) | (((word64)hi_c) << 32);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && \
-      (defined(__APPLE__) || defined(__MACH__))
-/* Get the high resolution time counter.
- *
- * @return  64-bit time in nanoseconds.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__aarch64__)
-/* Get the high resolution time counter.
- *
- * @return  64-bit timer count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word64 cnt;
-    __asm__ __volatile__ (
-        "mrs %[cnt], cntvct_el0"
-        : [cnt] "=r"(cnt)
-        :
-        :
-    );
-    return cnt;
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__MICROBLAZE__)
-
-#define LPD_SCNTR_BASE_ADDRESS 0xFF250000
-
-/* Get the high resolution time counter.
- * Collect ticks from LPD_SCNTR
- * @return  64-bit tick count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word64 cnt;
-    word32 *ptr;
-
-    ptr = (word32*)LPD_SCNTR_BASE_ADDRESS;
-    cnt = *(ptr+1);
-    cnt = cnt << 32;
-    cnt |= *ptr;
-
-    return cnt;
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(_POSIX_C_SOURCE) && \
-    (_POSIX_C_SOURCE >= 199309L)
-/* Get the high resolution time counter.
- *
- * @return  64-bit time that is the nanoseconds of current time.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    struct timespec now;
-
-    clock_gettime(CLOCK_REALTIME, &now);
-
-    return now.tv_nsec;
-}
-#elif defined(_WIN32) /* USE_WINDOWS_API */
-/* Get the high resolution time counter.
- *
- * @return  64-bit timer
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    LARGE_INTEGER count;
-    QueryPerformanceCounter(&count);
-    return (word64)(count.QuadPart);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__arm__)
-/* Get time counter from arch_sys_counter clocksource.
- *
- * @return  64-bit timer count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word32 lo, hi;
-    __asm__ __volatile__ (
-        "mrrc p15, 1, %[lo], %[hi], c14"
-        : [lo] "=r"(lo), [hi] "=r"(hi)
-    );
-    return ((word64)hi << 32) | lo;
+    return wc_OE_TimeHiRes();
 }
 #elif defined(WOLFSSL_THREAD_NO_JOIN)
 
@@ -415,12 +343,12 @@ static int Entropy_MemUse(void)
      * would leave digest material resident until the next successful call. */
     for (j = 0; j < ENTROPY_NUM_UPDATES; j++) {
         /* Hash the first 32 64-bit words of state. */
-        ret = wc_Sha3_256_Update(&entropyHash, (byte*)entropy_state,
+        ret = ESV_SHA3_UPDATE(&entropyHash, (byte*)entropy_state,
             sizeof(*entropy_state) * ENTROPY_NUM_64BIT_WORDS);
         if (ret != 0)
             break;
         /* Get pseudo-random indices. */
-        ret = wc_Sha3_256_Final(&entropyHash, d);
+        ret = ESV_SHA3_FINAL(&entropyHash, d);
         if (ret != 0)
             break;
 
@@ -848,21 +776,21 @@ static int Entropy_Condition(byte* output, word32 len, byte* noise,
     int ret;
 
     /* Add noise to initialized hash. */
-    ret = wc_Sha3_256_Update(&entropyHash, noise, noise_len);
+    ret = ESV_SHA3_UPDATE(&entropyHash, noise, noise_len);
     if (ret == 0) {
         word64 now = Entropy_TimeHiRes();
         /* Add time now counter. */
-        ret = wc_Sha3_256_Update(&entropyHash, (byte*)&now, sizeof(now));
+        ret = ESV_SHA3_UPDATE(&entropyHash, (byte*)&now, sizeof(now));
     }
     if (ret == 0) {
         /* Finalize into output buffer. */
         if (len == WC_SHA3_256_DIGEST_SIZE) {
-            ret = wc_Sha3_256_Final(&entropyHash, output);
+            ret = ESV_SHA3_FINAL(&entropyHash, output);
         }
         else {
             byte hash[WC_SHA3_256_DIGEST_SIZE];
 
-            ret = wc_Sha3_256_Final(&entropyHash, hash);
+            ret = ESV_SHA3_FINAL(&entropyHash, hash);
             if (ret == 0) {
                 XMEMCPY(output, hash, len);
             }
@@ -1091,7 +1019,7 @@ int Entropy_Init(void)
 
     if (ret == 0) {
         /* Initialize a SHA3-256 object for use in entropy operations. */
-        ret = wc_InitSha3_256(&entropyHash, NULL, INVALID_DEVID);
+        ret = ESV_SHA3_INIT(&entropyHash, NULL, INVALID_DEVID);
         if (ret != 0) {
         #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
             wc_FreeMutex(&entropy_mutex);
@@ -1112,7 +1040,7 @@ int Entropy_Init(void)
             Entropy_StopThread();
         #endif
             if (ret != 0) {
-                wc_Sha3_256_Free(&entropyHash);
+                ESV_SHA3_FREE(&entropyHash);
                 Entropy_HealthTest_Reset();
             #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
                 wc_FreeMutex(&entropy_mutex);
@@ -1152,7 +1080,7 @@ void Entropy_Final(void)
      * UNINITED.  That is what makes freeing the SP 800-90B source state, and
      * entropy_mutex itself, safe here.  Holding the mutex could not have
      * established it, since a mutex cannot guard its own destruction. */
-    wc_Sha3_256_Free(&entropyHash);
+    ESV_SHA3_FREE(&entropyHash);
     /* Clear health test data. */
     Entropy_HealthTest_Reset();
     /* Zeroize the accumulated entropy pool on teardown (ISO/IEC 19790:2012

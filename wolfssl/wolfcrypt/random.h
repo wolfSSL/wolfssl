@@ -525,6 +525,22 @@ WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 #define WC_RBGC_INSTANTIATE_SZ (RNG_SECURITY_STRENGTH * 3 / 2 / 8)
 WOLFSSL_LOCAL int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent);
 #endif
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK)
+/* Instantiate from seed material the caller already holds.  WOLFSSL_LOCAL,
+ * not WOLFSSL_API: the only caller is the CAST code in fips_test.c, which is
+ * linked into the module.  See the definition in random.c for what this is
+ * for and what it is NOT.
+ *
+ * The guard is the condition under which _InitRng() actually has the
+ * caller-supplied-seed branch.  configure forces HAVE_HASHDRBG on for every
+ * FIPS build ("FIPS override: Hash DRBG is mandatory"), so a v7 build always
+ * has it; declaring it conditionally means a build that somehow does not gets
+ * an unresolved symbol rather than a wc_InitRngFixedSeed() that quietly
+ * seeds from the noise source after all. */
+WOLFSSL_LOCAL int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed,
+                                      word32 seedSz);
+#endif
 
 WOLFSSL_ABI WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);

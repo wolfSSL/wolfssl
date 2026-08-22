@@ -257,31 +257,84 @@ This list is a property of the kernel's configuration - `rc80211_minstrel_init`
 appears only because this guest has wireless built in - so re-measure per
 target rather than reusing the table.
 
-### 2. `get_random_u8/u16/u32/u64` - never, at any time
+### 2. `get_random_u8/u16/u32/u64` - served, one hook call per batch refill
 
-These do not go through `get_random_bytes()`.  They call the kernel's internal
-generator directly, so the hook is never offered them, before or after the
-module loads:
+These do not call `get_random_bytes()`.  They keep a per-CPU batch and refill it
+from `_get_random_bytes()`, which is exactly where the patches in
+`linuxkm/patches/` put the hook.  So on a patched kernel the family IS served by
+the module - indirectly and in bulk, one hook call per refill rather than one
+per `get_random_u32()`:
 
 ```
-  get_random_bytes()  --> hook --> wolfSSL      served
-  get_random_u32()    --------------> kernel    never offered
+  get_random_bytes()  --> hook --> wolfSSL          one hook call per request
+  get_random_u32()    --> per-CPU batch             one hook call per refill
+                            `-- refill --> hook --> wolfSSL
 ```
 
-Measured on an otherwise idle guest: about 400 such calls in two minutes on
-both architectures, continuous rather than a one-time boot window, and growing
-with real system activity - TCP sequence numbers, address-space layout
-randomisation and slab randomisation all use this family.
+Measured on `linux-6.12.0` x86_64 patched with
+`linuxkm/patches/6.12/WOLFSSL_KERNELv6_12_FIPS.patch` (the base the coverage
+table gives for 6.12.0, applied at `--fuzz=0`), one vCPU, a kthread bound to
+CPU 0 driving exactly 1,000,000 calls of one width.  The counters sit in the
+kernel's `random.c` at the hook site, not in the module.
 
-**This gap belongs to the experimental test hook, not to the design.**  The
-supported kernel patches in `linuxkm/patches/` hook `_get_random_bytes()`,
-which the whole `get_random_uN` family calls, and `linuxkm/lkcapi_sha_glue.c`
-already registers handlers against it.  The blastmatrix harness uses a simpler
-hook on the public `get_random_bytes()` wrapper because four of the six kernel
-versions it tests have no supported patch; that wrapper sits one level above
-`_get_random_bytes()`, so the batched family flows past it.  Numbers on this
-page were taken through the simpler hook and therefore describe
-`get_random_bytes()` only.
+| driven, 1,000,000 calls | batch entries | hook calls | bytes | served by module | declined |
+|---|---:|---:|---:|---:|---:|
+| `get_random_u8()`     | 96 | 10,417 | 1,000,032 | 10,417 | 0 |
+| `get_random_u16()`    | 48 | 20,834 | 2,000,064 | 20,834 | 0 |
+| `get_random_u32()`    | 24 | 41,667 | 4,000,032 | 41,667 | 0 |
+| `get_random_u64()`    | 12 | 83,333 | 7,999,968 | 83,333 | 0 |
+| `get_random_bytes(4)` | n/a | 1,000,000 | 4,000,000 | 1,000,000 | 0 |
+
+Every refill asks for `sizeof(batch->entropy)` = `CHACHA_BLOCK_SIZE * 3 / 2` =
+96 bytes whatever the width, so the hook-call count is the call count divided by
+how many entries a batch holds.  The u64 row is one short of `ceil(1000000/12)`
+because CPU 0's u64 batch already held entries when the window opened.
+
+**Negative control**: same kernel, same workload, module never inserted.
+41,667 hook calls for u32 and 83,333 for u64 - the same counts - of which 0 were
+served and every one was charged to "no handler registered".  Only which
+generator answers changes.  A second, independent set of counters read out of
+the module agrees with the kernel-side ones to the unit: 41,671 - 4 = 41,667
+process-context calls, all served, none failed or declined.
+
+**The bytes are the module's; the hand-out is the kernel's.**  A
+`get_random_u32()` call is not itself a module operation - it takes the next 4
+bytes of a 96-byte block the module generated earlier on that CPU.  The module
+still generates only when asked and keeps nothing; the batch belongs to the
+kernel, which may buffer what it has already been given, as any caller may.
+
+**Not every supported kernel routes the family this way.**  Before the "fast key
+erasure" rewrite the batch was refilled from `extract_crng()`, which no patch
+hooks.  Read out of each version's `drivers/char/random.c`:
+
+| refills the uN batch from | versions read |
+|---|---|
+| `_get_random_bytes()` - hooked | 5.10.236, 5.10.265, 5.15.216, 5.17.14, 5.18, 6.1.183, 6.12, 6.15, 6.16, 7.0 |
+| `extract_crng()` - not hooked | 5.6.19, 5.10.17, 5.16.20 |
+
+It is not a version ordering.  The rewrite was backported into 5.10.y and
+5.15.y and never into 5.16.y, so 5.15.216 is on the hooked side while 5.16.20 is
+not.  Read the tree, not the number.
+
+Measured on `linux-5.16.20` x86_64 patched with
+`linuxkm/patches/5.16/WOLFSSL_KERNELv5_16_FIPS.patch`: 1,000,000
+`get_random_u32()` calls produced **0** hook calls, while 1,000,000
+`get_random_bytes(4)` calls on the same guest produced 1,000,000.  That counter
+increments on entry to the hook, before any test of whether a handler is
+registered, so the zero measures the kernel's routing and nothing else.
+
+**The blastmatrix numbers describe the simpler hook, not this one.**  The
+supported patches hook `_get_random_bytes()`; `patches/kernel/apply-grb-hook.sh`
+in the blastmatrix harness instead edits the public `get_random_bytes()` wrapper
+and `get_random_bytes_user()`, one level above, so the batched family flows past
+it and is counted nowhere.  Figures taken through that hook - including the
+274.5 million below - therefore describe `get_random_bytes()` only.  The
+harness selects the supported flavour with `GRB_FIPS_PATCH=1`.
+
+The family is used continuously rather than in a boot window - TCP sequence
+numbers, address-space layout randomisation and slab randomisation all draw from
+it - so on a kernel from the hooked row it is a steady, and now measured, part
+of what the module serves.
 
 ### What can honestly be claimed
 
@@ -289,8 +342,17 @@ page were taken through the simpler hook and therefore describe
 > complete is served by the validated module.
 
 Measured over 274.5 million calls across four architectures: zero fell back to
-the kernel's generator.  The `get_random_u32()` family and the boot window
-above are outside that statement.
+the kernel's generator.  The boot window above is outside that statement.
+
+The `get_random_uN` family is covered by its own measurement rather than by this
+one, and only on kernels whose batch refill reaches `_get_random_bytes()`:
+
+> On `linux-6.12.0` every byte the per-CPU `get_random_uN` batches dispensed
+> was generated by the validated module.
+
+One million calls of each of the four widths - 156,251 refills in all - none
+declined, none served by the kernel.  On a kernel from the unhooked row - 5.16.20 was measured - the
+family is not offered to the module at all.
 
 ## Where the code is
 

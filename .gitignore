@@ -80,6 +80,7 @@ fipsv2.c
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 wolfcrypt/benchmark/benchmark
+wolfcrypt/benchmark/fips_cast_bench
 wolfcrypt/test/testwolfcrypt
 examples/async/async_client
 examples/async/async_server

@@ -1926,7 +1926,7 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
         /* A transient vector-register refusal is retryable and must NOT latch
          * the desc failed -- drop the tstate so a retry re-allocates, and
          * report -EBUSY.  Any other error is a real failure and still latches. */
-        if (ret != WC_ACCEL_INHIBIT_E)
+        if (ret != WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E))
             s_ctx->failed = 1;
         km_hmac_free_tstate(desc);
         return wc_lkm_errno(ret);

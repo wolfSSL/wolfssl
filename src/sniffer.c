@@ -2830,7 +2830,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
         #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
             (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-            !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
             if (ret == 0) {
                 ret = wc_ecc_set_rng(&args->key->priv.ecc,
                     session->sslServer->rng);

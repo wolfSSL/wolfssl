@@ -1423,6 +1423,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 
 endif !BUILD_FIPS_NO_POST
 
+
 endif BUILD_FIPS_V7_PLUS
 
 endif BUILD_FIPS
@@ -2443,4 +2444,16 @@ endif
 # enables it.  Design by @lealem47.
 if BUILD_RNG_BANK
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
+endif
+
+
+# The operational-environment timer is OUTSIDE the module boundary: it is the
+# raw counter read for the SP 800-90B noise source, not an approved algorithm,
+# so it must never appear between wolfcrypt_first.c and wolfcrypt_last.c.
+# Emitted once here, after every FIPS block, so it links in every flavour that
+# builds wolfentropy.c -- which is its only caller, and which is itself built
+# for FIPS v5/v6/v7 and non-FIPS alike.  Adding a new platform's counter means
+# editing wolfcrypt/src/oe_timers.c and nothing inside the boundary.
+if BUILD_MEMUSE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/oe_timers.c
 endif

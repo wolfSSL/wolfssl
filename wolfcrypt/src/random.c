@@ -356,6 +356,18 @@ enum {
 #define SEED_SZ           WC_DRBG_SEED_SZ
 #define MAX_SEED_SZ       WC_DRBG_MAX_SEED_SZ
 
+/* Selects the branch of _InitRng() that takes its seed material from the
+ * caller instead of from a randomness source.  Two callers compile it in:
+ * wc_InitRngRBGC() under LINUXKM_RBGC, and wc_InitRngFixedSeed() under FIPS
+ * v7.  Build-time only; nothing chooses between the branches at run time --
+ * _InitRng() takes the caller-supplied path if and only if the caller passed
+ * a seed pointer. */
+#if defined(LINUXKM_RBGC) || \
+    (FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG) && \
+     !defined(CUSTOM_RAND_GENERATE_BLOCK))
+    #define WC_RNG_SEED_FROM_CALLER
+#endif
+
 /* Verify max gen block len */
 #if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
     #error RNG_MAX_BLOCK_LEN is larger than NIST DBRG max request length
@@ -2473,11 +2485,16 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
     }
     else {
-#ifdef LINUXKM_RBGC
+#ifdef WC_RNG_SEED_FROM_CALLER
             if (rbgcSeed != NULL) {
-                /* SP 800-90C Sec. 7.2.1.2: a non-root RBGC construction is
-                 * instantiated from its parent, so the seed material is
-                 * already in hand and no randomness source is consulted. */
+                /* The caller already holds the seed material, so no
+                 * randomness source is consulted: neither seedCb nor
+                 * wc_GenerateSeed() below runs.  Two callers reach this --
+                 * wc_InitRngRBGC(), where the material came from the parent
+                 * construction per SP 800-90C Sec. 7.2.1.2, and
+                 * wc_InitRngFixedSeed(), where it is a fixed constant held by
+                 * a known-answer test.  Both bound rbgcSeedSz by
+                 * MAX_SEED_SZ before calling. */
                 XMEMCPY(seed, rbgcSeed, rbgcSeedSz);
                 seedSz = rbgcSeedSz;
                 ret = 0;
@@ -2536,11 +2553,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             }
 
             if (ret == 0) {
-#ifdef LINUXKM_RBGC
+#ifdef WC_RNG_SEED_FROM_CALLER
                 /* wc_RNG_TestSeed() is a repetition check on raw noise.  The
-                 * parent's output is DRBG output, and SP 800-90C
-                 * Sec. 7.2.1.2 makes the parent's generate status the check
-                 * on this path, so it does not apply. */
+                 * seed material on this path is not raw noise: for
+                 * wc_InitRngRBGC() it is the parent's DRBG output, and
+                 * SP 800-90C Sec. 7.2.1.2 makes the parent's generate status
+                 * the check instead; for wc_InitRngFixedSeed() it is a
+                 * constant compiled into the module, which no repetition
+                 * check has anything to say about. */
                 if (rbgcSeed != NULL) {
                     ret = DRBG_SUCCESS;
                 }
@@ -2561,22 +2581,30 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
 
             if (ret == DRBG_SUCCESS) {
-                const byte* instSeed = seed;
-                word32      instSeedSz = seedSz;
+                const byte* instSeed;
+                word32      instSeedSz;
 
             #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
                 /* The SEED_BLOCK_SZ prefix is the block wc_RNG_TestSeed()
                  * compares against the rest of a raw seed, so it is not part
-                 * of the seed material.  An RBGC leaf runs no such test and
-                 * SP 800-90C Sec. 7.2.1.2 wants the whole 3s/2 bits in the
-                 * instantiate, so that path keeps the whole buffer. */
-            #ifdef LINUXKM_RBGC
-                if (rbgcSeed == NULL)
+                 * of the seed material.  A caller-supplied seed runs no such
+                 * test -- SP 800-90C Sec. 7.2.1.2 wants the whole 3s/2 bits
+                 * in the instantiate -- so that path keeps the whole
+                 * buffer. */
+            #ifdef WC_RNG_SEED_FROM_CALLER
+                if (rbgcSeed != NULL) {
+                    instSeed   = seed;
+                    instSeedSz = seedSz;
+                }
+                else
             #endif
                 {
                     instSeed   = seed + SEED_BLOCK_SZ;
                     instSeedSz = seedSz - SEED_BLOCK_SZ;
                 }
+            #else
+                instSeed   = seed;
+                instSeedSz = seedSz;
             #endif
 #ifndef NO_SHA256
                 if (rng->drbgType == WC_DRBG_SHA256)
@@ -2755,7 +2783,6 @@ void wc_rng_free(WC_RNG* rng)
     }
 }
 
-WOLFSSL_ABI
 #ifdef LINUXKM_RBGC
 /* Instantiate a non-root RBGC construction from its parent, SP 800-90C
  * Sec. 7.2.1.2.  Internal to the RBGC: not WOLFSSL_API, so it is not exported.
@@ -2799,6 +2826,40 @@ int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent)
 }
 #endif /* LINUXKM_RBGC */
 
+/* Guard is identical to the declaration's in random.h, and implies
+ * WC_RNG_SEED_FROM_CALLER above. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_HASHDRBG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK)
+/* Instantiate from seed material the caller already holds, so that no
+ * randomness source is consulted.  Internal to the module: not WOLFSSL_API,
+ * so it is not exported and is not a service.
+ *
+ * The caller is a known-answer test in fips_test.c whose algorithm under test
+ * takes a WC_RNG argument for blinding.  The blinding value never reaches the
+ * compared answer -- the ECDSA nonce is pinned by wc_ecc_sign_set_k() and the
+ * ECDH/ECDSA point multiplies randomize only the Jacobian representative,
+ * which ecc_map_ex() then normalizes away -- so the seed carries no entropy
+ * requirement and the test's verdict must not depend on a noise source being
+ * able to produce one.  Nothing here is a random bit service: what this
+ * WC_RNG produces stays inside the test.
+ *
+ * seed is the caller's, is not retained, and nothing is generated before a
+ * request arrives on the returned WC_RNG. */
+int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed, word32 seedSz)
+{
+    if ((rng == NULL) || (seed == NULL) || (seedSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+    /* _InitRng() copies seedSz bytes into a MAX_SEED_SZ buffer. */
+    if (seedSz > MAX_SEED_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    return _InitRng(rng, NULL, 0, seed, seedSz, NULL, INVALID_DEVID);
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) && HAVE_HASHDRBG */
+
+WOLFSSL_ABI
 int wc_InitRng(WC_RNG* rng)
 {
     return _InitRng(rng, NULL, 0, NULL, 0, NULL, INVALID_DEVID);
@@ -5969,7 +6030,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #if !defined(HAVE_ENTROPY_MEMUSE) && \
         !defined(HAVE_INTEL_RDSEED) && \
         !defined(HAVE_AMD_RDSEED)
-        #error WOLFSSL_LINUXKM needs an in-boundary entropy source: configure with --enable-wolfentropy, --enable-intelrdseed or --enable-amdrdseed.
+        #error WOLFSSL_LINUXKM needs its own entropy source and must never fall through to the kernel: configure with --enable-wolfentropy, --enable-intelrdseed or --enable-amdrdseed.
     #endif
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)

@@ -8953,7 +8953,8 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(kari->senderKey, rng);
     if (ret != 0) {
         XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);

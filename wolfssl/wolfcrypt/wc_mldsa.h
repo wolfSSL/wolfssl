@@ -865,41 +865,18 @@ WOLFSSL_API int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output,
 #ifdef USE_INTEL_SPEEDUP
 /* AVX512 assembly for ML-DSA is built (and dispatched at runtime on capable
  * CPUs) whenever the Intel speedups are enabled and AVX512 is not opted out.
- * Matches the HAVE_INTEL_AVX512 guard around the generated assembly.
- *
- * A pin that names no AVX512 sub-lane means this operating environment runs the
- * AVX2 lane, so the AVX512 lane is not built: leaving it in would put a second
- * ML-DSA implementation in the boundary, selected from CPUID, which IG 10.3.A
- * GeneralNote1 requires to be self-tested separately.  Every AVX512 arm in
- * wc_mldsa.c is already inside this guard, so dropping the macro drops the
- * whole lane.  See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
-#if !defined(NO_AVX512_SUPPORT) && \
-    (!defined(WC_MLDSA_PINNED) || defined(WC_MLDSA_USE_AVX512_ANY))
+ * Matches the HAVE_INTEL_AVX512 guard around the generated assembly. */
+#ifndef NO_AVX512_SUPPORT
     #define WOLFSSL_MLDSA_HAVE_INTEL_AVX512
     /* AVX512VBMI (vpermb) functions are built (matching the auto-enabled
      * HAVE_INTEL_AVX512_VBMI guard around the generated assembly) and
      * dispatched at runtime when CPUID reports VBMI. Opt out with
      * NO_AVX512_VBMI_SUPPORT if the toolchain's assembler cannot emit VBMI.
      * Nested here because the VBMI routines are AVX512 code: opting out of
-     * AVX512 must drop them too.
-     *
-     * Under a pin this follows the named sub-lane, not CPUID.  A plain AVX512
-     * pin leaves it undefined, which removes the VBMI arm of every ladder --
-     * that arm is the second implementation the pin exists to remove, and the
-     * pinned lane is the portable AVX512F/BW one. */
-    #if !defined(NO_AVX512_VBMI_SUPPORT) && \
-        (!defined(WC_MLDSA_PINNED) || defined(WC_MLDSA_USE_AVX512_VBMI))
+     * AVX512 must drop them too. */
+    #ifndef NO_AVX512_VBMI_SUPPORT
         #define WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI
     #endif
-    /* A pin naming a sub-lane the assembler cannot emit is refused rather than
-     * quietly served by the plain AVX512 routines, which would be a different
-     * lane from the one the operating environment was validated on. */
-    #if defined(WC_MLDSA_USE_AVX512_VBMI) && \
-        !defined(WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI)
-        #error "WC_MLDSA_IMPL names the VBMI sub-lane; VBMI is not built."
-    #endif
-#elif defined(WC_MLDSA_USE_AVX512_ANY)
-    #error "WC_MLDSA_IMPL names an AVX512 lane; AVX512 is not built."
 #endif
 
 WOLFSSL_LOCAL void wc_mldsa_poly_red_avx2(sword32* a);

@@ -602,7 +602,8 @@ int test_wc_ecc_shared_secret(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 
@@ -702,7 +703,8 @@ static int ecc_shared_secret_inf_case(const char* qx, const char* qy,
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 
@@ -812,7 +814,8 @@ static int ecc_shared_secret_size_bound(WC_RNG* rng, int curveId, int fieldSz)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, rng), 0);
 #endif
 
@@ -1816,7 +1819,8 @@ int test_wc_ecc_encryptDecrypt(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
     ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
 #endif
@@ -1923,7 +1927,8 @@ int test_wc_ecc_ecies_gcm(void)
         ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
         ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
         ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
 #endif
@@ -2082,7 +2087,8 @@ int test_wc_ecc_ecies_cryptocb(void)
     ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
     ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
 #endif
@@ -2342,7 +2348,8 @@ int test_wc_ecc_shared_secret_ssh(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 

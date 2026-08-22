@@ -27069,7 +27069,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
 #endif /* !WC_RNG_BANK_STATIC */
     static const char bank_arg[] = "hi";
     byte outbuf1[16], outbuf2[16];
-    int i;
 
     WC_CALLOC_VAR_EX(bank, struct wc_rng_bank, 1, HEAP_HINT,
                     DYNAMIC_TYPE_TMP_BUFFER,
@@ -27261,33 +27260,55 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_bank_test(void)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    for (i = 0; i < bank->n_rngs; ++i) {
-    #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        /* random.h gates rng.drbg / struct DRBG_internal on !NO_SHA256, so
-         * the SHA-256 arm is gated the same way (as in _rng_test() above).
-         * With NO_SHA256 the only DRBG that can be instantiated is the
-         * SHA-512 one, so the initializer below is never the value tested;
-         * it is a sentinel, not a skip -- if drbgType ever came back as
-         * something else the comparison fails and the test errors out. */
-        word64 bankReseedCtr = 0;
-        if (bank->rngs[i].rng.drbgType == WC_DRBG_SHA512)
-            bankReseedCtr = ((struct DRBG_SHA512_internal *)
-                bank->rngs[i].rng.drbg512)->reseedCtr;
-    #ifndef NO_SHA256
-        else
-            bankReseedCtr = ((struct DRBG_internal *)
-                bank->rngs[i].rng.drbg)->reseedCtr;
-    #endif
-        if (bankReseedCtr != WC_RESEED_INTERVAL)
-    #else
-        if (((struct DRBG_internal *)bank->rngs[i].rng.drbg)
-            ->reseedCtr != WC_RESEED_INTERVAL)
-    #endif
-        {
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+    /* wc_rng_bank_reseed() above forces every instance's reseed counter to
+     * WC_RESEED_INTERVAL; read it back and confirm.  The counter lives in the
+     * DRBG, and there are configurations in which an instance is fully in
+     * service and has no DRBG at all, so this carries the same guard
+     * _rng_test() above puts on the same assertion.  _InitRng()
+     * (wolfcrypt/src/random.c) returns at the "bypass DRBG init" check as
+     * soon as IS_INTEL_RDRAND(intel_flags) holds, and takes the
+     * CUSTOM_RAND_GENERATE_BLOCK arm instead of the allocation block
+     * otherwise; either way rng->drbg and rng->drbg512 stay NULL while
+     * rng->status is DRBG_OK, and wc_RNG_GenerateBlock() serves such an
+     * instance without touching them.  wc_rng_bank_reseed() itself skips
+     * those instances via WC_RNG_BANK_DRBG_NULL(), so on those builds there
+     * is no counter to force and none to check.  Without the guard the reads
+     * below dereference NULL. */
+#if defined(HAVE_HASHDRBG) && !defined(HAVE_INTEL_RDRAND) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,0,0))
+    {
+        int i;
+        for (i = 0; i < bank->n_rngs; ++i) {
+        #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
+            (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+            /* random.h gates rng.drbg / struct DRBG_internal on !NO_SHA256,
+             * so the SHA-256 arm is gated the same way (as in _rng_test()
+             * above).  With NO_SHA256 the only DRBG that can be instantiated
+             * is the SHA-512 one, so the initializer below is never the value
+             * tested; it is a sentinel, not a skip -- if drbgType ever came
+             * back as something else the comparison fails and the test errors
+             * out. */
+            word64 bankReseedCtr = 0;
+            if (bank->rngs[i].rng.drbgType == WC_DRBG_SHA512)
+                bankReseedCtr = ((struct DRBG_SHA512_internal *)
+                    bank->rngs[i].rng.drbg512)->reseedCtr;
+        #ifndef NO_SHA256
+            else
+                bankReseedCtr = ((struct DRBG_internal *)
+                    bank->rngs[i].rng.drbg)->reseedCtr;
+        #endif
+            if (bankReseedCtr != WC_RESEED_INTERVAL)
+        #else
+            if (((struct DRBG_internal *)bank->rngs[i].rng.drbg)
+                ->reseedCtr != WC_RESEED_INTERVAL)
+        #endif
+            {
+                ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+            }
         }
     }
+#endif
 
     rng_bank_affinity_get_id_id = 0;
     /* WC_RNG_BANK_FLAG_CAN_WAIT needed to avoiding warning message that the
@@ -30482,7 +30503,11 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[0], len, 0);
-    if (ret != WC_NO_ERR_TRACE(BAD_PADDING_E))
+        /* PSS_SALTLEN_E, not BAD_PADDING_E: rsa.c reports the specific
+         * salt-length error, which is what the non-selftest arm above
+         * already expects.  BAD_PADDING_E was the older selftest-v2-era
+         * library's answer and no longer occurs here. */
+    if (ret != WC_NO_ERR_TRACE(PSS_SALTLEN_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
 #else
     ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
@@ -42351,7 +42376,8 @@ static wc_test_ret_t ecc_test_cdh_vectors(WC_RNG* rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(priv_key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -42651,7 +42677,8 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(key, rng);
     if (ret != 0)
         goto done;
@@ -43055,7 +43082,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #ifdef HAVE_ECC_DHE
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(userA, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -44028,7 +44056,8 @@ static wc_test_ret_t ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(key, rng);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
@@ -46784,7 +46813,8 @@ static wc_test_ret_t ecc_encrypt_kat(WC_RNG *rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     if (ret == 0) {
         ret = wc_ecc_set_rng(userB, rng);
         if (ret != 0) {
@@ -47288,7 +47318,8 @@ static wc_test_ret_t ecc_encrypt_gcm_kat_vec(WC_RNG* rng, byte encAlgo,
         if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
         ret = wc_ecc_set_rng(userB, rng);
         if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
 #endif
@@ -47730,7 +47761,8 @@ static wc_test_ret_t ecc_encrypt_cryptocb_test(WC_RNG* rng)
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(userA, rng);
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
     ret = wc_ecc_set_rng(userB, rng);
@@ -47830,7 +47862,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(userA, &rng);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret); goto done;
@@ -48068,7 +48101,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(cliKey, &rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
