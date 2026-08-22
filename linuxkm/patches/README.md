@@ -24,8 +24,8 @@ Two columns carry the evidence, and they are deliberately separate:
 
 | column | meaning |
 |---|---|
-| `source` | `SHIPPED` -- a directory named for this series serves it directly; `DERIVED` -- it is served by a base belonging to a different version |
-| `random.o built` | `yes` -- the patched tree was compiled and `drivers/char/random.o` was produced, with no diagnostic that the pristine build did not also emit, AND the three symbols the module binds to are present in that object as `T` and as export entries, AND a consumer translation unit that uses `struct wolfssl_linuxkm_random_bytes_handlers` and calls the register/unregister entry points compiles against the patched `<linux/random.h>` |
+| `source` | Where the patch FILE lives -- provenance only, NOT a confidence level. `SHIPPED` means a directory named for this series serves it directly; `DERIVED` means a base belonging to another series serves it. **A DERIVED row is tested exactly as hard as a SHIPPED one** -- see the `tested` column, which is what says whether it was verified. |
+| `tested` | `TESTED` -- on 2026-08-22 this row was measured end to end: the patch applied at `--fuzz=0`, `drivers/char/random.o` was built from the patched tree with no diagnostic the pristine tree did not also emit, the symbols the module binds to were present AND exported, and a consumer translation unit using those declarations the way `linuxkm/module_hooks.c` does compiled. 39 of 39 rows passed all four. Controls: a wrong-side base fails to compile; a deleted `EXPORT_SYMBOL_GPL` still COMPILES CLEAN while reading NOT-EXPORTED, which is why 'it compiles' is not the test. |
 
 **Every row applies at `--fuzz=0`.** That was re-measured for all thirty-four
 supported versions against all seventeen bases -- 578 cells -- so there are no
@@ -51,47 +51,80 @@ entirely and still be reported as applied. That is not hypothetical: the `5.15`
 base on a 5.17.11 tree puts its `mix_pool_bytes()` hunk inside `fast_mix()` at
 `--fuzz=3`, and the kernel then will not build.
 
-| version | verified at | patch that serves it | source | `random.o` built |
+## Applying a patch to a kernel
+
+```sh
+./patch-kernel.sh /path/to/linux-6.6.99            # picks the tested base for you
+./patch-kernel.sh --dry-run /path/to/linux-7.1.9   # check first, write nothing
+./patch-kernel.sh /path/to/linux-6.6.99 6.12       # force a base, if you must
+```
+
+With no base argument the script reads `VERSION`/`PATCHLEVEL`/`SUBLEVEL` out of
+the kernel's own `Makefile` and looks the version up in the table below, so you
+get the base that was **tested** for your version rather than the one whose
+directory name looks closest.
+
+**It applies at `--fuzz=0` and refuses if that fails. That refusal is the
+feature.** `patch(1)` will place a hunk in the wrong function when context has
+drifted, and exit 0 while doing it. That is not hypothetical here: applying the
+`5.15` base to a 5.17 tree at `--fuzz=3` put the `mix_pool_bytes()` hunk inside
+`fast_mix()`, and the tree then failed to build with
+`random.c:915: error: 'in' undeclared`. A marker count cannot detect this --
+the count is identical either way. If the script refuses, your version needs a
+base of its own; raising the fuzz is never the answer.
+
+Doing it by hand is the same two commands:
+
+```sh
+patch -p1 -d <kernel> --dry-run --fuzz=0 < <series>/WOLFSSL_KERNELv<series>_FIPS.patch
+patch -p1 -d <kernel>            --fuzz=0 < <series>/WOLFSSL_KERNELv<series>_FIPS.patch
+```
+
+If the kernel is left unpatched, nothing silently degrades: the module fails to
+load with `Unknown symbol wolfssl_linuxkm_register_random_bytes_handlers`
+rather than running without the hook. See `linuxkm/README.md`.
+
+| version | verified at | patch that serves it | source | tested |
 |---|---|---|---|---|
-| 5.6  | 5.6.19   | `5.6/WOLFSSL_KERNELv5_6_FIPS.patch`                            | SHIPPED | yes |
-| 5.7  | 5.7.19   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | yes |
-| 5.8  | 5.8.18   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | yes |
-| 5.9  | 5.9.16   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | yes |
-| 5.10 | 5.10.17  | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | SHIPPED | yes |
-| 5.10 | 5.10.265 | `5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch`                  | SHIPPED | yes |
-| 5.11 | 5.11.22  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | yes |
-| 5.12 | 5.12.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | yes |
-| 5.13 | 5.13.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | yes |
-| 5.15 | 5.15     | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | SHIPPED | yes |
-| 5.15 | 5.15.216 | `5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch` | DERIVED | yes |
-| 5.16 | 5.16.20  | `5.16/WOLFSSL_KERNELv5_16_FIPS.patch`                          | SHIPPED | yes |
-| 5.17 | 5.17.11  | `5.17.0/WOLFSSL_KERNELv5_17_0_FIPS.patch`                      | SHIPPED | yes |
-| 5.17 | 5.17.13  | `5.17/WOLFSSL_KERNELv5_17_FIPS.patch`                          | SHIPPED | yes |
-| 5.17 | 5.17.15  | `5.17.14/WOLFSSL_KERNELv5_17_14_FIPS.patch`                    | SHIPPED | yes |
-| 5.18 | 5.18.19  | `5.18/WOLFSSL_KERNELv5_18_FIPS.patch`                          | SHIPPED | yes |
-| 5.19 | 5.19.17  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | yes |
-| 6.0  | 6.0.19   | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | yes |
-| 6.1  | 6.1.183  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | SHIPPED | yes |
-| 6.2  | 6.2.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.4  | 6.4.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.5  | 6.5.13   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.6  | 6.6.99   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.6  | 6.6.152  | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`                    | DERIVED | yes |
-| 6.7  | 6.7.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.8  | 6.8.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.9  | 6.9.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.10 | 6.10.14  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.11 | 6.11.11  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
-| 6.12 | 6.12.104 | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`                    | SHIPPED | yes |
-| 6.13 | 6.13.12  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | yes |
-| 6.14 | 6.14.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | yes |
-| 6.15 | 6.15.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | SHIPPED | yes |
-| 6.16 | 6.16.12  | `6.16/WOLFSSL_KERNELv6_16_FIPS.patch`                          | SHIPPED | yes |
-| 6.17 | 6.17.13  | `6.16/WOLFSSL_KERNELv6_16_FIPS.patch`                          | DERIVED | yes |
-| 6.18 | 6.18.45  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | yes |
-| 6.19 | 6.19.14  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | yes |
-| 7.0  | 7.0.14   | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | SHIPPED | yes |
-| 7.1  | 7.1.9    | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | yes |
+| 5.6  | 5.6.19   | `5.6/WOLFSSL_KERNELv5_6_FIPS.patch`                            | SHIPPED | TESTED |
+| 5.7  | 5.7.19   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | TESTED |
+| 5.8  | 5.8.18   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | TESTED |
+| 5.9  | 5.9.16   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | TESTED |
+| 5.10 | 5.10.17  | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | SHIPPED | TESTED |
+| 5.10 | 5.10.265 | `5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch`                  | SHIPPED | TESTED |
+| 5.11 | 5.11.22  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | TESTED |
+| 5.12 | 5.12.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | TESTED |
+| 5.13 | 5.13.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | TESTED |
+| 5.15 | 5.15     | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | SHIPPED | TESTED |
+| 5.15 | 5.15.216 | `5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch` | DERIVED | TESTED |
+| 5.16 | 5.16.20  | `5.16/WOLFSSL_KERNELv5_16_FIPS.patch`                          | SHIPPED | TESTED |
+| 5.17 | 5.17.11  | `5.17.0/WOLFSSL_KERNELv5_17_0_FIPS.patch`                      | SHIPPED | TESTED |
+| 5.17 | 5.17.13  | `5.17/WOLFSSL_KERNELv5_17_FIPS.patch`                          | SHIPPED | TESTED |
+| 5.17 | 5.17.15  | `5.17.14/WOLFSSL_KERNELv5_17_14_FIPS.patch`                    | SHIPPED | TESTED |
+| 5.18 | 5.18.19  | `5.18/WOLFSSL_KERNELv5_18_FIPS.patch`                          | SHIPPED | TESTED |
+| 5.19 | 5.19.17  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | TESTED |
+| 6.0  | 6.0.19   | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | TESTED |
+| 6.1  | 6.1.183  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | SHIPPED | TESTED |
+| 6.2  | 6.2.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.4  | 6.4.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.5  | 6.5.13   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.6  | 6.6.99   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.6  | 6.6.152  | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`                    | DERIVED | TESTED |
+| 6.7  | 6.7.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.8  | 6.8.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.9  | 6.9.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.10 | 6.10.14  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.11 | 6.11.11  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | TESTED |
+| 6.12 | 6.12.104 | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`                    | SHIPPED | TESTED |
+| 6.13 | 6.13.12  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | TESTED |
+| 6.14 | 6.14.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | TESTED |
+| 6.15 | 6.15.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | SHIPPED | TESTED |
+| 6.16 | 6.16.12  | `6.16/WOLFSSL_KERNELv6_16_FIPS.patch`                          | SHIPPED | TESTED |
+| 6.17 | 6.17.13  | `6.16/WOLFSSL_KERNELv6_16_FIPS.patch`                          | DERIVED | TESTED |
+| 6.18 | 6.18.45  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | TESTED |
+| 6.19 | 6.19.14  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | TESTED |
+| 7.0  | 7.0.14   | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | SHIPPED | TESTED |
+| 7.1  | 7.1.9    | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | TESTED |
 
 One of the seventeen directories is never named by a row above, because the
 version it was authored against is not in the supported list:

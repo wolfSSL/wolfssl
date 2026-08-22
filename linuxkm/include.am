@@ -27,6 +27,7 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/lkcapi_rsa_glue.c \
 	      linuxkm/wolfcrypt.lds \
 	      linuxkm/patches/README.md \
+	      linuxkm/patches/patch-kernel.sh \
 	      linuxkm/patches/5.6/WOLFSSL_KERNELv5_6_FIPS.patch \
 	      linuxkm/patches/5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch \
 	      linuxkm/patches/5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch \
