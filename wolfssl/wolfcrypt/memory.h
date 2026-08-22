@@ -371,6 +371,14 @@ WOLFSSL_LOCAL WC_DEBUG_CIPHERLIFECYCLE_WUR int wc_debug_CipherLifecycleFree
     #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED
         #define WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED 0
     #endif
+    /* SAVE_VECTOR_REGISTERS2() fails 1 call in N.  N=2 is the historical
+     * value and models no real environment; raise it to exercise a module
+     * that forbids dynamic fallback (at N=2 the power-on CASTs fail and
+     * nothing downstream runs, see linuxkm/SVR-FALLBACK-ANALYSIS.md).  Overridable
+     * at run time by the environment variable of the same name. */
+    #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_RATE
+        #define WC_DEBUG_VECTOR_REGISTERS_FUZZING_RATE 2
+    #endif
 #endif
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS

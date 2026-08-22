@@ -30,6 +30,13 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+/* Honor WC_SHA3_NO_ASM as sha3.c does: suppress this BlockSha3 so it
+ * doesn't multiply-define against sha3.c's C BlockSha3 on riscv64. */
+#ifdef WC_SHA3_NO_ASM
+    #undef WOLFSSL_RISCV_ASM
+#endif
+
 #ifdef WOLFSSL_RISCV_ASM
 #ifdef WOLFSSL_RISCV_ASM_INLINE
 #include <wolfssl/wolfcrypt/sha3.h>

@@ -159,6 +159,7 @@ L_sha3_crypto_begin
 	ret
 	ENDP
 	ENDIF
+	IF :LNOT::DEF:WC_SHA3_NO_ARM_BASE_BLOCK
 	AREA	|.rodata|, DATA, READONLY, ALIGN=4
 	ALIGN	16
 L_SHA3_transform_base_r
@@ -365,5 +366,6 @@ L_SHA3_transform_base_begin
 	ldp	x29, x30, [sp], #0xa0
 	ret
 	ENDP
+	ENDIF
 	ENDIF
 	END

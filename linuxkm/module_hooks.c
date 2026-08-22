@@ -51,6 +51,9 @@
     #include <wolfssl/wolfcrypt/wolfentropy.h>
 #endif
 #include <wolfssl/wolfcrypt/random.h>
+#ifdef LINUXKM_RBGC
+    #include <wolfssl/wolfcrypt/linuxkm_get_entropy.h>
+#endif
 #include <wolfssl/wolfcrypt/sha256.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -180,40 +183,147 @@ extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #endif /* WOLFSSL_LINUXKM_BENCHMARKS */
 
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+/* Defined in linuxkm/x86_vector_register_glue.c, which is #included further
+ * down this same translation unit.  Declared here so the lock primitive can
+ * consult it; static so it adds nothing to the module's exported surface. */
+static int wc_linuxkm_in_svr_bracket(void);
+#endif
+
 int wc_lkm_LockMutex(wolfSSL_Mutex* m)
 {
-    unsigned long irq_flags;
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
     if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
         return BAD_FUNC_ARG;
 #endif
-    /* first, try the cheap way. */
-    if (spin_trylock_irqsave(&m->lock, irq_flags)) {
-        m->irq_flags = irq_flags;
-        return 0;
+    /* spin_lock_bh() is the whole implementation.  There was previously a
+     * hand-rolled acquire loop here, spin_trylock_irqsave(), then either
+     * spin_lock_irqsave() or a retry loop calling cond_resched(), selected
+     * by "irq_count() != 0".  That is wrong twice over:
+     *
+     *  - irq_count() is (preempt_count() & (NMI_MASK|HARDIRQ_MASK|SOFTIRQ_MASK))
+     *    (include/linux/preempt.h).  It does not observe PREEMPT_MASK and does
+     *    not observe irqs_disabled(), so it reads 0 for a task that is holding
+     *    a spinlock or running with interrupts off.  The loop would then call
+     *    cond_resched(), which may sleep, from atomic context.  The
+     *    kernel's own "may I sleep here" predicate is preemptible(); this
+     *    module already spells it correctly in wc_linuxkm_can_block().
+     *  - A lock does not need a hand-rolled wait at all.  spin_lock_bh() is
+     *    the kernel's mechanism for "contend for a lock that a bottom half
+     *    also takes", and it queues fairly (qspinlock) instead of spinning on
+     *    trylock.
+     */
+    /* Refuse the contexts spin_lock_bh() is not legal in, rather than taking
+     * it and letting the kernel complain.
+     *
+     * spin_lock_bh()/spin_unlock_bh() reach __local_bh_disable_ip() and
+     * __local_bh_enable_ip(), which open with WARN_ON_ONCE(in_hardirq()) and
+     * lockdep_assert_irqs_enabled() (kernel/softirq.c, in BOTH the RT and
+     * non-RT definitions).  So a hardirq, NMI, or IRQs-disabled caller was
+     * never a working path here, it was an undiagnosed WARN, and on a kernel
+     * without CONFIG_PROVE_LOCKING the IRQs-off case was silent, because
+     * __local_bh_enable_ip() calls do_softirq(), whose handler loop runs
+     * local_irq_enable() and hands the caller back its interrupts re-enabled.
+     * Returning an error instead makes it diagnosable and propagable.
+     *
+     * This is the same predicate wc_save_vector_registers_x86() already
+     * applies, so the lock and the FPU bracket now agree about which contexts
+     * this module serves.  It matches the kernel's own contract for its crypto
+     * API, Documentation/crypto/api-intro.rst: "cryptographic methods may
+     * only be called from softirq and user contexts", and the enforcement
+     * upstream uses for the same rule, crypto/skcipher.c's
+     * "if (WARN_ON_ONCE(in_hardirq())) return -EDEADLK;".
+     *
+     * Softirq is deliberately NOT refused: the DRBG and hash paths are
+     * genuinely entered from softirq, and spin_lock_bh() is exactly the
+     * primitive for data shared between process and softirq context. */
+    if (in_hardirq() || in_nmi() || irqs_disabled()) {
+        /* Diagnosable on purpose.  irqs_disabled() is broader than the
+         * in_hardirq() rule cited above, so a caller that merely wrapped a
+         * crypto call in local_irq_save() is refused with no other symptom
+         * than a failing hash.  Rate-limited, like the bracket check below. */
+        pr_err_once("BUG: wc_LockMutex() called with IRQs off on CPU %d"
+                    " (hardirq=%d nmi=%d) -- refusing, this is an atomic"
+                    " region.\n",
+                    raw_smp_processor_id(), (int)in_hardirq(), (int)in_nmi());
+        return BAD_STATE_E;
     }
-    if (irq_count() != 0) {
-        /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
-         * required, because in_softirq() is always true while saved,
-         * even for WC_FPU_INHIBITED_FLAG contexts.
-         */
-        spin_lock_irqsave(&m->lock, irq_flags);
-        m->irq_flags = irq_flags;
-        return 0;
+
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
+    /* A wolfSSL_Mutex may be HELD ACROSS a SAVE_VECTOR_REGISTERS() bracket.
+     * It may never be TAKEN INSIDE one.
+     *
+     * Inside a bracket the module is in a truly atomic region on every
+     * configuration, kernel_fpu_begin_mask() calls preempt_disable()
+     * unconditionally (arch/x86/kernel/fpu/core.c), and this module adds
+     * local_bh_disable() plus, on PREEMPT_RT, its own preempt_disable().  On
+     * PREEMPT_RT spin_lock_bh() reaches rt_spin_lock(), an rt_mutex that
+     * BLOCKS (kernel/locking/spinlock_rt.c), so taking one there is
+     * "scheduling while atomic".  Documentation/locking/locktypes.rst states
+     * the rule directly: sleeping lock types cannot nest inside spinning ones,
+     * and PREEMPT_RT moves spinlock_t into the sleeping category.
+     *
+     * Upstream does not solve this with a different lock, a sweep of the
+     * whole kernel finds no lock acquisition inside any kernel_fpu_begin() /
+     * kernel_neon_begin() section at all.  It uses per-CPU or per-request
+     * state, or closes the section first.
+     *
+     * This check is the module's own enforcement, keyed on the bracket depth
+     * this file already maintains rather than on preempt_count(), so it is
+     * exact and fires on non-RT too, meaning the existing lockdep operating
+     * environment catches a regression without needing an RT kernel.
+     *
+     * FATAL.  This was diagnostic-only while the SP fixed-point ECC cache
+     * locks were still taken inside the bracket; those now take the bracket
+     * themselves, after the lock (see sp/ecc_mul.rb mul_mod_point() and
+     * sp/ecc.rb in kh-fork-scripts).
+     *
+     * ONE KNOWN VIOLATOR REMAINS, AND IT IS NOT IN THE MODULE.  Under
+     * --enable-linuxkm-benchmarks, bench_stats_start() in
+     * wolfcrypt/benchmark/benchmark.c is redefined to open
+     * SAVE_VECTOR_REGISTERS() and hold it across an entire timed run, closing
+     * it only in bench_stats_*_finish().  A mutex the benchmarked operation
+     * takes is therefore taken inside a bracket the HARNESS opened, not one
+     * the crypto opened: sp_256_ecc_mulmod_avx2_4() takes the SP point cache
+     * lock correctly, before its own bracket, but the harness bracket is
+     * already open around it.  MEASURED 2026-08-21 on 6.17.0-1022-gcp: this
+     * guard returns BAD_STATE_E (-192); the SP point-cache callers turn that
+     * into BAD_MUTEX_E (-106) (sp_x86_64.c:12755-12756 and three siblings),
+     * which is what "ECC key gen" and "ECDHE agree" print.
+     * That -106 is a harness artifact confined to benchmark builds, NOT a
+     * module defect and NOT a leaked bracket -- the bracket is legitimately
+     * held and is released by the matching finish.
+     *
+     * Refusing stays the correct response rather than a self-inflicted
+     * outage.  Do not weaken this check to quiet the benchmark; the harness
+     * is what has to stop holding the bracket across a mutex. */
+    if (wc_linuxkm_in_svr_bracket()) {
+        pr_err_once("BUG: wc_LockMutex() called inside SAVE_VECTOR_REGISTERS()"
+                    " on CPU %d -- illegal, this is an atomic region.\n",
+                    raw_smp_processor_id());
+        WARN_ON_ONCE(1);
+        return BAD_STATE_E;
     }
-    else {
-        for (;;) {
-            int sig_ret = wc_linuxkm_check_for_intr_signals();
-            if (sig_ret)
-                return sig_ret;
-            cond_resched();
-            if (spin_trylock_irqsave(&m->lock, irq_flags)) {
-                m->irq_flags = irq_flags;
-                return 0;
-            }
-        }
-    }
-    __builtin_unreachable();
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
+
+    spin_lock_bh(&m->lock);
+    return 0;
+}
+
+/* Out-of-boundary counterpart to wc_LockMutex()'s indirection.  In-boundary
+ * (WC_CONTAINERIZE_THIS) objects reach this through the PIE redirect table, so
+ * spin_unlock_bh()'s call to __local_bh_enable_ip() is emitted HERE, outside
+ * the wolfCrypt container, instead of inside it.  Returns -1 rather than
+ * BAD_FUNC_ARG on the debug magic check, preserving exactly what the inline it
+ * replaces returned. */
+int wc_lkm_UnLockMutex(wolfSSL_Mutex* m)
+{
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
+        return -1;
+#endif
+    spin_unlock_bh(&m->lock);
+    return 0;
 }
 #endif
 
@@ -323,11 +433,70 @@ MODULE_PARM_DESC(rodata_dump_path,
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+#ifdef LINUXKM_RBGC
+
+/* Out here in non-PIE glue so the arm64 ALTERNATIVE asm in local_irq_save()
+ * compiles; see the declarations in linuxkm_wc_port.h. */
+unsigned long wc_linuxkm_irq_save(void)
+{
+    unsigned long flags;
+
+    local_irq_save(flags);
+
+    return flags;
+}
+
+void wc_linuxkm_irq_restore(unsigned long flags)
+{
+    local_irq_restore(flags);
+}
+
+/* raw_ because every caller is already non-preemptible: the service path holds
+ * interrupts off, and NMI cannot be preempted at all. */
+int wc_linuxkm_cpu_id(void)
+{
+    return (int) raw_smp_processor_id();
+}
+
+/* Seqcount-latch reader, so it takes no lock and is legal with interrupts off
+ * and from NMI (kernel/time/timekeeping.c). */
+unsigned long long wc_linuxkm_mono_ns(void)
+{
+    return (unsigned long long) ktime_get_mono_fast_ns();
+}
+
+#endif /* LINUXKM_RBGC */
+
 int wc_linuxkm_can_block(void) {
-    /* We can't use preemptible() for this, because we need an accurate test
-     * even in !CONFIG_PREEMPT_COUNT configs where preemptible() is always 0.
+    /* preempt_count() is NOT an accurate "may I sleep here" test on its own.
+     * In !CONFIG_PREEMPT_COUNT configs (PREEMPT_VOLUNTARY without
+     * PREEMPT_DYNAMIC -- the default through 5.15) preempt_disable() expands to
+     * barrier() and never touches __preempt_count
+     * (include/linux/preempt.h), so a task inside kernel_fpu_begin() still
+     * reads 0 here.  preempt_count() is exactly as blind as preemptible() in
+     * that configuration; the earlier comment claimed the opposite.
+     *
+     * The hardirq/softirq masks ARE still maintained there, so the irqs and
+     * interrupt-context halves of this test remain sound.  Only the
+     * preempt-disabled half is blind, which is why an open vector-register
+     * section has to be tested directly.
+     *
+     * Measured consequence when it was not: on 5.7.19 a cond_resched() from
+     * WC_RELAX_LONG_LOOP() inside an open bracket slept, the task migrated,
+     * and wc_restore_vector_registers_x86() ran on a CPU with no open section
+     * -- stranding kernel_fpu_begin()'s section on the origin CPU for the life
+     * of the module (1 event in 920,727 saves).
      */
-    return (preempt_count() == 0) && (! irqs_disabled());
+    return (preempt_count() == 0) && (! irqs_disabled())
+/* Guarded exactly like the declaration at the top of this file and like the
+ * other caller: wc_linuxkm_in_svr_bracket() only exists when the vector
+ * register glue is compiled in.  Without it there are no brackets to be
+ * inside, so the term is vacuously true and its absence changes nothing. */
+#if !defined(WOLFSSL_LINUXKM_USE_MUTEXES) && \
+    defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+        && (! wc_linuxkm_in_svr_bracket())
+#endif
+        ;
 }
 
 /* for simplicity, we use a global count to suspend signal processing while any
@@ -534,7 +703,9 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #endif /* WC_LINUXKM_RDSEED_IN_GLUE_LAYER */
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+    /* arch-generic vector save/restore (kernel_fpu_* x86, kernel_neon_* ARM) */
     #include "linuxkm/x86_vector_register_glue.c"
 #endif
 
@@ -560,6 +731,277 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
     static int installed_sysfs_FIPS_optest_trig_files = 0;
 #endif
+
+#ifdef LINUXKM_RBGC
+
+/* cpus_read_lock()/cpus_read_unlock() around the per-CPU work setup. */
+#include <linux/cpu.h>
+
+/* The boundary cannot schedule work itself, so the glue drives it.
+ *
+ * One delayed work PER CPU, queued with queue_delayed_work_on() so it runs on
+ * the CPU whose leaf it reseeds.  That is what lets the reseed take interrupts
+ * off and know no caller on that CPU can be inside the leaf, which is what
+ * removes the need for any exclusion flag in the boundary.
+ *
+ * The root's own refresh from the noise source is a separate, unpinned work:
+ * it is the entropy gather and must not be coupled to leaf demand. */
+#define WC_GRB_MAINT_POLL_MS 50
+
+struct wc_grb_cpu_work {
+    struct delayed_work dw;
+    int                 cpu;
+};
+
+static struct wc_grb_cpu_work *wc_grb_cpu_works;
+static struct delayed_work     wc_grb_root_work;
+static int                     wc_grb_maint_running;
+
+static void wc_grb_cpu_work_fn(struct work_struct *work)
+{
+    /* dw is the first member of wc_grb_cpu_work and work is the first member
+     * of delayed_work, so the work pointer is the wrapper pointer.
+     * container_of() cannot be used here: it does void* arithmetic and this
+     * builds with -Werror=pointer-arith. */
+    struct wc_grb_cpu_work *cw = (struct wc_grb_cpu_work *) work;
+    int ret;
+
+    wc_static_assert(offsetof(struct wc_grb_cpu_work, dw) == 0);
+    wc_static_assert(offsetof(struct delayed_work, work) == 0);
+
+    ret = wc_grb_maintain_cpu(cw->cpu);
+
+    if (ret != 0) {
+        pr_err("WCGRB: wc_grb_maintain_cpu(%d) failed: %d\n", cw->cpu, ret);
+    }
+
+    if (READ_ONCE(wc_grb_maint_running)) {
+        /* queue_delayed_work_on() WARNs on an offline CPU (workqueue.c
+         * WARN_ON_ONCE !cpu_online).  Tick unbound while it is down; the
+         * leaf's guard defers the reseed, and this re-pins when it returns. */
+        if (cpu_online(cw->cpu)) {
+            queue_delayed_work_on(cw->cpu, system_wq, &cw->dw,
+                                  msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+        }
+        else {
+            queue_delayed_work(system_wq, &cw->dw,
+                               msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+        }
+    }
+}
+
+static void wc_grb_root_work_fn(struct work_struct *work)
+{
+    int ret;
+
+    (void)work;
+    ret = wc_grb_root_tick();
+    if (ret != 0) {
+        pr_err("WCGRB: wc_grb_root_tick() failed: %d\n", ret);
+    }
+
+    if (READ_ONCE(wc_grb_maint_running)) {
+        schedule_delayed_work(&wc_grb_root_work,
+                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+    }
+}
+
+static void wc_grb_maint_stop(void)
+{
+    unsigned int cpu;
+
+    WRITE_ONCE(wc_grb_maint_running, 0);
+
+    /* Both objects are established together in wc_grb_maint_start(): the
+     * kcalloc() runs first and returns early on failure, so a non-NULL
+     * wc_grb_cpu_works is exactly the condition under which
+     * INIT_DELAYED_WORK() ran on wc_grb_root_work.  Cancelling the root work
+     * outside this guard reaches an uninitialised delayed_work whenever
+     * maint_start() never ran -- which happens on the handler-registration
+     * failure path -- and cancel_delayed_work_sync() then hits
+     * WARN_ON(!work->func) in __flush_work() (kernel/workqueue.c), printing a
+     * kernel warning and stack trace on every rmmod. */
+    if (wc_grb_cpu_works != NULL) {
+        cancel_delayed_work_sync(&wc_grb_root_work);
+
+        for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+            cancel_delayed_work_sync(&wc_grb_cpu_works[cpu].dw);
+        }
+
+        kfree(wc_grb_cpu_works);
+        wc_grb_cpu_works = NULL;
+    }
+}
+
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+
+/* Userspace half of the service: /dev/urandom, /dev/random and getrandom(2)
+ * all land here.  A bounce buffer is required because wc_grb_service() fills a
+ * kernel buffer while copy_to_iter() may fault or sleep. */
+static ssize_t wc_grb_user(struct iov_iter *iter)
+{
+    u8     buf[256];
+    size_t done = 0;
+
+    while (iov_iter_count(iter)) {
+        size_t want = min_t(size_t, iov_iter_count(iter), sizeof(buf));
+        size_t got;
+
+        if (wc_grb_service(buf, want) != 0)
+            break;
+
+        got = copy_to_iter(buf, want, iter);
+        done += got;
+        if (got != want) {
+            memzero_explicit(buf, sizeof(buf));
+
+            return done ? (ssize_t)done : -EFAULT;
+        }
+
+        cond_resched();
+    }
+
+    memzero_explicit(buf, sizeof(buf));
+
+    return done ? (ssize_t)done : -ENODEV;
+}
+
+/* The same userspace half for a kernel whose drivers/char/random.c predates the
+ * 5.17 rewrite.  There the read path is extract_crng_user(), which takes a raw
+ * __user pointer rather than an iov_iter; everything behind it is identical,
+ * including the bounce buffer, which is required because wc_grb_service() fills
+ * a kernel buffer while the copy out may fault.
+ *
+ * Both members are filled in unconditionally.  Which one a kernel calls was
+ * decided when that kernel was built, and both front the same DRBG tree, so
+ * this is a second entry point, not a run-time choice between implementations.
+ *
+ * Deliberately NOT a LINUX_VERSION_CODE test.  The 5.17 rewrite was backported
+ * into some LTS trees and never into the EOL ones, so the two sets interleave:
+ * 5.10.265 and 5.15.216 want get_random_bytes_user(), while 5.11.22, 5.12.19,
+ * 5.13.19 and 5.16.20 want extract_crng_user() -- 5.15 passes where 5.16
+ * fails.  Every kernel patch under linuxkm/patches/ declares both members of
+ * struct wolfssl_linuxkm_random_bytes_handlers, so supplying both is what makes
+ * the handler set track what a tree actually has instead of what its version
+ * number suggests.
+ *
+ * Omitting this member was not a scoping decision with a safe failure mode.
+ * The pre-rewrite register function requires it and rejects the whole
+ * registration with -EINVAL, after which the module serves nothing and the
+ * kernel's own CRNG answers every request -- unvalidated output, delivered
+ * silently. */
+static ssize_t wc_grb_extract_crng_user(void __user *ubuf, size_t nbytes)
+{
+    u8     buf[256];
+    size_t done = 0;
+
+    while (done < nbytes) {
+        size_t want = min_t(size_t, nbytes - done, sizeof(buf));
+
+        if (wc_grb_service(buf, want) != 0)
+            break;
+
+        if (copy_to_user((u8 __user *)ubuf + done, buf, want) != 0) {
+            memzero_explicit(buf, sizeof(buf));
+
+            return done ? (ssize_t)done : -EFAULT;
+        }
+
+        done += want;
+
+        cond_resched();
+    }
+
+    memzero_explicit(buf, sizeof(buf));
+
+    return done ? (ssize_t)done : -ENODEV;
+}
+
+/* Truthful readiness: the tree is usable only once wc_grb_init() has built the
+ * root and the leaves.  Reporting ready early would let the kernel batch from
+ * a service that is not yet answering. */
+static bool wc_grb_ready(void)
+{
+    return wc_grb_service_active() ? true : false;
+}
+
+static const struct wolfssl_linuxkm_random_bytes_handlers
+wc_grb_handlers = {
+    ._get_random_bytes     = wc_grb_service,
+    .get_random_bytes_user = wc_grb_user,
+    .extract_crng_user     = wc_grb_extract_crng_user,
+    .crng_ready            = wc_grb_ready
+    /* .mix_pool_bytes, .credit_init_bits and .crng_reseed are not implemented
+     * yet: they let the module take part in the kernel's entropy lifecycle and
+     * are the next step, not a prerequisite for serving. */
+};
+
+#endif /* WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS */
+
+/* Diagnostics for the out-of-tree load generator, exported from the glue and
+ * not from the boundary: the boundary has no module API, and a test affordance
+ * is not a cryptographic service.  Prototyped here rather than in a header
+ * because nothing in the tree includes them. */
+int wc_grb_hook_is_active(void);
+int wc_grb_hook_stats(long long *out, int n);
+int wc_grb_hook_irq_hist(int ctx, long long *out, int n);
+
+int wc_grb_hook_is_active(void)
+{
+    return wc_grb_service_active();
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_is_active);
+
+int wc_grb_hook_stats(long long *out, int n)
+{
+    return wc_grb_stat_snapshot(out, n);
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_stats);
+
+int wc_grb_hook_irq_hist(int ctx, long long *out, int n)
+{
+    return wc_grb_irq_hist(ctx, out, n);
+}
+EXPORT_SYMBOL_GPL(wc_grb_hook_irq_hist);
+
+static int wc_grb_maint_start(void)
+{
+    unsigned int cpu;
+
+    wc_grb_cpu_works = kcalloc(nr_cpu_ids, sizeof(*wc_grb_cpu_works),
+                               GFP_KERNEL);
+    if (wc_grb_cpu_works == NULL) {
+        return -ENOMEM;
+    }
+
+    WRITE_ONCE(wc_grb_maint_running, 1);
+
+    INIT_DELAYED_WORK(&wc_grb_root_work, wc_grb_root_work_fn);
+    schedule_delayed_work(&wc_grb_root_work,
+                          msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+
+    /* Runtime INIT_DELAYED_WORK, not the static initializer: that expands
+     * TIMER_ENTRY_STATIC, whose void* arithmetic trips pointer-arith. */
+    for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+        wc_grb_cpu_works[cpu].cpu = (int) cpu;
+        INIT_DELAYED_WORK(&wc_grb_cpu_works[cpu].dw, wc_grb_cpu_work_fn);
+    }
+
+    /* Only online CPUs get a worker.  A CPU brought up later is covered by
+     * the service path's self-help, which reseeds the leaf it is running on.
+     * Held across the walk so a CPU cannot go down between the iteration and
+     * the queue, which would WARN exactly as an offline requeue does. */
+    cpus_read_lock();
+    for_each_online_cpu(cpu) {
+        queue_delayed_work_on((int) cpu, system_wq, &wc_grb_cpu_works[cpu].dw,
+                              msecs_to_jiffies(WC_GRB_MAINT_POLL_MS));
+    }
+    cpus_read_unlock();
+
+    return 0;
+}
+
+#endif /* LINUXKM_RBGC */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
@@ -1125,6 +1567,45 @@ static int wolfssl_init(void)
         );
 #endif
 
+#ifdef LINUXKM_RBGC
+    /* Hand get_random_bytes() to the in-boundary service.  A failure here is
+     * reported but does not fail the module load: the kernel's own CRNG keeps
+     * answering, so the rest of the module is still usable. */
+    {
+        int grb_ret = wc_grb_init(num_possible_cpus());
+
+        if (grb_ret != 0) {
+            pr_err("WCGRB: wc_grb_init() failed: %d\n", grb_ret);
+        }
+        else {
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+            grb_ret = wolfssl_linuxkm_register_random_bytes_handlers(
+                THIS_MODULE, &wc_grb_handlers);
+#else
+#error LINUXKM_RBGC requires a kernel carrying one of the patches in\
+    linuxkm/patches/.  Without it there is no get_random_bytes() hook to\
+    register, and the module would leave the native kernel generator in\
+    service with no indication that it had.
+#endif
+            if (grb_ret != 0) {
+                pr_err("WCGRB: wolfssl_linuxkm_register_random_bytes_handlers()"
+                       " failed: %d\n", grb_ret);
+                wc_grb_cleanup();
+            }
+            else {
+                wc_grb_set_registered(1);
+                if (wc_grb_maint_start() != 0) {
+                    pr_err("WCGRB: no memory for per-CPU maintenance work\n");
+                }
+                pr_info("WCGRB: get_random_bytes() hook registered\n");
+                /* Module init has finished, so all further demand is the
+                 * running system rather than bring-up. */
+                wc_grb_mark_boot_done();
+            }
+        }
+    }
+#endif /* LINUXKM_RBGC */
+
     return 0;
 }
 
@@ -1136,6 +1617,28 @@ static void __exit wolfssl_exit(void)
 static void wolfssl_exit(void)
 #endif
 {
+#ifdef LINUXKM_RBGC
+    /* Unregister the hook before anything else is torn down, so no in-flight
+     * caller can reach a half-freed DRBG.
+     * wolfssl_linuxkm_unregister_random_bytes_handlers() drains by
+     * cmpxchg'ing random_bytes_cb_refcnt from 1 to 0, retrying up to 100 times
+     * with msleep_interruptible(10) while callers are still inside; it does
+     * not use RCU.  It can return -EBUSY, which this call discards -- see
+     * drivers/char/random.c in the patch for this kernel. */
+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
+    /* Guarded like the register call in wolfssl_init().  Without this the
+     * unpatched-kernel build emits an implicit-declaration error here as well
+     * as the #error there, and the second one buries the message that tells
+     * the builder what to do. */
+    if (wc_grb_service_active()) {
+        (void)wolfssl_linuxkm_unregister_random_bytes_handlers();
+        wc_grb_set_registered(0);
+    }
+#endif
+    wc_grb_maint_stop();
+    wc_grb_cleanup();
+#endif /* LINUXKM_RBGC */
+
 #ifdef HAVE_FIPS
     int ret;
 
@@ -1505,9 +2008,6 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
-#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
-#endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         wolfssl_linuxkm_pie_redirect_table.getnstimeofday =
             getnstimeofday;
@@ -1521,7 +2021,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
-#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+    (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
     wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
@@ -1538,8 +2039,21 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         wolfssl_linuxkm_pie_redirect_table.rt_mutex_base_init = rt_mutex_base_init;
         wolfssl_linuxkm_pie_redirect_table.rt_spin_lock = rt_spin_lock;
         wolfssl_linuxkm_pie_redirect_table.rt_spin_unlock = rt_spin_unlock;
+        /* Used by the open-coded PREEMPT_RT spin_lock_bh()/spin_unlock_bh() in
+         * linuxkm_wc_port.h, see the matching fields there. */
+        wolfssl_linuxkm_pie_redirect_table.__local_bh_disable_ip =
+            __local_bh_disable_ip;
+        wolfssl_linuxkm_pie_redirect_table.__local_bh_enable_ip =
+            __local_bh_enable_ip;
+        /* CONFIG_DEBUG_LOCK_ALLOC, not CONFIG_PREEMPT_RT, the guard has to
+         * match the field and the #define exactly.  See linuxkm_wc_port.h. */
+        #ifdef CONFIG_DEBUG_LOCK_ALLOC
+        wolfssl_linuxkm_pie_redirect_table.__rt_spin_lock_init =
+            __rt_spin_lock_init;
+        #endif
     #endif
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) || \
+        defined(CONFIG_DEBUG_LOCK_ALLOC)
         wolfssl_linuxkm_pie_redirect_table.mutex_lock_nested = mutex_lock_nested;
     #else
         wolfssl_linuxkm_pie_redirect_table.mutex_lock = mutex_lock;
@@ -1707,28 +2221,31 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
 
     wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
-#ifndef _raw_spin_lock_irqsave
-    wolfssl_linuxkm_pie_redirect_table._raw_spin_lock_irqsave = _raw_spin_lock_irqsave;
+#ifndef _raw_spin_lock_bh
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_lock_bh = _raw_spin_lock_bh;
 #endif
-#ifndef _raw_spin_trylock
-    wolfssl_linuxkm_pie_redirect_table._raw_spin_trylock = _raw_spin_trylock;
+#ifndef _raw_spin_unlock_bh
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_unlock_bh = _raw_spin_unlock_bh;
 #endif
-#ifndef _raw_spin_unlock_irqrestore
-    wolfssl_linuxkm_pie_redirect_table._raw_spin_unlock_irqrestore = _raw_spin_unlock_irqrestore;
+/* CONFIG_DEBUG_SPINLOCK, not CONFIG_DEBUG_LOCK_ALLOC, see the matching
+ * guard in linuxkm_wc_port.h.  All three sites (field, assignment, #define)
+ * must name the same macro or the assignment writes a field that does not
+ * exist. */
+#ifdef CONFIG_DEBUG_SPINLOCK
+    wolfssl_linuxkm_pie_redirect_table.__raw_spin_lock_init = __raw_spin_lock_init;
 #endif
     wolfssl_linuxkm_pie_redirect_table._cond_resched = _cond_resched;
 
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     wolfssl_linuxkm_pie_redirect_table.wc_lkm_LockMutex = wc_lkm_LockMutex;
+    wolfssl_linuxkm_pie_redirect_table.wc_lkm_UnLockMutex = wc_lkm_UnLockMutex;
 #endif
 
-#ifdef CONFIG_ARM64
-#ifndef CONFIG_ARCH_TEGRA
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
-    wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
+#ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
+    wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_can_block = wc_linuxkm_can_block;
@@ -1736,6 +2253,12 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_end = wc_linuxkm_sig_ignore_end;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_relax_long_loop = wc_linuxkm_relax_long_loop;
+#ifdef LINUXKM_RBGC
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_save = wc_linuxkm_irq_save;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_irq_restore = wc_linuxkm_irq_restore;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_cpu_id = wc_linuxkm_cpu_id;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_mono_ns = wc_linuxkm_mono_ns;
+#endif
 
 #ifdef CONFIG_KASAN
     wolfssl_linuxkm_pie_redirect_table.kasan_disable_current = kasan_disable_current;
@@ -2054,7 +2577,9 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     int ret;
     int argc;
     const char *argv[3];
-    char code_buf[5];
+    /* Textual sysfs error code + NUL, plus headroom.  Fits the v7.0.0 5-char
+     * codes (e.g. ML_KEM_PCT_E) that the old [5] rejected. */
+    char code_buf[8];
     size_t corrected_count;
     int i;
 
@@ -2070,7 +2595,7 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
         corrected_count = count - 1;
     else
         corrected_count = count;
-    if ((corrected_count < 1) || (corrected_count > 4))
+    if ((corrected_count < 1) || (corrected_count > (sizeof(code_buf) - 1)))
         return -EINVAL;
     XMEMCPY(code_buf, buf, corrected_count);
     code_buf[corrected_count] = 0;

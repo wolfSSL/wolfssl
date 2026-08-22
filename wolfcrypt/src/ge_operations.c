@@ -9885,6 +9885,7 @@ where a = a[0]+256*a[1]+...+256^31 a[31].
 and b = b[0]+256*b[1]+...+256^31 b[31].
 B is the Ed25519 base point (x,4/5) with x positive.
 */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
                                  const ge_p3 *A, const unsigned char *b)
 {
@@ -9929,6 +9930,60 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 
   return ge_double_scalarmult_vartime_c(r, a, A, b);
 }
+#else
+int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
+                                 const ge_p3 *A, const unsigned char *b)
+{
+#ifdef WOLFSSL_GE_HAVE_INTEL_AVX512_IFMA
+  int ret;
+  cpuid_flags_t cpuid_flags;
+
+  /* The assembly works out the window digits and the multiples of A itself,
+   * so it needs none of the temporaries the C implementation uses - just the
+   * one buffer, which it works in instead of taking a stack frame.  The
+   * 256-bit EVEX VPMADD52 code needs AVX512F, IFMA and VL - see the same test
+   * in fe_init(). */
+  cpuid_flags = cpuid_get_flags();
+  if (IS_INTEL_AVX512(cpuid_flags) && IS_INTEL_AVX512_IFMA(cpuid_flags) &&
+          IS_INTEL_AVX512_VL(cpuid_flags)) {
+  #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
+      byte buf[GE_DSM_IFMA_TMP_SIZE];
+  #else
+      byte *buf;
+  #endif
+
+      /* See linuxkm/SVR-FALLBACK-ANALYSIS.md */
+      ret = SAVE_VECTOR_REGISTERS2();
+      if (ret != 0)
+          return ret;
+
+  #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+      buf = (byte *)XMALLOC(GE_DSM_IFMA_TMP_SIZE, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+      if (buf == NULL) {
+          RESTORE_VECTOR_REGISTERS();
+          return MEMORY_E;
+      }
+  #endif
+      /* VPMULLQ is a single uop on AMD and microcoded on Intel, so the
+       * variant that reduces with it is only used on AMD. */
+      if (IS_CPU_AMD(cpuid_flags) && IS_INTEL_AVX512_DQ(cpuid_flags)) {
+          ret = ge_double_scalarmult_vartime_avx512_ifma_dq(r, a, A, b, Bi, buf);
+      }
+      else {
+          ret = ge_double_scalarmult_vartime_avx512_ifma(r, a, A, b, Bi, buf);
+      }
+  #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+      XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  #endif
+      RESTORE_VECTOR_REGISTERS();
+      return ret;
+  }
+#endif
+
+  return ge_double_scalarmult_vartime_c(r, a, A, b);
+}
+#endif
 
 #ifdef CURVED25519_ASM_64BIT
 static const ge d = {
@@ -10288,9 +10343,11 @@ void ge_tobytes_nct(unsigned char *s,const ge_p2 *h)
 /* if HAVE_ED25519 but not HAVE_CURVE25519, and an asm implementation is built,
  * then curve25519() won't get its WOLFSSL_LOCAL attribute unless we dummy-call
  * it here.
- */
+ * The 32-bit ARM asm port gates curve25519() on HAVE_CURVE25519, so the
+ * dummy-call would be an undefined symbol there, exclude arm32 armasm. */
 #if defined(CURVED25519_ASM) && defined(WOLFSSL_API_PREFIX_MAP) && \
-    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC)
+    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC) && \
+    (!defined(WOLFSSL_ARMASM) || defined(__aarch64__))
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void);
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void) {
     (void)curve25519((byte *)0, (byte *)0, (const byte *)0);

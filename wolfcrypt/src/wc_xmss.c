@@ -26,6 +26,14 @@
 
 #ifdef WOLFSSL_HAVE_XMSS
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep XMSS inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name, between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nf")
+        #pragma const_seg(".fipsB$nf")
+    #endif
+#endif
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 #include <wolfssl/wolfcrypt/hash.h>
 

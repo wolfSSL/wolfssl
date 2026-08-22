@@ -57,8 +57,12 @@
     #define DRBG_SEED_LEN (440/8)
 #endif
 
+/* Size of the DRBG seed (SHA-512) */
 #ifdef WOLFSSL_DRBG_SHA512
-    #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A Table 2 */
+    #ifndef DRBG_SHA512_SEED_LEN
+        #define DRBG_SHA512_SEED_LEN (888/8)  /* 111 bytes per SP 800-90A
+                                               * Table 2 */
+    #endif
 #endif
 
 
@@ -212,12 +216,12 @@ struct OS_Seed {
          */
         #define ENTROPY_SCALE_FACTOR  (512)
     #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
-        /* The value of 2 applies to Intel's RDSEED which provides about
-         * 0.5 bits minimum of entropy per bit. The value of 4 gives a
-         * conservative margin for FIPS. */
+        /* Intel RDSEED provides ~0.5 bits min entropy per bit (cert3389
+         * PUD).  FIPS uses the AMD worst case above so one seeding budget
+         * covers any x86 OE. */
         #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION >= 2)
-            #define ENTROPY_SCALE_FACTOR (2*4)
+            #define ENTROPY_SCALE_FACTOR (512)
         #else
             /* Not FIPS, but Intel RDSEED, only double. */
             #define ENTROPY_SCALE_FACTOR (2)
@@ -233,6 +237,12 @@ struct OS_Seed {
         #define ENTROPY_SCALE_FACTOR (1)
     #endif
 #endif /* !ENTROPY_SCALE_FACTOR */
+
+/* SP 800-90A Rev1: FIPS over-seeds to cover low-entropy NDRNGs; a scale
+ * factor below 4 (256 bits) defeats that margin. */
+#if FIPS_VERSION3_GE(7,0,0) && (ENTROPY_SCALE_FACTOR < 4)
+    #error "FIPS v7 requires ENTROPY_SCALE_FACTOR >= 4 (SP 800-90A over-seeding)"
+#endif
 
 /* SEED_BLOCK_SZ is unprefixed for backward compat. */
 #ifndef SEED_BLOCK_SZ
@@ -342,16 +352,53 @@ enum wc_DrbgType {
 };
 #endif
 
+/* Per-instance DRBG exclusion.  SP 800-90A sec 9.3 requires each Generate to
+ * run over the current internal state; concurrent callers of one WC_RNG would
+ * otherwise read the same V and emit identical output.
+ *
+ * This is a compare-exchange flag, not a wolfSSL_Mutex.  The generate it would
+ * have to cover calls cond_resched() (from the entropy mutex) and
+ * local_bh_enable() (from SAVE_VECTOR_REGISTERS), so holding any lock across
+ * it constrains the contexts the DRBG can be entered from, and under linuxkm
+ * a wolfSSL_Mutex is spin_lock_bh(), which cannot be held across a
+ * cond_resched() at all.  The flag disables nothing and waits with
+ * WC_RELAX_LONG_LOOP(), the same way wc_rng_bank_checkout() does.
+ *
+ * (An earlier version of this note said the mutex was taken with
+ * spin_lock_irqsave() and rested the argument on interrupts being disabled.
+ * That is no longer what wc_lkm_LockMutex() does, see linuxkm/module_hooks.c
+ *, so the reasoning is restated above on the ground that still holds.)
+ *
+ * Real atomics are required.  A SINGLE_THREADED or WOLFSSL_NO_ATOMICS build
+ * has none, gets no field and no exclusion, and is left exactly as it was. */
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(SINGLE_THREADED) && !defined(WOLFSSL_NO_ATOMICS)
+    #define WC_RNG_HAVE_INST_EXCL
+
+    #define WC_RNG_EXCL_FREE  0
+    #define WC_RNG_EXCL_HELD  1
+    /* Exclusion is supplied by whoever owns this WC_RNG, an RNG bank
+     * instance, made exclusive by wc_rng_bank_checkout().  The owner stores
+     * this once after instantiation and the generate path then takes no flag
+     * of its own, so exactly one mechanism applies to any given generate. */
+    #define WC_RNG_EXCL_OWNER 2
+#endif
+
 /* RNG health states */
 enum wc_RngHealthState {
     WC_DRBG_NOT_INIT =    0,
     WC_DRBG_OK =          1,
     WC_DRBG_FAILED =      2,
     WC_DRBG_CONT_FAILED = 3,
-#ifdef WC_RNG_BANK_SUPPORT
+#if defined(WC_RNG_BANK_SUPPORT) && !defined(HAVE_FIPS)
     WC_DRBG_BANKREF =     4, /* Marks the WC_RNG as a ref to a wc_rng_bank,
                               * with no usable DRBG of its own.
                               */
+    /* Compiled out under HAVE_FIPS: a bankref carries no DRBG state, so
+     * servicing one requires the in-boundary generate path to call out to
+     * rng_bank.c.  Without the type the module never references the bank.
+     * The bank stays usable in FIPS builds via wc_rng_bank_checkout(), which
+     * hands back an ordinary approved WC_RNG. */
     #define WC_HAVE_RNG_BANKREF
 #endif
     WOLF_ENUM_DUMMY_LAST_ELEMENT(wc_RngHealthState)
@@ -363,13 +410,13 @@ struct WC_RNG {
     void* heap;
     byte status;
 
-#if defined(WC_RNG_BANK_SUPPORT) || defined(HAVE_HASHDRBG)
+#if defined(WC_HAVE_RNG_BANKREF) || defined(HAVE_HASHDRBG)
 
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     union {
 #endif
 
-    #ifdef WC_RNG_BANK_SUPPORT
+    #ifdef WC_HAVE_RNG_BANKREF
         struct wc_rng_bank *bankref;
     #endif
 
@@ -417,6 +464,23 @@ struct WC_RNG {
 
 #endif /* WC_RNG_BANK_SUPPORT || HAVE_HASHDRBG */
 
+#ifdef WC_RNG_HAVE_INST_EXCL
+    /* WC_RNG_EXCL_FREE / _HELD / _OWNER.  Serializes this instance's DRBG
+     * generate/reseed critical section.  Outside the union above: a
+     * WC_DRBG_BANKREF WC_RNG holds no DRBG state and never uses it.
+     * _InitRng() zeroes the whole WC_RNG, so the flag starts FREE with no
+     * constructor of its own and no way for construction to fail. */
+    wolfSSL_Atomic_Int excl;
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    /* pid of the process that last entered RngExclEnter().  Zeroed by
+     * _InitRng(), which is not a valid userspace pid, so the first entry
+     * always claims it.  Read and written only by RngExclEnter(); distinct
+     * from rng->pid, which drives the post-fork reseed from inside the
+     * section. */
+    wolfSSL_Atomic_Int exclPid;
+#endif
+#endif
+
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     pid_t pid;
 #endif
@@ -454,6 +518,14 @@ WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 
 #ifndef WC_NO_RNG
+#ifdef LINUXKM_RBGC
+/* SP 800-90C Sec. 7.2.1.2 instantiation of a non-root RBGC construction from
+ * its parent.  WOLFSSL_LOCAL, not WOLFSSL_API: internal to the RBGC and never
+ * exported.  3s/2 bits are drawn from the parent; see the definition. */
+#define WC_RBGC_INSTANTIATE_SZ (RNG_SECURITY_STRENGTH * 3 / 2 / 8)
+WOLFSSL_LOCAL int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent);
+#endif
+
 WOLFSSL_ABI WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
@@ -484,10 +556,15 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #endif
 
 #ifdef WC_RNG_SEED_CB
+    /* Set the entropy-seed callback ONCE at startup, before any RNG use or
+     * threads; it writes a shared global and must not change per-thread or
+     * concurrently with RNG operations.  Use one entropy source at a time. */
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
 #endif
 
 #ifdef HAVE_HASHDRBG
+    /* Caller-supplied reseed entropy is NOT health-tested by the Module; it
+     * SHALL come from an SP 800-90B compliant source (see random.c). */
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);

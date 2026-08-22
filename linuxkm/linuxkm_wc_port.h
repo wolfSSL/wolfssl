@@ -35,6 +35,19 @@
         #error Unsupported kernel.
     #endif
 
+    /* in_hardirq() is the 5.11 name for in_irq(); both expand to
+     * hardirq_count() and 5.11 kept in_irq() as well, so this is a rename and
+     * nothing more:
+     *   5.10 include/linux/preempt.h:99   #define in_irq() (hardirq_count())
+     *   5.11 include/linux/preempt.h:94   #define in_hardirq() (hardirq_count())
+     *   5.11 include/linux/preempt.h:104  #define in_irq() (hardirq_count())
+     * Without this, module_hooks.c fails to build on every kernel before 5.11
+     * with "implicit declaration of function 'in_hardirq'".  Verified against
+     * the 5.6/5.7/5.8/5.9/5.10 and 5.11 trees, 2026-08-20. */
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+        #define in_hardirq() in_irq()
+    #endif
+
     #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
         #if defined(CONFIG_CRYPTO_MANAGER) && !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
             #define WC_LINUX_CONFIG_SELFTESTS
@@ -202,6 +215,7 @@
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     struct wolfSSL_Mutex;
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
+    extern int wc_lkm_UnLockMutex(struct wolfSSL_Mutex* m);
 #endif
 
     #ifndef WC_LINUXKM_INTR_SIGNALS
@@ -215,6 +229,27 @@
         #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD 1000000000
     #endif
     WOLFSSL_API void wc_linuxkm_relax_long_loop(void);
+
+    #ifdef LINUXKM_RBGC
+        /* Interrupt save/restore as calls.  local_irq_save() expands, on arm64
+         * before 6.6, to an ALTERNATIVE() asm whose "r" operand cannot be
+         * satisfied from a PIE-compiled in-boundary object ("impossible
+         * constraint in 'asm'"); keeping the expansion in non-PIE glue builds
+         * on every arm64 tree. */
+        WOLFSSL_API unsigned long wc_linuxkm_irq_save(void);
+        WOLFSSL_API void wc_linuxkm_irq_restore(unsigned long flags);
+
+        /* Current CPU index, for the per-CPU DRBG leaves.
+         * raw_smp_processor_id() reads a kernel symbol the container may not
+         * reference, so it goes through the redirect table. */
+        WOLFSSL_API int wc_linuxkm_cpu_id(void);
+
+        /* Monotonic nanoseconds for the interrupts-off measurement in
+         * linuxkm_get_entropy.c.  ktime_get_mono_fast_ns() is the NMI-safe
+         * reader (seqcount latch, no lock), so it is legal with interrupts
+         * off and in NMI. */
+        WOLFSSL_API unsigned long long wc_linuxkm_mono_ns(void);
+    #endif
 
     #ifndef WC_SIG_IGNORE_BEGIN
         #define WC_SIG_IGNORE_BEGIN() wc_linuxkm_sig_ignore_begin()
@@ -259,6 +294,31 @@
         #endif
     #endif
 
+    /* The C AES lane is the Te[4][256] T-table, indexed by key-dependent state.
+     * CPU stepping still selects it on a part without AES-NI, so removing the
+     * run-time fallback did not remove that exposure.  PreFetchTe() touches the
+     * tables once per operation, not per round, so it does not make the lane
+     * constant-time.  Force the per-round cache-line countermeasure in FIPS
+     * kernel builds.  See linuxkm/SVR-FALLBACK-ANALYSIS.md 2.1. */
+    /* DEFAULT for FIPS without PAA: constant-time AES.  A customer may elect
+     * the faster leaky lane with --disable-harden, which sets
+     * WC_NO_CACHE_RESISTANT and compiles GetTable() out; that election is a
+     * deliberate configure flag and is recorded in the validated build config,
+     * so it is respected here rather than refused.  It gives up more than AES,
+     * see SVR-FALLBACK-ANALYSIS.md 2.1. */
+    #if defined(HAVE_FIPS) && !defined(WC_NO_CACHE_RESISTANT)
+        #ifndef WOLFSSL_AES_TOUCH_LINES
+            #define WOLFSSL_AES_TOUCH_LINES
+        #endif
+    #elif defined(HAVE_FIPS)
+        /* Flag the election, do not block it.  --disable-harden gives up more
+         * than AES: RSA blinding and ECC/fastmath timing resistance go with it
+         * (configure.ac:3248-3255).  This build inherits -Werror, so if that
+         * turns this into an error, comment out the next line; silencing it is
+         * the electing party's call. */
+        #warning "FIPS linuxkm with --disable-harden: AES is the cache-observable T-table lane, and RSA blinding and ECC timing resistance are off. Comment out this line to silence."
+    #endif
+
     #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7, 0, 0)
         #if defined(HAVE_HASHDRBG) && \
             defined(HAVE_ENTROPY_MEMUSE) && \
@@ -287,14 +347,26 @@
     #endif
 
     /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT needs to be here
-     * to assure that calls to get_random_bytes() in random.c are gated out
-     * (they would recurse, potentially infinitely).
+     * because linuxkm/lkcapi_sha_glue.c tests it at file scope (its
+     * LINUXKM_DRBG_GET_RANDOM_BYTES block) before it includes any wolfSSL
+     * header.
      */
+    /* The _DEFAULT variant additionally installs a process-wide default that
+     * wolfCrypt's own callers reach through wc_InitRng_BankRef(), so it needs
+     * the bankref type by construction.  bankref is compiled out under
+     * HAVE_FIPS (random.h), so HAVE_FIPS is excluded here and "register
+     * everything" means plain stdrng registration, which needs no bank.
+     * HAVE_FIPS is tested rather than WC_HAVE_RNG_BANKREF because random.h is
+     * not included this early; the bank macros likewise arrive on the command
+     * line.  See linuxkm/SVR-FALLBACK-ANALYSIS.md sec 11. */
     #if defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG) && \
         !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT) && \
         !defined(NO_LINUXKM_DRBG_GET_RANDOM_BYTES) && \
         !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+        defined(WC_RNG_BANK_SUPPORT) && \
+        !defined(WC_RNG_BANK_NO_DEFAULT_SUPPORT) && \
+        !defined(HAVE_FIPS) && \
         defined(HAVE_HASHDRBG)
         #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #endif
@@ -414,15 +486,47 @@
         #error WC_FORCE_LINUXKM_FORTIFY_SOURCE without CONFIG_FORTIFY_SOURCE.
     #endif
 
-    #if defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_ARM64)
-        /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
-         * to allow shimming in system headers.
-         */
-        /* alt_cb_patch_nops added by d926079f17, release 6.1 */
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    /* One condition per redirected symbol, decided once here and used at
+     * every site that has to agree about it: the #define below that shims the
+     * system headers, the matching #undef and the redirect-table member in
+     * struct wolfssl_linuxkm_pie_redirect_table, the forwarding definition in
+     * wolfcrypt/src/wc_port.c, and the table population in
+     * linuxkm/module_hooks.c.
+     *
+     * a5f1fde95 ("linuxkm: fix Tegra Yocto FIPS build issues") added a
+     * CONFIG_ARCH_TEGRA exclusion to every one of those sites EXCEPT the
+     * #define.  On an arm64 configuration with CONFIG_ARCH_TEGRA=y -- which
+     * arm64 defconfig sets -- the system headers were therefore redirected to
+     * my__alt_cb_patch_nops with nothing defining it, and with no #undef to
+     * take the redirection back down for the rest of the translation unit.
+     *
+     * alt_cb_patch_nops needs no platform exclusion: arm64 declares it
+     * unconditionally in arch/arm64/include/asm/alternative.h (line 37 in
+     * 7.0.14), and the Tegra kernel a5f1fde95 was fixing is 5.17, which the
+     * 6.1 test below already excludes.  The queued_spin_lock_slowpath
+     * exclusion is carried over from a5f1fde95 unchanged.
+     *
+     * alt_cb_patch_nops added by d926079f17, release 6.1.
+     */
+    #if defined(CONFIG_ARM64) && \
+        (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+        #define WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
+    #endif
+    #if defined(CONFIG_ARM64) && !defined(CONFIG_ARCH_TEGRA)
+        #define WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
+    #endif
+
+    /* Shim the system headers.  This has to happen before they are included:
+     * their inline bodies are tokenised as they are read, so a later #define
+     * cannot reach the calls those bodies leave behind.
+     */
+    #ifdef WC_CONTAINERIZE_THIS
+        #ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
             #define alt_cb_patch_nops my__alt_cb_patch_nops
-        #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
-        #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
+        #endif
+        #ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
+            #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
+        #endif
     #endif
 
     /*
@@ -737,8 +841,18 @@
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
+    /* wolfCrypt error to errno for the LKCAPI shims.  WC_ACCEL_INHIBIT_E is a
+     * transient context restriction, so it must not reach dm-crypt as
+     * BLK_STS_IOERR; -EBUSY is retryable.  Defined outside the vector-register
+     * block below: the LKCAPI glue calls it whether or not SVR is compiled, and
+     * inside that block a no-armasm build fails with an implicit declaration. */
+    #define wc_lkm_errno(e) \
+        (((e) == WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E)) ? -EBUSY : -EINVAL)
+
+    /* x86 and ARM/ARM64 share the arch-neutral tracker in
+     * x86_vector_register_glue.c, which keeps wc_*_x86 names on all arches. */
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
-        defined(CONFIG_X86)
+        (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
 
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
@@ -746,18 +860,23 @@
         WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
         WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
 
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-            #include <asm/i387.h>
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
-                /* added by a62b01cd6c */
-                #include <asm-generic/simd.h>
+        #ifdef CONFIG_X86
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+                #include <asm/i387.h>
+                #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+                    /* added by a62b01cd6c */
+                    #include <asm-generic/simd.h>
+                #endif
+            #else
+                #include <asm/simd.h>
+                #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+                    /* added by 266d051601 */
+                    #include <crypto/internal/simd.h>
+                #endif
             #endif
-        #else
-            #include <asm/simd.h>
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
-                /* added by 266d051601 */
-                #include <crypto/internal/simd.h>
-            #endif
+        #else /* CONFIG_ARM || CONFIG_ARM64 */
+            #include <asm/simd.h>   /* may_use_simd() */
+            #include <asm/neon.h>   /* kernel_neon_begin/end() */
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
@@ -858,42 +977,6 @@
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED
             #define RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED() wc_restore_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
-        #endif
-
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
-
-        #error kernel module ARM SIMD is not yet tested or usable.
-
-        #include <asm/fpsimd.h>
-
-        static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
-        {
-            preempt_disable();
-            if (! may_use_simd()) {
-                preempt_enable();
-                return BAD_STATE_E;
-            } else {
-                fpsimd_preserve_current_state();
-                return 0;
-            }
-        }
-        static inline void restore_vector_registers_arm(void)
-        {
-            fpsimd_restore_current_state();
-            preempt_enable();
-        }
-
-        #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
-        #endif
-        #ifndef SAVE_VECTOR_REGISTERS2
-            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
-        #endif
-        #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_arm()
-        #endif
-        #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
         #endif
 
     #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
@@ -1110,6 +1193,14 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
+#ifdef CONFIG_X86_32
+    /* string_32.h #defines memcpy/memcmp/memset as __builtin_* macros, which
+     * would corrupt the PIE redirect-table members declared below. */
+    #undef memcpy
+    #undef memcmp
+    #undef memset
+#endif
+
     struct wolfssl_linuxkm_pie_redirect_table {
     #ifdef HAVE_FIPS
         typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
@@ -1231,9 +1322,6 @@
         typeof(ksize) *ksize;
 #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
-#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-        typeof(get_random_bytes) *get_random_bytes;
-#endif
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             typeof(getnstimeofday) *getnstimeofday;
         #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
@@ -1246,13 +1334,13 @@
 
         #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
 
-            #ifdef CONFIG_X86
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
                 typeof(allocate_wolfcrypt_linuxkm_fpu_states) *allocate_wolfcrypt_linuxkm_fpu_states;
                 typeof(wc_can_save_vector_registers_x86) *wc_can_save_vector_registers_x86;
                 typeof(free_wolfcrypt_linuxkm_fpu_states) *free_wolfcrypt_linuxkm_fpu_states;
                 typeof(wc_restore_vector_registers_x86) *wc_restore_vector_registers_x86;
                 typeof(wc_save_vector_registers_x86) *wc_save_vector_registers_x86;
-            #else /* !CONFIG_X86 */
+            #else
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
             #endif /* arch */
 
@@ -1265,9 +1353,40 @@
             typeof(rt_mutex_base_init) *rt_mutex_base_init;
             typeof(rt_spin_lock) *rt_spin_lock;
             typeof(rt_spin_unlock) *rt_spin_unlock;
+            /* PREEMPT_RT has no spinlock_t.rlock, so spin_lock_bh() and
+             * spin_unlock_bh() are open-coded further down this header
+             * (wolfssl_spin_lock_bh_rt).  The two softirq-count helpers they
+             * call are then OUR references from inside the container and need
+             * entries like any other kernel symbol.  Read from
+             * include/linux/bottom_half.h: __local_bh_disable_ip is extern
+             * whenever CONFIG_PREEMPT_RT is set, the static-inline arm is
+             * "!PREEMPT_RT && !TRACE_IRQFLAGS", which cannot be reached here --
+             * and __local_bh_enable_ip is extern unconditionally.  So both are
+             * real symbols on every kernel that compiles this arm. */
+            typeof(__local_bh_disable_ip) *__local_bh_disable_ip;
+            typeof(__local_bh_enable_ip) *__local_bh_enable_ip;
+            #ifdef CONFIG_DEBUG_LOCK_ALLOC
+                /* spin_lock_init(), called by wc_InitMutex() below, is
+                 * _spin_lock_init() -> __spin_lock_init() on RT, and that
+                 * expands to rt_mutex_base_init() (above) plus this.
+                 *
+                 * CONFIG_DEBUG_LOCK_ALLOC, not CONFIG_PREEMPT_RT:
+                 * include/linux/spinlock_rt.h declares __rt_spin_lock_init
+                 * extern only under the former and makes it an empty static
+                 * inline otherwise, so there is no symbol to redirect there.
+                 * Getting that condition wrong is the __raw_spin_lock_init
+                 * failure below repeated, field, assignment and #define must
+                 * all name the same guard or the build breaks in one config
+                 * and silently writes a nonexistent field in the other. */
+                typeof(__rt_spin_lock_init) *__rt_spin_lock_init;
+            #endif
         #endif
 
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        /* CONFIG_DEBUG_LOCK_ALLOC (lockdep) makes mutex_lock a macro for
+         * mutex_lock_nested(lock, 0), so there is no mutex_lock symbol to
+         * redirect, take the same arm as pre-4.0 kernels. */
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) || \
+            defined(CONFIG_DEBUG_LOCK_ALLOC)
             typeof(mutex_lock_nested) *mutex_lock_nested;
         #else
             typeof(mutex_lock) *mutex_lock;
@@ -1376,41 +1495,51 @@
 
         typeof(dump_stack) *dump_stack;
 
-        #ifdef CONFIG_ARM64
-        #ifndef CONFIG_ARCH_TEGRA
         #ifdef WC_CONTAINERIZE_THIS
-            /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
-             * to allow shimming in system headers, but now we need the native
-             * ones.
+            /* The system headers have been read, so the shim has done its job
+             * and the table needs the native names back.  Each #undef is
+             * gated exactly like the #define that paired with it.
              */
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+            #ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
             #undef alt_cb_patch_nops
             typeof(my__alt_cb_patch_nops) *alt_cb_patch_nops;
-            #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
+            #endif
+            #ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
             #undef queued_spin_lock_slowpath
             typeof(my__queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
+            #endif
         #else
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+            #ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
             typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
             #endif
+            #ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
             typeof(queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
-        #endif
-        #endif
+            #endif
         #endif
 
         typeof(preempt_count) *preempt_count;
-        #ifndef _raw_spin_lock_irqsave
-            typeof(_raw_spin_lock_irqsave) *_raw_spin_lock_irqsave;
+        #ifndef _raw_spin_lock_bh
+            typeof(_raw_spin_lock_bh) *_raw_spin_lock_bh;
         #endif
-        #ifndef _raw_spin_trylock
-            typeof(_raw_spin_trylock) *_raw_spin_trylock;
+        #ifndef _raw_spin_unlock_bh
+            typeof(_raw_spin_unlock_bh) *_raw_spin_unlock_bh;
         #endif
-        #ifndef _raw_spin_unlock_irqrestore
-            typeof(_raw_spin_unlock_irqrestore) *_raw_spin_unlock_irqrestore;
+        #ifdef CONFIG_DEBUG_SPINLOCK
+            /* spin_lock_init() resolves to this on debug-spinlock kernels.
+             * CONFIG_DEBUG_SPINLOCK, not CONFIG_DEBUG_LOCK_ALLOC:
+             * include/linux/spinlock.h gates __raw_spin_lock_init on the
+             * former, and lib/Kconfig.debug has DEBUG_LOCK_ALLOC *select*
+             * DEBUG_SPINLOCK one-way, so DEBUG_SPINLOCK=y with
+             * DEBUG_LOCK_ALLOC=n is a normal config in which
+             * spin_lock_init() needs this symbol and the old guard did
+             * not provide it.  linuxkm/Kbuild fails the build on an
+             * unresolved symbol, so that config did not link. */
+            typeof(__raw_spin_lock_init) *__raw_spin_lock_init;
         #endif
         typeof(_cond_resched) *_cond_resched;
         #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
+        typeof(wc_lkm_UnLockMutex) *wc_lkm_UnLockMutex;
         #endif
 
         typeof(wc_linuxkm_can_block) *wc_linuxkm_can_block;
@@ -1418,6 +1547,12 @@
         typeof(wc_linuxkm_sig_ignore_end) *wc_linuxkm_sig_ignore_end;
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
         typeof(wc_linuxkm_relax_long_loop) *wc_linuxkm_relax_long_loop;
+        #ifdef LINUXKM_RBGC
+            typeof(wc_linuxkm_irq_save) *wc_linuxkm_irq_save;
+            typeof(wc_linuxkm_irq_restore) *wc_linuxkm_irq_restore;
+            typeof(wc_linuxkm_cpu_id) *wc_linuxkm_cpu_id;
+            typeof(wc_linuxkm_mono_ns) *wc_linuxkm_mono_ns;
+        #endif
 
         #ifdef CONFIG_KASAN
             typeof(kasan_disable_current) *kasan_disable_current;
@@ -1591,9 +1726,6 @@
     #define ksize WC_PIE_INDIRECT_SYM(ksize)
 #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
-#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    #define get_random_bytes WC_PIE_INDIRECT_SYM(get_random_bytes)
-#endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         #define getnstimeofday WC_PIE_INDIRECT_SYM(getnstimeofday)
     #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
@@ -1605,7 +1737,8 @@
     #undef get_current
     #define get_current WC_PIE_INDIRECT_SYM(get_current)
 
-    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+        (defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64))
         #define allocate_wolfcrypt_linuxkm_fpu_states WC_PIE_INDIRECT_SYM(allocate_wolfcrypt_linuxkm_fpu_states)
         #define wc_can_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_can_save_vector_registers_x86)
         #define free_wolfcrypt_linuxkm_fpu_states WC_PIE_INDIRECT_SYM(free_wolfcrypt_linuxkm_fpu_states)
@@ -1625,8 +1758,16 @@
         #define rt_mutex_base_init WC_PIE_INDIRECT_SYM(rt_mutex_base_init)
         #define rt_spin_lock WC_PIE_INDIRECT_SYM(rt_spin_lock)
         #define rt_spin_unlock WC_PIE_INDIRECT_SYM(rt_spin_unlock)
+        #ifdef CONFIG_DEBUG_LOCK_ALLOC
+            /* Picked up by the kernel's own spin_lock_init(), which expands at
+             * our call site in wc_InitMutex().  Guard matches the field. */
+            #define __rt_spin_lock_init WC_PIE_INDIRECT_SYM(__rt_spin_lock_init)
+        #endif
     #endif
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) || \
+        defined(CONFIG_DEBUG_LOCK_ALLOC)
+        /* Under lockdep the kernel's own mutex_lock(lock) macro expands to
+         * mutex_lock_nested(lock, 0), which then expands to the redirect. */
         #define mutex_lock_nested WC_PIE_INDIRECT_SYM(mutex_lock_nested)
     #else
         #define mutex_lock WC_PIE_INDIRECT_SYM(mutex_lock)
@@ -1679,26 +1820,30 @@
     #define preempt_count WC_PIE_INDIRECT_SYM(preempt_count)
 
     #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
-        #ifndef _raw_spin_lock_irqsave
-            #define _raw_spin_lock_irqsave WC_PIE_INDIRECT_SYM(_raw_spin_lock_irqsave)
+        #ifndef _raw_spin_lock_bh
+            #define _raw_spin_lock_bh WC_PIE_INDIRECT_SYM(_raw_spin_lock_bh)
         #endif
-        #ifndef _raw_spin_trylock
-            #define _raw_spin_trylock WC_PIE_INDIRECT_SYM(_raw_spin_trylock)
+        #ifndef _raw_spin_unlock_bh
+            #define _raw_spin_unlock_bh WC_PIE_INDIRECT_SYM(_raw_spin_unlock_bh)
         #endif
-        #ifndef _raw_spin_unlock_irqrestore
-            #define _raw_spin_unlock_irqrestore WC_PIE_INDIRECT_SYM(_raw_spin_unlock_irqrestore)
+        #ifdef CONFIG_DEBUG_SPINLOCK
+            #define __raw_spin_lock_init WC_PIE_INDIRECT_SYM(__raw_spin_lock_init)
         #endif
     #endif
 
     #define _cond_resched WC_PIE_INDIRECT_SYM(_cond_resched)
 
-    /* this is defined in linux/spinlock.h as an inline that calls the unshimmed
-     * raw_spin_unlock_irqrestore().  use a macro here to supersede it.
-     * Note: On PREEMPT_RT kernels, spinlock_t doesn't have rlock member,
-     * so we skip this redefinition and use the kernel's native implementation.
+    /* spin_lock_bh()/spin_unlock_bh() are static inlines in linux/spinlock.h,
+     * already parsed before the WC_PIE_INDIRECT_SYM() #defines above, so they
+     * still name the unshimmed _raw_spin_*_bh().  Supersede them with macros
+     * that expand raw_spin_*_bh(), themselves macros, at OUR call site, so
+     * the redirected symbol is picked up.
+     * Note: On PREEMPT_RT kernels, spinlock_t has no rlock member, so that
+     * form does not apply; use the rt_spin_* entries plus explicit bh control.
      */
     #ifndef CONFIG_PREEMPT_RT
-        #define spin_unlock_irqrestore(lock, flags) raw_spin_unlock_irqrestore(&((lock)->rlock), flags)
+        #define spin_lock_bh(lock) raw_spin_lock_bh(&((lock)->rlock))
+        #define spin_unlock_bh(lock) raw_spin_unlock_bh(&((lock)->rlock))
     #else
         /* Undo internal wolfSSL PIE macro rewriting */
         #ifdef rt_spin_unlock
@@ -1707,17 +1852,30 @@
         #ifdef rt_spin_lock
         #undef rt_spin_lock
         #endif
-        static inline int wolfssl_spin_unlock_irqrestore_rt(spinlock_t *lock,
-                                                             unsigned long flags)
+        /* Every kernel symbol here goes through the table.  These two used to
+         * call __local_bh_{disable,enable}_ip directly, which is a direct
+         * kernel reference from inside the container, the one thing this
+         * header exists to prevent.  It never showed up because no PREEMPT_RT
+         * PIE build had been compiled. */
+        static inline void wolfssl_spin_lock_bh_rt(spinlock_t *lock)
         {
-            (void)flags; /* rt_spin_unlock ignores flags */
-            WC_PIE_INDIRECT_SYM(rt_spin_unlock)(lock);
-            return 0;
+            /* mirrors PREEMPT_RT's spin_lock_bh() in linux/spinlock_rt.h. */
+            WC_PIE_INDIRECT_SYM(__local_bh_disable_ip)(
+                _THIS_IP_, SOFTIRQ_DISABLE_OFFSET);
+            WC_PIE_INDIRECT_SYM(rt_spin_lock)(lock);
         }
 
-        #undef spin_unlock_irqrestore
-        #define spin_unlock_irqrestore(lock, flags) \
-        wolfssl_spin_unlock_irqrestore_rt((lock), (flags))
+        static inline void wolfssl_spin_unlock_bh_rt(spinlock_t *lock)
+        {
+            WC_PIE_INDIRECT_SYM(rt_spin_unlock)(lock);
+            WC_PIE_INDIRECT_SYM(__local_bh_enable_ip)(
+                _THIS_IP_, SOFTIRQ_DISABLE_OFFSET);
+        }
+
+        #undef spin_lock_bh
+        #define spin_lock_bh(lock) wolfssl_spin_lock_bh_rt(lock)
+        #undef spin_unlock_bh
+        #define spin_unlock_bh(lock) wolfssl_spin_unlock_bh_rt(lock)
     #endif
 
     #define wc_linuxkm_can_block WC_PIE_INDIRECT_SYM(wc_linuxkm_can_block)
@@ -1725,6 +1883,12 @@
     #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end)
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
     #define wc_linuxkm_relax_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
+    #ifdef LINUXKM_RBGC
+        #define wc_linuxkm_irq_save WC_PIE_INDIRECT_SYM(wc_linuxkm_irq_save)
+        #define wc_linuxkm_irq_restore WC_PIE_INDIRECT_SYM(wc_linuxkm_irq_restore)
+        #define wc_linuxkm_cpu_id WC_PIE_INDIRECT_SYM(wc_linuxkm_cpu_id)
+        #define wc_linuxkm_mono_ns WC_PIE_INDIRECT_SYM(wc_linuxkm_mono_ns)
+    #endif
 
     #ifdef CONFIG_KASAN
         #define kasan_disable_current WC_PIE_INDIRECT_SYM(kasan_disable_current)
@@ -1950,7 +2114,7 @@
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */
         #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
-            #if defined(CONFIG_X86)
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
                 WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
                 WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
                 WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
@@ -1960,9 +2124,9 @@
                 #ifndef REENABLE_VECTOR_REGISTERS
                     #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
-            #else /* !CONFIG_X86 */
+            #else
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
-            #endif /* !CONFIG_X86 */
+            #endif
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
         #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
             WOLFSSL_API extern void *wc_linuxkm_malloc(size_t size);
@@ -1985,9 +2149,23 @@
         #define WC_MUTEX_OPS_INLINE
 
         #ifdef LINUXKM_LKCAPI_REGISTER
-            /* must use spin locks when registering implementations with the
-             * kernel, because mutexes are forbidden when calling with nonzero
-             * irq_count().
+            /* struct mutex is a SLEEPING lock (Documentation/locking/
+             * locktypes.rst: "Sleeping lock types cannot nest inside CPU local
+             * and spinning lock types", and they cannot be taken in any atomic
+             * context at all).  Once this module registers algorithms with the
+             * kernel crypto API, its entry points, and therefore these locks
+             *, are reached from softirq context; that is measured, not
+             * assumed (a timer softirq driving the "stdrng" DRBG).
+             *
+             * wolfCrypt has a single portable lock type, so if ANY lock is
+             * taken in softirq, the one type must be a spinning lock.  Hence
+             * the spin_lock_bh() implementation below is the only valid choice
+             * for an LKCAPI-registering build, and this combination is
+             * rejected.  (Note this is a property of the shared type, not a
+             * claim that no wolfSSL lock could ever sleep: in a build that
+             * does NOT register with LKCAPI, every lock is process-context
+             * only and struct mutex is correct, which is what this branch
+             * provides.)
              */
             #error WOLFSSL_LINUXKM_USE_MUTEXES is incompatible with LINUXKM_LKCAPI_REGISTER.
         #endif
@@ -2016,7 +2194,14 @@
 
         static __must_check inline int wc_LockMutex(wolfSSL_Mutex* m)
         {
-            if (in_nmi() || hardirq_count() || in_softirq())
+            /* mutex_lock() may sleep.  wc_linuxkm_can_block() is the module's
+             * spelling of preemptible(), (preempt_count() == 0) &&
+             * !irqs_disabled(), which is the kernel's actual "may I sleep
+             * here" condition.  Testing only the interrupt bits (in_nmi() /
+             * hardirq_count() / in_softirq()) would miss a caller holding a
+             * spinlock or running with interrupts disabled.
+             */
+            if (! wc_linuxkm_can_block())
                 return -1;
             mutex_lock(m);
             return 0;
@@ -2036,9 +2221,29 @@
          */
         #include <linux/spinlock.h>
 
+        /* Primitive choice, per Documentation/locking/locktypes.rst and
+         * Documentation/locking/spinlocks.rst:
+         *
+         * The data these locks protect (the wolfCrypt global RNG/DRBG state,
+         * the FIPS module state) is shared between process context and SOFTIRQ
+         * context, with LINUXKM_LKCAPI_REGISTER the module's algorithms are
+         * driven from the kernel crypto API, and the DRBG is demonstrably
+         * entered from tasklet and timer softirqs.  It is NOT shared with any
+         * hardirq handler: this module has no interrupt handler, and
+         * wc_save_vector_registers_x86() refuses hardirq/NMI outright.
+         *
+         * The primitive that matches "process context + bottom halves, no
+         * hardirq" is spin_lock_bh().  spin_lock_irqsave() would be correct
+         * only if a hardirq shared the data, and here it is actively wrong:
+         * these locks are held across SAVE_VECTOR_REGISTERS(), which brackets
+         * with local_bh_disable()/local_bh_enable(), and
+         * kernel/softirq.c:__local_bh_enable_ip() begins with
+         * lockdep_assert_irqs_enabled().  Disabling interrupts for every
+         * wolfSSL lock also needlessly raises interrupt latency for data no
+         * interrupt handler ever touches.
+         */
         typedef struct wolfSSL_Mutex {
             spinlock_t lock;
-            unsigned long irq_flags;
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             unsigned int magic;
         #endif
@@ -2049,28 +2254,36 @@
 
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
                .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
-               .irq_flags = 0,                            \
                .magic = WC_LINUXKM_SPINLOCK_MAGIC         \
             }
 
         #else
 
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
-               .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
-               .irq_flags = 0                             \
+               .lock =__SPIN_LOCK_UNLOCKED(lockname)      \
             }
 
         #endif
 
         static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
         {
-        /* Tegra vendor kernels do not support assignment of __SPIN_LOCK_UNLOCKED() */
-        # ifndef CONFIG_ARCH_TEGRA
-            m->lock = __SPIN_LOCK_UNLOCKED(m);
-        # else
+            /* spin_lock_init() is the only correct runtime initializer.
+             * Assigning __SPIN_LOCK_UNLOCKED() instead leaves lockdep's
+             * dep_map.key NULL (SPIN_DEP_MAP_INIT in linux/spinlock_types.h
+             * sets only .name), so on first acquire lockdep must guess the key
+             * from the lock's address via assign_lock_key()
+             * (kernel/locking/lockdep.c).  That succeeds only for static
+             * storage; for a heap-allocated lock, e.g. the per-tfm
+             * desc_list_lock in lkcapi_sha_glue.c, it fails with
+             * "INFO: trying to register non-static key", calls debug_locks_off()
+             * and DISABLES THE VALIDATOR FOR THE REST OF THE BOOT.  Every
+             * lockdep result after that point is vacuous.
+             * spin_lock_init() expands a per-call-site
+             * "static struct lock_class_key __key" and passes it explicitly.
+             * It works on every kernel including Tegra vendor trees, which is
+             * why they were already special-cased to use it.
+             */
             spin_lock_init(&m->lock);
-        #endif
-            m->irq_flags = 0;
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             m->magic = WC_LINUXKM_SPINLOCK_MAGIC;
         #endif
@@ -2111,15 +2324,38 @@
 
         #endif /* !WC_CONTAINERIZE_THIS */
 
+        #ifdef WC_CONTAINERIZE_THIS
+        /* Same reason wc_LockMutex() is not inlined here: spin_unlock_bh()
+         * expands to local_bh_enable() -> __local_bh_enable_ip(), an external
+         * kernel symbol, and the wolfCrypt container must reference nothing
+         * outside itself.  The lock side was routed through the redirect table
+         * and the unlock side was left inline; that asymmetry WAS the bug.
+         *
+         * x86_64 happens not to emit the call, so the violation was invisible
+         * there (measured: 0 references in random.o/ecc.o/wolfentropy.o/
+         * wc_port.o).  aarch64 does emit it, and the boundary link then fails:
+         *     wolfCrypt container has unresolved symbols: U __local_bh_enable_ip
+         * referenced from UnlockDrbgState(), wc_Entropy_Get(), wc_ecc_mulmod_ex()
+         * and others.  Routing through the table makes the boundary
+         * self-contained on every architecture rather than by luck on one. */
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            return WC_PIE_INDIRECT_SYM(wc_lkm_UnLockMutex)(m);
+        }
+
+        #else /* !WC_CONTAINERIZE_THIS */
+
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
                 return -1;
         #endif
-            spin_unlock_irqrestore(&m->lock, m->irq_flags);
+            spin_unlock_bh(&m->lock);
             return 0;
         }
+
+        #endif /* !WC_CONTAINERIZE_THIS */
 
     #endif
 

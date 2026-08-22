@@ -200,6 +200,7 @@ L_sha3_crypto_begin:
 	.size	BlockSha3_crypto,.-BlockSha3_crypto
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
+#ifndef WC_SHA3_NO_ARM_BASE_BLOCK
 #ifndef __APPLE__
 	.text
 	.section	.rodata
@@ -435,6 +436,7 @@ L_SHA3_transform_base_begin:
 #ifndef __APPLE__
 	.size	BlockSha3_base,.-BlockSha3_base
 #endif /* __APPLE__ */
+#endif /* WC_SHA3_NO_ARM_BASE_BLOCK */
 #endif /* WOLFSSL_SHA3 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */

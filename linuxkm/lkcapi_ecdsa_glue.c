@@ -39,9 +39,24 @@
 #endif
 
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
+    /* Only register p192 if specifically enabled, and if not fips.
+     *
+     * The "not fips" test must be on HAVE_FIPS, whether THIS MODULE is a FIPS
+     * module, not on CONFIG_CRYPTO_FIPS, which only says whether the KERNEL
+     * was built with FIPS support.  Those are independent: a FIPS wolfCrypt
+     * module loaded on a kernel without CONFIG_CRYPTO_FIPS would take this
+     * branch, register ecdh-nist-p192 and ecdsa-nist-p192, and then fail its own
+     * self-test on them (P-192 is not approved for ECDH under SP 800-56A Rev3,
+     * and the module correctly refuses it).  One failed alg aborts
+     * linuxkm_lkcapi_register(), so the whole module fails to insmod with
+     * -ECANCELED.  Observed on linux-6.6.99 (CONFIG_CRYPTO_FIPS unset):
+     * "crypto_kpp_compute_shared_secret returned: -22" ->
+     * "self-test for ecdh-nist-p192-... failed with return code -173" ->
+     * "linuxkm_lkcapi_register() failed with return code -22".
+     */
     #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
-        /* only register p192 if specifically enabled, and if not fips. */
+        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS) && \
+        !defined(HAVE_FIPS)
         #define LINUXKM_ECC192
     #endif
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */

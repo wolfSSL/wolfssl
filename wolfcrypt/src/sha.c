@@ -1135,8 +1135,25 @@ void wc_ShaFree(wc_Sha* sha)
         /* If they want the standard free, they can call it themselves */
         /* via their callback setting devId to INVALID_DEVID */
         /* otherwise assume the callback handled it */
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            /* The callback owns the device-side free, but the software shadow
+             * still holds SHA-1 state that can be key-derived (HMAC inner/outer
+             * hash), so wipe it here too: zeroization must happen on EVERY exit
+             * path (ISO/IEC 19790:2012 7.9).  wc_CryptoCb_Free() has already
+             * returned, so the context is no longer in use. */
+#ifdef WOLFSSL_HASH_KEEP
+            /* Free the kept message before wiping the container, zeroizing
+             * sha->msg in place would drop the only pointer to that heap
+             * allocation and leak it. */
+            if (sha->msg != NULL) {
+                ForceZero(sha->msg, sha->len);
+                XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                sha->msg = NULL;
+            }
+#endif
+            ForceZero(sha, sizeof(*sha));
             return;
+        }
         /* fall-through when unavailable */
     }
 
@@ -1182,6 +1199,10 @@ void wc_ShaFree(wc_Sha* sha)
 #if defined(PSOC6_HASH_SHA1)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* Zeroize the hash context on free; the state can hold key-derived
+     * HMAC inner/outer hash material (ISO/IEC 19790:2012 7.9). */
+    ForceZero(sha, sizeof(*sha));
 }
 
 #endif /* !MAX3266X_SHA */

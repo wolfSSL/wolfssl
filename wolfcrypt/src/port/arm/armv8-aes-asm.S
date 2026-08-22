@@ -10056,7 +10056,7 @@ L_aes_gcm_encrypt_arm64_crypto_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_AARCH64,.-AES_GCM_encrypt_AARCH64
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+#ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_AARCH64
@@ -14908,7 +14908,7 @@ L_aes_gcm_decrypt_arm64_crypto_done:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_AARCH64,.-AES_GCM_decrypt_AARCH64
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* HAVE_AES_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text
@@ -19603,7 +19603,7 @@ L_aes_gcm_encrypt_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_AARCH64_EOR3,.-AES_GCM_encrypt_AARCH64_EOR3
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+#ifdef HAVE_AES_DECRYPT
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_AARCH64_EOR3
@@ -24346,7 +24346,7 @@ L_aes_gcm_decrypt_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_AARCH64_EOR3,.-AES_GCM_decrypt_AARCH64_EOR3
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* HAVE_AES_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #ifdef WOLFSSL_AESGCM_STREAM
 #ifndef __APPLE__
@@ -28888,7 +28888,6 @@ L_aes_gcm_encrypt_final_arm64_crypto_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_final_AARCH64,.-AES_GCM_encrypt_final_AARCH64
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_AARCH64
@@ -32804,7 +32803,6 @@ L_aes_gcm_decrypt_final_arm64_crypto_tag_loaded:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_final_AARCH64,.-AES_GCM_decrypt_final_AARCH64
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text
@@ -37238,7 +37236,6 @@ L_aes_gcm_encrypt_final_arm64_crypto_eor3_done:
 #ifndef __APPLE__
 	.size	AES_GCM_encrypt_final_AARCH64_EOR3,.-AES_GCM_encrypt_final_AARCH64_EOR3
 #endif /* __APPLE__ */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 #ifndef __APPLE__
 .text
 .globl	AES_GCM_decrypt_update_AARCH64_EOR3
@@ -41069,7 +41066,6 @@ L_aes_gcm_decrypt_final_arm64_crypto_eor3_tag_loaded:
 #ifndef __APPLE__
 	.size	AES_GCM_decrypt_final_AARCH64_EOR3,.-AES_GCM_decrypt_final_AARCH64_EOR3
 #endif /* __APPLE__ */
-#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* !WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_AESGCM */
@@ -43193,6 +43189,1959 @@ L_aes_xts_decrypt_arm64_crypto_done:
 	.size	AES_XTS_decrypt_AARCH64,.-AES_XTS_decrypt_AARCH64
 #endif /* __APPLE__ */
 #endif /* HAVE_AES_DECRYPT */
+#ifdef WOLFSSL_AESXTS_STREAM
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_encrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(AES_XTS_encrypt_update_AARCH64)
+.type	AES_XTS_encrypt_update_AARCH64,@function
+.align	2
+AES_XTS_encrypt_update_AARCH64:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_encrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_XTS_encrypt_update_AARCH64)
+.p2align	2
+_AES_XTS_encrypt_update_AARCH64:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-32]!
+	add	x29, sp, #0
+	str	x17, [x29, #16]
+	ld1	{v4.16b}, [x4]
+	mov	x9, v4.d[0]
+	mov	x10, v4.d[1]
+	lsr	w7, w2, #4
+	and	w2, w2, #15
+	mov	x17, #0x87
+	cmp	x6, #12
+	blt	L_aes_xts_encrypt_update_arm64_crypto_start_128
+	bgt	L_aes_xts_encrypt_update_arm64_crypto_start_256
+	# AES_XTS_192
+#ifndef NO_AES_192
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [x3], #0x40
+	ld1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x3], #0x40
+	ld1	{v28.2d}, [x3]
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	and	x8, x17, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x8, x11, lsl 1
+	and	x8, x17, x14, asr 63
+	extr	x16, x14, x13, #63
+	eor	x15, x8, x13, lsl 1
+	cmp	w7, #4
+	blt	L_aes_xts_encrypt_update_arm64_crypto_192_start_2
+L_aes_xts_encrypt_update_arm64_crypto_192_start_4:
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	mov	v6.d[0], x13
+	mov	v6.d[1], x14
+	mov	v7.d[0], x15
+	mov	v7.d[1], x16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x16, asr 63
+	aese	v1.16b, v16.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v16.16b
+	aesmc	v2.16b, v2.16b
+	extr	x10, x16, x15, #63
+	aese	v3.16b, v16.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x15, lsl 1
+	aese	v1.16b, v17.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v17.16b
+	aesmc	v2.16b, v2.16b
+	and	x8, x17, x10, asr 63
+	aese	v3.16b, v17.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aese	v1.16b, v18.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v18.16b
+	aesmc	v2.16b, v2.16b
+	eor	x11, x8, x9, lsl 1
+	aese	v3.16b, v18.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aese	v1.16b, v19.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v19.16b
+	aesmc	v2.16b, v2.16b
+	extr	x14, x12, x11, #63
+	aese	v3.16b, v19.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	eor	x13, x8, x11, lsl 1
+	aese	v1.16b, v20.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v20.16b
+	aesmc	v2.16b, v2.16b
+	and	x8, x17, x14, asr 63
+	aese	v3.16b, v20.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	extr	x16, x14, x13, #63
+	aese	v1.16b, v21.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v21.16b
+	aesmc	v2.16b, v2.16b
+	eor	x15, x8, x13, lsl 1
+	aese	v3.16b, v21.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v22.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v22.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v22.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v23.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v23.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v23.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v24.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v24.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v24.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v25.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v25.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v25.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v26.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v26.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v26.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	aese	v1.16b, v27.16b
+	eor	v1.16b, v1.16b, v28.16b
+	aese	v2.16b, v27.16b
+	eor	v2.16b, v2.16b, v28.16b
+	aese	v3.16b, v27.16b
+	eor	v3.16b, v3.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #4
+	st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	cmp	w7, #4
+	bge	L_aes_xts_encrypt_update_arm64_crypto_192_start_4
+L_aes_xts_encrypt_update_arm64_crypto_192_start_2:
+	cmp	w7, #2
+	blt	L_aes_xts_encrypt_update_arm64_crypto_192_start_1
+	ld1	{v0.16b, v1.16b}, [x0], #32
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aese	v1.16b, v16.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	extr	x10, x12, x11, #63
+	aese	v1.16b, v17.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x11, lsl 1
+	aese	v1.16b, v18.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aese	v1.16b, v19.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aese	v1.16b, v20.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	eor	x11, x8, x9, lsl 1
+	aese	v1.16b, v21.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v22.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v23.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v24.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v25.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v26.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	aese	v1.16b, v27.16b
+	eor	v1.16b, v1.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #2
+	st1	{v0.16b, v1.16b}, [x1], #32
+L_aes_xts_encrypt_update_arm64_crypto_192_start_1:
+	cbz	w7, L_aes_xts_encrypt_update_arm64_crypto_192_done
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v4.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	extr	x10, x10, x9, #63
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x9, lsl 1
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	st1	{v0.16b}, [x1], #16
+L_aes_xts_encrypt_update_arm64_crypto_192_done:
+	cbz	w2, L_aes_xts_encrypt_update_arm64_crypto_192_partial_done
+	sub	x1, x1, #16
+	ld1	{v0.16b}, [x1], #16
+	st1	{v0.2d}, [x5]
+	mov	w8, w2
+L_aes_xts_encrypt_update_arm64_crypto_192_start_byte:
+	ldrb	w11, [x5]
+	ldrb	w12, [x0], #1
+	strb	w11, [x1], #1
+	strb	w12, [x5], #1
+	subs	w8, w8, #1
+	bgt	L_aes_xts_encrypt_update_arm64_crypto_192_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ld1	{v0.2d}, [x5]
+	eor	v0.16b, v0.16b, v4.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	st1	{v0.16b}, [x1]
+L_aes_xts_encrypt_update_arm64_crypto_192_partial_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_xts_encrypt_update_arm64_crypto_done
+	# AES_XTS_256
+L_aes_xts_encrypt_update_arm64_crypto_start_256:
+#ifndef NO_AES_256
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [x3], #0x40
+	ld1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x3], #0x40
+	ld1	{v28.2d, v29.2d}, [x3], #32
+	ld1	{v30.2d}, [x3]
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	and	x8, x17, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x8, x11, lsl 1
+	and	x8, x17, x14, asr 63
+	extr	x16, x14, x13, #63
+	eor	x15, x8, x13, lsl 1
+	cmp	w7, #4
+	blt	L_aes_xts_encrypt_update_arm64_crypto_256_start_2
+L_aes_xts_encrypt_update_arm64_crypto_256_start_4:
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	mov	v6.d[0], x13
+	mov	v6.d[1], x14
+	mov	v7.d[0], x15
+	mov	v7.d[1], x16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x16, asr 63
+	aese	v1.16b, v16.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v16.16b
+	aesmc	v2.16b, v2.16b
+	extr	x10, x16, x15, #63
+	aese	v3.16b, v16.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x15, lsl 1
+	aese	v1.16b, v17.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v17.16b
+	aesmc	v2.16b, v2.16b
+	and	x8, x17, x10, asr 63
+	aese	v3.16b, v17.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aese	v1.16b, v18.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v18.16b
+	aesmc	v2.16b, v2.16b
+	eor	x11, x8, x9, lsl 1
+	aese	v3.16b, v18.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aese	v1.16b, v19.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v19.16b
+	aesmc	v2.16b, v2.16b
+	extr	x14, x12, x11, #63
+	aese	v3.16b, v19.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	eor	x13, x8, x11, lsl 1
+	aese	v1.16b, v20.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v20.16b
+	aesmc	v2.16b, v2.16b
+	and	x8, x17, x14, asr 63
+	aese	v3.16b, v20.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	extr	x16, x14, x13, #63
+	aese	v1.16b, v21.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v21.16b
+	aesmc	v2.16b, v2.16b
+	eor	x15, x8, x13, lsl 1
+	aese	v3.16b, v21.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v22.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v22.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v22.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v23.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v23.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v23.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v24.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v24.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v24.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v25.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v25.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v25.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v26.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v26.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v26.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v27.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v27.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v27.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v27.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v28.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v28.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v28.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v28.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	aese	v1.16b, v29.16b
+	eor	v1.16b, v1.16b, v30.16b
+	aese	v2.16b, v29.16b
+	eor	v2.16b, v2.16b, v30.16b
+	aese	v3.16b, v29.16b
+	eor	v3.16b, v3.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #4
+	st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	cmp	w7, #4
+	bge	L_aes_xts_encrypt_update_arm64_crypto_256_start_4
+L_aes_xts_encrypt_update_arm64_crypto_256_start_2:
+	cmp	w7, #2
+	blt	L_aes_xts_encrypt_update_arm64_crypto_256_start_1
+	ld1	{v0.16b, v1.16b}, [x0], #32
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aese	v1.16b, v16.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	extr	x10, x12, x11, #63
+	aese	v1.16b, v17.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x11, lsl 1
+	aese	v1.16b, v18.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aese	v1.16b, v19.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aese	v1.16b, v20.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	eor	x11, x8, x9, lsl 1
+	aese	v1.16b, v21.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v22.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v23.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v24.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v25.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v26.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v27.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v27.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v28.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v28.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	aese	v1.16b, v29.16b
+	eor	v1.16b, v1.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #2
+	st1	{v0.16b, v1.16b}, [x1], #32
+L_aes_xts_encrypt_update_arm64_crypto_256_start_1:
+	cbz	w7, L_aes_xts_encrypt_update_arm64_crypto_256_done
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v4.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	extr	x10, x10, x9, #63
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x9, lsl 1
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v27.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v28.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	st1	{v0.16b}, [x1], #16
+L_aes_xts_encrypt_update_arm64_crypto_256_done:
+	cbz	w2, L_aes_xts_encrypt_update_arm64_crypto_256_partial_done
+	sub	x1, x1, #16
+	ld1	{v0.16b}, [x1], #16
+	st1	{v0.2d}, [x5]
+	mov	w8, w2
+L_aes_xts_encrypt_update_arm64_crypto_256_start_byte:
+	ldrb	w11, [x5]
+	ldrb	w12, [x0], #1
+	strb	w11, [x1], #1
+	strb	w12, [x5], #1
+	subs	w8, w8, #1
+	bgt	L_aes_xts_encrypt_update_arm64_crypto_256_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ld1	{v0.2d}, [x5]
+	eor	v0.16b, v0.16b, v4.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v25.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v26.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v27.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v28.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	st1	{v0.16b}, [x1]
+L_aes_xts_encrypt_update_arm64_crypto_256_partial_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_xts_encrypt_update_arm64_crypto_done
+	# AES_XTS_128
+L_aes_xts_encrypt_update_arm64_crypto_start_128:
+#ifndef NO_AES_128
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [x3], #0x40
+	ld1	{v24.2d, v25.2d}, [x3], #32
+	ld1	{v26.2d}, [x3]
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	and	x8, x17, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x8, x11, lsl 1
+	and	x8, x17, x14, asr 63
+	extr	x16, x14, x13, #63
+	eor	x15, x8, x13, lsl 1
+	cmp	w7, #4
+	blt	L_aes_xts_encrypt_update_arm64_crypto_128_start_2
+L_aes_xts_encrypt_update_arm64_crypto_128_start_4:
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	mov	v6.d[0], x13
+	mov	v6.d[1], x14
+	mov	v7.d[0], x15
+	mov	v7.d[1], x16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x16, asr 63
+	aese	v1.16b, v16.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v16.16b
+	aesmc	v2.16b, v2.16b
+	extr	x10, x16, x15, #63
+	aese	v3.16b, v16.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x15, lsl 1
+	aese	v1.16b, v17.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v17.16b
+	aesmc	v2.16b, v2.16b
+	and	x8, x17, x10, asr 63
+	aese	v3.16b, v17.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aese	v1.16b, v18.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v18.16b
+	aesmc	v2.16b, v2.16b
+	eor	x11, x8, x9, lsl 1
+	aese	v3.16b, v18.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aese	v1.16b, v19.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v19.16b
+	aesmc	v2.16b, v2.16b
+	extr	x14, x12, x11, #63
+	aese	v3.16b, v19.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	eor	x13, x8, x11, lsl 1
+	aese	v1.16b, v20.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v20.16b
+	aesmc	v2.16b, v2.16b
+	and	x8, x17, x14, asr 63
+	aese	v3.16b, v20.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	extr	x16, x14, x13, #63
+	aese	v1.16b, v21.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v21.16b
+	aesmc	v2.16b, v2.16b
+	eor	x15, x8, x13, lsl 1
+	aese	v3.16b, v21.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v22.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v22.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v22.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v23.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v23.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v23.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v24.16b
+	aesmc	v1.16b, v1.16b
+	aese	v2.16b, v24.16b
+	aesmc	v2.16b, v2.16b
+	aese	v3.16b, v24.16b
+	aesmc	v3.16b, v3.16b
+	aese	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	aese	v1.16b, v25.16b
+	eor	v1.16b, v1.16b, v26.16b
+	aese	v2.16b, v25.16b
+	eor	v2.16b, v2.16b, v26.16b
+	aese	v3.16b, v25.16b
+	eor	v3.16b, v3.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #4
+	st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	cmp	w7, #4
+	bge	L_aes_xts_encrypt_update_arm64_crypto_128_start_4
+L_aes_xts_encrypt_update_arm64_crypto_128_start_2:
+	cmp	w7, #2
+	blt	L_aes_xts_encrypt_update_arm64_crypto_128_start_1
+	ld1	{v0.16b, v1.16b}, [x0], #32
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aese	v1.16b, v16.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	extr	x10, x12, x11, #63
+	aese	v1.16b, v17.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x11, lsl 1
+	aese	v1.16b, v18.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aese	v1.16b, v19.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aese	v1.16b, v20.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	eor	x11, x8, x9, lsl 1
+	aese	v1.16b, v21.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v22.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v23.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v1.16b, v24.16b
+	aesmc	v1.16b, v1.16b
+	aese	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	aese	v1.16b, v25.16b
+	eor	v1.16b, v1.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #2
+	st1	{v0.16b, v1.16b}, [x1], #32
+L_aes_xts_encrypt_update_arm64_crypto_128_start_1:
+	cbz	w7, L_aes_xts_encrypt_update_arm64_crypto_128_done
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v4.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	extr	x10, x10, x9, #63
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	eor	x9, x8, x9, lsl 1
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	st1	{v0.16b}, [x1], #16
+L_aes_xts_encrypt_update_arm64_crypto_128_done:
+	cbz	w2, L_aes_xts_encrypt_update_arm64_crypto_128_partial_done
+	sub	x1, x1, #16
+	ld1	{v0.16b}, [x1], #16
+	st1	{v0.2d}, [x5]
+	mov	w8, w2
+L_aes_xts_encrypt_update_arm64_crypto_128_start_byte:
+	ldrb	w11, [x5]
+	ldrb	w12, [x0], #1
+	strb	w11, [x1], #1
+	strb	w12, [x5], #1
+	subs	w8, w8, #1
+	bgt	L_aes_xts_encrypt_update_arm64_crypto_128_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ld1	{v0.2d}, [x5]
+	eor	v0.16b, v0.16b, v4.16b
+	aese	v0.16b, v16.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v17.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v18.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v19.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v20.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v21.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v22.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v23.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v24.16b
+	aesmc	v0.16b, v0.16b
+	aese	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	st1	{v0.16b}, [x1]
+L_aes_xts_encrypt_update_arm64_crypto_128_partial_done:
+#endif /* !NO_AES_128 */
+L_aes_xts_encrypt_update_arm64_crypto_done:
+	st1	{v4.16b}, [x4]
+	ldr	x17, [x29, #16]
+	ldp	x29, x30, [sp], #32
+	ret
+#ifndef __APPLE__
+	.size	AES_XTS_encrypt_update_AARCH64,.-AES_XTS_encrypt_update_AARCH64
+#endif /* __APPLE__ */
+#ifdef HAVE_AES_DECRYPT
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_decrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(AES_XTS_decrypt_update_AARCH64)
+.type	AES_XTS_decrypt_update_AARCH64,@function
+.align	2
+AES_XTS_decrypt_update_AARCH64:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_decrypt_update_AARCH64
+WC_ASM_ATT_HIDDEN(_AES_XTS_decrypt_update_AARCH64)
+.p2align	2
+_AES_XTS_decrypt_update_AARCH64:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-32]!
+	add	x29, sp, #0
+	str	x17, [x29, #16]
+	ld1	{v4.16b}, [x4]
+	mov	x9, v4.d[0]
+	mov	x10, v4.d[1]
+	lsr	w7, w2, #4
+	ands	w2, w2, #15
+	mov	x17, #0x87
+	cset	w8, ne
+	sub	w7, w7, w8
+	cmp	x6, #12
+	blt	L_aes_xts_decrypt_update_arm64_crypto_start_128
+	bgt	L_aes_xts_decrypt_update_arm64_crypto_start_256
+	# AES_XTS_192
+#ifndef NO_AES_192
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [x3], #0x40
+	ld1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x3], #0x40
+	ld1	{v28.2d}, [x3]
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	and	x8, x17, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x8, x11, lsl 1
+	and	x8, x17, x14, asr 63
+	extr	x16, x14, x13, #63
+	eor	x15, x8, x13, lsl 1
+	cmp	w7, #4
+	blt	L_aes_xts_decrypt_update_arm64_crypto_192_start_2
+L_aes_xts_decrypt_update_arm64_crypto_192_start_4:
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	mov	v6.d[0], x13
+	mov	v6.d[1], x14
+	mov	v7.d[0], x15
+	mov	v7.d[1], x16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x16, asr 63
+	aesd	v1.16b, v16.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v16.16b
+	aesimc	v2.16b, v2.16b
+	extr	x10, x16, x15, #63
+	aesd	v3.16b, v16.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x15, lsl 1
+	aesd	v1.16b, v17.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v17.16b
+	aesimc	v2.16b, v2.16b
+	and	x8, x17, x10, asr 63
+	aesd	v3.16b, v17.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aesd	v1.16b, v18.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v18.16b
+	aesimc	v2.16b, v2.16b
+	eor	x11, x8, x9, lsl 1
+	aesd	v3.16b, v18.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aesd	v1.16b, v19.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v19.16b
+	aesimc	v2.16b, v2.16b
+	extr	x14, x12, x11, #63
+	aesd	v3.16b, v19.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	eor	x13, x8, x11, lsl 1
+	aesd	v1.16b, v20.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v20.16b
+	aesimc	v2.16b, v2.16b
+	and	x8, x17, x14, asr 63
+	aesd	v3.16b, v20.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	extr	x16, x14, x13, #63
+	aesd	v1.16b, v21.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v21.16b
+	aesimc	v2.16b, v2.16b
+	eor	x15, x8, x13, lsl 1
+	aesd	v3.16b, v21.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v22.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v22.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v22.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v23.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v23.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v23.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v24.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v24.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v24.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v25.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v25.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v25.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v26.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v26.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v26.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	aesd	v1.16b, v27.16b
+	eor	v1.16b, v1.16b, v28.16b
+	aesd	v2.16b, v27.16b
+	eor	v2.16b, v2.16b, v28.16b
+	aesd	v3.16b, v27.16b
+	eor	v3.16b, v3.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #4
+	st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	cmp	w7, #4
+	bge	L_aes_xts_decrypt_update_arm64_crypto_192_start_4
+L_aes_xts_decrypt_update_arm64_crypto_192_start_2:
+	cmp	w7, #2
+	blt	L_aes_xts_decrypt_update_arm64_crypto_192_start_1
+	ld1	{v0.16b, v1.16b}, [x0], #32
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aesd	v1.16b, v16.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	extr	x10, x12, x11, #63
+	aesd	v1.16b, v17.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x11, lsl 1
+	aesd	v1.16b, v18.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aesd	v1.16b, v19.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aesd	v1.16b, v20.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	eor	x11, x8, x9, lsl 1
+	aesd	v1.16b, v21.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v22.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v23.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v24.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v25.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v26.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	aesd	v1.16b, v27.16b
+	eor	v1.16b, v1.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #2
+	st1	{v0.16b, v1.16b}, [x1], #32
+L_aes_xts_decrypt_update_arm64_crypto_192_start_1:
+	cbz	w7, L_aes_xts_decrypt_update_arm64_crypto_192_done
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v4.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	extr	x10, x10, x9, #63
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x9, lsl 1
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	st1	{v0.16b}, [x1], #16
+L_aes_xts_decrypt_update_arm64_crypto_192_done:
+	cbz	w2, L_aes_xts_decrypt_update_arm64_crypto_192_partial_done
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v5.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	eor	v0.16b, v0.16b, v5.16b
+	st1	{v0.2d}, [x5]
+	add	x1, x1, #16
+	mov	w8, w2
+L_aes_xts_decrypt_update_arm64_crypto_192_start_byte:
+	ldrb	w11, [x5]
+	ldrb	w12, [x0], #1
+	strb	w11, [x1], #1
+	strb	w12, [x5], #1
+	subs	w8, w8, #1
+	bgt	L_aes_xts_decrypt_update_arm64_crypto_192_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ld1	{v0.2d}, [x5]
+	eor	v0.16b, v0.16b, v4.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v27.16b
+	eor	v0.16b, v0.16b, v28.16b
+	eor	v0.16b, v0.16b, v4.16b
+	st1	{v0.16b}, [x1]
+L_aes_xts_decrypt_update_arm64_crypto_192_partial_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_xts_decrypt_update_arm64_crypto_done
+	# AES_XTS_256
+L_aes_xts_decrypt_update_arm64_crypto_start_256:
+#ifndef NO_AES_256
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [x3], #0x40
+	ld1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x3], #0x40
+	ld1	{v28.2d, v29.2d}, [x3], #32
+	ld1	{v30.2d}, [x3]
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	and	x8, x17, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x8, x11, lsl 1
+	and	x8, x17, x14, asr 63
+	extr	x16, x14, x13, #63
+	eor	x15, x8, x13, lsl 1
+	cmp	w7, #4
+	blt	L_aes_xts_decrypt_update_arm64_crypto_256_start_2
+L_aes_xts_decrypt_update_arm64_crypto_256_start_4:
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	mov	v6.d[0], x13
+	mov	v6.d[1], x14
+	mov	v7.d[0], x15
+	mov	v7.d[1], x16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x16, asr 63
+	aesd	v1.16b, v16.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v16.16b
+	aesimc	v2.16b, v2.16b
+	extr	x10, x16, x15, #63
+	aesd	v3.16b, v16.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x15, lsl 1
+	aesd	v1.16b, v17.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v17.16b
+	aesimc	v2.16b, v2.16b
+	and	x8, x17, x10, asr 63
+	aesd	v3.16b, v17.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aesd	v1.16b, v18.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v18.16b
+	aesimc	v2.16b, v2.16b
+	eor	x11, x8, x9, lsl 1
+	aesd	v3.16b, v18.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aesd	v1.16b, v19.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v19.16b
+	aesimc	v2.16b, v2.16b
+	extr	x14, x12, x11, #63
+	aesd	v3.16b, v19.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	eor	x13, x8, x11, lsl 1
+	aesd	v1.16b, v20.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v20.16b
+	aesimc	v2.16b, v2.16b
+	and	x8, x17, x14, asr 63
+	aesd	v3.16b, v20.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	extr	x16, x14, x13, #63
+	aesd	v1.16b, v21.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v21.16b
+	aesimc	v2.16b, v2.16b
+	eor	x15, x8, x13, lsl 1
+	aesd	v3.16b, v21.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v22.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v22.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v22.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v23.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v23.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v23.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v24.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v24.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v24.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v25.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v25.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v25.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v26.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v26.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v26.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v27.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v27.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v27.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v27.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v28.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v28.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v28.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v28.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	aesd	v1.16b, v29.16b
+	eor	v1.16b, v1.16b, v30.16b
+	aesd	v2.16b, v29.16b
+	eor	v2.16b, v2.16b, v30.16b
+	aesd	v3.16b, v29.16b
+	eor	v3.16b, v3.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #4
+	st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	cmp	w7, #4
+	bge	L_aes_xts_decrypt_update_arm64_crypto_256_start_4
+L_aes_xts_decrypt_update_arm64_crypto_256_start_2:
+	cmp	w7, #2
+	blt	L_aes_xts_decrypt_update_arm64_crypto_256_start_1
+	ld1	{v0.16b, v1.16b}, [x0], #32
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aesd	v1.16b, v16.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	extr	x10, x12, x11, #63
+	aesd	v1.16b, v17.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x11, lsl 1
+	aesd	v1.16b, v18.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aesd	v1.16b, v19.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aesd	v1.16b, v20.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	eor	x11, x8, x9, lsl 1
+	aesd	v1.16b, v21.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v22.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v23.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v24.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v25.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v26.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v27.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v27.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v28.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v28.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	aesd	v1.16b, v29.16b
+	eor	v1.16b, v1.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #2
+	st1	{v0.16b, v1.16b}, [x1], #32
+L_aes_xts_decrypt_update_arm64_crypto_256_start_1:
+	cbz	w7, L_aes_xts_decrypt_update_arm64_crypto_256_done
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v4.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	extr	x10, x10, x9, #63
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x9, lsl 1
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v27.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v28.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	st1	{v0.16b}, [x1], #16
+L_aes_xts_decrypt_update_arm64_crypto_256_done:
+	cbz	w2, L_aes_xts_decrypt_update_arm64_crypto_256_partial_done
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v5.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v27.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v28.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	eor	v0.16b, v0.16b, v5.16b
+	st1	{v0.2d}, [x5]
+	add	x1, x1, #16
+	mov	w8, w2
+L_aes_xts_decrypt_update_arm64_crypto_256_start_byte:
+	ldrb	w11, [x5]
+	ldrb	w12, [x0], #1
+	strb	w11, [x1], #1
+	strb	w12, [x5], #1
+	subs	w8, w8, #1
+	bgt	L_aes_xts_decrypt_update_arm64_crypto_256_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ld1	{v0.2d}, [x5]
+	eor	v0.16b, v0.16b, v4.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v26.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v27.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v28.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v29.16b
+	eor	v0.16b, v0.16b, v30.16b
+	eor	v0.16b, v0.16b, v4.16b
+	st1	{v0.16b}, [x1]
+L_aes_xts_decrypt_update_arm64_crypto_256_partial_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_xts_decrypt_update_arm64_crypto_done
+	# AES_XTS_128
+L_aes_xts_decrypt_update_arm64_crypto_start_128:
+#ifndef NO_AES_128
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	ld1	{v20.2d, v21.2d, v22.2d, v23.2d}, [x3], #0x40
+	ld1	{v24.2d, v25.2d}, [x3], #32
+	ld1	{v26.2d}, [x3]
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	and	x8, x17, x12, asr 63
+	extr	x14, x12, x11, #63
+	eor	x13, x8, x11, lsl 1
+	and	x8, x17, x14, asr 63
+	extr	x16, x14, x13, #63
+	eor	x15, x8, x13, lsl 1
+	cmp	w7, #4
+	blt	L_aes_xts_decrypt_update_arm64_crypto_128_start_2
+L_aes_xts_decrypt_update_arm64_crypto_128_start_4:
+	ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	mov	v6.d[0], x13
+	mov	v6.d[1], x14
+	mov	v7.d[0], x15
+	mov	v7.d[1], x16
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x16, asr 63
+	aesd	v1.16b, v16.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v16.16b
+	aesimc	v2.16b, v2.16b
+	extr	x10, x16, x15, #63
+	aesd	v3.16b, v16.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x15, lsl 1
+	aesd	v1.16b, v17.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v17.16b
+	aesimc	v2.16b, v2.16b
+	and	x8, x17, x10, asr 63
+	aesd	v3.16b, v17.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aesd	v1.16b, v18.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v18.16b
+	aesimc	v2.16b, v2.16b
+	eor	x11, x8, x9, lsl 1
+	aesd	v3.16b, v18.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aesd	v1.16b, v19.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v19.16b
+	aesimc	v2.16b, v2.16b
+	extr	x14, x12, x11, #63
+	aesd	v3.16b, v19.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	eor	x13, x8, x11, lsl 1
+	aesd	v1.16b, v20.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v20.16b
+	aesimc	v2.16b, v2.16b
+	and	x8, x17, x14, asr 63
+	aesd	v3.16b, v20.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	extr	x16, x14, x13, #63
+	aesd	v1.16b, v21.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v21.16b
+	aesimc	v2.16b, v2.16b
+	eor	x15, x8, x13, lsl 1
+	aesd	v3.16b, v21.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v22.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v22.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v22.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v23.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v23.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v23.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v24.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v2.16b, v24.16b
+	aesimc	v2.16b, v2.16b
+	aesd	v3.16b, v24.16b
+	aesimc	v3.16b, v3.16b
+	aesd	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	aesd	v1.16b, v25.16b
+	eor	v1.16b, v1.16b, v26.16b
+	aesd	v2.16b, v25.16b
+	eor	v2.16b, v2.16b, v26.16b
+	aesd	v3.16b, v25.16b
+	eor	v3.16b, v3.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	eor	v2.16b, v2.16b, v6.16b
+	eor	v3.16b, v3.16b, v7.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #4
+	st1	{v0.16b, v1.16b, v2.16b, v3.16b}, [x1], #0x40
+	cmp	w7, #4
+	bge	L_aes_xts_decrypt_update_arm64_crypto_128_start_4
+L_aes_xts_decrypt_update_arm64_crypto_128_start_2:
+	cmp	w7, #2
+	blt	L_aes_xts_decrypt_update_arm64_crypto_128_start_1
+	ld1	{v0.16b, v1.16b}, [x0], #32
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x12, asr 63
+	aesd	v1.16b, v16.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	extr	x10, x12, x11, #63
+	aesd	v1.16b, v17.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x11, lsl 1
+	aesd	v1.16b, v18.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aesd	v1.16b, v19.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	extr	x12, x10, x9, #63
+	aesd	v1.16b, v20.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	eor	x11, x8, x9, lsl 1
+	aesd	v1.16b, v21.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v22.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v23.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v1.16b, v24.16b
+	aesimc	v1.16b, v1.16b
+	aesd	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	aesd	v1.16b, v25.16b
+	eor	v1.16b, v1.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	eor	v1.16b, v1.16b, v5.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	sub	w7, w7, #2
+	st1	{v0.16b, v1.16b}, [x1], #32
+L_aes_xts_decrypt_update_arm64_crypto_128_start_1:
+	cbz	w7, L_aes_xts_decrypt_update_arm64_crypto_128_done
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v4.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	and	x8, x17, x10, asr 63
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	extr	x10, x10, x9, #63
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	eor	x9, x8, x9, lsl 1
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	mov	v4.d[0], x9
+	mov	v4.d[1], x10
+	st1	{v0.16b}, [x1], #16
+L_aes_xts_decrypt_update_arm64_crypto_128_done:
+	cbz	w2, L_aes_xts_decrypt_update_arm64_crypto_128_partial_done
+	and	x8, x17, x10, asr 63
+	extr	x12, x10, x9, #63
+	eor	x11, x8, x9, lsl 1
+	mov	v5.d[0], x11
+	mov	v5.d[1], x12
+	ld1	{v0.16b}, [x0], #16
+	eor	v0.16b, v0.16b, v5.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	eor	v0.16b, v0.16b, v5.16b
+	st1	{v0.2d}, [x5]
+	add	x1, x1, #16
+	mov	w8, w2
+L_aes_xts_decrypt_update_arm64_crypto_128_start_byte:
+	ldrb	w11, [x5]
+	ldrb	w12, [x0], #1
+	strb	w11, [x1], #1
+	strb	w12, [x5], #1
+	subs	w8, w8, #1
+	bgt	L_aes_xts_decrypt_update_arm64_crypto_128_start_byte
+	sub	x1, x1, x2
+	sub	x5, x5, x2
+	sub	x1, x1, #16
+	ld1	{v0.2d}, [x5]
+	eor	v0.16b, v0.16b, v4.16b
+	aesd	v0.16b, v16.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v17.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v18.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v19.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v20.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v21.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v22.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v23.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v24.16b
+	aesimc	v0.16b, v0.16b
+	aesd	v0.16b, v25.16b
+	eor	v0.16b, v0.16b, v26.16b
+	eor	v0.16b, v0.16b, v4.16b
+	st1	{v0.16b}, [x1]
+L_aes_xts_decrypt_update_arm64_crypto_128_partial_done:
+#endif /* !NO_AES_128 */
+L_aes_xts_decrypt_update_arm64_crypto_done:
+	st1	{v4.16b}, [x4]
+	ldr	x17, [x29, #16]
+	ldp	x29, x30, [sp], #32
+	ret
+#ifndef __APPLE__
+	.size	AES_XTS_decrypt_update_AARCH64,.-AES_XTS_decrypt_update_AARCH64
+#endif /* __APPLE__ */
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AESXTS_STREAM */
 #endif /* WOLFSSL_AES_XTS */
 #ifdef WOLFSSL_AESGCM_SIV
 #ifndef __APPLE__

@@ -6385,9 +6385,15 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
     else
 #endif
     {
+/* Skipped for FIPS v2 and for selftest v1, whose APIs lack wc_ecc_set_rng().
+ * It must NOT be skipped for selftest v2, which exports it: under
+ * ECC_TIMING_RESISTANT wc_ecc_shared_secret() requires a blinding RNG
+ * (ecc.c: "if (private_key->rng == NULL) err = MISSING_RNG_E"), so skipping
+ * the setter fails every ECDHE handshake with -236 instead of degrading. */
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2)) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
         ret = wc_ecc_set_rng(priv_key, ssl->rng);
         if (ret == 0)
 #endif
@@ -29699,7 +29705,13 @@ static const char* wolfSSL_ERR_reason_error_string_OpenSSL(unsigned long e)
 }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER || HAVE_MEMCACHED */
 
-wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+/* Compare as long, not int.  MSVC C5287 ("operands are different enum types")
+ * still fires through an (int) cast, because int is the enums' own underlying
+ * type so the conversion is a no-op and the operand keeps its enum type.  A
+ * cast to long is a real conversion and clears it; measured with cl /W4 on
+ * both forms.  Both values are enum constants representable in int, so the
+ * widening changes nothing about what is asserted. */
+wc_static_assert((long)WC_LAST_E <= (long)WOLFSSL_LAST_E);
 
 const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 {

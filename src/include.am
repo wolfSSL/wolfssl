@@ -114,7 +114,14 @@ endif
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+# 32-bit XTS asm IS built: aes_xts_x86_asm.S assembles the AES-NI lane only
+# (5 routines, PIC-clean, zero .text relocations), and aes.c reaches it on
+# 32-bit now that the XTS AES-NI blocks no longer exclude WOLFSSL_X86_BUILD.
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -201,10 +208,6 @@ if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
 
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
-endif
-
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
 
 if BUILD_RSA
@@ -276,7 +279,14 @@ endif BUILD_PPC32_ASM
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+# 32-bit XTS asm IS built: aes_xts_x86_asm.S assembles the AES-NI lane only
+# (5 routines, PIC-clean, zero .text relocations), and aes.c reaches it on
+# 32-bit now that the XTS AES-NI blocks no longer exclude WOLFSSL_X86_BUILD.
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -514,6 +524,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 
 # fips last file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
+
 endif BUILD_FIPS_V5
 
 if BUILD_FIPS_V6
@@ -537,10 +548,6 @@ if !BUILD_FIPS_V6
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 endif
-endif
-
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
 
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
@@ -612,7 +619,14 @@ endif BUILD_PPC32_ASM
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+# 32-bit XTS asm IS built: aes_xts_x86_asm.S assembles the AES-NI lane only
+# (5 routines, PIC-clean, zero .text relocations), and aes.c reaches it on
+# 32-bit now that the XTS AES-NI blocks no longer exclude WOLFSSL_X86_BUILD.
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -933,6 +947,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 
 # fips last file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
+
 endif BUILD_FIPS_V6
 
 if BUILD_FIPS_V7_PLUS
@@ -948,10 +963,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
 
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
-endif
-
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
 
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
@@ -1000,11 +1011,38 @@ endif BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 endif BUILD_AES
 
+if BUILD_PPC64_ASM
+if BUILD_PPC64_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc64/ppc64-aes-asm.S
+endif !BUILD_PPC64_ASM_INLINE
+endif BUILD_PPC64_ASM
+
+if BUILD_PPC32_ASM
+if BUILD_PPC32_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-aes-asm_c.c
+else
+if BUILD_PPC32_ASM_INLINE_REG
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-aes-asm_cr.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-aes-asm.S
+endif !BUILD_PPC32_ASM_INLINE_REG
+endif !BUILD_PPC32_ASM_INLINE
+endif BUILD_PPC32_ASM
+
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_x86_64_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+# 32-bit XTS asm IS built: aes_xts_x86_asm.S assembles the AES-NI lane only
+# (5 routines, PIC-clean, zero .text relocations), and aes.c reaches it on
+# 32-bit now that the XTS AES-NI blocks no longer exclude WOLFSSL_X86_BUILD.
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -1082,6 +1120,13 @@ endif !BUILD_PPC64_ASM_INLINE
 endif BUILD_PPC64_ASM
 
 if BUILD_SHA512
+if BUILD_LINUXKM_RBGC
+# RBGC compiles ONE SHA-512: the portable C transform.  No Intel or ARM asm, so
+# there is no second implementation in the boundary and nothing to select at run
+# time.  linuxkm_get_entropy.c takes the place of the asm it replaces.
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/linuxkm_get_entropy.c
+else
 if BUILD_RISCV_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm.S
@@ -1137,6 +1182,7 @@ endif BUILD_INTELASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 endif !BUILD_RISCV_ASM
+endif !BUILD_LINUXKM_RBGC
 
 if BUILD_PPC64_ASM
 if BUILD_PPC64_ASM_INLINE
@@ -1375,6 +1421,14 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 # fips last file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 
+# OUTSIDE the FIPS module boundary, on purpose: listed after wolfcrypt_last.c so
+# its .text falls beyond wolfCrypt_FIPS_last() and the in-core integrity hash
+# does not cover it.  Lets a new platform's counter read be added without
+# changing a byte inside the boundary.  See wolfcrypt/src/oe_timers.c.
+if BUILD_MEMUSE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/oe_timers.c
+endif
+
 endif !BUILD_FIPS_NO_POST
 
 endif BUILD_FIPS_V7_PLUS
@@ -1422,9 +1476,6 @@ if BUILD_RNG
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/random.c
 if BUILD_MEMUSE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
-endif
-if BUILD_RNG_BANK
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif
 endif
 endif !BUILD_FIPS_V2_PLUS
@@ -2008,7 +2059,14 @@ if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_x86_64_asm.S
 if BUILD_X86_ASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+# 32-bit GCM asm NOT built: non-PIC .text relocs break FIPS in-core integrity in
+# a .so; 32-bit uses C-GHASH + AES-NI blocks (see WC_AESNI_GCM gate in aes.c).
+# 32-bit XTS asm IS built: aes_xts_x86_asm.S assembles the AES-NI lane only
+# (5 routines, PIC-clean, zero .text relocations), and aes.c reaches it on
+# 32-bit now that the XTS AES-NI blocks no longer exclude WOLFSSL_X86_BUILD.
+if BUILD_AESXTS
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_x86_asm.S
+endif
 else
 if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
@@ -2383,4 +2441,14 @@ endif !BUILD_FIPS_RAND
 if BUILD_ARIA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-crypt.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-cryptocb.c
+endif
+
+
+# The per-core DRBG bank is OUTSIDE the module boundary: it calls the
+# approved wc_RNG_GenerateBlock() rather than implementing it, so it must
+# never appear between wolfcrypt_first.c and wolfcrypt_last.c.  Emitted
+# once here, after every FIPS block, so it links in every flavour that
+# enables it.  Design by @lealem47.
+if BUILD_RNG_BANK
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/rng_bank.c
 endif

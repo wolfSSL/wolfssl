@@ -513,6 +513,17 @@ static int km_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
         goto dh_secret_end;
     }
 
+    /* Reject a zero modulus, as crypto/dh_helper.c does: it is not prime, and
+     * mod 0 is undefined.  wc_DhSetKey() passes trusted=1, which skips the
+     * primality check, so nothing downstream catches it. */
+    if (memchr_inv(params.p, 0, params.p_size) == NULL) {
+        #ifdef WOLFKM_DEBUG_DH
+        pr_err("%s: dh_set_secret: zero modulus\n", WOLFKM_DH_DRIVER);
+        #endif
+        err = -EINVAL;
+        goto dh_secret_end;
+    }
+
     err = km_dh_reset_ctx(ctx);
     if (err) {
         goto dh_secret_end;

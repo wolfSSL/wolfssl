@@ -78,21 +78,37 @@ int test_wc_InitRng(void)
 }
 
 
+/* Cross a real reseed boundary through the public API only, so the
+ * DRBG_NEED_RESEED -> PollAndReSeed branch is covered in a FIPS build too. */
 int test_wc_RNG_GenerateBlock_Reseed(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG) && defined(TEST_RESEED_INTERVAL)
-    int i;
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(WOLFSSL_KERNEL_MODE)
     WC_RNG rng;
-    byte key[32];
+    byte   key[32];
+    word64 i;
+    word64 n = (word64)WC_RESEED_INTERVAL;
+    int    loopRet = 0;
 
-    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    /* Kernel-mode builds may use the SP 800-90A maximum (2^48), which no
+     * bounded loop can reach.  Only run where the boundary is reachable. */
+    if (n <= 2000000U) {
+        XMEMSET(&rng, 0, sizeof(WC_RNG));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    ExpectIntEQ(wc_InitRng(&rng), 0);
-    for (i = 0; i < WC_RESEED_INTERVAL + 10; i++) {
+        /* One assertion, not a million: stop at the first failure and report
+         * its code, so a reseed fault names itself instead of flooding. */
+        for (i = 0; (i < n + 10) && (loopRet == 0); i++) {
+            loopRet = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
+        }
+        ExpectIntEQ(loopRet, 0);
+
+        /* A failed reseed latches rng->status, so a generate after the
+         * boundary is what proves the instance survived it. */
         ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key, sizeof(key)), 0);
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
     }
-    DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
 }

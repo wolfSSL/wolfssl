@@ -1,0 +1,262 @@
+name: FIPS no vector-register fallback
+
+# A certified FIPS build must never decide WHICH IMPLEMENTATION of an algorithm
+# to run from whether the vector registers could be saved.  CPU capability
+# chooses the lane; a SAVE_VECTOR_REGISTERS2() failure returns an error.
+# Answering that failure by running a different implementation and reporting
+# success is the construct this workflow exists to keep out.
+#
+# HISTORY, because it explains the shape of this file.  These checks used to
+# live in .github/workflows/fips-one-implementation.yml.  That file was deleted
+# whole on 12 Aug 2026 when the per-algorithm implementation pin was reverted --
+# and it carried three things that had nothing to do with pinning: the
+# WC_C_DYNAMIC_FALLBACK header guards, the --enable-all refusal, and the SVR
+# fallback gate itself.  For the month that followed, nothing in CI ran any of
+# them.  A live fallback in wolfcrypt/src/sp_x86_64.c -- RSA verification,
+# ECDSA signing and four ECC entry points -- reached the repository during that
+# window and was found by hand on 13 Aug 2026.
+#
+# What is NOT restored here, deliberately:
+#   - scripts/fips-impl-pin-check.sh and fips-one-implementation-check.py.
+#     Both were deleted with the pin and are correctly gone.
+#   - the arm32 "run-time dispatch must be off for certified FIPS" probe.  That
+#     assertion was a consequence of the pin.  Under the elected posture (see
+#     linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0) CPU stepping is RETAINED, so the
+#     probe would now be asserting the opposite of the shipping design.
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+    branches: [ '*' ]
+  workflow_dispatch:
+
+concurrency:
+  group: fips-no-svr-fallback-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  header-guards:
+    name: settings.h rejects the dynamic fallback
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      # settings.h's #error on WC_C_DYNAMIC_FALLBACK is one of the three things
+      # settings.h itself names as still holding the fallback prohibition up now
+      # that the pin is gone.  Nothing tested it between 12 Aug and this file.
+      - name: certified FIPS + WC_C_DYNAMIC_FALLBACK must not compile
+        run: |
+          cat > probe.c <<'EOF'
+          #define HAVE_FIPS
+          #define HAVE_FIPS_VERSION 7
+          /* an asm speedup must be present, else settings.h rejects the
+           * fallback for having nothing to fall back from */
+          #define WOLFSSL_AESNI
+          #define WC_C_DYNAMIC_FALLBACK
+          #include <wolfssl/wolfcrypt/settings.h>
+          EOF
+          if gcc -fsyntax-only -I. probe.c 2>probe.log; then
+            echo "::error::settings.h accepted WC_C_DYNAMIC_FALLBACK in a FIPS build"
+            exit 1
+          fi
+          grep -q "not permitted in a certified FIPS build" probe.log || {
+            echo "::error::rejected for the wrong reason:"; cat probe.log; exit 1; }
+          echo "rejected as required"
+
+      - name: dev FIPS + WC_C_DYNAMIC_FALLBACK must compile
+        run: |
+          cat > probe.c <<'EOF'
+          #define HAVE_FIPS
+          #define HAVE_FIPS_VERSION 7
+          #define WOLFSSL_FIPS_DEV
+          #define WOLFSSL_AESNI
+          #define WC_C_DYNAMIC_FALLBACK
+          #include <wolfssl/wolfcrypt/settings.h>
+          EOF
+          gcc -fsyntax-only -I. probe.c 2>probe.log || {
+            echo "::error::settings.h rejected the fallback in a dev build"
+            cat probe.log; exit 1; }
+          echo "allowed as required"
+
+  configure-guards:
+    name: configure refuses --enable-all for a certified FIPS version
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool
+
+      - name: autogen
+        run: ./autogen.sh
+
+      # configure.ac only requires wolfcrypt/src/fips.c to be non-empty; the
+      # guard under test runs well before its contents matter.
+      - name: place a FIPS source placeholder
+        run: |
+          if [ ! -s wolfcrypt/src/fips.c ]; then
+            printf '/* placeholder for configure-guard testing only */\n' \
+              > wolfcrypt/src/fips.c
+            echo "placeholder written"
+          else
+            echo "real FIPS source present, using it"
+          fi
+
+      - name: certified FIPS must reject --enable-all / --enable-all-crypto
+        run: |
+          for opt in --enable-all --enable-all-crypto; do
+            for ver in v2 v5 v6 v7 ready; do
+              if ./configure --enable-fips=$ver $opt >log 2>&1; then
+                echo "::error::--enable-fips=$ver $opt configured; it must be rejected"
+                exit 1
+              fi
+              grep -q "cannot be combined" log || {
+                echo "::error::--enable-fips=$ver $opt failed for the wrong reason:"
+                grep -oE 'configure: error: .*' log | head -1; exit 1; }
+              echo "  rejected: --enable-fips=$ver $opt"
+            done
+          done
+
+      # v5-dev and v6-dev were removed on 12 Aug 2026; dev and dev-no-post are
+      # the surviving development flavors.
+      - name: dev flavors must accept --enable-all
+        run: |
+          for ver in dev dev-no-post; do
+            ./configure --enable-fips=$ver --enable-all >log 2>&1 || true
+            if grep -q "cannot be combined" log; then
+              echo "::error::--enable-fips=$ver --enable-all was rejected; dev flavors are exempt"
+              exit 1
+            fi
+            echo "  accepted: --enable-fips=$ver --enable-all"
+          done
+
+  svr-fallback-gate:
+    name: no vector-register-conditional selection (${{ matrix.name }})
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # THE ENTRY THAT MATTERS.  --enable-sp-asm is what compiles
+          # wolfcrypt/src/sp_x86_64.c, which carries more acceleration dispatch
+          # than the rest of the tree combined.  The old workflow's matrix had
+          # no SP-assembly entry at all, so the gate preprocessed a translation
+          # unit from which every one of those sites had already been discarded
+          # and still printed "111/111 sources examined".  Do not remove this
+          # entry, and do not let the matrix shrink to software-only.
+          - name: PAA (aesni-with-avx + sp-asm)
+            configure: --enable-fips=dev-no-post --enable-aesni-with-avx --enable-sp-asm
+            expect: clean
+          # The other supported build.  Kept because it must also be clean, not
+          # because it proves much: with no accelerated lane compiled there is
+          # nothing to select between.  The gate now reports INCONCLUSIVE rather
+          # than PASS if a run had nothing to look at.
+          - name: software only
+            configure: --enable-fips=dev-no-post
+            expect: clean
+          # DETECTOR SELF-TEST -- the only cell that compiles the fallback.
+          #
+          # The two cells above assert the module is clean.  Neither can assert
+          # the GATE still works, because in both of them the four
+          # sha256.c/sha512.c fallback sites are #ifdef'd out and there is
+          # nothing to find.  That is how a gate keyed on && alone reported PASS
+          # over the || form of the same construct until 15 Aug 2026: CI never
+          # compiled the code the regex could not see.
+          #
+          # WC_C_DYNAMIC_FALLBACK is auto-defined only for
+          # KERNEL_MODE_DEFAULTS && !FIPS (configure.ac), a combination the gate
+          # SKIPS as a non-FIPS build, so it is passed explicitly here.  Passed
+          # as EXTRA_CFLAGS, not CFLAGS: only EXTRA_CFLAGS is folded into
+          # AM_CFLAGS (configure.ac), and AM_CFLAGS is the one line the gate
+          # reads.  A dev flavor is required -- configure.ac rejects the macro
+          # for every certified version, and settings.h #errors on it unless
+          # WC_FIPS_UNCERTIFIED_BUILD, which dev-no-post supplies.
+          #
+          # WC_SYM_RELOC_TABLES is what kernel mode sets to get
+          # WC_NO_INTERNAL_FUNCTION_POINTERS (settings.h, its only definer), and
+          # the sha256/sha512 XTRANSFORM region carrying these sites is inside
+          # that #ifdef.  Without it the region vanishes and this cell silently
+          # tests nothing.  --enable-linuxkm is deliberately NOT used: the gate
+          # cannot preprocess a kernel-configured tree (kernel headers are off
+          # the host include path) and would report INCONCLUSIVE.
+          #
+          # must_name is load-bearing.  aes.c carries the && form and trips the
+          # gate here on its own, so asserting the exit code alone passes even
+          # with the || detector removed -- verified against the pre-fix script.
+          # Naming the two files is what makes this a regression test.
+          - name: kernel-mode dev (fallback compiled)
+            configure: --enable-fips=dev-no-post --enable-aesni-with-avx --enable-sp-asm
+            extra_cflags: -DWC_C_DYNAMIC_FALLBACK -DWC_SYM_RELOC_TABLES
+            expect: detect
+            must_name: sha256.c sha512.c
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool
+
+      # dev-no-post is the only flavor that configures without the restricted
+      # FIPS bundle.  The two "clean" cells pass no WC_C_DYNAMIC_FALLBACK, so
+      # what the gate sees there is a certified build's dispatch, not a
+      # development one's; the detector self-test cell passes it deliberately.
+      - name: Configure ${{ matrix.name }}
+        env:
+          EXTRA: ${{ matrix.extra_cflags }}
+        run: |
+          ./autogen.sh
+          if [ -n "$EXTRA" ]; then
+            ./configure ${{ matrix.configure }} EXTRA_CFLAGS="$EXTRA" \
+              >configure.log 2>&1 || { tail -40 configure.log; exit 1; }
+            grep -qE '^AM_CFLAGS = .*-DWC_C_DYNAMIC_FALLBACK' Makefile || {
+              echo "::error::EXTRA_CFLAGS did not reach AM_CFLAGS; the gate" \
+                   "reads only that line, so this cell would test nothing"
+              exit 1; }
+          else
+            ./configure ${{ matrix.configure }} >configure.log 2>&1 || {
+              tail -40 configure.log; exit 1; }
+          fi
+
+      # The gate preprocesses; it does not need objects.  Building anyway would
+      # only slow the job down.
+      - name: no vector-register-conditional implementation selection
+        if: matrix.expect == 'clean'
+        run: ./scripts/fips-no-svr-fallback-check.sh
+
+      # The inverse assertion: with the fallback compiled the gate MUST fail,
+      # and must name each file in must_name.  A pass here means the detector
+      # has gone blind, which is the failure this cell exists to catch.
+      - name: gate must detect the compiled fallback
+        if: matrix.expect == 'detect'
+        env:
+          MUST_NAME: ${{ matrix.must_name }}
+        run: |
+          set +e
+          ./scripts/fips-no-svr-fallback-check.sh >gate.log 2>&1
+          rc=$?
+          set -e
+          cat gate.log
+          if [ "$rc" -ne 1 ]; then
+            echo "::error::gate exited $rc; expected 1 (FAIL) with the" \
+                 "fallback compiled.  2 means it could not examine the tree;" \
+                 "0 means the detector is blind to the construct."
+            exit 1
+          fi
+          for f in $MUST_NAME; do
+            grep -qE "wolfcrypt/src/$f: [0-9]+ live site" gate.log || {
+              echo "::error::gate did not report wolfcrypt/src/$f." \
+                   "Its sites use the || fusion form; a detector keyed on &&" \
+                   "alone misses them while other files still trip the gate."
+              exit 1; }
+            echo "  detected: wolfcrypt/src/$f"
+          done

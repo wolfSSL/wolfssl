@@ -85,6 +85,12 @@
         #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
     #endif /* _MSC_VER */
 
+    /* i386 kernel: <asm/ptrace-abi.h> #defines EAX/EBX/ECX/EDX as ptrace
+     * register indices, clashing with the cpuid array indices below. */
+    #undef EAX
+    #undef EBX
+    #undef ECX
+    #undef EDX
     #define EAX 0
     #define EBX 1
     #define ECX 2
@@ -605,6 +611,16 @@
     #define CPUID_ARM32_COMPILED   (CPUID_AES | CPUID_PMULL | CPUID_SHA256)
 #else
     #define CPUID_ARM32_COMPILED   0
+#endif
+
+/* A Linux kernel module runs at PL1, which is exactly the precondition the
+ * privileged path below states, so that is the correct detection route for it.
+ * It also has to be: the getauxval() branch further down is userspace-only and
+ * its #include <sys/auxv.h> is a hard build failure in kernel space, which made
+ * 32-bit Arm + --enable-armasm + --enable-linuxkm uncompilable (K4 C3; upstream
+ * PR #11031).  aarch64 is unaffected, this whole region is HAVE_CPUID_ARM32. */
+#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_ARM32_PRIVILEGE_MODE)
+    #define WOLFSSL_ARM32_PRIVILEGE_MODE
 #endif
 
 #ifdef WOLFSSL_ARM32_PRIVILEGE_MODE

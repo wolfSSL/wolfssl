@@ -52,6 +52,8 @@ static const struct reloc_layout_ent {
     [WC_R_X86_64_64]                  = { "R_X86_64_64",                                                ~0UL, 64, .is_signed = 0, .is_relative = 0 },
     [WC_R_X86_64_PC32]                = { "R_X86_64_PC32",                                              ~0UL, 32, .is_signed = 1, .is_relative = 1 },
     [WC_R_X86_64_PLT32]               = { "R_X86_64_PLT32",                                             ~0UL, 32, .is_signed = 1, .is_relative = 1 },
+    [WC_R_386_32]                     = { "R_386_32",                                                   ~0UL, 32, .is_signed = 0, .is_relative = 0 },
+    [WC_R_386_PC32]                   = { "R_386_PC32",                                                 ~0UL, 32, .is_signed = 1, .is_relative = 1 },
     [WC_R_AARCH64_ABS32]              = { "R_AARCH64_ABS32",                                            ~0UL, 32, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_AARCH64_ABS64]              = { "R_AARCH64_ABS64",                                            ~0UL, 64, .is_signed = 1, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_AARCH64_ADD_ABS_LO12_NC]    = { "R_AARCH64_ADD_ABS_LO12_NC",    0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
@@ -64,6 +66,10 @@ static const struct reloc_layout_ent {
     [WC_R_AARCH64_LDST64_ABS_LO12_NC] = { "R_AARCH64_LDST64_ABS_LO12_NC", 0b00000000001111111111110000000000, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 1, .is_pair_hi = 0 },
     [WC_R_AARCH64_PREL32]             = { "R_AARCH64_PREL32",                                           ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_ABS32]                  = { "R_ARM_ABS32",                                                ~0UL, 32, .is_signed = 0, .is_relative = 0, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    /* ARM-mode BL/B: signed 24-bit word offset in bits [23:0].  Emitted by the
+     * arm32 ARM-mode (non-Thumb) kernel module build. */
+    [WC_R_ARM_CALL]                   = { "R_ARM_CALL",                   0b00000000111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
+    [WC_R_ARM_JUMP24]                 = { "R_ARM_JUMP24",                 0b00000000111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_PREL31]                 = { "R_ARM_PREL31",                 0b01111111111111111111111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_REL32]                  = { "R_ARM_REL32",                                                ~0UL, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
     [WC_R_ARM_THM_CALL]               = { "R_ARM_THM_CALL",               0b00000111111111110010111111111111, 32, .is_signed = 1, .is_relative = 1, .is_pages = 0, .is_pair_lo = 0, .is_pair_hi = 0 },
@@ -366,6 +372,10 @@ ssize_t wc_reloc_normalize_segment(
         case WC_R_X86_64_32:
         case WC_R_X86_64_32S:
         case WC_R_X86_64_64:
+        /* i386 reuses the x86_64 path: the math is driven by
+         * layout->is_relative/is_signed and is width-correct via uintptr_t. */
+        case WC_R_386_32:
+        case WC_R_386_PC32:
 
             if (dest_seg != WC_R_SEG_OTHER) {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
@@ -413,6 +423,8 @@ ssize_t wc_reloc_normalize_segment(
             break;
 
         case WC_R_ARM_ABS32:
+        case WC_R_ARM_CALL:
+        case WC_R_ARM_JUMP24:
         case WC_R_ARM_PREL31:
         case WC_R_ARM_REL32:
         case WC_R_ARM_THM_CALL:
@@ -424,6 +436,21 @@ ssize_t wc_reloc_normalize_segment(
              * normalize to zero.  They can be reconstructed using the
              * parameters in reloc_layouts[] and reloc_tab[] but it's very
              * fidgety.
+             *
+             * TRIED AND FAILED, do not repeat without new evidence.
+             * Reconstructing these the way the x86 arm does was implemented,
+             * mask gather/scatter for the split encodings plus per-type
+             * scaling, and a userspace harness driving this very function
+             * reported all ten relocation types stable and target-covering.
+             * The harness was wrong, because it built its own relocation
+             * records rather than using a linked module's.  On a real aarch64
+             * module, two boots of ONE binary computed
+             * FIPS_HASH=05A837C3249F3AB8... and FIPS_HASH=4AE4DA38425DDBA3...,
+             * so the digest was load-address DEPENDENT and the module could
+             * never pass POST.  Reverted.  Zeroing is blind to the relocation
+             * target, and that is the known cost of a digest that verifies.
+             * Any retry must pass two real boots of one binary FIRST,
+             * see SVR-FALLBACK-ANALYSIS.md 13.6.
              */
             reloc_buf = 0;
             break;
@@ -444,6 +471,21 @@ ssize_t wc_reloc_normalize_segment(
              * normalize to zero.  They can be reconstructed using the
              * parameters in reloc_layouts[] and reloc_tab[] but it's very
              * fidgety.
+             *
+             * TRIED AND FAILED, do not repeat without new evidence.
+             * Reconstructing these the way the x86 arm does was implemented,
+             * mask gather/scatter for the split encodings plus per-type
+             * scaling, and a userspace harness driving this very function
+             * reported all ten relocation types stable and target-covering.
+             * The harness was wrong, because it built its own relocation
+             * records rather than using a linked module's.  On a real aarch64
+             * module, two boots of ONE binary computed
+             * FIPS_HASH=05A837C3249F3AB8... and FIPS_HASH=4AE4DA38425DDBA3...,
+             * so the digest was load-address DEPENDENT and the module could
+             * never pass POST.  Reverted.  Zeroing is blind to the relocation
+             * target, and that is the known cost of a digest that verifies.
+             * Any retry must pass two real boots of one binary FIRST,
+             * see SVR-FALLBACK-ANALYSIS.md 13.6.
              */
             reloc_buf = 0;
             break;

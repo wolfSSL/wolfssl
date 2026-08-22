@@ -1774,9 +1774,15 @@ THREAD_LS_T int wc_debug_vector_registers_retval =
 
 #ifdef HAVE_THREAD_LS
 
+/* The env-var diagnostics below are emitted from the first SAVE_VECTOR_
+ * REGISTERS2(), which runs during POST, before wolfSSL_Debugging_ON(). */
+#include <stdio.h>
+
 WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
     static THREAD_LS_T struct drand48_data wc_svr_fuzzing_state;
     static THREAD_LS_T int wc_svr_fuzzing_seeded = 0;
+    static THREAD_LS_T long wc_svr_fuzzing_rate =
+        WC_DEBUG_VECTOR_REGISTERS_FUZZING_RATE;
     long result;
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS
@@ -1787,13 +1793,47 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
     if (wc_svr_fuzzing_seeded == 0) {
         long seed = WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED;
         char *seed_envstr = getenv("WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED");
-        if (seed_envstr)
-            seed = strtol(seed_envstr, NULL, 0);
+        char *rate_envstr = getenv("WC_DEBUG_VECTOR_REGISTERS_FUZZING_RATE");
+        char *endptr;
+        long v;
+
+        /* A value that does not parse, or a rate <= 1, keeps the built-in
+         * default; say so rather than falling back in silence. */
+        if (seed_envstr) {
+            endptr = NULL;
+            v = strtol(seed_envstr, &endptr, 0);
+            if ((endptr == seed_envstr) || (*endptr != '\0')) {
+                fprintf(stderr, "WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED"
+                        " is not a number; keeping the built-in seed.\n");
+            }
+            else {
+                seed = v;
+            }
+        }
+        if (rate_envstr) {
+            endptr = NULL;
+            v = strtol(rate_envstr, &endptr, 0);
+            if ((endptr == rate_envstr) || (*endptr != '\0') || (v <= 1)) {
+                fprintf(stderr, "WC_DEBUG_VECTOR_REGISTERS_FUZZING_RATE"
+                        " must be an integer greater than 1; keeping the"
+                        " built-in rate of %ld.\n", wc_svr_fuzzing_rate);
+            }
+            else {
+                wc_svr_fuzzing_rate = v;
+            }
+        }
         (void)srand48_r(seed, &wc_svr_fuzzing_state);
         wc_svr_fuzzing_seeded = 1;
     }
+    /* Fail 1 call in wc_svr_fuzzing_rate.  The historical rate was 1-in-2,
+     * which models nothing real and cannot test a module that forbids dynamic
+     * fallback, at 50% the power-on AES CAST fails and nothing downstream
+     * ever executes.  See linuxkm/SVR-FALLBACK-ANALYSIS.md.  Tune with
+     * WC_DEBUG_VECTOR_REGISTERS_FUZZING_RATE (build) or the environment
+     * variable of the same name (run), e.g. 1000 for a rare-failure
+     * environment that still clears POST. */
     (void)lrand48_r(&wc_svr_fuzzing_state, &result);
-    if (result & 1)
+    if ((result % wc_svr_fuzzing_rate) == 0)
         return WC_NO_ERR_TRACE(IO_FAILED_E);
     else
         return 0;

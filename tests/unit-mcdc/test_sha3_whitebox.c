@@ -61,7 +61,9 @@ static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if defined(WOLFSSL_SHA3) && \
-    defined(USE_INTEL_SPEEDUP) && !defined(WC_C_DYNAMIC_FALLBACK)
+    defined(USE_INTEL_SPEEDUP) && \
+    !(defined(WC_C_DYNAMIC_FALLBACK) && \
+      defined(WC_ALLOW_RUNTIME_IMPL_SELECT))
 
 /* Run InitSha3 once with cpuid_flags/sha3_block forced, without hashing. The
  * selection decisions (737, 745) evaluate during init; not hashing means no
@@ -187,7 +189,8 @@ static void wb_sha3_dispatch(void)
  */
 #if defined(WOLFSSL_SHA3) && \
     defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WC_C_DYNAMIC_FALLBACK)
+    !(defined(WC_C_DYNAMIC_FALLBACK) && \
+      defined(WC_ALLOW_RUNTIME_IMPL_SELECT))
 
 static void wb_init_with_aarch64(cpuid_flags_t flags, void (*block)(word64*))
 {

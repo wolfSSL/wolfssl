@@ -878,6 +878,8 @@ WOLFSSL_API int  wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx,
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_ImportPrivate(SlhDsaKey* key, const byte* in,
     word32 inLen);
+/* Non-mutating: the key is left as supplied on every path.  WC_KEY_MISMATCH_E
+ * is terminal, the caller shall not use the key after it. */
 WOLFSSL_API int  wc_SlhDsaKey_CheckKey(SlhDsaKey* key);
 WOLFSSL_API int  wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* out,
     word32* outLen);
@@ -889,11 +891,13 @@ WOLFSSL_API int  wc_SlhDsaKey_ExportPublic(SlhDsaKey* key, byte* out,
     word32* outLen);
 
 WOLFSSL_API int  wc_SlhDsaKey_PrivateSize(SlhDsaKey* key);
+WOLFSSL_API int  wc_SlhDsaKey_SeedSize(SlhDsaKey* key);
 WOLFSSL_API int  wc_SlhDsaKey_PublicSize(SlhDsaKey* key);
 WOLFSSL_API int  wc_SlhDsaKey_SigSize(SlhDsaKey* key);
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_PrivateSizeFromParam(enum SlhDsaParam param);
 #endif
+WOLFSSL_API int  wc_SlhDsaKey_SeedSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
 

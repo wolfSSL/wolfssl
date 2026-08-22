@@ -602,7 +602,8 @@ int test_wc_ecc_shared_secret(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 
@@ -702,7 +703,8 @@ static int ecc_shared_secret_inf_case(const char* qx, const char* qy,
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 
@@ -812,7 +814,8 @@ static int ecc_shared_secret_size_bound(WC_RNG* rng, int curveId, int fieldSz)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, rng), 0);
 #endif
 
@@ -1816,7 +1819,8 @@ int test_wc_ecc_encryptDecrypt(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
     ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
 #endif
@@ -1923,7 +1927,8 @@ int test_wc_ecc_ecies_gcm(void)
         ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
         ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
         ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
 #endif
@@ -2082,7 +2087,8 @@ int test_wc_ecc_ecies_cryptocb(void)
     ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
     ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
 #endif
@@ -2304,11 +2310,14 @@ int test_wc_ecc_shared_secret_ssh(void)
     WC_RNG  rng;
     int     ret;
     int     keySz = KEY32;
-#if FIPS_VERSION3_GE(6,0,0)
-    int     key2Sz = KEY28;
-#else
-    int     key2Sz = KEY24;
-#endif
+    /* key2 must be on the SAME curve as key.  ECDH (including this SSH variant,
+     * which takes a raw peer point) is only defined on a shared curve, and a
+     * FIPS v7 module validates the peer point against the private key's curve
+     * per SP 800-56A Rev 3 sec 5.6.2.2.  The earlier KEY28/KEY24 (P-224/P-192)
+     * value made key2 a different curve than key (P-256): a cross-curve ECDH
+     * that only appeared to succeed because the raw-point path skipped the
+     * validation the ecc_key path already enforces (matching dp->id). */
+    int     key2Sz = KEY32;
     byte    secret[KEY32];
     word32  secretLen = (word32)keySz;
 
@@ -2339,7 +2348,8 @@ int test_wc_ecc_shared_secret_ssh(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
 #endif
 
@@ -2624,8 +2634,12 @@ int test_wc_ecc_sig_size_calc(void)
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
-#if FIPS_VERSION3_GE(6,0,0)
+#if FIPS_VERSION3_GE(6,0,0) && !defined(FIPS_NO_WRAPPERS)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#elif FIPS_VERSION3_GE(6,0,0)
+    /* No wrapper enforces WC_ECC_FIPS_GEN_MIN here, so the native path fails
+     * to match a 16-byte curve instead. */
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ECC_CURVE_OID_E));
 #else
     ExpectIntEQ(ret, 0);
 #endif

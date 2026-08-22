@@ -24,6 +24,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep SLH-DSA inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name, between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nh")
+        #pragma const_seg(".fipsB$nh")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 
 #ifdef WOLFSSL_HAVE_SLHDSA
@@ -59,6 +68,35 @@
 /* CPU information for Intel. */
 static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #endif
+
+/* SLH-DSA lane selection.
+ *
+ * The x4 AVX2 chains and the scalar chains are not two implementations of one
+ * service: every dispatch site below also tests !SLHDSA_IS_SHA2(), so the x4
+ * chains serve the SHAKE parameter sets and the scalar chains serve the SHA-2
+ * ones, which FIPS 205 defines as separate parameter sets and CAVP tests
+ * separately.  What did make them a pair of implementations of the SHAKE
+ * service was the vector-register save that used to sit in the same condition:
+ * losing vector registers silently moved a SHAKE parameter set onto the scalar
+ * chain.  Those sites now fail closed instead.
+ *
+ * WC_SLHDSA_USE_AVX2 names AVX2 as this operating environment's lane, so the
+ * CPUID test is dropped: leaving it in would let a machine outside the named
+ * OE run the scalar chain for a SHAKE parameter set without saying so, which
+ * is the run-time implementation selection the pin exists to remove.
+ * WC_SLHDSA_USE_C derives WC_SLHDSA_NO_ASM (settings.h), which undefines
+ * USE_INTEL_SPEEDUP above, so no x4 chain is compiled at all.
+ * See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
+#if defined(USE_INTEL_SPEEDUP)
+        #define SLHDSA_LANE_AVX2(f)     IS_INTEL_AVX2(f)
+#endif
+
+/* SLH-DSA implementations of the SHAKE parameter sets compiled here.  IG
+ * 10.3.A GeneralNote1 requires each implementation in the module to be
+ * self-tested separately.  The pin that once narrowed this to one lane was
+ * deleted on 12 Aug 2026; CPUID now selects one per OE, and a vector-register
+ * save failure must return rather than pick another.  See
+ * linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0. */
 
 
 /* Winternitz number. */
@@ -457,6 +495,7 @@ static const SlhDsaParameters SlhDsaParams[] =
  * @return  0 on success.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
     byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
     byte* hash, byte hash_len)
@@ -543,6 +582,86 @@ static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
     return wc_Shake256_Final(shake, hash, hash_len);
 #endif
 }
+#else
+static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
+    byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
+    byte* hash, byte hash_len)
+{
+#ifdef WOLFSSL_SLHDSA_FULL_HASH
+    int ret;
+    byte address[SLHDSA_HA_SZ];
+
+    /* Encode hash address. */
+    HA_Encode(adrs, address);
+
+    /* Update the SHAKE-256 object with first block of data. */
+    ret = wc_Shake256_Update(shake, data1, data1_len);
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with encoded HashAddress. */
+        ret = wc_Shake256_Update(shake, address, SLHDSA_HA_SZ);
+    }
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with second block of data. */
+        ret = wc_Shake256_Update(shake, data2, data2_len);
+    }
+    if (ret == 0) {
+        /* Calculate and output hash. */
+        ret = wc_Shake256_Final(shake, hash, hash_len);
+    }
+
+    return ret;
+#elif defined(USE_INTEL_SPEEDUP)
+    word64* state = shake->s;
+    word8* state8 = (word8*)shake->s;
+    word32 o = 0;
+
+    /* Move the first block of data into the state. */
+    XMEMCPY(state8 + o, data1, data1_len);
+    o += data1_len;
+    /* Encode the HashAddress into the state next. */
+    HA_Encode(adrs, state8 + o);
+    o += SLHDSA_HA_SZ;
+    /* Move the second block of data into the state next. */
+    XMEMCPY(state8 + o, data2, data2_len);
+    o += data2_len;
+    /* Place SHAKE end-of-content marker. */
+    state8[o] = 0x1f;
+    o += 1;
+    /* Zero out rest of state. */
+    XMEMSET(state8 + o, 0, sizeof(shake->s) - o);
+    /* Place SHAKE-256 end-of-data marker. */
+    state8[WC_SHA3_256_COUNT * 8 - 1] ^= 0x80;
+
+    /* Process the state with the module's Keccak-f[1600] (sha3.c, selected by
+     * WC_SHA3_IMPL).  Returns an error when the permutation needs vector
+     * registers and they cannot be saved; it does not run a different
+     * implementation.  See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
+    {
+        int permute_ret = wc_Sha3Permute(state);
+        if (permute_ret != 0) {
+            return permute_ret;
+        }
+    }
+    /* Copy hash result, of the required length, from the state into hash. */
+    XMEMCPY(hash, shake->s, hash_len);
+
+    return 0;
+#else
+    /* Copy the first block of data into the cached data buffer. */
+    XMEMCPY(shake->t, data1, data1_len);
+    /* Encode HashAddress into the cached data buffer next. */
+    HA_Encode(adrs, shake->t + data1_len);
+    /* Copy the second block of data into the cached data buffer next. */
+    XMEMCPY(shake->t + data1_len + SLHDSA_HA_SZ, data2, data2_len);
+
+    /* Update count of bytes cached. */
+    shake->i = (byte)(data1_len + SLHDSA_HA_SZ + data2_len);
+
+    /* Calculate and output hash. */
+    return wc_Shake256_Final(shake, hash, hash_len);
+#endif
+}
+#endif
 #endif
 
 /* Hash four data elements with SHAKE-256.
@@ -562,6 +681,7 @@ static int slhdsakey_hash_shake_3(wc_Shake* shake, const byte* data1,
  * @return  0 on success.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
     byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
     const byte* data3, byte data3_len, byte* hash, byte hash_len)
@@ -657,6 +777,95 @@ static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
     return wc_Shake256_Final(shake, hash, hash_len);
 #endif
 }
+#else
+static int slhdsakey_hash_shake_4(wc_Shake* shake, const byte* data1,
+    byte data1_len, const word32* adrs, const byte* data2, byte data2_len,
+    const byte* data3, byte data3_len, byte* hash, byte hash_len)
+{
+#ifdef WOLFSSL_SLHDSA_FULL_HASH
+    int ret;
+    byte address[SLHDSA_HA_SZ];
+
+    /* Encode hash address. */
+    HA_Encode(adrs, address);
+
+    /* Update the SHAKE-256 object with first block of data. */
+    ret = wc_Shake256_Update(shake, data1, data1_len);
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with encoded HashAddress. */
+        ret = wc_Shake256_Update(shake, address, SLHDSA_HA_SZ);
+    }
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with second block of data. */
+        ret = wc_Shake256_Update(shake, data2, data2_len);
+    }
+    if (ret == 0) {
+        /* Update the SHAKE-256 object with third block of data. */
+        ret = wc_Shake256_Update(shake, data3, data3_len);
+    }
+    if (ret == 0) {
+        /* Calculate and output hash. */
+        ret = wc_Shake256_Final(shake, hash, hash_len);
+    }
+
+    return ret;
+#elif defined(USE_INTEL_SPEEDUP)
+    word64* state = shake->s;
+    word8* state8 = (word8*)shake->s;
+    word32 o = 0;
+
+    /* Move the first block of data into the state. */
+    XMEMCPY(state8 + o, data1, data1_len);
+    o += data1_len;
+    /* Encode the HashAddress into the state next. */
+    HA_Encode(adrs, state8 + o);
+    o += SLHDSA_HA_SZ;
+    /* Move the second block of data into the state next. */
+    XMEMCPY(state8 + o, data2, data2_len);
+    o += data2_len;
+    /* Move the third block of data into the state next. */
+    XMEMCPY(state8 + o, data3, data3_len);
+    o += data3_len;
+    /* Place SHAKE end-of-content marker. */
+    state8[o] = 0x1f;
+    o += 1;
+    /* Zero out rest of state. */
+    XMEMSET(state8 + o, 0, sizeof(shake->s) - o);
+    /* Place SHAKE-256 end-of-data marker. */
+    state8[WC_SHA3_256_COUNT * 8 - 1] ^= 0x80;
+
+    /* Process the state with the module's Keccak-f[1600] (sha3.c, selected by
+     * WC_SHA3_IMPL).  Returns an error when the permutation needs vector
+     * registers and they cannot be saved; it does not run a different
+     * implementation.  See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
+    {
+        int permute_ret = wc_Sha3Permute(state);
+        if (permute_ret != 0) {
+            return permute_ret;
+        }
+    }
+    /* Copy hash result, of the required length, from the state into hash. */
+    XMEMCPY(hash, shake->s, hash_len);
+
+    return 0;
+#else
+    /* Copy the first block of data into the cached data buffer. */
+    XMEMCPY(shake->t, data1, data1_len);
+    /* Encode HashAddress into the cached data buffer next. */
+    HA_Encode(adrs, shake->t + data1_len);
+    /* Copy the second block of data into the cached data buffer next. */
+    XMEMCPY(shake->t + data1_len + SLHDSA_HA_SZ, data2, data2_len);
+    /* Copy the third block of data into the cached data buffer next. */
+    XMEMCPY(shake->t + data1_len + SLHDSA_HA_SZ + data2_len, data3, data3_len);
+
+    /* Update count of bytes cached. */
+    shake->i = (byte)(data1_len + SLHDSA_HA_SZ + data2_len + data3_len);
+
+    /* Calculate and output hash. */
+    return wc_Shake256_Final(shake, hash, hash_len);
+#endif
+}
+#endif
 
 /******************************************************************************
  * SHA2 Hash Functions (FIPS 205, Section 11.2)
@@ -3400,6 +3609,7 @@ static int slhdsakey_wots_pkgen_chain_c(SlhDsaKey* key, const byte* sk_seed,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
     const byte* pk_seed, word32* adrs, byte* node)
 {
@@ -3451,6 +3661,63 @@ static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
 
     return ret;
 }
+#else
+static int slhdsakey_wots_pkgen(SlhDsaKey* key, const byte* sk_seed,
+    const byte* pk_seed, word32* adrs, byte* node)
+{
+    int ret;
+    byte n = key->params->n;
+    int hash_t_started = 0;
+
+    {
+        HashAddress wotspk_adrs;
+
+        /* Steps 11-12. Copy address and set to WOTS PK. */
+        HA_Copy(wotspk_adrs, adrs);
+        HA_SetTypeAndClearNotKPA(wotspk_adrs, HA_WOTS_PK);
+        /* Step 13. Start hash with public key seed and address. */
+        ret = HASH_T_START_ADDR(key, pk_seed, wotspk_adrs, n);
+    }
+    if (ret == 0) {
+        HashAddress sk_adrs;
+
+        hash_t_started = 1;
+
+        /* Steps 1-2. Copy address and set to WOTS PRF. */
+        HA_Copy(sk_adrs, adrs);
+        HA_SetTypeAndClearNotKPA(sk_adrs, HA_WOTS_PRF);
+        /* Steps 4-10,13: Generate hashes and update the public key hash. */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+        if (!SLHDSA_IS_SHA2(key->params->param) &&
+                SLHDSA_LANE_AVX2(cpuid_flags)) {
+            /* Single exit: set ret and fall through so HASH_T_FREE below
+             * still runs. */
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret == 0) {
+                ret = slhdsakey_wots_pkgen_chain_x4(key, sk_seed, pk_seed,
+                    adrs, sk_adrs);
+                RESTORE_VECTOR_REGISTERS();
+            }
+        }
+        else
+#endif
+        {
+            ret = slhdsakey_wots_pkgen_chain_c(key, sk_seed, pk_seed, adrs,
+                sk_adrs);
+        }
+    }
+    if (ret == 0) {
+        /* Step 13: Output hash of compressed public key. */
+        ret = HASH_T_FINAL(key, node, n);
+    }
+
+    if (hash_t_started) {
+        HASH_T_FREE(key);
+    }
+
+    return ret;
+}
+#endif
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
 #if !defined(WOLFSSL_SLHDSA_PARAM_NO_128)
@@ -3828,6 +4095,7 @@ static int slhdsakey_wots_sign_chain_x4(SlhDsaKey* key, const byte* msg,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
     const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig)
 {
@@ -3911,6 +4179,93 @@ static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
 
     return ret;
 }
+#else
+static int slhdsakey_wots_sign(SlhDsaKey* key, const byte* m,
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig)
+{
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    word16 csum;
+    HashAddress sk_adrs;
+    byte n = key->params->n;
+    byte len = key->params->len;
+    int i;
+    byte msg[SLHDSA_MAX_MSG_SZ];
+
+    /* Step 1: Start csum at 0 */
+    csum = 0;
+    /* Step 3: For each byte in message. */
+    for (i = 0; i < n * 2; i += 2) {
+        /* Step 2: Append high order 4 bits to msg. */
+        msg[i+0] = (byte)((m[i / 2] >> 4) & 0xf);
+        /* Step 4: Calculate checksum with first lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 0]);
+        /* Step 2: Append low order 4 bits to msg. */
+        msg[i+1] = (byte)( m[i / 2]       & 0xf);
+        /* Step 4: Calculate checksum with next lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 1]);
+    }
+    /* Steps 6-7: Encode bottom 12 bits of csum onto end of msg. */
+    msg[i + 0] = (byte)((csum >> 8) & 0xf);
+    msg[i + 1] = (byte)((csum >> 4) & 0xf);
+    msg[i + 2] = (byte)( csum       & 0xf);
+
+    /* Steps 8-10: Copy address for WOTS PRF. */
+    HA_Copy(sk_adrs, adrs);
+    HA_SetTypeAndClearNotKPA(sk_adrs, HA_WOTS_PRF);
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+    /* Steps 11-17: Generate signature from msg. */
+    if (!SLHDSA_IS_SHA2(key->params->param) &&
+            SLHDSA_LANE_AVX2(cpuid_flags)) {
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            ret = slhdsakey_wots_sign_chain_x4(key, msg, sk_seed, pk_seed,
+                adrs, sk_adrs, sig);
+            RESTORE_VECTOR_REGISTERS();
+        }
+    }
+    else
+#endif
+    {
+        byte sk[SLHDSA_MAX_N];
+
+        /* sk will hold secret WOTS+ leaves; baseline-zero and register it up
+         * front (block has a single exit through the ForceZero below). */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(sk, 0, n);
+        wc_MemZero_Add("slhdsa wots sk", sk, n);
+#endif
+        /* Step 11: For each value of msg. */
+        for (i = 0; i < len; i++) {
+            /* Step 12: Set chain address for WOTS PRF. */
+            HA_SetChainAddress(sk_adrs, i);
+            /* Step 13. PRF the secret chain value into a temp (not sig). */
+            ret = HASH_PRF(key, pk_seed, sk_seed, sk_adrs, n, sk);
+            if (ret != 0) {
+                break;
+            }
+            /* Step 14: Set chain address for WOTS HASH. */
+            HA_SetChainAddress(adrs, i);
+            /* Step 15. Chain hashes in the temp so intermediate secret chain
+             * values never touch the public sig buffer (even on error). */
+            ret = slhdsakey_chain(key, sk, 0, msg[i], pk_seed, adrs, sk);
+            if (ret != 0) {
+                break;
+            }
+            /* Step 15: Copy the (public) chain result into the signature. */
+            XMEMCPY(sig, sk, n);
+            sig += n;
+        }
+
+        /* sk held the secret WOTS+ leaf. */
+        ForceZero(sk, n);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(sk, n);
+#endif
+    }
+
+    return ret;
+}
+#endif
 #endif
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
@@ -4475,6 +4830,7 @@ static int slhdsakey_wots_pk_from_sig_c(SlhDsaKey* key, const byte* sig,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
     const byte* m, const byte* pk_seed, word32* adrs, byte* pk_sig)
 {
@@ -4520,6 +4876,55 @@ static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
 
     return ret;
 }
+#else
+static int slhdsakey_wots_pk_from_sig(SlhDsaKey* key, const byte* sig,
+    const byte* m, const byte* pk_seed, word32* adrs, byte* pk_sig)
+{
+    int ret;
+    word16 csum;
+    byte n = key->params->n;
+    int i;
+    byte msg[SLHDSA_MAX_MSG_SZ];
+
+    /* Step 1: Start csum at 0 */
+    csum = 0;
+    /* Step 3: For each byte in message. */
+    for (i = 0; i < n * 2; i += 2) {
+        /* Step 2: Append high order 4 bits to msg. */
+        msg[i+0] = (byte)((m[i / 2] >> 4) & 0xf);
+        /* Step 4: Calculate checksum with first lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 0]);
+        /* Step 2: Append low order 4 bits to msg. */
+        msg[i+1] = (byte)( m[i / 2]       & 0xf);
+        /* Step 4: Calculate checksum with next lgw bits. */
+        csum = (word16)(csum + SLHDSA_WM1 - msg[i + 1]);
+    }
+    /* Steps 6-7: Encode bottom 12 bits of csum onto end of msg. */
+    msg[i + 0] = (byte)((csum >> 8) & 0xf);
+    msg[i + 1] = (byte)((csum >> 4) & 0xf);
+    msg[i + 2] = (byte)( csum       & 0xf);
+
+    /* Steps 8-16. */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+    if (!SLHDSA_IS_SHA2(key->params->param) &&
+            SLHDSA_LANE_AVX2(cpuid_flags)) {
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            ret = slhdsakey_wots_pk_from_sig_x4(key, sig, msg, pk_seed, adrs,
+                pk_sig);
+            RESTORE_VECTOR_REGISTERS();
+        }
+    }
+    else
+#endif
+    {
+        ret = slhdsakey_wots_pk_from_sig_c(key, sig, msg, pk_seed, adrs,
+            pk_sig);
+    }
+
+    return ret;
+}
+#endif
 
 /******************************************************************************
  * XMSS
@@ -5924,6 +6329,7 @@ static int slhdsakey_fors_node_c(SlhDsaKey* key, const byte* sk_seed, word32 i,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
     const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors)
 {
@@ -6000,6 +6406,87 @@ static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
 
     return ret;
 }
+#else
+static int slhdsakey_fors_sign(SlhDsaKey* key, const byte* md,
+    const byte* sk_seed, const byte* pk_seed, word32* adrs, byte* sig_fors)
+{
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    word16 indices[SLHDSA_MAX_INDICES_SZ];
+    int i;
+    int j;
+    byte n = key->params->n;
+    byte a = key->params->a;
+    byte k = key->params->k;
+
+    /* Step 2: Convert message digest to base 2^a. */
+    slhdsakey_base_2b(md, a, k, indices);
+
+    /* Step 3: For each index: */
+    for (i = 0; i < k; i++) {
+        /* Step 4: Generate FORS private key value into signature. */
+        ret = slhdsakey_fors_sk_gen(key, sk_seed, pk_seed, adrs,
+            ((word32)i << a) + indices[i], sig_fors);
+        if (ret != 0) {
+            break;
+        }
+        /* Step 4: Move over private key value. */
+        sig_fors += n;
+
+    #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+        if (!SLHDSA_IS_SHA2(key->params->param) &&
+                SLHDSA_LANE_AVX2(cpuid_flags)) {
+            /* Sets ret on failure; the outer loop breaks on it below. */
+            ret = SAVE_VECTOR_REGISTERS2();
+            if (ret == 0) {
+                word16 idx = indices[i];
+                /* Step 5: For each bit: */
+                for (j = 0; j < a; j++) {
+                    /* Calculate side. */
+                    word32 s = idx ^ 1;
+                    /* Step 7: Compute authentication node into signature. */
+                    ret = slhdsakey_fors_node_x4(key, sk_seed,
+                        ((word32)i << (a - j)) + s, (word32)j, pk_seed, adrs,
+                        sig_fors);
+                    if (ret != 0) {
+                        break;
+                    }
+                    /* Step 9: Move signature to after authentication node. */
+                    sig_fors += n;
+                    /* Update tree index. */
+                    idx >>= 1;
+                }
+                RESTORE_VECTOR_REGISTERS();
+            }
+        }
+        else
+    #endif
+        {
+            word16 idx = indices[i];
+            /* Step 5: For each bit: */
+            for (j = 0; j < a; j++) {
+                /* Calculate side. */
+                word32 s = idx ^ 1;
+                /* Step 7: Compute authentication node into signature. */
+                ret = slhdsakey_fors_node_c(key, sk_seed,
+                    ((word32)i << (a - j)) + s, (word32)j, pk_seed, adrs,
+                    sig_fors);
+                if (ret != 0) {
+                    break;
+                }
+                /* Step 9: Move signature to after authentication node. */
+                sig_fors += n;
+                /* Update tree index. */
+                idx >>= 1;
+            }
+        }
+        if (ret != 0) {
+            break;
+        }
+    }
+
+    return ret;
+}
+#endif
 #endif /* !WOLFSSL_SLHDSA_VERIFY_ONLY */
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
@@ -6608,6 +7095,7 @@ static int slhdsakey_fors_pk_from_sig_c(SlhDsaKey* key, const byte* sig_fors,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  SHAKE-256 error return code on digest failure.
  */
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
 static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
     const byte* md, const byte* pk_seed, word32* adrs, byte* pk_fors)
 {
@@ -6660,6 +7148,64 @@ static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
 
     return ret;
 }
+#else
+static int slhdsakey_fors_pk_from_sig(SlhDsaKey* key, const byte* sig_fors,
+    const byte* md, const byte* pk_seed, word32* adrs, byte* pk_fors)
+{
+    int ret;
+    word16 indices[SLHDSA_MAX_INDICES_SZ];
+    HashAddress forspk_adrs;
+    byte n = key->params->n;
+    byte a = key->params->a;
+    byte k = key->params->k;
+    int hash_t_started = 0;
+
+    /* Step 1: Get indices from byte array. */
+    slhdsakey_base_2b(md, a, k, indices);
+
+    /* Step 21: Create address to FORS roots */
+    HA_Copy(forspk_adrs, adrs);
+    /* Steps 22-23: Set type and clear all but key pair address. */
+    HA_SetTypeAndClearNotKPA(forspk_adrs, HA_FORS_ROOTS);
+    /* Step 24: Add public key seed and FORS roots address to hash ... */
+    ret = HASH_T_START_ADDR(key, pk_seed, forspk_adrs, n);
+
+    if (ret == 0) {
+        hash_t_started = 1;
+    }
+
+    /* Steps 2-20: Compute roots and add to hash. */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_WC_SLHDSA_SMALL)
+    if ((ret == 0) && !SLHDSA_IS_SHA2(key->params->param) &&
+            SLHDSA_LANE_AVX2(cpuid_flags)) {
+        /* Single exit: set ret and fall through so HASH_T_FREE below still
+         * runs. */
+        ret = SAVE_VECTOR_REGISTERS2();
+        if (ret == 0) {
+            ret = slhdsakey_fors_pk_from_sig_x4(key, sig_fors, indices,
+                pk_seed, adrs);
+            RESTORE_VECTOR_REGISTERS();
+        }
+    }
+    else
+#endif
+    if (ret == 0) {
+        ret = slhdsakey_fors_pk_from_sig_c(key, sig_fors, indices, pk_seed,
+            adrs, pk_fors);
+    }
+
+    if (ret == 0) {
+        /* Step 24. Compute FORS public key. */
+        ret = HASH_T_FINAL(key, pk_fors, n);
+    }
+
+    if (hash_t_started) {
+        HASH_T_FREE(key);
+    }
+
+    return ret;
+}
+#endif
 
 /******************************************************************************
  * SLH-DSA API
@@ -6687,6 +7233,13 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
+        /* Zeroize the key up front so a failed parameter lookup below leaves
+         * key->params == NULL and wc_SlhDsaKey_Free() stays a safe no-op; a
+         * garbage params->n must never drive the ForceZero of key->sk
+         * (memory safety / ISO/IEC 19790:2012 7.9). */
+        XMEMSET(key, 0, sizeof(SlhDsaKey));
+    }
+    if (ret == 0) {
         int i;
 
         /* Find parameters in available parameter list. */
@@ -6702,9 +7255,6 @@ int wc_SlhDsaKey_Init(SlhDsaKey* key, enum SlhDsaParam param, void* heap,
         }
     }
     if (ret == 0) {
-        /* Zeroize key. */
-        XMEMSET(key, 0, sizeof(SlhDsaKey));
-
         /* Set the parameters into key early so SLHDSA_IS_SHA2 works. */
         key->params = &SlhDsaParams[idx];
         /* Set heap hint to use with all allocations. */
@@ -7043,6 +7593,9 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
             key->sk + 2 * n, n);
     }
 
+    /* No PCT here: wc_SlhDsaKey_MakeKeyWithRandom() above runs it, and every
+     * SLH-DSA generation path goes through that function. */
+
     return ret;
 }
 
@@ -7126,6 +7679,54 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
         }
     }
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A Additional
+     * Comment 1 (TE10.35.02): sign with the new sk, verify with the matching
+     * pk, on every KeyGen.  SignDeterministic avoids consuming RNG state.
+     * Placed here, not in wc_SlhDsaKey_MakeKey(), because this is the one
+     * function every SLH-DSA generation path reaches.
+     *
+     * STRONGER THAN THE IG REQUIRES, DELIBERATELY.  That Additional Comment
+     * names FIPS 205 alongside SP 800-208 and permits the PCT to "be limited
+     * to confirming the same key identifier (I in the case of LMS, SEED in the
+     * case of XMSS and PK.SEED for SLH-DSA) is shared by the resulting public
+     * and private keys".  The relaxation does apply here; a full sign plus
+     * verify simply exceeds it, at the cost of the slowest operation in the
+     * module.  A future reader may shorten this to the PK.SEED comparison and
+     * still be compliant. */
+    if (ret == 0) {
+        static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
+        word32 pct_sigLen = key->params->sigLen;
+        byte* pct_sig = (byte*)XMALLOC(pct_sigLen, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        word32 pct_sigSz = pct_sigLen;
+
+        if (pct_sig == NULL) {
+            ret = MEMORY_E;
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_SignDeterministic(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, &pct_sigSz);
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_Verify(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, pct_sigSz);
+            if (ret != 0) {
+                ret = SLH_DSA_PCT_E;
+            }
+        }
+        if (pct_sig != NULL) {
+            ForceZero(pct_sig, pct_sigLen);
+            XFREE(pct_sig, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        /* IG 10.3.A (TE10.35.02): a key pair that fails the PCT must be
+         * rendered unusable. */
+        if (ret != 0) {
+            wc_SlhDsaKey_Free(key);
+        }
+    }
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
     return ret;
 }
@@ -7997,6 +8598,89 @@ static const byte slhdsakey_oid_sha3_512[] = {
 #endif
 #endif
 
+/* HashSLH-DSA PH-vs-paramSet enforcement.  FIPS 205 sec. 10.2.2 restricts
+ * SHA-256 and SHAKE128 to security category 1; sec. 11 ties the category to n
+ * (16 -> cat 1, 24 -> cat 3, 32 -> cat 5).  Generalized by this module to PH
+ * collision strength >= the paramSet category.
+ * Returns 0 if approved, else BAD_FUNC_ARG. */
+static int slhdsa_check_hash_for_n(enum wc_HashType hashType, byte n)
+{
+    int strengthBits;
+    int requiredBits;
+
+    switch ((int)hashType) {
+    #ifndef NO_SHA256
+        case WC_HASH_TYPE_SHA256:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case WC_HASH_TYPE_SHA384:
+            strengthBits = 192;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case WC_HASH_TYPE_SHA512:
+            strengthBits = 256;
+            break;
+        #ifndef WOLFSSL_NOSHA512_256
+        case WC_HASH_TYPE_SHA512_256:
+            /* SHA-512/256 has 128-bit collision resistance (truncated). */
+            strengthBits = 128;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_256
+        case WC_HASH_TYPE_SHA3_256:
+            strengthBits = 128;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        case WC_HASH_TYPE_SHA3_384:
+            strengthBits = 192;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        case WC_HASH_TYPE_SHA3_512:
+            strengthBits = 256;
+            break;
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHAKE128
+        case WC_HASH_TYPE_SHAKE128:
+            strengthBits = 128;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHAKE256
+        case WC_HASH_TYPE_SHAKE256:
+            strengthBits = 256;
+            break;
+    #endif
+        default:
+            /* Not an approved pre-hash here (FIPS 205 sec. 10.2.2). */
+            return BAD_FUNC_ARG;
+    }
+
+    if (n == WC_SLHDSA_N_128) {
+        requiredBits = 128;
+    }
+    else if (n == WC_SLHDSA_N_192) {
+        requiredBits = 192;
+    }
+    else if (n == WC_SLHDSA_N_256) {
+        requiredBits = 256;
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+
+    if (strengthBits < requiredBits) {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+
 /* Validate the caller-supplied pre-hashed digest length and look up the
  * corresponding OID for the chosen hash algorithm.
  *
@@ -8214,6 +8898,12 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
             (sigSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* HashSLH-DSA requires an explicit, approved pre-hash; the "pure
+     * SLH-DSA" sentinel WC_HASH_TYPE_NONE is never valid here
+     * (FIPS 205 Section 10.2.2, Algorithm 23). */
+    else if (hashType == WC_HASH_TYPE_NONE) {
+        ret = BAD_FUNC_ARG;
+    }
     /* Check sig buffer is large enough to hold generated signature. */
     else if (*sigSz < key->params->sigLen) {
         ret = BAD_LENGTH_E;
@@ -8222,6 +8912,12 @@ static int slhdsakey_signhash_external(SlhDsaKey* key, const byte* ctx,
     else if (addRnd == NULL) {
         /* Alg 23, Step 6: Return error. */
         ret = BAD_FUNC_ARG;
+    }
+    /* FIPS 205 sec. 10.2.2 with sec. 11: enforce PH <-> paramSet matching
+     * pre-hashing the message.  Rejects PHs whose collision-resistance
+     * strength is below the paramSet's security level (n). */
+    if (ret == 0) {
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
     }
     if (ret == 0) {
         /* Alg 23, Steps 8-23: Validate caller-supplied pre-hashed digest length
@@ -8457,8 +9153,10 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         ret = MISSING_KEY;
     }
     /* First sanity check on hashType; the downstream prehash validator does
-     * the detailed check for the actual type. */
-    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
+     * the detailed check.  WC_HASH_TYPE_NONE is never a valid pre-hash
+     * (FIPS 205 Section 10.2.2, Algorithm 23). */
+    else if ((hashType == WC_HASH_TYPE_NONE) ||
+             ((word32)hashType > (word32)WC_HASH_TYPE_MAX)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -8589,9 +9287,20 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         ret = MISSING_KEY;
     }
     /* First sanity check on hashType; the downstream prehash validator does
-     * the detailed check for the actual type. */
-    else if ((word32)hashType > (word32)WC_HASH_TYPE_MAX) {
+     * the detailed check.  WC_HASH_TYPE_NONE is never a valid pre-hash
+     * (FIPS 205 Section 10.2.2, Algorithm 23), rejected here to match
+     * wc_SlhDsaKey_SignHash rather than relying on the validator. */
+    else if ((hashType == WC_HASH_TYPE_NONE) ||
+             ((word32)hashType > (word32)WC_HASH_TYPE_MAX)) {
         ret = BAD_FUNC_ARG;
+    }
+
+    /* FIPS 205 sec. 10.2.2 with sec. 11: enforce PH <-> paramSet matching
+     * verification on all build paths, matching wc_SlhDsaKey_SignHash.
+     * A compliant signer never emits a disallowed combo, so this rejects
+     * only out-of-policy signatures. */
+    if (ret == 0) {
+        ret = slhdsa_check_hash_for_n(hashType, key->params->n);
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8780,12 +9489,31 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
     if (ret == 0) {
         byte root[SLHDSA_MAX_N];
         byte n = key->params->n;
+        HashAddress adrs;
 
-        /* Cache the public key root as making the key overwrites. */
-        XMEMCPY(root, key->sk + 3 * n, n);
-        ret = wc_SlhDsaKey_MakeKeyWithRandom(key, key->sk, n, key->sk + n, n,
-                key->sk + 2 * n, n);
-        /* Compare computed root with what was cached. */
+        /* FIPS 205 sec 9.1 Algorithm 18 (slh_keygen_internal) lines 1-3: PK.root
+         * is the root of the top-layer XMSS tree over SK.seed and PK.seed.
+         * Recompute it and require it to equal the PK.root held at
+         * key->sk + 3*n.
+         *
+         * The root is computed into a local buffer, so no key material, root or
+         * flag is written on any path, only the key's transient hash contexts
+         * are used as scratch, exactly as signing does.  Calling
+         * wc_SlhDsaKey_MakeKeyWithRandom() here instead would overwrite
+         * key->sk + 3*n, reset key->flags and re-run the SHA-2 midstate
+         * precompute, leaving this function's non-mutating contract dependent on
+         * a save/restore list staying in step with everything that function
+         * touches, including on its error paths, where a partly-rebuilt
+         * midstate would have been re-marked usable by a restored flags word.
+         *
+         * The SHA-2 midstates this walk consumes were established when the
+         * private key was set: wc_SlhDsaKey_MakeKeyWithRandom() and
+         * wc_SlhDsaKey_ImportPrivate() both run the precompute before setting
+         * WC_SLHDSA_FLAG_PRIVATE, which is required above. */
+        HA_Init(adrs);
+        HA_SetLayerAddress(adrs, key->params->d - 1);
+        ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
+                key->sk + 2 * n, adrs, root);
         if ((ret == 0) && (XMEMCMP(root, key->sk + 3 * n, n) != 0)) {
             ret = WC_KEY_MISMATCH_E;
         }
@@ -8815,8 +9543,10 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* priv, word32* privLen)
             (privLen == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check private key buffer length. */
-    else if (*privLen < key->params->n * 4) {
+    /* Check private key buffer length.  params->n is a byte and promotes to
+     * int, so the comparison against a word32 is signed/unsigned (MSVC C4018);
+     * cast to match the word32 the else branch below already uses. */
+    else if (*privLen < (word32)key->params->n * 4U) {
         ret = BAD_LENGTH_E;
     }
     else {
@@ -8850,8 +9580,9 @@ int wc_SlhDsaKey_ExportPublic(SlhDsaKey* key, byte* pub, word32* pubLen)
             (pubLen == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check public key buffer length. */
-    else if (*pubLen < key->params->n * 2) {
+    /* Check public key buffer length.  See the C4018 note in
+     * wc_SlhDsaKey_ExportPrivate() above. */
+    else if (*pubLen < (word32)key->params->n * 2U) {
         ret = BAD_LENGTH_E;
     }
     else {
@@ -8895,6 +9626,33 @@ int wc_SlhDsaKey_PrivateSize(SlhDsaKey* key)
  * @return  Public key data length in bytes on success.
  * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
  */
+/* Get the security parameter n, in bytes, for the key's parameter set.
+ *
+ * n is the length of EACH of the three caller-supplied random values that
+ * wc_SlhDsaKey_MakeKeyWithRandom() takes (SK.seed, SK.prf and PK.seed), and is
+ * 16, 24 or 32 for the 128, 192 and 256 parameter sets respectively
+ * (FIPS 205 Table 2).  Without this a caller has to hard-code it per parameter
+ * set or divide wc_SlhDsaKey_PublicSize() by two.
+ *
+ * @param  [in]  key  SLH-DSA key.
+ * @return  n in bytes on success.
+ * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
+ */
+int wc_SlhDsaKey_SeedSize(SlhDsaKey* key)
+{
+    int ret;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (key->params == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = (int)key->params->n;
+    }
+
+    return ret;
+}
+
 int wc_SlhDsaKey_PublicSize(SlhDsaKey* key)
 {
     int ret;
@@ -8998,6 +9756,29 @@ int wc_SlhDsaKey_PrivateSizeFromParam(enum SlhDsaParam param)
  * @return  Public key data length in bytes on success.
  * @return  NOT_COMPILED_IN when parameters not supported.
  */
+/* Get the security parameter n, in bytes, for a parameter set.
+ *
+ * Same value as wc_SlhDsaKey_SeedSize() but without needing an initialized
+ * key, so a caller can size its buffers before wc_SlhDsaKey_Init().
+ * The public key is a seed and a hash, both n bytes, so n is half of
+ * wc_SlhDsaKey_PublicSizeFromParam(), derived from it rather than restating
+ * the per-parameter-set table, so the two cannot drift apart.
+ *
+ * @param  [in]  param  SLH-DSA parameter set.
+ * @return  n in bytes on success.
+ * @return  BAD_FUNC_ARG when param is not a recognized parameter set.
+ */
+int wc_SlhDsaKey_SeedSizeFromParam(enum SlhDsaParam param)
+{
+    int ret = wc_SlhDsaKey_PublicSizeFromParam(param);
+
+    if (ret > 0) {
+        ret /= 2;
+    }
+
+    return ret;
+}
+
 int wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param)
 {
     int ret;

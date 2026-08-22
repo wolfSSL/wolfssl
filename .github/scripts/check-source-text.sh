@@ -256,7 +256,7 @@ check_flush_left_calls() {
     have_c_like || return 0
     emit_hits "flush-left-call" "flush-left function call (debug residue?)" \
         < <(LC_ALL=C grep -P -n \
-            -e '^(?!(?:wc_)?static_assert[0-9]* *\(|module_init *\(|module_exit *\(|[A-Z][A-Z0-9_]* *\()[a-zA-Z_]+[a-zA-Z0-9_]* *\(.*\);' \
+            -e '^(?!(?:wc_)?static_assert[0-9]* *\(|module_init *\(|module_exit *\(|module_param[a-z_]* *\(|[A-Z][A-Z0-9_]* *\()[a-zA-Z_]+[a-zA-Z0-9_]* *\(.*\);' \
             -- "${C_LIKE[@]}" 2>/dev/null || true)
 }
 

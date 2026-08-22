@@ -2648,9 +2648,12 @@ static int rsa_pss_calc_salt(int saltLen, int hashLen, int emLen)
             break;
         case WC_RSA_PSS_SALTLEN_MAX_SIGN:
         case WC_RSA_PSS_SALTLEN_MAX:
-        #ifdef WOLFSSL_PSS_LONG_SALT
+        #if defined(WOLFSSL_PSS_LONG_SALT) && !FIPS_VERSION3_GE(7,0,0)
             saltLen = emLen - hashLen - 2;
         #else
+            /* FIPS 186-5 sec 5.4(g): 0 <= sLen <= hLen, so the largest salt an
+             * approved service may use is hLen, cap "max" there rather than
+             * asking wolfCrypt for a length it will reject with PSS_SALTLEN_E. */
             saltLen = hashLen;
             (void)emLen;
         #endif

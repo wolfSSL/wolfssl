@@ -27,7 +27,7 @@
 # This reproduces, at build time and against the final ELF image, exactly what
 # DoInCoreCheck() in wolfcrypt/src/fips_test.c computes at run time:
 #
-#   HMAC-SHA256( coreKey,
+#   HMAC-SHA256/384/512( coreKey,   (digest chosen from verifyCore[] size)
 #                .text  bytes in [wolfCrypt_FIPS_first, wolfCrypt_FIPS_last)
 #                ||
 #                .rodata bytes in [wolfCrypt_FIPS_ro_start, wolfCrypt_FIPS_ro_end)
@@ -120,13 +120,17 @@ digest_bytes=$(( (VCSZ - 1) / 2 ))
 case "$digest_bytes" in
     32) ALG=sha256 ;;
     48) ALG=sha384 ;;
+    64) ALG=sha512 ;;
     *)  die "unexpected verifyCore size ($VCSZ); cannot determine digest" ;;
 esac
 
 # Read the HMAC key (coreKey) as ASCII hex straight out of the binary.
 keyoff=$(vaddr_to_off "$keyaddr") || die "cannot map coreKey address to file offset"
 KEYHEX=$(extract "$keyoff" $((KEYSZ - 1)))
-[ "${#KEYHEX}" -eq $((digest_bytes * 2)) ] || die "coreKey length mismatch in binary"
+# Take the key length from the coreKey[] symbol, not from the digest size: they
+# coincided through SHA-256 but v7's SHA-512 uses a 128-byte key, not 64.
+[ "${#KEYHEX}" -eq $((KEYSZ - 1)) ] || die "coreKey length mismatch in binary"
+case "$KEYHEX" in *[!0-9A-Fa-f]*) die "coreKey is not ASCII hex" ;; esac
 
 # File offsets for the measured regions.
 codeoff=$(vaddr_to_off "$first")   || die "cannot map wolfCrypt_FIPS_first"

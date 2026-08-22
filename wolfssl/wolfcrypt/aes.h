@@ -44,22 +44,18 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 /* WOLFSSL_ARM32_AES_HW_FLAGS - whether the Aes object carries the run-time
  * implementation-selection flags on 32-bit Arm.
  *
- * On 32-bit Arm both the base (table) AES and the Armv8 crypto-extension AES
- * are compiled into one object by default, and the implementation is chosen at
- * run time through aes->use_aes_hw_crypto - mirroring the AArch64 path.  The
- * base fallback can be dropped with WOLFSSL_ARMASM_NO_BASE_IMPL (crypto always
- * present), and WOLFSSL_ARMASM_NO_HW_CRYPTO keeps only the base, both of which
- * revert to direct calls with no run-time check.  Thumb-2 has base assembly
- * only - no crypto-extension AES - so it never dispatches either.
+ * A non-FIPS 32-bit Arm build compiles both the base (table) AES and the Armv8
+ * crypto-extension AES and picks between them at run time through
+ * aes->use_aes_hw_crypto; aes.c does the picking under
+ * WOLFSSL_ARM32_AES_DISPATCH.  A FIPS build does not: settings.h defines
+ * WOLFSSL_ARMASM_NO_BASE_IMPL and WOLFSSL_ARMASM_NO_NEON_IMPL for it, leaving
+ * the crypto-extension assembly as the single implementation, and these flags
+ * are never read.
  *
- * aes.c performs the dispatch under WOLFSSL_ARM32_AES_DISPATCH, deliberately
- * the same test as here with HAVE_CPUID_ARM32 added: a build with no run-time
- * detection to dispatch on falls back to the compile-time choice.  The flags
- * are not conditional on it because HAVE_CPUID_ARM32 depends on __ARM_ARCH,
- * which comes from -march rather than from options.h, and the layout of a
- * public structure must not vary with a compiler flag the application is not
- * obliged to match.  A build with the flags but no run-time detection simply
- * never reads them. */
+ * Do not restore the run-time selection under FIPS, and do not treat any
+ * argument in favour of it as settled - the analysis is in
+ * linuxkm/SVR-FALLBACK-ANALYSIS.md and the rule is one implementation per
+ * algorithm inside the boundary. */
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
     !defined(WOLFSSL_ARMASM_THUMB2) && \
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && \
@@ -93,6 +89,12 @@ typedef struct Gcm {
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
+/* GCM_SMALL form of GMULT; scoped so it does not clash with the static
+ * table-mode (GCM_TABLE/GCM_TABLE_4BIT) GMULT. */
+#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) && defined(GCM_SMALL)
+WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
+#endif
 WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
                                             word32 aSz, const byte* c,
                                             word32 cSz, byte* s, word32 sSz);
@@ -350,7 +352,18 @@ struct Aes {
     ALIGN16 bs_word bs_key[15 * WC_AES_BLOCK_SIZE * BS_WORD_SIZE];
 #endif
     word32  rounds;
-#ifdef WC_C_DYNAMIC_FALLBACK
+/* One implementation per algorithm, fixed at compile time, PAA or software,
+ * never both.  FIPS 140-3 IG 10.3.A GeneralNote1: each implementation in the
+ * module is self-tested separately, and no CAST covers a per-call choice.
+ * See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
+#if defined(WC_C_DYNAMIC_FALLBACK) && \
+    (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
+     defined(WOLFSSL_FIPS_DEV)) && \
+    !defined(WC_FIPS_UNCERTIFIED_BUILD)
+    #error "WC_C_DYNAMIC_FALLBACK: second AES in the Aes struct."
+#endif
+
+#if defined(WC_C_DYNAMIC_FALLBACK) && defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     word32 key_C_fallback[60];
 #endif
     int     keylen;
@@ -546,11 +559,20 @@ struct Aes {
 
 #ifdef WOLFSSL_AES_XTS
     #if FIPS_VERSION3_GE(6,0,0)
-        /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-         * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-         * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
-         */
+        /* SP 800-38E sec 4: the length of a DATA UNIT shall not exceed 2^20 AES
+         * blocks (16,777,216 bytes).  Per data unit, NOT per key.  One key
+         * protects many data units, and 38E makes a per-key restriction optional
+         * ("may further restrict").  One data unit is one tweak, so the
+         * streaming counter resets with the tweak in wc_AesXtsEncryptInit(). */
         #define FIPS_AES_XTS_MAX_BYTES_PER_TWEAK 16777216
+        #if defined(WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING)
+            /* The streaming ceiling is enforced against
+             * stream->bytes_crypted_with_this_tweak, which only this accounting
+             * maintains.  Compiling it out leaves the SP 800-38E check reading a
+             * counter that never advances, so the limit silently never trips.
+             * Fail the build rather than ship an unenforced "shall". */
+            #error "SP 800-38E per-data-unit limit would go unenforced."
+        #endif
     #endif
     struct XtsAes {
         Aes aes;
@@ -1221,6 +1243,15 @@ WOLFSSL_LOCAL void AES_XTS_encrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#ifdef WOLFSSL_AESXTS_STREAM
+/* Block-streaming entry points.  Same implementation as the one-shot pair
+ * above; the running tweak is read from and written back to "tweak" instead
+ * of being derived from an IV under key2. */
+WOLFSSL_LOCAL void AES_XTS_encrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+#endif /* WOLFSSL_AESXTS_STREAM */
 #endif /* WOLFSSL_AES_XTS */
 #endif /* __aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 

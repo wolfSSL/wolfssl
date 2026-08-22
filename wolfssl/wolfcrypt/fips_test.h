@@ -75,7 +75,9 @@ enum FipsCastId {
     FIPS_CAST_RSA_SIGN_PKCS1v15 =  7,
     FIPS_CAST_ECC_CDH           =  8,
     FIPS_CAST_ECC_PRIMITIVE_Z   =  9,
-    FIPS_CAST_DH_PRIMITIVE_Z    = 10,
+    FIPS_CAST_DH_PRIMITIVE_Z    = 10, /* RETIRED (v7+): classic DH left the
+                                       * module boundary.  Kept for ABI; do
+                                       * not reuse this id. */
     FIPS_CAST_ECDSA             = 11,
     FIPS_CAST_KDF_TLS12         = 12,
     FIPS_CAST_KDF_TLS13         = 13,
@@ -93,8 +95,42 @@ enum FipsCastId {
     FIPS_CAST_XMSS              = 23,
     FIPS_CAST_DRBG_SHA512       = 24,
     FIPS_CAST_SLH_DSA           = 25,
-    /* Vendor-elected enhanced self-tests, appended so the ids above keep
-     * their v7.0.0 values. */
+    /* Retired vendor-elected CASTs (v7 lab-prep).  The dedicated AES-CMAC,
+     * SHAKE and AES-KW CASTs were removed because FIPS 140-3 IG 10.3.A covers
+     * them via the more-complex tier: AES-CMAC and AES-KW by the AES-GCM CAST
+     * (1.d items (i) and (ii)), and SHAKE by the HMAC-SHA3-256 CAST (item 3 +
+     * Note 2, shared Keccak-p).  AES-KW *unwrap* additionally gates on the
+     * AES-CBC CAST, because 1.c requires the inverse cipher to be self-tested
+     * and AES-GCM exercises the forward direction only (see
+     * wc_AesKeyUnWrap_fips in fips.c).  The ids are KEPT (do not reuse) so code
+     * that still references them compiles, and the *services* re-gate onto the
+     * covering CAST.
+     *
+     * State these ids reach, verified by running the module rather than read
+     * off this comment (an earlier revision claimed they "stay at INIT", which
+     * is only half the story):
+     *   - DoPOST() and wc_RunAllCast_fips() never touch them, so after a normal
+     *     power-on they read FIPS_CAST_STATE_INIT.
+     *   - DoCAST() DOES have a case for each (see fips_test.c) and stores a
+     *     terminal FIPS_CAST_STATE_SUCCESS without running any KAT.  So an
+     *     operator exercising the on-demand self-test service required by
+     *     ISO/IEC 19790:2012 sec 7.10.3 -- wc_RunCast_fips(id) -- gets a 0
+     *     return and leaves the slot reading SUCCESS.  The alternative,
+     *     omitting the case, leaves the slot at PROCESSING forever while
+     *     wc_RunCast_fips() still returns 0: the same false pass, less visible.
+     *   - FIPS_CAST_DH_PRIMITIVE_Z (= 10) behaves identically on both counts.
+     *   - FIPS_CAST_ECC_CDH (= 8) is a FIFTH id in the same position on the
+     *     submitted build.  Its KAT needs HAVE_ECC_CDH_CAST, which no
+     *     configure option defines, so the #else arm of its DoCAST() case
+     *     stores a terminal SUCCESS with no KAT.  Unlike ids 10 and 26-28 it
+     *     is not retired: a build that defines HAVE_ECC_CDH_CAST runs the KAT.
+     * A status array holding SUCCESS for these five ids therefore does not mean
+     * five extra KATs ran.  The arithmetic is 29 identifiers, 25 with a KAT,
+     * 24 executed on the submitted build.  PL-R34 sec 10.5 (the note following
+     * the wc_RunCast_fips() input list) and PL-R36 (the paragraph beginning
+     * "The FipsCastId enum ... defines twenty-nine (29)") state the same
+     * numbers and name all five ids; if you change this comment, check that
+     * those two passages still agree with it. */
     FIPS_CAST_AES_CMAC          = 26,
     FIPS_CAST_SHAKE             = 27,
     FIPS_CAST_AES_KW            = 28,

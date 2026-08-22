@@ -335,22 +335,53 @@ enum wolfCrypt_ErrorCodes {
                                   * match request */
 
     SLH_DSA_PCT_E       = -1020, /* SLH-DSA Pairwise Consistency Test failure */
-    CMAC_KAT_FIPS_E     = -1021, /* AES-CMAC KAT failure */
-    SHAKE_KAT_FIPS_E    = -1022, /* SHAKE KAT failure */
-    DH_PCT_E            = -1023, /* DH Pairwise Consistency Test failure.
-                                  * Retired in FIPS v7+ (classic DH left the
-                                  * module boundary); the code stays allocated
-                                  * so fips.c can report it as retired rather
-                                  * than unknown. */
-    AES_KW_KAT_FIPS_E   = -1024, /* AES Key Wrap KAT failure */
+    /* -1021 CMAC_KAT_FIPS_E, -1022 SHAKE_KAT_FIPS_E and -1024
+     * AES_KW_KAT_FIPS_E were removed in the v7 lab-prep pass.  Those
+     * vendor-elected CASTs are gone and the services now gate on the covering
+     * AES-GCM (CMAC/KW) and HMAC-SHA3-256 (SHAKE) CASTs per FIPS 140-3
+     * IG 10.3.A 1.d, so the codes could never be raised.  THE THREE NUMBERS
+     * REMAIN RESERVED, do not reallocate them to a new condition, or a
+     * caller or a log from an older module would be read as the new one.
+     * (The numbering is version-specific anyway: the v5.2.1 module gives
+     * -1022 to DH_PCT_E, so cross-version log analysis must key on the module
+     * version, never on the bare number.) */
+    DH_PCT_E            = -1023, /* DH (FFC) Pairwise Consistency Test failure
+                                  * (SP 800-56A r3 sec 5.6.2.1.4, IG 10.3.A
+                                  * Additional Comment 1).
+                                  * RETAINED, unlike the three codes above:
+                                  * this header is shared source, not part of
+                                  * the frozen file set, so the v5 and v6
+                                  * modules still need this symbol.  In v7 the
+                                  * PCT is optional (HAVE_DH_PCT_TEST) because
+                                  * classic DH left the module boundary, and
+                                  * v7 never raises this code, fips.c reports
+                                  * an injection of it as retired. */
+    /* -1024 AES_KW_KAT_FIPS_E removed with -1021/-1022 above; number reserved. */
     FIPS_WRONG_API_E    = -1025, /* Requested API is not allowed in FIPS mode */
     KMAC_MIN_KEYLEN_E   = -1026, /* FIPS Mode KMAC Minimum Key Length error */
     FIPS_BAD_VALUE_E    = -1027, /* Supplied value was rejected by FIPS policy */
-    FIPS_UNAPPROVED_E   = -1028, /* Requested operation succeeded, but supplied */
-                                 /* parameters are unapproved for FIPS */
+    /* NOTE: there is deliberately no "unapproved" ERROR code here.  A service
+     * that ran but was not an approved one is not a failure, so it is reported
+     * through the positive approved-service indicator WC_FIPS_NOT_APPROVED
+     * (enum wc_FipsIndicator, fips.h): ret < 0 error, ret == 0 approved
+     * success, ret > 0 success by a non-approved service. */
+    /* -1028 was FIPS_UNAPPROVED_E, removed for the reason in that NOTE.  The
+     * number is RESERVED and is deliberately not reused below, on the same
+     * rule as -1021/-1022/-1024 above: a number that has ever named one
+     * condition must not come back naming another. */
+    /* -1029 was WC_IMPL_PIN_E, raised when the single implementation a
+     * build was pinned to needed CPU features the processor lacked.  The
+     * per-algorithm implementation pin was removed on 12 August 2026 --
+     * see linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0, so nothing can raise it.
+     * RESERVED, not reallocated, on the same rule as -1021/-1022/-1024
+     * and -1028 above. */
 
-    WC_SPAN2_LAST_E     = -1028, /* Update to indicate last used error code */
-    WC_LAST_E           = -1028, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1029, /* Update to indicate last used error code.
+                                  * Deliberately left at -1029 although nothing
+                                  * uses that number any more: holding the span
+                                  * end here is what keeps the RESERVED -1029
+                                  * from being handed out again. */
+    WC_LAST_E           = -1029, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */

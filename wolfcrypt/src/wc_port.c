@@ -321,6 +321,24 @@ int wc_local_InitUpDone(wc_init_state_t *s)
     return 0;
 }
 
+int wc_local_InitUpFailed(wc_init_state_t *s)
+{
+    union wc_init_state_bitfields cur_wc_init_state;
+    cur_wc_init_state.u = WOLFSSL_ATOMIC_LOAD(*s);
+    if (cur_wc_init_state.c.state != WC_INIT_STATE_INITING)
+        return BAD_FUNC_ARG;
+    /* .count is necessarily 1 here: wc_local_InitUp() cannot increment it while
+     * _STATE_INITING is held, and _STATE_UNINITED requires .count == 0.
+     */
+    cur_wc_init_state.c.state = WC_INIT_STATE_UNINITED;
+    cur_wc_init_state.c.count = 0;
+    /* As in wc_local_InitUpDone(), _STATE_INITING functions as a mutex on the
+     * module state, so a plain _STORE() releases the object.
+     */
+    WOLFSSL_ATOMIC_STORE(*s, cur_wc_init_state.u);
+    return 0;
+}
+
 int wc_local_InitDown(wc_init_state_t *s)
 {
     union wc_init_state_bitfields exp_wc_init_state, new_wc_init_state;
@@ -5744,23 +5762,32 @@ int wc_accept_cloexec(int sockfd, void* addr, void* addrlen)
 #endif /* (__unix__ || __APPLE__) && !WOLFSSL_KERNEL_MODE && !WOLFSSL_ZEPHYR &&
         * !WOLFSSL_SGX */
 
-#if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
-    defined(WC_SYM_RELOC_TABLES)
-#ifndef CONFIG_ARCH_TEGRA
+/* Forwarding definitions for the system-header shims installed in
+ * linuxkm/linuxkm_wc_port.h.  wc_port.c is a containerized (PIE) object, which
+ * is where these have to live: the container is link-checked on its own, so a
+ * shimmed name that resolves outside it is still an unresolved symbol.  The
+ * conditions are the same WC_LINUXKM_HAVE_* macros the #define, the #undef,
+ * the table member and the table population use -- the four sites disagreeing
+ * is what left "U my__alt_cb_patch_nops" in the container on arm64/6.1+ with
+ * CONFIG_ARCH_TEGRA=y.
+ */
+#if defined(WOLFSSL_LINUXKM) && defined(WC_CONTAINERIZE_THIS)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#ifdef WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS
 noinstr void my__alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
                                    __le32 *updptr, int nr_inst)
 {
     return WC_PIE_INDIRECT_SYM(alt_cb_patch_nops)
         (alt, origptr, updptr, nr_inst);
 }
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) */
+#endif /* WC_LINUXKM_HAVE_ALT_CB_PATCH_NOPS */
 
+#ifdef WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH
 void my__queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 {
     return WC_PIE_INDIRECT_SYM(queued_spin_lock_slowpath)
         (lock, val);
 }
-#endif
-#endif
+#endif /* WC_LINUXKM_HAVE_QUEUED_SPIN_LOCK_SLOWPATH */
+
+#endif /* WOLFSSL_LINUXKM && WC_CONTAINERIZE_THIS */

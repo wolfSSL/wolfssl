@@ -24,6 +24,12 @@ CFLAGS="$CFLAGS $C_EXTRA_FLAGS $C_FLAGS"
 
 AC_PROG_CC
 AM_PROG_CC_C_O
+# 32-bit targets must use 64-bit file offsets: ext4 returns d_off = INT64_MAX as
+# its end-of-directory marker, which does not fit a 32-bit struct dirent, and
+# glibc's readdir() then fails with EOVERFLOW instead of truncating.  wc_port.c
+# enumerates certificate directories with readdir(), so without this
+# wolfSSL_CTX_load_verify_locations() over a directory fails on 32-bit hosts.
+AC_SYS_LARGEFILE
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -556,7 +562,6 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
 #   dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
 #   v5-ready - Alias for ready.
-#   v5-dev - Alias for dev.
 #   v6     - The SRTP-KDF-full-submission
 #
 # These options have been retired, but are listed here for historical reference:
@@ -569,10 +574,19 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   v5-RC11 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
 #             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
 #   v5-RC12 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC12
+#   v5-dev, v5-kcapi, v6-dev - removed 2026-08.  They straddled the
+#             certifiable/development split: exempt from FIPS_CERTIFIABLE while
+#             still being handed an implementation pin, and excluded from
+#             WOLFSSL_FIPS_DEV by a version test, so configure and settings.h
+#             disagreed about the same build.  --enable-fips=v6-dev
+#             --enable-linuxkm could not compile as a result.  A FIPS build is
+#             certifiable only as v5, v6, v7 or ready; anything with
+#             ENABLED_FIPS_DEV / WOLFSSL_FIPS_DEV set is not.  Use
+#             --enable-fips=dev or --enable-fips=dev-no-post for development.
 
 # FIPS dev/ready is always one major increment ahead of the latest tagged
 # version:
-FIPS_DEVREADY_MAJOR=7
+FIPS_DEVREADY_MAJOR=8
 FIPS_DEVREADY_MINOR=0
 FIPS_DEVREADY_PATCH=0
 
@@ -652,24 +666,6 @@ AS_CASE([$ENABLED_FIPS],
         DEF_SP_MATH_ALL="no"
         DEF_FAST_MATH="yes"
     ],
-    [v5-dev],[
-        FIPS_VERSION="v5-dev"
-        HAVE_FIPS_VERSION_MAJOR=5
-        HAVE_FIPS_VERSION_MINOR=2
-        HAVE_FIPS_VERSION_PATCH=1
-        ENABLED_FIPS="yes"
-        ENABLED_FIPS_DEV=yes
-        # for dev, DEF_SP_MATH_ALL and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
-    ],
-    [v5-kcapi],[
-        FIPS_VERSION="v5-dev"
-        HAVE_FIPS_VERSION_MAJOR=5
-        HAVE_FIPS_VERSION_MINOR=3
-        HAVE_FIPS_VERSION_PATCH=0
-        ENABLED_FIPS="yes"
-        ENABLED_FIPS_DEV=yes
-        # for dev, DEF_SP_MATH_ALL and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
-    ],
     [v6],[
         FIPS_VERSION="v6"
         HAVE_FIPS_VERSION=6
@@ -679,16 +675,6 @@ AS_CASE([$ENABLED_FIPS],
         ENABLED_FIPS="yes"
         DEF_SP_MATH_ALL="yes"
         DEF_FAST_MATH="no"
-    ],
-    [v6-dev],[
-        FIPS_VERSION="v6"
-        HAVE_FIPS_VERSION=6
-        HAVE_FIPS_VERSION_MAJOR=6
-        HAVE_FIPS_VERSION_MINOR=0
-        HAVE_FIPS_VERSION_PATCH=0
-        ENABLED_FIPS="yes"
-        ENABLED_FIPS_DEV=yes
-        # for dev, DEF_SP_MATH_ALL and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [v7],[
         FIPS_VERSION="v7"
@@ -803,20 +789,47 @@ AS_CASE([$FIPS_VERSION],
 
 if test "$ENABLED_FIPS_DEV" = "yes"
 then
-    # Only signal WOLFSSL_FIPS_DEV if there is no wolfCrypt overlay, assuring
-    # that v5-dev and v6-dev are excluded.
-    if test $HAVE_FIPS_VERSION_MAJOR -ge $FIPS_DEVREADY_MAJOR
-    then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_DEV"
-    fi
+    # A development flavor is never a validation candidate, whatever version it
+    # reports.  Signal it unconditionally so ENABLED_FIPS_DEV (configure) and
+    # WOLFSSL_FIPS_DEV (settings.h) name the SAME population -- a version-based
+    # exception here is what previously let a flavor be exempt on one side and
+    # strict on the other, which made --enable-fips=v6-dev --enable-linuxkm
+    # uncompilable: configure enabled the RNG bank because the build was not
+    # certifiable, then settings.h refused it because WOLFSSL_FIPS_DEV was
+    # absent.  Certifiable means v5, v6, v7 or ready, and nothing else.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_DEV"
 else
     ENABLED_FIPS_DEV=no
 fi
 
+# FIPS_CERTIFIABLE -- this build is a candidate for validation, so the boundary
+# rules apply to it.  Every FIPS flavor except the uncertified development ones;
+# --enable-fips=ready is deliberately included, since "FIPS Ready" means "this
+# is what we would submit".  Same population as WC_FIPS_UNCERTIFIED_BUILD in
+# settings.h, which is the enforcement point -- this variable only keeps
+# configure from turning on, by default, something settings.h then refuses.
+if test "$ENABLED_FIPS" != "no" && test "$ENABLED_FIPS_DEV" != "yes"
+then
+    FIPS_CERTIFIABLE=yes
+    # Tell the headers, positively, that CONFIGURE selected a certifiable
+    # flavor.  WC_FIPS_UNCERTIFIED_BUILD is derived from WOLFSSL_FIPS_DEV,
+    # which is an ordinary user-definable macro: adding -DWOLFSSL_FIPS_DEV to
+    # CFLAGS, or one line in an OE's user_settings.h, would otherwise relax
+    # every boundary rule -- the fallback #error, the RNG-bank #error, the
+    # one-implementation requirement -- in a build that still reports itself as
+    # v7.  This macro is emitted only here, so settings.h can tell "the
+    # operator asked for a development build" from "the operator forced the
+    # development macro into a certified one" and refuse the second.
+    AM_CFLAGS="$AM_CFLAGS -DWC_FIPS_CERTIFIABLE_BUILD"
+else
+    FIPS_CERTIFIABLE=no
+fi
+
 if test "$ENABLED_FIPS_READY" = "yes"
 then
-    # Only signal WOLFSSL_FIPS_DEV if there is no wolfCrypt overlay, assuring
-    # that v5-ready is excluded.
+    # WOLFSSL_FIPS_READY marks only the current FIPS Ready major, so v5-ready
+    # (major 5, below FIPS_DEVREADY_MAJOR) does not get it.  Both flavors are
+    # certifiable, so consumers must test HAVE_FIPS too, not this macro alone.
     if test $HAVE_FIPS_VERSION_MAJOR -ge $FIPS_DEVREADY_MAJOR
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_READY"
@@ -900,6 +913,25 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_SYM_RELOC_TABLES"
 fi
 AC_SUBST([ENABLED_LINUXKM_PIE])
+
+# LINUXKM_RBGC: SP 800-90C Sec. 7 DRBG tree for the kernel module, serving
+# get_random_bytes() from inside the boundary.  A root RBGC construction seeds
+# per-CPU leaves; those are separate instantiations, so SP 800-90A Sec. 8.6.9
+# self-seeding does not apply.  Compiles one SHA-512, the portable C one, so no
+# transform is selected at run time.
+ENABLED_LINUXKM_RBGC=no
+AC_ARG_ENABLE([linuxkm-rbgc],
+    [AS_HELP_STRING([--enable-linuxkm-rbgc],[Enable the SP 800-90C chained DRBG construction for the Linux kernel module (default: disabled)])],
+    [ENABLED_LINUXKM_RBGC=$enableval])
+if test "$ENABLED_LINUXKM_RBGC" = "yes"
+then
+    if test "$ENABLED_LINUXKM" != "yes"
+    then
+        AC_MSG_ERROR([--enable-linuxkm-rbgc requires --enable-linuxkm.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_RBGC"
+fi
+AC_SUBST([ENABLED_LINUXKM_RBGC])
 
 AC_ARG_ENABLE([linuxkm-benchmarks],
     [AS_HELP_STRING([--enable-linuxkm-benchmarks],[Enable crypto benchmarking autorun at module load time for Linux kernel module (default: disabled)])],
@@ -1162,6 +1194,26 @@ AC_ARG_ENABLE([sp-asm],
     [ ENABLED_SP_ASM=$SP_ASM_DEFAULT ],
     )
 
+# --enable-sp-asm-portable is --enable-sp-asm with the portable lane chosen
+# instead of the fastest for this exact part, so it has to turn SP assembly on
+# HERE, beside --enable-sp-asm, and go through the same "SP asm requires SP"
+# promotion just below.  Its own AC_ARG_ENABLE is declared with the other
+# portable flags much further down, and setting ENABLED_SP_ASM there was too
+# late: ENABLED_SP was never promoted, so SP math stayed off and no
+# WOLFSSL_SP_ASM was defined, while the pin auto-selection still saw
+# ENABLED_SP_ASM=yes and pinned SP=X86_64 -- which settings.h then refused with
+# "WC_SP_IMPL names SP assembly".  Measured: --enable-fips=v7
+# --enable-sp-asm-portable configured and then failed to compile.  An
+# --enable-* accel flag on its own must configure and build, never error.
+# Read from the raw argument variable because ENABLED_SP_ASM_PORTABLE is not
+# assigned until that later AC_ARG_ENABLE runs.  --enable-sp-asm-native is the
+# same shape and needs the same early promotion for the same reason.
+if test "x$enable_sp_asm_portable" = "xyes" || \
+   test "x$enable_sp_asm_native" = "xyes"
+then
+    ENABLED_SP_ASM=yes
+fi
+
 if test "$ENABLED_SP_ASM" != "no"
 then
     if test "$ENABLED_SP" = "no"
@@ -1214,10 +1266,6 @@ if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64") &&
     test "$ENABLED_32BIT" != "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
-fi
-if test "$host_cpu" = "x86"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_BUILD"
 fi
 
 
@@ -1386,6 +1434,19 @@ AC_ARG_ENABLE([all],
     [ ENABLED_ALL=$enableval ],
     [ ENABLED_ALL=no ]
     )
+
+# --enable-all turns on algorithms and options that sit outside the validated
+# FIPS module boundary (e.g. deterministic ECDSA per RFC 6979, which has no
+# CAST), so it must not be combined with a certified FIPS module version: that
+# boundary is fixed and tested, and widening it invalidates the module.  The
+# uncertified in-development flavors are exempt.  Keyed on $ENABLED_FIPS_DEV
+# rather than $FIPS_VERSION: the version string is not a reliable name for a
+# dev build, and $ENABLED_FIPS_DEV is set once, by the flavor case arms
+# themselves, so it names exactly the development flavors.
+AS_IF([test "$ENABLED_ALL" = "yes"],
+    [AS_IF([test "$ENABLED_FIPS" = "yes" && test "$ENABLED_FIPS_DEV" != "yes"],
+        [AC_MSG_ERROR([--enable-all cannot be combined with --enable-fips=$FIPS_VERSION: it enables algorithms outside the FIPS module boundary, and a certified module version has a fixed, tested boundary. Use an uncertified development flavor (--enable-fips=dev or --enable-fips=dev-no-post), or drop --enable-all.])])])
+
 if test "$ENABLED_ALL" = "yes"
 then
     test "$enable_all_crypto" = "" && enable_all_crypto=yes
@@ -1648,12 +1709,27 @@ fi
 # have dedicated streaming assembly (AES_GCM_*_RISCV64).  (Previously disabled
 # here.)
 
+# Capture explicit --enable-dh/--enable-dsa before any default sets them: the
+# v7 out-of-scope guard hard-errors only on an explicit request.
+explicit_enable_dsa="$enable_dsa"
+explicit_enable_dh="$enable_dh"
+
 # All wolfCrypt features except quantum-resistant asymmetric:
 AC_ARG_ENABLE([all-crypto],
     [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms except quantum-resistant asymmetric (default: disabled)])],
     [ ENABLED_ALL_CRYPT=$enableval ],
     [ ENABLED_ALL_CRYPT=no ]
     )
+
+# Same rule as --enable-all above: a certified FIPS module version has a fixed,
+# tested algorithm boundary, and --enable-all-crypto pulls in whatever the tree
+# happens to carry.  Note --enable-all and --enable-wolfprovider both turn this
+# on implicitly, so this can fire without the flag appearing on the command
+# line.
+AS_IF([test "$ENABLED_ALL_CRYPT" = "yes"],
+    [AS_IF([test "$ENABLED_FIPS" = "yes" && test "$ENABLED_FIPS_DEV" != "yes"],
+        [AC_MSG_ERROR([--enable-all-crypto cannot be combined with --enable-fips=$FIPS_VERSION: it enables algorithms outside the FIPS module boundary, and a certified module version has a fixed, tested boundary. Note --enable-all and --enable-wolfprovider enable it implicitly. Use an uncertified development flavor (--enable-fips=dev or --enable-fips=dev-no-post), or drop --enable-all-crypto.])])])
+
 if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
@@ -1704,7 +1780,7 @@ then
     test "$enable_md4" = "" && enable_md4=yes
     test "$enable_md5" = "" && enable_md5=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
-    test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    test "$enable_rng_bank" = "" && test "$FIPS_CERTIFIABLE" != "yes" && enable_rng_bank=yes
     test "$enable_dh" = "" && enable_dh=yes
 
     if test "$KERNEL_MODE_DEFAULTS" != "yes"
@@ -1868,7 +1944,8 @@ then
         test "$enable_fpecc" = "" && enable_fpecc=yes
         test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     fi
-    test "$enable_rng" != "no" && test "$enable_rng_bank" = "" && enable_rng_bank=yes
+    test "$enable_rng" != "no" && test "$enable_rng_bank" = "" && \
+        test "$FIPS_CERTIFIABLE" != "yes" && enable_rng_bank=yes
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
         test "$enable_aes" != "no" && test "$enable_aescfb" = "" && enable_aescfb=yes
@@ -2731,15 +2808,41 @@ then
 fi
 
 AC_ARG_ENABLE([rng-bank],
-    [AS_HELP_STRING([--enable-rng-bank],[Enable compiling and using RNG banks (default: disabled)])],
+    [AS_HELP_STRING([--enable-rng-bank],[Enable compiling and using RNG banks (default: enabled except in a validation-targeted FIPS build)])],
     [ ENABLED_RNG_BANK=$enableval ],
-    [ ENABLED_RNG_BANK=$KERNEL_MODE_DEFAULTS ]
+    [ dnl The default must withhold itself wherever the bank cannot be built,
+      dnl because the two AC_MSG_ERRORs below are worded for an EXPLICIT
+      dnl request and are right to keep failing on one.  A default that walks
+      dnl into them turns an unrelated build into a configure error:
+      dnl --enable-cryptonly --disable-rng did exactly that.
+        dnl --enable-selftest is one such place.  It does not set ENABLED_FIPS,
+        dnl so FIPS_CERTIFIABLE is "no" and this default used to land on yes --
+        dnl but a selftest build withholds the modern DRBG internals from
+        dnl random.h (struct DRBG_internal, enum wc_RngHealthState,
+        dnl wc_InitRngNonce_ex), which is exactly what rng_bank.c needs.  The
+        dnl build then died in rng_bank.c and wolfcrypt/test/test.c.
+        dnl ENABLED_SELFTEST is not parsed until far later in this file, so test
+        dnl the raw autoconf variable: every --enable-* becomes an enable_* shell
+        dnl var during option parsing, before any AC_ARG_ENABLE body runs.  An
+        dnl EXPLICIT --enable-rng-bank is unaffected and still reaches the
+        dnl AC_MSG_ERRORs below, which is the intent.
+      AS_IF([test "$FIPS_CERTIFIABLE" = "yes"], [ ENABLED_RNG_BANK=no ],
+              [test "x$enable_selftest" != "x" && \
+               test "x$enable_selftest" != "xno"], [ ENABLED_RNG_BANK=no ],
+            [test "$ENABLED_RNG" = "no"],       [ ENABLED_RNG_BANK=no ],
+            [ ENABLED_RNG_BANK=yes ]) ]
     )
 
 if test "$ENABLED_RNG_BANK" = "yes"
 then
     AS_IF([test "$ENABLED_RNG" = "no"],
     AC_MSG_ERROR([--enable-rng-bank requires --enable-rng]))
+    # Permitted: rng_bank.c is linked OUTSIDE the boundary markers and calls
+    # the approved wc_RNG_GenerateBlock() rather than replacing it, so the bank
+    # is a caller acting as a pseudo Cryptographic Officer over DRBG instances,
+    # not an implementation inside the module.  It still writes WC_RNG fields
+    # the module declares but never reads; that residue is a header question,
+    # not a boundary one.  Design by @lealem47.
     AM_CFLAGS="$AM_CFLAGS -DWC_RNG_BANK_SUPPORT"
 fi
 
@@ -4390,13 +4493,15 @@ then
             AC_MSG_NOTICE([32bit ARMv4 found])
             ;;
         *)
-            AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8 -marm"
+            # ARMv8-A crypto extensions are OPTIONAL, so the armv8-32-*-asm.S
+            # crypto instructions need an explicit -march=armv8-a+crypto.
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv8-a+crypto -mfpu=crypto-neon-fp-armv8 -marm"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
             ENABLED_ARMASM_NEON=yes
             ENABLED_ARM_32=yes
-            AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8])
+            AC_MSG_NOTICE([32bit ARMv8 found, setting -march=armv8-a+crypto + mfpu=crypto-neon-fp-armv8])
             ;;
         esac
     esac
@@ -4639,10 +4744,22 @@ then
     AC_MSG_NOTICE([64-bit PowerPC assembly for AES])
     ENABLED_PPC64_ASM=yes
 fi
-if test "$ENABLED_PPC64_ASM_INLINE" = "yes" || test "$ENABLED_PPC64_ASM_INLINE_REG" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_INLINE"
-else
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM"
+# Scoped to a PowerPC64 build, which the else-branch was not: it sat outside
+# the test above, so EVERY build -- x86_64 included -- put -DWOLFSSL_PPC64_ASM
+# into CCASFLAGS.  No x86 source assembles a ppc64 file, so nothing linked
+# wrongly and it went unseen; what it did break is settings.h, which reads that
+# macro to answer "is this a target whose Keccak lives in assembly" and
+# therefore answered yes on an Intel part.  WC_SHA3_IMPL=C then #errored while
+# preprocessing aes_gcm_asm.S, and --with-fips-sha3-impl=PPC64_BASE was
+# accepted there instead of being refused.  Condition repeated verbatim from
+# the block above so the two cannot drift.
+if test "$ENABLED_PPC64_ASM" != "no" && test "$ENABLED_ASM" = "yes"; then
+    if test "$ENABLED_PPC64_ASM_INLINE" = "yes" || \
+       test "$ENABLED_PPC64_ASM_INLINE_REG" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_INLINE"
+    else
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC64_ASM"
+    fi
 fi
 if test "$ENABLED_PPC64_ASM_SMALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC64_ASM_SMALL"
@@ -4768,12 +4885,116 @@ AC_ARG_ENABLE([aesni-with-avx],
     [ ENABLED_AESNI_WITH_AVX=no ]
     )
 
+# Portable tier -- and, for a certified FIPS build, the DEFAULT tier.  These
+# ask for the widest-compatibility accelerated lane: SP X86_64 rather than
+# AVX2, AES AESNI rather than VAES, ML-KEM AVX2 rather than an AVX512_VBMI*
+# sub-lane.  The two axes are independent: portable PK with best-in-class
+# symmetric, or the reverse, are both valid.
+#
+# Naming them explicitly is still worth doing -- it records the intent in the
+# configure line the lab reviews, rather than relying on the default -- but
+# under a certified FIPS version they now select what would have been selected
+# anyway.  See the "-native" flags below for why.
+AC_ARG_ENABLE([sp-asm-portable],
+    [AS_HELP_STRING([--enable-sp-asm-portable],[Accelerate the asymmetric algorithms with the portable lane rather than the fastest for this exact part (default: enabled for certified FIPS versions, disabled otherwise)])],
+    [ ENABLED_SP_ASM_PORTABLE=$enableval ],
+    [ ENABLED_SP_ASM_PORTABLE=no ]
+    )
+AC_ARG_ENABLE([aesni-with-avx-portable],
+    [AS_HELP_STRING([--enable-aesni-with-avx-portable],[Accelerate the symmetric and hash algorithms with the portable lane rather than the fastest for this exact part (default: enabled for certified FIPS versions, disabled otherwise)])],
+    [ ENABLED_AESNI_WITH_AVX_PORTABLE=$enableval ],
+    [ ENABLED_AESNI_WITH_AVX_PORTABLE=no ]
+    )
+
+# Native tier -- "pin the lanes THIS BUILD HOST can run", read from
+# /proc/cpuinfo, the way -march=native reads the host to pick instructions.
+#
+# It has to be asked for.  A certified module is a fixed set of object code
+# claimed against a named operating environment, and until these flags existed
+# the pin auto-selection read the build host's CPU unconditionally: the same
+# commit and the same configure line produced a different lane, different
+# object code and a different in-core integrity hash depending on which machine
+# happened to run configure.  The reviewable damage is not the hash -- which
+# fips-hash.sh regenerates per build anyway -- it is that a customer building
+# on a part unlike the validated one silently shipped an implementation that
+# was never CAST'd or claimed for that OE, with nothing in the build output
+# saying so.
+#
+# So the default is now the portable tier, which depends only on the configure
+# line, and reading the build CPU is this opt-in.  An --enable-* accel flag on
+# its own still configures and builds -- it just names a lane that every part
+# of the architecture runs instead of the fastest one this machine has.
+#
+# Non-FIPS builds are unaffected either way: they carry no pin at all.
+AC_ARG_ENABLE([sp-asm-native],
+    [AS_HELP_STRING([--enable-sp-asm-native],[Accelerate the asymmetric algorithms with the fastest lane THIS BUILD HOST can run, read from its CPU (default: disabled)])],
+    [ ENABLED_SP_ASM_NATIVE=$enableval ],
+    [ ENABLED_SP_ASM_NATIVE=no ]
+    )
+AC_ARG_ENABLE([aesni-with-avx-native],
+    [AS_HELP_STRING([--enable-aesni-with-avx-native],[Accelerate the symmetric, hash and PQ algorithms with the fastest lane THIS BUILD HOST can run, read from its CPU (default: disabled)])],
+    [ ENABLED_AESNI_WITH_AVX_NATIVE=$enableval ],
+    [ ENABLED_AESNI_WITH_AVX_NATIVE=no ]
+    )
+if test "$ENABLED_SP_ASM_PORTABLE" = "yes"; then ENABLED_SP_ASM=yes; fi
+if test "$ENABLED_AESNI_WITH_AVX_PORTABLE" = "yes"; then ENABLED_AESNI_WITH_AVX=yes; fi
+if test "$ENABLED_SP_ASM_NATIVE" = "yes"; then ENABLED_SP_ASM=yes; fi
+if test "$ENABLED_AESNI_WITH_AVX_NATIVE" = "yes"; then ENABLED_AESNI_WITH_AVX=yes; fi
+if test "$ENABLED_SP_ASM_PORTABLE" = "yes" && \
+   test "$ENABLED_SP_ASM_NATIVE" = "yes"; then
+    AC_MSG_ERROR([--enable-sp-asm-portable and --enable-sp-asm-native ask for
+                  opposite lanes; name one.])
+fi
+if test "$ENABLED_AESNI_WITH_AVX_PORTABLE" = "yes" && \
+   test "$ENABLED_AESNI_WITH_AVX_NATIVE" = "yes"; then
+    AC_MSG_ERROR([--enable-aesni-with-avx-portable and
+                  --enable-aesni-with-avx-native ask for opposite lanes; name
+                  one.])
+fi
+
 # INTEL ASM
 AC_ARG_ENABLE([intelasm],
     [AS_HELP_STRING([--enable-intelasm],[Enable All Intel ASM speedups (default: disabled)])],
     [ ENABLED_INTELASM=$enableval ],
     [ ENABLED_INTELASM=no ]
     )
+
+# --enable-sp-asm means "speed up all the asymmetric work", and that includes
+# the PQ algorithms, whose accelerated lanes live behind USE_INTEL_SPEEDUP.
+# There is no PQ-only door: the same macro gates the ML-KEM/ML-DSA lanes, the
+# SHA lanes and AES, and in wc_mldsa.h:614 it changes the key struct layout
+# (byte p[MLDSA_MAX_PUB_KEY_SIZE+8] rather than [MLDSA_MAX_PUB_KEY_SIZE]), so
+# it has to be all or nothing.
+#
+# THIS LINE IS LOAD-BEARING, not a tidy-up.  It is the ONLY assignment of
+# ENABLED_INTELASM outside the --enable-intelasm flag itself, so it is what
+# makes the supported PAA line
+#     --enable-fips=v7 --enable-aesni-with-avx --enable-sp-asm
+# a PAA build for anything other than AES.  MEASURED 13 Aug 2026 by disabling
+# this test and re-running that exact configure line: USE_INTEL_SPEEDUP goes
+# from defined to ABSENT, leaving only USE_INTEL_SPEEDUP_FOR_AES -- i.e. AES
+# keeps its accelerated lane while SHA-256/512, SHA-3, ML-KEM and ML-DSA all
+# drop to scalar, and the ML-DSA key struct silently changes size.  Deleting
+# this is a de-acceleration of four algorithm families, not a simplification.
+#
+# WHY IT IS SCOPED TO FIPS BUILDS.  An earlier version of this note said
+# "FIPS builds are the ones that have to name a single implementation", which
+# was the per-algorithm implementation pin talking; that pin was deleted on
+# 12 August 2026 and the sentence went with it.  The reason that survives is
+# narrower and is about the supported surface, not about counting lanes: a
+# certified build has exactly two supported configure lines (see
+# linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0), and the PAA one has to actually be
+# PAA across the boundary rather than PAA for AES and scalar for everything
+# else.  Outside FIPS, --enable-sp-asm has never implied --enable-intelasm and
+# still does not; upstream semantics are unchanged.
+case $host_cpu in
+  *x86_64* | *amd64*)
+    if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_FIPS" != "no"
+    then
+        ENABLED_INTELASM=yes
+    fi
+    ;;
+esac
 
 if test "$ENABLED_ASM" = "yes"
 then
@@ -4797,7 +5018,11 @@ then
     if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
-        if test "$KERNEL_MODE_DEFAULTS" = "yes"
+        # Never enable WC_C_DYNAMIC_FALLBACK for a FIPS build; settings.h and
+        # fips.h #error on it as well, so a CFLAGS or user_settings.h route
+        # fails to compile rather than slipping past.  See
+        # linuxkm/SVR-FALLBACK-ANALYSIS.md.
+        if test "$KERNEL_MODE_DEFAULTS" = "yes" && test "$ENABLED_FIPS" = "no"
         then
                 AM_CFLAGS="$AM_CFLAGS -DWC_C_DYNAMIC_FALLBACK"
         fi
@@ -4823,14 +5048,18 @@ then
     then
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_X86_64_BUILD"
     fi
-    if test "$host_cpu" = "x86"
-    then
+    case $host_cpu in
+    x86 | i?86)
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_BUILD"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_X86_BUILD"
         ENABLED_X86_ASM=yes
-    fi
+        ;;
+    esac
 fi
 AC_SUBST([ENABLED_AESNI])
 AC_SUBST([ENABLED_AESNI_WITH_AVX])
+
+
 
 AC_ARG_ENABLE([aligndata],
     [AS_HELP_STRING([--enable-aligndata],[align data for ciphers (default: enabled)])],
@@ -6500,6 +6729,10 @@ if (test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
 then
     ENABLED_ANON=yes
 fi
+# Anonymous ciphers require classic DH, which is out of scope for the locked
+# FIPS 140-3 v7 module, so force anon off there however it was enabled.
+AS_IF([test "$FIPS_VERSION" = "v7"],
+    [ENABLED_ANON=no])
 if test "x$ENABLED_ANON" = "xyes"
 then
     if test "$ENABLED_DH" = "no"
@@ -7070,6 +7303,23 @@ AS_CASE([$FIPS_VERSION],
                 -DHAVE_ECC256"])
 
         DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
+
+# Classic DH/DSA scope by FIPS mode: v7 puts them out of scope (hard-error on an
+# explicit --enable-dh/--enable-dsa); dev/ready default off but allow opt-in.
+        AS_IF([test "$FIPS_VERSION" = "v7"],
+            [AS_IF([test "$explicit_enable_dh" = "yes"],
+                 [AC_MSG_ERROR([--enable-dh is not supported with --enable-fips=v7. Classic finite-field DH is out of scope for the FIPS 140-3 v7 PQ module. Use --enable-fips=v6 if you need DH support.])],
+                 [test "$ENABLED_DH" != "no"],
+                 [ENABLED_DH="no"; enable_dh="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
+             AS_IF([test "$explicit_enable_dsa" = "yes"],
+                 [AC_MSG_ERROR([--enable-dsa is not supported with --enable-fips=v7. DSA is retired by FIPS 186-5 and is out of scope for the FIPS 140-3 v7 PQ module. Use --enable-fips=v6 if you need DSA support.])],
+                 [test "$ENABLED_DSA" != "no"],
+                 [ENABLED_DSA="no"; enable_dsa="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DSA"])],
+            [AS_IF([test "$explicit_enable_dh" != "yes" && test "x$enable_all" != "xyes"],
+                 [ENABLED_DH="no"; enable_dh="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DH"])
+             AS_IF([test "$explicit_enable_dsa" != "yes" && test "x$enable_all" != "xyes"],
+                 [ENABLED_DSA="no"; enable_dsa="no"; AM_CFLAGS="$AM_CFLAGS -DNO_DSA"])])
+
 # optimizations section
 
 # protocol section
@@ -7250,6 +7500,13 @@ AS_CASE([$FIPS_VERSION],
         # LMS: enable SHA-256/192 and SHAKE256 parameter sets for FIPS v7
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_SHA256_192 -DWOLFSSL_LMS_SHAKE256"
 
+        # SP 800-208 sec 8.1: the key generation and signature generation
+        # algorithms shall only be validated for use within hardware
+        # cryptographic modules, and the module shall not allow the export of
+        # private keying material.  Build the stateful hash-based schemes for
+        # signature verification (SP 800-208 sec 8.2) only.
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_XMSS_VERIFY_ONLY -DWOLFSSL_LMS_VERIFY_ONLY"
+
         AS_IF([test "$ENABLED_SLHDSA" != "yes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_slhdsa" != "no")],
             [ENABLED_SLHDSA="yes"
@@ -7276,6 +7533,20 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_SHA512_DRBG" != "yes" &&
                test "$ENABLED_FIPS_DEV" != "yes"],
             [AC_MSG_ERROR([Can not disable SHA512-DRBG at build time in FIPS mode.  Disable it at run-time with wc_Sha512Drbg_Disable() or wc_Sha512Drbg_Disable_fips()])])
+
+# AES-CBC -- cannot be disabled at build time in FIPS mode.
+# AES-CBC is an approved algorithm the module claims, and its CAST is
+# additionally what IG 10.3.A 1.c relies on to cover AES key UNWRAP, which is
+# why FIPS_CAST_AES_KW (28) runs no KAT of its own.  With --disable-aescbc the
+# AES-CBC KAT is compiled out, the CTR/OFB arm of that DoCAST case stores a
+# terminal SUCCESS with no test having run, and wc_AesKeyUnWrap_fips() stays
+# exported and gates on that CAST -- so the inverse-cipher self-test the IG
+# requires never runs while the service still answers.  Refuse the
+# configuration rather than ship a module whose key-unwrap coverage argument is
+# false.  (Precedent: --enable-she already refuses --disable-aescbc.)
+        AS_IF([test "$ENABLED_AESCBC" = "no" &&
+               test "$ENABLED_FIPS_DEV" != "yes"],
+            [AC_MSG_ERROR([Can not disable AES-CBC at build time in FIPS mode.  AES-CBC is approved and its CAST covers AES key unwrap per IG 10.3.A 1.c.])])
 
 # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],
@@ -7738,14 +8009,12 @@ AS_CASE([$FIPS_VERSION],
             [enable_ssh="yes"])
 
         # Shake128 is a SHA-3 algorithm outside the v5 FIPS algorithm list
-        AS_IF([test "$ENABLED_SHAKE128" != "no" &&
-               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_shake128" = "yes")],
+        AS_IF([test "$ENABLED_SHAKE128" != "no"],
             [AC_MSG_WARN([Forcing off shake128 for FIPS ${FIPS_VERSION}.])
              ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
 
         # Shake256 is a SHA-3 algorithm outside the v5 FIPS algorithm list
-        AS_IF([test "$ENABLED_SHAKE256" != "no" &&
-               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_shake256" = "yes")],
+        AS_IF([test "$ENABLED_SHAKE256" != "no"],
             [AC_MSG_WARN([Forcing off shake256 for FIPS ${FIPS_VERSION}.])
              ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
 
@@ -7756,8 +8025,7 @@ AS_CASE([$FIPS_VERSION],
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_aesccm" != "no")],
             [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
 
-        AS_IF([test "$ENABLED_AESXTS" = "yes" &&
-               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_aesxts" = "yes")],
+        AS_IF([test "$ENABLED_AESXTS" = "yes"],
             [AC_MSG_WARN([Forcing off aesxts for FIPS ${FIPS_VERSION}.])
              ENABLED_AESXTS="no"])
 
@@ -7796,8 +8064,7 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"; AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
 
         # AES-GCM streaming isn't part of the v5 FIPS suite.
-        AS_IF([test "$ENABLED_AESGCM_STREAM" = "yes" &&
-               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_aesgcm_stream" = "yes")],
+        AS_IF([test "$ENABLED_AESGCM_STREAM" = "yes"],
             [AC_MSG_WARN([Forcing off aesgcm-stream for FIPS ${FIPS_VERSION}.])
              ENABLED_AESGCM_STREAM="no"])
 
@@ -7811,13 +8078,11 @@ AS_CASE([$FIPS_VERSION],
                     (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_aesofb" != "no")],
                 [ENABLED_AESOFB="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_OFB"])])
 
-        AS_IF([test "$ENABLED_SRTP" != "no" &&
-               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_srtp" = "yes")],
+        AS_IF([test "$ENABLED_SRTP" != "no"],
             [AC_MSG_WARN([Forcing off srtp for FIPS ${FIPS_VERSION}.])
              ENABLED_SRTP="no"])
 
-        AS_IF([test "$ENABLED_SRTP_KDF" != "no" &&
-               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_srtp_kdf" = "yes")],
+        AS_IF([test "$ENABLED_SRTP_KDF" != "no"],
             [AC_MSG_WARN([Forcing off srtp-kdf for FIPS ${FIPS_VERSION}.])
              ENABLED_SRTP_KDF="no"])
 
@@ -7930,7 +8195,20 @@ AS_CASE([$ENABLED_SELFTEST],
     ],
     ["no"],[SELFTEST_VERSION="none"],
     [
-        # selftest v1 (wolfCrypt 3.14.2)
+        # selftest v1 (wolfCrypt 3.14.2).  A BARE --enable-selftest LANDS HERE
+        # AND MUST KEEP LANDING HERE.  The flavor that passes the bare flag is
+        # netbsd-selftest (FIPS_OPTION=cavp-selftest), and its WOLFCRYPT_FILES
+        # overlays the v3.14.2 headers -- hmac.h, rsa.h, ecc.h and friends --
+        # over the current tree.  Those headers ARE the v1 API: v3.14.2
+        # hmac.h:89 declares WC_SHA3_224_BLOCK_SIZE as an enum constant and
+        # derives WC_HMAC_BLOCK_SIZE from it, v3.14.2 rsa.h:186 declares the
+        # six-argument wc_RsaPSS_CheckPadding_ex, and v3.14.2 ecc.h has no
+        # wc_ecc_set_rng at all.  Selecting v2 for the bare flag makes sha3.h
+        # define WC_SHA3_*_BLOCK_SIZE as macros, which collide with that enum,
+        # and makes test.c take its seven-argument and wc_ecc_set_rng arms
+        # against headers that offer neither -- measured: bare flag with the
+        # overlay fails to build, --enable-selftest=v1 with the same overlay
+        # builds clean.  --enable-selftest=v2 still selects v2 explicitly.
         ENABLED_SELFTEST="yes"
         SELFTEST_VERSION="v1"
     ])
@@ -8716,6 +8994,18 @@ then
     fi
     ENABLED_HASHDRBG=yes
     ENABLED_SHA256_DRBG=yes
+    # Restore the SHA-512 DRBG too.  --disable-hashdrbg clears both
+    # sub-options above, and the v7 guard that refuses --disable-sha512-drbg
+    # runs earlier in this file (in the FIPS_VERSION AS_CASE), so it sees the
+    # pre-clear value and does not fire.  Without this line
+    # "--enable-fips=v7 --disable-hashdrbg" configures successfully and builds
+    # a module with no SHA-512 Hash_DRBG, which the Security Policy and the
+    # Compliance Summary both claim it has, and leaves FIPS_CAST_DRBG_SHA512
+    # with no Known Answer Test.
+    if test "$HAVE_FIPS_VERSION" -ge 7
+    then
+        ENABLED_SHA512_DRBG=yes
+    fi
 fi
 
 # SHA-512 DRBG and runtime DRBG disable/enable APIs are v7+ only
@@ -9014,10 +9304,15 @@ AC_ARG_WITH([wnr],
 # SNI
 # enable SNI automatically for x86_64/x86/aarch64/amd64
 SNI_DEFAULT=no
-if test "$host_cpu" = "x86_64" || test "$host_cpu" = "x86" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"
-then
-    SNI_DEFAULT=yes
-fi
+# config.guess reports i386/i486/i586/i686 for 32-bit x86, never the literal
+# "x86", so the old `test "$host_cpu" = "x86"` arm never fired and SNI silently
+# defaulted off on every 32-bit x86 host.  Match the same pattern the AES-NI
+# gate uses.
+case $host_cpu in
+    x86_64 | amd64 | x86 | i?86 | aarch64)
+        SNI_DEFAULT=yes
+        ;;
+esac
 
 if test "$ENABLED_TLS" = "no"
 then
@@ -9746,8 +10041,15 @@ then
     fi
     if test "x$ENABLED_DH" = "xno"
     then
-        ENABLED_DH="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+        # JNI normally auto-enables DH for legacy TLS suites; DH is out of
+        # scope for FIPS v7+, so report and skip rather than re-enabling it.
+        if test "$FIPS_VERSION" = "v7" || test "$FIPS_VERSION" = "ready" || test "$FIPS_VERSION" = "dev"
+        then
+            AC_MSG_NOTICE([JNI enabled but FIPS is $FIPS_VERSION, NOT turning on DH with this module])
+        else
+            ENABLED_DH="yes"
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+        fi
     fi
     if test "x$ENABLED_PSK" = "xno"
     then
@@ -11436,6 +11738,24 @@ fi
 if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
 fi
+
+################################################################################
+# FIPS implementation pin -- REMOVED 12 August 2026                            #
+################################################################################
+# The per-algorithm implementation pin (--with-fips-<alg>-impl, the auto-pin
+# cascade and the WC_<ALG>_IMPL tokens) is gone.  Per
+# linuxkm/SVR-FALLBACK-ANALYSIS.md 3.0, v7 ships what v5.2.1, v5.2.4 and
+# v6.0.0 shipped: configured with PAA an algorithm steps between its
+# implementations on CPU capability alone -- a write-once CPUID latch set at
+# first use and never revised -- and configured without PAA only software is
+# compiled.  Several lanes contained with exactly one reachable per OE is the
+# construct those modules were validated carrying.
+#
+# What was deleted is the kernel FALLBACK, not the stepping: a vector-register
+# save failure returns an error to the caller and is never answered by quietly
+# running a different implementation.  That prohibition is NOT optional and is
+# enforced by scripts/fips-no-svr-fallback-check.sh and the #error on
+# WC_C_DYNAMIC_FALLBACK -- neither was removed with the pin.
 
 ################################################################################
 # End - Single Precision option handling                                       #
@@ -13434,6 +13754,7 @@ AM_CONDITIONAL([BUILD_TSP],[test "x$ENABLED_TSP" = "xyes" || test "x$ENABLED_USE
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
+AM_CONDITIONAL([BUILD_LINUXKM_RBGC],[test "$ENABLED_LINUXKM_RBGC" = "yes"])
 AM_CONDITIONAL([BUILD_KERNEL_MODE_DEFAULTS],[test "$KERNEL_MODE_DEFAULTS" != "no"])
 AM_CONDITIONAL([BUILD_BSDKM],[test "$ENABLED_BSDKM" = "yes"])
 AM_CONDITIONAL([BUILD_KERNEL_MODULE],[test "$ENABLED_BSDKM" = "yes" || test "$ENABLED_LINUXKM" = "yes"])
@@ -13535,6 +13856,23 @@ AC_SUBST([ENABLED_LIBZ])
 AC_PATH_PROG([BOMTRACE3], [bomtrace3])
 AC_PATH_PROG([BOMSH_CREATE_BOM], [bomsh_create_bom.py])
 AC_PATH_PROG([BOMSH_SBOM], [bomsh_sbom.py])
+
+# WC_C_DYNAMIC_FALLBACK is forbidden in a certified FIPS build -- see
+# linuxkm/SVR-FALLBACK-ANALYSIS.md.  Checked here, at top level, so it fires no
+# matter how the macro arrived (user CFLAGS/CPPFLAGS or an accumulated
+# AM_CFLAGS) and regardless of which acceleration options are in play -- an
+# earlier version of this check lived inside the AES-NI block and was skipped
+# entirely when AES-NI was off.  settings.h and fips.h #error on it too, so a
+# user_settings.h route fails at compile time rather than slipping past
+# configure.  The uncertified development flavors are exempt: they build no
+# certified module, and the vector-register fuzzing work needs the fallback.
+case " $CFLAGS $CPPFLAGS $AM_CFLAGS $CPPFLAGS_EXTRA " in
+*WC_C_DYNAMIC_FALLBACK*)
+    if test "$ENABLED_FIPS" != "no" && test "$ENABLED_FIPS_DEV" != "yes"; then
+        AC_MSG_ERROR([WC_C_DYNAMIC_FALLBACK is not permitted with --enable-fips=$FIPS_VERSION: it selects an untested second implementation at run time, bypassing the CAST that covers the approved one. Use an uncertified development flavor (--enable-fips=dev or --enable-fips=dev-no-post) if you need it.])
+    fi
+    ;;
+esac
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])

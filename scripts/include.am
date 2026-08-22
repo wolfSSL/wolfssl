@@ -171,6 +171,12 @@ EXTRA_DIST += scripts/benchmark_compare.sh
 
 EXTRA_DIST += scripts/user_settings_asm.sh
 
+# FIPS module gate: fails a certified build that picks WHICH implementation
+# of an algorithm to run from whether SAVE_VECTOR_REGISTERS2() succeeded.
+# Invoked from the fips-no-svr-fallback CI workflow, and runnable by
+# hand against any configured tree, so it must ship in the dist tarball.
+EXTRA_DIST += scripts/fips-no-svr-fallback-check.sh
+
 # SBOM generator (invoked from `make sbom` in the top-level Makefile.am).
 # Must be in the dist tarball, otherwise `make dist && cd <tarball> &&
 # ./configure && make sbom` fails for downstream consumers.

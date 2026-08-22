@@ -40,6 +40,11 @@ enum wc_reloc_type {
     WC_R_X86_64_64,
     WC_R_X86_64_PC32,
     WC_R_X86_64_PLT32,
+    /* 32-bit x86 (i386): with NO_PIE_FLAG the container emits only R_386_32
+     * (absolute) and R_386_PC32 (PC-relative), equivalent to R_X86_64_32 /
+     * R_X86_64_PC32 and sharing their canonicalization case below. */
+    WC_R_386_32,
+    WC_R_386_PC32,
     WC_R_AARCH64_ABS32,
     WC_R_AARCH64_ABS64,
     WC_R_AARCH64_ADD_ABS_LO12_NC,
@@ -52,6 +57,8 @@ enum wc_reloc_type {
     WC_R_AARCH64_LDST64_ABS_LO12_NC,
     WC_R_AARCH64_PREL32,
     WC_R_ARM_ABS32,
+    WC_R_ARM_CALL,
+    WC_R_ARM_JUMP24,
     WC_R_ARM_PREL31,
     WC_R_ARM_REL32,
     WC_R_ARM_THM_CALL,

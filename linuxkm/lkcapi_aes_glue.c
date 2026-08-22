@@ -693,7 +693,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -704,7 +704,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCbcEncrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -759,7 +759,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -770,7 +770,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCbcDecrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -860,7 +860,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -871,7 +871,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -932,7 +932,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -943,7 +943,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -1244,7 +1244,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -1302,7 +1302,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                decrypt_p ? "wc_AesGcmDecryptUpdate" : "wc_AesGcmEncryptUpdate",
                err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -1329,7 +1329,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    decrypt_p ? "wc_AesGcmDecryptUpdate" : "wc_AesGcmEncryptUpdate",
                    err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -1354,7 +1354,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                 goto out;
             }
             else {
-                err = -EINVAL;
+                err = wc_lkm_errno(err);
                 goto out;
             }
         }
@@ -1364,7 +1364,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncryptFinal failed with return code %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
         /* Now copy the auth tag into request scatterlist. */
@@ -1551,7 +1551,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmSetExtIV() failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -1565,7 +1565,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
     }
@@ -2060,7 +2060,7 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCcmEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
     }
@@ -2183,9 +2183,11 @@ static int ccmAesAead_rfc4309_loaded = 0;
     #error LKCAPI registration of AES-XTS requires WOLFSSL_AESXTS_STREAM (--enable-aesxts-stream).
 #endif
 
-#if defined(WOLFSSL_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK)
-    #error LKCAPI registration of AES-XTS with AESNI requires WC_C_DYNAMIC_FALLBACK.
-#endif
+/* AES-XTS with AES-NI used to require WC_C_DYNAMIC_FALLBACK, on the reasoning
+ * that an XTS transform reached where vector registers are unavailable had
+ * nowhere to go.  It has somewhere to go: it returns the error.  The kernel
+ * itself reached the same conclusion, see SVR-FALLBACK-ANALYSIS.md section 6
+ *, so there is no second implementation and no requirement. */
 
 struct km_AesXtsCtx {
     XtsAes *aesXts; /* allocated in km_AesXtsInitCommon() to assure alignment
@@ -2244,10 +2246,9 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
         return -EINVAL;
     }
 
-    /* It's possible to set ctx->aesXts->{tweak,aes,aes_decrypt}.use_aesni to
-     * WC_FLAG_DONT_USE_VECTOR_OPS here, for WC_LINUXKM_C_FALLBACK_IN_SHIMS in
-     * AES-XTS, but we can use the WC_C_DYNAMIC_FALLBACK mechanism
-     * unconditionally because there's no AES-XTS in Cert 4718.
+    /* WC_C_DYNAMIC_FALLBACK is not permitted in a certified FIPS build
+     * (settings.h, fips.h): it selects a second implementation at run time,
+     * which no CAST covers.  See linuxkm/SVR-FALLBACK-ANALYSIS.md.
      */
 
     #ifdef WOLFKM_DEBUG_AES
@@ -2298,7 +2299,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2334,7 +2335,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2357,7 +2358,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = wc_lkm_errno(err);
                 goto out;
             }
 
@@ -2392,7 +2393,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = wc_lkm_errno(err);
                 goto out;
             }
 
@@ -2402,7 +2403,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = wc_lkm_errno(err);
             }
         }
     }
@@ -2450,7 +2451,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2485,7 +2486,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2508,7 +2509,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = wc_lkm_errno(err);
                 goto out;
             }
 
@@ -2543,7 +2544,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = wc_lkm_errno(err);
                 goto out;
             }
 
@@ -2553,7 +2554,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = wc_lkm_errno(err);
             }
         }
     }
@@ -2642,7 +2643,7 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -2653,7 +2654,7 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCtrEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2715,7 +2716,7 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -2727,7 +2728,7 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCtrDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2822,7 +2823,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -2833,7 +2834,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesOfbEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -2895,7 +2896,7 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = wc_lkm_errno(err);
         goto out;
     }
 
@@ -2906,7 +2907,7 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesOfbDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -3002,7 +3003,7 @@ static int km_AesEcbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesEcbEncrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -3053,7 +3054,7 @@ static int km_AesEcbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesEcbDecrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = wc_lkm_errno(err);
             goto out;
         }
 
@@ -4006,7 +4007,8 @@ static int aes_xts_128_test(void)
         goto out;
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
@@ -4049,7 +4051,8 @@ static int aes_xts_128_test(void)
         goto out;
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
@@ -4071,7 +4074,8 @@ static int aes_xts_128_test(void)
         goto out;
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(cipher, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
@@ -4097,7 +4101,8 @@ static int aes_xts_128_test(void)
         goto out;
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
@@ -4120,7 +4125,8 @@ static int aes_xts_128_test(void)
         goto out;
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
@@ -4621,7 +4627,8 @@ static int aes_xts_256_test(void)
         goto out;
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);

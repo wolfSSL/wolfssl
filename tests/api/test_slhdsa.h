@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_slhdsa(void);
+int test_wc_SlhDsaKey_seed_service_indicator(void);
 int test_wc_slhdsa_sizes(void);
 int test_wc_slhdsa_make_key(void);
 int test_wc_slhdsa_sign(void);
@@ -52,6 +53,7 @@ int test_slhdsa_tls13_certverify_bad_signature(void);
 
 #define TEST_SLHDSA_DECLS                                                      \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa),                                 \
+    TEST_DECL_GROUP("slhdsa", test_wc_SlhDsaKey_seed_service_indicator),  \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sizes),                           \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_make_key),                        \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign),                            \

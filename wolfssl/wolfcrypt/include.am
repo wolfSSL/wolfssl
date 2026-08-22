@@ -49,6 +49,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \
                          wolfssl/wolfcrypt/wolfentropy.h \
+                         wolfssl/wolfcrypt/oe_timers.h \
                          wolfssl/wolfcrypt/rng_bank.h \
                          wolfssl/wolfcrypt/ripemd.h \
                          wolfssl/wolfcrypt/rsa.h \
@@ -131,6 +132,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/maxim/max3266x.h \
                          wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h \
                          wolfssl/wolfcrypt/port/rpi_pico/pico.h \
+                         wolfssl/wolfcrypt/linuxkm_get_entropy.h \
                          wolfssl/wolfcrypt/libwolfssl_sources.h \
                          wolfssl/wolfcrypt/libwolfssl_sources_asm.h
 

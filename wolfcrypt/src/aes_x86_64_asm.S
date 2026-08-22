@@ -2463,6 +2463,7 @@ L_AES_ECB_encrypt_vaes_16_aes_enc_block_last:
         cmpl	%r9d, %eax
         jb	L_AES_ECB_encrypt_vaes_enc_16
 L_AES_ECB_encrypt_vaes_done_enc:
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	AES_ECB_encrypt_vaes,.-AES_ECB_encrypt_vaes
@@ -2749,6 +2750,7 @@ L_AES_ECB_decrypt_vaes_16_aes_dec_block_last:
         cmpl	%r9d, %eax
         jb	L_AES_ECB_decrypt_vaes_dec_16
 L_AES_ECB_decrypt_vaes_done_dec:
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	AES_ECB_decrypt_vaes,.-AES_ECB_decrypt_vaes
@@ -3128,6 +3130,7 @@ L_AES_CBC_decrypt_vaes_16_aes_dec_block_last:
         jb	L_AES_CBC_decrypt_vaes_dec_16
 L_AES_CBC_decrypt_vaes_done_dec:
         vmovdqu	%xmm8, (%rdx)
+        vzeroupper
         popq	%r12
         repz retq
 #ifndef __APPLE__
@@ -3599,6 +3602,7 @@ L_AES_CTR_encrypt_vaes_16_aes_enc_block_last:
 L_AES_CTR_encrypt_vaes_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqu	%xmm0, (%r9)
+        vzeroupper
         popq	%r12
         repz retq
 #ifndef __APPLE__
@@ -3909,6 +3913,7 @@ L_AES_ECB_encrypt_avx512_16_aes_enc_block_last:
         cmpl	%r9d, %eax
         jb	L_AES_ECB_encrypt_avx512_enc_16
 L_AES_ECB_encrypt_avx512_done_enc:
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	AES_ECB_encrypt_avx512,.-AES_ECB_encrypt_avx512
@@ -4216,6 +4221,7 @@ L_AES_ECB_decrypt_avx512_16_aes_dec_block_last:
         cmpl	%r9d, %eax
         jb	L_AES_ECB_decrypt_avx512_dec_16
 L_AES_ECB_decrypt_avx512_done_dec:
+        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	AES_ECB_decrypt_avx512,.-AES_ECB_decrypt_avx512
@@ -4621,6 +4627,7 @@ L_AES_CBC_decrypt_avx512_16_aes_dec_block_last:
         jb	L_AES_CBC_decrypt_avx512_dec_16
 L_AES_CBC_decrypt_avx512_done_dec:
         vmovdqu	%xmm8, (%rdx)
+        vzeroupper
         popq	%r12
         repz retq
 #ifndef __APPLE__
@@ -5085,6 +5092,7 @@ L_AES_CTR_encrypt_avx512_16_aes_enc_block_last:
 L_AES_CTR_encrypt_avx512_done_enc:
         vpshufb	%xmm8, %xmm7, %xmm0
         vmovdqu	%xmm0, (%r9)
+        vzeroupper
         popq	%r12
         repz retq
 #ifndef __APPLE__

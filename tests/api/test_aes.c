@@ -31,6 +31,7 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/types.h>
+
 #ifdef WOLFSSL_CMAC
     /* Explicit include (rather than relying on aes.h's conditional
      * transitive include via WOLFSSL_AES_EAX) so struct Cmac / wc_InitCmac()
@@ -786,7 +787,10 @@ static int test_wc_AesCbcEncryptDecrypt_WithKey(Aes* aes, byte* key,
     ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len),
         0);
     ExpectBufEQ(cipher, vector_enc, vector_len);
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+    /* FIPSv2's wc_AesCbcEncrypt_fips predates the BAD_LENGTH_E check and
+     * returns 0 on unaligned input; only v5.x+ carry it.  Skip for FIPSv2. */
+#if defined(WOLFSSL_AES_CBC_LENGTH_CHECKS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
     ExpectIntEQ(wc_AesCbcEncrypt(aes, cipher, vector, vector_len - 1),
         WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #endif
@@ -796,7 +800,9 @@ static int test_wc_AesCbcEncryptDecrypt_WithKey(Aes* aes, byte* key,
     ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher,
         WC_AES_BLOCK_SIZE * 2), 0);
     ExpectBufEQ(decrypted, vector, vector_len);
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+#if defined(WOLFSSL_AES_CBC_LENGTH_CHECKS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0))
+    /* Same FIPSv2 vs v5+ rationale as the encrypt assertion above. */
     ExpectIntEQ(wc_AesCbcDecrypt(aes, decrypted, cipher,
         WC_AES_BLOCK_SIZE * 2 - 1), WC_NO_ERR_TRACE(BAD_LENGTH_E));
 #else
@@ -4289,7 +4295,11 @@ int test_wc_AesGcmNonStdNonce(void)
         XMEMSET(&enc, 0, sizeof(enc));
         ExpectIntEQ(wc_AesInit(&enc, NULL, INVALID_DEVID), 0);
         ExpectIntEQ(wc_AesGcmSetKey(&enc, key_z, sizeof(key_z)), 0);
-#ifdef HAVE_SELFTEST
+    /* selftest v1 accepted a zero-length IV; v2 uses the wolfCrypt AES-GCM
+     * implementation, which rejects it with BAD_FUNC_ARG like every other
+     * build, so only v1 takes the accept arm. */
+#if defined(HAVE_SELFTEST) && (!defined(HAVE_SELFTEST_VERSION) || \
+                               (HAVE_SELFTEST_VERSION < 2))
         ExpectIntEQ(wc_AesGcmEncrypt(&enc, ct, pt_z, sizeof(pt_z),
             NULL, 0, tag, sizeof(tag), NULL, 0), 0);
 #else

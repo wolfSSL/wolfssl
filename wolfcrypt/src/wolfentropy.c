@@ -30,6 +30,22 @@ data, use this implementation to seed and re-seed the DRBG.
 
 */
 
+/* WC_FIPS_LL_CRYPTO marks this file as an implementation INSIDE the FIPS
+ * module boundary (src/include.am lists wolfentropy.c between wolfcrypt_first.c
+ * and wolfcrypt_last.c in the BUILD_FIPS_V7_PLUS block), the same as every other
+ * in-boundary crypto source -- including random.c, which holds the Hash_DRBG
+ * this file seeds.  settings.h turns it into FIPS_NO_WRAPPERS, so the
+ * wc_Sha3_256_*() calls below resolve to the implementations rather than to the
+ * fips.c service wrappers.
+ *
+ * Without it those four calls carry AlgoAllowed(FIPS_CAST_HMAC_SHA3_256) and
+ * return SHA3_KAT_FIPS_E as soon as that CAST is down, which takes out
+ * wc_Entropy_Get() -> wc_GenerateSeed() -> wc_InitRng() and, with it, every CAST
+ * whose known-answer test instantiates a WC_RNG.  Nothing here is a service
+ * request: the RNG service itself still gates on AlgoAllowed(FIPS_CAST_DRBG) in
+ * wc_InitRng_fips() / wc_RNG_GenerateBlock_fips(), and the SHA-3 service still
+ * gates on FIPS_CAST_HMAC_SHA3_256 in its own wrappers. */
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WOLFENTROPY_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -37,6 +53,11 @@ data, use this implementation to seed and re-seed the DRBG.
 #ifdef HAVE_ENTROPY_MEMUSE
 
 #include <wolfssl/wolfcrypt/wolfentropy.h>
+
+/* Declares wc_OE_TimeHiRes(), defined OUTSIDE the FIPS module boundary in
+ * wolfcrypt/src/oe_timers.c.  It has its own header so that this module's
+ * headers declare nothing that lives outside the module. */
+#include <wolfssl/wolfcrypt/oe_timers.h>
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #if defined(__APPLE__) || defined(__MACH__)
@@ -59,118 +80,29 @@ data, use this implementation to seed and re-seed the DRBG.
 /* Maximum number of bytes to sample to produce max entropy. */
 #define MAX_NOISE_CNT        (MAX_ENTROPY_BITS * 8 + ENTROPY_EXTRA)
 
-/* MemUse entropy global state initialized. */
-static volatile int entropy_memuse_initialized = 0;
 /* Global SHA-3 object used for conditioning entropy and creating noise. */
 static wc_Sha3 entropyHash;
 /* Reset the health tests. */
 static void Entropy_HealthTest_Reset(void);
 
-#ifdef CUSTOM_ENTROPY_TIMEHIRES
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    return CUSTOM_ENTROPY_TIMEHIRES();
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && \
-      (defined(__x86_64__) || defined(__i386__))
-/* Get the high resolution time counter.
+/* The high resolution counter read lives OUTSIDE the FIPS module boundary, in
+ * wolfcrypt/src/oe_timers.c, which src/include.am lists after wolfcrypt_last.c
+ * so its .text falls beyond wolfCrypt_FIPS_last().  This call site is the only
+ * in-boundary reference and it is identical on every platform, so supporting new
+ * hardware changes no byte covered by the in-core integrity hash.
  *
- * @return  64-bit count of CPU cycles.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    unsigned int lo_c, hi_c;
-    __asm__ __volatile__ (
-        "rdtsc"
-            : "=a"(lo_c), "=d"(hi_c)   /* out */
-            : "a"(0)                   /* in */
-            : "%ebx", "%ecx");         /* clobber */
-    return ((word64)lo_c) | (((word64)hi_c) << 32);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && \
-      (defined(__APPLE__) || defined(__MACH__))
-/* Get the high resolution time counter.
+ * The noise source's health tests (RCT/APT) and its SHA3-256 conditioning stay
+ * in this file, inside the boundary.  A new platform still needs its own
+ * SP 800-90B raw-data collection and ESV entry: this splits a module change into
+ * an ESV change, it does not make a port free.
  *
- * @return  64-bit time in nanoseconds.
- */
+ * The condition mirrors the one guarding the ladder in oe_timers.c: a custom
+ * counter always wins, as it did before, and otherwise the hardware counter is
+ * used unless the build asked for the threaded proxy below. */
+#if defined(CUSTOM_ENTROPY_TIMEHIRES) || !defined(ENTROPY_MEMUSE_THREAD)
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
-    return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__aarch64__)
-/* Get the high resolution time counter.
- *
- * @return  64-bit timer count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word64 cnt;
-    __asm__ __volatile__ (
-        "mrs %[cnt], cntvct_el0"
-        : [cnt] "=r"(cnt)
-        :
-        :
-    );
-    return cnt;
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__MICROBLAZE__)
-
-#define LPD_SCNTR_BASE_ADDRESS 0xFF250000
-
-/* Get the high resolution time counter.
- * Collect ticks from LPD_SCNTR
- * @return  64-bit tick count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word64 cnt;
-    word32 *ptr;
-
-    ptr = (word32*)LPD_SCNTR_BASE_ADDRESS;
-    cnt = *(ptr+1);
-    cnt = cnt << 32;
-    cnt |= *ptr;
-
-    return cnt;
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(_POSIX_C_SOURCE) && \
-    (_POSIX_C_SOURCE >= 199309L)
-/* Get the high resolution time counter.
- *
- * @return  64-bit time that is the nanoseconds of current time.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    struct timespec now;
-
-    clock_gettime(CLOCK_REALTIME, &now);
-
-    return now.tv_nsec;
-}
-#elif defined(_WIN32) /* USE_WINDOWS_API */
-/* Get the high resolution time counter.
- *
- * @return  64-bit timer
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    LARGE_INTEGER count;
-    QueryPerformanceCounter(&count);
-    return (word64)(count.QuadPart);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__arm__)
-/* Get time counter from arch_sys_counter clocksource.
- *
- * @return  64-bit timer count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word32 lo, hi;
-    __asm__ __volatile__ (
-        "mrrc p15, 1, %[lo], %[hi], c14"
-        : [lo] "=r"(lo), [hi] "=r"(hi)
-    );
-    return ((word64)hi << 32) | lo;
+    return wc_OE_TimeHiRes();
 }
 #elif defined(WOLFSSL_THREAD_NO_JOIN)
 
@@ -411,18 +343,20 @@ static int Entropy_MemUse(void)
     int i;
     static byte d[WC_SHA3_256_DIGEST_SIZE];
     int j;
-    int ret;
+    int ret = 0;
 
+    /* Single exit: d is static, so a SHA-3 failure that skipped the cleanup
+     * would leave digest material resident until the next successful call. */
     for (j = 0; j < ENTROPY_NUM_UPDATES; j++) {
         /* Hash the first 32 64-bit words of state. */
         ret = wc_Sha3_256_Update(&entropyHash, (byte*)entropy_state,
             sizeof(*entropy_state) * ENTROPY_NUM_64BIT_WORDS);
         if (ret != 0)
-            return ret;
+            break;
         /* Get pseudo-random indices. */
         ret = wc_Sha3_256_Final(&entropyHash, d);
         if (ret != 0)
-            return ret;
+            break;
 
         for (i = 0; i < ENTROPY_NUM_64BIT_WORDS; i++) {
             /* Choose a 64-bit word from a pseudo-random block.*/
@@ -435,7 +369,11 @@ static int Entropy_MemUse(void)
         }
     }
 
-    return 0;
+    /* d held SHA3-256 digests of the entropy pool; clear it (ISO/IEC
+     * 19790:2012 7.9). */
+    wc_ForceZero(d, sizeof(d));
+
+    return ret;
 }
 
 
@@ -520,6 +458,25 @@ static int Entropy_GetNoise(unsigned char* noise, int samples)
  */
 static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mutex);
 
+/* Reference-counted lifetime for the MemUse entropy source.
+ *
+ * Every user takes a reference with Entropy_Init() for the span it needs the
+ * source, and drops it with Entropy_Final() when done.  wc_init_state_t counts
+ * those references and serializes the transient INITING/CLEANING_UP spans, so
+ * teardown runs only once the last user leaves, and a thread arriving during
+ * teardown spins rather than touching state being freed.  It is the reference,
+ * not entropy_mutex, that keeps entropyHash, the health-test counters and the
+ * entropy_state pool alive; the mutex only serializes concurrent collection.
+ *
+ * This replaces a bespoke 0/1/2 flag that could only narrow the window in which
+ * entropy_mutex was freed under a live user, never close it: a mutex cannot
+ * protect its own destruction, so that guarantee has to come from the reference
+ * count.  When WOLFSSL_NO_ATOMICS is defined the compare-exchange underneath is
+ * not truly atomic (see wolfssl/wolfcrypt/wc_port.h), so such a platform must
+ * still take its first reference single-threaded, e.g. via wolfCrypt_Init().
+ */
+static WC_DECLARE_INIT_STATE(entropy_init_state);
+
 /* Generate raw entropy for performing assessment.
  *
  * @param [out] raw  Buffer to hold raw entropy data.
@@ -532,16 +489,20 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
 {
     int ret = 0;
     int locked = 0;
+    int held = 0;
 
     if (raw == NULL || cnt <= 0) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef HAVE_FIPS
-    if (!entropy_memuse_initialized) {
-        ret = Entropy_Init();
+    /* Hold a reference for the whole collection: the reference, not the mutex,
+     * is what keeps the source state alive, and it initializes the source on
+     * first use.  This was previously done only under HAVE_FIPS, so a non-FIPS
+     * caller could lock an entropy_mutex that had never been created. */
+    ret = Entropy_Init();
+    if (ret == 0) {
+        held = 1;
     }
-#endif
 
     /* Lock the mutex as collection uses globals. */
     if (ret == 0) {
@@ -569,6 +530,16 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt)
 
     if (locked) {
         wc_UnLockMutex(&entropy_mutex);
+    }
+    if (held) {
+        Entropy_Final();
+    }
+
+    if (ret != 0) {
+        /* ISO/IEC 19790:2012 sec 7.9.7: a call that returns an error returns no
+         * output.  Entropy_GetNoise() can fail after partly filling raw.
+         * Mirrors the zeroization on the wc_Entropy_Get() error path. */
+        wc_ForceZero(raw, (size_t)cnt);
     }
 
     return ret;
@@ -722,7 +693,7 @@ static int Entropy_HealthTest_Proportion(byte noise)
         /* Check whether first value has too many repetitions in queue. */
         if (prop_cnt[noise] >= PROP_CUTOFF) {
         #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-            fprintf(stderr, "PROPORTION FAILED: %d %d\n", val, prop_cnt[noise]);
+            fprintf(stderr, "PROPORTION FAILED: %d %d\n", noise, prop_cnt[noise]);
         #endif
             Entropy_HealthTest_Proportion_Reset();
             /* Error code returned. */
@@ -852,7 +823,14 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
     int noise_len;
+    int locked = 0;
+    int held = 0;
     static byte noise[MAX_NOISE_CNT];
+    /* The loop below conditions into the caller's buffer one 32-byte block at
+     * a time and advances entropy/len as it goes, so on a mid-loop failure the
+     * blocks already written stay behind.  Keep the original span to clear. */
+    unsigned char* entropy_start = entropy;
+    word32 entropy_total = len;
 
     if (bits <= 0 || bits > MAX_ENTROPY_BITS || (entropy == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -862,24 +840,27 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
      * entropy requested. */
     noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
 
-#ifdef HAVE_FIPS
-    /* FIPS KATs, e.g. EccPrimitiveZ_KnownAnswerTest(), call wc_Entropy_Get()
-     * incidental to wc_InitRng(), without first calling Entropy_Init(), neither
-     * directly, nor indirectly via wolfCrypt_Init().  This matters, because
-     * KATs must be usable before wolfCrypt_Init() (indeed, in the library
-     * embodiment, the HMAC KAT always runs before wolfCrypt_Init(), incidental
-     * to fipsEntry()).  Without the InitSha3() under Entropy_Init(), the
-     * SHA3_BLOCK function pointer is null when Sha3Update() is called by
-     * Entropy_MemUse(), which ends badly.
-     */
-    if (!entropy_memuse_initialized) {
-        ret = Entropy_Init();
+    /* Hold a reference for the whole collection.  This also initializes the
+     * source on first use, which FIPS KATs depend on: EccPrimitiveZ_Known-
+     * AnswerTest() reaches here via wc_InitRng() before wolfCrypt_Init() has
+     * run, and without the InitSha3() done under Entropy_Init() the SHA3_BLOCK
+     * function pointer would still be null when entropyHash is used below.
+     * Holding the reference is also what makes the source safe to use: teardown
+     * cannot begin while it is held, so there is no longer a
+     * finalized-underneath-us case to test for after taking the mutex. */
+    ret = Entropy_Init();
+    if (ret == 0) {
+        held = 1;
     }
-#endif
 
     /* Lock the mutex as collection uses globals. */
-    if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
-        ret = BAD_MUTEX_E;
+    if (ret == 0) {
+        if (wc_LockMutex(&entropy_mutex) != 0) {
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            locked = 1;
+        }
     }
 
 #ifdef ENTROPY_MEMUSE_THREADED
@@ -937,9 +918,25 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
     Entropy_StopThread();
 #endif
 
-    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+    if (locked) {
+        /* Raw pre-conditioning noise is sensitive; do not leave it in the
+         * static buffer after use (ISO/IEC 19790:2012 7.9).  noise[] is shared
+         * state, so this must happen while the mutex is still held, otherwise
+         * it could wipe a buffer another thread is actively filling. */
+        wc_ForceZero(noise, sizeof(noise));
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
+    }
+    if (held) {
+        Entropy_Final();
+    }
+
+    if ((ret != 0) && (entropy_start != NULL) && (entropy_total > 0)) {
+        /* SP 800-90A sec 9.3.1: a generate that returns an error returns no
+         * output.  Partial conditioned entropy from completed iterations must
+         * not be left for a caller that ignores the status.  Mirrors the
+         * ForceZero(output, sz) on the wc_RNG_GenerateBlock() error path. */
+        wc_ForceZero(entropy_start, entropy_total);
     }
 
     return ret;
@@ -955,11 +952,27 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
  */
 int wc_Entropy_OnDemandTest(void)
 {
-    int ret = 0;
+    int ret;
+    int locked = 0;
+    int held = 0;
+
+    /* Hold a reference for the test.  entropy_mutex is created under
+     * Entropy_Init(), so without a reference this could lock a mutex that had
+     * never been created, and the health-test state could be torn down midway
+     * through the test. */
+    ret = Entropy_Init();
+    if (ret == 0) {
+        held = 1;
+    }
 
     /* Lock the mutex as we don't want collecting to happen during testing. */
-    if (wc_LockMutex(&entropy_mutex) != 0) {
-        ret = BAD_MUTEX_E;
+    if (ret == 0) {
+        if (wc_LockMutex(&entropy_mutex) != 0) {
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            locked = 1;
+        }
     }
 
     if (ret == 0) {
@@ -967,47 +980,58 @@ int wc_Entropy_OnDemandTest(void)
         ret = Entropy_HealthTest_Startup();
     }
 
-    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+    if (locked) {
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
+    if (held) {
+        Entropy_Final();
+    }
+
     return ret;
 }
 
-/* Initialize global state for MemUse Entropy and do startup health test.
+/* Take a reference on the MemUse Entropy source, initializing global state and
+ * running the startup health test when this is the first reference.
+ *
+ * Paired with Entropy_Final().  A caller must hold a reference for as long as
+ * it uses the source; see entropy_init_state above.
  *
  * @return  0 on success.
  * @return  Negative on failure.
  */
 int Entropy_Init(void)
 {
-    int ret = 0;
+    int ret;
+    int st;
 
-    /* Check whether initialization has succeeded before. */
-    if (!entropy_memuse_initialized) {
-    #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-        ret = wc_InitMutex(&entropy_mutex);
-    #endif
-        if (ret == 0)
-            ret = wc_LockMutex(&entropy_mutex);
+    st = wc_local_InitUp(&entropy_init_state);
+    if (st < 0) {
+        return st;
+    }
+    if (st != WC_INIT_STATE_INITING) {
+        /* Source is already up, and we now hold a reference on it. */
+        return 0;
+    }
 
-        if (entropy_memuse_initialized) {
-            /* Short circuit return -- a competing thread initialized the state
-             * while we were waiting.  Note, this is only threadsafe when
-             * WOLFSSL_MUTEX_INITIALIZER is defined.
-             */
-            if (ret == 0)
-                wc_UnLockMutex(&entropy_mutex);
-            return 0;
+    /* This thread owns the INITING span, which excludes every other user, so
+     * the state below is set up uncontended and without taking entropy_mutex
+     *, which on these platforms does not exist yet. */
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+    ret = wc_InitMutex(&entropy_mutex);
+#else
+    ret = 0;
+#endif
+
+    if (ret == 0) {
+        /* Initialize a SHA3-256 object for use in entropy operations. */
+        ret = wc_InitSha3_256(&entropyHash, NULL, INVALID_DEVID);
+        if (ret != 0) {
+        #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+            wc_FreeMutex(&entropy_mutex);
+        #endif
         }
-
-        if (ret == 0) {
-            /* Initialize a SHA3-256 object for use in entropy operations. */
-            ret = wc_InitSha3_256(&entropyHash, NULL, INVALID_DEVID);
-        }
-        /* Set globals initialized. */
-        entropy_memuse_initialized = (ret == 0);
-        if (ret == 0) {
+        else {
         #ifdef ENTROPY_MEMUSE_THREADED
             /* Start the counter thread as a proxy for time counter. */
             ret = Entropy_StartThread();
@@ -1021,32 +1045,58 @@ int Entropy_Init(void)
             /* Stop the counter thread to avoid thrashing the system. */
             Entropy_StopThread();
         #endif
-        }
-
-        if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
-            wc_UnLockMutex(&entropy_mutex);
+            if (ret != 0) {
+                wc_Sha3_256_Free(&entropyHash);
+                Entropy_HealthTest_Reset();
+            #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+                wc_FreeMutex(&entropy_mutex);
+            #endif
+            }
         }
     }
 
-    return ret;
+    if (ret != 0) {
+        /* The partial init was undone completely above, so release the object
+         * back to UNINITED for a later retry rather than into a permanent bad
+         * state, a failed startup health test is retryable, which
+         * wc_Entropy_Get() relies on. */
+        (void)wc_local_InitUpFailed(&entropy_init_state);
+        return ret;
+    }
+
+    return wc_local_InitUpDone(&entropy_init_state);
 }
 
-/* Finalize the data associated with the MemUse Entropy source.
+/* Drop a reference on the MemUse Entropy source, finalizing its data once the
+ * last reference is released.
+ *
+ * Paired with Entropy_Init().
  */
 void Entropy_Final(void)
 {
-    /* Only finalize when initialized. */
-    if (entropy_memuse_initialized) {
-        /* Dispose of the SHA3-356 hash object. */
-        wc_Sha3_256_Free(&entropyHash);
-    #if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
-        wc_FreeMutex(&entropy_mutex);
-    #endif
-        /* Clear health test data. */
-        Entropy_HealthTest_Reset();
-        /* No longer initialized. */
-        entropy_memuse_initialized = 0;
+    if (wc_local_InitDown(&entropy_init_state) != WC_INIT_STATE_CLEANING_UP) {
+        /* Another user still holds a reference, or there was none to release;
+         * either way nothing is torn down here. */
+        return;
     }
+
+    /* This thread owns the CLEANING_UP span, which it entered only because it
+     * held the last reference: no collector can be inside the critical section,
+     * and none can enter, wc_local_InitUp() spins until the object returns to
+     * UNINITED.  That is what makes freeing the SP 800-90B source state, and
+     * entropy_mutex itself, safe here.  Holding the mutex could not have
+     * established it, since a mutex cannot guard its own destruction. */
+    wc_Sha3_256_Free(&entropyHash);
+    /* Clear health test data. */
+    Entropy_HealthTest_Reset();
+    /* Zeroize the accumulated entropy pool on teardown (ISO/IEC 19790:2012
+     * 7.9); it holds pre-conditioning entropy-source state. */
+    wc_ForceZero(entropy_state, sizeof(entropy_state));
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+    wc_FreeMutex(&entropy_mutex);
+#endif
+
+    (void)wc_local_InitDownDone(&entropy_init_state);
 }
 
 /* Reset the data associated with the MemUse Entropy health tests.

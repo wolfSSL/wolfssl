@@ -101,9 +101,23 @@
     #define LKCAPI_HAVE_ARCH_ACCEL
 #endif
 
-#if defined(LKCAPI_HAVE_ARCH_ACCEL) &&                   \
-    (!defined(WC_C_DYNAMIC_FALLBACK) ||                  \
-     (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))) && \
+/* One implementation per algorithm, in the shims too, FIPS 140-3 IG 10.3.A
+ * GeneralNote1.  The auto-define below would otherwise trigger on exactly the
+ * FIPS configuration (arch accel present, WC_C_DYNAMIC_FALLBACK forbidden).
+ * An uncertified development build (--enable-fips=dev / dev-no-post) is
+ * exempt and behaves like a non-FIPS build.  See SVR-FALLBACK-ANALYSIS.md. */
+#if (defined(HAVE_FIPS) || defined(WOLFSSL_FIPS_READY) || \
+     defined(WOLFSSL_FIPS_DEV)) && !defined(WC_FIPS_UNCERTIFIED_BUILD)
+    #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+        #error "WC_LINUXKM_C_FALLBACK_IN_SHIMS: second implementation."
+    #endif
+/* Non-FIPS and uncertified-dev only, every validation-targeted FIPS build is
+ * caught by the #if above, so the former
+ * "|| (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))" arm was dropped as
+ * unreachable. */
+#elif defined(LKCAPI_HAVE_ARCH_ACCEL) &&                 \
+    !defined(WC_C_DYNAMIC_FALLBACK) && \
+    defined(WC_ALLOW_RUNTIME_IMPL_SELECT) && \
     !defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS)
     #define WC_LINUXKM_C_FALLBACK_IN_SHIMS
 #elif !defined(LKCAPI_HAVE_ARCH_ACCEL)

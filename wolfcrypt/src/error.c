@@ -723,17 +723,8 @@ const char* wc_GetErrorString(int error)
     case SLH_DSA_PCT_E:
         return "wolfcrypt SLH-DSA Pairwise Consistency Test Failure";
 
-    case CMAC_KAT_FIPS_E:
-        return "wolfCrypt FIPS AES-CMAC Known Answer Test Failure";
-
-    case SHAKE_KAT_FIPS_E:
-        return "wolfCrypt FIPS SHAKE Known Answer Test Failure";
-
     case DH_PCT_E:
         return "wolfcrypt DH Pairwise Consistency Test Failure";
-
-    case AES_KW_KAT_FIPS_E:
-        return "wolfCrypt FIPS AES Key Wrap Known Answer Test Failure";
 
     case FIPS_WRONG_API_E:
         return "Requested API is not allowed in FIPS mode";
@@ -744,12 +735,14 @@ const char* wc_GetErrorString(int error)
     case FIPS_BAD_VALUE_E:
         return "Supplied value was rejected by FIPS policy";
 
-    case FIPS_UNAPPROVED_E:
-        return "Requested operation succeeded, but supplied "
-               "parameters are unapproved for FIPS";
-
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
+    /* -1029 is the span end and is RESERVED, not a code: WC_IMPL_PIN_E held it
+     * until the implementation pin was removed on 12 August 2026.  It needed no
+     * label of its own while that code existed, because the two shared a value.
+     * WC_LAST_E is -1029 as well, so one label covers both, a second would be
+     * a duplicate case. */
+    case WC_SPAN2_LAST_E:
     case MIN_CODE_E:
     default:
         return "unknown error number";

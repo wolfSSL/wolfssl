@@ -38,7 +38,7 @@
 int test_wc_mlkem_make_key_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -1497,7 +1497,7 @@ int test_wc_mlkem_make_key_kats(void)
 int test_wc_mlkem_encapsulate_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLKEM) && \
+#if defined(WOLFSSL_TEST_PQC_SEED_KAT) && defined(WOLFSSL_HAVE_MLKEM) && \
     !defined(WOLFSSL_NO_ML_KEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
     MlKemKey* key;
 #ifndef WOLFSSL_NO_ML_KEM_512
@@ -4080,6 +4080,34 @@ int test_wc_mlkem_decode_privkey_bad_pubhash(void)
         WC_NO_ERR_TRACE(MLKEM_PUB_HASH_E));
     wc_MlKemKey_Free(key);
 
+    /* Restore the tampered byte so the private blob is valid again. */
+    if (privLen > (word32)(2 * WC_ML_KEM_SYM_SZ)) {
+        priv[privLen - 2 * WC_ML_KEM_SYM_SZ] ^= 0x01;
+    }
+
+    /* Importing an ek that does not match a held dk must be REFUSED without
+     * destroying the private key, the object must stay fully usable. */
+    {
+        byte   pub[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+        word32 pubLen = 0;
+
+        XMEMSET(pub, 0, sizeof(pub));
+        ExpectIntEQ(wc_MlKemKey_Init(key, mlkemType, NULL, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MlKemKey_DecodePrivateKey(key, priv, privLen), 0);
+        ExpectIntEQ(wc_MlKemKey_PublicKeySize(key, &pubLen), 0);
+        ExpectIntEQ(wc_MlKemKey_EncodePublicKey(key, pub, pubLen), 0);
+        /* The matching half imports fine. */
+        ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, pub, pubLen), 0);
+        /* A different ek is refused... */
+        pub[0] ^= 0x01;
+        ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, pub, pubLen),
+            WC_NO_ERR_TRACE(MLKEM_PUB_HASH_E));
+        /* ...and the object is untouched: the real ek still imports. */
+        pub[0] ^= 0x01;
+        ExpectIntEQ(wc_MlKemKey_DecodePublicKey(key, pub, pubLen), 0);
+        wc_MlKemKey_Free(key);
+    }
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -4300,11 +4328,11 @@ int test_wc_MlkemDecisionCoverage(void)
     ExpectIntEQ(wc_MlKemKey_MakeKey(key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(NULL, rndMk, sizeof(rndMk)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, NULL, sizeof(rndMk)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(key, rndMk, sizeof(rndMk) - 1),
-        WC_NO_ERR_TRACE(BUFFER_E));
+        SEED_ARG_ERR(BUFFER_E));
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
@@ -4319,15 +4347,15 @@ int test_wc_MlkemDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* WithRandom: NULL operands + wrong length -> BUFFER_E. */
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(NULL, ct, ss, rndEnc,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, NULL, ss, rndEnc,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, NULL, rndEnc,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, NULL,
-        sizeof(rndEnc)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        sizeof(rndEnc)), SEED_ARG_ERR(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, rndEnc,
-        sizeof(rndEnc) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+        sizeof(rndEnc) - 1), SEED_ARG_ERR(BUFFER_E));
 #endif
 
 #ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
@@ -4573,11 +4601,11 @@ int test_wc_mlkem_encapsulate_pubkey_unset_decision(void)
     /* cond0 False: the len check at line 1513 fires first (BUFFER_E),
      * short-circuiting the PUB_SET check away. */
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, randBuf,
-        (int)sizeof(randBuf) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+        (int)sizeof(randBuf) - 1), SEED_ARG_ERR(BUFFER_E));
 
     /* cond0 True, cond1 True -> BAD_STATE_E. */
     ExpectIntEQ(wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, randBuf,
-        (int)sizeof(randBuf)), WC_NO_ERR_TRACE(BAD_STATE_E));
+        (int)sizeof(randBuf)), SEED_ARG_ERR(BAD_STATE_E));
 
     wc_MlKemKey_Free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4648,3 +4676,45 @@ int test_wc_mlkem_encode_key_len_decision(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_mlkem_encode_key_len_decision */
+
+/* The seed-input service indicator, asserted on a SUCCESSFUL call.
+ *
+ * Counterpart to the SEED_ARG_ERR() invalid-argument assertions: those cover
+ * the "still reaches argument validation" half of the contract, this covers
+ * the half that makes the service acceptable in an approved module: a call
+ * that succeeds reports WC_FIPS_NOT_APPROVED (lab-confirmed 2026-07-24;
+ * FIPS 203 sec 6 says the module shall generate its own keygen randomness).
+ *
+ * The indicator is unambiguous here: wc_MlKemKey_MakeKeyWithRandom() returns
+ * 0 or a negative error and never a length or count, so a positive 1 cannot
+ * be confused for a result the way it could on an API like wc_RsaSSL_Verify()
+ * that returns a plaintext length.  SEED_OK is WC_FIPS_NOT_APPROVED in a FIPS
+ * v7+ build and 0 elsewhere.
+ */
+int test_wc_MlKemKey_seed_service_indicator(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_NO_ML_KEM)
+    MlKemKey key;
+    byte rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+#ifndef WOLFSSL_NO_ML_KEM_768
+    const int mlkemType = WC_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_512)
+    const int mlkemType = WC_ML_KEM_512;
+#else
+    const int mlkemType = WC_ML_KEM_1024;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(rand, 0x5a, sizeof(rand));
+
+    ExpectIntEQ(wc_MlKemKey_Init(&key, mlkemType, NULL, INVALID_DEVID), 0);
+    /* Valid key, valid randomness: performed, and reported non-approved. */
+    ExpectIntEQ(wc_MlKemKey_MakeKeyWithRandom(&key, rand, (int)sizeof(rand)),
+        SEED_OK);
+
+    wc_MlKemKey_Free(&key);
+#endif
+    return EXPECT_RESULT();
+}
