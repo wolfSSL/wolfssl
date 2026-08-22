@@ -4498,6 +4498,97 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     }
 #endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 && HAVE_AES_KEYWRAP */
 
+#if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_256) && defined(ASN_BER_TO_DER) && \
+    !defined(NO_PKCS7_STREAM)
+    /* A BER EnvelopedData whose encryptedContent is a multi-segment
+     * indefinite-length OCTET STRING must never report more plaintext than it
+     * placed in the caller's buffer. Encode >1 segment (content > the 4096-byte
+     * streaming chunk), then decode with a full and an undersized output buffer.
+     * Run under ASan. */
+    {
+        /* 6000 spans two 4096-byte streaming segments (4096 + 1904) without
+         * being an exact multiple of the chunk size. */
+        const word32 bigSz  = 6000;
+        const word32 halfSz = 4096; /* one segment: smaller than the total */
+        byte*  bigContent = NULL;
+        byte*  berOut     = NULL;
+        byte*  plainFull  = NULL;
+        byte*  plainSmall = NULL;
+        int    berSz = 0;
+        int    dSz;
+        word32 j;
+
+        bigContent = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        berOut     = (byte*)XMALLOC(bigSz + FOURK_BUF, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        plainFull  = (byte*)XMALLOC(bigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        /* exact-size small buffer so any over-write faults under ASan */
+        plainSmall = (byte*)XMALLOC(halfSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(bigContent);
+        ExpectNotNull(berOut);
+        ExpectNotNull(plainFull);
+        ExpectNotNull(plainSmall);
+        if (bigContent != NULL) {
+            for (j = 0; j < bigSz; j++)
+                bigContent[j] = (byte)j;
+        }
+
+        /* encode as BER (streaming) so encryptedContent is fragmented */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = bigContent;
+            pkcs7->contentSz    = bigSz;
+            pkcs7->contentOID   = DATA;
+            pkcs7->encryptOID   = AES256CBCb;
+            pkcs7->privateKey   = rsaPrivKey;
+            pkcs7->privateKeySz = rsaPrivKeySz;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntGT((berSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, berOut,
+                        bigSz + FOURK_BUF)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* full-size output buffer: all segments returned and content matches */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->privateKey   = rsaPrivKey;
+            pkcs7->privateKeySz = rsaPrivKeySz;
+        }
+        if (berSz > 0) {
+            dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
+                                               plainFull, bigSz);
+            ExpectIntEQ(dSz, (int)bigSz);
+            ExpectIntEQ(XMEMCMP(plainFull, bigContent, bigSz), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* undersized output buffer: must fail, not report a length past it */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, rsaCert, rsaCertSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->privateKey   = rsaPrivKey;
+            pkcs7->privateKeySz = rsaPrivKeySz;
+        }
+        if (berSz > 0) {
+            dSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, berOut, (word32)berSz,
+                                               plainSmall, halfSz);
+            ExpectIntLT(dSz, 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XFREE(bigContent, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(berOut, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plainFull, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plainSmall, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* multi-segment BER bounds regression */
+
 #ifndef NO_RSA
     XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4549,6 +4640,119 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 #endif /* HAVE_PKCS7 */
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_EncodeDecodeEnvelopedData() */
+
+/*
+ * The BER streaming encoder encrypts the content one 4096-byte octet chunk at a
+ * time into a working buffer, and the final chunk additionally carries the
+ * block cipher pad. Content that is an exact multiple of the chunk length makes
+ * that last chunk the largest one the buffer has to hold. Round-trip such sizes.
+ */
+int test_wc_PKCS7_stream_encode_chunk_boundary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* multiples of the encoder's private BER_OCTET_LENGTH (4096) */
+    static const word32 contentSizes[] = { 4096, 8192 };
+    word32 i;
+    #if defined(USE_CERT_BUFFERS_2048)
+        byte   cert[sizeof(client_cert_der_2048)];
+        byte   key[sizeof(client_key_der_2048)];
+        word32 certSz = (word32)sizeof(cert);
+        word32 keySz  = (word32)sizeof(key);
+
+        XMEMCPY(cert, client_cert_der_2048, certSz);
+        XMEMCPY(key, client_key_der_2048, keySz);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        byte   cert[sizeof(client_cert_der_1024)];
+        byte   key[sizeof(client_key_der_1024)];
+        word32 certSz = (word32)sizeof(cert);
+        word32 keySz  = (word32)sizeof(key);
+
+        XMEMCPY(cert, client_cert_der_1024, certSz);
+        XMEMCPY(key, client_key_der_1024, keySz);
+    #else
+        byte   cert[ONEK_BUF];
+        byte   key[ONEK_BUF];
+        word32 certSz = 0;
+        word32 keySz  = 0;
+        XFILE  fp = XBADFILE;
+
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(certSz = (word32)XFREAD(cert, 1, sizeof(cert), fp), 0);
+        if (fp != XBADFILE) {
+            XFCLOSE(fp);
+            fp = XBADFILE;
+        }
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(keySz = (word32)XFREAD(key, 1, sizeof(key), fp), 0);
+        if (fp != XBADFILE)
+            XFCLOSE(fp);
+    #endif
+
+    for (i = 0; i < (word32)XELEM_CNT(contentSizes); i++) {
+        PKCS7* pkcs7 = NULL;
+        byte*  content = NULL;
+        byte*  ber = NULL;
+        byte*  plain = NULL;
+        word32 contentSz = contentSizes[i];
+        word32 berBufSz = contentSz + FOURK_BUF;
+        int    encSz = 0;
+        word32 j;
+
+        ExpectNotNull(content = (byte*)XMALLOC(contentSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(ber = (byte*)XMALLOC(berBufSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(plain = (byte*)XMALLOC(contentSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (content != NULL) {
+            for (j = 0; j < contentSz; j++)
+                content[j] = (byte)j;
+        }
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = content;
+            pkcs7->contentSz    = contentSz;
+            pkcs7->contentOID   = DATA;
+            pkcs7->encryptOID   = AES256CBCb;
+            pkcs7->privateKey   = key;
+            pkcs7->privateKeySz = keySz;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntGT((encSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, ber,
+            berBufSz)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* decode back: a mis-sized or mis-split chunk shows up as corrupt
+         * plaintext or a parse failure */
+        if (encSz > 0) {
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key;
+                pkcs7->privateKeySz = keySz;
+            }
+            ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, ber, (word32)encSz,
+                plain, contentSz), (int)contentSz);
+            ExpectIntEQ(XMEMCMP(plain, content, contentSz), 0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+
+        XFREE(content, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(ber, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plain, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_stream_encode_chunk_boundary() */
 
 
 #if defined(HAVE_PKCS7) && defined(HAVE_ECC) && defined(HAVE_X963_KDF) && \
