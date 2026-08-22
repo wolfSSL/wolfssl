@@ -17,13 +17,38 @@ Supported features:
 - kernel crypto API registration (wolfCrypt algs appear as drivers in `/proc/crypto`.).
 - `CONFIG_CRYPTO_FIPS`, and crypto-manager self-tests.
 - FIPS-compliant patches to `drivers/char/random.c`, covering 34 kernel
-  versions from 5.6 through 7.1.  Every supported version maps to a base patch
-  that applies at `--fuzz=0`; see `patches/README.md` for the full
-  version-to-patch table.  If your version is not listed there, it is not
-  covered -- do not assume a nearby base will apply, because a fuzzed hunk can
-  land in the wrong function and still report success.
+  versions from 5.6 through 7.1, **excluding `PREEMPT_RT`** (see below).  Every
+  supported version maps to a base patch that applies at `--fuzz=0`; see
+  `patches/README.md` for the full version-to-patch table.  If your version is
+  not listed there, it is not covered -- do not assume a nearby base will
+  apply, because a fuzzed hunk can land in the wrong function and still report
+  success.
 - Supports FIPS-compliant WireGuard (https://github.com/wolfssl/wolfguard).
 - TLS 1.3 and DTLS 1.3 kernel offload.
+
+### `PREEMPT_RT` kernels are out of scope
+
+The kernel range above is a range of **non-`PREEMPT_RT`** releases.  No
+`PREEMPT_RT` kernel is a tested operating environment for this module.
+
+`PREEMPT_RT` changes one thing that matters here: `spinlock_t` becomes a
+sleeping `rt_mutex` (`Documentation/locking/locktypes.rst`), so this module's
+`wolfSSL_Mutex` -- `spin_lock_bh()`, see `linuxkm_wc_port.h` -- becomes a lock
+that can block, and taking one inside an open `SAVE_VECTOR_REGISTERS()`
+section becomes scheduling while atomic.
+
+The module refuses that shape rather than relying on the kernel configuration
+to prevent it.  `wc_lkm_LockMutex()` in `module_hooks.c` returns
+`BAD_STATE_E` and warns whenever `wc_linuxkm_in_svr_bracket()` is true; the
+test is keyed on this module's own bracket depth, not on `preempt_count()`, so
+it fires on non-`RT` kernels too and is exercised by every test environment.
+Every `wc_LockMutex()` call in a kernel build reaches it.
+
+What has not been done is the other half: no `PREEMPT_RT` kernel has been run
+to the point of exercising an `RT`-specific path, and the `CONFIG_PREEMPT_RT`
+arms of `spin_lock_bh()` here and of `WC_SVR_PIN_CPU()` in
+`x86_vector_register_glue.c` have never been compiled.  Until that changes,
+`PREEMPT_RT` is unclaimed.
 
 ## Kernel configuration prerequisites
 
