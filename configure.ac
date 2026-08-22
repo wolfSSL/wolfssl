@@ -2815,7 +2815,20 @@ AC_ARG_ENABLE([rng-bank],
       dnl request and are right to keep failing on one.  A default that walks
       dnl into them turns an unrelated build into a configure error:
       dnl --enable-cryptonly --disable-rng did exactly that.
+        dnl --enable-selftest is one such place.  It does not set ENABLED_FIPS,
+        dnl so FIPS_CERTIFIABLE is "no" and this default used to land on yes --
+        dnl but a selftest build withholds the modern DRBG internals from
+        dnl random.h (struct DRBG_internal, enum wc_RngHealthState,
+        dnl wc_InitRngNonce_ex), which is exactly what rng_bank.c needs.  The
+        dnl build then died in rng_bank.c and wolfcrypt/test/test.c.
+        dnl ENABLED_SELFTEST is not parsed until far later in this file, so test
+        dnl the raw autoconf variable: every --enable-* becomes an enable_* shell
+        dnl var during option parsing, before any AC_ARG_ENABLE body runs.  An
+        dnl EXPLICIT --enable-rng-bank is unaffected and still reaches the
+        dnl AC_MSG_ERRORs below, which is the intent.
       AS_IF([test "$FIPS_CERTIFIABLE" = "yes"], [ ENABLED_RNG_BANK=no ],
+              [test "x$enable_selftest" != "x" && \
+               test "x$enable_selftest" != "xno"], [ ENABLED_RNG_BANK=no ],
             [test "$ENABLED_RNG" = "no"],       [ ENABLED_RNG_BANK=no ],
             [ ENABLED_RNG_BANK=yes ]) ]
     )
