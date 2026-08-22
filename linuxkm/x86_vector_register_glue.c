@@ -3508,7 +3508,21 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
         st->inhibited = 0;
         st->nested = 0;
         st->migrate_pinned = 0;
-        /* FPU_BEGIN holds the CPU for the life of the section. */
+        /* FPU_BEGIN holds the CPU only where CONFIG_PREEMPT_COUNT is set: on
+         * x86 it is kernel_fpu_begin()'s preempt_disable()
+         * (linux-6.14.11 arch/x86/kernel/fpu/core.c:423, and fpregs_lock()
+         * from linux-6.15.11:430), and without PREEMPT_COUNT both are
+         * barrier() (include/linux/preempt.h:284).  What actually keeps this
+         * section on one CPU there is that nothing in it schedules:
+         * wc_linuxkm_can_block() refuses while st->depth is nonzero, so
+         * WC_RELAX_LONG_LOOP() cannot cond_resched() inside it.  The pin is
+         * released here because it is the DECIDE_PIN region that ends, not
+         * because FPU_BEGIN replaced it.
+         *
+         * arm64 from 6.19 is the one case where that is not enough, because
+         * the section owns a per-CPU buffer the kernel matches by pointer at
+         * kernel_neon_end(); WC_LINUXKM_FPU_BEGIN() takes its own pin there
+         * and holds it across the whole section.  See WC_LKM_NEON_PIN(). */
         WC_SVR_DECIDE_UNPIN(migrate_pinned);
         return 0;
     }
