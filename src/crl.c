@@ -148,6 +148,18 @@ static void SortCRL_CertList(RevokedCert* certs, int totalCerts)
 }
 #endif /* CRL_STATIC_REVOKED_LIST */
 
+#if defined(OPENSSL_EXTRA)
+/* Get length of date string. The parsed date is not guaranteed to be
+ * NUL-terminated, so stop at the end of the buffer. */
+static int GetDateLen(const byte* date)
+{
+    int len = 0;
+    while (len < MAX_DATE_SIZE && date[len] != 0)
+        len++;
+    return len;
+}
+#endif
+
 /* Initialize CRL Entry */
 static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
                          int verified, void* heap)
@@ -164,13 +176,12 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     crle->version = dcrl->version;
 
 #if defined(OPENSSL_EXTRA)
-    crle->lastDateAsn1.length = MAX_DATE_SIZE;
-    XMEMCPY (crle->lastDateAsn1.data, crle->lastDate,
-             (size_t)crle->lastDateAsn1.length);
+    /* Set the actual date length, not MAX_DATE_SIZE. */
+    crle->lastDateAsn1.length = GetDateLen(crle->lastDate);
+    XMEMCPY (crle->lastDateAsn1.data, crle->lastDate, MAX_DATE_SIZE);
     crle->lastDateAsn1.type = crle->lastDateFormat;
-    crle->nextDateAsn1.length = MAX_DATE_SIZE;
-    XMEMCPY (crle->nextDateAsn1.data, crle->nextDate,
-             (size_t)crle->nextDateAsn1.length);
+    crle->nextDateAsn1.length = GetDateLen(crle->nextDate);
+    XMEMCPY (crle->nextDateAsn1.data, crle->nextDate, MAX_DATE_SIZE);
     crle->nextDateAsn1.type = crle->nextDateFormat;
 
     crle->issuer = NULL;
