@@ -1485,8 +1485,11 @@ static inline int wc_svr_ctx(void)
  *
  * arch/arm/include/asm/simd.h, read out of the trees rather than quoted from a
  * comment:
- *   <= 6.5   no such file; the asm-generic fallback is !in_interrupt()
- *   6.6      IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq()
+ *   <= 6.2   no such file; the asm-generic fallback is !in_interrupt()
+ *   6.3      IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq()
+ *            (measured: 6.3.13, 6.4.16 and 6.5.13 all carry this file and are
+ *            indistinguishable from 6.6.99 -- an earlier revision of this
+ *            comment said 6.6, which was wrong by three releases)
  *   6.16 ..  the same, plus && !irqs_disabled()
  *
  * So before 6.16 a task- or softirq-context caller with interrupts DISABLED is
@@ -1663,11 +1666,12 @@ module_param_cb(svr_nested_refused, &wc_svr_nested_refused_ops, NULL, 0444);
      * WHY arm32 REFUSES, read out of the kernel rather than assumed.
      * may_use_simd() is not one expression across the supported range:
      *
-     *   <= 6.5   there is no arch/arm/include/asm/simd.h, so the asm-generic
+     *   <= 6.2   there is no arch/arm/include/asm/simd.h, so the asm-generic
      *            fallback applies -- include/asm-generic/simd.h,
      *            `return !in_interrupt()`, which counts the SOFTIRQ mask, so
      *            softirq is refused as well as hardirq.
-     *   6.6      arch/arm/include/asm/simd.h appears:
+     *   6.3      arch/arm/include/asm/simd.h appears (NOT 6.6 -- measured
+     *            across 6.3.13 / 6.4.16 / 6.5.13):
      *            `IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq()`.
      *   6.16 .. 7.1
      *            the same, plus `&& !irqs_disabled()`.
