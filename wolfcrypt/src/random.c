@@ -5966,6 +5966,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_LINUXKM)
 
+    #if !defined(HAVE_ENTROPY_MEMUSE) && \
+        !defined(HAVE_INTEL_RDSEED) && \
+        !defined(HAVE_AMD_RDSEED)
+        #error WOLFSSL_LINUXKM needs an in-boundary entropy source: configure with --enable-wolfentropy, --enable-intelrdseed or --enable-amdrdseed.
+    #endif
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
@@ -5991,26 +5997,26 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #ifdef FORCE_FAILURE_RDSEED
         else {
-            /* Don't fall back to get_random_bytes() */
+            /* Configured for RDSEED, running on a CPU without it. */
             return MISSING_RNG_E;
         }
     #endif
     #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
-    #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-        #if !defined(HAVE_ENTROPY_MEMUSE) && \
-            !defined(HAVE_INTEL_RDSEED) && \
-            !defined(HAVE_AMD_RDSEED)
-            #error LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT requires an intrinsic entropy source.
-        #else
-            return ret;
-        #endif
-    #else
-        (void)ret;
-
-        get_random_bytes(output, sz);
-        return 0;
-    #endif
+        /* Every entropy source this build has was tried and none produced a
+         * seed.  Report that.
+         *
+         * The kernel's get_random_bytes() is deliberately NOT called here.  It
+         * produces bytes outside the module boundary, so serving them while
+         * returning 0 would tell the caller a DRBG had been seeded by this
+         * module when it had not, with nothing in the return value to say
+         * otherwise.  Reporting the failure is retryable: the common cause is
+         * BAD_MUTEX_E from wc_Entropy_Get() in a context that cannot take the
+         * entropy source's mutex (interrupts off, or holding a spinlock --
+         * wc_LockMutex() in linuxkm/linuxkm_wc_port.h refuses those outright),
+         * and the same caller succeeds from process context.
+         */
+        return ret;
     }
 
 #elif defined(WOLFSSL_BSDKM)

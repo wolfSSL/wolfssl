@@ -2008,9 +2008,6 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
-#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
-#endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         wolfssl_linuxkm_pie_redirect_table.getnstimeofday =
             getnstimeofday;

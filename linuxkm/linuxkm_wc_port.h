@@ -347,8 +347,9 @@
     #endif
 
     /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT needs to be here
-     * to assure that calls to get_random_bytes() in random.c are gated out
-     * (they would recurse, potentially infinitely).
+     * because linuxkm/lkcapi_sha_glue.c tests it at file scope (its
+     * LINUXKM_DRBG_GET_RANDOM_BYTES block) before it includes any wolfSSL
+     * header.
      */
     /* The _DEFAULT variant additionally installs a process-wide default that
      * wolfCrypt's own callers reach through wc_InitRng_BankRef(), so it needs
@@ -1320,9 +1321,6 @@
         typeof(ksize) *ksize;
 #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
-#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-        typeof(get_random_bytes) *get_random_bytes;
-#endif
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             typeof(getnstimeofday) *getnstimeofday;
         #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
@@ -1727,9 +1725,6 @@
     #define ksize WC_PIE_INDIRECT_SYM(ksize)
 #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
 
-#ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    #define get_random_bytes WC_PIE_INDIRECT_SYM(get_random_bytes)
-#endif
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
         #define getnstimeofday WC_PIE_INDIRECT_SYM(getnstimeofday)
     #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
