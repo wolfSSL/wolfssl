@@ -1011,6 +1011,21 @@ static bench_real_t wc_bench_rsqrt(bench_real_t in)
     }
 #endif
 
+/* Error reporting for a benchmark row that is NOT a measurement.
+ *
+ * Userspace sends these to stderr so they cannot be mistaken for table data and
+ * cannot be swallowed by a parser reading stdout.  A kernel-module build has
+ * neither stderr nor fprintf(), and BENCH_EMBEDDED targets may have no stdio at
+ * all, so those use the platform printf abstraction defined above -- the
+ * message still has to come out, it just cannot be on a separate stream. */
+#if defined(WOLFSSL_LINUXKM) || defined(NO_STDIO_FILESYSTEM) || \
+    defined(WOLFSSL_ZEPHYR) || defined(BENCH_EMBEDDED)
+    #define BENCH_ERR_PRINTF(...) printf(__VA_ARGS__)
+#else
+    #define BENCH_ERR_PRINTF(...) fprintf(stderr, __VA_ARGS__)
+#endif
+
+
 #ifdef WOLFSSL_STATIC_MEMORY
     static WOLFSSL_HEAP_HINT* HEAP_HINT;
 #else
@@ -3735,13 +3750,13 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
      * Report on stderr, where it cannot be mistaken for table data and cannot
      * be swallowed by a parser reading stdout. */
     if (count <= 0) {
-        fprintf(stderr, "BENCHMARK FAILED: %s %d %s%s completed 0 iterations "
+        BENCH_ERR_PRINTF("BENCHMARK FAILED: %s %d %s%s completed 0 iterations "
                         "(returned %d) -- the row is NOT a measurement\n",
                 algo, strength, desc ? desc : "",
                 desc_extra ? desc_extra : "", ret);
     }
     else if (ret < 0) {
-        fprintf(stderr, "BENCHMARK INCOMPLETE: %s %d %s%s failed with %d after "
+        BENCH_ERR_PRINTF("BENCHMARK INCOMPLETE: %s %d %s%s failed with %d after "
                         "%d successful iterations -- the row measures only "
                         "those\n",
                 algo, strength, desc ? desc : "",
