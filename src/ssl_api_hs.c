@@ -1592,9 +1592,14 @@ void wolfSSL_set_accept_state(WOLFSSL* ssl)
 
         #ifndef NO_DH
         if ((!ssl->options.haveDH) && (ssl->ctx->haveDH)) {
-            ssl->buffers.serverDH_P = ssl->ctx->serverDH_P;
-            ssl->buffers.serverDH_G = ssl->ctx->serverDH_G;
-            ssl->options.haveDH = 1;
+            /* Nothing to return the failure through, so leave the object
+             * without DH rather than claim parameters it does not have. */
+            if (CopySSL_CTX_DhParams(ssl, ssl->ctx) == 0) {
+                ssl->options.haveDH = 1;
+            }
+            else {
+                WOLFSSL_MSG("Unable to copy DH parameters from context");
+            }
         }
         #endif
     }

@@ -3986,6 +3986,121 @@ int test_tls13_pha(void)
     return EXPECT_RESULT();
 }
 
+
+/* DH parameters are not reference counted, so each session takes its own copy
+ * of them and the context is free to replace its own at any time. */
+int test_tls13_ctx_dh_rotation(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_DH) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const byte* startP = NULL;
+    const byte* startG = NULL;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if ((ssl != NULL) && (ctx != NULL)) {
+        /* The session took its own copy of the parameters. */
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectIntEQ(ssl->buffers.serverDH_P.length, ctx->serverDH_P.length);
+        ExpectIntEQ(ssl->buffers.serverDH_G.length, ctx->serverDH_G.length);
+        ExpectBufEQ(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer,
+            ctx->serverDH_P.length);
+        ExpectBufEQ(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer,
+            ctx->serverDH_G.length);
+        startP = ssl->buffers.serverDH_P.buffer;
+        startG = ssl->buffers.serverDH_G.buffer;
+    }
+
+    /* Replacing them on the context while the session is alive is allowed and
+     * leaves the session's copy where it was. */
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, startP);
+        ExpectPtrEq(ssl->buffers.serverDH_G.buffer, startG);
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectNotNull(ssl->buffers.serverDH_G.buffer);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* A context that gains DH parameters after a session already exists hands the
+ * session its own copy when the session is turned into a server. */
+int test_tls13_accept_state_dh_copy(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || \
+     defined(WOLFSSL_WPAS_SMALL)) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_DH) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const byte* startP = NULL;
+
+    /* Starts as a client, so that set_accept_state has a side to switch. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+
+    /* The session is made before the context has any parameters. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectNull(ssl->buffers.serverDH_P.buffer);
+    }
+
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_accept_state(ssl);
+
+    /* It picked them up, as its own copy rather than the context's. */
+    if ((ssl != NULL) && (ctx != NULL)) {
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectIntEQ(ssl->buffers.serverDH_P.length, ctx->serverDH_P.length);
+        ExpectIntEQ(ssl->buffers.serverDH_G.length, ctx->serverDH_G.length);
+        ExpectBufEQ(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer,
+            ctx->serverDH_P.length);
+        ExpectBufEQ(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer,
+            ctx->serverDH_G.length);
+        startP = ssl->buffers.serverDH_P.buffer;
+    }
+
+    /* So the context may still replace its own. */
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, startP);
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+    }
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 #if defined(HAVE_RPK) && defined(WOLFSSL_TLS13) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(NO_SHA256)
