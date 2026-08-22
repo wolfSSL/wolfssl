@@ -3427,8 +3427,22 @@ static int wc_PKCS7_EncodeContentStream(wc_PKCS7* pkcs7, ESD* esd, void* aes,
             idx += (word32)padSz;
         }
 
+        /* The pad can push the tail past a full chunk. StreamOctetString(),
+         * which sized the output, never emits more than BER_OCTET_LENGTH per
+         * octet string, so split here to match it. */
+        if (ret == 0 && idx > BER_OCTET_LENGTH) {
+            ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
+                        encContentOut, contentData, BER_OCTET_LENGTH, out,
+                        &outIdx, esd);
+            if (ret == 0) {
+                idx -= BER_OCTET_LENGTH;
+                XMEMMOVE(contentData, contentData + BER_OCTET_LENGTH, idx);
+            }
+        }
+
         /* encrypt and flush out remainder of content data */
-        ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
+        if (ret == 0)
+            ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType, aes,
                     encContentOut, contentData, (int)idx, out, &outIdx, esd);
         if (ret == 0) {
             if (cipherType == WC_CIPHER_NONE && esd &&
