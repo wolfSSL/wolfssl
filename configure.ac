@@ -8954,6 +8954,18 @@ then
     fi
     ENABLED_HASHDRBG=yes
     ENABLED_SHA256_DRBG=yes
+    # Restore the SHA-512 DRBG too.  --disable-hashdrbg clears both
+    # sub-options above, and the v7 guard that refuses --disable-sha512-drbg
+    # runs earlier in this file (in the FIPS_VERSION AS_CASE), so it sees the
+    # pre-clear value and does not fire.  Without this line
+    # "--enable-fips=v7 --disable-hashdrbg" configures successfully and builds
+    # a module with no SHA-512 Hash_DRBG, which the Security Policy and the
+    # Compliance Summary both claim it has, and leaves FIPS_CAST_DRBG_SHA512
+    # with no Known Answer Test.
+    if test "$HAVE_FIPS_VERSION" -ge 7
+    then
+        ENABLED_SHA512_DRBG=yes
+    fi
 fi
 
 # SHA-512 DRBG and runtime DRBG disable/enable APIs are v7+ only
