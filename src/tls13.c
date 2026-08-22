@@ -13021,6 +13021,12 @@ static int SendTls13Finished(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
     outputSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
+#ifdef WOLFSSL_DTLS13
+    /* MAX_MSG_EXTRA only budgets RECORD_HEADER_SZ. The DTLS 1.3 unified header
+     * is longer and grows with the TX CID. */
+    if (isDtls)
+        outputSz += Dtls13GetRlHeaderLength(ssl, 1);
+#endif /* WOLFSSL_DTLS13 */
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
@@ -13288,7 +13294,9 @@ int SendTls13KeyUpdate(WOLFSSL* ssl)
         }
     }
 
-    outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
+    /* i already carries the real record and handshake header lengths.
+     * MAX_MSG_EXTRA only budgets RECORD_HEADER_SZ. */
+    outputSz = (int)i + OPAQUE8_LEN + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;

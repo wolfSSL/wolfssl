@@ -10438,6 +10438,30 @@ static WC_INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
         }
     }
 }
+
+#ifndef WOLFSSL_NO_TLS12
+/* Is the send sequence number at its last legal value? DtlsSEQIncrement()
+ * would wrap the word16 high half to 0 and reuse sequence numbers. */
+static WC_INLINE int DtlsSEQAtMax(WOLFSSL* ssl, int order)
+{
+#ifdef HAVE_SECURE_RENEGOTIATION
+    order = DtlsCheckOrder(ssl, order);
+#endif
+
+    if (order == PREV_ORDER) {
+        return ssl->keys.dtls_prev_sequence_number_hi == 0xFFFF &&
+               ssl->keys.dtls_prev_sequence_number_lo == 0xFFFFFFFFU;
+    }
+    else if (order == PEER_ORDER) {
+        /* the peer's sequence number is taken from the record */
+        return 0;
+    }
+    else {
+        return ssl->keys.dtls_sequence_number_hi == 0xFFFF &&
+               ssl->keys.dtls_sequence_number_lo == 0xFFFFFFFFU;
+    }
+}
+#endif /* !WOLFSSL_NO_TLS12 */
 #endif /* WOLFSSL_DTLS */
 
 #if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
@@ -10849,10 +10873,10 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                 }
                 prev->m.m.next =
                         DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
-                if (prev->m.m.next != NULL) {
-                    msg->bytesReceived += fragSz;
-                    msg->fragBucketListCount++;
-                }
+                if (prev->m.m.next == NULL)
+                    return MEMORY_ERROR;
+                msg->bytesReceived += fragSz;
+                msg->fragBucketListCount++;
             }
             else if (fragOffsetEnd < cur->m.m.offset) {
                     /* Fragment is entirely before cur with a gap */
@@ -10873,6 +10897,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                     else {
                         /* reset on error */
                         *prev_next = cur;
+                        return MEMORY_ERROR;
                     }
             }
             else {
@@ -10886,8 +10911,11 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                 /* We can combine the buckets */
                 *prev_next = DtlsMsgCombineFragBuckets(msg, cur, next,
                         fragOffset, data, fragSz, heap);
-                if (*prev_next == NULL) /* reset on error */
+                if (*prev_next == NULL) {
+                    /* reset on error */
                     *prev_next = cur;
+                    return MEMORY_ERROR;
+                }
             }
         }
     }
@@ -10909,7 +10937,8 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
 }
 
 
-void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
+/* Returns 0 when the fragment was stored, negative when it was dropped. */
+int DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
     /* See if seq exists in the list. If it isn't in the list, make
@@ -10931,6 +10960,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
 
     DtlsMsg* head = ssl->dtls_rx_msg_list;
     byte encrypted = ssl->keys.decryptedCur == 1;
+    int ret = 0;
     WOLFSSL_ENTER("DtlsMsgStore");
 
     if (head != NULL) {
@@ -10939,11 +10969,13 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
             cur = DtlsMsgNew(dataSz, 0, heap);
             if (cur == NULL) {
                 WOLFSSL_MSG("DtlsMsgNew allocation failed");
-                ssl->error = MEMORY_E;
+                ret = MEMORY_E;
+                ssl->error = ret;
             }
             else {
-                if (DtlsMsgSet(cur, seq, epoch, data, type,
-                             fragOffset, fragSz, heap, dataSz, encrypted) < 0) {
+                ret = DtlsMsgSet(cur, seq, epoch, data, type,
+                             fragOffset, fragSz, heap, dataSz, encrypted);
+                if (ret < 0) {
                     DtlsMsgDelete(cur, heap);
                 }
                 else {
@@ -10954,7 +10986,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         }
         else {
             /* If this fails, the data is just dropped. */
-            DtlsMsgSet(cur, seq, epoch, data, type, fragOffset,
+            ret = DtlsMsgSet(cur, seq, epoch, data, type, fragOffset,
                     fragSz, heap, dataSz, encrypted);
         }
     }
@@ -10962,10 +10994,11 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         head = DtlsMsgNew(dataSz, 0, heap);
         if (head == NULL) {
             WOLFSSL_MSG("DtlsMsgNew allocation failed");
-            ssl->error = MEMORY_E;
+            ret = MEMORY_E;
+            ssl->error = ret;
         }
-        else if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
-                    fragSz, heap, dataSz, encrypted) < 0) {
+        else if ((ret = DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
+                    fragSz, heap, dataSz, encrypted)) < 0) {
             DtlsMsgDelete(head, heap);
             head = NULL;
         }
@@ -10975,6 +11008,8 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
     }
 
     ssl->dtls_rx_msg_list = head;
+
+    return ret;
 }
 
 
@@ -13235,7 +13270,14 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS_CID
-    if (rh->type == dtls12_cid && (cidSz = DtlsGetCidRxSize(ssl)) == 0)
+    if (rh->type == dtls12_cid) {
+        if ((cidSz = DtlsGetCidRxSize(ssl)) == 0)
+            return DTLS_CID_ERROR;
+    }
+    /* RFC 9146 Sec 4: with a receive CID every protected record must use the
+     * dtls12_cid type. The MAC covers the inner content type, not the wire
+     * type, so a record re-framed as application_data still authenticates. */
+    else if (ssl->keys.curEpoch != 0 && DtlsGetCidRxSize(ssl) != 0)
         return DTLS_CID_ERROR;
 #endif
 
@@ -20250,6 +20292,17 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             *inOutIdx = expectedIdx;
             return SendAlert(ssl, alert_warning, no_renegotiation);
         }
+#ifdef WOLFSSL_DTLS
+        /* RFC 6347 Sec 4.1: the epoch must not wrap. Both directions are
+         * checked because a second ClientHello can arrive between the peer's
+         * CCS and our own. */
+        if (ssl->options.dtls && (ssl->keys.dtls_epoch == 0xFFFF ||
+                ssl->keys.peerSeq[0].nextEpoch == 0xFFFF)) {
+            WOLFSSL_MSG("Refusing renegotiation. Epoch would wrap");
+            *inOutIdx = expectedIdx;
+            return SendAlert(ssl, alert_warning, no_renegotiation);
+        }
+#endif
         ret = ResetHandshakeStateForReneg(ssl);
         if (ret != 0)
             return ret;
@@ -26536,7 +26589,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
      * increments, so refuse at hi == lo == 0xFFFFFFFF (2^64-1): that last legal
      * value is deliberately sacrificed to avoid wrapping to 0 and reusing
      * sequence number 0. The caller must renegotiate or close. DTLS sequence
-     * numbers are epoch-scoped and handled elsewhere. */
+     * numbers are epoch-scoped and checked just below. */
     if (!sizeOnly && !ssl->options.dtls &&
             ssl->keys.sequence_number_hi == 0xFFFFFFFFU &&
             ssl->keys.sequence_number_lo == 0xFFFFFFFFU) {
@@ -26544,6 +26597,17 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
         return SEQUENCE_NUMBER_E;
     }
+
+#ifdef WOLFSSL_DTLS
+    /* RFC 6347 Sec 4.1: don't wrap the sequence number. Only protected records
+     * reach here, so the epoch 0 counter SendHelloVerifyRequest() copies from
+     * the peer is unaffected. */
+    if (!sizeOnly && ssl->options.dtls && DtlsSEQAtMax(ssl, epochOrder)) {
+        WOLFSSL_MSG("DTLS write sequence number would wrap");
+        WOLFSSL_ERROR_VERBOSE(SEQUENCE_NUMBER_E);
+        return SEQUENCE_NUMBER_E;
+    }
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;
