@@ -275,6 +275,7 @@ function(generate_build_flags)
     endif()
     set(BUILD_INLINE ${WOLFSSL_INLINE} PARENT_SCOPE)
     set(BUILD_ARMASM_INLINE ${WOLFSSL_ARMASM_INLINE} PARENT_SCOPE)
+    set(BUILD_ARMASM_INTRINSICS ${WOLFSSL_ARMASM_INTRINSICS} PARENT_SCOPE)
     set(BUILD_ARM_THUMB ${WOLFSSL_ARMASM_THUMB2} PARENT_SCOPE)
     if(WOLFSSL_OCSP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_OCSP "yes" PARENT_SCOPE)
@@ -1345,6 +1346,20 @@ function(generate_lib_src_list LIB_SOURCES)
 
     if(BUILD_PUF)
         list(APPEND LIB_SOURCES wolfcrypt/src/puf.c)
+    endif()
+
+    # ARM64 crypto kernels as NEON C intrinsics (MSVC on Windows ARM64).
+    # Supplies the same *_AARCH64 symbols as the assembly forms, so it is an
+    # alternative to them rather than an addition - see WOLFSSL_ARMASM_INTRINSICS
+    # in CMakeLists.txt. Each file is self-guarding on the macro, so listing them
+    # unconditionally would also work; they are gated here to keep the compile
+    # command clean and to avoid listing sources no other toolchain can use.
+    if(BUILD_ARMASM_INTRINSICS)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/arm/armv8-aes-intrinsics-msvc.c
+            wolfcrypt/src/port/arm/armv8-sha-intrinsics-msvc.c
+            wolfcrypt/src/port/arm/armv8-poly1305-intrinsics-msvc.c
+            wolfcrypt/src/port/arm/armv8-chacha-intrinsics-msvc.c)
     endif()
 
     set(LIB_SOURCES ${LIB_SOURCES} PARENT_SCOPE)
