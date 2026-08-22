@@ -43853,7 +43853,7 @@ sp_256_mont_tpl_4 PROC
         mov	r12, 18446744069414584321
         adc	r9, QWORD PTR [rdx+16]
         adc	r10, QWORD PTR [rdx+24]
-        sbb	r13, 0
+        sbb	r13, r13
         mov	r11d, r13d
         and	r12, r13
         sub	rax, r13
@@ -44005,7 +44005,7 @@ sp_256_mont_rsb_sub_dbl_4 PROC
         mov	rsi, 18446744069414584321
         sbb	r10, r14
         sbb	r11, r15
-        sbb	rdx, 0
+        sbb	rdx, rdx
         mov	edi, edx
         and	rsi, rdx
         add	rax, rdx
