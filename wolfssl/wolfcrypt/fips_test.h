@@ -97,12 +97,32 @@ enum FipsCastId {
     FIPS_CAST_SLH_DSA           = 25,
     /* Retired vendor-elected CASTs (v7 lab-prep).  The dedicated AES-CMAC,
      * SHAKE and AES-KW CASTs were removed because FIPS 140-3 IG 10.3.A covers
-     * them via the more-complex tier: AES-KW (1.d item (ii)) and AES-CMAC by
-     * the AES-GCM CAST (item (i)), and SHAKE by the HMAC-SHA3-256 CAST (item 3
-     * + Note 2, shared Keccak-p).  The ids are KEPT (do not reuse) so code that
-     * still references them compiles; the *services* re-gate onto the covering
-     * CAST (see fips.c), and DoCAST/RunAllCast no longer run these, the slots
-     * stay at INIT, exactly like the retired FIPS_CAST_DH_PRIMITIVE_Z (= 10). */
+     * them via the more-complex tier: AES-CMAC and AES-KW by the AES-GCM CAST
+     * (1.d items (i) and (ii)), and SHAKE by the HMAC-SHA3-256 CAST (item 3 +
+     * Note 2, shared Keccak-p).  AES-KW *unwrap* additionally gates on the
+     * AES-CBC CAST, because 1.c requires the inverse cipher to be self-tested
+     * and AES-GCM exercises the forward direction only (see
+     * wc_AesKeyUnWrap_fips in fips.c).  The ids are KEPT (do not reuse) so code
+     * that still references them compiles, and the *services* re-gate onto the
+     * covering CAST.
+     *
+     * State these ids reach, verified by running the module rather than read
+     * off this comment (an earlier revision claimed they "stay at INIT", which
+     * is only half the story):
+     *   - DoPOST() and wc_RunAllCast_fips() never touch them, so after a normal
+     *     power-on they read FIPS_CAST_STATE_INIT.
+     *   - DoCAST() DOES have a case for each (see fips_test.c) and stores a
+     *     terminal FIPS_CAST_STATE_SUCCESS without running any KAT.  So an
+     *     operator exercising the on-demand self-test service required by
+     *     ISO/IEC 19790:2012 sec 7.10.3 -- wc_RunCast_fips(id) -- gets a 0
+     *     return and leaves the slot reading SUCCESS.  The alternative,
+     *     omitting the case, leaves the slot at PROCESSING forever while
+     *     wc_RunCast_fips() still returns 0: the same false pass, less visible.
+     *   - FIPS_CAST_DH_PRIMITIVE_Z (= 10) behaves identically on both counts.
+     * A status array holding SUCCESS for these four ids therefore does not mean
+     * four extra KATs ran.  PL-R34 sec 10.5 and PL-R36 document the arithmetic:
+     * 29 identifiers, 25 with a KAT, 24 executed on the submitted build (
+     * FIPS_CAST_ECC_CDH needs HAVE_ECC_CDH_CAST, which configure never sets). */
     FIPS_CAST_AES_CMAC          = 26,
     FIPS_CAST_SHAKE             = 27,
     FIPS_CAST_AES_KW            = 28,
