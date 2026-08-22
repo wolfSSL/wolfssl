@@ -10794,13 +10794,11 @@ static int test_wolfSSL_clear_zeroizes_secrets(void)
     if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
         ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->masterSecret,
             SECRET_LEN), 0);
-        /* The pre-master secret is not part of that contract. */
-        ExpectNotNull(ssl_s->arrays->preMasterSecret);
     }
-    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL) &&
-            (ssl_s->arrays->preMasterSecret != NULL)) {
+    if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
+        /* The pre-master secret is not part of that contract. */
         ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->preMasterSecret,
-            ENCRYPT_LEN), 1);
+            MAX_PREMASTER_SZ), 1);
     }
     if (EXPECT_SUCCESS() && (ssl_s != NULL) && (ssl_s->arrays != NULL)) {
         /* The key schedule secret is not part of the contract either. */
@@ -10840,9 +10838,8 @@ static int test_wolfSSL_clear_zeroizes_secrets(void)
         ExpectIntEQ(test_clear_all_zero(ssl_s->arrays->exporterSecret,
             WC_MAX_DIGEST_SIZE), 1);
     #endif
-        ExpectNotNull(ssl_s->arrays->preMasterSecret);
         /* The key agreement routines read this as the room they have. */
-        ExpectIntEQ((int)ssl_s->arrays->preMasterSz, ENCRYPT_LEN);
+        ExpectIntEQ((int)ssl_s->arrays->preMasterSz, MAX_PREMASTER_SZ);
     }
 
     wolfSSL_free(ssl_c);

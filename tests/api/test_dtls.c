@@ -2998,6 +2998,96 @@ static unsigned char version_3[] = {
 };
 #endif /* defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) */
 
+/* A DH ceiling above what this build's math supports is clamped; a floor or a
+ * negotiated size above that is rejected. The fields are found by value, not
+ * by offset, so the export layout is not encoded twice.
+ */
+int test_wolfSSL_dtls_import_dh_key_sz(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
+    !defined(NO_DH) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte blob[sizeof(version_3)];
+    word16 minSz = 0;
+    word16 maxSz = 0;
+    word16 keySz = 0;
+    int at = -1;
+    int hits = 0;
+    unsigned int i;
+
+    /* version_3 is shared and mutable, so fail loudly if it was poisoned. */
+    ExpectIntEQ(version_3[0], 0xA5);
+    ExpectIntEQ(version_3[1], 0xA3);
+
+    /* Import the blob as it stands to learn the three values it carries. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntGE(wolfSSL_dtls_import(ssl, version_3, sizeof(version_3)), 0);
+    if (ssl != NULL) {
+        minSz = ssl->options.minDhKeySz;
+        maxSz = ssl->options.maxDhKeySz;
+        keySz = ssl->options.dhKeySz;
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Refuse to guess if the triple is not unique. The ceiling may have been
+     * clamped on import, so match it either way. */
+    for (i = 0; i + 6 <= sizeof(version_3); i++) {
+        word16 rawMax = (word16)((version_3[i + 2] << 8) | version_3[i + 3]);
+
+        if (((version_3[i + 0] << 8) | version_3[i + 1]) != minSz)
+            continue;
+        if (((version_3[i + 4] << 8) | version_3[i + 5]) != keySz)
+            continue;
+        if ((rawMax != maxSz) &&
+                !((rawMax > MAX_DHKEY_SZ) && (maxSz == MAX_DHKEY_SZ)))
+            continue;
+        at = (int)i;
+        hits++;
+    }
+    ExpectIntEQ(hits, 1);
+    if (at < 0)
+        goto done;
+
+    /* A ceiling this build cannot honour is clamped, and the import stands. */
+    XMEMCPY(blob, version_3, sizeof(blob));
+    blob[at + 2] = (byte)((MAX_DHKEY_SZ + 1) >> 8);
+    blob[at + 3] = (byte)((MAX_DHKEY_SZ + 1) & 0xff);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntGE(wolfSSL_dtls_import(ssl, blob, sizeof(blob)), 0);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.maxDhKeySz, MAX_DHKEY_SZ);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* A floor above it fails rather than lowering the peer's policy. */
+    XMEMCPY(blob, version_3, sizeof(blob));
+    blob[at + 0] = (byte)((MAX_DHKEY_SZ + 1) >> 8);
+    blob[at + 1] = (byte)((MAX_DHKEY_SZ + 1) & 0xff);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntLT(wolfSSL_dtls_import(ssl, blob, sizeof(blob)), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+    /* Same for the negotiated size this build cannot represent. */
+    XMEMCPY(blob, version_3, sizeof(blob));
+    blob[at + 4] = (byte)((MAX_DHKEY_SZ + 1) >> 8);
+    blob[at + 5] = (byte)((MAX_DHKEY_SZ + 1) & 0xff);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntLT(wolfSSL_dtls_import(ssl, blob, sizeof(blob)), 0);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+done:
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_dtls_export(void)
 {
     EXPECT_DECLS;
@@ -3073,6 +3163,8 @@ int test_wolfSSL_dtls_export(void)
         ExpectIntLT(wolfSSL_dtls_import(ssl, version_3, sizeof(version_3)), 0);
         version_3[2]--; version_3[1] = 0XA0;
         ExpectIntLT(wolfSSL_dtls_import(ssl, version_3, sizeof(version_3)), 0);
+        /* Shared with every later test, so put the version byte back. */
+        version_3[1] = 0xA3;
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
 
@@ -8085,11 +8177,53 @@ int test_wolfSSL_set_secret(void)
     ExpectIntEQ(wolfSSL_CTX_mcast_set_member_id(ctx, 0), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    /* Invalid arguments take the error path and return WOLFSSL_FATAL_ERROR. */
+    /* Invalid arguments return WOLFSSL_FATAL_ERROR, a NULL object included:
+     * the cleanup must not assume the argument check passed. */
+    ExpectIntEQ(wolfSSL_set_secret(NULL, 23, preMasterSecret,
+        sizeof(preMasterSecret), clientRandom, serverRandom, suite),
+        WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_set_secret(ssl, 23, NULL, sizeof(preMasterSecret),
         clientRandom, serverRandom, suite), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_set_secret(ssl, 23, preMasterSecret, 0,
         clientRandom, serverRandom, suite), WOLFSSL_FATAL_ERROR);
+
+    /* A secret larger than the buffer is refused rather than copied in: the
+     * check between an untrusted size and an overflow. */
+    ExpectIntEQ(wolfSSL_set_secret(ssl, 23, preMasterSecret,
+        MAX_PREMASTER_SZ + 1, clientRandom, serverRandom, suite),
+        WOLFSSL_FATAL_ERROR);
+
+    /* The secret is not left in the object. wolfSSL_set_secret() ends in
+     * FreeHandshakeResources(), which releases the arrays unless saveArrays
+     * is set, so keeping them is what makes the wipe observable. */
+    wolfSSL_KeepArrays(ssl);
+    ExpectIntEQ(wolfSSL_set_secret(ssl, 23, preMasterSecret,
+        sizeof(preMasterSecret), clientRandom, serverRandom, suite),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl == NULL ? NULL : ssl->arrays);
+    if ((ssl != NULL) && (ssl->arrays != NULL)) {
+        word32 i;
+        int nonZero = 0;
+
+        for (i = 0; i < MAX_PREMASTER_SZ; i++) {
+            if (ssl->arrays->preMasterSecret[i] != 0)
+                nonZero = 1;
+        }
+        ExpectIntEQ(nonZero, 0);
+        ExpectIntEQ(ssl->arrays->preMasterSz, 0);
+    }
+
+    /* Once the handshake arrays are gone the call reports a bad argument
+     * instead of dereferencing NULL. */
+    if (ssl != NULL) {
+        Arrays* saved = ssl->arrays;
+
+        ssl->arrays = NULL;
+        ExpectIntEQ(wolfSSL_set_secret(ssl, 23, preMasterSecret,
+            sizeof(preMasterSecret), clientRandom, serverRandom, suite),
+            WOLFSSL_FATAL_ERROR);
+        ssl->arrays = saved;
+    }
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

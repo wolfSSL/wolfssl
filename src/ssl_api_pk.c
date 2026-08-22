@@ -1835,7 +1835,10 @@ int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable)
  *
  * @param [in] ctx         SSL/TLS context object.
  * @param [in] keySz_bits  Minimum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8. A floor above what the build's
+ *                         math supports is accepted: it simply refuses every
+ *                         DH key a peer can offer, which is what a caller
+ *                         tightening its policy asked for.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL or keySz_bits is invalid.
  * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
@@ -1861,7 +1864,10 @@ int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
  *
  * @param [in] ssl         SSL/TLS object.
  * @param [in] keySz_bits  Minimum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8. A floor above what the build's
+ *                         math supports is accepted: it simply refuses every
+ *                         DH key a peer can offer, which is what a caller
+ *                         tightening its policy asked for.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or keySz_bits is invalid.
  * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
@@ -1887,7 +1893,8 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
  *
  * @param [in] ctx         SSL/TLS context object.
  * @param [in] keySz_bits  Maximum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8, and no more than what the build's
+ *                         math supports.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL or keySz_bits is invalid.
  */
@@ -1904,6 +1911,15 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
+    /* The pre-master secret buffer is sized for the largest prime the build's
+     * math supports, so a ceiling above that cannot be honoured. Checked
+     * after the crypto policy so a request that breaks both is still reported
+     * as the policy violation it is. */
+    if ((keySz_bits / 8) > MAX_DHKEY_SZ) {
+        WOLFSSL_MSG("Requested maximum DH key size exceeds MAX_DHKEY_SZ");
+        return BAD_FUNC_ARG;
+    }
+
     ctx->maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
@@ -1912,7 +1928,8 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
  *
  * @param [in] ssl         SSL/TLS object.
  * @param [in] keySz_bits  Maximum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8, and no more than what the build's
+ *                         math supports.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or keySz_bits is invalid.
  */
@@ -1928,6 +1945,15 @@ int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
         }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
+    /* The pre-master secret buffer is sized for the largest prime the build's
+     * math supports, so a ceiling above that cannot be honoured. Checked
+     * after the crypto policy so a request that breaks both is still reported
+     * as the policy violation it is. */
+    if ((keySz_bits / 8) > MAX_DHKEY_SZ) {
+        WOLFSSL_MSG("Requested maximum DH key size exceeds MAX_DHKEY_SZ");
+        return BAD_FUNC_ARG;
+    }
 
     ssl->options.maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;

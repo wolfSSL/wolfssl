@@ -1882,6 +1882,108 @@ enum Misc {
 };
 
 
+/* Size of the pre-master secret buffer. Not ENCRYPT_LEN, which also has to
+ * hold an RSA signature and so follows the biggest RSA key the build supports.
+ * Each term below is the largest secret one key exchange can produce, or 0
+ * when it is not compiled in. */
+#define WOLFSSL_PMS_MAX2(a, b) (((a) > (b)) ? (a) : (b))
+
+/* A hybrid key share appends a 32 byte ML-KEM secret to the ECDH one. A
+ * literal because wc_mlkem.h is out of scope here; an assert in src/tls.c
+ * pins it to WC_ML_KEM_SS_SZ. */
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_TLS13)
+    #define PMS_MLKEM_SZ    32
+#else
+    #define PMS_MLKEM_SZ    0
+#endif
+
+/* TLS 1.2 takes the parameters from the peer, up to MAX_DHKEY_SZ. TLS 1.3
+ * takes the group from the peer's key share and never checks it against
+ * maxDhKeySz, so the largest group compiled in has to fit as well. */
+#if defined(NO_DH)
+    #define PMS_DH_SZ       0
+#elif defined(HAVE_FFDHE_8192)
+    #define PMS_DH_SZ       WOLFSSL_PMS_MAX2(MAX_DHKEY_SZ, 8192 / 8)
+#elif defined(HAVE_FFDHE_6144)
+    #define PMS_DH_SZ       WOLFSSL_PMS_MAX2(MAX_DHKEY_SZ, 6144 / 8)
+#elif defined(HAVE_FFDHE_4096)
+    #define PMS_DH_SZ       WOLFSSL_PMS_MAX2(MAX_DHKEY_SZ, 4096 / 8)
+#elif defined(HAVE_FFDHE_3072)
+    #define PMS_DH_SZ       WOLFSSL_PMS_MAX2(MAX_DHKEY_SZ, 3072 / 8)
+#elif defined(HAVE_FFDHE_2048)
+    #define PMS_DH_SZ       WOLFSSL_PMS_MAX2(MAX_DHKEY_SZ, 2048 / 8)
+#else
+    #define PMS_DH_SZ       MAX_DHKEY_SZ
+#endif
+
+/* Largest ECDH secret, taken per curve rather than from the widest one:
+ * MAX_ECC_BYTES follows the configured ECC key sizes, and a build can enable
+ * Curve448 alongside a smaller ECC. */
+#ifdef HAVE_ECC
+    #define PMS_ECC_SZ      MAX_ECC_BYTES
+#else
+    #define PMS_ECC_SZ      0
+#endif
+#ifdef HAVE_CURVE25519
+    #define PMS_X25519_SZ   CURVE25519_KEYSIZE
+#else
+    #define PMS_X25519_SZ   0
+#endif
+#ifdef HAVE_CURVE448
+    #define PMS_X448_SZ     CURVE448_KEY_SIZE
+#else
+    #define PMS_X448_SZ     0
+#endif
+#define PMS_ECDH_SZ (WOLFSSL_PMS_MAX2(PMS_ECC_SZ,                             \
+                     WOLFSSL_PMS_MAX2(PMS_X25519_SZ, PMS_X448_SZ)) +          \
+                     PMS_MLKEM_SZ)
+
+/* A PSK only exchange pads with a zeroed copy of the key, and every PSK suite
+ * frames the two secrets with a length each. */
+#ifndef NO_PSK
+    #define PMS_PSK_SZ      MAX_PSK_KEY_LEN
+    #define PMS_PSK_EXTRA   (MAX_PSK_KEY_LEN + OPAQUE16_LEN * 2)
+#else
+    #define PMS_PSK_SZ      0
+    #define PMS_PSK_EXTRA   0
+#endif
+
+/* wolfSSL_set_secret() has always accepted up to ENCRYPT_LEN bytes. */
+#ifdef WOLFSSL_MULTICAST
+    #define PMS_MCAST_SZ    ENCRYPT_LEN
+#else
+    #define PMS_MCAST_SZ    0
+#endif
+
+/* A GenPreMasterCb writes the secret itself. ENCRYPT_LEN stays the default so
+ * a callback written against the old contract cannot be overrun; an
+ * integration that knows better sets this smaller. */
+#ifdef HAVE_PK_CALLBACKS
+    #ifndef WOLFSSL_MAX_GEN_PREMASTER_SZ
+        #define WOLFSSL_MAX_GEN_PREMASTER_SZ ENCRYPT_LEN
+    #endif
+    #define PMS_GEN_CB_SZ   WOLFSSL_MAX_GEN_PREMASTER_SZ
+#else
+    #define PMS_GEN_CB_SZ   0
+#endif
+
+/* SECRET_LEN is the floor: the RSA key exchange works with a master secret
+ * sized buffer, and TLS 1.3 reuses this buffer for the handshake secret,
+ * which is one MAC hash and never longer than SHA-384. */
+#define PMS_KX_SZ                                                             \
+    WOLFSSL_PMS_MAX2(WOLFSSL_PMS_MAX2(SECRET_LEN, PMS_DH_SZ),                 \
+                     WOLFSSL_PMS_MAX2(PMS_ECDH_SZ, PMS_PSK_SZ))
+#define MAX_PREMASTER_SZ                                                      \
+    WOLFSSL_PMS_MAX2(WOLFSSL_PMS_MAX2(PMS_MCAST_SZ, PMS_GEN_CB_SZ),           \
+                     PMS_KX_SZ + PMS_PSK_EXTRA)
+
+/* The PSK layout - length, secret, length, key - is what decides the size,
+ * and getting it wrong is what overran the buffer before. */
+#if !defined(NO_PSK) && !defined(NO_DH)
+wc_static_assert(MAX_PREMASTER_SZ >=
+    OPAQUE16_LEN + MAX_DHKEY_SZ + OPAQUE16_LEN + MAX_PSK_KEY_LEN);
+#endif
+
 /* Size of the data to authenticate */
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
 #define AEAD_AUTH_DATA_SZ WOLFSSL_TLS_AEAD_CID_AAD_SZ
@@ -5690,7 +5792,9 @@ struct Options {
 };
 
 typedef struct Arrays {
-    byte*           preMasterSecret;
+    /* In the struct, not a second allocation, so nothing tracks or frees
+     * it separately. */
+    byte            preMasterSecret[MAX_PREMASTER_SZ];
     word32          preMasterSz;        /* differs for DH, actual size */
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     word32          psk_keySz;          /* actual size */

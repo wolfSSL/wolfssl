@@ -105,6 +105,7 @@ int test_dtls13_hrr_cookie_secret_issue_uses_primary(void);
 int test_dtls13_hrr_cookie_secret_secondary_args(void);
 int test_dtls13_hrr_cookie_secret_secondary_disabled(void);
 int test_wolfSSL_dtls_export(void);
+int test_wolfSSL_dtls_import_dh_key_sz(void);
 int test_wolfSSL_dtls_export_peers(void);
 int test_wolfSSL_dtls_import_state_extra_window_words(void);
 int test_wolfSSL_DTLS_either_side(void);
@@ -157,6 +158,7 @@ int test_WOLFSSL_dtls_version_alert(void);
         TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_stateless),             \
         TEST_DECL_GROUP("dtls", test_dtls_set_session_min_downgrade),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export),                     \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_import_dh_key_sz),          \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_export_peers),               \
         TEST_DECL_GROUP("dtls",                                                \
                            test_wolfSSL_dtls_import_state_extra_window_words), \
