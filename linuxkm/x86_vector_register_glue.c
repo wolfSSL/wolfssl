@@ -37,6 +37,21 @@
     #include <asm/neon.h>
     #include <linux/version.h>
 
+    /* Both ARM ports define and export kernel_neon_begin/end only inside
+     * #ifdef CONFIG_KERNEL_MODE_NEON -- arch/arm/vfp/vfpmodule.c:811 and :857,
+     * arch/arm64/kernel/fpsimd.c:1885 and :2063, in linux-6.6.99.  Without it
+     * this module does not link: measured, modpost reports
+     *   "kernel_neon_end" [linuxkm/libwolfssl.ko] undefined!
+     * State the dependency here so a build learns it from one line rather than
+     * from modpost.  It is load-bearing for more than the link: on arm32 from
+     * 6.3 the option is also what makes may_use_simd() true in task context
+     * (arch/arm/include/asm/simd.h, IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
+     * !in_hardirq()), and that is what keeps plain task context off the nested
+     * save.  See WC_SVR_NESTED_ARM32 below. */
+    #ifndef CONFIG_KERNEL_MODE_NEON
+        #error "wolfSSL linuxkm on ARM requires CONFIG_KERNEL_MODE_NEON"
+    #endif
+
 #if defined(CONFIG_ARM64) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 19, 0))
     /* Linux 6.19 changed the arm64 contract: the CALLER supplies the buffer that
      * holds the interrupted kernel-mode FPSIMD state.  Verified by reading the
@@ -1977,14 +1992,38 @@ module_param_cb(svr_pin_lost, &wc_svr_pin_lost_ops, NULL, 0444);
      * kernel_neon_begin() (:829, :879) makes the attempt fatal rather than
      * quiet.
      *
-     * WHICH ALSO SETTLES THE CPU.  The per-CPU save area is only sound if the
-     * CPU cannot change between the decision and the restore.  On arm32 the
-     * context that reaches this path settles that on its own, without relying
-     * on preempt_disable(): a hard interrupt handler cannot migrate, a softirq
+     * WHICH ALSO SETTLES THE CPU, BUT ONLY BECAUSE OF A BUILD DEPENDENCY THIS
+     * COMMENT DID NOT NAME.  The per-CPU save area is only sound if the CPU
+     * cannot change between the decision and the restore.  Three routes into
+     * this path settle that on their own, without relying on
+     * preempt_disable(): a hard interrupt handler cannot migrate, a softirq
      * cannot migrate, and irqs_disabled() in task context cannot be preempted.
      * That matters because CONFIG_PREEMPT_COUNT is not universal -- on a
      * PREEMPT_NONE build without it, preempt_disable() is a compiler barrier
-     * and pins nothing.  Here there is nothing left for it to pin.
+     * and pins nothing.
+     *
+     * A FOURTH ROUTE WOULD NOT SETTLE IT.  From 6.3,
+     * arch/arm/include/asm/simd.h is
+     *     return IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && !in_hardirq();
+     * so with CONFIG_KERNEL_MODE_NEON unset may_use_simd() is the COMPILE-TIME
+     * CONSTANT FALSE, and PLAIN TASK CONTEXT WITH INTERRUPTS ENABLED would
+     * reach the nested save with nothing holding the CPU.  Measured in this
+     * module's own frame on linux-6.6.99 arm, CONFIG_VFP=y CONFIG_NEON=y, that
+     * one option the only variable: WC_SVR_MAY_USE_SIMD() answers 0 with
+     * interrupts ON when it is unset and 1 when it is set.
+     *
+     * That route is closed, and closed by accident: WC_LINUXKM_FPU_BEGIN()
+     * above calls kernel_neon_begin() unconditionally on CONFIG_ARM, and
+     * arch/arm/vfp/vfpmodule.c defines and exports kernel_neon_begin/end only
+     * inside #ifdef CONFIG_KERNEL_MODE_NEON (:811 and :857 in linux-6.6.99).
+     * So this module DOES NOT LINK against such a kernel -- measured, the same
+     * config, modpost: "kernel_neon_end" [linuxkm/libwolfssl.ko] undefined.
+     * The dependency is real and was unstated; the #error beside
+     * WC_LINUXKM_FPU_BEGIN() now names it.
+     * Nothing in the pin argument may rest on it silently: if anything ever
+     * gives arm32 a path that does not need kernel_neon_begin(), plain task
+     * context reaches the nested save unpinned and WC_SVR_DECIDE_PIN()'s
+     * migrate_disable() becomes the only thing holding the CPU.
      *
      * THE CONSTRAINT THAT DECIDES CORRECTNESS HERE is not a register-file
      * width, as it is on arm64; it is FPEXC.EN.  arm32 gates all access to the
