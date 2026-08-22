@@ -25,20 +25,24 @@ Two columns carry the evidence, and they are deliberately separate:
 | column | meaning |
 |---|---|
 | `source` | `SHIPPED` -- a directory named for this series serves it directly; `DERIVED` -- it is served by a base belonging to a different version |
-| `random.o built` | `yes` -- the patched tree was compiled and `drivers/char/random.o` was produced, with no diagnostic that the pristine build did not also emit; `not yet` -- only the fuzz-0 apply has been measured |
+| `random.o built` | `yes` -- the patched tree was compiled and `drivers/char/random.o` was produced, with no diagnostic that the pristine build did not also emit, AND the three symbols the module binds to are present in that object as `T` and as export entries, AND a consumer translation unit that uses `struct wolfssl_linuxkm_random_bytes_handlers` and calls the register/unregister entry points compiles against the patched `<linux/random.h>` |
 
 **Every row applies at `--fuzz=0`.** That was re-measured for all thirty-four
 supported versions against all seventeen bases -- 578 cells -- so there are no
 `NOT COVERED` rows.
 
-**Not every row has been compiled, and the difference matters.** Applying is not
-compiling: a base from the wrong side of the 6.2 `crng_reseed()` boundary
-applies and then fails with `too few arguments to function 'crng_reseed'`, and a
-fuzzed hunk can land in a function where its variables do not exist. The rows
-marked `not yet` are the ones nobody has put through a compiler against the base
-this table names. They are not suspect -- they are unmeasured, which is a
-different thing, and the column says so rather than implying a build that never
-happened.
+**Every row has now been compiled**, on x86_64 `defconfig`, each against its own
+pristine baseline build so that a diagnostic is only counted when the patch is
+what introduced it. Compiling matters separately from applying: a base from the
+wrong side of the 6.2 `crng_reseed()` boundary applies at `--fuzz=3` and then
+fails with `too few arguments to function 'crng_reseed'`, and a fuzzed hunk can
+land in a function where its variables do not exist.
+
+Compiling is not the end of it either, which is why the column also covers the
+symbols. A patched `random.c` can compile perfectly and still export a name the
+module does not call, in which case `libwolfssl.ko` loads against nothing --
+`insmod` fails with `Unknown symbol wolfssl_linuxkm_register_random_bytes_handlers
+(err -2)`. Both halves are checked per row.
 
 **`--fuzz=0` is the bar here, and it is not the bar the harness uses.**
 `make-fips-rbgc-patch.sh` fuzzes at 3 unconditionally. Fuzz drops context lines
@@ -50,41 +54,44 @@ base on a 5.17.11 tree puts its `mix_pool_bytes()` hunk inside `fast_mix()` at
 | version | verified at | patch that serves it | source | `random.o` built |
 |---|---|---|---|---|
 | 5.6  | 5.6.19   | `5.6/WOLFSSL_KERNELv5_6_FIPS.patch`                            | SHIPPED | yes |
-| 5.7  | 5.7.19   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | not yet |
-| 5.8  | 5.8.18   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | not yet |
-| 5.9  | 5.9.16   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | not yet |
-| 5.10 | 5.10.265 | `5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch`                  | SHIPPED | not yet |
-| 5.11 | 5.11.22  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | not yet |
-| 5.12 | 5.12.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | not yet |
-| 5.13 | 5.13.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | not yet |
-| 5.15 | 5.15.216 | `5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch` | DERIVED | not yet |
+| 5.7  | 5.7.19   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | yes |
+| 5.8  | 5.8.18   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | yes |
+| 5.9  | 5.9.16   | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | DERIVED | yes |
+| 5.10 | 5.10.17  | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch`                    | SHIPPED | yes |
+| 5.10 | 5.10.265 | `5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch`                  | SHIPPED | yes |
+| 5.11 | 5.11.22  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | yes |
+| 5.12 | 5.12.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | yes |
+| 5.13 | 5.13.19  | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | DERIVED | yes |
+| 5.15 | 5.15     | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch`                          | SHIPPED | yes |
+| 5.15 | 5.15.216 | `5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch` | DERIVED | yes |
 | 5.16 | 5.16.20  | `5.16/WOLFSSL_KERNELv5_16_FIPS.patch`                          | SHIPPED | yes |
 | 5.17 | 5.17.11  | `5.17.0/WOLFSSL_KERNELv5_17_0_FIPS.patch`                      | SHIPPED | yes |
-| 5.17 | 5.17.13  | `5.17/WOLFSSL_KERNELv5_17_FIPS.patch`                          | SHIPPED | not yet |
+| 5.17 | 5.17.13  | `5.17/WOLFSSL_KERNELv5_17_FIPS.patch`                          | SHIPPED | yes |
 | 5.17 | 5.17.15  | `5.17.14/WOLFSSL_KERNELv5_17_14_FIPS.patch`                    | SHIPPED | yes |
 | 5.18 | 5.18.19  | `5.18/WOLFSSL_KERNELv5_18_FIPS.patch`                          | SHIPPED | yes |
-| 5.19 | 5.19.17  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | not yet |
-| 6.0  | 6.0.19   | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | not yet |
-| 6.1  | 6.1.183  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | SHIPPED | not yet |
-| 6.2  | 6.2.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
-| 6.4  | 6.4.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
-| 6.5  | 6.5.13   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
+| 5.19 | 5.19.17  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | yes |
+| 6.0  | 6.0.19   | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | DERIVED | yes |
+| 6.1  | 6.1.183  | `6.1.73/WOLFSSL_KERNELv6_1_73_FIPS.patch`                      | SHIPPED | yes |
+| 6.2  | 6.2.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
+| 6.4  | 6.4.16   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
+| 6.5  | 6.5.13   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
+| 6.6  | 6.6.99   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
 | 6.6  | 6.6.152  | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`                    | DERIVED | yes |
-| 6.7  | 6.7.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
-| 6.8  | 6.8.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
-| 6.9  | 6.9.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
-| 6.10 | 6.10.14  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
-| 6.11 | 6.11.11  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | not yet |
+| 6.7  | 6.7.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
+| 6.8  | 6.8.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
+| 6.9  | 6.9.12   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
+| 6.10 | 6.10.14  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
+| 6.11 | 6.11.11  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch`                          | DERIVED | yes |
 | 6.12 | 6.12.104 | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch`                    | SHIPPED | yes |
-| 6.13 | 6.13.12  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | not yet |
-| 6.14 | 6.14.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | not yet |
-| 6.15 | 6.15.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | SHIPPED | not yet |
+| 6.13 | 6.13.12  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | yes |
+| 6.14 | 6.14.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | DERIVED | yes |
+| 6.15 | 6.15.11  | `6.15/WOLFSSL_KERNELv6_15_FIPS.patch`                          | SHIPPED | yes |
 | 6.16 | 6.16.12  | `6.16/WOLFSSL_KERNELv6_16_FIPS.patch`                          | SHIPPED | yes |
 | 6.17 | 6.17.13  | `6.16/WOLFSSL_KERNELv6_16_FIPS.patch`                          | DERIVED | yes |
-| 6.18 | 6.18.45  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | not yet |
-| 6.19 | 6.19.14  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | not yet |
-| 7.0  | 7.0.14   | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | SHIPPED | not yet |
-| 7.1  | 7.1.9    | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | not yet |
+| 6.18 | 6.18.45  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | yes |
+| 6.19 | 6.19.14  | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | yes |
+| 7.0  | 7.0.14   | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | SHIPPED | yes |
+| 7.1  | 7.1.9    | `7.0/WOLFSSL_KERNELv7_0_FIPS.patch`                            | DERIVED | yes |
 
 One of the seventeen directories is never named by a row above, because the
 version it was authored against is not in the supported list:
@@ -114,11 +121,37 @@ patchlevel across the boundary, not inferred:
 
 | series | patchlevels | patch |
 |---|---|---|
+| 5.10 | 5.10.17 and earlier* | `5.10.17/WOLFSSL_KERNELv5_10_17_FIPS.patch` |
+| 5.10 | up to 5.10.265* | `5.10.236/WOLFSSL_KERNELv5_10_236_FIPS.patch` |
+| 5.15 | 5.15 and earlier* | `5.15/WOLFSSL_KERNELv5_15_FIPS.patch` |
+| 5.15 | up to 5.15.216* | `5.17-ubuntu-jammy-tegra/WOLFSSL_KERNELv5_17_tegra_FIPS.patch` |
 | 5.17 | 5.17.0 - 5.17.11  | `5.17.0/WOLFSSL_KERNELv5_17_0_FIPS.patch` |
 | 5.17 | 5.17.12 - 5.17.13 | `5.17/WOLFSSL_KERNELv5_17_FIPS.patch` |
 | 5.17 | 5.17.14 - 5.17.15 | `5.17.14/WOLFSSL_KERNELv5_17_14_FIPS.patch` |
+| 6.6  | 6.6.0 - 6.6.127   | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch` |
+| 6.6  | 6.6.128 - 6.6.152+ | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch` |
 | 6.12 | 6.12.0 - 6.12.74  | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch` |
 | 6.12 | 6.12.75 - 6.12.104+ | `6.12.75/WOLFSSL_KERNELv6_12_75_FIPS.patch` |
+
+`*` **5.10 and 5.15: the exact patchlevel at which each flips is NOT measured.**
+What is measured is that both ends need different bases and each refuses the
+other's, at `--fuzz=0`:
+
+| tree | `5.10.17` | `5.10.236` |
+|---|---|---|
+| 5.10.17  | applies | refuses |
+| 5.10.265 | refuses | applies |
+
+| tree | `5.15` | `5.17-ubuntu-jammy-tegra` |
+|---|---|---|
+| 5.15     | applies | refuses |
+| 5.15.216 | refuses | applies |
+
+If your 5.10 or 5.15 patchlevel is between those points, try both and take the
+one that applies with **no** fuzz. Do not take the one that applies with fuzz.
+
+**5.10 and 5.15 flip too**, for the same reason 6.6 does: the 5.18 `random.c`
+rewrite was backported into both LTS branches partway through their lifetime.
 
 **6.12 flips at 6.12.75.** Stable backported "Remove WARN_ALL_UNSEEDED_RANDOM
 kernel config option" (Linus Torvalds, 2026-03-04, mainline 6.18), which deletes
@@ -131,7 +164,11 @@ the `crng_ready()` -> `crng_ready_maybe_cb()` substitutions are unchanged and
 land at the same nine sites.
 
 The same backport reached **6.6 at 6.6.128**, which is why `6.12.75` -- not
-`7.0` -- is the closest fit for current 6.6 as well.
+`7.0` -- is the closest fit for current 6.6 as well. **So 6.6 has the same seam
+6.12 has**, and both sides of it are measured: on 6.6.99 the `6.12` patch
+applies at `--fuzz=0` and `6.12.75` fails hunk 8; on 6.6.152 it is the other way
+round. 6.6 is LTS and most 6.6 deployments are below 6.6.128, so this is the
+seam a reader is most likely to land on.
 
 **5.17 flips twice.** 5.17.0-5.17.11 predate the 5.18 `random.c` rewrite;
 5.17.12 took the rewrite *and* the `crng_is_ready` static key as a stable
