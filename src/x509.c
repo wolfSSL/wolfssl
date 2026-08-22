@@ -15006,7 +15006,7 @@ int wolfSSL_PEM_write_bio_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 *x)
     }
 
     /* get PEM size */
-    pemSz = wc_DerToPemEx(der, (word32)derSz, NULL, 0, NULL, CERT_TYPE);
+    pemSz = wc_DerToPemEx(der, (word32)derSz, NULL, 0, NULL, TRUSTED_CERT_TYPE);
     if (pemSz < 0) {
         return WOLFSSL_FAILURE;
     }
@@ -15016,7 +15016,7 @@ int wolfSSL_PEM_write_bio_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 *x)
     if (pem == NULL) {
         return WOLFSSL_FAILURE;
     }
-    if (wc_DerToPemEx(der, (word32)derSz, pem, pemSz, NULL, CERT_TYPE) < 0) {
+    if (wc_DerToPemEx(der, (word32)derSz, pem, pemSz, NULL, TRUSTED_CERT_TYPE) < 0) {
         XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
