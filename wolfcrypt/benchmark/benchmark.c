@@ -3710,21 +3710,42 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 
     /* A FAILED BENCHMARK MUST NOT LOOK LIKE A MEASUREMENT OF ZERO.
      *
-     * On the failure path the caller does `goto exit` with count still 0 and
-     * passes its non-zero `ret` here.  Until 2026-08-21 the only use of `ret`
-     * in this function was SLEEP_ON_ERROR(), which expands to a no-op unless a
-     * debug macro is set -- so the row printed as
+     * Until 2026-08-21 the only use of `ret` in this function was
+     * SLEEP_ON_ERROR(), which expands to a no-op unless a debug macro is set,
+     * so a failed run printed as
      *     ML-KEM 512  128  key gen  0 ops took 0.000 sec, ... 0.000 ops/sec
      * indistinguishable from a real zero, with no error text anywhere.  A
      * harness that averages rows would fold the failure into a mean.
      *
-     * Report it on stderr, where it cannot be mistaken for table data and
-     * cannot be swallowed by a parser reading stdout. */
-    if (ret != 0) {
-        fprintf(stderr, "BENCHMARK FAILED: %s %d %s%s returned %d (the row "
-                        "reports 0 ops -- that is NOT a measurement)\n",
+     * Do NOT test `ret != 0` here.  wolfCrypt entry points return a BYTE COUNT
+     * on success, not zero: wc_RsaPublicEncrypt() and wc_RsaSSL_Sign() return
+     * 256 for RSA-2048, and wc_RsaPrivateDecrypt() / wc_RsaSSL_Verify() return
+     * the recovered message length.  The callers leave that value in `ret` and
+     * fall through to their exit label (see the `exit_rsa_verify:` path), so
+     * `ret != 0` flags every successful RSA row as a failure -- measured on
+     * aarch64 real silicon as 20 false positives out of 21 reports.  That is
+     * the same class of defect as reading WC_FIPS_NOT_APPROVED (== +1) as an
+     * error.
+     *
+     * The hazard is a row with no iterations behind it, so gate on `count`.
+     * A negative `ret` with count > 0 is a genuinely different situation: the
+     * run failed part-way and the row measures only the iterations that did
+     * complete.  Say which one happened rather than asserting "0 ops".
+     *
+     * Report on stderr, where it cannot be mistaken for table data and cannot
+     * be swallowed by a parser reading stdout. */
+    if (count <= 0) {
+        fprintf(stderr, "BENCHMARK FAILED: %s %d %s%s completed 0 iterations "
+                        "(returned %d) -- the row is NOT a measurement\n",
                 algo, strength, desc ? desc : "",
                 desc_extra ? desc_extra : "", ret);
+    }
+    else if (ret < 0) {
+        fprintf(stderr, "BENCHMARK INCOMPLETE: %s %d %s%s failed with %d after "
+                        "%d successful iterations -- the row measures only "
+                        "those\n",
+                algo, strength, desc ? desc : "",
+                desc_extra ? desc_extra : "", ret, count);
     }
 
     /* some sanity checks on the final numbers */
