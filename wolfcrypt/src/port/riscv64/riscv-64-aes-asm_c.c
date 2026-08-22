@@ -30949,8 +30949,8 @@ void AES_CBC_encrypt_RISCV64(const byte* in, byte* out, word32 sz, byte* reg,
 }
 
 #ifdef HAVE_AES_DECRYPT
-void AES_CBC_decrypt_RISCV64(const byte* in, byte* out, word32 sz, byte* reg,
-    byte* key, int nr)
+WC_OMIT_FRAME_POINTER void AES_CBC_decrypt_RISCV64(const byte* in, byte* out,
+    word32 sz, byte* reg, byte* key, int nr)
 {
     const word32* td = L_AES_base_td;
     const word8* td4 = L_AES_base_td4;
@@ -48005,10 +48005,10 @@ void AES_XTS_decrypt_RISCV64(const byte* in, byte* out, word32 sz,
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_XTS */
 #ifdef HAVE_AESGCM
-void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
-    const byte* nonce_p, word32 nonceSz_p, byte* tag_p, word32 tagSz_p,
-    const byte* aad_p, word32 aadSz_p, byte* key_p, byte* m0_p, byte* tmp_p,
-    byte* reg_p, int nr_p)
+WC_OMIT_FRAME_POINTER void AES_GCM_encrypt_RISCV64(const byte* in_p,
+    byte* out_p, word32 sz_p, const byte* nonce_p, word32 nonceSz_p,
+    byte* tag_p, word32 tagSz_p, const byte* aad_p, word32 aadSz_p, byte* key_p,
+    byte* m0_p, byte* tmp_p, byte* reg_p, int nr_p)
 {
     register const byte* in __asm__ ("a0") = (const byte*)in_p;
     register byte* out __asm__ ("a1") = (byte*)out_p;
@@ -58260,10 +58260,10 @@ void AES_GCM_encrypt_RISCV64(const byte* in_p, byte* out_p, word32 sz_p,
 }
 
 #ifdef HAVE_AES_DECRYPT
-int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p, word32 sz_p,
-    const byte* nonce_p, word32 nonceSz_p, const byte* tag_p, word32 tagSz_p,
-    const byte* aad_p, word32 aadSz_p, byte* key_p, byte* m0_p, byte* tmp_p,
-    byte* reg_p, int nr_p)
+WC_OMIT_FRAME_POINTER int AES_GCM_decrypt_RISCV64(byte* in_p, byte* out_p,
+    word32 sz_p, const byte* nonce_p, word32 nonceSz_p, const byte* tag_p,
+    word32 tagSz_p, const byte* aad_p, word32 aadSz_p, byte* key_p, byte* m0_p,
+    byte* tmp_p, byte* reg_p, int nr_p)
 {
     register byte* in __asm__ ("a0") = (byte*)in_p;
     register byte* out __asm__ ("a1") = (byte*)out_p;

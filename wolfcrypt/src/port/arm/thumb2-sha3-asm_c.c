@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
+/* Honor WC_SHA3_NO_ASM as sha3.c does: suppress this BlockSha3 so it
+ * doesn't multiply-define against sha3.c's C BlockSha3 on thumb2. */
+#ifdef WC_SHA3_NO_ASM
+    #undef WOLFSSL_ARMASM
+#endif
+
 #ifdef WOLFSSL_ARMASM
 #ifdef WOLFSSL_ARMASM_THUMB2
 #ifdef WOLFSSL_ARMASM_INLINE

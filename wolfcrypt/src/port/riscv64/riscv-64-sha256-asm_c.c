@@ -254,8 +254,8 @@ XALIGNED(8) static const word32 L_SHA256_transform_riscv_crypto_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len_riscv_crypto(wc_Sha256* sha256, const byte* data,
-    word32 len)
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_riscv_crypto(wc_Sha256* sha256,
+    const byte* data, word32 len)
 {
     const word32* k = L_SHA256_transform_riscv_crypto_len_k;
 
@@ -1320,7 +1320,8 @@ XALIGNED(8) static const word32 L_SHA256_transform_riscv_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len_riscv(wc_Sha256* sha256, const byte* data, word32 len)
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_riscv(wc_Sha256* sha256,
+    const byte* data, word32 len)
 {
     const word32* k = L_SHA256_transform_riscv_len_k;
 

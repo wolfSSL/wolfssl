@@ -291,6 +291,18 @@ fi
 # already bound, to avoid the birthday problem in case other
 # instances are sharing this host.
 
+# True when anything holds the port - listening or established, TCP or UDP.
+# nc -z below only finds TCP listeners, so on its own it misses a UDP responder
+# socket and a port held by an unrelated outbound connection, both of which
+# still make bind() fail.
+port_bound() {
+    if command -v ss >/dev/null 2>&1; then
+        [ -n "$(ss -Hantu "sport = :$1" 2>/dev/null)" ]
+    else
+        return 1
+    fi
+}
+
 get_first_free_port() {
     local ret="$1"
     local scanned=0
@@ -298,7 +310,7 @@ get_first_free_port() {
         if [[ "$ret" -ge 65536 ]]; then
             ret=1024
         fi
-        if ! nc -w 1 -z ${LOCALHOST_FOR_NC} "$ret"; then
+        if ! port_bound "$ret" && ! nc -w 1 -z ${LOCALHOST_FOR_NC} "$ret"; then
             break
         fi
         ret=$((ret+1))

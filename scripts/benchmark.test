@@ -53,17 +53,20 @@ if [ "$#" -lt 2 ]; then
     exit 1
 fi
 
-# Use unique benchmark port so it won't conflict with any other tests
-bench_port=11113
+# Bind an ephemeral port and read it back from the ready file below, rather
+# than hoping a fixed number is free. The ready file is per-run for the same
+# reason - a fixed path is shared by any concurrent run.
+bench_port=0
+ready_file=/tmp/wolfssl_server_ready$$
 no_pid=-1
 server_pid=$no_pid
 counter=0
 client_result=-1
 
 remove_ready_file() {
-    if test -e /tmp/wolfssl_server_ready; then
+    if test -e "$ready_file"; then
         echo "removing existing server_ready file"
-        rm /tmp/wolfssl_server_ready
+        rm "$ready_file"
     fi
 }
 
@@ -96,7 +99,7 @@ remove_ready_file
 if [ $1 -eq 1 ]
 then
     # start server in loop mode with port
-    ./examples/server/server -i -p $bench_port $4 &
+    ./examples/server/server -i -p $bench_port -R "$ready_file" $4 &
     server_pid=$!
 fi
 
@@ -104,7 +107,7 @@ fi
 if [ $1 -eq 2 ]
 then
     # start server in loop mode, non-blocking, benchmark throughput with port
-    ./examples/server/server -i -N -B $2 -p $bench_port $4 &
+    ./examples/server/server -i -N -B $2 -p $bench_port -R "$ready_file" $4 &
     server_pid=$!
 fi
 
@@ -112,10 +115,22 @@ fi
 #       with "time", bear in mind that those 2 seconds will be reflected in
 #       the "real" time.
 echo "Waiting for server_ready file..."
-while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
+while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
     sleep 0.1
     counter=$((counter+ 1))
 done
+
+if [ ! -s "$ready_file" ]; then
+    echo "Server never reported a port!"
+    do_cleanup
+    exit 1
+fi
+
+# sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
+sleep 0.1
+
+bench_port=$(cat "$ready_file")
+echo "Server listening on port $bench_port"
 
 # benchmark connections
 if [ $1 -eq 1 ]

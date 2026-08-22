@@ -176,6 +176,19 @@
     #endif
 #endif
 
+/* Marks a function that is only ever reached from a branch inside an inline
+ * assembly string. The compiler does not parse those strings, so it sees no
+ * reference to the function: without this, -flto decides the definition is
+ * unreachable, drops the body, and the branch is left with nothing to bind to
+ * at link time. Costs nothing in a non-LTO build. */
+#ifndef WC_KEEP_FOR_ASM
+    #if defined(__GNUC__) || defined(__clang__)
+        #define WC_KEEP_FOR_ASM __attribute__((used))
+    #else
+        #define WC_KEEP_FOR_ASM
+    #endif
+#endif
+
 /* THREADING/MUTEX SECTION */
 #if defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
     /* No system headers required for build. */
