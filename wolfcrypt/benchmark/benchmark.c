@@ -3708,6 +3708,25 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     END_CYCLES
 #endif
 
+    /* A FAILED BENCHMARK MUST NOT LOOK LIKE A MEASUREMENT OF ZERO.
+     *
+     * On the failure path the caller does `goto exit` with count still 0 and
+     * passes its non-zero `ret` here.  Until 2026-08-21 the only use of `ret`
+     * in this function was SLEEP_ON_ERROR(), which expands to a no-op unless a
+     * debug macro is set -- so the row printed as
+     *     ML-KEM 512  128  key gen  0 ops took 0.000 sec, ... 0.000 ops/sec
+     * indistinguishable from a real zero, with no error text anywhere.  A
+     * harness that averages rows would fold the failure into a mean.
+     *
+     * Report it on stderr, where it cannot be mistaken for table data and
+     * cannot be swallowed by a parser reading stdout. */
+    if (ret != 0) {
+        fprintf(stderr, "BENCHMARK FAILED: %s %d %s%s returned %d (the row "
+                        "reports 0 ops -- that is NOT a measurement)\n",
+                algo, strength, desc ? desc : "",
+                desc_extra ? desc_extra : "", ret);
+    }
+
     /* some sanity checks on the final numbers */
     if (count > 0) {
         each  = WC_BENCH_RDIVI(total, count); /* per second  */
