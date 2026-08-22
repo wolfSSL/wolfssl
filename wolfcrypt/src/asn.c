@@ -22079,10 +22079,15 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
         {
             ret = ASN_PARSE_E;
         }
+        /* RFC 5280 4.2.1.4: certificatePolicies is SEQUENCE SIZE (1..MAX). */
+        else if (total_length == 0) {
+            ret = ASN_PARSE_E;
+        }
     }
 
-    /* Unwrap certificatePolicies */
-    while ((ret == 0) && ((int)idx < total_length)
+    /* Unwrap certificatePolicies. idx is an offset into input, so it is bound
+     * by sz. */
+    while ((ret == 0) && (idx < sz)
     #if defined(WOLFSSL_CERT_EXT)
         && (cert->extCertPoliciesNb < MAX_CERTPOL_NB)
     #endif
