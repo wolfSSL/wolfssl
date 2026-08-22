@@ -14173,6 +14173,7 @@ void bench_slhdsa(int param)
 {
     int ret = 0, count = 0;
     bench_real_t  start = 0;
+    DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_VAR(key, SlhDsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(key_vfy, SlhDsaKey, 1, HEAP_HINT);
     WC_DECLARE_VAR(sig, byte, WC_SLHDSA_MAX_SIG_LEN, HEAP_HINT);
