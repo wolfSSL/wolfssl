@@ -85,6 +85,10 @@ struct test_memio_ctx
     int c_force_want_write;
     int s_force_want_write;
 
+    /* Transport keeps a byte stream rather than datagrams (DTLS over SCTP),
+     * so a partial read must not drop the rest of the message. */
+    byte sctp;
+
     int c_msg_sizes[TEST_MEMIO_MAX_MSGS];
     int c_msg_count;
     int c_msg_pos;
