@@ -5011,7 +5011,7 @@ typedef struct TicketNonce {
     byte data[MAX_TICKET_NONCE_STATIC_SZ];
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC  && FIPS_VERSION_GE(5,3) */
 } TicketNonce;
-#endif
+#endif /* WOLFSSL_TLS13 && (HAVE_SESSION_TICKET || !NO_PSK) */
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
@@ -5020,16 +5020,16 @@ struct WOLFSSL_SESSION {
     WOLFSSL_SESSION_TYPE type;
 #ifndef NO_SESSION_CACHE
     int                cacheRow;          /* row in session cache     */
-#endif
+#endif /* NO_SESSION_CACHE */
     wolfSSL_Ref        ref;
     byte               altSessionID[ID_LEN];
     byte               haveAltSessionID:1;
 #ifdef HAVE_EX_DATA
     byte               ownExData:1;
-#endif
+#endif /* HAVE_EX_DATA */
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
     Rem_Sess_Cb        rem_sess_cb;
-#endif
+#endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
     void*              heap;
     /* WARNING The above fields (up to and including the heap) are not copied
      *         in wolfSSL_DupSession. Place new fields after the heap
@@ -5049,41 +5049,41 @@ struct WOLFSSL_SESSION {
     word16             haveEMS;           /* ext master secret flag   */
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */
-#endif
+#endif /* SESSION_CERTS && OPENSSL_EXTRA */
     ProtocolVersion    version;           /* which version was used   */
 #if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
                         (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
     byte               cipherSuite0;      /* first byte, normally 0   */
     byte               cipherSuite;       /* 2nd byte, actual suite   */
-#endif
+#endif /* SESSION_CERTS || !NO_RESUME_SUITE_CHECK || ... */
 #ifndef NO_CLIENT_CACHE
     word16             idLen;             /* serverID length          */
     byte               serverID[SERVER_ID_LEN]; /* for easier client lookup */
-#endif
+#endif /* !NO_CLIENT_CACHE */
 #ifdef WOLFSSL_SESSION_ID_CTX
     byte               sessionCtxSz;      /* sessionCtx length        */
     byte               sessionCtx[ID_LEN]; /* app specific context id */
 #endif /* WOLFSSL_SESSION_ID_CTX */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte               peerVerifyRet;     /* cert verify error */
-#endif
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #ifdef WOLFSSL_TLS13
     word16             namedGroup;
-#endif
+#endif /* WOLFSSL_TLS13 */
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-#ifdef WOLFSSL_TLS13
-#ifdef WOLFSSL_32BIT_MILLI_TIME
+    #ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_32BIT_MILLI_TIME
     word32             ticketSeen;        /* Time ticket seen (ms) */
-#else
+    #else
     sword64            ticketSeen;        /* Time ticket seen (ms) */
-#endif
+    #endif /* WOLFSSL_32BIT_MILLI_TIME */
     word32             ticketAdd;         /* Added by client */
     TicketNonce        ticketNonce;       /* Nonce used to derive PSK */
-#endif
-#ifdef WOLFSSL_EARLY_DATA
+    #endif /* WOLFSSL_TLS13 */
+    #ifdef WOLFSSL_EARLY_DATA
     word32             maxEarlyDataSz;
-#endif
-#endif
+    #endif /* WOLFSSL_EARLY_DATA */
+#endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef HAVE_SESSION_TICKET
     byte               staticTicket[SESSION_TICKET_LEN];
     byte*              ticket;
@@ -5091,25 +5091,25 @@ struct WOLFSSL_SESSION {
     word16             ticketLenAlloc;    /* is dynamic */
 #ifdef HAVE_SNI
     byte               sniHash[TICKET_BINDING_HASH_SZ];  /* SNI at issue */
-#endif
-#ifdef HAVE_ALPN
+#endif /* HAVE_SNI */
+    #ifdef HAVE_ALPN
     byte               alpnHash[TICKET_BINDING_HASH_SZ]; /* ALPN at issue */
-#endif
-#endif
+    #endif /* HAVE_ALPN */
+#endif /* HAVE_SESSION_TICKET */
 
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;             /* peer cert chain, static  */
     #ifdef WOLFSSL_ALT_CERT_CHAINS
     WOLFSSL_X509_CHAIN altChain;          /* peer alt cert chain, static */
-    #endif
+    #endif /* WOLFSSL_ALT_CERT_CHAINS */
 #endif
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
-#endif
+#endif /* HAVE_EX_DATA */
 #ifdef HAVE_MAX_FRAGMENT
     byte               mfl; /* max fragment length negotiated i.e.
                              * WOLFSSL_MFL_2_8  (6) */
-#endif
+#endif /* HAVE_MAX_FRAGMENT */
     byte               isSetup:1;
 };
 
