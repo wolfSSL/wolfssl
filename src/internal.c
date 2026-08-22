@@ -6080,7 +6080,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     RsaKey* key, DerBuffer* keyBufInfo)
 {
     byte *outTmp;
-    byte mask;
+    volatile byte mask;
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -6132,7 +6132,13 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     *outSz = (word32)(ret & (int)(sword8)mask);
     ret &= (int)(sword8)(~mask);
     /* Copy pointer */
+#ifdef WC_NO_PTR_INT_CAST
+    /* A byte wise copy drops the capability of a pointer, so select it
+     * instead. Neither path branches on the decryption result. */
+    *out = (byte*)ctMaskSelPtr(mask, *out, outTmp);
+#else
     ctMaskCopy(mask, (byte*)out, (byte*)&outTmp, sizeof(*out));
+#endif
 
     WOLFSSL_LEAVE("RsaDec", ret);
 
@@ -45232,8 +45238,16 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
 
                         tmpRsa = input + args->idx - VERSION_SZ - SECRET_LEN;
+                    #ifdef WC_NO_PTR_INT_CAST
+                        /* A byte wise copy drops the capability of a pointer,
+                         * so select it instead. Neither path branches on the
+                         * decryption result. */
+                        args->output = (byte*)ctMaskSelPtr(mask, tmpRsa,
+                            args->output);
+                    #else
                         ctMaskCopy(~mask, (byte*)&args->output, (byte*)&tmpRsa,
                             sizeof(args->output));
+                    #endif
                         if (args->output != NULL) {
                             int i;
                             /* Use random secret on error */

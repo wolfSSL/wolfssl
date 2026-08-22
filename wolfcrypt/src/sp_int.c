@@ -413,6 +413,24 @@ while (0)
  * CPU: x86_64
  */
 
+/* Fil-C only accepts inline assembly without memory operands, so the operand
+ * has to be forced into a register there. The compiler is already free to
+ * pick a register for SP_ASM_RM, so this changes no other target.
+ *
+ * Defined inside the WOLFSSL_SP_X86_64 block and deliberately not #undef'd at
+ * the end of it: the SP_ASM_* macro bodies below expand at their call sites,
+ * far past that point, so undefining them here breaks the build. The 32 bit
+ * x86 block that follows carries the same "rm"/"m" constraints and does not
+ * use these, because Fil-C has no 32 bit x86 target to build it.
+ */
+#ifdef __FILC__
+    #define SP_ASM_RM   "r"
+    #define SP_ASM_M    "r"
+#else
+    #define SP_ASM_RM   "rm"
+    #define SP_ASM_M    "m"
+#endif
+
 #ifndef _MSC_VER
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -422,7 +440,7 @@ while (0)
         "movq	%%rax, %[l]	\n\t"                    \
         "movq	%%rdx, %[h]	\n\t"                    \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
-        : [a] "rm" (va), [b] "rm" (vb)                   \
+        : [a] SP_ASM_RM (va), [b] SP_ASM_RM (vb)         \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
@@ -434,7 +452,7 @@ while (0)
         "movq	%%rax, %[l]	\n\t"                    \
         "movq	%%rdx, %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
-        : [a] "m" (va), [b] "m" (vb)                     \
+        : [a] SP_ASM_M (va), [b] SP_ASM_M (vb)           \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and add double size result into: vo | vh | vl */
@@ -446,7 +464,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "rm" (va), [b] "rm" (vb)                   \
+        : [a] SP_ASM_RM (va), [b] SP_ASM_RM (vb)         \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and add double size result into: vh | vl */
@@ -457,7 +475,7 @@ while (0)
         "addq	%%rax, %[l]	\n\t"                    \
         "adcq	%%rdx, %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "rm" (va), [b] "rm" (vb)                   \
+        : [a] SP_ASM_RM (va), [b] SP_ASM_RM (vb)         \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl */
@@ -472,7 +490,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "rm" (va), [b] "rm" (vb)                   \
+        : [a] SP_ASM_RM (va), [b] SP_ASM_RM (vb)         \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl
@@ -488,7 +506,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "rm" (va), [b] "rm" (vb)                   \
+        : [a] SP_ASM_RM (va), [b] SP_ASM_RM (vb)         \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Square va and store double size result in: vh | vl */
@@ -499,7 +517,7 @@ while (0)
         "movq	%%rax, %[l]	\n\t"                    \
         "movq	%%rdx, %[h]	\n\t"                    \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
-        : [a] "rm" (va)                                  \
+        : [a] SP_ASM_RM (va)                             \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Square va and add double size result into: vo | vh | vl */
@@ -511,7 +529,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "rm" (va)                                  \
+        : [a] SP_ASM_RM (va)                             \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Square va and add double size result into: vh | vl */
@@ -522,7 +540,7 @@ while (0)
         "addq	%%rax, %[l]	\n\t"                    \
         "adcq	%%rdx, %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "rm" (va)                                  \
+        : [a] SP_ASM_RM (va)                             \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Add va into: vh | vl */
@@ -531,7 +549,7 @@ while (0)
         "addq	%[a], %[l]	\n\t"                    \
         "adcq	$0  , %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "rm" (va)                                  \
+        : [a] SP_ASM_RM (va)                             \
         : "cc"                                           \
     )
 #define SP_ASM_ADDC_REG(vl, vh, va)                      \
@@ -548,7 +566,7 @@ while (0)
         "subq	%[a], %[l]	\n\t"                    \
         "sbbq	$0  , %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "rm" (va)                                  \
+        : [a] SP_ASM_RM (va)                             \
         : "cc"                                           \
     )
 /* Sub va from: vh | vl */

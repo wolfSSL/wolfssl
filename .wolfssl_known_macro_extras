@@ -1255,6 +1255,7 @@ __DCC__
 __DECC_VER
 __ELF__
 __EMSCRIPTEN__
+__FILC__
 __FPU_PRESENT
 __FreeBSD__
 __GLIBC__

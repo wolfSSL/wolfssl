@@ -960,6 +960,28 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
     }
 }
 
+#ifdef WC_NO_PTR_INT_CAST
+/* Constant time - return b when mask is set and a when it is clear.
+ *
+ * ctMaskCopy() cannot be used to select a pointer on a capability based
+ * target: it copies byte by byte, which drops the capability even when the
+ * bytes are unchanged. Index a two entry table instead. The table is aligned
+ * to 32 bytes - not 16 - so that both entries share one cache line even when
+ * a pointer is 16 bytes wide, as it is on CHERI purecap. XALIGNED is used
+ * rather than ALIGN16 because ALIGN16 expands to nothing unless
+ * WOLFSSL_USE_ALIGN is defined.
+ */
+WC_MISC_STATIC WC_INLINE void* ctMaskSelPtr(byte mask, void* a, void* b)
+{
+    XALIGNED(32) void* p[2];
+
+    p[0] = a;
+    p[1] = b;
+
+    return p[mask & 1];
+}
+#endif /* WC_NO_PTR_INT_CAST */
+
 #endif /* !WOLFSSL_NO_CT_OPS */
 
 #ifndef WOLFSSL_HAVE_MIN

@@ -5970,7 +5970,9 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #endif
 #endif
 
-#ifdef __CHERI_PURE_CAPABILITY__
+/* Capability based targets cannot rebuild a pointer out of integer arithmetic
+ * on two addresses, which the cache resistant code paths do. */
+#if defined(__CHERI_PURE_CAPABILITY__) || defined(__FILC__)
     #define WC_NO_PTR_INT_CAST
 #endif
 
