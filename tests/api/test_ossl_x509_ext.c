@@ -966,9 +966,10 @@ int test_wolfSSL_X509_EXTENSION_create_by_OBJ(void)
      * read freed memory (the source object aliases ext3's current object). */
     if (ext3 != NULL) {
         WOLFSSL_ASN1_OBJECT* self = NULL;
+
         ExpectNotNull(self = wolfSSL_X509_EXTENSION_get_object(ext3));
-        ExpectNotNull(ext3 = wolfSSL_X509_EXTENSION_create_by_OBJ(ext3, self,
-            crit, str));
+        ExpectNotNull(wolfSSL_X509_EXTENSION_create_by_OBJ(ext3, self, crit,
+            str));
     }
     wolfSSL_X509_EXTENSION_free(ext3);
 

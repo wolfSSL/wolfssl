@@ -16802,9 +16802,17 @@ PRAGMA_GCC_DIAG_POP
     }
 
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
-    /* get signature check failures from above */
-    if (ret == 0)
+    /* get signature check failures from above; an RFC 7250 raw public key has
+     * no cert signature, so exempt it - but only for the leaf (CERT_TYPE),
+     * which is the only entry the RPK trust check runs on. A bare key sent as
+     * any other list entry keeps failing here. */
+    if (ret == 0
+    #if defined(HAVE_RPK)
+          && !(args->dCert->isRPK && certType == CERT_TYPE)
+    #endif
+        ) {
         ret = sigRet;
+    }
 #endif
 
     if (pSubjectHash)
