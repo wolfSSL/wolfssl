@@ -13413,10 +13413,10 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     /* Even with saved priv/pub keys, we must still reload the private
      * key before using it. Reloading the private key is the bottleneck
      * for larger heights. Only print load time in debug builds. */
+#ifndef WOLFSSL_WC_LMS_SMALL
     count = 0;
     bench_stats_start(&count, &start);
 
-#ifndef WOLFSSL_WC_LMS_SMALL
     do {
         key.priv.inited = 0;
         key.state = WC_LMS_STATE_PARMSET;
@@ -13454,20 +13454,23 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 
     RESET_MULTI_VALUE_STATS_VARS();
 #else
+    /* This branch neither times the reload nor prints a "load" row, and the
+     * only bench_stats_asym_finish() for that row is in the branch above.
+     * Opening an SVR bracket here would therefore never be released. */
     ret = wc_LmsKey_Reload(&key);
     if (ret) {
         printf("wc_LmsKey_Reload failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
     ret = wc_LmsKey_GetSigLen(&key, &sigSz);
     if (ret) {
         printf("wc_LmsKey_GetSigLen failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
     ret = wc_LmsKey_GetPrivLen(&key, &privLen);
     if (ret) {
         printf("wc_LmsKey_GetPrivLen failed: %d\n", ret);
-        goto exit_lms_sign_verify;
+        goto exit_lms_cleanup;
     }
 #endif
 
