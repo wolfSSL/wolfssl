@@ -119,10 +119,18 @@ enum FipsCastId {
      *     omitting the case, leaves the slot at PROCESSING forever while
      *     wc_RunCast_fips() still returns 0: the same false pass, less visible.
      *   - FIPS_CAST_DH_PRIMITIVE_Z (= 10) behaves identically on both counts.
-     * A status array holding SUCCESS for these four ids therefore does not mean
-     * four extra KATs ran.  PL-R34 sec 10.5 and PL-R36 document the arithmetic:
-     * 29 identifiers, 25 with a KAT, 24 executed on the submitted build (
-     * FIPS_CAST_ECC_CDH needs HAVE_ECC_CDH_CAST, which configure never sets). */
+     *   - FIPS_CAST_ECC_CDH (= 8) is a FIFTH id in the same position on the
+     *     submitted build.  Its KAT needs HAVE_ECC_CDH_CAST, which no
+     *     configure option defines, so the #else arm of its DoCAST() case
+     *     stores a terminal SUCCESS with no KAT.  Unlike ids 10 and 26-28 it
+     *     is not retired: a build that defines HAVE_ECC_CDH_CAST runs the KAT.
+     * A status array holding SUCCESS for these five ids therefore does not mean
+     * five extra KATs ran.  The arithmetic is 29 identifiers, 25 with a KAT,
+     * 24 executed on the submitted build.  PL-R34 sec 10.5 (the note following
+     * the wc_RunCast_fips() input list) and PL-R36 (the paragraph beginning
+     * "The FipsCastId enum ... defines twenty-nine (29)") state the same
+     * numbers and name all five ids; if you change this comment, check that
+     * those two passages still agree with it. */
     FIPS_CAST_AES_CMAC          = 26,
     FIPS_CAST_SHAKE             = 27,
     FIPS_CAST_AES_KW            = 28,
