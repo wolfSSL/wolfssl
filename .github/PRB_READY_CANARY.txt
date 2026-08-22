@@ -1,0 +1,11 @@
+PRB draft-to-ready canary
+
+This temporary file exists only to validate pull-request CI behavior.
+
+Test sequence:
+1. Open the pull request as a draft.
+2. Confirm Jenkins PRB reports a successful draft skip without running its fan-out.
+3. Mark the pull request ready for review without posting a retry comment.
+4. Confirm Jenkins PRB automatically launches a fresh full run.
+
+Do not merge this branch or pull request.
