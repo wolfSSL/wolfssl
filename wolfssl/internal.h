@@ -5363,6 +5363,16 @@ typedef struct Buffers {
      * freed by wolfSSL_ResourceFree. See WOLFSSL_TLS13_STREAM_CERT_VERIFY. */
     buffer          certVerifyMsg;
 #endif
+#ifdef HAVE_LIBZ
+    /* Plaintext of the application data record currently being decompressed.
+     * A compressed fragment expands to as much as MAX_RECORD_SIZE, so the
+     * result must not be written back over the record it came from: the input
+     * buffer is only sized for the wire (compressed) record and may already
+     * hold the records queued behind it.  Allocated on the first compressed
+     * record received, length is its fixed capacity, released by
+     * wolfSSL_ResourceFree(). */
+    buffer          decompBuffer;
+#endif
 } Buffers;
 
 /* sub-states for send/do key share (key exchange) */
