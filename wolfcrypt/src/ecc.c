@@ -8636,6 +8636,28 @@ int wc_ecc_free(ecc_key* key)
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SP_MATH) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
+/* Set a point to the representation of infinity, (0, 0, 1). */
+static int ecc_set_point_infinity(ecc_point* P)
+{
+    int err = mp_set(P->x, 0);
+    if (err == MP_OKAY)
+        err = mp_set(P->y, 0);
+    if (err == MP_OKAY)
+        err = mp_set(P->z, 1);
+    return err;
+}
+
+/* Copy S over D when copy is non-zero, without branching on copy. */
+static int ecc_cond_copy_point(ecc_point* S, int copy, ecc_point* D)
+{
+    int err = mp_cond_copy(S->x, copy, D->x);
+    if (err == MP_OKAY)
+        err = mp_cond_copy(S->y, copy, D->y);
+    if (err == MP_OKAY)
+        err = mp_cond_copy(S->z, copy, D->z);
+    return err;
+}
+
 /* Handles add failure cases:
  *
  * Before add:
@@ -8662,62 +8684,100 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
     mp_int* a, mp_int* modulus, mp_digit mp, int* infinity)
 {
     int err;
+    int aInf;
+    int bInf;
+    int eq;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_point* T = NULL;
+#else
+    ecc_point  T_lcl[1];
+    ecc_point* T = T_lcl;
+#endif
 
-    if (mp_iszero(A->x) && mp_iszero(A->y)) {
-        /* A is infinity. */
-        err = wc_ecc_copy_point(B, R);
-    }
-    else if (mp_iszero(B->x) && mp_iszero(B->y)) {
-        /* B is infinity. */
-        err = wc_ecc_copy_point(A, R);
-    }
-    else if ((mp_cmp(A->x, B->x) == MP_EQ) && (mp_cmp(A->z, B->z) == MP_EQ)) {
-        /* x ordinattes the same. */
+    /* Note the infinity inputs, then add regardless, so an operand at
+     * infinity costs the same as the ordinary case. The result goes to a
+     * temporary: callers pass the first operand as the destination, so
+     * writing R early would destroy A before the selection below. */
+    aInf = (mp_iszero(A->x) == MP_YES) & (mp_iszero(A->y) == MP_YES);
+    bInf = (mp_iszero(B->x) == MP_YES) & (mp_iszero(B->y) == MP_YES);
+
+    /* Equal ordinates still branch to the doubling path - unreachable from
+     * the Montgomery ladder, and covering it would cost an extra double on
+     * every call. */
+    eq = (!aInf) && (!bInf) && (mp_cmp(A->x, B->x) == MP_EQ) &&
+         (mp_cmp(A->z, B->z) == MP_EQ);
+
+    if (eq) {
         if (mp_cmp(A->y, B->y) == MP_EQ) {
             /* A = B */
             err = _ecc_projective_dbl_point(B, R, a, modulus, mp);
         }
         else {
             /* A = -B */
-            err = mp_set(R->x, 0);
-            if (err == MP_OKAY)
-                err = mp_set(R->y, 0);
-            if (err == MP_OKAY)
-                err = mp_set(R->z, 1);
+            err = ecc_set_point_infinity(R);
+            if ((err == MP_OKAY) && (infinity != NULL))
+                *infinity = 1;
+        }
+        return err;
+    }
+
+    /* Off the stack unless the build asked for small stacks. Inherit the
+     * key's heap and small-stack cache from R so the temporary behaves like
+     * the caller's own points - this is the scalar multiplication inner
+     * loop. */
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
+    err = wc_ecc_new_point_ex(&T, (R->key != NULL) ? R->key->heap : NULL);
+#else
+    err = wc_ecc_new_point_ex(&T, NULL);
+#endif
+    if (err != MP_OKAY) {
+        return err;
+    }
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
+    T->key = R->key;
+#endif
+
+    err = _ecc_projective_add_point(A, B, T, a, modulus, mp);
+    if ((err == MP_OKAY) && mp_iszero(T->z)) {
+        /* When all zero then should have done a double */
+        if (mp_iszero(T->x) && mp_iszero(T->y)) {
+            if (mp_iszero(B->z)) {
+                err = wc_ecc_copy_point(B, T);
+                if (err == MP_OKAY) {
+                    err = mp_montgomery_calc_normalization(T->z, modulus);
+                }
+                if (err == MP_OKAY) {
+                    err = _ecc_projective_dbl_point(T, T, a, modulus, mp);
+                }
+            }
+            else {
+                err = _ecc_projective_dbl_point(B, T, a, modulus, mp);
+            }
+        }
+        /* When only Z zero then result is infinity */
+        else {
+            err = ecc_set_point_infinity(T);
             if ((err == MP_OKAY) && (infinity != NULL))
                 *infinity = 1;
         }
     }
-    else {
-        err = _ecc_projective_add_point(A, B, R, a, modulus, mp);
-        if ((err == MP_OKAY) && mp_iszero(R->z)) {
-            /* When all zero then should have done a double */
-            if (mp_iszero(R->x) && mp_iszero(R->y)) {
-                if (mp_iszero(B->z)) {
-                    err = wc_ecc_copy_point(B, R);
-                    if (err == MP_OKAY) {
-                        err = mp_montgomery_calc_normalization(R->z, modulus);
-                    }
-                    if (err == MP_OKAY) {
-                        err = _ecc_projective_dbl_point(R, R, a, modulus, mp);
-                    }
-                }
-                else {
-                    err = _ecc_projective_dbl_point(B, R, a, modulus, mp);
-                }
-            }
-            /* When only Z zero then result is infinity */
-            else {
-                err = mp_set(R->x, 0);
-                if (err == MP_OKAY)
-                    err = mp_set(R->y, 0);
-                if (err == MP_OKAY)
-                    err = mp_set(R->z, 1);
-                if ((err == MP_OKAY) && (infinity != NULL))
-                    *infinity = 1;
-            }
-        }
-    }
+
+    /* Select without branching on which operand was infinity: A infinity
+     * gives B, B infinity gives A. Both infinity leaves A, itself infinity,
+     * so needs no separate case. */
+    if (err == MP_OKAY)
+        err = ecc_cond_copy_point(B, aInf, T);
+    if (err == MP_OKAY)
+        err = ecc_cond_copy_point(A, bInf, T);
+    if (err == MP_OKAY)
+        err = wc_ecc_copy_point(T, R);
+
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
+    T->key = NULL;
+    wc_ecc_del_point_ex(T, (R->key != NULL) ? R->key->heap : NULL);
+#else
+    wc_ecc_del_point_ex(T, NULL);
+#endif
 
     return err;
 }
@@ -8731,19 +8791,18 @@ int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
                                   mp_int* modulus, mp_digit mp)
 {
     int err;
+    int inf;
 
-    if (mp_iszero(P->x) && mp_iszero(P->y)) {
-        /* P is infinity. */
-        err = wc_ecc_copy_point(P, R);
-    }
-    else {
-        err = _ecc_projective_dbl_point(P, R, a, modulus, mp);
-        if ((err == MP_OKAY) && mp_iszero(R->z)) {
-           err = mp_set(R->x, 0);
-           if (err == MP_OKAY)
-               err = mp_set(R->y, 0);
-           if (err == MP_OKAY)
-               err = mp_set(R->z, 1);
+    /* Note infinity before doubling - callers alias source and destination -
+     * then double regardless so the exceptional case costs the same. Doubling
+     * infinity gives infinity, as does a zero Z; both are written (0, 0, 1). */
+    inf = (mp_iszero(P->x) == MP_YES) & (mp_iszero(P->y) == MP_YES);
+
+    err = _ecc_projective_dbl_point(P, R, a, modulus, mp);
+    if (err == MP_OKAY) {
+        inf |= (mp_iszero(R->z) == MP_YES);
+        if (inf) {
+            err = ecc_set_point_infinity(R);
         }
     }
 
