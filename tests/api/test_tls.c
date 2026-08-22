@@ -3378,3 +3378,119 @@ int test_record_size_cache_invalidated_on_renegotiation(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_PSK) && \
+    !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
+    !defined(NO_ECC_SECP) && (MAX_DHKEY_SZ >= 256) && \
+    (ECC_MIN_KEY_SZ <= 256) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+/* The overflow is about the largest prime the build accepts, so use the
+ * parameters that match MAX_DHKEY_SZ rather than pinning 4096 bits. */
+#if MAX_DHKEY_SZ >= 512
+    #define TEST_DHE_PSK_MAX_DH_FILE "certs/dh4096.pem"
+    #define TEST_DHE_PSK_MAX_DH_BITS 4096
+#elif MAX_DHKEY_SZ >= 384
+    #define TEST_DHE_PSK_MAX_DH_FILE "certs/dh3072.pem"
+    #define TEST_DHE_PSK_MAX_DH_BITS 3072
+#else
+    #define TEST_DHE_PSK_MAX_DH_FILE "certs/dh2048.pem"
+    #define TEST_DHE_PSK_MAX_DH_BITS 2048
+#endif
+
+static unsigned int test_dhe_psk_max_client_cb(WOLFSSL* ssl, const char* hint,
+    char* identity, unsigned int id_max, unsigned char* key,
+    unsigned int key_max)
+{
+    (void)ssl;
+    (void)hint;
+
+    if ((id_max < sizeof("Client_identity")) || (key_max < MAX_PSK_KEY_LEN))
+        return 0;
+
+    XSTRLCPY(identity, "Client_identity", id_max);
+    XMEMSET(key, 0xA5, MAX_PSK_KEY_LEN);
+
+    return MAX_PSK_KEY_LEN;
+}
+
+static unsigned int test_dhe_psk_max_server_cb(WOLFSSL* ssl,
+    const char* identity, unsigned char* key, unsigned int key_max)
+{
+    (void)ssl;
+    (void)identity;
+
+    if (key_max < MAX_PSK_KEY_LEN)
+        return 0;
+
+    XMEMSET(key, 0xA5, MAX_PSK_KEY_LEN);
+
+    return MAX_PSK_KEY_LEN;
+}
+#endif
+
+/* A DHE-PSK exchange fills the pre-master secret buffer with a two byte
+ * length, the DH shared secret, another two byte length and the PSK. With the
+ * largest DH parameters the build accepts and a maximum length PSK that is
+ * more than ENCRYPT_LEN, which the buffer used to be sized with, so the last
+ * two bytes of the key landed outside it.
+ *
+ * The client asks for a named group that is not FFDHE so that the server keeps
+ * the 4096 bit parameters it was given rather than negotiating a smaller
+ * group.
+ */
+int test_dhe_psk_max_premaster(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_PSK) && \
+    !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256) && \
+    defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
+    !defined(NO_ECC_SECP) && (MAX_DHKEY_SZ >= 256) && \
+    (ECC_MIN_KEY_SZ <= 256) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+
+    /* Both lengths, the largest secret the peer can pick and the longest key
+     * have to fit. */
+    ExpectTrue(MAX_PREMASTER_SZ >=
+        OPAQUE16_LEN + MAX_DHKEY_SZ + OPAQUE16_LEN + MAX_PSK_KEY_LEN);
+    /* The exchange this test actually drives has to fit too. Stated against
+     * the group the test picks rather than the build's maximum, so a sizing
+     * that forgets the DHE-PSK layout fails here rather than only showing up
+     * as an overrun under a sanitizer. */
+    ExpectTrue(MAX_PREMASTER_SZ >= OPAQUE16_LEN +
+        (TEST_DHE_PSK_MAX_DH_BITS / 8) + OPAQUE16_LEN + MAX_PSK_KEY_LEN);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-PSK-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-PSK-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_set_psk_client_callback(ssl_c, test_dhe_psk_max_client_cb);
+        wolfSSL_set_psk_server_callback(ssl_s, test_dhe_psk_max_server_cb);
+    }
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl_s, TEST_DHE_PSK_MAX_DH_FILE,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* The peer picked the parameters that make the secret its largest. Note
+     * the overrun the sizing prevents only shows up under ASAN or valgrind;
+     * the handshake itself completes either way. */
+    ExpectIntEQ(wolfSSL_GetDhKey_Sz(ssl_c), TEST_DHE_PSK_MAX_DH_BITS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
