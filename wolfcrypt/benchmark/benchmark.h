@@ -111,6 +111,7 @@ void bench_rsa_pad(void);
 void bench_dh(int useDeviceID);
 void bench_mlkem(int type);
 void bench_frodokem(int type);
+void bench_mceliece(int type);
 void bench_lms(void);
 void bench_xmss(int hash);
 void bench_slhdsa(int param);

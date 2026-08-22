@@ -60,6 +60,20 @@
     and/or FRODOKEM_EPHEMERAL) when the key is initialized via
     wc_FrodoKemKey_Init() or wc_FrodoKemKey_New().
 
+    \defgroup MCELIECE_KEM Algorithms - Classic McEliece
+    Classic McEliece is a conservative, code-based key encapsulation
+    mechanism built on binary Goppa codes. This is an experimental
+    reference implementation following draft-josefsson-mceliece. Three
+    base parameter sets are provided - mceliece6688128, mceliece6960119
+    and mceliece8192128 (all NIST level 5) - each optionally with the
+    semi-systematic MatGen (f, faster key generation) and/or plaintext
+    confirmation (pc) modifiers. The variant is selected by the key type
+    (a base parameter set optionally OR'd with MCELIECE_F and/or
+    MCELIECE_PC) when the key is initialized via wc_McElieceKey_Init() or
+    wc_McElieceKey_New(). Public keys are large (~1 MB) and heap
+    allocated. Key generation, encapsulation and decapsulation can be
+    compiled independently.
+
     \defgroup SLH_DSA Algorithms - SLH-DSA (FIPS 205)
     SLH-DSA (Stateless Hash-based Digital Signature Algorithm) is a
     quantum-resistant signature scheme standardized by NIST as

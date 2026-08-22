@@ -316,6 +316,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #ifdef WOLFSSL_HAVE_FRODOKEM
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  frodokem_test(void);
 #endif
+#ifdef WOLFSSL_HAVE_MCELIECE
+    extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mceliece_test(void);
+#endif
 #ifdef WOLFSSL_HAVE_MLDSA
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mldsa_test(void);
 #endif

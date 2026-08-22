@@ -2274,6 +2274,98 @@ else
     fi
 fi
 
+# Classic McEliece (experimental reference implementation)
+#  - SHA3 / Shake256 for the PRG and hashing.
+AC_ARG_ENABLE([mceliece],
+    [AS_HELP_STRING([--enable-mceliece],[Enable Classic McEliece reference implementation, optionally with a comma-separated list of sub-options e.g. no-6960119,no-decapsulate (requires --enable-experimental) (default: disabled)])],
+    [ ENABLED_MCELIECE=$enableval ],
+    [ ENABLED_MCELIECE=no ]
+    )
+
+AS_IF([ test "$ENABLED_MCELIECE" != "no" && test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([mceliece requires --enable-experimental.]) ])
+
+# Classic McEliece parameter sets (each default: enabled with mceliece).
+AC_ARG_ENABLE([mceliece-6688128],
+    [AS_HELP_STRING([--enable-mceliece-6688128],[Enable the mceliece6688128 parameter set (default: enabled)])],
+    [ ENABLED_MCELIECE_6688128=$enableval ],
+    [ ENABLED_MCELIECE_6688128=yes ]
+    )
+AC_ARG_ENABLE([mceliece-6960119],
+    [AS_HELP_STRING([--enable-mceliece-6960119],[Enable the mceliece6960119 parameter set (default: enabled)])],
+    [ ENABLED_MCELIECE_6960119=$enableval ],
+    [ ENABLED_MCELIECE_6960119=yes ]
+    )
+AC_ARG_ENABLE([mceliece-8192128],
+    [AS_HELP_STRING([--enable-mceliece-8192128],[Enable the mceliece8192128 parameter set (default: enabled)])],
+    [ ENABLED_MCELIECE_8192128=$enableval ],
+    [ ENABLED_MCELIECE_8192128=yes ]
+    )
+# Classic McEliece operations (each default: enabled with mceliece).
+AC_ARG_ENABLE([mceliece-make-key],
+    [AS_HELP_STRING([--enable-mceliece-make-key],[Enable Classic McEliece key generation (default: enabled)])],
+    [ ENABLED_MCELIECE_MAKE_KEY=$enableval ],
+    [ ENABLED_MCELIECE_MAKE_KEY=yes ]
+    )
+AC_ARG_ENABLE([mceliece-encapsulate],
+    [AS_HELP_STRING([--enable-mceliece-encapsulate],[Enable Classic McEliece encapsulation (default: enabled)])],
+    [ ENABLED_MCELIECE_ENCAPSULATE=$enableval ],
+    [ ENABLED_MCELIECE_ENCAPSULATE=yes ]
+    )
+AC_ARG_ENABLE([mceliece-decapsulate],
+    [AS_HELP_STRING([--enable-mceliece-decapsulate],[Enable Classic McEliece decapsulation (default: enabled)])],
+    [ ENABLED_MCELIECE_DECAPSULATE=$enableval ],
+    [ ENABLED_MCELIECE_DECAPSULATE=yes ]
+    )
+# The McEliece sub-options may also be given as a comma-separated list to
+# --enable-mceliece, e.g. --enable-mceliece=no-6960119,no-decapsulate. Each
+# token sets the matching --enable-mceliece-<option> value ("no-<option>"
+# disables).
+case "$ENABLED_MCELIECE" in
+no | yes | '')
+    ;;
+*)
+    mceliece_opts="$ENABLED_MCELIECE"
+    ENABLED_MCELIECE=yes
+    for mceliece_opt in $(echo "$mceliece_opts" | tr ',' ' ')
+    do
+        case "$mceliece_opt" in
+        yes)            ;;
+        6688128)        ENABLED_MCELIECE_6688128=yes ;;
+        no-6688128)     ENABLED_MCELIECE_6688128=no ;;
+        6960119)        ENABLED_MCELIECE_6960119=yes ;;
+        no-6960119)     ENABLED_MCELIECE_6960119=no ;;
+        8192128)        ENABLED_MCELIECE_8192128=yes ;;
+        no-8192128)     ENABLED_MCELIECE_8192128=no ;;
+        make-key)       ENABLED_MCELIECE_MAKE_KEY=yes ;;
+        no-make-key)    ENABLED_MCELIECE_MAKE_KEY=no ;;
+        encapsulate)    ENABLED_MCELIECE_ENCAPSULATE=yes ;;
+        no-encapsulate) ENABLED_MCELIECE_ENCAPSULATE=no ;;
+        decapsulate)    ENABLED_MCELIECE_DECAPSULATE=yes ;;
+        no-decapsulate) ENABLED_MCELIECE_DECAPSULATE=no ;;
+        *) AC_MSG_ERROR([Unknown --enable-mceliece option: $mceliece_opt]) ;;
+        esac
+    done
+    ;;
+esac
+
+if test "$ENABLED_MCELIECE" != "no"
+then
+    # At least one parameter set must be enabled.
+    if test "$ENABLED_MCELIECE_6688128" = "no" && \
+       test "$ENABLED_MCELIECE_6960119" = "no" && \
+       test "$ENABLED_MCELIECE_8192128" = "no"
+    then
+        AC_MSG_ERROR([mceliece requires at least one of --enable-mceliece-6688128, --enable-mceliece-6960119 or --enable-mceliece-8192128.])
+    fi
+    # At least one operation must be enabled.
+    if test "$ENABLED_MCELIECE_MAKE_KEY" = "no" && \
+       test "$ENABLED_MCELIECE_ENCAPSULATE" = "no" && \
+       test "$ENABLED_MCELIECE_DECAPSULATE" = "no"
+    then
+        AC_MSG_ERROR([mceliece requires at least one of --enable-mceliece-make-key, --enable-mceliece-encapsulate or --enable-mceliece-decapsulate.])
+    fi
+fi
+
 # Dilithium
 #  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([mldsa],
@@ -8173,6 +8265,12 @@ then
     ENABLED_SHA3=yes
     ENABLED_SHAKE256=yes
 fi
+# Classic McEliece uses SHAKE-256 for the PRG and all hashing.
+if test "$ENABLED_MCELIECE" != "no"
+then
+    ENABLED_SHA3=yes
+    ENABLED_SHAKE256=yes
+fi
 
 # Set SHA-3 flags
 if test "$ENABLED_SHA3" != "no"
@@ -12645,6 +12743,33 @@ AS_IF([test "x$ENABLED_FRODOKEM" = "xyes" && \
        test "x$ENABLED_FRODOKEM_DECAPSULATE" = "xno"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FRODOKEM_NO_DECAPSULATE"])
 
+AS_IF([test "x$ENABLED_MCELIECE" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MCELIECE"
+       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_MCELIECE"])
+# Parameter sets and operations excluded from the build.
+AS_IF([test "x$ENABLED_MCELIECE" = "xyes" && \
+       test "x$ENABLED_MCELIECE_6688128" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MCELIECE_6688128"])
+AS_IF([test "x$ENABLED_MCELIECE" = "xyes" && \
+       test "x$ENABLED_MCELIECE_6960119" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MCELIECE_6960119"])
+AS_IF([test "x$ENABLED_MCELIECE" = "xyes" && \
+       test "x$ENABLED_MCELIECE_8192128" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MCELIECE_8192128"])
+# The per-operation excludes gate the generated asm too (each kernel is wrapped
+# in the operation's macro), so pass them to AM_CCASFLAGS as well as AM_CFLAGS.
+AS_IF([test "x$ENABLED_MCELIECE" = "xyes" && \
+       test "x$ENABLED_MCELIECE_MAKE_KEY" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MCELIECE_NO_MAKE_KEY"
+       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_MCELIECE_NO_MAKE_KEY"])
+AS_IF([test "x$ENABLED_MCELIECE" = "xyes" && \
+       test "x$ENABLED_MCELIECE_ENCAPSULATE" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MCELIECE_NO_ENCAPSULATE"
+       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_MCELIECE_NO_ENCAPSULATE"])
+AS_IF([test "x$ENABLED_MCELIECE" = "xyes" && \
+       test "x$ENABLED_MCELIECE_DECAPSULATE" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MCELIECE_NO_DECAPSULATE"
+       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_MCELIECE_NO_DECAPSULATE"])
 AS_IF([test "x$ENABLED_RPK" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_RPK"])
 
@@ -13323,6 +13448,7 @@ AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_XMSS" != "xno" || test "x$ENABLE
 AM_CONDITIONAL([BUILD_WC_SLHDSA],[test "x$ENABLED_SLHDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_FRODOKEM],[test "x$ENABLED_FRODOKEM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_MCELIECE],[test "x$ENABLED_MCELIECE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MLDSA],[test "x$ENABLED_MLDSA" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FALCON],[test "x$ENABLED_FALCON" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FALCON_ASM],[test "x$ENABLED_FALCON_ASM" = "xyes"])
@@ -14076,6 +14202,13 @@ echo "   * FrodoKEM-1344:              $ENABLED_FRODOKEM_1344"
 echo "   * FrodoKEM make key:          $ENABLED_FRODOKEM_MAKE_KEY"
 echo "   * FrodoKEM encapsulate:       $ENABLED_FRODOKEM_ENCAPSULATE"
 echo "   * FrodoKEM decapsulate:       $ENABLED_FRODOKEM_DECAPSULATE"
+echo "   * McEliece (experimental):    $ENABLED_MCELIECE"
+echo "   * mceliece6688128:            $ENABLED_MCELIECE_6688128"
+echo "   * mceliece6960119:            $ENABLED_MCELIECE_6960119"
+echo "   * mceliece8192128:            $ENABLED_MCELIECE_8192128"
+echo "   * McEliece make key:          $ENABLED_MCELIECE_MAKE_KEY"
+echo "   * McEliece encapsulate:       $ENABLED_MCELIECE_ENCAPSULATE"
+echo "   * McEliece decapsulate:       $ENABLED_MCELIECE_DECAPSULATE"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"

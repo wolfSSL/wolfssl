@@ -106,6 +106,9 @@ typedef word32 cpuid_flags_t;
      * (vpshufb, vpaddw, vpmulhw, vpackusdw, ... on zmm). */
     #define CPUID_AVX512_BW 0x80000
     #define CPUID_SSSE3  0x100000     /* SSSE3 (pshufb etc.) */
+    /* Classic McEliece: GFNI (vgf2p8affineqb) and PCLMULQDQ (carry-less mul). */
+    #define CPUID_GFNI 0x200000
+    #define CPUID_PCLMUL 0x400000
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -131,6 +134,10 @@ typedef word32 cpuid_flags_t;
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_DQ)
     #define IS_INTEL_AVX512_BW(f) \
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_BW)
+    #define IS_INTEL_GFNI(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_GFNI)
+    #define IS_INTEL_PCLMUL(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_PCLMUL)
     /* Safe to dispatch to wolfSSL's AVX512 assembly: every algorithm using it
      * (ML-DSA, ML-KEM, FrodoKEM) works on 8- or 16-bit lanes at 512-bit width
      * - vpshufb, vpaddw, vpsubw, vpmulhw, vpmullw, vpackusdw, vpmaddwd, ... -

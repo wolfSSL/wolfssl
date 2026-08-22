@@ -253,6 +253,9 @@ function(generate_build_flags)
     if(WOLFSSL_FRODOKEM OR WOLFSSL_USER_SETTINGS)
         set(BUILD_WC_FRODOKEM "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_MCELIECE OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_WC_MCELIECE "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_MLDSA OR WOLFSSL_DILITHIUM OR WOLFSSL_USER_SETTINGS)
         set(BUILD_MLDSA "yes" PARENT_SCOPE)
     endif()
@@ -1197,6 +1200,28 @@ function(generate_lib_src_list LIB_SOURCES)
 
             if(BUILD_INTELASM)
                 list(APPEND LIB_SOURCES wolfcrypt/src/wc_frodokem_asm.S)
+            endif()
+        endif()
+
+        if(BUILD_WC_MCELIECE)
+            list(APPEND LIB_SOURCES wolfcrypt/src/wc_mceliece.c)
+            list(APPEND LIB_SOURCES wolfcrypt/src/wc_mceliece_mat.c)
+
+            if(BUILD_INTELASM)
+                list(APPEND LIB_SOURCES wolfcrypt/src/wc_mceliece_asm.S)
+            elseif(BUILD_ARMASM)
+                # The AArch64/AArch32 NEON kernels; each file is internally
+                # guarded (__aarch64__ vs not, and !THUMB2/!NO_NEON) so both are
+                # listed and non-matching targets compile to empty objects.
+                if(BUILD_ARMASM_INLINE)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-mceliece-asm_c.c
+                        wolfcrypt/src/port/arm/armv8-32-mceliece-asm_c.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-mceliece-asm.S
+                        wolfcrypt/src/port/arm/armv8-32-mceliece-asm.S)
+                endif()
             endif()
         endif()
 
