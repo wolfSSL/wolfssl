@@ -170,6 +170,10 @@
   configuration now sees neither the prototype nor the `client_cert_cb`
   typedef instead of failing to build; no other configuration changes.
 
+## New Features
+
+* Added Argon2 (RFC 9106) password hashing with all three variants - Argon2d, Argon2i and Argon2id - via `--enable-argon2`. Only version 0x13 is implemented. Provides the one-shot `wc_Argon2()`/`wc_Argon2_ex()` and a reusable context API (`wc_Argon2Init`/`wc_Argon2SetParams`/`wc_Argon2DeriveTag`/`wc_Argon2Free`, plus `wc_Argon2New`/`wc_Argon2Delete` unless `WC_NO_CONSTRUCTORS`) that allocates the memory block array once for applications deriving many tags. `--enable-argon2-threads` adds `wc_Argon2SetThreads()` to fill the segments of a slice in parallel, which does not change the derived tag. by @SparkiDev
+
 ## Fixes
 
 * **Fix (certificate manager left pointing at a released store)**:

@@ -92,6 +92,7 @@ void bench_cmac(int useDeviceID);
 void bench_kmac(int useDeviceID);
 void bench_cshake(int useDeviceID);
 void bench_scrypt(void);
+void bench_argon2(void);
 void bench_hmac_md5(int useDeviceID);
 void bench_hmac_sha(int useDeviceID);
 void bench_hmac_sha224(int useDeviceID);

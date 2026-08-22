@@ -284,6 +284,9 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 #if !defined(NO_PWDBASED) && defined(HAVE_SCRYPT)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
+#ifdef HAVE_ARGON2
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t argon2_test(void);
+#endif
 #ifdef HAVE_ECC
     extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ecc_test(void);
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
