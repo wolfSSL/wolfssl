@@ -1274,6 +1274,37 @@ static bench_real_t wc_bench_rsqrt(bench_real_t in)
  * When 1, ignore other benchmark algorithm values.
  *      0, only benchmark algorithm values set.
  */
+/* WC_FIPS_NOT_APPROVED (== 1, fips.h) is a POSITIVE SERVICE INDICATOR, not an
+ * error: the call SUCCEEDED and the module is reporting that the service was
+ * non-approved -- an externally supplied seed, or a GCM IV shorter than 96
+ * bits.  Errors from the module are always negative.
+ *
+ * fips_test.c already normalises this at its own call sites (fips_test.c:1942
+ * and elsewhere: `if (ret == WC_FIPS_NOT_APPROVED) ret = 0;`), and so do the
+ * wolfACVP harnesses.  benchmark.c did not, and every check here is of the
+ * form `if (ret != 0) goto exit;`, so a successful call aborted the timing
+ * loop and bench_stats_asym_finish printed a row of ZEROS with no error text.
+ * MEASURED before this change: ML-KEM 512/768/1024 key gen and encapsulate all
+ * reported "0 ops took 0.000 sec" while decapsulate was fine -- six rows that
+ * read as a measurement and were actually a discarded success.
+ *
+ * 27 _fips entry points can return this indicator: 11 AES-GCM/GMAC (short IV)
+ * and 16 seed-input PQ (ML-KEM 2, ML-DSA/dilithium 10, SLH-DSA 4).  This file
+ * reaches 7 of them.  Only the two ML-KEM ones misbehave TODAY, because the
+ * GCM sites here always pass a 12-byte IV and the ML-DSA and SLH-DSA benchmarks
+ * use the RNG-driven entry points rather than the seed ones -- so ML-DSA and
+ * SLH-DSA look fine by luck of which API was chosen, not by design.  Wrapping
+ * every reachable site rather than the two that bite keeps that luck from
+ * mattering the next time a benchmark is pointed at a *WithSeed entry point.
+ *
+ * Wrap the CALL, not the check, so the existing `ret != 0` / `ret == 0` /
+ * bench_async_handle() logic downstream needs no edits. */
+#ifdef HAVE_FIPS
+    #define BENCH_FIPS_OK(x) (((x) == WC_FIPS_NOT_APPROVED) ? 0 : (x))
+#else
+    #define BENCH_FIPS_OK(x) (x)
+#endif
+
 static int bench_all = 1;
 /* Cipher algorithms to benchmark. */
 static word32 bench_cipher_algs = 0;
@@ -6198,9 +6229,9 @@ static void bench_aesgcm_internal(int useDeviceID,
                             goto exit_aes_gcm;
                         }
                     }
-                    ret = wc_AesGcmEncrypt(enc[i], out, in, bench_size,
+                    ret = BENCH_FIPS_OK(wc_AesGcmEncrypt(enc[i], out, in, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
-                        bench_additional, aesAuthAddSz);
+                        bench_additional, aesAuthAddSz));
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(enc[i]),
                                             0, &times, &pending)) {
                         goto exit_aes_gcm;
@@ -6230,9 +6261,9 @@ exit_aes_gcm:
         if (ret != 0) {
             goto exit_aes_gcm;
         }
-        ret = wc_AesGcmEncrypt(enc[0], bench_cipher, bench_plain, bench_size,
+        ret = BENCH_FIPS_OK(wc_AesGcmEncrypt(enc[0], bench_cipher, bench_plain, bench_size,
             iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
-            bench_additional, aesAuthAddSz);
+            bench_additional, aesAuthAddSz));
         if (ret != 0) {
             goto exit_aes_gcm;
         }
@@ -6279,10 +6310,10 @@ exit_aes_gcm:
                             goto exit_aes_gcm_dec;
                         }
                     }
-                    ret = wc_AesGcmDecrypt(dec[i], bench_plain,
+                    ret = BENCH_FIPS_OK(wc_AesGcmDecrypt(dec[i], bench_plain,
                         bench_cipher, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
-                        bench_additional, aesAuthAddSz);
+                        bench_additional, aesAuthAddSz));
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(dec[i]),
                                             0, &times, &pending)) {
                         goto exit_aes_gcm_dec;
@@ -6390,7 +6421,7 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, numBlocks, &pending)) {
-                    ret = wc_AesGcmEncryptInit(enc[i], NULL, 0, iv, ivSz);
+                    ret = BENCH_FIPS_OK(wc_AesGcmEncryptInit(enc[i], NULL, 0, iv, ivSz));
                     if (ret == 0) {
                         ret = wc_AesGcmEncryptUpdate(enc[i], bench_cipher,
                             bench_plain, bench_size, bench_additional,
@@ -6449,7 +6480,7 @@ exit_aes_gcm:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(dec[i]), 0,
                                       &times, numBlocks, &pending)) {
-                    ret = wc_AesGcmDecryptInit(enc[i], NULL, 0, iv, ivSz);
+                    ret = BENCH_FIPS_OK(wc_AesGcmDecryptInit(enc[i], NULL, 0, iv, ivSz));
                     if (ret == 0) {
                         ret = wc_AesGcmDecryptUpdate(enc[i], bench_plain,
                             bench_cipher, bench_size, bench_additional,
@@ -6607,8 +6638,8 @@ void bench_gmac(int useDeviceID)
     bench_stats_start(&count, &start);
     do {
         for (times = 0; times < numBlocks; times++) {
-            ret = wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size,
-                tag, sizeof(tag));
+            ret = BENCH_FIPS_OK(wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size,
+                tag, sizeof(tag)));
 
         } /* for times */
         count += times;
@@ -12343,7 +12374,7 @@ static void bench_mlkem_keygen(int type, const char* name, int keySize,
 #else
             {
                 unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ] = {0,};
-                ret = wc_MlKemKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+                ret = BENCH_FIPS_OK(wc_MlKemKey_MakeKeyWithRandom(key, rand, sizeof(rand)));
             }
 #endif
             if (ret != 0)
@@ -12423,8 +12454,8 @@ static void bench_mlkem_encap(int type, const char* name, int keySize,
             ret = wc_MlKemKey_Encapsulate(key2, ct, ss, &gRng);
 #else
             unsigned char rand[WC_ML_KEM_ENC_RAND_SZ] = {0,};
-            ret = wc_MlKemKey_EncapsulateWithRandom(key2, ct, ss, rand,
-                sizeof(rand));
+            ret = BENCH_FIPS_OK(wc_MlKemKey_EncapsulateWithRandom(key2, ct, ss, rand,
+                sizeof(rand)));
 #endif
             if (ret != 0)
                 goto exit_encap;
