@@ -846,7 +846,8 @@
      * BLK_STS_IOERR; -EBUSY is retryable.  Defined outside the vector-register
      * block below: the LKCAPI glue calls it whether or not SVR is compiled, and
      * inside that block a no-armasm build fails with an implicit declaration. */
-    #define wc_lkm_errno(e) (((e) == WC_ACCEL_INHIBIT_E) ? -EBUSY : -EINVAL)
+    #define wc_lkm_errno(e) \
+        (((e) == WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E)) ? -EBUSY : -EINVAL)
 
     /* x86 and ARM/ARM64 share the arch-neutral tracker in
      * x86_vector_register_glue.c, which keeps wc_*_x86 names on all arches. */

@@ -2561,8 +2561,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
 
             if (ret == DRBG_SUCCESS) {
-                const byte* instSeed = seed;
-                word32      instSeedSz = seedSz;
+                const byte* instSeed;
+                word32      instSeedSz;
 
             #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
                 /* The SEED_BLOCK_SZ prefix is the block wc_RNG_TestSeed()
@@ -2571,12 +2571,19 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                  * SP 800-90C Sec. 7.2.1.2 wants the whole 3s/2 bits in the
                  * instantiate, so that path keeps the whole buffer. */
             #ifdef LINUXKM_RBGC
-                if (rbgcSeed == NULL)
+                if (rbgcSeed != NULL) {
+                    instSeed   = seed;
+                    instSeedSz = seedSz;
+                }
+                else
             #endif
                 {
                     instSeed   = seed + SEED_BLOCK_SZ;
                     instSeedSz = seedSz - SEED_BLOCK_SZ;
                 }
+            #else
+                instSeed   = seed;
+                instSeedSz = seedSz;
             #endif
 #ifndef NO_SHA256
                 if (rng->drbgType == WC_DRBG_SHA256)

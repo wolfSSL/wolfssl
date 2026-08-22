@@ -30482,7 +30482,11 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[0], len, 0);
-    if (ret != WC_NO_ERR_TRACE(BAD_PADDING_E))
+        /* PSS_SALTLEN_E, not BAD_PADDING_E: rsa.c reports the specific
+         * salt-length error, which is what the non-selftest arm above
+         * already expects.  BAD_PADDING_E was the older selftest-v2-era
+         * library's answer and no longer occurs here. */
+    if (ret != WC_NO_ERR_TRACE(PSS_SALTLEN_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
 #else
     ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
@@ -42351,7 +42355,8 @@ static wc_test_ret_t ecc_test_cdh_vectors(WC_RNG* rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(priv_key, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -42651,7 +42656,8 @@ static wc_test_ret_t ecc_test_make_pub(WC_RNG* rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(key, rng);
     if (ret != 0)
         goto done;
@@ -43055,7 +43061,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #ifdef HAVE_ECC_DHE
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(userA, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -44028,7 +44035,8 @@ static wc_test_ret_t ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(key, rng);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
@@ -46784,7 +46792,8 @@ static wc_test_ret_t ecc_encrypt_kat(WC_RNG *rng)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     if (ret == 0) {
         ret = wc_ecc_set_rng(userB, rng);
         if (ret != 0) {
@@ -47288,7 +47297,8 @@ static wc_test_ret_t ecc_encrypt_gcm_kat_vec(WC_RNG* rng, byte encAlgo,
         if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
         ret = wc_ecc_set_rng(userB, rng);
         if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); break; }
 #endif
@@ -47730,7 +47740,8 @@ static wc_test_ret_t ecc_encrypt_cryptocb_test(WC_RNG* rng)
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(userA, rng);
     if (ret != 0) { ret = WC_TEST_RET_ENC_EC(ret); goto cb_done; }
     ret = wc_ecc_set_rng(userB, rng);
@@ -47830,7 +47841,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(userA, &rng);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret); goto done;
@@ -48068,7 +48080,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(cliKey, &rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);

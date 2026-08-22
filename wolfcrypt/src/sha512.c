@@ -1912,11 +1912,9 @@ int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
 
 #endif /* WOLFSSL_SHA512 */
 
-/* WC_SHA512_NO_SOFT: an x86 build pinned to an accelerated transform does not
- * compile the C one, nor K512, which only it uses. */
-#if ((!defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
-      !defined(WOLFSSL_PPC32_ASM) && !defined(WOLFSSL_RISCV_ASM)) || \
-     defined(NEED_SOFT_SHA512)) && !defined(WC_SHA512_NO_SOFT)
+#if (!defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PPC64_ASM) && \
+     !defined(WOLFSSL_PPC32_ASM) && !defined(WOLFSSL_RISCV_ASM)) || \
+    defined(NEED_SOFT_SHA512)
 
 static const word64 K512[80] = {
     W64LIT(0x428a2f98d728ae22), W64LIT(0x7137449123ef65cd),

@@ -6385,9 +6385,15 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
     else
 #endif
     {
+/* Skipped for FIPS v2 and for selftest v1, whose APIs lack wc_ecc_set_rng().
+ * It must NOT be skipped for selftest v2, which exports it: under
+ * ECC_TIMING_RESISTANT wc_ecc_shared_secret() requires a blinding RNG
+ * (ecc.c: "if (private_key->rng == NULL) err = MISSING_RNG_E"), so skipping
+ * the setter fails every ECDHE handshake with -236 instead of degrading. */
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2)) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
         ret = wc_ecc_set_rng(priv_key, ssl->rng);
         if (ret == 0)
 #endif

@@ -93,7 +93,7 @@ int test_wc_RNG_GenerateBlock_Reseed(void)
 
     /* Kernel-mode builds may use the SP 800-90A maximum (2^48), which no
      * bounded loop can reach.  Only run where the boundary is reachable. */
-    if (n <= 2000000u) {
+    if (n <= 2000000U) {
         XMEMSET(&rng, 0, sizeof(WC_RNG));
         ExpectIntEQ(wc_InitRng(&rng), 0);
 

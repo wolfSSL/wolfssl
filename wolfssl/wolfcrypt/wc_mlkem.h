@@ -597,56 +597,23 @@ int mlkem_check_reduced(const sword16* p, int k);
 #ifdef USE_INTEL_SPEEDUP
 /* AVX512 assembly for ML-KEM is built (and dispatched at runtime on capable
  * CPUs) whenever the Intel speedups are enabled and AVX512 is not opted out.
- * Matches the HAVE_INTEL_AVX512 guard around the generated assembly.
- *
- * A pin that names no AVX512 sub-lane means this operating environment runs the
- * AVX2 lane, so the AVX512 lane is not built: leaving it in would put a second
- * ML-KEM implementation in the boundary, selected from CPUID, which IG 10.3.A
- * GeneralNote1 requires to be self-tested separately.  Every AVX512 arm in
- * wc_mlkem_poly.c is already inside this guard, so dropping the macro drops the
- * whole lane.  See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
-#if !defined(NO_AVX512_SUPPORT) && \
-    (!defined(WC_MLKEM_PINNED) || defined(WC_MLKEM_USE_AVX512_ANY))
+ * Matches the HAVE_INTEL_AVX512 guard around the generated assembly. */
+#ifndef NO_AVX512_SUPPORT
     #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512
     /* AVX512VBMI (vpermb) functions are built and dispatched at runtime when
      * CPUID reports VBMI. Opt out with NO_AVX512_VBMI_SUPPORT if the assembler
      * cannot emit the vpermb-based *_vbmi routines. VBMI2 (vpcompressw) is a
-     * separate opt-out (NO_AVX512_VBMI2_SUPPORT), handled below.
-     *
-     * Under a pin these follow the named sub-lane, not CPUID.  A plain AVX512
-     * pin leaves both undefined, which removes the VBMI and VBMI2 arm of every
-     * ladder: those arms are the second implementation the pin exists to
-     * remove, and the pinned lane is the portable AVX512F/BW one that runs on
-     * every part in the family. */
-    #if !defined(NO_AVX512_VBMI_SUPPORT) && \
-        (!defined(WC_MLKEM_PINNED) || defined(WC_MLKEM_USE_AVX512_VBMI) || \
-         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2))
+     * separate opt-out (NO_AVX512_VBMI2_SUPPORT), handled below. */
+    #ifndef NO_AVX512_VBMI_SUPPORT
         #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI
     #endif
     /* AVX512VBMI2 (vpcompressw) is used only by the rejection samplers; every
      * other AVX512 routine is plain AVX512F/BW or VBMI. Opt out with
      * NO_AVX512_VBMI2_SUPPORT when the assembler cannot emit VBMI2 - the
      * AVX512F/BW rej variants (vpcompressd) are then used instead. */
-    #if !defined(NO_AVX512_VBMI2_SUPPORT) && \
-        (!defined(WC_MLKEM_PINNED) || defined(WC_MLKEM_USE_AVX512_VBMI2) || \
-         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2))
+    #ifndef NO_AVX512_VBMI2_SUPPORT
         #define WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2
     #endif
-    /* A pin naming a sub-lane the assembler cannot emit is refused rather than
-     * quietly served by the plain AVX512 routines, which would be a different
-     * lane from the one the operating environment was validated on. */
-    #if (defined(WC_MLKEM_USE_AVX512_VBMI) || \
-         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2)) && \
-        !defined(WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI)
-        #error "WC_MLKEM_IMPL names a VBMI sub-lane; VBMI is not built."
-    #endif
-    #if (defined(WC_MLKEM_USE_AVX512_VBMI2) || \
-         defined(WC_MLKEM_USE_AVX512_VBMI_VBMI2)) && \
-        !defined(WOLFSSL_MLKEM_HAVE_INTEL_AVX512_VBMI2)
-        #error "WC_MLKEM_IMPL names a VBMI2 sub-lane; VBMI2 is not built."
-    #endif
-#elif defined(WC_MLKEM_USE_AVX512_ANY)
-    #error "WC_MLKEM_IMPL names an AVX512 lane; AVX512 is not built."
 #endif
 WOLFSSL_LOCAL
 void mlkem_keygen_avx2(sword16* priv, sword16* pub, sword16* e,

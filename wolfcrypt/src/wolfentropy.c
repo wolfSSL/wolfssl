@@ -30,6 +30,22 @@ data, use this implementation to seed and re-seed the DRBG.
 
 */
 
+/* WC_FIPS_LL_CRYPTO marks this file as an implementation INSIDE the FIPS
+ * module boundary (src/include.am lists wolfentropy.c between wolfcrypt_first.c
+ * and wolfcrypt_last.c in the BUILD_FIPS_V7_PLUS block), the same as every other
+ * in-boundary crypto source -- including random.c, which holds the Hash_DRBG
+ * this file seeds.  settings.h turns it into FIPS_NO_WRAPPERS, so the
+ * wc_Sha3_256_*() calls below resolve to the implementations rather than to the
+ * fips.c service wrappers.
+ *
+ * Without it those four calls carry AlgoAllowed(FIPS_CAST_HMAC_SHA3_256) and
+ * return SHA3_KAT_FIPS_E as soon as that CAST is down, which takes out
+ * wc_Entropy_Get() -> wc_GenerateSeed() -> wc_InitRng() and, with it, every CAST
+ * whose known-answer test instantiates a WC_RNG.  Nothing here is a service
+ * request: the RNG service itself still gates on AlgoAllowed(FIPS_CAST_DRBG) in
+ * wc_InitRng_fips() / wc_RNG_GenerateBlock_fips(), and the SHA-3 service still
+ * gates on FIPS_CAST_HMAC_SHA3_256 in its own wrappers. */
+#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_WOLFENTROPY_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -37,6 +53,11 @@ data, use this implementation to seed and re-seed the DRBG.
 #ifdef HAVE_ENTROPY_MEMUSE
 
 #include <wolfssl/wolfcrypt/wolfentropy.h>
+
+/* Declares wc_OE_TimeHiRes(), defined OUTSIDE the FIPS module boundary in
+ * wolfcrypt/src/oe_timers.c.  It has its own header so that this module's
+ * headers declare nothing that lives outside the module. */
+#include <wolfssl/wolfcrypt/oe_timers.h>
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #if defined(__APPLE__) || defined(__MACH__)
@@ -64,111 +85,24 @@ static wc_Sha3 entropyHash;
 /* Reset the health tests. */
 static void Entropy_HealthTest_Reset(void);
 
-#ifdef CUSTOM_ENTROPY_TIMEHIRES
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    return CUSTOM_ENTROPY_TIMEHIRES();
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && \
-      (defined(__x86_64__) || defined(__i386__))
-/* Get the high resolution time counter.
+/* The high resolution counter read lives OUTSIDE the FIPS module boundary, in
+ * wolfcrypt/src/oe_timers.c, which src/include.am lists after wolfcrypt_last.c
+ * so its .text falls beyond wolfCrypt_FIPS_last().  This call site is the only
+ * in-boundary reference and it is identical on every platform, so supporting new
+ * hardware changes no byte covered by the in-core integrity hash.
  *
- * @return  64-bit count of CPU cycles.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    unsigned int lo_c, hi_c;
-    __asm__ __volatile__ (
-        "rdtsc"
-            : "=a"(lo_c), "=d"(hi_c)   /* out */
-            : "a"(0)                   /* in */
-            : "%ebx", "%ecx");         /* clobber */
-    return ((word64)lo_c) | (((word64)hi_c) << 32);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && \
-      (defined(__APPLE__) || defined(__MACH__))
-/* Get the high resolution time counter.
+ * The noise source's health tests (RCT/APT) and its SHA3-256 conditioning stay
+ * in this file, inside the boundary.  A new platform still needs its own
+ * SP 800-90B raw-data collection and ESV entry: this splits a module change into
+ * an ESV change, it does not make a port free.
  *
- * @return  64-bit time in nanoseconds.
- */
+ * The condition mirrors the one guarding the ladder in oe_timers.c: a custom
+ * counter always wins, as it did before, and otherwise the hardware counter is
+ * used unless the build asked for the threaded proxy below. */
+#if defined(CUSTOM_ENTROPY_TIMEHIRES) || !defined(ENTROPY_MEMUSE_THREAD)
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
-    return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__aarch64__)
-/* Get the high resolution time counter.
- *
- * @return  64-bit timer count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word64 cnt;
-    __asm__ __volatile__ (
-        "mrs %[cnt], cntvct_el0"
-        : [cnt] "=r"(cnt)
-        :
-        :
-    );
-    return cnt;
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__MICROBLAZE__)
-
-#define LPD_SCNTR_BASE_ADDRESS 0xFF250000
-
-/* Get the high resolution time counter.
- * Collect ticks from LPD_SCNTR
- * @return  64-bit tick count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word64 cnt;
-    word32 *ptr;
-
-    ptr = (word32*)LPD_SCNTR_BASE_ADDRESS;
-    cnt = *(ptr+1);
-    cnt = cnt << 32;
-    cnt |= *ptr;
-
-    return cnt;
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(_POSIX_C_SOURCE) && \
-    (_POSIX_C_SOURCE >= 199309L)
-/* Get the high resolution time counter.
- *
- * @return  64-bit time that is the nanoseconds of current time.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    struct timespec now;
-
-    clock_gettime(CLOCK_REALTIME, &now);
-
-    return now.tv_nsec;
-}
-#elif defined(_WIN32) /* USE_WINDOWS_API */
-/* Get the high resolution time counter.
- *
- * @return  64-bit timer
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    LARGE_INTEGER count;
-    QueryPerformanceCounter(&count);
-    return (word64)(count.QuadPart);
-}
-#elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__arm__)
-/* Get time counter from arch_sys_counter clocksource.
- *
- * @return  64-bit timer count.
- */
-static WC_INLINE word64 Entropy_TimeHiRes(void)
-{
-    word32 lo, hi;
-    __asm__ __volatile__ (
-        "mrrc p15, 1, %[lo], %[hi], c14"
-        : [lo] "=r"(lo), [hi] "=r"(hi)
-    );
-    return ((word64)hi << 32) | lo;
+    return wc_OE_TimeHiRes();
 }
 #elif defined(WOLFSSL_THREAD_NO_JOIN)
 

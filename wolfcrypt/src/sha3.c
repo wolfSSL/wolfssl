@@ -507,10 +507,7 @@ void BlockSha3(word64* s)
  */
 #define ROTL64(a, n)    (((a)<<(n))|((a)>>(64-(n))))
 
-/* WC_SHA3_NO_C_BLOCK: an x86 build pinned to an accelerated block function
- * compiles neither the C block below nor these constants, which only it
- * uses. */
-#if defined(WC_SHA3_SW_KECCAK) && !defined(WC_SHA3_NO_C_BLOCK)
+#ifdef WC_SHA3_SW_KECCAK
 /* An array of values to XOR for block operation. */
 static const word64 hash_keccak_r[24] =
 {
@@ -745,7 +742,7 @@ do {                                                      \
 while (0)
 #endif /* SHA3_BY_SPEC */
 
-#if defined(WC_SHA3_SW_KECCAK) && !defined(WC_SHA3_NO_C_BLOCK)
+#ifdef WC_SHA3_SW_KECCAK
 /* The block operation performed on the state.
  *
  * s  The state.

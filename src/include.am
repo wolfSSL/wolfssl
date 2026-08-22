@@ -1421,6 +1421,14 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 # fips last file
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 
+# OUTSIDE the FIPS module boundary, on purpose: listed after wolfcrypt_last.c so
+# its .text falls beyond wolfCrypt_FIPS_last() and the in-core integrity hash
+# does not cover it.  Lets a new platform's counter read be added without
+# changing a byte inside the boundary.  See wolfcrypt/src/oe_timers.c.
+if BUILD_MEMUSE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/oe_timers.c
+endif
+
 endif !BUILD_FIPS_NO_POST
 
 endif BUILD_FIPS_V7_PLUS

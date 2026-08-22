@@ -8195,7 +8195,20 @@ AS_CASE([$ENABLED_SELFTEST],
     ],
     ["no"],[SELFTEST_VERSION="none"],
     [
-        # selftest v1 (wolfCrypt 3.14.2)
+        # selftest v1 (wolfCrypt 3.14.2).  A BARE --enable-selftest LANDS HERE
+        # AND MUST KEEP LANDING HERE.  The flavor that passes the bare flag is
+        # netbsd-selftest (FIPS_OPTION=cavp-selftest), and its WOLFCRYPT_FILES
+        # overlays the v3.14.2 headers -- hmac.h, rsa.h, ecc.h and friends --
+        # over the current tree.  Those headers ARE the v1 API: v3.14.2
+        # hmac.h:89 declares WC_SHA3_224_BLOCK_SIZE as an enum constant and
+        # derives WC_HMAC_BLOCK_SIZE from it, v3.14.2 rsa.h:186 declares the
+        # six-argument wc_RsaPSS_CheckPadding_ex, and v3.14.2 ecc.h has no
+        # wc_ecc_set_rng at all.  Selecting v2 for the bare flag makes sha3.h
+        # define WC_SHA3_*_BLOCK_SIZE as macros, which collide with that enum,
+        # and makes test.c take its seven-argument and wc_ecc_set_rng arms
+        # against headers that offer neither -- measured: bare flag with the
+        # overlay fails to build, --enable-selftest=v1 with the same overlay
+        # builds clean.  --enable-selftest=v2 still selects v2 explicitly.
         ENABLED_SELFTEST="yes"
         SELFTEST_VERSION="v1"
     ])

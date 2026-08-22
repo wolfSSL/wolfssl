@@ -14689,7 +14689,8 @@ void bench_ecc(int useDeviceID, int curveId)
 #ifdef HAVE_ECC_DHE
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         (void)wc_ecc_set_rng(genKey[i], &gRng);
     }
@@ -14973,7 +14974,8 @@ void bench_eccEncrypt(int curveId)
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     ret = wc_ecc_set_rng(userA, &gRng);
     if (ret != 0) {
         goto exit;
@@ -15324,7 +15326,8 @@ void bench_sm2(int useDeviceID)
 #ifdef HAVE_ECC_DHE
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
+    (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                 (HAVE_SELFTEST_VERSION >= 2)))
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         (void)wc_ecc_set_rng(genKey[i], &gRng);
     }

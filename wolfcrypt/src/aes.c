@@ -181,28 +181,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WC_AES_HAVE_ASM_GCM
 #endif
 
-/* WC_AES_NO_C_GCM, drop the C AES-GCM code.
- *
- * These sites used to key on WC_AES_NO_C_IMPL, which is the wrong macro for
- * them and cost 32-bit x86 its AES-GCM service entirely.  WC_AES_NO_C_IMPL
- * gates the C AES *block* leaves (AesEncrypt_C and friends).  The C AES-GCM
- * code is not an AES implementation: it is GCM *mode*, counter increment,
- * xorbuf and GHASH, and every block it enciphers goes through
- * AesEncrypt_preFetchOpt() -> wc_AesEncrypt(), which under a pin dispatches to
- * WC_AES_BLK(AES_ECB_encrypt), i.e. the pinned lane and nothing else.
- *
- * On 32-bit x86 with --enable-aesni the pin therefore removed the only GCM
- * there is: AES-NI blocks exist (aes_asm.S has a 32-bit section) but
- * WC_AESNI_GCM cannot be defined for the reason above, so wc_AesGcmEncrypt()
- * and wc_AesGcmDecrypt() reached their "pinned, no C" arm unconditionally and
- * returned BAD_STATE_E for every call, an approved service that could not
- * run, and a CAST that could not pass.
- *
- * One implementation per algorithm (FIPS 140-3 IG 10.3.A GeneralNote1) is
- * preserved: AES stays AES-NI-only, and GHASH is a different algorithm, not a
- * second AES.  Where an accelerated GCM does exist the C code is still dropped,
- * because there it WOULD be a second GCM. */
-
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -931,36 +909,6 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
         AES_DECL_VARIANT_DEC(avx512);
     #endif
 
-    /* WC_AES_V(base), the one block-mode routine a pinned build calls,
-     * spelled as the base name plus this OE's variant suffix.  It replaces
-     * the run-time ladder below outright: no CPUID test and no narrower
-     * fall-back arm, so exactly one implementation is compiled.  The wide
-     * routines carry their own tails down to a single block, so dropping the
-     * size threshold the ladder used costs correctness nothing, that
-     * threshold is a tuning choice (WC_VAES_ECB_MIN_BLOCKS), not a capability
-     * limit.  A build pinned to an instruction set the CPU lacks is not this
-     * OE and must not be run on it.  See linuxkm/SVR-FALLBACK-ANALYSIS.md. */
-
-    /* WC_AES_G(base) / WC_AES_X(base), the same idea for AES-GCM and
-     * AES-XTS, which have their own assembly and their own lane sets and so
-     * cannot share WC_AES_V.  Read off the labels the assembly actually
-     * defines, not off the pin names:
-     *
-     *   AES_ECB/CBC/CTR_*   AESNI  avx1        avx512 vaes   (uppercase AESNI)
-     *   AES_GCM_*           aesni  avx1  avx2  avx512 vaes
-     *   AES_XTS_*           aesni  avx1        avx512 vaes
-     *
-     * Two consequences, both of which a pasted suffix would get wrong.  The
-     * block lane spells its AES-NI routine AESNI and GCM/XTS spell theirs
-     * aesni, so one macro cannot serve all three.  And AES-XTS has no AVX2
-     * body at all, so an AVX2 pin runs the AVX1 one, which is the same
-     * split configure.ac already documents for the block modes: one
-     * implementation of each of AES-GCM and AES-XTS, not two of either.
-     *
-     * Undefined when there is no pin, exactly as WC_AES_V is, so every use is
-     * inside a "#if defined(WC_AES_PINNED) && !defined(WC_AES_USE_C)" and an
-     * unpinned build keeps the run-time ladder it has always had. */
-
     /* Pick the widest available implementation at runtime.  Callers must
      * already be inside a VECTOR_REGISTERS_PUSH / SAVE_VECTOR_REGISTERS
      * region (all bulk AES-NI call sites are). */
@@ -1130,28 +1078,9 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
     /* WC_AES_BLK(base), THE block routine, for the sites that need the block
      * cipher itself rather than a mode ladder: one block (wc_AesEncrypt /
      * wc_AesDecrypt) and AES-CCM's fixed four-block CTR run.  Those sites
-     * named AES_ECB_encrypt_AESNI outright, so under a wide pin they were a
-     * second implementation of the AES block cipher beside the pinned one --
-     * IG 10.3.A GeneralNote1, and measured: an AVX1-pinned aes.o reached
-     * AES_ECB_encrypt_AESNI from wc_AesEncrypt and AES_ECB_encrypt_avx1 from
-     * wc_AesEcbEncrypt, two implementations of AES-block in one build.
-     *
-     * Unpinned, and on any target with no WC_AES_V (the 32-bit x86 AES-NI
-     * build has no wide variants at all), it is AES_ECB_*_AESNI, what these
-     * sites called before the pin existed, so nothing changes there.
-     * Defined here rather than beside WC_AES_V because WC_AES_V is inside
-     * "#ifdef WOLFSSL_X86_64_BUILD" and these call sites are not.
-     *
-     * Checked against the generated assembly rather than against the comment
-     * above it: every wide variant descends 256 -> 128 -> 64 -> 32 -> 16 and
-     * ends in a single-block tail (L_AES_ECB_encrypt_<lane>_enc_16 in
-     * aes_x86_64_asm.S), and every load is vmovdqu, so one unaligned block is
-     * in range for avx1, vaes and avx512 alike. */
-    #ifdef WC_AES_V
-        #define WC_AES_BLK(base)    WC_AES_V(base)
-    #else
-        #define WC_AES_BLK(base)    base##_AESNI
-    #endif
+     * name AES_ECB_encrypt_AESNI / AES_ECB_decrypt_AESNI, and this macro is
+     * just that spelling in one place. */
+    #define WC_AES_BLK(base)    base##_AESNI
 
     static WARN_UNUSED_RESULT int AES_set_encrypt_key_AESNI(
         const unsigned char *userKey, const int bits, Aes* aes)
@@ -9123,8 +9052,8 @@ void GenerateM0(Gcm* gcm)
 #endif /* GCM_TABLE */
 
 /* Same derivation as above, for the AES-GCM ladders.  GCM is the one mode
- * with an AVX2-without-VAES variant of its own, so WC_AES_IMPL_AVX2 is
- * meaningful here where it is not for ECB/CBC/CTR. */
+ * with an AVX2-without-VAES variant of its own, so the AVX2 arm here names a
+ * body of its own where for ECB/CBC/CTR it would fall back to AVX1. */
 #if defined(WOLFSSL_AESNI) && defined(USE_INTEL_SPEEDUP)
         #define HAVE_INTEL_AVX1
     #if !defined(NO_AVX2_SUPPORT)
@@ -11187,9 +11116,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  * @param [in, out] aes  AES GCM object.
  */
 /* Only the C streaming path calls this; the accelerated routines carry
- * their own GHASH.  With the C twin gated out under WC_AES_NO_C_GCM it
- * has no callers, so it is compiled only alongside that twin. */
-#ifndef WC_AES_NO_C_GCM
+ * their own GHASH. */
 static void GHASH_INIT(Aes* aes) {
     /* Set tag to all zeros as initial value. */
     XMEMSET(AES_TAG(aes), 0, WC_AES_BLOCK_SIZE);
@@ -11208,7 +11135,6 @@ static void GHASH_INIT(Aes* aes) {
         GHASH_INIT_EXTRA(aes);
     }
 }
-#endif /* !WC_AES_NO_C_GCM */
 
 /* Update the GHASH with AAD and/or cipher text.
  *
@@ -11219,9 +11145,7 @@ static void GHASH_INIT(Aes* aes) {
  * @param [in]     cSz   Size of data in cipher text buffer.
  */
 /* Only the C streaming-update path calls this; the accelerated update routines
- * carry their own GHASH.  With the C twin gated out under WC_AES_NO_C_GCM it
- * has no callers, so it is compiled only alongside that twin. */
-#ifndef WC_AES_NO_C_GCM
+ * carry their own GHASH. */
 static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word32 cSz)
 {
@@ -11317,7 +11241,6 @@ static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
         }
     }
 }
-#endif /* !WC_AES_NO_C_GCM */
 
 /* Finalize the GHASH calculation.
  *
@@ -11328,9 +11251,7 @@ static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
  * @param [in]      sSz  Size of authentication tag required.
  */
 /* Only the C streaming path calls this; the accelerated routines carry
- * their own GHASH.  With the C twin gated out under WC_AES_NO_C_GCM it
- * has no callers, so it is compiled only alongside that twin. */
-#ifndef WC_AES_NO_C_GCM
+ * their own GHASH. */
 static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
 {
     /* AAD block incomplete when > 0 */
@@ -11354,7 +11275,6 @@ static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
     /* reset aes->gcm.H in case of reuse */
     GHASH_INIT_EXTRA(aes);
 }
-#endif /* !WC_AES_NO_C_GCM */
 #endif /* WOLFSSL_AESGCM_STREAM */
 
 
@@ -11709,7 +11629,6 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 #endif /* STM32_CRYPTO_AES_GCM */
 
 #if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
-#ifndef WC_AES_NO_C_GCM  /* the GCM C twin */
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
@@ -11833,7 +11752,6 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
 
     return ret;
 }
-#endif /* !WC_AES_NO_C_GCM */
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
       defined(WOLFSSL_ARM32_AES_DISPATCH) || \
       (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
@@ -12238,27 +12156,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     else
 #endif /* WOLFSSL_AESNI */
     {
-#ifdef WC_AES_NO_C_GCM
-        /* Pinned AND this build has an accelerated GCM (WC_AES_NO_C_GCM), so
-         * the C GCM is not compiled and there is nothing to fall back to.
-         * Reached with aes->use_aesni clear, i.e. a key that was not set up for
-         * the pinned lane, report it rather than return success with no
-         * ciphertext and no tag.
-         *
-         * The previous wording here said this arm was "reachable only with
-         * aes->use_aesni clear, which the pin says cannot happen on a validated
-         * OE".  That was measurably false on 32-bit x86: WC_AESNI_GCM cannot be
-         * defined there, so the whole `if (aes->use_aesni)` block above did not
-         * exist and control reached this arm on EVERY call, use_aesni set or
-         * not.  See WC_AES_NO_C_GCM at the top of this file. */
-        WOLFSSL_MSG("AES-GCM pinned to AES-NI but the key is not set up "
-                    "for it");
-        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
-        ret = BAD_STATE_E;
-#else
         ret = AES_GCM_encrypt_C(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
                                 authIn, authInSz);
-#endif
     }
 #endif
 
@@ -12578,7 +12477,6 @@ WOLFSSL_LOCAL WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 #endif /* STM32_CRYPTO_AES_GCM */
 
 #if !defined(WOLFSSL_ARMASM) && !(defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
-#ifndef WC_AES_NO_C_GCM  /* the GCM C twin */
 #ifdef WOLFSSL_AESNI
 /* For performance reasons, this code needs to be not inlined. */
 int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
@@ -12744,7 +12642,6 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
 #endif
     return ret;
 }
-#endif /* !WC_AES_NO_C_GCM */
 #elif (defined(__aarch64__) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)) || \
       defined(WOLFSSL_ARM32_AES_DISPATCH) || \
       (defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM))
@@ -13136,18 +13033,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     else
 #endif /* WOLFSSL_AESNI */
     {
-#ifdef WC_AES_NO_C_GCM
-        /* See the matching comment in wc_AesGcmEncrypt.  Failing here is the
-         * safe direction for a decrypt: no plaintext is produced and the tag
-         * is never reported as verified. */
-        WOLFSSL_MSG("AES-GCM pinned to AES-NI but the key is not set up "
-                    "for it");
-        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
-        ret = BAD_STATE_E;
-#else
         ret = AES_GCM_decrypt_C(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
                                                              authIn, authInSz);
-#endif
     }
 #endif
 
@@ -13177,7 +13064,6 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
  * @param [in]      iv    IV/nonce buffer.
  * @param [in]      ivSz  Length of IV/nonce data.
  */
-#ifndef WC_AES_NO_C_GCM  /* AesGcmInit_C: the C twin */
 static WARN_UNUSED_RESULT int AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz)
 {
     ALIGN32 byte counter[WC_AES_BLOCK_SIZE];
@@ -13217,7 +13103,6 @@ static WARN_UNUSED_RESULT int AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz
 
     return 0;
 }
-#endif /* !WC_AES_NO_C_GCM */
 
 /* Update the AES GCM cipher with data. C implementation.
  *
@@ -13228,7 +13113,6 @@ static WARN_UNUSED_RESULT int AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz
  * @param [in]      in   Plaintext or cipher text buffer.
  * @param [in]      sz   Length of data.
  */
-#ifndef WC_AES_NO_C_GCM  /* AesGcmCryptUpdate_C: the C twin */
 static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
     Aes* aes, byte* out, const byte* in, word32 sz)
 {
@@ -13315,7 +13199,6 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
 
     return 0;
 }
-#endif /* !WC_AES_NO_C_GCM */
 
 /* Calculates authentication tag for AES GCM. C implementation.
  *
@@ -13323,7 +13206,6 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
  * @param [out]     authTag    Buffer to store authentication tag in.
  * @param [in]      authTagSz  Length of tag to create.
  */
-#ifndef WC_AES_NO_C_GCM  /* AesGcmFinal_C: the C twin */
 static WARN_UNUSED_RESULT int AesGcmFinal_C(
     Aes* aes, byte* authTag, word32 authTagSz)
 {
@@ -13340,7 +13222,6 @@ static WARN_UNUSED_RESULT int AesGcmFinal_C(
 
     return 0;
 }
-#endif /* !WC_AES_NO_C_GCM */
 
 #ifdef WC_AESNI_GCM
 
@@ -13535,10 +13416,9 @@ static WARN_UNUSED_RESULT int AesGcmInit_asm(
 
 /* Update the AES GCM for encryption with authentication data.
  *
- * Calls the x86 AES-GCM assembly.  Unpinned that is whichever of AVX512,
- * VAES, AVX2, AVX1 or AES-NI the CPU reports; under WC_AES_IMPL it is the
- * one lane the pin names and there is no other, hence _asm and not
- * _aesni, which claimed a lane this routine no longer always calls.
+ * Calls the x86 AES-GCM assembly: whichever of AVX512, VAES, AVX2, AVX1 or
+ * AES-NI the CPU reports.  Named _asm rather than _aesni because AES-NI is
+ * only one of the lanes it dispatches to.
  *
  * @param [in, out] aes   AES object.
  * @param [in]      a     Buffer holding authentication data.
@@ -13703,10 +13583,9 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_asm(
 
 /* Update the AES GCM for encryption with data and/or authentication data.
  *
- * Calls the x86 AES-GCM assembly.  Unpinned that is whichever of AVX512,
- * VAES, AVX2, AVX1 or AES-NI the CPU reports; under WC_AES_IMPL it is the
- * one lane the pin names and there is no other, hence _asm and not
- * _aesni, which claimed a lane this routine no longer always calls.
+ * Calls the x86 AES-GCM assembly: whichever of AVX512, VAES, AVX2, AVX1 or
+ * AES-NI the CPU reports.  Named _asm rather than _aesni because AES-NI is
+ * only one of the lanes it dispatches to.
  *
  * @param [in, out] aes  AES object.
  * @param [out]     c    Buffer to hold cipher text.
@@ -13884,10 +13763,9 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_asm(
 
 /* Finalize the AES GCM for encryption and calculate the authentication tag.
  *
- * Calls the x86 AES-GCM assembly.  Unpinned that is whichever of AVX512,
- * VAES, AVX2, AVX1 or AES-NI the CPU reports; under WC_AES_IMPL it is the
- * one lane the pin names and there is no other, hence _asm and not
- * _aesni, which claimed a lane this routine no longer always calls.
+ * Calls the x86 AES-GCM assembly: whichever of AVX512, VAES, AVX2, AVX1 or
+ * AES-NI the CPU reports.  Named _asm rather than _aesni because AES-NI is
+ * only one of the lanes it dispatches to.
  *
  * @param [in, out] aes        AES object.
  * @param [in]      authTag    Buffer to hold authentication tag.
@@ -14221,10 +14099,9 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_asm(
 
 /* Finalize the AES GCM for decryption and check the authentication tag.
  *
- * Calls the x86 AES-GCM assembly.  Unpinned that is whichever of AVX512,
- * VAES, AVX2, AVX1 or AES-NI the CPU reports; under WC_AES_IMPL it is the
- * one lane the pin names and there is no other, hence _asm and not
- * _aesni, which claimed a lane this routine no longer always calls.
+ * Calls the x86 AES-GCM assembly: whichever of AVX512, VAES, AVX2, AVX1 or
+ * AES-NI the CPU reports.  Named _asm rather than _aesni because AES-NI is
+ * only one of the lanes it dispatches to.
  *
  * @param [in, out] aes        AES object.
  * @param [in]      authTag    Buffer holding authentication tag.
@@ -14758,10 +14635,9 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_AARCH64(Aes* aes, byte* p,
 
 /* Finalize the AES GCM for decryption and check the authentication tag.
  *
- * Calls the x86 AES-GCM assembly.  Unpinned that is whichever of AVX512,
- * VAES, AVX2, AVX1 or AES-NI the CPU reports; under WC_AES_IMPL it is the
- * one lane the pin names and there is no other, hence _asm and not
- * _aesni, which claimed a lane this routine no longer always calls.
+ * Calls the x86 AES-GCM assembly: whichever of AVX512, VAES, AVX2, AVX1 or
+ * AES-NI the CPU reports.  Named _asm rather than _aesni because AES-NI is
+ * only one of the lanes it dispatches to.
  *
  * @param [in, out] aes        AES object.
  * @param [in]      authTag    Buffer holding authentication tag.
@@ -15313,16 +15189,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             if (0)
         #endif /* WOLFSSL_AESNI */
             {
-#ifdef WC_AES_NO_C_GCM
-                /* Pinned: AesGcmInit_C is not compiled.  See the matching
-                 * comment in wc_AesGcmEncrypt. */
-                WOLFSSL_MSG("AES-GCM pinned to AES-NI but the key is not "
-                            "set up for it");
-                WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
-                ret = BAD_STATE_E;
-#else
                 ret = AesGcmInit_C(aes, iv, ivSz);
-#endif
             }
 
             if (ret == 0)
@@ -15471,14 +15338,6 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         if (0)
     #endif
         {
-#ifdef WC_AES_NO_C_GCM
-            /* Pinned: AesGcmCryptUpdate_C is not compiled.  See the matching
-             * comment in wc_AesGcmEncrypt. */
-            WOLFSSL_MSG("AES-GCM pinned to AES-NI but the key is not set up "
-                        "for it");
-            WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
-            ret = BAD_STATE_E;
-#else
             /* Encrypt the plaintext. */
             ret = AesGcmCryptUpdate_C(aes, out, in, sz);
             if (ret == 0) {
@@ -15486,7 +15345,6 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
                  * new cipher text. */
                 GHASH_UPDATE(aes, authIn, authInSz, out, sz);
             }
-#endif
         }
     }
 
@@ -15549,16 +15407,7 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
         if (0)
     #endif
         {
-#ifdef WC_AES_NO_C_GCM
-            /* Pinned: AesGcmFinal_C is not compiled.  See the matching
-             * comment in wc_AesGcmEncrypt. */
-            WOLFSSL_MSG("AES-GCM pinned to AES-NI but the key is not set up "
-                        "for it");
-            WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
-            ret = BAD_STATE_E;
-#else
             ret = AesGcmFinal_C(aes, authTag, authTagSz);
-#endif
         }
     }
 
@@ -15651,20 +15500,11 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         if (0)
     #endif
         {
-#ifdef WC_AES_NO_C_GCM
-            /* Pinned: AesGcmCryptUpdate_C is not compiled.  See the matching
-             * comment in wc_AesGcmEncrypt. */
-            WOLFSSL_MSG("AES-GCM pinned to AES-NI but the key is not set up "
-                        "for it");
-            WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
-            ret = BAD_STATE_E;
-#else
             /* Update the authentication tag with any authentication data and
              * cipher text. */
             GHASH_UPDATE(aes, authIn, authInSz, in, sz);
             /* Decrypt the cipher text. */
             ret = AesGcmCryptUpdate_C(aes, out, in, sz);
-#endif
         }
     }
 
@@ -15722,14 +15562,6 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
         if (0)
     #endif
         {
-#ifdef WC_AES_NO_C_GCM
-            /* Pinned: AesGcmFinal_C is not compiled.  See the matching
-             * comment in wc_AesGcmEncrypt. */
-            WOLFSSL_MSG("AES-GCM pinned to AES-NI but the key is not set up "
-                        "for it");
-            WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
-            ret = BAD_STATE_E;
-#else
             ALIGN32 byte calcTag[WC_AES_BLOCK_SIZE];
             /* Calculate authentication tag. */
             ret = AesGcmFinal_C(aes, calcTag, WC_AES_BLOCK_SIZE);
@@ -15739,7 +15571,6 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
                     ret = AES_GCM_AUTH_E;
                 }
             }
-#endif
         }
     }
 
@@ -19162,23 +18993,6 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
     #undef HAVE_INTEL_AVX2
     #undef HAVE_INTEL_VAES
     #undef HAVE_INTEL_AVX512
-
-    /* WC_AES_X(base) names the pinned lane's routine.  It is defined with the
-     * wide lanes inside "#ifdef WOLFSSL_X86_64_BUILD" further up, so on 32-bit
-     * it does not exist at all, the six uses in the XTS ladders below would
-     * be left as bare, undeclared identifiers.  There is one lane here, so give
-     * it the AES-NI spelling that aes_xts_x86_asm.S actually provides.
-     *
-     * Requiring WC_AES_USE_AESNI rather than defining this unconditionally is
-     * deliberate: an unpinned 32-bit build must not silently acquire a lane
-     * name.  What keeps that safe is not the counter, WC_AES_IMPL_COUNT's
-     * "Two or more AES implementations" #error is gated on
-     * WC_FIPS_ONE_IMPL_REQUIRED, which is FIPS-only, and non-FIPS is precisely
-     * the unpinned case, so it never fires there.  It is that every WC_AES_X
-     * use site in the XTS ladders below is itself wrapped in
-     * "#if defined(WC_AES_PINNED) && !defined(WC_AES_USE_C)", so an unpinned
-     * build never names the macro.  configure.ac pins AES=AESNI for host_cpu
-     * x86/i?86, so the pinned case is the only one that reaches these uses. */
 #endif
 
 #if defined(USE_INTEL_SPEEDUP_FOR_AES) && !defined(USE_INTEL_SPEEDUP)
@@ -19186,22 +19000,10 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
 #if defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_X86_BUILD)
-    /* Same pin gating as the ECB/CBC/CTR derivation near the top of the file
-     * and the AES-GCM one above it.  Unpinned, every width is compiled and the
-     * ladders below choose from CPUID at run time; pinned, only the named
-     * width's macro is defined and each ladder has a single arm.
-     *
-     * These two were defined unconditionally here, which put AES_XTS_*_avx1
-     * beside AES_XTS_*_aesni in an AES-NI-pinned build: wc_AesXtsEncrypt(),
-     * wc_AesXtsDecrypt() and the Init and Update entry points each reached
-     * two implementations of AES-XTS and chose from intel_flags at run time.
-     * WC_AES_IMPL_COUNT does not see that, a pinned build takes the
-     * (1 + WC_AES_N_C) arm and stops counting the widths, so it is caught by
-     * relocation census on aes.o, not by the counter.
-     * See linuxkm/SVR-FALLBACK-ANALYSIS.md
-     *
-     * As for ECB/CBC/CTR, XTS has no AVX2-without-VAES variant, so the AVX2
-     * pin runs the AVX1 XTS code and needs HAVE_INTEL_AVX1. */
+    /* Every width the XTS ladders below can name has to be compiled, because
+     * those ladders choose from CPUID at run time.  As for ECB/CBC/CTR, XTS
+     * has no AVX2-without-VAES variant, so the AVX2 arm runs the AVX1 XTS
+     * code and needs HAVE_INTEL_AVX1 as well. */
     #ifndef HAVE_INTEL_AVX1
         #define HAVE_INTEL_AVX1
     #endif
