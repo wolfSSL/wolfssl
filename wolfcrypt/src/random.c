@@ -2490,14 +2490,21 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             }
             else {
                 ret = seedCb(&rng->seed, seed, seedSz);
-                if (ret != 0) {
 #ifdef WC_VERBOSE_RNG
+                if (ret != 0) {
                     WOLFSSL_DEBUG_PRINTF(
                         "ERROR: seedCb in _InitRng() failed with err = %d",
                         ret);
-#endif
-                    ret = DRBG_FAILURE;
                 }
+#endif
+                /* The seed callback's return is NOT collapsed here.  The
+                 * shared classification below is the single place that decides
+                 * what a seed-source failure becomes, and under FIPS v7 it
+                 * keeps ENTROPY_RT_E / ENTROPY_APT_E intact.  Overwriting ret
+                 * with DRBG_FAILURE at this point made that block unreachable
+                 * for every FIPS v7 build, because WC_RNG_SEED_CB is the only
+                 * seed path such a build takes: an SP 800-90B health-test trip
+                 * in the seed source reached the caller as RNG_FAILURE_E. */
             }
 #else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
@@ -2516,7 +2523,9 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     #endif
 #if FIPS_VERSION3_GE(7,0,0)
                 /* Keep the seed source's own SP 800-90B code, as
-                 * wc_RNG_GenerateBlock() already does on the generate path. */
+                 * wc_RNG_GenerateBlock() already does on the generate path.
+                 * Reached from both the WC_RNG_SEED_CB and wc_GenerateSeed()
+                 * branches above. */
                 if ((ret != WC_NO_ERR_TRACE(ENTROPY_RT_E)) &&
                     (ret != WC_NO_ERR_TRACE(ENTROPY_APT_E)))
                     ret = DRBG_FAILURE;
