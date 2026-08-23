@@ -3742,6 +3742,16 @@
 #endif /* HAVE_ED448 */
 
 
+/* Derived here rather than in wc_mlkem.h, which is included from inside the
+ * guard that tests this. Names the ASN.1 backend inputs rather than
+ * WOLFSSL_ASN_TEMPLATE, which has no default until several hundred lines down
+ * and so is undefined in CMake builds. Keep in step with that block. */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1) && \
+    (defined(NO_ASN) || \
+     (!defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_ASN_ORIGINAL)))
+    #define WOLFSSL_MLKEM_NO_ASN1
+#endif
+
 /* RFC 5958 (Asymmetric Key Packages) */
 #if !defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     ((defined(HAVE_ED25519)    && defined(HAVE_ED25519_KEY_EXPORT)) || \
@@ -3750,6 +3760,7 @@
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
+     (defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))
@@ -3763,6 +3774,7 @@
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
       defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || \
       defined(WOLFSSL_HAVE_FRODOKEM) || \
+     (defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)) || \
       defined(WOLFSSL_HAVE_SLHDSA) || \
      (defined(WOLFSSL_HAVE_LMS)  && !defined(WOLFSSL_LMS_VERIFY_ONLY)) || \
      (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)))

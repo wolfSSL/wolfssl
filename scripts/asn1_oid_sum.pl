@@ -321,6 +321,10 @@ my @dilithium_5 = ( 1, 3, 6, 1, 4, 1, 2, 267, 12, 8, 7 );
 my @mldsa_2 = ( 2, 16, 840, 1, 101, 3, 4, 3, 17 );
 my @mldsa_3 = ( 2, 16, 840, 1, 101, 3, 4, 3, 18 );
 my @mldsa_5 = ( 2, 16, 840, 1, 101, 3, 4, 3, 19 );
+# ML-KEM (FIPS 203) key OIDs, NIST arc 2.16.840.1.101.3.4.4.x
+my @mlkem_512  = ( 2, 16, 840, 1, 101, 3, 4, 4, 1 );
+my @mlkem_768  = ( 2, 16, 840, 1, 101, 3, 4, 4, 2 );
+my @mlkem_1024 = ( 2, 16, 840, 1, 101, 3, 4, 4, 3 );
 my @slhdsa_sha2_128s = (2, 16, 840, 1, 101, 3, 4, 3, 20);
 my @slhdsa_sha2_128f = (2, 16, 840, 1, 101, 3, 4, 3, 21);
 my @slhdsa_sha2_192s = (2, 16, 840, 1, 101, 3, 4, 3, 22);
@@ -385,6 +389,9 @@ my @keys = (
     { name => "HSS_LMS",              oid => \@hss_lms         },
     { name => "XMSS",                 oid => \@xmss            },
     { name => "XMSSMT",               oid => \@xmssmt          },
+    { name => "ML_KEM_512",           oid => \@mlkem_512       },
+    { name => "ML_KEM_768",           oid => \@mlkem_768       },
+    { name => "ML_KEM_1024",          oid => \@mlkem_1024      },
     { name => "FRODOKEM_976_SHAKE",   oid => \@frodokem_976_shake,   add_sum => 100000 },
     { name => "FRODOKEM_1344_SHAKE",  oid => \@frodokem_1344_shake,  add_sum => 100000 },
     { name => "EFRODOKEM_976_SHAKE",  oid => \@efrodokem_976_shake,  add_sum => 100000 },
