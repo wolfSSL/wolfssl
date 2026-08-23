@@ -465,6 +465,18 @@ WOLFSSL_API int wc_MlKemKey_DecodePublicKey(MlKemKey* key,
     const unsigned char* in, word32 len);
 
 #ifndef WOLFSSL_MLKEM_NO_ASN1
+/* DER (SubjectPublicKeyInfo / PKCS#8) encoding overhead over the raw key. */
+#define MLKEM_ASN1_PUB_OVERHEAD  32
+#define MLKEM_ASN1_PRV_OVERHEAD  40
+/* Maximum DER-encoded key sizes over the enabled parameter sets. Callers may
+ * also pass a NULL output to the *ToDer functions to get the exact length. */
+#define MLKEM_MAX_PUB_KEY_DER_SIZE \
+    (WC_ML_KEM_MAX_PUBLIC_KEY_SIZE + MLKEM_ASN1_PUB_OVERHEAD)
+#define MLKEM_MAX_PRV_KEY_DER_SIZE \
+    (WC_ML_KEM_MAX_PRIVATE_KEY_SIZE + MLKEM_ASN1_PRV_OVERHEAD)
+
+WOLFSSL_LOCAL
+int mlkem_type_from_oid_sum(int oidSum, int* type);
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 WOLFSSL_API int wc_MlKemKey_PublicKeyToDer(MlKemKey* key, byte* output,
     word32 len, int withAlg);

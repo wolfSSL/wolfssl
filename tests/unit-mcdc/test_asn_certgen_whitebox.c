@@ -1101,12 +1101,12 @@ static void wb_set_keyid_from_pubkey(void)
 
     /* cert==NULL -> 1st operand true. */
     ret = SetKeyIdFromPublicKey(NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, SKID_TYPE);
+            NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":31441 1st operand true (cert==NULL)");
 
     /* cert!=NULL, all key ptrs NULL -> 2nd operand true. */
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, SKID_TYPE);
+            NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             ":31441 2nd operand true (all key ptrs NULL)");
 
@@ -1118,7 +1118,8 @@ static void wb_set_keyid_from_pubkey(void)
         RsaKey dummyKey;
         XMEMSET(&dummyKey, 0, sizeof(dummyKey));
         ret = SetKeyIdFromPublicKey(&cert, &dummyKey, NULL, NULL, NULL, NULL,
-                NULL, NULL, NULL, 99 /* neither SKID_TYPE nor AKID_TYPE */);
+                NULL, NULL, NULL, NULL,
+                99 /* neither SKID_TYPE nor AKID_TYPE */);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 ":31441 3rd operand true (bad kid_type, white-box only)");
     }
@@ -3199,7 +3200,7 @@ static void wb_make_cert_buffer_guards(void)
         cert->subject.commonNameEnc = CTC_UTF8;
         cert->sigType = CTC_SHA256wRSA;
         ret = MakeAnyCert(cert, der, DERSZ, NULL, NULL, &rng, NULL, NULL,
-                NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 ":30119/:30301/:30320/:30353 1st operands false (no key)");
 
@@ -3254,7 +3255,7 @@ static void wb_make_cert_buffer_guards(void)
         cert->subject.commonNameEnc = CTC_UTF8;
         cert->sigType = CTC_SHA256wRSA;
         ret = MakeCertReq(cert, der, DERSZ, NULL, NULL, NULL, NULL, NULL,
-                NULL, NULL, NULL, NULL, NULL, NULL);
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 ":30747 1st operand false (no key)");
 

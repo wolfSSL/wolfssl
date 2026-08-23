@@ -2887,6 +2887,41 @@ static int mlkem_type_to_oid_sum(int type, int* oidSum)
 
 #endif /* WC_ENABLE_ASYM_KEY_EXPORT || WC_ENABLE_ASYM_KEY_IMPORT */
 
+/* Map an ML-KEM key-OID sum to its parameter set.
+ *
+ * The inverse of mlkem_type_to_oid_sum, for callers that already hold the OID
+ * and want to pin the key to it rather than let a decode adopt one.
+ *
+ * @param  [in]   oidSum  OID sum (ML_KEM_512k/768k/1024k).
+ * @param  [out]  type    ML-KEM key type (WC_ML_KEM_512/768/1024).
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when type is NULL or the OID is not an ML-KEM key OID.
+ */
+int mlkem_type_from_oid_sum(int oidSum, int* type)
+{
+    int ret = 0;
+
+    if (type == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (oidSum) {
+        case ML_KEM_512k:
+            *type = WC_ML_KEM_512;
+            break;
+        case ML_KEM_768k:
+            *type = WC_ML_KEM_768;
+            break;
+        case ML_KEM_1024k:
+            *type = WC_ML_KEM_1024;
+            break;
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
+    }
+
+    return ret;
+}
+
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 /* Encode the ML-KEM public key as a DER SubjectPublicKeyInfo.
  *

@@ -1987,14 +1987,15 @@ struct DecodedCert {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
     defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_LMS) || \
-    defined(WOLFSSL_HAVE_XMSS)
+    defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+    defined(WOLFSSL_HAVE_MLKEM)
     word32  pkCurveOID;           /* Public Key's curve OID */
     #ifdef WOLFSSL_CUSTOM_CURVES
         int  pkCurveSize;         /* Public Key's curve size */
     #endif
 #endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || WOLFSSL_HAVE_MLDSA ||
         * HAVE_FALCON || WOLFSSL_HAVE_SLHDSA || WOLFSSL_HAVE_LMS ||
-        * WOLFSSL_HAVE_XMSS */
+        * WOLFSSL_HAVE_XMSS || WOLFSSL_HAVE_FRODOKEM || WOLFSSL_HAVE_MLKEM */
     const byte* beforeDate;
     int     beforeDateLen;
     const byte* afterDate;
@@ -2915,7 +2916,8 @@ enum cert_enums {
     LMS_KEY                  = 36,
     XMSS_KEY                 = 37,
     XMSSMT_KEY               = 38,
-    FRODOKEM_KEY             = 39
+    FRODOKEM_KEY             = 39,
+    MLKEM_KEY                = 40
 };
 
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
