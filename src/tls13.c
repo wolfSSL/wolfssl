@@ -6230,6 +6230,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 #if !defined(WOLFSSL_NO_SIGALG)
     /* Post-handshake auth can deliver several requests; each one's cert
      * signature algorithms replace the last rather than adding to them. */
+    XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->certHashSigAlgo = NULL;
     ssl->certHashSigAlgoSz = 0;
 #endif
 
@@ -7900,6 +7902,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     /* Discard any list kept from a previous ClientHello on this object; a
      * second hello that drops signature_algorithms_cert must not inherit it. */
+    XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->certHashSigAlgo = NULL;
     ssl->certHashSigAlgoSz = 0;
 #endif
 
