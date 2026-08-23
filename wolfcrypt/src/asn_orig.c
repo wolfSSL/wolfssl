@@ -6609,7 +6609,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        DsaKey* dsaKey, ed25519_key* ed25519Key,
                        ed448_key* ed448Key, falcon_key* falconKey,
                        wc_MlDsaKey* mldsaKey, SlhDsaKey* slhDsaKey,
-                       LmsKey* lmsKey, XmssKey* xmssKey, void* frodoKey)
+                       LmsKey* lmsKey, XmssKey* xmssKey, void* frodoKey,
+                       void* mlKemKey)
 {
     int ret;
     WC_DECLARE_VAR(der, DerCert, 1, 0);
@@ -6626,6 +6627,11 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     }
     if (frodoKey != NULL) {
         WOLFSSL_MSG("FrodoKEM certificate generation requires "
+                    "WOLFSSL_ASN_TEMPLATE");
+        return ALGO_ID_E;
+    }
+    if (mlKemKey != NULL) {
+        WOLFSSL_MSG("ML-KEM certificate generation requires "
                     "WOLFSSL_ASN_TEMPLATE");
         return ALGO_ID_E;
     }
@@ -7259,7 +7265,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    ed25519_key* ed25519Key, ed448_key* ed448Key,
                    falcon_key* falconKey, wc_MlDsaKey* mldsaKey,
                    SlhDsaKey* slhDsaKey, LmsKey* lmsKey, XmssKey* xmssKey,
-                   void* frodoKey)
+                   void* frodoKey, void* mlKemKey)
 {
     int ret;
     WC_DECLARE_VAR(der, DerCert, 1, 0);
@@ -7273,6 +7279,11 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     }
     if (frodoKey != NULL) {
         WOLFSSL_MSG("FrodoKEM certificate request generation requires "
+                    "WOLFSSL_ASN_TEMPLATE");
+        return ALGO_ID_E;
+    }
+    if (mlKemKey != NULL) {
+        WOLFSSL_MSG("ML-KEM certificate request generation requires "
                     "WOLFSSL_ASN_TEMPLATE");
         return ALGO_ID_E;
     }
