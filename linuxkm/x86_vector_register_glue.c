@@ -1724,8 +1724,8 @@ static const struct kernel_param_ops wc_svr_nested_saves_ops = {
 static const struct kernel_param_ops wc_svr_nested_refused_ops = {
     .get = wc_svr_nested_refused_get
 };
-module_param_cb(svr_nested_saves, &wc_svr_nested_saves_ops, NULL, 0444);
-module_param_cb(svr_nested_refused, &wc_svr_nested_refused_ops, NULL, 0444);
+    module_param_cb(svr_nested_saves, &wc_svr_nested_saves_ops, NULL, 0444);
+    module_param_cb(svr_nested_refused, &wc_svr_nested_refused_ops, NULL, 0444);
 
 #else /* !WC_LINUXKM_SVR_COUNT_NESTED */
 
@@ -1786,7 +1786,7 @@ static DEFINE_PER_CPU(struct wc_svr_pin_counts, wc_svr_pin_counts);
  * control, not a separate build. */
 static DEFINE_PER_CPU(unsigned long, wc_svr_block_suppressed);
 static int wc_svr_pin_force;
-module_param_named(svr_pin_force, wc_svr_pin_force, int, 0644);
+    module_param_named(svr_pin_force, wc_svr_pin_force, int, 0644);
 static atomic_t wc_svr_pin_force_armed = ATOMIC_INIT(1);
 
 /* Is anything actually holding this task on this CPU right now?  Deliberately
@@ -1865,7 +1865,8 @@ static int wc_svr_block_suppressed_get(char *b, const struct kernel_param *kp)
 static const struct kernel_param_ops wc_svr_block_suppressed_ops = {
     .get = wc_svr_block_suppressed_get
 };
-module_param_cb(svr_block_suppressed, &wc_svr_block_suppressed_ops, NULL, 0444);
+    module_param_cb(svr_block_suppressed, &wc_svr_block_suppressed_ops,
+                    NULL, 0444);
 
 static int wc_svr_pin_sections_get(char *b, const struct kernel_param *kp)
 { (void)kp; return wc_svr_pin_counts_fmt(b, 0); }
@@ -1883,9 +1884,9 @@ static const struct kernel_param_ops wc_svr_pin_wrongslot_ops = {
 static const struct kernel_param_ops wc_svr_pin_lost_ops = {
     .get = wc_svr_pin_lost_get
 };
-module_param_cb(svr_pin_sections, &wc_svr_pin_sections_ops, NULL, 0444);
-module_param_cb(svr_pin_wrongslot, &wc_svr_pin_wrongslot_ops, NULL, 0444);
-module_param_cb(svr_pin_lost, &wc_svr_pin_lost_ops, NULL, 0444);
+    module_param_cb(svr_pin_sections, &wc_svr_pin_sections_ops, NULL, 0444);
+    module_param_cb(svr_pin_wrongslot, &wc_svr_pin_wrongslot_ops, NULL, 0444);
+    module_param_cb(svr_pin_lost, &wc_svr_pin_lost_ops, NULL, 0444);
 
 #else /* !WC_LINUXKM_SVR_ASSERT_PINNED */
 

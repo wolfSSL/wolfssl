@@ -2986,9 +2986,10 @@ int test_wc_SlhdsaDecisionCoverage(void)
      * once the OR itself is false, so none of this reaches the (very slow)
      * WOTS+/FORS/hypertree signing -- no keygen/sign roundtrip needed. */
     {
-        WC_RNG dummyRng; /* never inited/dereferenced: only checked != NULL
-                           * before every earlier arg-check that matters
-                           * here short-circuits first. */
+        WC_RNG dummyRng; /* never inited or dereferenced: MakeKey tests
+                          * key, key->params and rng in one condition, and
+                          * zkey->params is NULL, so it returns BAD_FUNC_ARG
+                          * without reaching wc_RNG_GenerateBlock. */
         byte dummyMsg[8] = {0};
         byte dummySig[8] = {0};
         byte dummyAddRnd[32] = {0};

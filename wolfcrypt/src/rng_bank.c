@@ -905,9 +905,16 @@ WOLFSSL_API int wc_rng_bank_checkin(
      */
     if (! (lockval & WC_RNG_BANK_INST_LOCK_HELD)) {
 #ifdef WC_VERBOSE_RNG
+        /* No conversion specifier here on purpose.  This diagnostic sits in
+         * a path wolfcrypt_test reaches under --enable-stacksize; a printf
+         * with a conversion costs ~8.6KB of stack in glibc <= 2.36, which
+         * alone exceeds the 8192-byte budget this configuration is tested
+         * against.  Measured 2026-08-23 on Ubuntu 22.04 / glibc 2.35 /
+         * gcc 11.4.0: 11752 bytes with the conversion, 3184 without.
+         */
         WOLFSSL_DEBUG_PRINTF(
             "BUG: wc_rng_bank_checkin() on an instance that is not checked "
-            "out (lock %d).\n", lockval);
+            "out.\n");
 #endif
         return BAD_STATE_E;
     }
