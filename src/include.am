@@ -961,10 +961,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c
 
-if BUILD_MEMUSE
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
-endif
-
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/kdf.c
 
 if BUILD_RSA
@@ -1422,6 +1418,29 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fips.c \
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 
 endif !BUILD_FIPS_NO_POST
+
+# OUTSIDE the FIPS module boundary, on purpose: listed after wolfcrypt_last.c so
+# its .text falls beyond wolfCrypt_FIPS_last() and the in-core integrity hash
+# does not cover it.
+#
+# wolfentropy.c is the SP 800-90B entropy source -- noise source, RCT/APT health
+# tests and SHA3-256 conditioning.  FIPS 140-3 IG 9.3.A requires the module to
+# ACTIVELY call out for its noise rather than passively receive it, so an
+# out-of-boundary entropy source reached by an in-boundary call is the intended
+# shape, not a compromise.  wc_GenerateSeed() (wolfcrypt/src/random.c) makes that
+# call; a Crypto Officer may instead point wc_SetSeed_Cb() at an ESV source they
+# validated themselves, and both routes are the same active pull.
+#
+# Its conditioning hash therefore goes through the gated fips.c service wrappers
+# (see the ESV_SHA3_* macros in wolfentropy.c) like any other consumer outside
+# the module.  That is only safe because the CAST known-answer tests no longer
+# depend on the live seed path -- see EccKat_InitRng() in fips_test.c.
+#
+# Deliberately OUTSIDE the !BUILD_FIPS_NO_POST guard above, so it is built for
+# --enable-fips=dev-no-post as well.
+if BUILD_MEMUSE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
+endif
 
 
 endif BUILD_FIPS_V7_PLUS
