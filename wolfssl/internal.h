@@ -6575,8 +6575,7 @@ struct WOLFSSL {
     word16          pssAlgo;
 #ifdef WOLFSSL_TLS13
     word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
-    byte            certHashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* cert sig/algo to
-                                                           * offer */
+    byte*           certHashSigAlgo;    /* cert sig/algo to offer */
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     int             eccVerifyRes;

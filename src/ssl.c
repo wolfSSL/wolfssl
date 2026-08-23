@@ -5699,6 +5699,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.hrrSentCookie = 0;
     #endif
         ssl->options.hrrSentKeyShare = 0;
+        XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+        ssl->certHashSigAlgo = NULL;
+        ssl->certHashSigAlgoSz = 0;
     #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;

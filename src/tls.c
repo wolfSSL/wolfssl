@@ -8052,27 +8052,35 @@ static int TLSX_SetSignatureAlgorithms(TLSX** extensions, WOLFSSL* ssl,
 /******************************************************************************/
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-/* Return the size of the SignatureAlgorithms extension's data.
+/* Return the size of the SignatureAlgorithmsCert extension's data.
  *
- * data  Unused
+ * data  The SSL/TLS object.
  * returns the length of data that will be in the extension.
  */
 static word16 TLSX_SignatureAlgorithmsCert_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
 
+    if (ssl->certHashSigAlgo == NULL)
+        return OPAQUE16_LEN;
+
     return OPAQUE16_LEN + ssl->certHashSigAlgoSz;
 }
 
 /* Writes the SignatureAlgorithmsCert extension into the buffer.
  *
- * data    Unused
+ * data    The SSL/TLS object.
  * output  The buffer to write the extension into.
  * returns the length of data that was written.
  */
 static word16 TLSX_SignatureAlgorithmsCert_Write(void* data, byte* output)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
+
+    if (ssl->certHashSigAlgo == NULL) {
+        c16toa(0, output);
+        return OPAQUE16_LEN;
+    }
 
     c16toa(ssl->certHashSigAlgoSz, output);
     XMEMCPY(output + OPAQUE16_LEN, ssl->certHashSigAlgo,
@@ -8108,12 +8116,19 @@ static int TLSX_SignatureAlgorithmsCert_Parse(WOLFSSL *ssl, const byte* input,
         return BUFFER_ERROR;
 
     /* truncate hashSigAlgo list if too long */
-    ssl->certHashSigAlgoSz = len;
-    if (ssl->certHashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
+    if (len > WOLFSSL_MAX_SIGALGO) {
         WOLFSSL_MSG("TLSX SigAlgo list exceeds max, truncating");
-        ssl->certHashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
+        len = WOLFSSL_MAX_SIGALGO;
     }
-    XMEMCPY(ssl->certHashSigAlgo, input, ssl->certHashSigAlgoSz);
+
+    XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->certHashSigAlgoSz = 0;
+    ssl->certHashSigAlgo = (byte*)XMALLOC(len, ssl->heap, DYNAMIC_TYPE_TLSX);
+    if (ssl->certHashSigAlgo == NULL)
+        return MEMORY_E;
+
+    XMEMCPY(ssl->certHashSigAlgo, input, len);
+    ssl->certHashSigAlgoSz = len;
 
     return 0;
 }
@@ -8126,12 +8141,12 @@ static int TLSX_SignatureAlgorithmsCert_Parse(WOLFSSL *ssl, const byte* input,
  * returns 0 on success, otherwise failure.
  */
 static int TLSX_SetSignatureAlgorithmsCert(TLSX** extensions,
-        const WOLFSSL* data, void* heap)
+        const WOLFSSL* ssl, void* heap)
 {
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_Push(extensions, TLSX_SIGNATURE_ALGORITHMS_CERT, data, heap);
+    return TLSX_Push(extensions, TLSX_SIGNATURE_ALGORITHMS_CERT, ssl, heap);
 }
 
 #define SAC_GET_SIZE  TLSX_SignatureAlgorithmsCert_GetSize
@@ -17561,6 +17576,13 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+    #ifdef WOLFSSL_TLS13
+        /* RFC 8446 4.2.3: the list may not be empty, so drop the extension. */
+        if ((ssl->certHashSigAlgo == NULL) || (ssl->certHashSigAlgoSz == 0)) {
+            TURN_ON(semaphore,
+                    TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
+        }
+    #endif
 #endif
 #if defined(WOLFSSL_TLS13)
         if (!IsAtLeastTLSv1_2(ssl)) {
@@ -17798,6 +17820,13 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+    #ifdef WOLFSSL_TLS13
+        /* RFC 8446 4.2.3: the list may not be empty, so drop the extension. */
+        if ((ssl->certHashSigAlgo == NULL) || (ssl->certHashSigAlgoSz == 0)) {
+            TURN_ON(semaphore,
+                    TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
+        }
+    #endif
 #endif
 #ifdef WOLFSSL_TLS13
         if (!IsAtLeastTLSv1_2(ssl)) {
