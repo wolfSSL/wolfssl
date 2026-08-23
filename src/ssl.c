@@ -5856,6 +5856,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
          * next ClientHello carries an empty session id. */
         ssl->options.tls13MiddleBoxCompat = 1;
         ssl->options.shSentKeyShare = 0;
+        XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+        ssl->certHashSigAlgo = NULL;
+        ssl->certHashSigAlgoSz = 0;
     #endif
     #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
         /* The group the previous connection negotiated. Nothing else clears
