@@ -4964,6 +4964,20 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32* inOutI
     static const byte keyMlDsa_87Oid[] =
         {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* WOLFSSL_HAVE_MLDSA */
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)
+    /* ML-KEM key OIDs (FIPS 203), NIST arc 2.16.840.1.101.3.4.4.x */
+    /* ML-KEM-512: 2.16.840.1.101.3.4.4.1 */
+    static const byte keyMlKem_512Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 4, 1};
+
+    /* ML-KEM-768: 2.16.840.1.101.3.4.4.2 */
+    static const byte keyMlKem_768Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 4, 2};
+
+    /* ML-KEM-1024: 2.16.840.1.101.3.4.4.3 */
+    static const byte keyMlKem_1024Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 4, 3};
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_MLKEM_NO_ASN1 */
 #ifdef WOLFSSL_HAVE_FRODOKEM
     /* FrodoKEM / eFrodoKEM key OIDs (ISO/IEC 18033-2, arc 1.0.18033.2.2.7.x).
      * Only the 976 and 1344 parameter sets are standardised (no 640). */
@@ -6278,6 +6292,20 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyMlDsa_87Oid);
                     break;
             #endif /* WOLFSSL_HAVE_MLDSA */
+            #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)
+                case ML_KEM_512k:
+                    oid = keyMlKem_512Oid;
+                    *oidSz = sizeof(keyMlKem_512Oid);
+                    break;
+                case ML_KEM_768k:
+                    oid = keyMlKem_768Oid;
+                    *oidSz = sizeof(keyMlKem_768Oid);
+                    break;
+                case ML_KEM_1024k:
+                    oid = keyMlKem_1024Oid;
+                    *oidSz = sizeof(keyMlKem_1024Oid);
+                    break;
+            #endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_MLKEM_NO_ASN1 */
             #ifdef WOLFSSL_HAVE_SLHDSA
                 case SLH_DSA_SHA2_128Sk:
                     oid = keySlhDsa_Sha2_128sOid;
@@ -13526,8 +13554,10 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
         sz = pubKeyLen;
     }
 
-    if ((ret == 0) && (output != NULL)) {
-        /* Put public key into space provided. */
+    if ((ret == 0) && (output != NULL) && (output != pubKey)) {
+        /* Put public key into space provided. A caller that encoded the key
+         * straight into its place in the output passes the two equal, and has
+         * nothing to copy. */
         XMEMCPY(output, pubKey, pubKeyLen);
     }
     if (ret == 0) {
@@ -34678,7 +34708,8 @@ enum {
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
     || defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) \
-    || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM))
+    || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM) \
+    || (defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ASN1)))
 
 
 int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
@@ -35319,12 +35350,18 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         /* Encode private key. */
         SetASN_Items(privateKeyASN, dataASN, privateKeyASN_Length, output);
 
-        /* Put private value into space provided. */
+        /* Put private value into space provided. A caller that encoded the
+         * key straight into its place in the output passes the two equal, and
+         * has nothing to copy. */
         /* safe cast -- the pointer is actually inside output buffer. */
-        XMEMCPY(
-            (byte*)(wc_ptr_t)
-                dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.buffer.data,
-            privKey, privKeyLen);
+        if ((const byte*)(wc_ptr_t)
+                dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.buffer.data
+                    != privKey) {
+            XMEMCPY(
+                (byte*)(wc_ptr_t)
+                    dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.buffer.data,
+                privKey, privKeyLen);
+        }
 
         if (pubKey != NULL) {
             /* Put public value into space provided. */

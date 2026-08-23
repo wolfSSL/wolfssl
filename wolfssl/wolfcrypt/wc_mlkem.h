@@ -464,6 +464,21 @@ WOLFSSL_API int wc_MlKemKey_DecodePrivateKey(MlKemKey* key,
 WOLFSSL_API int wc_MlKemKey_DecodePublicKey(MlKemKey* key,
     const unsigned char* in, word32 len);
 
+#ifndef WOLFSSL_MLKEM_NO_ASN1
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+WOLFSSL_API int wc_MlKemKey_PublicKeyToDer(MlKemKey* key, byte* output,
+    word32 len, int withAlg);
+WOLFSSL_API int wc_MlKemKey_PrivateKeyToDer(MlKemKey* key, byte* output,
+    word32 len);
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
+WOLFSSL_API int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+WOLFSSL_API int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
+#endif /* !WOLFSSL_MLKEM_NO_ASN1 */
+
 WOLFSSL_API int wc_MlKemKey_PrivateKeySize(MlKemKey* key, word32* len);
 WOLFSSL_API int wc_MlKemKey_PublicKeySize(MlKemKey* key, word32* len);
 WOLFSSL_API int wc_MlKemKey_EncodePrivateKey(MlKemKey* key, unsigned char* out,
