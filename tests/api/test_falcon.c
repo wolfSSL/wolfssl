@@ -36,6 +36,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 #include <tests/api/api.h>
 #include <tests/api/test_falcon.h>
 
@@ -1033,5 +1034,107 @@ int test_wc_FalconDecisionCoverage(void)
     }
 #endif /* WOLF_PRIVATE_KEY_ID */
 #endif /* HAVE_FALCON */
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_FALCON) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_CRYPTO_CB_FREE)
+    #define TEST_FALCON_CB_FREE
+    #define TEST_FALCON_CB_FREE_DEVID 0x46414C43
+#endif
+
+#ifdef TEST_FALCON_CB_FREE
+/* What the free callback saw, so the test can check the contract rather than
+ * just that something fired. */
+typedef struct {
+    int frees;        /* matching free callbacks seen */
+    int badObj;       /* callback was handed the wrong object */
+    int wiped;        /* callback saw a key already cleaned up */
+    int ret;          /* what the callback returns */
+    const void* obj;  /* object the free is expected to name */
+} FalconCbFreeCtx;
+
+/* Stands in for a device holding state for the key. Counting the call proves
+ * wc_falcon_free told the device rather than only cleaning up in software,
+ * which would leave the device side of the key behind. */
+static int falcon_cb_free_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    FalconCbFreeCtx* seen = (FalconCbFreeCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((seen != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_FREE) &&
+            (info->free.algo == WC_ALGO_TYPE_PK) &&
+            (info->free.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
+            (info->free.subType == WC_PQC_SIG_TYPE_FALCON)) {
+        const falcon_key* fk = (const falcon_key*)info->free.obj;
+
+        seen->frees++;
+        if ((fk == NULL) || ((const void*)fk != seen->obj)) {
+            seen->badObj++;
+        }
+        /* The device gets the key while it is still whole: it may need to
+         * read it to release the right resource, so the software wipe has
+         * to come after this call, not before. */
+        else if (fk->devId != TEST_FALCON_CB_FREE_DEVID) {
+            seen->wiped++;
+        }
+        return seen->ret;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* TEST_FALCON_CB_FREE */
+
+/* Freeing a key that names a device has to tell that device, so it can
+ * release what it holds. A key with no device must not, and neither must a
+ * second free of a key already freed: a freed key names no device. A device
+ * that reports an error does not stop the software cleanup. */
+int test_falcon_cb_free(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_FALCON_CB_FREE
+    falcon_key key;
+    FalconCbFreeCtx seen;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&seen, 0, sizeof(seen));
+    seen.obj = &key;
+
+    /* No key to free, and nothing to tell a device about. */
+    wc_falcon_free(NULL);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_FALCON_CB_FREE_DEVID,
+        falcon_cb_free_cb, &seen), 0);
+
+    ExpectIntEQ(wc_falcon_init_ex(&key, NULL, TEST_FALCON_CB_FREE_DEVID), 0);
+    wc_falcon_free(&key);
+    ExpectIntEQ(seen.frees, 1);
+    ExpectIntEQ(seen.badObj, 0);
+    ExpectIntEQ(seen.wiped, 0);
+    ExpectIntEQ(key.devId, INVALID_DEVID);
+
+    wc_falcon_free(&key);
+    ExpectIntEQ(seen.frees, 1);
+
+    /* A device that fails still leaves the key cleaned up locally. */
+    seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init_ex(&key, NULL, TEST_FALCON_CB_FREE_DEVID), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
+    wc_falcon_free(&key);
+    ExpectIntEQ(seen.frees, 2);
+    ExpectIntEQ(key.devId, INVALID_DEVID);
+    ExpectIntEQ(key.level, 0);
+    seen.ret = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_falcon_init_ex(&key, NULL, INVALID_DEVID), 0);
+    wc_falcon_free(&key);
+    ExpectIntEQ(seen.frees, 2);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_FALCON_CB_FREE_DEVID);
+#endif
     return EXPECT_RESULT();
 }
