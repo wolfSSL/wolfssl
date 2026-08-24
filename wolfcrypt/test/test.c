@@ -70645,6 +70645,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t frodokem_test(void)
             }
         }
 #endif /* FRODOKEM_TEST_ASN1 */
+
+        /* Free per iteration: wc_FrodoKemKey_Init allocates per-key resources
+         * (e.g. the cipher-lifecycle tracker under
+         * WOLFSSL_DEBUG_CIPHER_LIFECYCLE), which a bare re-Init orphans.  The
+         * free at out: covers the error-break paths. */
         wc_FrodoKemKey_Free(key);
         key_inited = 0;
     }

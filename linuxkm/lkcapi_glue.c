@@ -258,6 +258,7 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
 #include "lkcapi_ecdh_glue.c"
 #include "lkcapi_rsa_glue.c"
 #include "lkcapi_dh_glue.c"
+#include "lkcapi_frodokem_glue.c"
 
 static int linuxkm_lkcapi_register(void);
 static int linuxkm_lkcapi_unregister(void);
@@ -1031,6 +1032,49 @@ static int linuxkm_lkcapi_register(void)
     }
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
+#ifdef LINUXKM_LKCAPI_REGISTER_FRODOKEM
+    /* The frodokem* and efrodokem* cra_names are unknown to
+     * crypto/testmgr.c, so alg_test() takes its "notest" path with or
+     * without fips_enabled -- no REGISTER_ALG_OPTIONAL needed.
+     */
+    #ifdef LINUXKM_FRODOKEM640SHAKE
+    REGISTER_ALG(frodokem640shake, kpp, linuxkm_test_frodokem640shake);
+    #endif
+    #ifdef LINUXKM_FRODOKEM640AES
+    REGISTER_ALG(frodokem640aes, kpp, linuxkm_test_frodokem640aes);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976SHAKE
+    REGISTER_ALG(frodokem976shake, kpp, linuxkm_test_frodokem976shake);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976AES
+    REGISTER_ALG(frodokem976aes, kpp, linuxkm_test_frodokem976aes);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344SHAKE
+    REGISTER_ALG(frodokem1344shake, kpp, linuxkm_test_frodokem1344shake);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344AES
+    REGISTER_ALG(frodokem1344aes, kpp, linuxkm_test_frodokem1344aes);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640SHAKE
+    REGISTER_ALG(efrodokem640shake, kpp, linuxkm_test_efrodokem640shake);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640AES
+    REGISTER_ALG(efrodokem640aes, kpp, linuxkm_test_efrodokem640aes);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976SHAKE
+    REGISTER_ALG(efrodokem976shake, kpp, linuxkm_test_efrodokem976shake);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976AES
+    REGISTER_ALG(efrodokem976aes, kpp, linuxkm_test_efrodokem976aes);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344SHAKE
+    REGISTER_ALG(efrodokem1344shake, kpp, linuxkm_test_efrodokem1344shake);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344AES
+    REGISTER_ALG(efrodokem1344aes, kpp, linuxkm_test_efrodokem1344aes);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_FRODOKEM */
+
 #undef REGISTER_ALG
 #undef REGISTER_ALG_OPTIONAL
 
@@ -1513,6 +1557,45 @@ static int linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(ffdhe8192, kpp);
     #endif /* HAVE_FFDHE_8192 */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_FRODOKEM
+    #ifdef LINUXKM_FRODOKEM640SHAKE
+    UNREGISTER_ALG(frodokem640shake, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM640AES
+    UNREGISTER_ALG(frodokem640aes, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976SHAKE
+    UNREGISTER_ALG(frodokem976shake, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976AES
+    UNREGISTER_ALG(frodokem976aes, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344SHAKE
+    UNREGISTER_ALG(frodokem1344shake, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344AES
+    UNREGISTER_ALG(frodokem1344aes, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640SHAKE
+    UNREGISTER_ALG(efrodokem640shake, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640AES
+    UNREGISTER_ALG(efrodokem640aes, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976SHAKE
+    UNREGISTER_ALG(efrodokem976shake, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976AES
+    UNREGISTER_ALG(efrodokem976aes, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344SHAKE
+    UNREGISTER_ALG(efrodokem1344shake, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344AES
+    UNREGISTER_ALG(efrodokem1344aes, kpp);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_FRODOKEM */
 
 #undef UNREGISTER_ALG
 

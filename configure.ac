@@ -12752,7 +12752,7 @@ AC_ARG_ENABLE([linuxkm-lkcapi-register],
     Possible values are "none" or a comma-separated combination of "all", "all-kconfig", "sysfs-nodes-only", "cbc(aes)", "cfb(aes)",
     "gcm(aes)", "rfc4106(gcm(aes))", "xts(aes)", "ctr(aes)", "ofb(aes)", "ecb(aes)", "all-aes", "sha1", "sha2", "sha3", "all-sha",
     "hmac(sha1)", "hmac(sha2)", "hmac(sha3)", "all-hmac", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", "ed", "falcon",
-    "mldsa", "mlkem", "slhdsa", "lms", "xmss", and negations of
+    "mldsa", "mlkem", "slhdsa", "lms", "xmss", "frodokem", and negations of
     the foregoing algorithms by prefixing "-".
     (default: none)])],
     [ENABLED_LINUXKM_LKCAPI_REGISTER=$enableval],
@@ -12847,7 +12847,9 @@ then
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_LMS" ;;
         'xmss')     test "$ENABLED_XMSS" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: XMSS implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_XMSS" ;;
-
+        'frodokem') test "$ENABLED_FRODOKEM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: FrodoKEM implementation not enabled.])
+                    test "$ENABLED_SHA256" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-256 implementation not enabled (required for FrodoKEM encapsulation-side bookkeeping).])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_FRODOKEM" ;;
         # disable options
         '-cbc(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCBC" ;;
         '-cfb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCFB" ;;
@@ -12883,7 +12885,7 @@ then
         '-slhdsa')   AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SLHDSA" ;;
         '-lms')      AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_LMS" ;;
         '-xmss')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_XMSS" ;;
-
+        '-frodokem') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_FRODOKEM" ;;
         *) AC_MSG_ERROR([Unsupported LKCAPI algorithm "$lkcapi_alg".])      ;;
         esac
     done
