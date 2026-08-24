@@ -63691,6 +63691,23 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
+    /* Empty message passed as (NULL, 0): sign/verify roundtrip.  Run for
+     * the fast 128-bit set only -- signing cost on the "s" sets is
+     * substantial and the code path is parameter-independent. */
+    if (param == SLHDSA_SHAKE128F) {
+        sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_SlhDsaKey_Sign(key, NULL, 0, NULL, 0, sig, &sigLen, &rng);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+        ret = wc_SlhDsaKey_Verify(key_vfy, NULL, 0, NULL, 0, sig, sigLen);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+    }
+
     /* HashSLH-DSA takes the caller's pre-hashed digest as input. */
     {
         /* FIPS 205 sec. 10.2.2 approves SHA-256 only for category 1, so the
