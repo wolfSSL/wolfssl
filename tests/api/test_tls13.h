@@ -157,6 +157,7 @@ int test_tls13_ticket_psk_modes_uses_policy(void);
 int test_tls13_send_session_ticket_psk_modes(void);
 int test_tls13_new_session_ticket_ext_framing(void);
 int test_tls13_new_session_ticket_keeps_ems(void);
+int test_tls13_ignore_legacy_record_version(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -283,7 +284,6 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_user_canceled_encrypted), \
     TEST_DECL_GROUP("tls13", test_tls12_fatal_alert_closes_and_evicts), \
     TEST_DECL_GROUP("tls13", test_tls13_pqc_hybrid_async_server), \
-    TEST_DECL_GROUP("tls13", test_tls13_pha_status_request), \
     TEST_DECL_GROUP("tls13", test_tls13_x25519_keyshare_masks_reserved_bit), \
     TEST_DECL_GROUP("tls13", test_tls13_is_init_finished_want_write), \
     TEST_DECL_GROUP("tls13", test_tls13_cryptocb_async), \
@@ -292,6 +292,8 @@ int test_tls13_new_session_ticket_keeps_ems(void);
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_ext_framing), \
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_keeps_ems), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_mode_mismatch_falls_back), \
-    TEST_DECL_GROUP("tls13", test_tls13_ticket_psk_modes_uses_policy)
+    TEST_DECL_GROUP("tls13", test_tls13_ticket_psk_modes_uses_policy), \
+    TEST_DECL_GROUP("tls13", test_tls13_pha_status_request), \
+    TEST_DECL_GROUP("tls13", test_tls13_ignore_legacy_record_version)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
