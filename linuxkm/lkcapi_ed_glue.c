@@ -541,7 +541,9 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
     int                  result = -1;
     int                  err = -1;
 
-    if (src == NULL || digest == NULL)
+    /* a NULL digest is tolerated for dlen == 0 (the empty message);
+     * wolfCrypt canonicalizes it (see ed25519.c/ed448.c). */
+    if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
     if ((ctx->key == NULL) || (! ctx->key->pubKeySet))
@@ -566,6 +568,12 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
     key = &key_copy;
 #else
     key = ctx->key;
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    /* mitigate null pointer deref defect in old FIPS */
+    if (digest == NULL)
+        digest = "";
 #endif
 
     err = wc_ed25519_verify_msg((const byte *)src, (word32)slen,
@@ -635,7 +643,9 @@ static int km_ed25519_sign(struct crypto_sig *tfm,
     word32               out_len = ED25519_SIG_SIZE;
     int                  err = -1;
 
-    if (src == NULL || dst == NULL)
+    /* a NULL src is tolerated for slen == 0 (the empty message);
+     * wolfCrypt canonicalizes it (see ed25519.c/ed448.c). */
+    if (((src == NULL) && (slen != 0)) || (dst == NULL))
         return -EINVAL;
 
     if ((ctx->key == NULL) ||
@@ -660,6 +670,12 @@ static int km_ed25519_sign(struct crypto_sig *tfm,
     /* without a persistent SHA-512, wc_ed25519_sign_msg() leaves the key
      * unmodified, so the shared tfm key can be used directly. */
     key = ctx->key;
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    /* mitigate null pointer deref defect in old FIPS */
+    if (src == NULL)
+        src = "";
 #endif
 
     err = wc_ed25519_sign_msg((const byte *)src, (word32)slen,
@@ -837,7 +853,10 @@ static int km_ed25519_sign(struct akcipher_request *req)
     word32                   out_len = ED25519_SIG_SIZE;
     int                      err = -1;
 
-    if (req->src == NULL || req->dst == NULL)
+    /* a NULL src sg is tolerated for src_len == 0 (the empty message);
+     * scatterwalk_map_and_copy() is a no-op at nbytes == 0, so a NULL sg
+     * is never walked. */
+    if (((req->src == NULL) && (req->src_len != 0)) || (req->dst == NULL))
         return -EINVAL;
 
     tfm = crypto_akcipher_reqtfm(req);
@@ -1165,7 +1184,9 @@ static int km_ed448_verify(struct crypto_sig *tfm,
     int                  result = -1;
     int                  err = -1;
 
-    if (src == NULL || digest == NULL)
+    /* a NULL digest is tolerated for dlen == 0 (the empty message);
+     * wolfCrypt canonicalizes it (see ed25519.c/ed448.c). */
+    if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
     if ((ctx->key == NULL) || (! ctx->key->pubKeySet))
@@ -1190,6 +1211,12 @@ static int km_ed448_verify(struct crypto_sig *tfm,
     key = &key_copy;
 #else
     key = ctx->key;
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    /* mitigate null pointer deref defect in old FIPS */
+    if (digest == NULL)
+        digest = "";
 #endif
 
     /* NULL/0: the RFC 8032 default (empty) Ed448 context. */
@@ -1261,7 +1288,9 @@ static int km_ed448_sign(struct crypto_sig *tfm,
     word32               out_len = ED448_SIG_SIZE;
     int                  err = -1;
 
-    if (src == NULL || dst == NULL)
+    /* a NULL src is tolerated for slen == 0 (the empty message);
+     * wolfCrypt canonicalizes it (see ed25519.c/ed448.c). */
+    if (((src == NULL) && (slen != 0)) || (dst == NULL))
         return -EINVAL;
 
     if ((ctx->key == NULL) ||
@@ -1286,6 +1315,12 @@ static int km_ed448_sign(struct crypto_sig *tfm,
     /* without a persistent SHAKE256, wc_ed448_sign_msg() leaves the key
      * unmodified, so the shared tfm key can be used directly. */
     key = ctx->key;
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    /* mitigate null pointer deref defect in old FIPS */
+    if (src == NULL)
+        src = "";
 #endif
 
     err = wc_ed448_sign_msg((const byte *)src, (word32)slen,
@@ -1467,7 +1502,10 @@ static int km_ed448_sign(struct akcipher_request *req)
     word32                   out_len = ED448_SIG_SIZE;
     int                      err = -1;
 
-    if (req->src == NULL || req->dst == NULL)
+    /* a NULL src sg is tolerated for src_len == 0 (the empty message);
+     * scatterwalk_map_and_copy() is a no-op at nbytes == 0, so a NULL sg
+     * is never walked. */
+    if (((req->src == NULL) && (req->src_len != 0)) || (req->dst == NULL))
         return -EINVAL;
 
     tfm = crypto_akcipher_reqtfm(req);

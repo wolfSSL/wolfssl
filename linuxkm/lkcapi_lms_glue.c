@@ -353,6 +353,15 @@ static int km_lms_verify_common(struct km_lms_ctx *ctx,
         return -EBADMSG;
 
     /* wc_LmsKey_Verify()'s message length parameter is an int. */
+    /* wolfCrypt rejects a NULL message pointer regardless of length
+     * (even though wc_LmsKey_Verify() accepts msgSz == 0), so substitute
+     * a dummy address for a NULL empty message rather than intercepting
+     * it here -- zero bytes are read through it. */
+    if ((msg == NULL) && (msg_len == 0)) {
+        static const byte empty_msg_stand_in = 0;
+        msg = &empty_msg_stand_in;
+    }
+
     if (msg_len > (word32)INT_MAX)
         return -EINVAL;
 
@@ -388,7 +397,9 @@ static int km_lms_verify(struct crypto_sig *tfm,
     struct km_lms_ctx *ctx = crypto_sig_ctx(tfm);
     int                err;
 
-    if (src == NULL || digest == NULL)
+    /* a NULL digest is tolerated for dlen == 0 (the empty message) --
+     * km_lms_verify_common() substitutes a readable stand-in. */
+    if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
     err = km_lms_verify_common(ctx, (const byte *)src, (word32)slen,

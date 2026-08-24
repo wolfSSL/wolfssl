@@ -424,7 +424,21 @@ static int km_xmss_verify_common(struct km_xmss_ctx *ctx,
     if (sig_len != exp_sig_len)
         return -EBADMSG;
 
-    /* wc_XmssKey_Verify()'s message length parameter is an int. */
+    /* wolfCrypt rejects a NULL message pointer regardless of length, so
+     * substitute a dummy address for a NULL empty message rather than
+     * intercepting it here -- zero bytes are read through it. */
+    if ((msg == NULL) && (msg_len == 0)) {
+        static const byte empty_msg_stand_in = 0;
+        msg = &empty_msg_stand_in;
+    }
+
+    /* wc_XmssKey_Verify()'s message length parameter is an int.  msg_len
+     * == 0 is deliberately NOT intercepted here: it is passed through to
+     * wolfCrypt, whose wc_XmssKey_Verify() currently rejects mLen == 0
+     * (unlike wc_LmsKey_Verify(), which accepts empty messages, per RFC
+     * 8391 which permits them).  When that is relaxed wolfCrypt-side,
+     * empty-message verification through this driver starts working with
+     * no change here. */
     if (msg_len > (word32)INT_MAX)
         return -EINVAL;
 
@@ -452,7 +466,9 @@ static int km_xmss_verify_common(struct km_xmss_ctx *ctx,
  *
  * digest:
  *   - the raw message; no prehashing occurs, and dlen is unrestricted
- *     (up to INT_MAX).
+ *     (up to INT_MAX).  dlen == 0 is passed through to wolfCrypt, which
+ *     currently rejects it (see km_xmss_verify_common()); a wolfCrypt-side
+ *     relaxation enables it here with no driver change.
  */
 static int km_xmss_verify(struct crypto_sig *tfm,
                          const void *src, unsigned int slen,
@@ -461,7 +477,9 @@ static int km_xmss_verify(struct crypto_sig *tfm,
     struct km_xmss_ctx *ctx = crypto_sig_ctx(tfm);
     int                err;
 
-    if (src == NULL || digest == NULL)
+    /* a NULL digest is tolerated for dlen == 0 (the empty message) --
+     * km_xmss_verify_common() substitutes a readable stand-in. */
+    if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
     err = km_xmss_verify_common(ctx, (const byte *)src, (word32)slen,
@@ -496,7 +514,8 @@ static int km_xmss_sign(struct crypto_sig *tfm,
  * The total size of req->src is src_len + dst_len:
  *   - src_len: signature (raw RFC 8391 form, exact size for the
  *     imported public key's parameter set)
- *   - dst_len: message (raw, unhashed, any length up to INT_MAX)
+ *   - dst_len: message (raw, unhashed, any length up to INT_MAX; the empty
+ *     message is currently rejected by wolfCrypt, not by this driver)
  *
  * dst should be null.
  */

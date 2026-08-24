@@ -428,6 +428,13 @@ static int km_mldsa_set_pub(struct mldsa_tfm_type *tfm, const void *key,
      * interpreted by wc_MlDsaKey_ImportPubRaw() per operation. */
     XMEMCPY(ctx->pub, key, keylen);
     ctx->pub_set = 1;
+    /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
+     * entire old key before parsing the new one), installing a public key
+     * invalidates any resident private key -- signing requires an explicit
+     * set_priv_key after any set_pub_key, rather than silently continuing
+     * with a key that may not correspond to the new public key. */
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+    ctx->priv_set = 0;
 
     #ifdef WOLFKM_DEBUG_MLDSA
     pr_info("info: exiting km_mldsa_set_pub %d\n", keylen);
@@ -507,6 +514,12 @@ static int km_mldsa_set_priv(struct mldsa_tfm_type *tfm, const void *key,
         if (err == 0) {
             XMEMCPY(ctx->priv, key, keylen);
             ctx->priv_set = 1;
+            /* Raw import carries no public key, and wolfCrypt exposes no
+             * pub-from-priv derivation, so invalidate any resident public
+             * key rather than leave a possibly mismatched pair (the seed
+             * branch installs a matched pair instead).  Verify requires an
+             * explicit set_pub_key after a raw set_priv_key. */
+            ctx->pub_set = 0;
         }
     }
 
@@ -735,7 +748,9 @@ static int km_mldsa_verify(struct crypto_sig *tfm,
     struct km_mldsa_ctx *ctx = crypto_sig_ctx(tfm);
     int                  err;
 
-    if (src == NULL || digest == NULL)
+    /* a NULL digest is tolerated for dlen == 0 (the empty message);
+     * wolfCrypt canonicalizes it (see wc_mldsa.c). */
+    if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
     err = km_mldsa_verify_common(ctx, (const byte *)src, (word32)slen,
@@ -775,7 +790,10 @@ static int km_mldsa_sign(struct crypto_sig *tfm,
     word32               out_len = 0;
     int                  err;
 
-    if (src == NULL || dst == NULL)
+    /* a NULL src is tolerated for slen == 0 (the empty message) --
+     * "slen is unrestricted", per the contract above; wolfCrypt
+     * canonicalizes it (see wc_mldsa.c). */
+    if (((src == NULL) && (slen != 0)) || (dst == NULL))
         return -EINVAL;
 
     if (km_mldsa_sizes(ctx->level, NULL, &sig_len, NULL) != 0)
@@ -905,7 +923,10 @@ static int km_mldsa_sign(struct akcipher_request *req)
     word32                   out_len = 0;
     int                      err = -1;
 
-    if (req->src == NULL || req->dst == NULL)
+    /* a NULL src sg is tolerated for src_len == 0 (the empty message);
+     * scatterwalk_map_and_copy() is a no-op at nbytes == 0, so a NULL sg
+     * is never walked. */
+    if (((req->src == NULL) && (req->src_len != 0)) || (req->dst == NULL))
         return -EINVAL;
 
     tfm = crypto_akcipher_reqtfm(req);
@@ -1145,6 +1166,55 @@ static int linuxkm_test_mldsa_driver(const char * driver,
         if (ret != -EOVERFLOW) {
             pr_err("error: crypto_sig_sign returned %d, expected %d\n",
                    ret, -EOVERFLOW);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+
+        /* rekey semantics: set_pub_key invalidates the resident private
+         * key, so sign must fail with -EINVAL until set_priv_key is
+         * called again (sig_copy, no longer otherwise needed, serves as
+         * the scratch dst). */
+        ret = crypto_sig_set_pubkey(tfm, pub, pub_len);
+        if (ret) {
+            pr_err("error: crypto_sig_set_pubkey (rekey) returned: %d\n",
+                   ret);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+        ret = crypto_sig_sign(tfm, msg, msg_len, sig_copy, sig_len);
+        if (ret != -EINVAL) {
+            pr_err("error: crypto_sig_sign after set_pubkey rekey "
+                   "returned %d, expected %d\n", ret, -EINVAL);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+        ret = crypto_sig_set_privkey(tfm, seed, seed_len);
+        if (ret) {
+            pr_err("error: crypto_sig_set_privkey (rekey) returned: %d\n",
+                   ret);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+        ret = crypto_sig_sign(tfm, msg, msg_len, sig_copy, sig_len);
+        if (ret != (int)sig_len) {
+            pr_err("error: crypto_sig_sign after re-set_privkey returned "
+                   "%d, expected %d\n", ret, (int)sig_len);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+
+        /* empty message, passed as (NULL, 0): sign/verify roundtrip. */
+        ret = crypto_sig_sign(tfm, NULL, 0, sig_copy, sig_len);
+        if (ret != (int)sig_len) {
+            pr_err("error: crypto_sig_sign (empty msg) returned %d, "
+                   "expected %d\n", ret, (int)sig_len);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+        ret = crypto_sig_verify(tfm, sig_copy, sig_len, NULL, 0);
+        if (ret) {
+            pr_err("error: crypto_sig_verify (empty msg) returned: %d\n",
+                   ret);
             test_rc = BAD_FUNC_ARG;
             goto test_mldsa_end;
         }

@@ -501,7 +501,9 @@ static int km_slhdsa_verify(struct crypto_sig *tfm,
     struct km_slhdsa_ctx *ctx = crypto_sig_ctx(tfm);
     int                   err;
 
-    if (src == NULL || digest == NULL)
+    /* a NULL digest is tolerated for dlen == 0 (the empty message);
+     * wolfCrypt canonicalizes it (see wc_slhdsa.c). */
+    if ((src == NULL) || ((digest == NULL) && (dlen != 0)))
         return -EINVAL;
 
     err = km_slhdsa_verify_common(ctx, (const byte *)src, (word32)slen,
@@ -531,7 +533,9 @@ static int km_slhdsa_sign(struct crypto_sig *tfm,
     struct km_slhdsa_ctx *ctx = crypto_sig_ctx(tfm);
     int                   err;
 
-    if (src == NULL || dst == NULL)
+    /* a NULL src is tolerated for slen == 0 (the empty message);
+     * wolfCrypt canonicalizes it (see wc_slhdsa.c). */
+    if (((src == NULL) && (slen != 0)) || (dst == NULL))
         return -EINVAL;
 
     err = km_slhdsa_sign_common(ctx, (byte *)dst, (word32)dlen,
@@ -652,7 +656,10 @@ static int km_slhdsa_sign(struct akcipher_request *req)
     int                      exp_sig_len;
     int                      err = -1;
 
-    if (req->src == NULL || req->dst == NULL)
+    /* a NULL src sg is tolerated for src_len == 0 (the empty message);
+     * scatterwalk_map_and_copy() is a no-op at nbytes == 0, so a NULL sg
+     * is never walked. */
+    if (((req->src == NULL) && (req->src_len != 0)) || (req->dst == NULL))
         return -EINVAL;
 
     tfm = crypto_akcipher_reqtfm(req);
@@ -2048,6 +2055,27 @@ static int linuxkm_test_slhdsa_driver(const char * driver, int param)
         test_rc = BAD_FUNC_ARG;
         goto test_slhdsa_end;
     }
+    /* empty message, passed as (NULL, 0): sign/verify roundtrip.  Fast
+     * 128f sets only -- "s"-set signing cost is substantial and the code
+     * path is parameter-independent.  (The regenerate below restores the
+     * msg signature the subsequent checks depend on.) */
+    if (strstr(driver, "128f") != NULL) {
+        ret = crypto_sig_sign(tfm, NULL, 0, sig_buf, sig_len);
+        if (ret != (int)sig_len) {
+            pr_err("error: crypto_sig_sign (empty msg) returned %d, "
+                   "expected %d\n", ret, (int)sig_len);
+            test_rc = BAD_FUNC_ARG;
+            goto test_slhdsa_end;
+        }
+        ret = crypto_sig_verify(tfm, sig_buf, sig_len, NULL, 0);
+        if (ret) {
+            pr_err("error: crypto_sig_verify (empty msg) returned: %d\n",
+                   ret);
+            test_rc = BAD_FUNC_ARG;
+            goto test_slhdsa_end;
+        }
+    }
+
     /* regenerate a good signature clobbered by the short-dst check
      * being reached with a partially-written buffer.  (it isn't --
      * -EOVERFLOW precedes any write -- but don't depend on that.) */
