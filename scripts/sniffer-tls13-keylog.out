@@ -1,7 +1,3 @@
-snifftest 5.9.2
-sniffer features: key_callback tls_v13 tls_v12 session_ticket static_ephemeral sni extended_master rsa dh ecc x22519 rsa_static dh_static ssl_keylog_file 
-
-Using packet filter: (ip6 or ip) and tcp and port 11111
 SSL App Data(22:14):hello wolfssl!
 SSL App Data(24:22):I hear you fa shizzle!
 SSL App Data(50:14):hello wolfssl!

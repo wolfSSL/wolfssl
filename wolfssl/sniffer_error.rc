@@ -120,4 +120,5 @@ STRINGTABLE
     98, "Server Client Key Mismatch"
 
     99, "Invalid or missing keylog file"
+    100, "Encrypt-Then-MAC not supported in this build"
 }

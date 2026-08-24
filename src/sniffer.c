@@ -378,6 +378,7 @@ static const char* const msgTable[] =
 
     /* 99 */
     "Invalid or missing keylog file",
+    "Encrypt-Then-MAC not supported in this build",
 };
 
 
@@ -467,6 +468,9 @@ typedef struct Flags {
 #endif
     byte           gotFinished;     /* processed finished */
     byte           secRenegEn;      /* secure renegotiation enabled */
+#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+    byte           etmUnsupported;  /* peer negotiated RFC 7366, we cannot */
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     byte           wasPolled;
 #endif
@@ -2498,6 +2502,25 @@ static void FreeSetupKeysArgs(WOLFSSL* ssl, void* pArgs)
 }
 
 /* Process Keys */
+#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+/* RFC 7366 only covers block ciphers and a peer must not negotiate it for an
+ * AEAD or stream suite, so a session that asked for it is still readable here
+ * unless the negotiated suite turns out to be a block cipher.
+   returns 0 on success, WOLFSSL_FATAL_ERROR on a suite this build cannot read
+ */
+static int CheckEncryptThenMac(SnifferSession* session, char* error)
+{
+    if (session->flags.etmUnsupported &&
+            session->sslServer->specs.cipher_type == block) {
+        SetError(ETM_NOT_SUPPORTED_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return 0;
+}
+#endif
+
 static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     char* error, KeyShareInfo* ksInfo)
 {
@@ -3230,6 +3253,12 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             ret = WOLFSSL_FATAL_ERROR; break;
         }
 
+    #if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+        if (CheckEncryptThenMac(session, error) != 0) {
+            ret = WOLFSSL_FATAL_ERROR; break;
+        }
+    #endif
+
     #ifdef WOLFSSL_TLS13
         /* TLS v1.3 derive handshake key */
         if (IsAtLeastTLSv1_3(session->sslServer->version)) {
@@ -3678,6 +3707,11 @@ static int DoResume(SnifferSession* session, char* error)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+    if (CheckEncryptThenMac(session, error) != 0)
+        return WOLFSSL_FATAL_ERROR;
+#endif
+
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(session->sslServer->version)) {
     #ifdef HAVE_SESSION_TICKET
@@ -3823,6 +3857,20 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         return WOLFSSL_FATAL_ERROR;
     }
 
+    /* Encrypt-Then-MAC has to be re-negotiated in every ServerHello, so drop
+     * any earlier decision before parsing this one. Only the negotiated value
+     * is recorded here: it governs the records protected by the cipher spec
+     * this ServerHello is negotiating, and the ones still in flight under the
+     * previous one have to keep the decision they were made with. It is
+     * applied in ProcessMessage() when that cipher spec is switched to, the
+     * same point at which the library applies it. */
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    session->sslServer->options.encThenMac = 0;
+    session->sslClient->options.encThenMac = 0;
+#else
+    session->flags.etmUnsupported = 0;
+#endif
+
     /* extensions */
     if ((initialBytes - *sslBytes) < msgSz) {
         word16 len;
@@ -3936,10 +3984,24 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 break;
         #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             case EXT_ENCRYPT_THEN_MAC:
+                /* RFC 7366 requires empty extension_data in the ServerHello. */
+                if (extLen != 0) {
+                    SetError(SERVER_HELLO_INPUT_STR, error, session,
+                             FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
                 /* MAC covers the ciphertext, so it has to be stripped before
                  * the record is decrypted. */
-                session->sslServer->options.startedETMRead = 1;
-                session->sslClient->options.startedETMRead = 1;
+                session->sslServer->options.encThenMac = 1;
+                session->sslClient->options.encThenMac = 1;
+                break;
+        #else
+            case EXT_ENCRYPT_THEN_MAC:
+                /* The session negotiated RFC 7366, but this build cannot
+                 * strip the MAC ahead of decryption. Only a block cipher
+                 * suite is actually unreadable, so the complaint waits until
+                 * the suite is known. */
+                session->flags.etmUnsupported = 1;
                 break;
         #endif
             case EXT_MASTER_SECRET:
@@ -4069,8 +4131,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 return ret;
             }
         #endif
-            SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
-            session->verboseErr = 1;
+            if (!session->verboseErr) {
+                SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
+                session->verboseErr = 1;
+            }
             return ret;
         }
 
@@ -4890,7 +4954,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return ret;
             #endif
-                if (ret != 0) {
+                if (ret != 0 && !session->verboseErr) {
                     SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
                     session->verboseErr = 1;
                 }
@@ -6462,6 +6526,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     WOLFSSL*          ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer : session->sslClient;
 doMessage:
+    decrypted = 0;
 
     notEnough = 0;
     rhSize = 0;
@@ -6512,6 +6577,11 @@ doMessage:
         session->flags.clientCipherOn = 1;
         session->sslClient->options.handShakeState = HANDSHAKE_DONE;
         session->sslClient->options.handShakeDone  = 1;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        /* The ChangeCipherSpec that would have applied it was missed too. */
+        session->sslClient->options.startedETMRead =
+            session->sslClient->options.encThenMac;
+#endif
     }
 
     /* decrypt if needed */
@@ -6537,8 +6607,10 @@ doMessage:
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance, &rh);
-        recordEnd = sslFrame - ivAdvance + rhSize;  /* sslFrame moved so
-                                                       should recordEnd */
+        if (sslFrame != NULL) {
+            /* sslFrame moved so should recordEnd */
+            recordEnd = sslFrame - ivAdvance + rhSize;
+        }
         decrypted = 1;
 
 #ifdef WOLFSSL_SNIFFER_STATS
@@ -6605,6 +6677,12 @@ doPart:
             else
                 session->flags.clientCipherOn = 1;
             Trace(GOT_CHANGE_CIPHER_STR);
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            /* The records this side sends from here on are protected by the
+               cipher spec whose Encrypt-Then-MAC decision the last ServerHello
+               carried, so it only takes effect now. */
+            ssl->options.startedETMRead = ssl->options.encThenMac;
+#endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
 
@@ -6638,8 +6716,11 @@ doPart:
 
                     /* padSz covers the AEAD tag or record MAC, any block
                      * padding and the TLS 1.3 inner content type, matching what
-                     * the non-sniffer read path removes from ssl->curSize. */
-                    ret -= (int)ssl->keys.padSz;
+                     * the non-sniffer read path removes from ssl->curSize.
+                     * Only valid when this record went through
+                     * DecryptMessage(), as in the handshake case above. */
+                    if (decrypted)
+                        ret -= (int)ssl->keys.padSz;
 
                     TraceGotData(ret);
                     if (ret > 0) {  /* may be blank message */
@@ -6670,7 +6751,9 @@ doPart:
                                 int stored;
 
                                 buf = ssl->buffers.clearOutputBuffer.buffer;
-                                bufSz = ssl->buffers.clearOutputBuffer.length;
+                                /* Same corrected extent the sibling branch
+                                 * copies, not the raw record size. */
+                                bufSz = (word32)ret;
                                 do {
                                     stored = StoreDataCb(buf, bufSz, offset,
                                             ctx);

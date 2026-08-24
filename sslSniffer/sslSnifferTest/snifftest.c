@@ -170,7 +170,6 @@ static pcap_t* pcap = NULL;
 static pcap_if_t* alldevs = NULL;
 static struct bpf_program pcap_fp;
 static const char *traceFile = "./tracefile.txt";
-static int sawDecryptedData = 0;
 
 static void FreeAll(void)
 {
@@ -315,13 +314,19 @@ static int myWatchCb(void* vSniffer,
 
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+typedef struct StoreDataCtx {
+    byte*  data;  /* plaintext of every record decoded from one packet */
+    word32 len;   /* bytes stored so far */
+} StoreDataCtx;
+
 static int myStoreDataCb(const unsigned char* decryptBuf,
         unsigned int decryptBufSz, unsigned int decryptBufOffset, void* ctx)
 {
-    byte** data = (byte**)ctx;
-    unsigned int qty;
+    StoreDataCtx* store = (StoreDataCtx*)ctx;
+    unsigned int  qty;
+    byte*         tmpData;
 
-    if (data == NULL)
+    if (store == NULL)
         return -1;
 
     if (decryptBufSz < decryptBufOffset)
@@ -329,21 +334,28 @@ static int myStoreDataCb(const unsigned char* decryptBuf,
 
     qty = min(decryptBufSz - decryptBufOffset, STORE_DATA_BLOCK_SZ);
 
-    if (*data == NULL) {
-        byte* tmpData;
-        tmpData = (byte*)XREALLOC(*data, decryptBufSz + 1,
-                NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmpData == NULL) {
-            XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            *data = NULL;
-            return -1;
-        }
-        *data = tmpData;
+    /* One packet can carry several records, and the offset restarts at zero
+     * for each of them, so grow for this record and append after the ones
+     * already stored. The extra byte lets the caller null terminate. */
+    tmpData = (byte*)XREALLOC(store->data, store->len + decryptBufSz + 1,
+            NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpData == NULL) {
+        XFREE(store->data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        store->data = NULL;
+        store->len = 0;
+        return -1;
+    }
+    store->data = tmpData;
+
+    XMEMCPY(store->data + store->len + decryptBufOffset,
+            decryptBuf + decryptBufOffset, qty);
+
+    if (decryptBufOffset + qty == decryptBufSz) {
+        /* record complete, the next one appends after it */
+        store->len += decryptBufSz;
     }
 
-    XMEMCPY(*data + decryptBufOffset, decryptBuf + decryptBufOffset, qty);
-
-    return qty;
+    return (int)qty;
 }
 #endif /* WOLFSSL_SNIFFER_STORE_DATA_CB */
 
@@ -646,6 +658,7 @@ typedef struct SnifferWorker {
     char *passwd;
     int   port;
     int   hadBadPacket;  /* track if sniffer worker saw bad packet */
+    int   sawDecryptedData; /* track if sniffer worker decrypted app data */
     int   unused;
     int   id;
     int   shutdown;
@@ -659,6 +672,8 @@ static int ssl_Init_SnifferWorker(SnifferWorker* worker, int port,
     worker->keyFilesSrc = (char*)keyFilesSrc;
     worker->passwd      = (char*)passwd;
     worker->port           = port;
+    worker->hadBadPacket = 0;
+    worker->sawDecryptedData = 0;
     worker->unused      = 0;
     worker->shutdown    = 0;
     worker ->id         = id;
@@ -747,7 +762,8 @@ static int SnifferWorkerPacketAdd(SnifferWorker* worker, int lastRet,
 }
 #endif /* THREADED_SNIFFTEST */
 
-static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
+static int DecodePacket(byte* packet, int length, int packetNumber, char err[],
+                        int* sawData)
 {
     int     ret, j;
     int     hadBadPacket = 0;
@@ -756,6 +772,9 @@ static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
     void*   chain;
     byte*   data         = NULL; /* pointer to decrypted data */
     SSLInfo sslInfo;
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+    StoreDataCtx store;
+#endif
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
     struct iovec chains[CHAIN_INPUT_COUNT];
     unsigned int remainder;
@@ -776,6 +795,10 @@ static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
 #else
     chain = (void*)packet;
     chainSz = length;
+#endif
+
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+    XMEMSET(&store, 0, sizeof(store));
 #endif
 
 #if defined(DEBUG_SNIFFER)
@@ -807,13 +830,15 @@ static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
 #elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
       defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
     ret = ssl_DecodePacketWithChainSessionInfoStoreData(chain, chainSz,
-            &data, &sslInfo, err);
+            &store, &sslInfo, err);
+    data = store.data;
 #elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     (void)sslInfo;
     ret = ssl_DecodePacketWithChain(chain, chainSz, &data, err);
 #elif defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
     ret = ssl_DecodePacketWithSessionInfoStoreData(packet,
-            length, &data, &sslInfo, err);
+            length, &store, &sslInfo, err);
+    data = store.data;
 #else
     ret = ssl_DecodePacketWithSessionInfo(packet, length, &data,
                                             &sslInfo, err);
@@ -834,8 +859,7 @@ static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
         data[ret] = 0;
         printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
         ssl_FreeZeroDecodeBuffer(&data, ret, err);
-        /* Plain store so worker threads do not race on a counter. */
-        sawDecryptedData = 1;
+        *sawData = 1;
     }
 
     (void)isChain;
@@ -874,12 +898,17 @@ static void* snifferWorker(void* arg)
             int   packetNumber;
         #ifdef WOLFSSL_ASYNC_CRYPT
             SSLInfo sslInfo;
-            byte*   data;
+            byte*   data = NULL;
             int     queueSz = 0;
 
             /* poll hardware and attempt to process items in queue. If
              * returns > 0 then data pointer has decrypted something */
             SnifferAsyncPollQueue(&data, err, &sslInfo, &queueSz);
+            if (data != NULL) {
+                /* Recovered here rather than in DecodePacket(), so
+                 * record it. */
+                worker->sawDecryptedData = 1;
+            }
             if (queueSz >= WOLF_ASYNC_MAX_PENDING) {
                 /* queue full, poll again */
                 continue;
@@ -909,7 +938,8 @@ static void* snifferWorker(void* arg)
 
             /* Decode Packet, ret value will indicate whether a
              * bad packet was encountered */
-            ret = DecodePacket(packet, length, packetNumber, err);
+            ret = DecodePacket(packet, length, packetNumber, err,
+                               &worker->sawDecryptedData);
             if (ret) {
                 worker->hadBadPacket = 1;
             }
@@ -957,6 +987,8 @@ int main(int argc, char** argv)
     int          hadBadPacket = 0;
     int          inum = 0;
     int          saveFile = 0;
+    int          expectData = 0;
+    int          sawDecryptedData = 0;
     int          i = 0, defDev = 0;
     int          packetNumber = 0;
     int          frame = ETHER_IF_FRAME_LEN;
@@ -1011,6 +1043,9 @@ int main(int argc, char** argv)
         else if (strcmp(argv[i], "-tracefile") == 0 && i + 1 < argc) {
             traceFile = argv[++i];
         }
+        else if (strcmp(argv[i], "-expectdata") == 0) {
+            expectData = 1;
+        }
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
         else if (strcmp(argv[i], "-keylogfile") == 0 && i + 1 < argc) {
             sslKeyLogFile = argv[++i];
@@ -1034,7 +1069,10 @@ int main(int argc, char** argv)
 #if defined(THREADED_SNIFFTEST)
                     " [-threads threads_arg]"
 #endif /* THREADED_SNIFFTEST */
+                    " [-expectdata]"
                     "\n", argv[0]);
+            fprintf(stderr, "-expectdata exits non-zero if no application"
+                    " data could be decrypted.\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -1301,6 +1339,10 @@ int main(int argc, char** argv)
         /* poll hardware and attempt to process items in queue. If returns > 0
          * then data pointer has decrypted something */
         SnifferAsyncPollQueue(&data, err, &sslInfo, &queueSz);
+        if (data != NULL) {
+            /* Recovered here rather than in DecodePacket(), so record it. */
+            sawDecryptedData = 1;
+        }
         if (queueSz >= WOLF_ASYNC_MAX_PENDING) {
             /* queue full, poll again */
             continue;
@@ -1364,7 +1406,8 @@ int main(int argc, char** argv)
 #else
             /* Decode Packet, ret value will indicate whether a
              * bad packet was encountered */
-            if (DecodePacket((byte*)packet, header->caplen, packetNumber, err))
+            if (DecodePacket((byte*)packet, header->caplen, packetNumber, err,
+                             &sawDecryptedData))
                 hadBadPacket = 1;
 #endif
         }
@@ -1392,15 +1435,20 @@ int main(int argc, char** argv)
         if (workers[i].hadBadPacket) {
            hadBadPacket = 1;
         }
+        if (workers[i].sawDecryptedData) {
+            sawDecryptedData = 1;
+        }
         ssl_Free_SnifferWorker(&workers[i]);
     }
 #endif
 
     FreeAll();
 
-    /* A capture file that yields no plaintext has tested nothing. */
-    if (saveFile && !sawDecryptedData) {
-        printf("No application data was decrypted from %s\n", pcapFile);
+    /* Asked for, because a capture that yields no plaintext has tested
+     * nothing. Off by default so a handshake-only capture still exits 0. */
+    if (expectData && !sawDecryptedData) {
+        fprintf(stderr, "No application data was decrypted from %s\n",
+                saveFile ? pcapFile : "the capture device");
         hadBadPacket = 1;
     }
 

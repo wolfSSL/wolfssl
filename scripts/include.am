@@ -128,6 +128,17 @@ dist_noinst_SCRIPTS+= scripts/tsp.test
 
 EXTRA_DIST +=  scripts/sniffer-static-rsa.pcap \
                scripts/sniffer-ipv6.pcap \
+               scripts/sniffer-tls12-etm.pcap \
+               scripts/sniffer-tls12-etm.out \
+               scripts/sniffer-tls12-etm-keylog.pcap \
+               scripts/sniffer-tls12-etm-keylog.sslkeylog \
+               scripts/sniffer-tls12-etm-keylog.out \
+               scripts/sniffer-tls12-keylog.pcap \
+               scripts/sniffer-tls12-keylog.sslkeylog \
+               scripts/sniffer-tls12-keylog.out \
+               scripts/sniffer-tls13-keylog.pcap \
+               scripts/sniffer-tls13-keylog.sslkeylog \
+               scripts/sniffer-tls13-keylog.out \
                scripts/sniffer-tls13-dh.pcap \
                scripts/sniffer-tls13-dh-resume.pcap \
                scripts/sniffer-tls13-ecc.pcap \

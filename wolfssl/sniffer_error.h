@@ -144,6 +144,7 @@
 #define KEY_MISMATCH_STR 98
 
 #define KEYLOG_FILE_INVALID 99
+#define ETM_NOT_SUPPORTED_STR 100
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

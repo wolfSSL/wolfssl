@@ -177,7 +177,13 @@
   so for a CBC suite it passed the trailing MAC to the block decrypt along with
   the ciphertext, the length was not a multiple of the block size, and every
   record failed.  Since wolfSSL peers negotiate it by default, this covered
-  most TLS 1.2 CBC captures.
+  most TLS 1.2 CBC captures.  A build without Encrypt-Then-MAC support now
+  reports that, once the negotiated suite is known to be a block cipher, rather
+  than failing every record with a generic decrypt error.  Both the
+  `client_key_exchange` handler and the TLS 1.3 ServerHello path also overwrote
+  a specific error with "Server Client Key Mismatch", which hid the reason a
+  session could not be decrypted; they now keep an error that has already been
+  described.
 
 * **Fix (sniffer reported plaintext lengths that included the MAC or AEAD
   tag)**: the length returned to the caller was taken from the record size
@@ -185,7 +191,22 @@
   `ssl->keys.padSz`, so a 14 byte payload was reported as 30 under TLS 1.2
   AES-GCM.  The plaintext itself was correct, only the length was wrong, so a
   caller trusting it read past the end of the message.  The sniffer now
-  subtracts `padSz`, matching the non-sniffer read path.
+  subtracts `padSz`, matching the non-sniffer read path.  The same corrected
+  length is handed to the `WOLFSSL_SNIFFER_STORE_DATA_CB` callback, which
+  previously received the raw record size and so read past the end of the
+  decrypt output buffer; that overread is confirmed by AddressSanitizer and is
+  fixed here.
+
+* **Fix (`snifftest` could not report a failed capture)**: the read loop
+  assigned `hadBadPacket` on every packet instead of accumulating it, so an
+  early error was erased by any later packet that decoded cleanly and the
+  process still exited 0.  A new `-expectdata` option additionally exits
+  non-zero when no application data could be decrypted at all; it is off by
+  default so that a handshake-only capture still exits 0.  The example
+  `WOLFSSL_SNIFFER_STORE_DATA_CB` callback also sized its buffer from the first
+  record of a packet and reused it for every later one, even though the offset
+  it is handed restarts at zero for each record, so a larger second record
+  wrote past the end; it now grows the buffer per record and appends.
 
 * **Fix (certificate manager left pointing at a released store)**:
   `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
