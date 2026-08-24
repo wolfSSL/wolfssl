@@ -15945,7 +15945,6 @@ static void ecies_key_free(ecEncCtx* ctx, void* key)
 }
 #endif /* !WOLFSSL_ECIES_OLD */
 
-/* Derive the ECIES shared secret. */
 /* Derive the ECIES shared secret.  The exchange routes by the keys' own
  * devIds - the per-primitive ECDH crypto callbacks read them directly - so
  * the ECIES and per-algorithm devIds on the context take no part here. */

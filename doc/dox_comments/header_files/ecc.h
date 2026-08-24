@@ -1913,7 +1913,9 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
 
     \return 0 Returned upon successfully setting the key type.
     \return NOT_COMPILED_IN Returned if the curve is compiled in but its ECIES
-    support is not. See WOLFSSL_ECIES_X25519 and WOLFSSL_ECIES_X448.
+    support is not. See WOLFSSL_ECIES_X25519 and WOLFSSL_ECIES_X448; the
+    umbrella macro WOLFSSL_ECIES_MONTGOMERY is defined whenever either
+    variant is enabled.
     \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL or
     curveId is not one of the three values above.
 
@@ -1973,6 +1975,15 @@ int wc_ecc_ctx_get_curve_id(ecEncCtx* ctx, int* curveId);
     wc_ecc_ctx_set_curve_id, the devId survives wc_ecc_ctx_reset.  Only
     built when crypto callbacks are enabled.
 
+    A registered callback that services the whole operation by re-entering
+    the software path (wc_ecc_encrypt_ex2 / wc_ecc_decrypt_ex2) must first
+    clear this devId with wc_ecc_ctx_set_dev_id(ctx, INVALID_DEVID) - and
+    clear the ecc_key's own devId as well, or it is adopted right back -
+    then restore both afterwards.  Otherwise the dispatch fires again
+    inside the forward and recurses until the stack overflows.  Backends
+    written before the context devId existed cleared only the key's devId;
+    update them before their callers start passing a context.
+
     \return 0 Returned upon successfully setting the device id.
     \return BAD_FUNC_ARG Returned if ctx is NULL.
 
@@ -2026,6 +2037,9 @@ int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId);
     (wc_ecc_ctx_set_dev_id) routes only the whole-operation crypto callback
     and is never inherited by the primitives.  The values survive
     wc_ecc_ctx_reset.  Only built when crypto callbacks are enabled.
+    Earlier releases initialized the DEM cipher and MAC with the private
+    key's devId; that implicit routing is gone, so callers that relied on
+    it should pass the key's devId here explicitly.
 
     \return 0 Returned upon successfully setting the devIds.
     \return BAD_FUNC_ARG Returned if ctx is NULL.
@@ -2245,7 +2259,9 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
     context devId is INVALID_DEVID (the key is never modified); a set
     context devId always wins.  New code should prefer the context setter:
     one setting covers both directions of the exchange, and it is the only
-    route for the Montgomery key types.
+    route for the Montgomery key types.  A callback that forwards to
+    software must clear the context devId (and the key's) around the
+    forward, then restore them - see wc_ecc_ctx_set_dev_id.
 
     _Example_
     \code
@@ -2331,7 +2347,9 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     context devId is INVALID_DEVID (the key is never modified); a set
     context devId always wins.  New code should prefer the context setter:
     one setting covers both directions of the exchange, and it is the only
-    route for the Montgomery key types.
+    route for the Montgomery key types.  A callback that forwards to
+    software must clear the context devId (and the key's) around the
+    forward, then restore them - see wc_ecc_ctx_set_dev_id.
 
     _Example_
     \code
@@ -2411,7 +2429,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     context devId is INVALID_DEVID (the key is never modified); a set
     context devId always wins.  New code should prefer the context setter:
     one setting covers both directions of the exchange, and it is the only
-    route for the Montgomery key types.
+    route for the Montgomery key types.  A callback that forwards to
+    software must clear the context devId (and the key's) around the
+    forward, then restore them - see wc_ecc_ctx_set_dev_id.
 
     _Example_
     \code

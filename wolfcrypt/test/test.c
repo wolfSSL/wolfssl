@@ -48114,6 +48114,16 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
         }
     }
 
+#ifdef WOLFSSL_ECIES_OLD
+    /* OLD mode carries no ephemeral key in the message, so a NULL pubKey
+     * must be rejected before anything else runs. */
+    if (wc_ecc_decrypt_ex2(srvKey, NULL, enc, encSz, plain, &plainSz,
+            ctx) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+#endif
+
     XMEMSET(plain, 0, MAX_ECIES_TEST_SZ);
     plainSz = MAX_ECIES_TEST_SZ;
     ret = wc_ecc_decrypt_ex2(srvKey, decPubKey, enc, encSz, plain, &plainSz,

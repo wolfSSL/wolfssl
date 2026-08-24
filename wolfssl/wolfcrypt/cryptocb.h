@@ -944,6 +944,9 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder,
 /* curveId types the void key pointers (ECC_CURVE_DEF/ECC_X25519/ECC_X448).
  * The dispatch devId is resolved here and only here: ctx devId first, with
  * with an ecc_key devId adopted only while the ctx devId is unset. */
+/* A callback that services the operation by re-entering the software path
+ * must clear the ctx devId (and an ecc_key's own devId, or it is adopted
+ * right back) around the forward, then restore both - else it recurses. */
 WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt_ex(void* privKey, void* pubKey,
     const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
     int compressed, int curveId);
