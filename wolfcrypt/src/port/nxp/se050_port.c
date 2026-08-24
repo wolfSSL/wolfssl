@@ -3154,10 +3154,19 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     int                 keyCreated = 0;
     word32              keyId;
 
+    if (((in == NULL) && (inLen != 0)) || (out == NULL) || (outLen == NULL) ||
+        (key == NULL))
+    {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef SE050_DEBUG
     printf("se050_ed25519_sign_msg: key %p, in %p (%d), out %p (%d), "
             "keyId %ld\n", key, in, inLen, out, *outLen, key->keyId);
 #endif
+
+    if (in == NULL)
+        in = (const byte *)"";
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
@@ -3260,14 +3269,19 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     int                 keySize = ED25519_KEY_SIZE;
     int                 keyCreated = 0;
 
+    if (signature == NULL || ((msg == NULL) && (msgLen != 0)) || key == NULL ||
+        res == NULL)
+    {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef SE050_DEBUG
     printf("se050_ed25519_verify_msg: key %p, sig %p (%d), msg %p (%d)\n",
         key, signature, signatureLen, msg, msgLen);
 #endif
 
-    if (signature == NULL || msg == NULL || key == NULL || res == NULL) {
-        return BAD_FUNC_ARG;
-    }
+    if (msg == NULL)
+        msg = (const byte *)"";
 
     *res = 0;
 
