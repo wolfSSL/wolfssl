@@ -59,6 +59,13 @@ has_static_rsa=no
 if [ $? -eq 0 ]; then
     has_static_rsa=yes
 fi
+# The TLS v1.2 CBC captures negotiated Encrypt-Then-MAC, so a sniffer built
+# without it cannot decrypt them.
+has_etm=no
+./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'encrypt_then_mac '
+if [ $? -eq 0 ]; then
+    has_etm=yes
+fi
 # ./configure --enable-sniffer CFLAGS="-DWOLFSSL_SNIFFER_KEYLOGFILE"
 has_keylog=no
 ./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'ssl_keylog_file'
@@ -69,8 +76,24 @@ fi
 
 RESULT=0
 
+# A capture file holding only the 24 byte pcap header has no packets in it and
+# cannot test anything. Report it and skip the leg rather than passing silently.
+# Regenerate missing captures with scripts/sniffer-gen.sh.
+has_packets() {
+    local pcap=$1
+    if [ ! -s "$pcap" ]; then
+        echo -e "\nWARNING: $pcap is missing, skipping\n"
+        return 1
+    fi
+    if [ "$(wc -c < "$pcap")" -le 24 ]; then
+        echo -e "\nWARNING: $pcap holds no packets, skipping. Regenerate it with scripts/sniffer-gen.sh\n"
+        return 1
+    fi
+    return 0
+}
+
 # TLS v1.2 Static RSA Test
-if test $RESULT -eq 0 && test $has_rsa == yes && test $has_tlsv12 == yes && test $has_static_rsa == yes
+if test $RESULT -eq 0 && test $has_rsa == yes && test $has_tlsv12 == yes && test $has_static_rsa == yes && test $has_etm == yes && has_packets ./scripts/sniffer-static-rsa.pcap
 then
     echo -e "\nStarting snifftest on sniffer-static-rsa.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-static-rsa.pcap -key ./certs/server-key.pem -server 127.0.0.1 -port 11111
@@ -80,7 +103,7 @@ then
 fi
 
 # TLS v1.2 Static RSA Test (IPv6)
-if test $RESULT -eq 0 && test $has_rsa == yes && test $has_tlsv12 == yes && test $has_static_rsa == yes
+if test $RESULT -eq 0 && test $has_rsa == yes && test $has_tlsv12 == yes && test $has_static_rsa == yes && test $has_etm == yes && has_packets ./scripts/sniffer-ipv6.pcap
 then
     echo -e "\nStarting snifftest on sniffer-ipv6.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-ipv6.pcap -key ./certs/server-key.pem -server ::1 -port 11111
@@ -100,6 +123,8 @@ then
         [[ $tlsver == "tls12" && $has_tlsv12 == "no" ]] && continue
         [[ $tlsver == "tls13" && $has_tlsv13 == "no" ]] && continue
 
+        has_packets scripts/sniffer-$tlsver-keylog.pcap || continue
+
         echo -e "\nStarting snifftest on sniffer-$tlsver-keylog.pcap...\n"
 
         TMPFILE=$(mktemp)
@@ -111,7 +136,7 @@ then
             -keylogfile scripts/sniffer-$tlsver-keylog.sslkeylog \
             -server 127.0.0.1 -port 11111 | tee $TMPFILE
 
-        RESULT=$?
+        RESULT=${PIPESTATUS[0]}
         [ $RESULT -ne 0 ] && echo -e "\n$tlsver snifftest keylog test failed: snifftest returned $RESULT\n" && rm $TMPFILE && exit 1
 
         # use grep to only compare against decrypted output
@@ -126,7 +151,7 @@ then
 fi
 
 # TLS v1.3 sniffer test ECC
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_ecc == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_ecc == yes && has_packets ./scripts/sniffer-tls13-ecc.pcap
 then
     echo -e "\nStarting snifftest on sniffer-tls13-ecc.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-tls13-ecc.pcap -key ./certs/statickeys/ecc-secp256r1.pem -server 127.0.0.1 -port 11111
@@ -136,7 +161,7 @@ then
 fi
 
 # TLS v1.3 sniffer test DH
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_dh == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_dh == yes && has_packets ./scripts/sniffer-tls13-dh.pcap
 then
     echo -e "\nStarting snifftest on sniffer-tls13-dh.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-tls13-dh.pcap -key ./certs/statickeys/dh-ffdhe2048.pem -server 127.0.0.1 -port 11111
@@ -146,7 +171,7 @@ then
 fi
 
 # TLS v1.3 sniffer test X25519
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_x25519 == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_x25519 == yes && has_packets ./scripts/sniffer-tls13-x25519.pcap
 then
     echo -e "\nStarting snifftest on sniffer-tls13-x25519.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-tls13-x25519.pcap -key ./certs/statickeys/x25519.pem -server 127.0.0.1 -port 11111
@@ -156,7 +181,7 @@ then
 fi
 
 # TLS v1.3 sniffer test ECC resumption
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_ecc == yes && test $session_ticket == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_ecc == yes && test $session_ticket == yes && has_packets ./scripts/sniffer-tls13-ecc-resume.pcap
 then
     echo -e "\nStarting snifftest on sniffer-tls13-ecc-resume.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-tls13-ecc-resume.pcap -key ./certs/statickeys/ecc-secp256r1.pem -server 127.0.0.1 -port 11111
@@ -166,7 +191,7 @@ then
 fi
 
 # TLS v1.3 sniffer test DH
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_dh == yes && test $session_ticket == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_dh == yes && test $session_ticket == yes && has_packets ./scripts/sniffer-tls13-dh-resume.pcap
 then
     echo -e "\nStarting snifftest on sniffer-tls13-dh-resume.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-tls13-dh-resume.pcap -key ./certs/statickeys/dh-ffdhe2048.pem -server 127.0.0.1 -port 11111
@@ -176,7 +201,7 @@ then
 fi
 
 # TLS v1.3 sniffer test X25519
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_x25519 == yes && test $session_ticket == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_x25519 == yes && test $session_ticket == yes && has_packets ./scripts/sniffer-tls13-x25519-resume.pcap
 then
     echo -e "\nStarting snifftest on sniffer-tls13-x25519-resume.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-tls13-x25519-resume.pcap -key ./certs/statickeys/x25519.pem -server 127.0.0.1 -port 11111
@@ -186,7 +211,7 @@ then
 fi
 
 # TLS v1.3 sniffer test hello_retry_request (HRR) with ECDHE
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_ecc == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_ecc == yes && has_packets ./scripts/sniffer-tls13-hrr.pcap
 then
     echo -e "\nStarting snifftest on sniffer-tls13-hrr.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest -pcap ./scripts/sniffer-tls13-hrr.pcap -key ./certs/statickeys/ecc-secp256r1.pem -server 127.0.0.1 -port 11111

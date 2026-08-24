@@ -172,6 +172,21 @@
 
 ## Fixes
 
+* **Fix (sniffer could not decrypt Encrypt-Then-MAC sessions)**: the sniffer
+  never handled the `encrypt_then_mac` extension (RFC 7366) in the ServerHello,
+  so for a CBC suite it passed the trailing MAC to the block decrypt along with
+  the ciphertext, the length was not a multiple of the block size, and every
+  record failed.  Since wolfSSL peers negotiate it by default, this covered
+  most TLS 1.2 CBC captures.
+
+* **Fix (sniffer reported plaintext lengths that included the MAC or AEAD
+  tag)**: the length returned to the caller was taken from the record size
+  without removing what `DecryptMessage()` had already accounted for in
+  `ssl->keys.padSz`, so a 14 byte payload was reported as 30 under TLS 1.2
+  AES-GCM.  The plaintext itself was correct, only the length was wrong, so a
+  caller trusting it read past the end of the message.  The sniffer now
+  subtracts `padSz`, matching the non-sniffer read path.
+
 * **Fix (certificate manager left pointing at a released store)**:
   `wolfSSL_CTX_set_cert_store()` pairs the store handed to it with the
   context's certificate manager, which keeps a pointer back to that store.

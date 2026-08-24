@@ -3934,6 +3934,14 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                     session->flags.serverCipherOn = 1;
                 }
                 break;
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            case EXT_ENCRYPT_THEN_MAC:
+                /* MAC covers the ciphertext, so it has to be stripped before
+                 * the record is decrypted. */
+                session->sslServer->options.startedETMRead = 1;
+                session->sslClient->options.startedETMRead = 1;
+                break;
+        #endif
             case EXT_MASTER_SECRET:
             #ifdef HAVE_EXTENDED_MASTER
                 session->flags.expectEms = 1;
@@ -5175,6 +5183,18 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 {
     int ivExtra = 0;
     int ret;
+    word32 macExtra = 0;
+
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    /* Encrypt-Then-MAC leaves the MAC outside the encrypted data. */
+    if (ssl->options.startedETMRead && ssl->specs.cipher_type == block) {
+        macExtra = MacSize(ssl);
+        if (sz <= macExtra) {
+            *error = BUFFER_ERROR;
+            return NULL;
+        }
+    }
+#endif
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -5188,7 +5208,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 #endif
     {
         XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
-        ret = DecryptTls(ssl, output, input, sz);
+        ret = DecryptTls(ssl, output, input, sz - macExtra);
     }
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
@@ -5219,15 +5239,17 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         *advance = ssl->specs.aead_mac_size;
         ssl->keys.padSz = ssl->specs.aead_mac_size;
     }
+    else if (macExtra != 0)
+        ssl->keys.padSz = macExtra;
     else
         ssl->keys.padSz = ssl->specs.hash_size;
 
     if (ssl->specs.cipher_type == block) {
         /* last pad bytes indicates length */
         word32 pad = 0;
-        if ((int)sz > ivExtra) {
+        if (sz > (word32)ivExtra + macExtra) {
             /* get value of last pad byte */
-            pad = *(output + sz - ivExtra - 1) + 1;
+            pad = *(output + sz - (word32)ivExtra - macExtra - 1) + 1;
         }
         ssl->keys.padSz += pad;
     }
@@ -6614,11 +6636,11 @@ doPart:
 
                     ret -= ivExtra;
 
-                #if defined(HAVE_ENCRYPT_THEN_MAC) && \
-                    !defined(WOLFSSL_AEAD_ONLY)
-                    if (ssl->options.startedETMRead)
-                        ret -= MacSize(ssl);
-                #endif
+                    /* padSz covers the AEAD tag or record MAC, any block
+                     * padding and the TLS 1.3 inner content type, matching what
+                     * the non-sniffer read path removes from ssl->curSize. */
+                    ret -= (int)ssl->keys.padSz;
+
                     TraceGotData(ret);
                     if (ret > 0) {  /* may be blank message */
                         if (data != NULL) {

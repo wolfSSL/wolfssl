@@ -170,6 +170,7 @@ static pcap_t* pcap = NULL;
 static pcap_if_t* alldevs = NULL;
 static struct bpf_program pcap_fp;
 static const char *traceFile = "./tracefile.txt";
+static int sawDecryptedData = 0;
 
 static void FreeAll(void)
 {
@@ -447,6 +448,9 @@ static void show_appinfo(void)
     #endif
     #ifdef HAVE_EXTENDED_MASTER
         "extended_master "
+    #endif
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        "encrypt_then_mac "
     #endif
     #ifdef HAVE_MAX_FRAGMENT
         "max fragment "
@@ -830,6 +834,8 @@ static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
         data[ret] = 0;
         printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
         ssl_FreeZeroDecodeBuffer(&data, ret, err);
+        /* Plain store so worker threads do not race on a counter. */
+        sawDecryptedData = 1;
     }
 
     (void)isChain;
@@ -1358,8 +1364,8 @@ int main(int argc, char** argv)
 #else
             /* Decode Packet, ret value will indicate whether a
              * bad packet was encountered */
-            hadBadPacket = DecodePacket((byte*)packet, header->caplen,
-                                        packetNumber,err);
+            if (DecodePacket((byte*)packet, header->caplen, packetNumber, err))
+                hadBadPacket = 1;
 #endif
         }
         /* check if we are done reading file */
@@ -1391,6 +1397,12 @@ int main(int argc, char** argv)
 #endif
 
     FreeAll();
+
+    /* A capture file that yields no plaintext has tested nothing. */
+    if (saveFile && !sawDecryptedData) {
+        printf("No application data was decrypted from %s\n", pcapFile);
+        hadBadPacket = 1;
+    }
 
     return hadBadPacket ? EXIT_FAILURE : EXIT_SUCCESS;
 }
