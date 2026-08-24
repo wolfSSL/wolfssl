@@ -290,11 +290,9 @@ typedef struct wc_CryptoInfo {
             } ecc_check_pub;          /* distinct from ecc_check (priv-key cmp)  */
             #endif
             #ifdef HAVE_ECC_ENCRYPT
-            /* ECC keys only.  ECIES over a Montgomery curve (ECC_X25519 /
-             * ECC_X448, selected with wc_ecc_ctx_set_curve_id) bypasses these
-             * callbacks entirely, since the key pointers below are typed for
-             * ecc_key.  The curve25519 callback still fires for the shared
-             * secret itself. */
+            /* WC_PK_TYPE_ECIES_ENCRYPT/DECRYPT: ECC keys.  ECIES over a
+             * Montgomery curve arrives as the _MONT types with the
+             * eciesencrypt_mont/eciesdecrypt_mont members below instead. */
             struct {
                 ecc_key*    privKey;
                 ecc_key*    pubKey;
@@ -314,6 +312,29 @@ typedef struct wc_CryptoInfo {
                 word32*     outSz;
                 ecEncCtx*   ctx;
             } eciesdecrypt;
+            /* _MONT types: key pointers typed by curveId (curve25519_key*
+             * for ECC_X25519, curve448_key* for ECC_X448); ctx is never
+             * NULL.  No compressed field on a Montgomery curve. */
+            struct {
+                void*       privKey;
+                void*       pubKey;
+                const byte* msg;
+                word32      msgSz;
+                byte*       out;
+                word32*     outSz;
+                ecEncCtx*   ctx;
+                int         curveId;
+            } eciesencrypt_mont;
+            struct {
+                void*       privKey;
+                void*       pubKey;
+                const byte* msg;
+                word32      msgSz;
+                byte*       out;
+                word32*     outSz;
+                ecEncCtx*   ctx;
+                int         curveId;
+            } eciesdecrypt_mont;
             #endif /* HAVE_ECC_ENCRYPT */
         #endif /* HAVE_ECC */
         #ifdef HAVE_CURVE25519
@@ -920,6 +941,15 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder,
     int checkPriv);
 #endif
 #ifdef HAVE_ECC_ENCRYPT
+/* curveId types the void key pointers (ECC_CURVE_DEF/ECC_X25519/ECC_X448).
+ * The dispatch devId is resolved here and only here: ctx devId first, with
+ * with an ecc_key devId adopted only while the ctx devId is unset. */
+WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt_ex(void* privKey, void* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
+    int compressed, int curveId);
+WOLFSSL_LOCAL int wc_CryptoCb_EciesDecrypt_ex(void* privKey, void* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
+    int curveId);
 WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
     const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
     int compressed);

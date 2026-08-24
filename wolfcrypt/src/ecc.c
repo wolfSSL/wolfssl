@@ -15010,6 +15010,15 @@ struct ecEncCtx {
                             * ECC_CURVE_DEF -> ecc_key (default),
                             * ECC_X25519    -> curve25519_key,
                             * ECC_X448      -> curve448_key */
+#ifdef WOLF_CRYPTO_CB
+    int       devId;       /* device for the ECIES crypto callback; an
+                            * ecc_key's own devId is adopted as fallback */
+    int       encDevId;    /* per-algorithm devIds for the software path
+                            * (wc_ecc_ctx_set_algo_dev_ids); INVALID_DEVID
+                            * keeps that primitive in software */
+    int       kdfDevId;
+    int       macDevId;
+#endif
     WC_RNG*   rng;
 };
 
@@ -15026,19 +15035,9 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo, byte macAlgo)
     return 0;
 }
 
-/* Select the type of key the context operates on.
- *
- * ECC_CURVE_DEF (the default) means the key pointers handed to the ECIES
- * functions are ecc_key*.  ECC_X25519 and ECC_X448 mean they are
- * curve25519_key* and curve448_key* respectively, in which case they have to
- * be passed through wc_ecc_encrypt_ex2()/wc_ecc_decrypt_ex2() - the typed
- * wc_ecc_encrypt()/wc_ecc_decrypt() entry points stay ECC-only.
- *
- * Individual ECC curves are not selectable here: for an ecc_key the curve is
- * carried by the key itself.  This is a key-type selector only.
- *
- * Returns 0 on success, NOT_COMPILED_IN when the curve is built but its ECIES
- * support is not, and BAD_FUNC_ARG otherwise. */
+/* Select the key type the context operates on: ECC_CURVE_DEF (default)
+ * means ecc_key, ECC_X25519/ECC_X448 mean curve25519_key/curve448_key used
+ * via wc_ecc_encrypt_ex2()/wc_ecc_decrypt_ex2().  Not a curve selector. */
 int wc_ecc_ctx_set_curve_id(ecEncCtx* ctx, int curveId)
 {
     int ret = 0;
@@ -15084,6 +15083,48 @@ int wc_ecc_ctx_get_curve_id(ecEncCtx* ctx, int* curveId)
 
     return 0;
 }
+
+#ifdef WOLF_CRYPTO_CB
+/* Device for the whole-operation ECIES crypto callback only; an ecc_key
+ * devId is adopted while the ctx devId is unset, inside
+ * wc_CryptoCb_EciesEncrypt_ex/Decrypt_ex.  Survives wc_ecc_ctx_reset(). */
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->devId = devId;
+
+    return 0;
+}
+
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId)
+{
+    if (ctx == NULL || devId == NULL)
+        return BAD_FUNC_ARG;
+
+    *devId = ctx->devId;
+
+    return 0;
+}
+
+/* Per-algorithm devIds mirroring the wc_ecc_ctx_set_algo() trio: DEM
+ * cipher, KDF, MAC.  One call declares all three; INVALID_DEVID keeps a
+ * primitive in software.  The values survive wc_ecc_ctx_reset(). */
+int wc_ecc_ctx_set_algo_dev_ids(ecEncCtx* ctx, int encDevId, int kdfDevId,
+                                int macDevId)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->encDevId = encDevId;
+    ctx->kdfDevId = kdfDevId;
+    ctx->macDevId = macDevId;
+
+    return 0;
+}
+#endif /* WOLF_CRYPTO_CB */
+
 
 #ifdef WOLF_CRYPTO_CB
 /* Read back the parameters a caller configured on the context.  Intended for
@@ -15233,10 +15274,9 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
  */
 int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz)
 {
-    /* The custom KDF salt borrows the REQ/RESP clientSalt/serverSalt
-     * storage, so a no-protocol context (wc_ecc_ctx_new(0, ...)) has nowhere
-     * to keep it - kdfSalt would stay NULL and the copy below would write
-     * through it. */
+    /* The custom KDF salt borrows the REQ/RESP salt storage, which a
+     * no-protocol context does not have - kdfSalt would stay NULL and the
+     * copy below would write through it. */
     if (ctx == NULL || ctx->protocol == 0 || (salt == NULL && sz != 0))
         return BAD_FUNC_ARG;
 
@@ -15340,6 +15380,13 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
         ctx->macAlgo  = ecHMAC_SHA256;
         ctx->protocol = (byte)flags;
         ctx->rng      = rng;
+        /* 0 is a valid devId, so the XMEMSET default is not "no device". */
+#ifdef WOLF_CRYPTO_CB
+        ctx->devId     = INVALID_DEVID;
+        ctx->encDevId  = INVALID_DEVID;
+        ctx->kdfDevId  = INVALID_DEVID;
+        ctx->macDevId  = INVALID_DEVID;
+#endif
 
         if (flags == REQ_RESP_CLIENT)
             ctx->cliSt = ecCLI_INIT;
@@ -15366,14 +15413,27 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
      * make the next call reinterpret a Montgomery key as an ecc_key. */
     heap = ctx->heap;
     curveId = ctx->curveId;
-    ecc_ctx_init(ctx, ctx->protocol, rng);
+    {
+#ifdef WOLF_CRYPTO_CB
+        int devId    = ctx->devId;
+        int encDevId = ctx->encDevId;
+        int kdfDevId = ctx->kdfDevId;
+        int macDevId = ctx->macDevId;
+#endif
+        ecc_ctx_init(ctx, ctx->protocol, rng);
+#ifdef WOLF_CRYPTO_CB
+        ctx->devId    = devId;
+        ctx->encDevId = encDevId;
+        ctx->kdfDevId = kdfDevId;
+        ctx->macDevId = macDevId;
+#endif
+    }
     ctx->heap = heap;
     ctx->curveId = curveId;
 
-    /* The exchange salts only exist for the REQ/RESP protocol.  A context with
-     * no protocol is still useful - it is how non-default algorithms and the
-     * key type are carried - and matches the default context the encrypt and
-     * decrypt paths build internally when none is supplied. */
+    /* Exchange salts only exist for the REQ/RESP protocol.  A no-protocol
+     * context still carries non-default algorithms and the key type, like
+     * the default context the encrypt/decrypt paths build internally. */
     if (ctx->protocol == 0)
         return 0;
 
@@ -15390,9 +15450,15 @@ ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap)
     if (ctx) {
         ctx->protocol = (byte)flags;
         ctx->heap     = heap;
-        /* wc_ecc_ctx_reset() preserves curveId, so it must not be XMALLOC
-         * garbage by the time it is called. */
+        /* wc_ecc_ctx_reset() preserves curveId and the devIds, so they must
+         * not be XMALLOC garbage by the time it is called. */
         ctx->curveId  = ECC_CURVE_DEF;
+#ifdef WOLF_CRYPTO_CB
+        ctx->devId     = INVALID_DEVID;
+        ctx->encDevId  = INVALID_DEVID;
+        ctx->kdfDevId  = INVALID_DEVID;
+        ctx->macDevId  = INVALID_DEVID;
+#endif
     }
 
     ret = wc_ecc_ctx_reset(ctx, rng);
@@ -15580,14 +15646,9 @@ static int ecc_ctx_decrypt_advance(ecEncCtx* ctx)
 }
 
 
-/* Key-type dispatch for ECIES.
- *
- * Everything from the shared secret onwards - the KDF, the DEM and the MAC -
- * is key-type agnostic.  Only the handful of operations below actually care
- * whether the caller handed us an ecc_key, a curve25519_key or a curve448_key,
- * so they are funnelled through these helpers.  ctx->curveId, set with
- * wc_ecc_ctx_set_curve_id(), says which it is; ECC_CURVE_DEF (the default)
- * means ecc_key and behaves exactly as it always has. */
+/* Key-type dispatch for ECIES.  Only the helpers below care whether the
+ * caller passed an ecc_key, curve25519_key or curve448_key; ctx->curveId
+ * says which, with ECC_CURVE_DEF (the default) meaning ecc_key. */
 
 /* Are the key pointers Montgomery-curve keys rather than ecc_key? */
 static int ecies_is_mont(ecEncCtx* ctx)
@@ -15611,47 +15672,49 @@ static int ecies_is_mont(ecEncCtx* ctx)
 static void* ecies_heap(ecEncCtx* ctx, void* privKey)
 {
     if (ecies_is_mont(ctx)) {
-        /* wc_curve25519_init_ex() discards the heap hint it is given and
-         * curve448_key has no heap field at all, so neither key can supply
-         * one.  The context's hint is what the surrounding allocations in
-         * this file already use. */
+        /* wc_curve25519_init_ex() discards its heap hint and curve448_key
+         * has no heap field, so neither key can supply one; the context's
+         * hint matches the surrounding allocations in this file. */
         return ctx->heap;
     }
 
     return ((ecc_key*)privKey)->heap;
 }
 
-/* devId to hand the DEM AES/HMAC primitives. */
-static int ecies_devid(ecEncCtx* ctx, void* privKey)
+/* Per-algorithm devIds exactly as declared with
+ * wc_ecc_ctx_set_algo_dev_ids(); INVALID_DEVID (the default, and the only
+ * value without WOLF_CRYPTO_CB) keeps that primitive in software. */
+static int ecies_enc_devid(ecEncCtx* ctx)
 {
-    int devId = INVALID_DEVID;
-
+#ifdef WOLF_CRYPTO_CB
+    if (ctx != NULL)
+        return ctx->encDevId;
+#else
     (void)ctx;
-    (void)privKey;
-
-#ifdef WOLFSSL_ECIES_X25519
-    if (ctx != NULL && ctx->curveId == ECC_X25519) {
-    #ifdef WOLF_CRYPTO_CB
-        /* curve25519_key only carries a devId with WOLF_CRYPTO_CB. */
-        devId = ((curve25519_key*)privKey)->devId;
-    #endif
-    }
-    else
 #endif
-#ifdef WOLFSSL_ECIES_X448
-    if (ctx != NULL && ctx->curveId == ECC_X448) {
-        /* curve448_key has no devId field. */
-    }
-    else
-#endif
-    {
-    #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
-        /* ecc_key only carries a devId field with these. */
-        devId = ((ecc_key*)privKey)->devId;
-    #endif
-    }
+    return INVALID_DEVID;
+}
 
-    return devId;
+static int ecies_kdf_devid(ecEncCtx* ctx)
+{
+#ifdef WOLF_CRYPTO_CB
+    if (ctx != NULL)
+        return ctx->kdfDevId;
+#else
+    (void)ctx;
+#endif
+    return INVALID_DEVID;
+}
+
+static int ecies_mac_devid(ecEncCtx* ctx)
+{
+#ifdef WOLF_CRYPTO_CB
+    if (ctx != NULL)
+        return ctx->macDevId;
+#else
+    (void)ctx;
+#endif
+    return INVALID_DEVID;
 }
 
 /* Give the private key an RNG for blinding / timing resistance, where the key
@@ -15701,7 +15764,9 @@ static WC_RNG* ecies_rng(ecEncCtx* ctx, void* privKey)
         return ((ecc_key*)privKey)->rng;
 #endif
 
-    return (ctx != NULL) ? ctx->rng : NULL;
+    if (ctx != NULL)
+        return ctx->rng;
+    return NULL;
 }
 #endif /* !WOLFSSL_ECIES_OLD && WOLFSSL_ECIES_GEN_IV */
 
@@ -15718,11 +15783,9 @@ typedef union {
 #endif
 } ecies_peer_key;
 
-/* Size of the ephemeral public key as it appears in the message.
- *
- * For an ecc_key this is the X9.63 point encoding, so it depends on whether
- * the point is compressed.  Montgomery keys are a bare u-coordinate of fixed
- * size with no leading format byte, so 'compressed' does not apply. */
+/* Size of the ephemeral public key in the message: X9.63 point encoding
+ * for an ecc_key (compression matters), a fixed-size bare u-coordinate for
+ * Montgomery keys ('compressed' does not apply). */
 static int ecies_pub_key_size(ecEncCtx* ctx, void* privKey, int compressed,
     word32* pubKeySz)
 {
@@ -15770,10 +15833,9 @@ static int ecies_export_pub(ecEncCtx* ctx, void* privKey, byte* out,
     if (ctx != NULL && ctx->curveId == ECC_X25519) {
         curve25519_key* key = (curve25519_key*)privKey;
 
-        /* wc_curve25519_export_public_ex() derives the public point from the
-         * private scalar when it is missing, but does not check that there is
-         * a private scalar to derive it from - an init-only key would quietly
-         * export base * 0. */
+        /* wc_curve25519_export_public_ex() derives a missing public point
+         * without checking a private scalar exists - an init-only key would
+         * quietly export base * 0. */
         if (!key->pubSet && !key->privSet)
             return ECC_BAD_ARG_E;
     #ifdef WC_X25519_NONBLOCK
@@ -15884,6 +15946,9 @@ static void ecies_key_free(ecEncCtx* ctx, void* key)
 #endif /* !WOLFSSL_ECIES_OLD */
 
 /* Derive the ECIES shared secret. */
+/* Derive the ECIES shared secret.  The exchange routes by the keys' own
+ * devIds - the per-primitive ECDH crypto callbacks read them directly - so
+ * the ECIES and per-algorithm devIds on the context take no part here. */
 static int ecies_shared_secret(ecEncCtx* ctx, void* privKey, void* pubKey,
     byte* out, word32* outSz)
 {
@@ -15974,9 +16039,6 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
     byte*        encKey = NULL;
     byte*        encIv = NULL;
     byte*        macKey = NULL;
-    /* devId to hand the DEM AES/HMAC primitives; not every key type carries
-     * one, so default to INVALID. */
-    int          eciesDevId = INVALID_DEVID;
 
     if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
                            outSz  == NULL)
@@ -15993,26 +16055,25 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
     if (isMont && compressed)
         return BAD_FUNC_ARG;
 
-    eciesDevId = ecies_devid(ctx, privKey);
-
 #ifdef WOLF_CRYPTO_CB
-    /* wc_CryptoInfo.pk.eciesencrypt is typed ecc_key*, so the callback is
-     * ECC-only.  This test has to stay ahead of the block because
-     * WOLF_CRYPTO_CB_FIND drops the devId guard entirely. */
-    #ifdef WOLF_CRYPTO_CB_FIND
-    if (!isMont)
-    #else
-    if (!isMont && ((ecc_key*)privKey)->devId != INVALID_DEVID)
-    #endif
+    /* Dispatch is generic over the key type (curveId).  The devId
+     * adoption resolution lives inside the callback entry point, and
+     * nowhere else. */
     {
         /* Snapshot single-use state so we can tell whether the callback handled
          * it purely in hardware (state untouched) versus re-entered software
          * (which advances the state itself, below). */
-        byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
-        byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
-        ret = wc_CryptoCb_EciesEncrypt((ecc_key*)privKey, (ecc_key*)pubKey,
+        byte cliStBefore = 0;
+        byte srvStBefore = 0;
+        int  dispCurveId = ECC_CURVE_DEF;
+        if (ctx != NULL) {
+            cliStBefore = ctx->cliSt;
+            srvStBefore = ctx->srvSt;
+            dispCurveId = ctx->curveId;
+        }
+        ret = wc_CryptoCb_EciesEncrypt_ex(privKey, pubKey,
                                        msg, msgSz, out, outSz, ctx,
-                                       compressed);
+                                       compressed, dispCurveId);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             /* Pure-hardware service left the state alone; enforce single-use
              * here so the ctx can't be reused (nonce reuse for static-nonce
@@ -16117,14 +16178,18 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
     #endif
         switch (ctx->kdfAlgo) {
             case ecHKDF_SHA256 :
-                ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           ecies_heap(ctx, privKey),
+                           ecies_kdf_devid(ctx));
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           ecies_heap(ctx, privKey),
+                           ecies_kdf_devid(ctx));
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
@@ -16219,7 +16284,7 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                 Aes aes[1];
             #endif
                 ret = wc_AesInit(aes, ecies_heap(ctx, privKey),
-                                 eciesDevId);
+                                 ecies_enc_devid(ctx));
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, encIv,
                                                                 AES_ENCRYPTION);
@@ -16261,7 +16326,7 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                     WC_AES_BLOCK_SIZE - WOLFSSL_ECIES_GEN_IV_SIZE);
 
                 ret = wc_AesInit(aes, ecies_heap(ctx, privKey),
-                                 eciesDevId);
+                                 ecies_enc_devid(ctx));
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, ctr_iv,
                                                                 AES_ENCRYPTION);
@@ -16296,7 +16361,7 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                 Aes aes[1];
             #endif
                 ret = wc_AesInit(aes, ecies_heap(ctx, privKey),
-                                 eciesDevId);
+                                 ecies_enc_devid(ctx));
                 if (ret == 0) {
                     ret = wc_AesGcmSetKey(aes, encKey, (word32)encKeySz);
                     if (ret == 0) {
@@ -16340,7 +16405,7 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                 Hmac hmac[1];
             #endif
                 ret = wc_HmacInit(hmac, ecies_heap(ctx, privKey),
-                                  eciesDevId);
+                                  ecies_mac_devid(ctx));
                 if (ret == 0) {
                     ret = wc_HmacSetKey(hmac, WC_SHA256, macKey,
                                                          WC_SHA256_DIGEST_SIZE);
@@ -16446,9 +16511,6 @@ int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
     byte*        encKey = NULL;
     const byte*  encIv = NULL;
     byte*        macKey = NULL;
-    /* devId to hand the DEM AES/HMAC primitives; not every key type carries
-     * one, so default to INVALID. */
-    int          eciesDevId = INVALID_DEVID;
 
 
     if (privKey == NULL || msg == NULL || out == NULL || outSz  == NULL)
@@ -16462,27 +16524,27 @@ int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
      * and before ctx is defaulted below - the crypto callback has to keep
      * seeing the caller's own ctx pointer. */
     isMont = ecies_is_mont(ctx);
-    (void)isMont; /* only read by the callback and compressed-point guards */
-
-    eciesDevId = ecies_devid(ctx, privKey);
+    (void)isMont; /* only read by the compressed-point guard (HAVE_COMP_KEY) */
 
 #ifdef WOLF_CRYPTO_CB
-    /* wc_CryptoInfo.pk.eciesdecrypt is typed ecc_key*, so the callback is
-     * ECC-only.  This test has to stay ahead of the block because
-     * WOLF_CRYPTO_CB_FIND drops the devId guard entirely. */
-    #ifdef WOLF_CRYPTO_CB_FIND
-    if (!isMont)
-    #else
-    if (!isMont && ((ecc_key*)privKey)->devId != INVALID_DEVID)
-    #endif
+    /* Dispatch is generic over the key type (curveId).  The devId
+     * adoption resolution lives inside the callback entry point, and
+     * nowhere else. */
     {
         /* Snapshot single-use state so we can tell whether the callback handled
          * it purely in hardware (state untouched) versus re-entered software
          * (which advances the state itself, below). */
-        byte cliStBefore = (ctx != NULL) ? ctx->cliSt : 0;
-        byte srvStBefore = (ctx != NULL) ? ctx->srvSt : 0;
-        ret = wc_CryptoCb_EciesDecrypt((ecc_key*)privKey, (ecc_key*)pubKey,
-                                       msg, msgSz, out, outSz, ctx);
+        byte cliStBefore = 0;
+        byte srvStBefore = 0;
+        int  dispCurveId = ECC_CURVE_DEF;
+        if (ctx != NULL) {
+            cliStBefore = ctx->cliSt;
+            srvStBefore = ctx->srvSt;
+            dispCurveId = ctx->curveId;
+        }
+        ret = wc_CryptoCb_EciesDecrypt_ex(privKey, pubKey,
+                                       msg, msgSz, out, outSz, ctx,
+                                       dispCurveId);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             /* Pure-hardware service left the state alone; enforce single-use
              * here.  A re-entrant software callback already advanced it. */
@@ -16659,14 +16721,18 @@ int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
     #endif
         switch (ctx->kdfAlgo) {
             case ecHKDF_SHA256 :
-                ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA256, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           ecies_heap(ctx, privKey),
+                           ecies_kdf_devid(ctx));
                 break;
             case ecHKDF_SHA1 :
-                ret = wc_HKDF(WC_SHA, sharedSecret, sharedSz, ctx->kdfSalt,
-                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
-                           keys, (word32)keysLen);
+                ret = wc_HKDF_ex(WC_SHA, sharedSecret, sharedSz,
+                           ctx->kdfSalt, ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, (word32)keysLen,
+                           ecies_heap(ctx, privKey),
+                           ecies_kdf_devid(ctx));
                 break;
 #if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
             case ecKDF_X963_SHA1 :
@@ -16742,7 +16808,7 @@ int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                 Hmac hmac[1];
             #endif
                 ret = wc_HmacInit(hmac, ecies_heap(ctx, privKey),
-                                  eciesDevId);
+                                  ecies_mac_devid(ctx));
                 if (ret == 0) {
                     ret = wc_HmacSetKey(hmac, WC_SHA256, macKey,
                                                          WC_SHA256_DIGEST_SIZE);
@@ -16793,7 +16859,7 @@ int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                 Aes aes[1];
             #endif
                 ret = wc_AesInit(aes, ecies_heap(ctx, privKey),
-                                 eciesDevId);
+                                 ecies_enc_devid(ctx));
                 if (ret == 0) {
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, encIv,
                                                                 AES_DECRYPTION);
@@ -16826,7 +16892,7 @@ int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                 Aes aes[1];
              #endif
                 ret = wc_AesInit(aes, ecies_heap(ctx, privKey),
-                                 eciesDevId);
+                                 ecies_enc_devid(ctx));
                 if (ret == 0) {
                     byte ctr_iv[WC_AES_BLOCK_SIZE];
                     /* Make a 16 byte IV from the bytes passed in. */
@@ -16864,7 +16930,7 @@ int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
                 Aes aes[1];
             #endif
                 ret = wc_AesInit(aes, ecies_heap(ctx, privKey),
-                                 eciesDevId);
+                                 ecies_enc_devid(ctx));
                 if (ret == 0) {
                     ret = wc_AesGcmSetKey(aes, encKey, (word32)encKeySz);
                     if (ret == 0) {

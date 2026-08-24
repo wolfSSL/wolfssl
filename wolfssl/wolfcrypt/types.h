@@ -1705,6 +1705,14 @@ enum wc_PkType {
     WC_PK_TYPE_ED448_VERIFY     = 43,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_VERIFY
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+    /* ECIES with a Montgomery key type (curve25519_key / curve448_key),
+     * selected on the ecEncCtx with wc_ecc_ctx_set_curve_id(). */
+    WC_PK_TYPE_ECIES_ENCRYPT_MONT = 44,
+    WC_PK_TYPE_ECIES_DECRYPT_MONT = 45,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ECIES_DECRYPT_MONT
+#endif
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 

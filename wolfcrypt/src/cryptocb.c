@@ -1129,31 +1129,138 @@ int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv)
 #endif /* HAVE_ECC_CHECK_KEY */
 
 #ifdef HAVE_ECC_ENCRYPT
-int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
+/* Resolve the ECIES dispatch devId - the one place the adopt logic lives.
+ * The ctx devId is only set while INVALID_DEVID, adopting an ecc_key's own
+ * devId (the key is never modified); otherwise the ctx devId wins. */
+static int wc_CryptoCb_EciesDevId(void* privKey, ecEncCtx* ctx, int curveId,
+    int* devId)
+{
+    int keyDevId = INVALID_DEVID;
+    int ctxDevId = INVALID_DEVID;
+
+    /* Only an ecc_key's own devId participates in the resolution; the
+     * Montgomery key types route exclusively by the context devId. */
+    if (curveId == ECC_CURVE_DEF) {
+        keyDevId = ((ecc_key*)privKey)->devId;
+    }
+
+    if (ctx == NULL) {
+        *devId = keyDevId;
+        return 0;
+    }
+
+    if (wc_ecc_ctx_get_dev_id(ctx, &ctxDevId) != 0)
+        return BAD_FUNC_ARG;
+
+    if (ctxDevId == INVALID_DEVID && keyDevId != INVALID_DEVID) {
+        (void)wc_ecc_ctx_set_dev_id(ctx, keyDevId);
+        ctxDevId = keyDevId;
+    }
+
+    *devId = ctxDevId;
+    return 0;
+}
+
+int wc_CryptoCb_EciesEncrypt_ex(void* privKey, void* pubKey,
     const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
-    int compressed)
+    int compressed, int curveId)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
+    int devId = INVALID_DEVID;
 
     if (privKey == NULL)
         return ret;
 
+    if (wc_CryptoCb_EciesDevId(privKey, ctx, curveId, &devId) != 0)
+        return BAD_FUNC_ARG;
+
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(privKey->devId, WC_ALGO_TYPE_PK);
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-        cryptoInfo.pk.type = WC_PK_TYPE_ECIES_ENCRYPT;
-        cryptoInfo.pk.eciesencrypt.privKey = privKey;
-        cryptoInfo.pk.eciesencrypt.pubKey = pubKey;
-        cryptoInfo.pk.eciesencrypt.msg = msg;
-        cryptoInfo.pk.eciesencrypt.msgSz = msgSz;
-        cryptoInfo.pk.eciesencrypt.out = out;
-        cryptoInfo.pk.eciesencrypt.outSz = outSz;
-        cryptoInfo.pk.eciesencrypt.ctx = ctx;
-        cryptoInfo.pk.eciesencrypt.compressed = compressed;
+        if (curveId == ECC_CURVE_DEF) {
+            cryptoInfo.pk.type = WC_PK_TYPE_ECIES_ENCRYPT;
+            cryptoInfo.pk.eciesencrypt.privKey = (ecc_key*)privKey;
+            cryptoInfo.pk.eciesencrypt.pubKey = (ecc_key*)pubKey;
+            cryptoInfo.pk.eciesencrypt.msg = msg;
+            cryptoInfo.pk.eciesencrypt.msgSz = msgSz;
+            cryptoInfo.pk.eciesencrypt.out = out;
+            cryptoInfo.pk.eciesencrypt.outSz = outSz;
+            cryptoInfo.pk.eciesencrypt.ctx = ctx;
+            cryptoInfo.pk.eciesencrypt.compressed = compressed;
+        }
+        else {
+            /* Montgomery key type; the void pointers are typed by curveId. */
+            cryptoInfo.pk.type = WC_PK_TYPE_ECIES_ENCRYPT_MONT;
+            cryptoInfo.pk.eciesencrypt_mont.privKey = privKey;
+            cryptoInfo.pk.eciesencrypt_mont.pubKey = pubKey;
+            cryptoInfo.pk.eciesencrypt_mont.msg = msg;
+            cryptoInfo.pk.eciesencrypt_mont.msgSz = msgSz;
+            cryptoInfo.pk.eciesencrypt_mont.out = out;
+            cryptoInfo.pk.eciesencrypt_mont.outSz = outSz;
+            cryptoInfo.pk.eciesencrypt_mont.ctx = ctx;
+            cryptoInfo.pk.eciesencrypt_mont.curveId = curveId;
+        }
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
+    int compressed)
+{
+    return wc_CryptoCb_EciesEncrypt_ex(privKey, pubKey, msg, msgSz, out,
+        outSz, ctx, compressed, ECC_CURVE_DEF);
+}
+
+int wc_CryptoCb_EciesDecrypt_ex(void* privKey, void* pubKey,
+    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
+    int curveId)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+    int devId = INVALID_DEVID;
+
+    if (privKey == NULL)
+        return ret;
+
+    if (wc_CryptoCb_EciesDevId(privKey, ctx, curveId, &devId) != 0)
+        return BAD_FUNC_ARG;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        if (curveId == ECC_CURVE_DEF) {
+            cryptoInfo.pk.type = WC_PK_TYPE_ECIES_DECRYPT;
+            cryptoInfo.pk.eciesdecrypt.privKey = (ecc_key*)privKey;
+            cryptoInfo.pk.eciesdecrypt.pubKey = (ecc_key*)pubKey;
+            cryptoInfo.pk.eciesdecrypt.msg = msg;
+            cryptoInfo.pk.eciesdecrypt.msgSz = msgSz;
+            cryptoInfo.pk.eciesdecrypt.out = out;
+            cryptoInfo.pk.eciesdecrypt.outSz = outSz;
+            cryptoInfo.pk.eciesdecrypt.ctx = ctx;
+        }
+        else {
+            /* Montgomery key type; the void pointers are typed by curveId. */
+            cryptoInfo.pk.type = WC_PK_TYPE_ECIES_DECRYPT_MONT;
+            cryptoInfo.pk.eciesdecrypt_mont.privKey = privKey;
+            cryptoInfo.pk.eciesdecrypt_mont.pubKey = pubKey;
+            cryptoInfo.pk.eciesdecrypt_mont.msg = msg;
+            cryptoInfo.pk.eciesdecrypt_mont.msgSz = msgSz;
+            cryptoInfo.pk.eciesdecrypt_mont.out = out;
+            cryptoInfo.pk.eciesdecrypt_mont.outSz = outSz;
+            cryptoInfo.pk.eciesdecrypt_mont.ctx = ctx;
+            cryptoInfo.pk.eciesdecrypt_mont.curveId = curveId;
+        }
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
@@ -1164,31 +1271,8 @@ int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
 int wc_CryptoCb_EciesDecrypt(ecc_key* privKey, ecc_key* pubKey,
     const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
-    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
-    CryptoCb* dev;
-
-    if (privKey == NULL)
-        return ret;
-
-    /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(privKey->devId, WC_ALGO_TYPE_PK);
-    if (dev && dev->cb) {
-        wc_CryptoInfo cryptoInfo;
-        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-        cryptoInfo.pk.type = WC_PK_TYPE_ECIES_DECRYPT;
-        cryptoInfo.pk.eciesdecrypt.privKey = privKey;
-        cryptoInfo.pk.eciesdecrypt.pubKey = pubKey;
-        cryptoInfo.pk.eciesdecrypt.msg = msg;
-        cryptoInfo.pk.eciesdecrypt.msgSz = msgSz;
-        cryptoInfo.pk.eciesdecrypt.out = out;
-        cryptoInfo.pk.eciesdecrypt.outSz = outSz;
-        cryptoInfo.pk.eciesdecrypt.ctx = ctx;
-
-        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
-    }
-
-    return wc_CryptoCb_TranslateErrorCode(ret);
+    return wc_CryptoCb_EciesDecrypt_ex(privKey, pubKey, msg, msgSz, out,
+        outSz, ctx, ECC_CURVE_DEF);
 }
 #endif /* HAVE_ECC_ENCRYPT */
 #endif /* HAVE_ECC */

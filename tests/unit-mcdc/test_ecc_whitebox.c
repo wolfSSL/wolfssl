@@ -1650,10 +1650,8 @@ static void wb_arg_guards(void)
         }
     }
 
-    /* ecies_pub_key_size: the ECC branch rejects a NULL key and a key with no
-     * domain parameters, both of which wc_ecc_size() reports as size 0.  (This
-     * guard used to live in ecc_public_key_size(), which the key-type dispatch
-     * for ECIES replaced.) */
+    /* ecies_pub_key_size: the ECC branch rejects a NULL key and a key with
+     * no domain parameters, both reported by wc_ecc_size() as size 0. */
 #if defined(HAVE_ECC_ENCRYPT) && !defined(WOLFSSL_ECIES_OLD)
     {
         const ecc_set_type* savedDp = key.dp;

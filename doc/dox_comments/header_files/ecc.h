@@ -1961,6 +1961,100 @@ int wc_ecc_ctx_get_curve_id(ecEncCtx* ctx, int* curveId);
 /*!
     \ingroup ECC
 
+    \brief This function selects the device the whole-operation ECIES crypto
+    callback (WOLF_CRYPTO_CB) dispatches to for operations using this
+    context.  It routes only that callback: the DEM cipher, KDF and MAC
+    primitives of the software path route by wc_ecc_ctx_set_algo_dev_ids,
+    and the ECDH shared secret by the keys' own devIds.  Only an ecc_key's
+    own devId participates in the resolution: it is adopted onto the context
+    only while the context devId is INVALID_DEVID (the key is never
+    modified).  Once the context devId is set it always wins, even when the
+    key names a different device.  Like the key type set with
+    wc_ecc_ctx_set_curve_id, the devId survives wc_ecc_ctx_reset.  Only
+    built when crypto callbacks are enabled.
+
+    \return 0 Returned upon successfully setting the device id.
+    \return BAD_FUNC_ARG Returned if ctx is NULL.
+
+    \param ctx pointer to the ecEncCtx to configure
+    \param devId the device id registered with wc_CryptoCb_RegisterDevice,
+    or INVALID_DEVID to clear it
+
+    _Example_
+    \code
+    ecEncCtx* ctx = wc_ecc_ctx_new(0, &rng);
+    if (wc_ecc_ctx_set_curve_id(ctx, ECC_X25519) != 0 ||
+        wc_ecc_ctx_set_dev_id(ctx, myDevId) != 0) {
+        // error configuring the context
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_set_curve_id
+    \sa wc_ecc_encrypt_ex2
+    \sa wc_ecc_decrypt_ex2
+*/
+
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function reads back the devId configured on (or adopted by)
+    an ecEncCtx object.  Only built when crypto callbacks are enabled.
+
+    \return 0 Returned upon successfully reading the devId.
+    \return BAD_FUNC_ARG Returned if either argument is NULL.
+
+    \param ctx pointer to the ecEncCtx to read
+    \param devId pointer to an int that receives the devId, or INVALID_DEVID
+    when none is set
+
+    \sa wc_ecc_ctx_set_dev_id
+*/
+
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function declares, in a single call, the devIds the software
+    ECIES path hands the underlying primitives, mirroring the
+    wc_ecc_ctx_set_algo trio: encDevId routes the DEM cipher (AES), kdfDevId
+    the KDF (HKDF) and macDevId the MAC (HMAC/SHA).  Pass INVALID_DEVID for
+    any primitive that should stay in software; that is also the default when
+    this function is never called.  The ECIES devId
+    (wc_ecc_ctx_set_dev_id) routes only the whole-operation crypto callback
+    and is never inherited by the primitives.  The values survive
+    wc_ecc_ctx_reset.  Only built when crypto callbacks are enabled.
+
+    \return 0 Returned upon successfully setting the devIds.
+    \return BAD_FUNC_ARG Returned if ctx is NULL.
+
+    \param ctx pointer to the ecEncCtx to configure
+    \param encDevId device for the DEM cipher, or INVALID_DEVID for software
+    \param kdfDevId device for the KDF, or INVALID_DEVID for software
+    \param macDevId device for the MAC, or INVALID_DEVID for software
+
+    _Example_
+    \code
+    ecEncCtx* ctx = wc_ecc_ctx_new(0, &rng);
+    // AES and HMAC on the accelerator, HKDF in software
+    if (wc_ecc_ctx_set_algo_dev_ids(ctx, myDevId, INVALID_DEVID,
+            myDevId) != 0) {
+        // error configuring the context
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_set_algo
+    \sa wc_ecc_ctx_set_dev_id
+*/
+
+int wc_ecc_ctx_set_algo_dev_ids(ecEncCtx* ctx, int encDevId, int kdfDevId,
+    int macDevId);
+
+/*!
+    \ingroup ECC
+
     \brief This function returns the salt of an ecEncCtx object. This
     function should only be called when the ecEncCtx's state is
     ecSRV_INIT or ecCLI_INIT.
@@ -2145,6 +2239,14 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
     otherwise this function returns NOT_COMPILED_IN. See wc_ecc_encrypt_ex for
     the full rationale.
 
+    \note With WOLF_CRYPTO_CB, the device the ECIES crypto callback dispatches
+    to is the context's devId (wc_ecc_ctx_set_dev_id).  A devId given to
+    wc_ecc_init_ex() on privKey is adopted onto the context only while the
+    context devId is INVALID_DEVID (the key is never modified); a set
+    context devId always wins.  New code should prefer the context setter:
+    one setting covers both directions of the exchange, and it is the only
+    route for the Montgomery key types.
+
     _Example_
     \code
     byte msg[] = { initialize with msg to encrypt. Ensure padded to block size };
@@ -2223,6 +2325,14 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     algorithm. The macro is not needed with WOLFSSL_ECIES_GEN_IV (random
     per-message nonce) or WOLFSSL_ECIES_OLD (nonce derived from the KDF output).
 
+    \note With WOLF_CRYPTO_CB, the device the ECIES crypto callback dispatches
+    to is the context's devId (wc_ecc_ctx_set_dev_id).  A devId given to
+    wc_ecc_init_ex() on privKey is adopted onto the context only while the
+    context devId is INVALID_DEVID (the key is never modified); a set
+    context devId always wins.  New code should prefer the context setter:
+    one setting covers both directions of the exchange, and it is the only
+    route for the Montgomery key types.
+
     _Example_
     \code
     byte msg[] = { initialize with msg to encrypt. Ensure padded to block size };
@@ -2295,6 +2405,14 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     otherwise this function returns NOT_COMPILED_IN. See wc_ecc_encrypt_ex for
     the full rationale.
 
+    \note With WOLF_CRYPTO_CB, the device the ECIES crypto callback dispatches
+    to is the context's devId (wc_ecc_ctx_set_dev_id).  A devId given to
+    wc_ecc_init_ex() on privKey is adopted onto the context only while the
+    context devId is INVALID_DEVID (the key is never modified); a set
+    context devId always wins.  New code should prefer the context setter:
+    one setting covers both directions of the exchange, and it is the only
+    route for the Montgomery key types.
+
     _Example_
     \code
     byte cipher[] = { initialize with
@@ -2359,8 +2477,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \param compressed whether to export the ephemeral public key as a
     compressed point. ECC only; must be 0 for a Montgomery curve.
 
-    \note The crypto callback (WOLF_CRYPTO_CB) ECIES hooks take ecc_key
-    pointers and are therefore bypassed for the Montgomery curves.
+    \note The crypto callback (WOLF_CRYPTO_CB) ECIES hooks fire for the
+    Montgomery curves too: the operation arrives as
+    WC_PK_TYPE_ECIES_ENCRYPT_MONT/DECRYPT_MONT with the key pointers typed by
+    a curveId discriminator.  The dispatch device comes from
+    wc_ecc_ctx_set_dev_id() (for ecc_key, the key's own devId is the
+    fallback).
 
     _Example_
     \code
