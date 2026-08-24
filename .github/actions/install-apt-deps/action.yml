@@ -10,11 +10,13 @@ inputs:
     default: '2'
   budget-seconds:
     description: >
-      Wall-clock the whole retry loop may spend. Split across the attempts,
-      so a wedged mirror is reported by this action instead of the job being
-      cancelled around it. Must fit inside the caller's timeout-minutes
-      alongside pull-timeout; the default suits jobs of 15 minutes or more,
-      short jobs have to lower it.
+      Nominal wall-clock for the whole retry loop, split across the attempts
+      as per-command deadlines, so a wedged mirror is reported by this action
+      instead of the job being cancelled around it. The loop overshoots it by
+      retry-delay plus 10s of SIGKILL grace, and the per-command floors make
+      values below retries*60 inert. This, plus pull-timeout, plus any
+      ccache-setup in the same job, has to fit the caller's timeout-minutes -
+      the defaults need ~16 minutes.
     required: false
     default: '600'
   pull-timeout:
