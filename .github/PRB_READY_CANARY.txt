@@ -9,3 +9,5 @@ Test sequence:
 4. Confirm Jenkins PRB automatically launches a fresh full run.
 
 Do not merge this branch or pull request.
+
+canary run 2
