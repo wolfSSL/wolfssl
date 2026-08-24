@@ -2312,7 +2312,14 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
         /* note, no need to use formal atomic accessors on drbg->lock --
          * WC_RNG_BANK_INST_LOCK_HELD is held invariantly across the span, and
          * is the only bit considered by contending threads. */
-        if (drbg->lock & (WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH))
+        /* both levels can be held (an affinity-locked checkout with
+         * WC_RNG_BANK_FLAG_NO_VECTOR_OPS, whether from the caller's flags or
+         * bank-wide bank->flags, also takes the vector-ops inhibit) -- release
+         * each held level separately, innermost first, mirroring
+         * wc_rng_bank_inst_checkin(). */
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH)
+            REENABLE_VECTOR_REGISTERS();
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED)
             RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
 #endif
 
@@ -2326,15 +2333,19 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
         (void)wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg), NULL, 0);
 
 #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
-        if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
-            int ret2 = DISABLE_VECTOR_REGISTERS();
-            if (ret2 != 0)
-                drbg->lock &= ~(WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH);
-        }
-        else if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+        /* re-establish each level separately, in acquisition order (the
+         * affinity save first, then the vector-ops inhibit), mirroring
+         * wc_rng_bank_checkout(); a failed re-acquisition clears only its own
+         * lock bit, so check-in unwinds exactly the levels actually held. */
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
             int ret2 = SAVE_VECTOR_REGISTERS2();
             if (ret2 != 0)
                 drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+        }
+        if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+            int ret2 = DISABLE_VECTOR_REGISTERS();
+            if (ret2 != 0)
+                drbg->lock &= ~WC_RNG_BANK_INST_LOCK_VEC_OPS_INH;
         }
 
         #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
@@ -2384,7 +2395,14 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             migrate_disable();
             #endif
 
-            if (drbg->lock & (WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH))
+            /* both levels can be held (an affinity-locked checkout with
+             * WC_RNG_BANK_FLAG_NO_VECTOR_OPS, whether from the caller's flags or
+             * bank-wide bank->flags, also takes the vector-ops inhibit) -- release
+             * each held level separately, innermost first, mirroring
+             * wc_rng_bank_inst_checkin(). */
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH)
+                REENABLE_VECTOR_REGISTERS();
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED)
                 RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
 #endif
 
@@ -2393,15 +2411,19 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                           WC_RNG_BANK_FLAG_CAN_WAIT);
 
 #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
-            if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
-                int ret2 = DISABLE_VECTOR_REGISTERS();
-                if (ret2 != 0)
-                    drbg->lock &= ~(WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED | WC_RNG_BANK_INST_LOCK_VEC_OPS_INH);
-            }
-            else if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
+            /* re-establish each level separately, in acquisition order (the
+             * affinity save first, then the vector-ops inhibit), mirroring
+             * wc_rng_bank_checkout(); a failed re-acquisition clears only its own
+             * lock bit, so check-in unwinds exactly the levels actually held. */
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED) {
                 int ret2 = SAVE_VECTOR_REGISTERS2();
                 if (ret2 != 0)
                     drbg->lock &= ~WC_RNG_BANK_INST_LOCK_AFFINITY_LOCKED;
+            }
+            if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
+                int ret2 = DISABLE_VECTOR_REGISTERS();
+                if (ret2 != 0)
+                    drbg->lock &= ~WC_RNG_BANK_INST_LOCK_VEC_OPS_INH;
             }
 
             #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
