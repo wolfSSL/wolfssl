@@ -194,8 +194,10 @@ jobs:
           sudo apt-get clean
           APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
           # 2 attempts, not 5: this job's timeout-minutes is 20, and an
-          # attempt cut off mid-flight reports nothing.
-          retry() { local i; for i in 1 2; do "$@" && return 0; sleep 5; done; "$@"; }
+          # attempt cut off mid-flight reports nothing. The explicit return
+          # keeps the real exit code (124 from timeout) and stops a bare
+          # `sleep` from making an exhausted retry look like success.
+          retry() { local i rc=0; for i in 1 2; do "$@" && return 0; rc=$?; [ "$i" -eq 2 ] || sleep 5; done; return "$rc"; }
           retry sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q
           # The whole set is required and this bundle is small, so resolve it as
           # one closure and let any download failure fail the job. We push only
