@@ -19359,9 +19359,12 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef HAVE_EXTENDED_MASTER
     if (IsAtLeastTLSv1_3(ssl->version) &&
-        (msgType == hello_retry_request || msgType == hello_verify_request)) {
+        (msgType == hello_retry_request || msgType == hello_verify_request ||
+         msgType == session_ticket)) {
         /* Don't change EMS status until server_hello received.
          * Second ClientHello must have same extensions.
+         * NewSessionTicket is post-handshake and never carries the extension,
+         * so its absence there says nothing about what was negotiated.
          */
     }
     else if (!isRequest && ssl->options.haveEMS && !pendingEMS)

@@ -10601,6 +10601,65 @@ int test_tls13_new_session_ticket_ext_framing(void)
     return EXPECT_RESULT();
 }
 
+/* Parsing a NewSessionTicket must not disturb the extended_master_secret
+ * state.  TLSX_Parse() clears haveEMS for any non-request message that does
+ * not carry the extension, and wolfSSL_clear() never puts it back, so a
+ * cleared flag would leave a reused object negotiating TLS 1.2 without EMS. */
+int test_tls13_new_session_ticket_keeps_ems(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_EXTENDED_MASTER) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte msg[64];
+    char buf[64];
+    int msgSz;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Consume the server's own NewSessionTicket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ssl_c->options.haveEMS = 1;
+
+    /* A ticket with an empty extensions vector. */
+    msgSz = -1;
+    if (EXPECT_SUCCESS())
+        msgSz = test_tls13_make_nst(msg, (int)sizeof(msg), NULL, 0);
+    ExpectIntGT(msgSz, 0);
+    ExpectIntEQ(test_tls13_send_post_hs(&test_ctx, ssl_s, msg, msgSz),
+        TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.haveEMS, 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 9846 Section 4.3.11: when the modes the client advertised leave no PSK
  * the server may use, the PSK is ignored and a certificate handshake runs.
  * Aborting instead would kill a connection that can still be completed. */
