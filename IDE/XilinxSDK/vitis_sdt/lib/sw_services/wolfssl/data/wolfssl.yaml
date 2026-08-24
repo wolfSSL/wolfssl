@@ -1,0 +1,16 @@
+%YAML 1.2
+---
+# Copyright (C) 2006-2026 wolfSSL Inc. All rights reserved.
+# SPDX-License-Identifier: GPL-3.0-or-later
+title: Bindings for the wolfSSL library.
+maintainers:
+  - wolfSSL Inc. <support@wolfssl.com>
+type: library
+description: wolfSSL embedded TLS and wolfCrypt cryptography library
+supported_processors:
+  - condition: |
+      supported_processors = ["cortexa78", "psx_cortexa78", "psv_cortexa72",
+      "psu_cortexa53", "cortexr52", "psx_cortexr52", "psv_cortexr5",
+      "psu_cortexr5", "microblaze"]
+supported_os:
+  - standalone
