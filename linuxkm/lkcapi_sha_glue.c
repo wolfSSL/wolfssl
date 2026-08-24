@@ -2267,46 +2267,6 @@ WC_MAYBE_UNUSED static int linuxkm_InitRng_DefaultRef(WC_RNG* rng) {
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT && HAVE_HASHDRBG */
 
-#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256)
-    /* Both DRBGs compiled in: dispatch on the runtime drbgType. */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((rng_ptr)->drbgType == WC_DRBG_SHA512) \
-            ? ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-            : ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            if ((rng_ptr)->drbgType == WC_DRBG_SHA512) \
-                ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-                    = (val); \
-            else \
-                ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg == NULL && (rng_ptr)->drbg512 == NULL)
-#elif defined(WOLFSSL_DRBG_SHA512)
-    /* SHA-512 DRBG only (NO_SHA256 defined); the SHA-256 struct and
-     * rng->drbg field do not exist in this build. */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-                = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg512 == NULL)
-#else
-    /* SHA-256 DRBG only (the historical default). */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg == NULL)
-#endif
-
 static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
                                     const u8 *src, unsigned int slen,
                                     u8 *dst, unsigned int dlen)
@@ -2315,6 +2275,7 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
     /* can_block() is false whenever the affinity lock is held -- blockability
      * must be sampled before checkout. */
     int can_wait = wc_linuxkm_can_block();
+    wc_drbg_reseed_ctr_t cur_counter = 0;
     struct wc_rng_bank_inst *drbg = linuxkm_get_drbg(ctx);
 
     if (! drbg) {
@@ -2323,21 +2284,24 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
     }
 
     if (slen > 0) {
-        ret = wc_RNG_DRBG_Reseed(WC_RNG_BANK_INST_TO_RNG(drbg), src, slen);
+        /* The kernel crypto API's generate-op src is additional data (cf.
+         * crypto/drbg.c, which passes it as SP 800-90A additional input).
+         * Mix it in without entropy credit -- the reseed counter is
+         * unmodified, so only the module's own seed source resets the
+         * reseed schedule. */
+        ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                            src, slen);
         if (ret != 0) {
-            pr_warn_once("WARNING: wc_RNG_DRBG_Reseed returned %d\n",ret);
+            pr_warn_once("WARNING: wc_RNG_DRBG_Reseed_Uncredited returned %d\n",ret);
             ret = -EINVAL;
             goto out;
         }
     }
-    else if ((! WC_RNG_BANK_DRBG_NULL(WC_RNG_BANK_INST_TO_RNG(drbg))) &&
-             (WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg)) > WC_RESEED_INTERVAL / 2) &&
-             can_wait)
+    else if (can_wait &&
+             (wc_RNG_DRBG_GetReseedCtr(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                       &cur_counter) == 0) &&
+             (cur_counter > WC_RESEED_INTERVAL / 2))
     {
-        byte scratch[4];
-        word64 cur_counter = WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg));
-        WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), WC_RESEED_INTERVAL);
-
 #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         /* carefully restore preemptibility for the reseed operation. */
 
@@ -2352,8 +2316,14 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
             RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED();
 #endif
 
-        ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(drbg), scratch,
-                                   (word32)sizeof scratch);
+        /* Reseed immediately from the module's own seed source.
+         * wc_RNG_DRBG_Reseed_Now() resets the reseed counter iff the reseed
+         * succeeds; on failure it leaves the counter unmodified (the
+         * WC_RESEED_INTERVAL backstop still governs) and marks the instance
+         * out of service, exactly as an interval-forced reseed failure
+         * would.  A persistent failure is surfaced by the generate loop
+         * below. */
+        (void)wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg), NULL, 0);
 
 #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (drbg->lock & WC_RNG_BANK_INST_LOCK_VEC_OPS_INH) {
@@ -2372,10 +2342,6 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
         #endif
 #endif
 
-        if ((ret != 0) && (WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg)) >= WC_RESEED_INTERVAL)) {
-            WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), cur_counter + 1);
-        }
-        ForceZero(scratch, sizeof scratch);
     }
 
     for (;;) {
@@ -2458,7 +2424,7 @@ static int wc_linuxkm_drbg_generate(struct wc_rng_bank *ctx,
 
     if (ret != 0) {
         pr_err_ratelimited("ERROR: wc_linuxkm_drbg_generate() failing on wolfCrypt code %d.\n",ret);
-        ret = -EINVAL;
+        ret = -EIO;
     }
 
 out:
@@ -2490,7 +2456,14 @@ static int wc_linuxkm_drbg_seed(struct wc_rng_bank *ctx,
     if (slen == 0)
         return 0;
 
-    ret = wc_rng_bank_seed(ctx, seed, slen, WC_LINUXKM_INITRNG_TIMEOUT_SEC, WC_RNG_BANK_FLAG_CAN_WAIT);
+    /* The kernel crypto API's seed op carries caller-supplied material (cf.
+     * crypto/drbg.c, which maps it to an SP 800-90A personalization string /
+     * additional input, never crediting it as entropy).  Mix it into every
+     * instance without credit; the reseed schedule stays governed solely by
+     * the module's own seed source. */
+    ret = wc_rng_bank_seed(ctx, seed, slen, WC_LINUXKM_INITRNG_TIMEOUT_SEC,
+                           WC_RNG_BANK_FLAG_CAN_WAIT |
+                           WC_RNG_BANK_FLAG_SEED_UNCREDITED);
     if (ret != 0) {
         pr_err("wc_rng_bank_seed() in wc_linuxkm_drbg_seed() returned err %d.\n", ret);
         ret = -EINVAL;
@@ -2707,7 +2680,6 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
         WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST;
     struct wc_rng_bank_inst *drbg = NULL;
-    word64 cur_counter;
 
     if (len > WC_MAX_UINT_OF(word32))
         return -EFBIG;
@@ -2733,20 +2705,18 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
         goto out;
     }
 
-    if (WC_RNG_BANK_DRBG_NULL(WC_RNG_BANK_INST_TO_RNG(drbg))) {
+    if (! wc_RNG_DRBG_Present(WC_RNG_BANK_INST_TO_RNG(drbg))) {
         ret = 0; /* consistent with wc_RNG_DRBG_Reseed() behavior in RDRAND configs. */
         goto out;
     }
 
-    cur_counter = WC_RNG_BANK_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg));
-
-    ret = wc_RNG_DRBG_Reseed(WC_RNG_BANK_INST_TO_RNG(drbg), buf, (word32)len);
+    /* Mix without crediting the contributed entropy --
+     * wc_RNG_DRBG_Reseed_Uncredited() leaves the reseed counter unmodified,
+     * so only the module's own seed source resets the reseed schedule. */
+    ret = wc_RNG_DRBG_Reseed_Uncredited(WC_RNG_BANK_INST_TO_RNG(drbg), buf,
+                                        (word32)len);
     if (ret != 0)
         ret = -EINVAL;
-
-    /* Unconditionally restore the reseed counter -- don't credit the
-     * contributed entropy. */
-    WC_RNG_BANK_SET_RESEED_CTR(WC_RNG_BANK_INST_TO_RNG(drbg), cur_counter);
 
 out:
 
