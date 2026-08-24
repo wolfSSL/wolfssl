@@ -58,6 +58,9 @@ runs:
             # Same defence in depth as install-apt-deps: Acquire timeouts drop
             # a stalled connection, `timeout` hard-kills a wedged apt-get, and
             # only then does the retry loop get a non-zero exit to act on.
+            # 60s+90s x2: ccache is a ~700 KB package, and this loop has no
+            # budget input of its own, so it has to stay small enough to chain
+            # after install-apt-deps inside a 10-minute job.
             APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30
                       -o Acquire::https::Timeout=30)
             ok=""
@@ -65,14 +68,16 @@ runs:
               sudo dpkg --configure -a >/dev/null 2>&1 || true
               if sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 60 \
                      apt-get "${APT_OPTS[@]}" update -q && \
-                 sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 180 \
+                 sudo DEBIAN_FRONTEND=noninteractive timeout -k 10 90 \
                      apt-get "${APT_OPTS[@]}" install -y \
                      --no-install-recommends ccache; then
                 ok=1
                 break
               fi
               echo "::warning::ccache apt install failed (attempt $i/2)"
-              sleep 5
+              # No sleep after the last attempt - this loop is not budgeted by
+              # the caller and chains onto install-apt-deps in the same job.
+              [ "$i" -eq 2 ] || sleep 5
             done
             [ -n "$ok" ] || { echo "::error::could not install ccache"; exit 1; }
           fi
