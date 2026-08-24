@@ -898,6 +898,8 @@ WOLFSSL_API
 void wc_ecc_fp_init(void);
 WOLFSSL_API
 int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_ecc_clear_rng(ecc_key* key);
 
 WOLFSSL_API
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
