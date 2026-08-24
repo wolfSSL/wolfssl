@@ -26,69 +26,11 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/rng_bank.h>
 
-/* Helpers to access reseedCtr / null-check the active DRBG. The shape of
- * struct WC_RNG and the DRBG_*_internal types varies by which DRBGs are
- * compiled in; random.h gates the SHA-256 side on !NO_SHA256 and the SHA-512
- * side on WOLFSSL_DRBG_SHA512, so all three live combinations are handled
- * separately here. */
-#if defined(WOLFSSL_DRBG_SHA512) && !defined(NO_SHA256)
-    /* Both DRBGs compiled in: dispatch on the runtime drbgType. */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((rng_ptr)->drbgType == WC_DRBG_SHA512) \
-            ? ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-            : ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            if ((rng_ptr)->drbgType == WC_DRBG_SHA512) \
-                ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-                    = (val); \
-            else \
-                ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg == NULL && (rng_ptr)->drbg512 == NULL)
-#elif defined(WOLFSSL_DRBG_SHA512)
-    /* SHA-512 DRBG only (NO_SHA256 defined); the SHA-256 struct and
-     * rng->drbg field do not exist in this build. */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            ((struct DRBG_SHA512_internal *)(rng_ptr)->drbg512)->reseedCtr \
-                = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg512 == NULL)
-#else
-    /* SHA-256 DRBG only (the historical default). */
-    #define WC_RNG_BANK_RESEED_CTR(rng_ptr) \
-        (((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr)
-    #define WC_RNG_BANK_SET_RESEED_CTR(rng_ptr, val) \
-        do { \
-            ((struct DRBG_internal *)(rng_ptr)->drbg)->reseedCtr = (val); \
-        } while (0)
-    #define WC_RNG_BANK_DRBG_NULL(rng_ptr) \
-        ((rng_ptr)->drbg == NULL)
-#endif
-
-/* WC_DRBG_OK is used to test DRBG health in wc_rng_bank_checkout(),
- * wc_rng_bank_seed(), and wc_rng_bank_reseed(). */
-#if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(5,2,4) || FIPS_VERSION3_EQ(6,0,0))
-    #define WC_DRBG_OK 1
-#endif
-
-/* WC_RNG_BANK_SET_RESEED_CTR drives reseedCtr up to WC_RESEED_INTERVAL to
- * force a reseed.  The SHA-256 DRBG's reseedCtr is 32-bit when
- * WORD64_AVAILABLE is undefined (random.h), so a reseed interval above 2^32
- * would truncate to 0 and silently defeat the forced reseed (SP 800-90A Rev1
- * sec 9.3).  Fail the build rather than mis-reseed.  This is a compile-time
- * assert rather than a preprocessor #if because WC_RESEED_INTERVAL may be
- * defined with a (word64) cast (settings.h kernel path) that the preprocessor
- * cannot evaluate; the outer #if uses only defined() so the 64-bit path skips
- * it without expanding that cast. */
-#if defined(WC_RESEED_INTERVAL) && !defined(WORD64_AVAILABLE)
-    wc_static_assert((WC_RESEED_INTERVAL) <= 0xFFFFFFFFUL);
-#endif
+/* DRBG status and reseed-counter access, and reseed forcing, are via the
+ * wc_RNG_GetStatus() / wc_RNG_DRBG_*() services in wolfcrypt/src/random.c
+ * (FIPS v7+ and non-FIPS builds).  For pre-v7 FIPS boundaries, which lack
+ * those services, rng_bank.h supplies source-compatible static fallbacks.
+ */
 
 /* To disable retry looping in wc_rng_bank_init(), pass timeout_secs=0, and to
  * retry indefinitely, pass negative timeout_secs -- the flags arg here is only
@@ -625,31 +567,37 @@ WOLFSSL_API int wc_rng_bank_checkout(
                 &expected,
                 new_lock_value))
         {
+            wc_drbg_reseed_ctr_t cur_reseed_ctr = 0;
+
             *rng_inst = &bank->rngs[preferred_inst_offset];
 
             /* Two scenarios where we put an instance back and move on, both of
              * them only when the caller allows failover and instances remain:
              *
-             * (1) It's not in service (an earlier wc_rng_bank_inst_reinit()
-             * failed and set status to WC_DRBG_FAILED), or
+             * (1) It's not in service (a module-side failure marked it
+             * WC_DRBG_FAILED, or an earlier wc_rng_bank_inst_reinit() failed
+             * and left it WC_DRBG_NOT_INIT), or
              *
              * (2) It's due for reseed and the caller can't wait.
              *
-             * rng.status, not a NULL DRBG, is the out-of-service test.  With
-             * HAVE_INTEL_RDRAND on an RDRAND-capable CPU, _InitRng() bypasses
-             * DRBG instantiation entirely and returns a usable instance whose
-             * drbg is NULL and whose status is WC_DRBG_OK; treating that as
+             * rng.status, not a missing DRBG, is the out-of-service test.
+             * With HAVE_INTEL_RDRAND on an RDRAND-capable CPU, _InitRng()
+             * bypasses DRBG instantiation entirely and returns a usable
+             * instance with no DRBG and status WC_DRBG_OK; treating that as
              * out of service would divert away from every instance in the
-             * bank.  WC_RNG_BANK_DRBG_NULL() below is only guarding the
-             * reseedCtr read, which dereferences the DRBG pointer.
+             * bank.  wc_RNG_DRBG_GetReseedCtr() reports a counter of 0 for
+             * such instances -- never due for reseed -- so no separate
+             * DRBG-presence test is needed here.
              */
             if ((flags & WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST) &&
                 (n_rngs_tried < bank->n_rngs) &&
-                (((*rng_inst)->rng.status != WC_DRBG_OK) ||
+                ((wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(*rng_inst)) !=
+                  WC_DRBG_OK) ||
                  ((! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)) &&
-                  (! WC_RNG_BANK_DRBG_NULL(&(*rng_inst)->rng)) &&
-                  (WC_RNG_BANK_RESEED_CTR(&(*rng_inst)->rng) >=
-                   WC_RESEED_INTERVAL))))
+                  (wc_RNG_DRBG_GetReseedCtr(
+                      WC_RNG_BANK_INST_TO_RNG(*rng_inst),
+                      &cur_reseed_ctr) == 0) &&
+                  (cur_reseed_ctr >= WC_RESEED_INTERVAL))))
             {
                 WOLFSSL_ATOMIC_STORE((*rng_inst)->lock, WC_RNG_BANK_INST_LOCK_FREE);
                 *rng_inst = NULL;
@@ -657,9 +605,10 @@ WOLFSSL_API int wc_rng_bank_checkout(
             else {
 #ifdef WC_VERBOSE_RNG
                 if ((! (flags & WC_RNG_BANK_FLAG_CAN_WAIT)) &&
-                    (! WC_RNG_BANK_DRBG_NULL(&(*rng_inst)->rng)) &&
-                    (WC_RNG_BANK_RESEED_CTR(&(*rng_inst)->rng) >=
-                     WC_RESEED_INTERVAL))
+                    (wc_RNG_DRBG_GetReseedCtr(
+                        WC_RNG_BANK_INST_TO_RNG(*rng_inst),
+                        &cur_reseed_ctr) == 0) &&
+                    (cur_reseed_ctr >= WC_RESEED_INTERVAL))
                 {
                     WOLFSSL_DEBUG_PRINTF(
                         "WARNING: wc_rng_bank_checkout() returning RNG ID %d, "
@@ -1101,13 +1050,17 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
 out:
 
     /* Leave a failed instance explicitly out of service rather than relying
-     * on whichever status _InitRng() happened to leave behind.  The DRBG is
-     * NULL at this point; wc_rng_bank_checkout() diverts away from such an
-     * instance when the caller allows failover, and the seed/reseed walks
-     * refuse it.
+     * on whichever status _InitRng() happened to leave behind (some of its
+     * platform-specific failure paths return with status WC_DRBG_OK).
+     * wc_FreeRng() deterministically leaves status WC_DRBG_NOT_INIT -- out of
+     * service under every status-gate in this facility -- and is idempotent
+     * on the failed-init carcass, so the marking happens entirely through
+     * the module's own service interface.  wc_rng_bank_checkout() diverts
+     * away from such an instance when the caller allows failover, and the
+     * seed/reseed walks refuse it.
      */
     if (ret != 0)
-        rng_inst->rng.status = WC_DRBG_FAILED;
+        (void)wc_FreeRng(WC_RNG_BANK_INST_TO_RNG(rng_inst));
 
     return ret;
 }
@@ -1159,7 +1112,9 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
      */
     for (n = bank->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_bank_inst *drbg;
-        ret = wc_rng_bank_checkout(bank, &drbg, n, timeout_secs, flags);
+        ret = wc_rng_bank_checkout(bank, &drbg, n, timeout_secs,
+                                   flags & ~(word32)
+                                       WC_RNG_BANK_FLAG_SEED_UNCREDITED);
         if (ret != 0) {
 #ifdef WC_VERBOSE_RNG
             WOLFSSL_DEBUG_PRINTF(
@@ -1175,16 +1130,23 @@ WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
          * itself (random.c returns success for a NULL DRBG under RDRAND), so
          * let it through rather than calling it an error.
          */
-        else if (drbg->rng.status != WC_DRBG_OK) {
+        else if (wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(drbg)) !=
+                 WC_DRBG_OK)
+        {
 #ifdef WC_VERBOSE_RNG
             WOLFSSL_DEBUG_PRINTF(
                 "WARNING: wc_rng_bank_seed(): inst#%d is out of service "
-                "(status %d).\n", n, (int)drbg->rng.status);
+                "(status %d).\n", n,
+                wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(drbg)));
 #endif
             ret = BAD_STATE_E;
         }
-        else if ((ret = wc_RNG_DRBG_Reseed(WC_RNG_BANK_INST_TO_RNG(drbg), seed,
-                                         seedSz)) != 0)
+        else if ((ret = ((flags & WC_RNG_BANK_FLAG_SEED_UNCREDITED)
+                         ? wc_RNG_DRBG_Reseed_Uncredited(
+                               WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz)
+                         : wc_RNG_DRBG_Reseed(
+                               WC_RNG_BANK_INST_TO_RNG(drbg), seed, seedSz)))
+                 != 0)
         {
 #ifdef WC_VERBOSE_RNG
             WOLFSSL_DEBUG_PRINTF(
@@ -1221,9 +1183,13 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
     /* wc_rng_bank_reseed() must walk every instance by explicit index -- forbid
      * flags that would let wc_rng_bank_checkout() pick a different instance
      * than requested.  Same restriction applies in wc_rng_bank_seed().
+     * WC_RNG_BANK_FLAG_SEED_UNCREDITED applies only to wc_rng_bank_seed() --
+     * a bank reseed is always from the module's own seed source, and always
+     * credited.
      */
     if (flags & (WC_RNG_BANK_FLAG_CAN_FAIL_OVER_INST |
-                 WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST))
+                 WC_RNG_BANK_FLAG_PREFER_AFFINITY_INST |
+                 WC_RNG_BANK_FLAG_SEED_UNCREDITED))
         return BAD_FUNC_ARG;
 
     if (bank == NULL) {
@@ -1251,36 +1217,32 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
         if (ret != 0)
             goto out;
 
-        if (drbg->rng.status != WC_DRBG_OK) {
+        if (wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(drbg)) != WC_DRBG_OK) {
 #ifdef WC_VERBOSE_RNG
             WOLFSSL_DEBUG_PRINTF(
                 "WARNING: wc_rng_bank_reseed(): inst#%d is out of service "
-                "(status %d).\n", n, (int)drbg->rng.status);
+                "(status %d).\n", n,
+                wc_RNG_GetStatus(WC_RNG_BANK_INST_TO_RNG(drbg)));
 #endif
             (void)wc_rng_bank_checkin(bank, &drbg);
             ret = BAD_STATE_E;
             goto out;
         }
 
-        /* The store below writes through the DRBG pointer.  An in-service
-         * instance can still have none: _InitRng() bypasses DRBG
-         * instantiation when the CPU has RDRAND (HAVE_INTEL_RDRAND).  There
-         * is no reseed counter to force in that case, and nothing to reseed;
-         * skip, do not fail.
+        /* An in-service instance can still have no DRBG: _InitRng() bypasses
+         * DRBG instantiation when the CPU has RDRAND (HAVE_INTEL_RDRAND).
+         * There is nothing to reseed in that case; skip, do not fail.
          */
-        if (WC_RNG_BANK_DRBG_NULL(&drbg->rng)) {
+        if (! wc_RNG_DRBG_Present(WC_RNG_BANK_INST_TO_RNG(drbg))) {
             (void)wc_rng_bank_checkin(bank, &drbg);
             continue;
         }
 
-        WC_RNG_BANK_SET_RESEED_CTR(&drbg->rng, WC_RESEED_INTERVAL);
-
         if (flags & WC_RNG_BANK_FLAG_CAN_WAIT) {
-            byte scratch[4];
             for (;;) {
                 time_t ts2;
-                ret = wc_RNG_GenerateBlock(WC_RNG_BANK_INST_TO_RNG(drbg), scratch,
-                                           (word32)sizeof(scratch));
+                ret = wc_RNG_DRBG_Reseed_Now(WC_RNG_BANK_INST_TO_RNG(drbg),
+                                             NULL, 0);
                 if (ret == 0)
                     break;
                 if ((timeout_secs == 0) ||
@@ -1305,10 +1267,16 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
                     break;
                 WC_RELAX_LONG_LOOP();
             }
+            if (ret != 0) {
+                /* Preserve the pre-existing contract: a failed forced reseed
+                 * leaves the instance due for reseed, so the next generate
+                 * operation retries it in-boundary. */
+                (void)wc_RNG_DRBG_ScheduleReseed(WC_RNG_BANK_INST_TO_RNG(drbg));
+            }
 #ifdef WC_VERBOSE_RNG
             if ((ret != 0) && (ret != WC_NO_ERR_TRACE(WC_TIMEOUT_E)))
                 WOLFSSL_DEBUG_PRINTF(
-                    "ERROR: wc_crng_reseed() wc_RNG_GenerateBlock() "
+                    "ERROR: wc_rng_bank_reseed() wc_RNG_DRBG_Reseed_Now() "
                     "for DRBG #%d returned %d.", n, ret);
 #endif
             (void)wc_rng_bank_checkin(bank, &drbg);
@@ -1323,6 +1291,10 @@ WOLFSSL_API int wc_rng_bank_reseed(struct wc_rng_bank *bank,
             WC_RELAX_LONG_LOOP();
         }
         else {
+            /* Cannot gather entropy without waiting -- mark the instance due
+             * for reseed and let the next entropy-capable generate operation
+             * perform it in-boundary. */
+            (void)wc_RNG_DRBG_ScheduleReseed(WC_RNG_BANK_INST_TO_RNG(drbg));
             (void)wc_rng_bank_checkin(bank, &drbg);
         }
     }
