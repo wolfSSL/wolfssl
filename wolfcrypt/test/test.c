@@ -50404,6 +50404,21 @@ static wc_test_ret_t ed25519_asn_test(ed25519_key* key3)
 
 #endif /* HAVE_ED25519_VERIFY */
 
+    /* The empty message may also be passed as (NULL, 0), and must produce
+     * the same (deterministic) signature. */
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_ed25519_sign_msg(NULL, 0, out, &outlen, key3);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(out, sig, 64))
+        return WC_TEST_RET_ENC_NC;
+#if defined(HAVE_ED25519_VERIFY)
+    ret = wc_ed25519_verify_msg(out, outlen, NULL, 0, &verify, key3);
+    if (ret != 0 || verify != 1)
+        return WC_TEST_RET_ENC_EC(ret);
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
+#endif /* HAVE_ED25519_VERIFY */
+
     wc_ed25519_free(key3);
     wc_ed25519_init_ex(key3, HEAP_HINT, devId);
 
@@ -52302,6 +52317,22 @@ static wc_test_ret_t ed448_asn_test(ed448_key* key3)
     if (ret != 0 || verify != 1)
         return WC_TEST_RET_ENC_EC(ret);
 #endif /* HAVE_ED448_VERIFY */
+
+    /* The empty message may also be passed as (NULL, 0), and must produce
+     * the same (deterministic) signature. */
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    ret = wc_ed448_sign_msg(NULL, 0, out, &outlen, key3, NULL, 0);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(out, sig, sizeof(sig)))
+        return WC_TEST_RET_ENC_NC;
+#if defined(HAVE_ED448_VERIFY)
+    ret = wc_ed448_verify_msg(out, outlen, NULL, 0, &verify, key3,
+                NULL, 0);
+    if (ret != 0 || verify != 1)
+        return WC_TEST_RET_ENC_EC(ret);
+#endif /* HAVE_ED448_VERIFY */
+#endif /* !HAVE_FIPS || FIPS_VERSION3_GE(7,0,0) */
 
     wc_ed448_free(key3);
     ret = wc_ed448_init(key3);
@@ -60630,6 +60661,17 @@ static wc_test_ret_t mldsa_param_test(int param, WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
+
+    /* Empty message passed as (NULL, 0): sign/verify roundtrip. */
+    sigLen = wc_MlDsaKey_SigSize(key);
+    ret = wc_MlDsaKey_SignCtx(key, NULL, 0, sig, &sigLen, NULL, 0, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_MlDsaKey_VerifyCtx(key, sig, sigLen, NULL, 0, NULL, 0, &res);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (res != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
 #endif
 #endif
 
@@ -61616,6 +61658,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t falcon_test(void)
                 if (res != 0)
                     ret = WC_TEST_RET_ENC_NC;
             }
+            if (ret == 0) {
+                /* The empty message may be passed as (NULL, 0). */
+                siglen = FALCON_MAX_SIG_SIZE;
+                ret = wc_falcon_sign_msg(NULL, 0, sig, &siglen, k, &rng);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            if (ret == 0) {
+                res = 0;
+                ret = wc_falcon_verify_msg(sig, siglen, NULL, 0, &res, k);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+                else if (res != 1)
+                    ret = WC_TEST_RET_ENC_NC;
+            }
             if (k_inited)
                 wc_falcon_free(k);
             if (ret != 0)
@@ -61947,6 +62004,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
             sig[j] ^= 1;
         }
     }
+
+    /* Empty message passed as (NULL, 0): sign/verify roundtrip. */
+    ret = wc_XmssKey_Sign(&signingKey, sig, &sigSz, NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 out:
 
@@ -62628,8 +62693,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
         ret = 0;
     }
 
-    /* 2 ** 5 should be the max number of signatures */
-    for (i = 0; i < 32; ++i) {
+    /* Empty message passed as (NULL, 0): sign/verify roundtrip.  This
+     * spends one of the 2**5 available signatures, so the exhaustion loop
+     * below runs 31 iterations. */
+    ret = wc_LmsKey_Sign(&signingKey, sig, &sigSz, NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_Verify(&verifyKey, sig, sigSz, NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* 2 ** 5 should be the max number of signatures; one was spent on the
+     * empty-message probe above. */
+    for (i = 0; i < 31; ++i) {
         /* We should have remaining signstures. */
         sigsLeft = wc_LmsKey_SigsLeft(&signingKey);
         if (sigsLeft == 0) {
@@ -63199,6 +63275,21 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
         sig, sigLen);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
+    /* Empty message passed as (NULL, 0): sign/verify roundtrip.  Run for
+     * the fast 128-bit set only -- signing cost on the "s" sets is
+     * substantial and the code path is parameter-independent. */
+    if (param == SLHDSA_SHAKE128F) {
+        sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        ret = wc_SlhDsaKey_Sign(key, NULL, 0, NULL, 0, sig, &sigLen, &rng);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
+        ret = wc_SlhDsaKey_Verify(key_vfy, NULL, 0, NULL, 0, sig, sigLen);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        }
     }
 
     /* HashSLH-DSA takes the caller's pre-hashed digest as input. */

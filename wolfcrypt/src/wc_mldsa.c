@@ -11317,8 +11317,16 @@ int wc_MlDsaKey_SignCtx(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte mldsa_empty_msg = 0;
+        msg = &mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
@@ -11376,8 +11384,16 @@ int wc_MlDsaKey_Sign(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+    if ((sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte mldsa_empty_msg = 0;
+        msg = &mldsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -11490,9 +11506,16 @@ int wc_MlDsaKey_SignCtxWithSeed(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
-            (seed == NULL)) {
+    if ((sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL) || ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte mldsa_empty_msg = 0;
+        msg = &mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
@@ -11531,9 +11554,16 @@ int wc_MlDsaKey_SignWithSeed(wc_MlDsaKey* key, byte* sig, word32 *sigLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL) ||
-            (seed == NULL)) {
+    if ((sig == NULL) || (sigLen == NULL) || (key == NULL) ||
+            (seed == NULL) || ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte mldsa_empty_msg = 0;
+        msg = &mldsa_empty_msg;
     }
     if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
@@ -11668,8 +11698,16 @@ int wc_MlDsaKey_VerifyCtx(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((key == NULL) || (sig == NULL) || (msg == NULL) || (res == NULL)) {
+    if ((key == NULL) || (sig == NULL) || (res == NULL) ||
+            ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte mldsa_empty_msg = 0;
+        msg = &mldsa_empty_msg;
     }
     if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
         ret = BAD_FUNC_ARG;
@@ -11725,8 +11763,16 @@ int wc_MlDsaKey_Verify(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     int ret = 0;
 
     /* Validate parameters. */
-    if ((key == NULL) || (sig == NULL) || (msg == NULL) || (res == NULL)) {
+    if ((key == NULL) || (sig == NULL) || (res == NULL) ||
+            ((msg == NULL) && (msgLen != 0))) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte mldsa_empty_msg = 0;
+        msg = &mldsa_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
