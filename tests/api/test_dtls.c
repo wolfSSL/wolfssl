@@ -5274,8 +5274,10 @@ int test_WOLFSSL_dtls_version_alert(void)
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
     WOLFSSL *ssl_s = NULL;
+    WOLFSSL_ALERT_HISTORY h;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&h, 0, sizeof(h));
 
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_2_client_method, wolfDTLSv1_server_method), 0);
@@ -5295,9 +5297,15 @@ int test_WOLFSSL_dtls_version_alert(void)
     /* should fail */
     ExpectTrue((wolfSSL_connect(ssl_c) == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) &&
         (ssl_c->error == WC_NO_ERR_TRACE(VERSION_ERROR)));
-    /* shuould fail */
+    /* Should fail. The client sends a protocol_version alert in a record
+     * stamped with its own (DTLS 1.2) version. The server must still process
+     * that alert rather than reject the record on its version, so that the
+     * peer's alert reason reaches the application. */
     ExpectTrue((wolfSSL_accept(ssl_s) == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) &&
-        (ssl_s->error == WC_NO_ERR_TRACE(VERSION_ERROR) || ssl_s->error == WC_NO_ERR_TRACE(FATAL_ERROR)));
+        (ssl_s->error == WC_NO_ERR_TRACE(FATAL_ERROR)));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_s, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_rx.code, wolfssl_alert_protocol_version);
+    ExpectIntEQ(h.last_rx.level, alert_fatal);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
