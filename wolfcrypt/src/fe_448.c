@@ -26,7 +26,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#if defined(HAVE_CURVE448) || defined(HAVE_ED448)
+/* under WOLF_CRYPTO_CB_ONLY_CURVE448 the callback device does all the field
+ * math, so curve448 does not pull this file in on its own */
+#if (defined(HAVE_CURVE448) && !defined(WOLF_CRYPTO_CB_ONLY_CURVE448)) || \
+    defined(HAVE_ED448)
 
 #include <wolfssl/wolfcrypt/fe_448.h>
 
@@ -2509,4 +2512,4 @@ void fe448_cmov(sword32* a, const sword32* b, int c)
 #endif /* HAVE_ED448 */
 #endif
 
-#endif /* HAVE_CURVE448 || HAVE_ED448 */
+#endif /* (HAVE_CURVE448 && !WOLF_CRYPTO_CB_ONLY_CURVE448) || HAVE_ED448 */

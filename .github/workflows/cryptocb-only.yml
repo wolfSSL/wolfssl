@@ -121,9 +121,18 @@ jobs:
           {"name": "curve25519", "minutes": 3.6,
            "comment": "WOLF_CRYPTO_CB_ONLY_CURVE25519: strips software X25519 (keygen/shared-secret); swdev provides the software path via cryptocb. Nonblock and async X25519 have no callback path and are left disabled.",
            "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE25519"]},
-          {"name": "all", "minutes": 4.1,
-           "comment": "All seven ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
-           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519"]}
+          {"name": "curve448", "minutes": 4.0,
+           "comment": "WOLF_CRYPTO_CB_ONLY_CURVE448: strips software X448 (keygen/shared-secret/make-pub/generic) including the fe448 field math; swdev provides the software path via cryptocb.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
+          {"name": "curve448-no-ed448", "minutes": 4.0,
+           "comment": "Same as curve448 but with ed448 off. ed448 is the only other user of the fe448 math, so without it the strip is complete and nothing must pull the math back in. The curve448 entry above keeps ed448 enabled, which leaves fe_448.c compiled and would hide such a regression at link time.",
+           "configure": ["--disable-ed448", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
+          {"name": "curve448-onlycb-no-swdev", "minutes": 2.5,
+           "comment": "CB_ONLY_CURVE448 without swdev: runs curve448_onlycb_test, the only coverage of the cb-handled/cb-delegated (exampleVar 99/1) dispatch incl. make_pub/generic. cryptonly drops TLS so make check needs no software X448 provider.",
+           "configure": ["--disable-swdev", "--enable-cryptonly", "CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_CURVE448"]},
+          {"name": "all", "minutes": 4.3,
+           "comment": "All eight ONLY_* macros at once: every supported software primitive is stripped and dispatched through cryptocb. Catches any cross-algorithm call that a single-strip entry would still resolve via the remaining software paths.",
+           "configure": ["CPPFLAGS=-DWOLF_CRYPTO_CB_ONLY_ECC -DWOLF_CRYPTO_CB_ONLY_RSA -DWOLF_CRYPTO_CB_ONLY_SHA256 -DWOLF_CRYPTO_CB_ONLY_SHA512 -DWOLF_CRYPTO_CB_ONLY_AES -DWOLF_CRYPTO_CB_ONLY_ED25519 -DWOLF_CRYPTO_CB_ONLY_CURVE25519 -DWOLF_CRYPTO_CB_ONLY_CURVE448"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \

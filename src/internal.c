@@ -9301,7 +9301,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #endif /* WOLFSSL_HAVE_SLHDSA */
     #ifdef HAVE_CURVE448
         case DYNAMIC_TYPE_CURVE448:
-            ret = wc_curve448_init((curve448_key*)*pKey);
+            ret = wc_curve448_init_ex((curve448_key*)*pKey, ssl->heap,
+                                      ssl->devId);
             if (ret == 0)
                 key_inited = 1;
             break;
@@ -9399,7 +9400,8 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
     #ifdef HAVE_CURVE448
         case DYNAMIC_TYPE_CURVE448:
             wc_curve448_free((curve448_key*)pKey);
-            ret = wc_curve448_init((curve448_key*)pKey);
+            ret = wc_curve448_init_ex((curve448_key*)pKey, ssl->heap,
+                                      ssl->devId);
             break;
     #endif /* HAVE_CURVE448 */
     #if defined(HAVE_FALCON)

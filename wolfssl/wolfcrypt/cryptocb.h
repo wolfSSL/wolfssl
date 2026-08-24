@@ -77,6 +77,9 @@
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/wolfcrypt/curve448.h>
+#endif
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
@@ -382,6 +385,35 @@ typedef struct wc_CryptoInfo {
                                          * priv/pub consistency              */
             } ed25519checkkey;
         #endif
+        #ifdef HAVE_CURVE448
+            struct {
+                WC_RNG*  rng;
+                int      size;
+                curve448_key* key;
+                int      curveId;
+            } curve448kg;
+            struct {
+                curve448_key* private_key;
+                curve448_key* public_key;
+                byte*    out;
+                word32*  outlen;
+                int      endian;
+            } curve448;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+            } curve448makepub;
+            struct {
+                byte*        pub;
+                word32       pubSz;
+                const byte*  priv;
+                word32       privSz;
+                const byte*  basepoint;
+                word32       basepointSz;
+            } curve448generic;
+        #endif /* HAVE_CURVE448 */
         #ifdef HAVE_ED448
             struct {
                 const byte*  in;
@@ -951,6 +983,18 @@ WOLFSSL_LOCAL int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
     word32 pubKeySz);
 WOLFSSL_LOCAL int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 #endif /* HAVE_ED25519 */
+
+#ifdef HAVE_CURVE448
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448Gen(WC_RNG* rng, int keySize,
+    curve448_key* key);
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448(curve448_key* private_key,
+    curve448_key* public_key, byte* out, word32* outlen, int endian);
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448MakePub(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv);
+WOLFSSL_LOCAL int wc_CryptoCb_Curve448Generic(int devId, int public_size,
+    byte* pub, int private_size, const byte* priv, int basepoint_size,
+    const byte* basepoint);
+#endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
 WOLFSSL_LOCAL int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen,
