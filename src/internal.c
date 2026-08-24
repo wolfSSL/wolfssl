@@ -9971,6 +9971,13 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     #endif
 #endif
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+    defined(WOLFSSL_TLS13)
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_ca_names, ssl->heap);
+    ssl->ws_ca_names = NULL;
+    TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
+    ssl->ws_peer_ca_names = NULL;
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     FreeSSL_StaticMemory(ssl);
 #endif /* WOLFSSL_STATIC_MEMORY */
@@ -9991,13 +9998,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     ssl->ca_names = NULL;
     wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
     ssl->peer_ca_names = NULL;
-#endif
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
-    defined(WOLFSSL_TLS13)
-    TLSX_CertificateAuthorities_FreeAll(ssl->ws_ca_names, ssl->heap);
-    ssl->ws_ca_names = NULL;
-    TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
-    ssl->ws_peer_ca_names = NULL;
 #endif
 #ifdef WOLFSSL_DTLS13
     Dtls13FreeFsmResources(ssl);
