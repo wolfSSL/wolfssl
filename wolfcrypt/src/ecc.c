@@ -15094,6 +15094,18 @@ int wc_ecc_ctx_get_protocol(ecEncCtx* ctx, int* protocol)
 
     return 0;
 }
+
+/* Read the RNG a caller set on the context, for backends that need one
+ * instead of standing up a DRBG of their own. */
+int wc_ecc_ctx_get_rng(ecEncCtx* ctx, WC_RNG** rng)
+{
+    if (ctx == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+
+    *rng = ctx->rng;
+
+    return 0;
+}
 #endif /* WOLF_CRYPTO_CB */
 
 

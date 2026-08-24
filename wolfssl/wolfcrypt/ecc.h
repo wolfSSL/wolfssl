@@ -1129,6 +1129,8 @@ WOLFSSL_API
 int wc_ecc_ctx_get_mac_salt(ecEncCtx* ctx, const byte** salt, word32* sz);
 WOLFSSL_API
 int wc_ecc_ctx_get_protocol(ecEncCtx* ctx, int* protocol);
+WOLFSSL_API
+int wc_ecc_ctx_get_rng(ecEncCtx* ctx, WC_RNG** rng);
 #endif /* WOLF_CRYPTO_CB */
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);

@@ -156,6 +156,10 @@ static int wc_AsuEciesCurve(ecc_key* key, u8* curveType, u8* keyLen)
         return CRYPTOCB_UNAVAILABLE;
     }
     switch (key->dp->id) {
+        case ECC_SECP192R1:
+            *curveType = (u8)XASU_ECC_NIST_P192;
+            *keyLen    = (u8)XASU_ECC_P192_SIZE_IN_BYTES;
+            break;
         case ECC_SECP256R1:
             *curveType = (u8)XASU_ECC_NIST_P256;
             *keyLen    = (u8)XASU_ECC_P256_SIZE_IN_BYTES;
@@ -285,6 +289,12 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
     word32   need;
     word32   status;
     word32   addl = 0;
+    const byte* macSalt = NULL;
+    const byte* infoP   = NULL;
+    word32   macSaltSz  = 0;
+    word32   infoSz     = 0;
+    int      proto      = 0;
+    WC_RNG*  rng        = NULL;
     int      ret;
 
     /* Return the decline code, not an error, so wolfSSL can use software. */
@@ -309,27 +319,29 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
     }
     /* Only GCM here. The ASU cannot take extra salt and needs a context, so
      * software handles those cases. */
-    {
-        const byte* macSalt = NULL;
-        const byte* infoP   = NULL;
-        word32 macSaltSz = 0;
-        word32 infoSz    = 0;
-        int    proto     = 0;
-        (void)wc_ecc_ctx_get_mac_salt(ctx, &macSalt, &macSaltSz);
-        (void)wc_ecc_ctx_get_info(ctx, &infoP, &infoSz);
-        (void)wc_ecc_ctx_get_protocol(ctx, &proto);
-        if (macSaltSz > 0U) {
-            return CRYPTOCB_UNAVAILABLE;
-        }
-        if (infoSz == 0U) {
-            WC_ASU_PRINTF("[ASU] ecies: GCM needs a non-empty KDF context\r\n");
-            return CRYPTOCB_UNAVAILABLE;
-        }
-        /* The ASU always uses the first half of the derived key, which is the
-         * client half. A context is never built with protocol zero. */
-        if (proto != REQ_RESP_CLIENT) {
-            return CRYPTOCB_UNAVAILABLE;
-        }
+    ret = wc_ecc_ctx_get_mac_salt(ctx, &macSalt, &macSaltSz);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ecc_ctx_get_info(ctx, &infoP, &infoSz);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ecc_ctx_get_protocol(ctx, &proto);
+    if (ret != 0) {
+        return ret;
+    }
+    if (macSaltSz > 0U) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (infoSz == 0U) {
+        WC_ASU_PRINTF("[ASU] ecies: GCM needs a non-empty KDF context\r\n");
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    /* The ASU always uses the first half of the derived key, which is the
+     * client half. A context is never built with protocol zero. */
+    if (proto != REQ_RESP_CLIENT) {
+        return CRYPTOCB_UNAVAILABLE;
     }
     /* The caller passes a key here, but the ASU makes its own. */
     if (privKey == NULL) {
@@ -374,21 +386,30 @@ static int wc_AsuEciesEncrypt(wc_CryptoInfo* info)
         wc_AsuEciesReqFree(&mem);
         return ret;
     }
-    /* Make the GCM nonce with a local RNG on the ASU device id. */
-    {
-        WC_RNG rng;
-        ret = wc_InitRng_ex(&rng, NULL, WOLFSSL_VERSAL_GEN2_ASU_DEVID);
-        if (ret == 0) {
-            ret = wc_RNG_GenerateBlock(&rng, mem.req->iv,
-                WC_ASU_ECIES_NONCE_SZ);
-            wc_FreeRng(&rng);
-        }
-    }
+    /* Nonce from the caller's RNG, key first then context, as software does.
+     * A private DRBG here would ignore the RNG the application chose. */
+    ret = wc_ecc_ctx_get_rng(ctx, &rng);
     if (ret != 0) {
-        /* That RNG needs a seed source this build may not have, so decline
-         * and let wolfSSL try again in software. */
         wc_AsuEciesReqFree(&mem);
-        return CRYPTOCB_UNAVAILABLE;
+        return ret;
+    }
+#ifdef ECC_TIMING_RESISTANT
+    /* The key's own RNG wins when it has one, which is what software uses. */
+    if (privKey->rng != NULL) {
+        rng = privKey->rng;
+    }
+#endif
+    if (rng == NULL) {
+        /* Software will not invent a nonce either, so report the missing RNG
+         * rather than declining and having it rediscover the same thing. */
+        WC_ASU_PRINTF("[ASU] ecies enc: no RNG for the GCM nonce\r\n");
+        wc_AsuEciesReqFree(&mem);
+        return MISSING_RNG_E;
+    }
+    ret = wc_RNG_GenerateBlock(rng, mem.req->iv, WC_ASU_ECIES_NONCE_SZ);
+    if (ret != 0) {
+        wc_AsuEciesReqFree(&mem);
+        return ret;
     }
 
     wc_AsuEciesFillParams(&mem.req->params, ctx, curveType, keyLen, aesKeySize,

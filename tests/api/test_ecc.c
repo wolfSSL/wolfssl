@@ -1679,8 +1679,9 @@ int test_wc_ecc_ctx_set_info(void)
 
 /*
  * Testing the crypto-callback context accessors wc_ecc_ctx_get_algo,
- * wc_ecc_ctx_get_kdf_salt, wc_ecc_ctx_get_info, wc_ecc_ctx_get_mac_salt and
- * wc_ecc_ctx_get_protocol (built only when WOLF_CRYPTO_CB is enabled).
+ * wc_ecc_ctx_get_kdf_salt, wc_ecc_ctx_get_info, wc_ecc_ctx_get_mac_salt,
+ * wc_ecc_ctx_get_protocol and wc_ecc_ctx_get_rng (built only when
+ * WOLF_CRYPTO_CB is enabled).
  */
 int test_wc_ecc_ctx_getters(void)
 {
@@ -1804,6 +1805,39 @@ int test_wc_ecc_ctx_getters(void)
         ExpectIntEQ(wc_ecc_ctx_get_protocol(NULL, &proto),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_ecc_ctx_get_protocol(ctx, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    /* get_rng: the caller's RNG must come back out unchanged. The ASU ECIES
+     * offload uses it for the GCM nonce instead of standing up its own DRBG,
+     * so a getter that returned NULL or a different RNG would silently change
+     * where that nonce comes from. */
+    {
+        WC_RNG  rng2;
+        WC_RNG* gotRng = NULL;
+
+        XMEMSET(&rng2, 0, sizeof(rng2));
+
+        /* Point the out-parameter somewhere else first, so the checks fail if
+         * the getter never writes it. */
+        gotRng = &rng2;
+        ExpectIntEQ(wc_ecc_ctx_get_rng(ctx, &gotRng), 0);
+        ExpectPtrEq(gotRng, &rng);
+
+        /* wc_ecc_ctx_reset() swaps the RNG, and the getter has to follow. */
+        ExpectIntEQ(wc_InitRng(&rng2), 0);
+        ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng2), 0);
+        gotRng = NULL;
+        ExpectIntEQ(wc_ecc_ctx_get_rng(ctx, &gotRng), 0);
+        ExpectPtrEq(gotRng, &rng2);
+        /* Put the original RNG back so rng2 can be freed here. */
+        ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+        DoExpectIntEQ(wc_FreeRng(&rng2), 0);
+
+        /* bad args: NULL ctx / NULL out-parameter */
+        ExpectIntEQ(wc_ecc_ctx_get_rng(NULL, &gotRng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_get_rng(ctx, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
 
