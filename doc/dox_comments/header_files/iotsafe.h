@@ -159,7 +159,7 @@ void wolfIoTSafe_SetCSIM_read_cb(wolfSSL_IOTSafe_CSIM_read_cb rf);
     IoT-safe support at the same time.
     This function must be called from a single thread, during initialization,
     before any IoT-Safe operation is performed.
-    \param rf Write callback associated to a UART write event. The callback function takes
+    \param wf Write callback associated to a UART write event. The callback function takes
     two arguments (buf, len) and return the number of characters written, up to len.
 
     _Example_
