@@ -15101,6 +15101,28 @@ int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng)
     return err;
 }
 
+/* Companion to wc_ecc_set_rng(): detach the key's RNG association.
+ * Subsequent operations that require the key's RNG then fail with
+ * MISSING_RNG_E until a new one is set. */
+int wc_ecc_clear_rng(ecc_key* key)
+{
+    int err = 0;
+
+#ifdef ECC_TIMING_RESISTANT
+    if (key == NULL) {
+        err = BAD_FUNC_ARG;
+    }
+    else {
+        key->rng = NULL;
+    }
+#else
+    (void)key;
+    /* report success, not an error if ECC_TIMING_RESISTANT is not defined */
+#endif
+
+    return err;
+}
+
 #ifdef HAVE_ECC_ENCRYPT
 
 
@@ -15760,6 +15782,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     /* Device for the ECIES callback and the KDF/AES/HMAC steps. It comes
      * only from the context; unset means software, or the CB_FIND finder. */
     int          eciesDevId = INVALID_DEVID;
+#ifdef ECC_TIMING_RESISTANT
+    int          lentRng = 0;      /* ctx->rng lent to privKey for this op */
+#endif
 
     if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
                            outSz  == NULL)
@@ -15848,8 +15873,14 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BUFFER_E;
 
 #ifdef ECC_TIMING_RESISTANT
-    if (ctx->rng != NULL && privKey->rng == NULL)
+    if (ctx->rng != NULL && privKey->rng == NULL) {
+        /* Lend the ctx's RNG to the key for the duration of this operation
+         * only.  Restored to NULL before every subsequent return, so no
+         * borrowed pointer survives on the caller's key object after the
+         * call. */
         privKey->rng = ctx->rng;
+        lentRng = 1;
+    }
 #endif
 
 #ifndef WOLFSSL_ECIES_OLD
@@ -15859,23 +15890,42 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #else
         ret = wc_ecc_make_pub_ex(privKey, NULL, NULL);
 #endif
-        if (ret != 0)
+        if (ret != 0) {
+        #ifdef ECC_TIMING_RESISTANT
+            if (lentRng)
+                privKey->rng = NULL;
+        #endif
             return ret;
+        }
     }
     ret = wc_ecc_export_x963_ex(privKey, out, &pubKeySz, compressed);
-    if (ret != 0)
+    if (ret != 0) {
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
+    #endif
         return ret;
+    }
     out += pubKeySz;
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
     sharedSecret = (byte*)XMALLOC(sharedSz, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (sharedSecret == NULL)
+    if (sharedSecret == NULL) {
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
+    #endif
         return MEMORY_E;
+    }
 
     keys = (byte*)XMALLOC(ECC_BUFSIZE, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (keys == NULL) {
         XFREE(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
+    #endif
         return MEMORY_E;
     }
 #endif
@@ -16160,6 +16210,11 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     WC_FREE_VAR_EX(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     WC_FREE_VAR_EX(keys, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
 
+#ifdef ECC_TIMING_RESISTANT
+    if (lentRng)
+        privKey->rng = NULL;
+#endif
+
     return ret;
 }
 
@@ -16218,6 +16273,9 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     /* Device for the ECIES callback and the KDF/AES/HMAC steps. It comes
      * only from the context; unset means software, or the CB_FIND finder. */
     int          eciesDevId = INVALID_DEVID;
+#ifdef ECC_TIMING_RESISTANT
+    int          lentRng = 0;      /* ctx->rng lent to privKey for this op */
+#endif
 
 
     if (privKey == NULL || msg == NULL || out == NULL || outSz  == NULL)
@@ -16347,8 +16405,14 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 
 #ifdef ECC_TIMING_RESISTANT
-    if (ctx->rng != NULL && privKey->rng == NULL)
+    if (ctx->rng != NULL && privKey->rng == NULL) {
+        /* Lend the ctx's RNG to the key for the duration of this operation
+         * only.  Restored to NULL before every subsequent return, so no
+         * borrowed pointer survives on the caller's key object after the
+         * call. */
         privKey->rng = ctx->rng;
+        lentRng = 1;
+    }
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -16357,6 +16421,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     #ifndef WOLFSSL_ECIES_OLD
         if (pubKey == peerKey)
             wc_ecc_free(peerKey);
+    #endif
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
     #endif
         return MEMORY_E;
     }
@@ -16367,6 +16435,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     #ifndef WOLFSSL_ECIES_OLD
         if (pubKey == peerKey)
             wc_ecc_free(peerKey);
+    #endif
+    #ifdef ECC_TIMING_RESISTANT
+        if (lentRng)
+            privKey->rng = NULL;
     #endif
         return MEMORY_E;
     }
@@ -16673,6 +16745,11 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
     XFREE(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     XFREE(keys, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
+
+#ifdef ECC_TIMING_RESISTANT
+    if (lentRng)
+        privKey->rng = NULL;
 #endif
 
     return ret;
