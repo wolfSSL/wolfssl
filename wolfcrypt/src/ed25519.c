@@ -478,9 +478,16 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     (void)ed25519Ctx;
     ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
-    if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
-                                         (context == NULL && contextLen != 0)) {
+    if (((in == NULL) && (inLen != 0)) || out == NULL || outLen == NULL ||
+            key == NULL || (context == NULL && contextLen != 0)) {
         return BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if (in == NULL) {
+        static const byte ed25519_empty_msg = 0;
+        in = &ed25519_empty_msg;
     }
 
     if ((type == Ed25519ph) &&
@@ -514,9 +521,16 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #endif
 
     /* sanity check on arguments */
-    if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
-                                         (context == NULL && contextLen != 0)) {
+    if (((in == NULL) && (inLen != 0)) || out == NULL || outLen == NULL ||
+            key == NULL || (context == NULL && contextLen != 0)) {
         return BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if (in == NULL) {
+        static const byte ed25519_empty_msg = 0;
+        in = &ed25519_empty_msg;
     }
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_ONLY_KEY_ID)
@@ -1092,9 +1106,16 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     (void)ed25519Ctx;
     ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
-    if (sig == NULL || msg == NULL || res == NULL || key == NULL ||
-                                         (context == NULL && contextLen != 0))
+    if (sig == NULL || ((msg == NULL) && (msgLen != 0)) || res == NULL ||
+            key == NULL || (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if (msg == NULL) {
+        static const byte ed25519_empty_msg = 0;
+        msg = &ed25519_empty_msg;
+    }
 
     if ((type == Ed25519ph) &&
         (msgLen != WC_SHA512_DIGEST_SIZE))
@@ -1134,9 +1155,16 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #endif
 
     /* sanity check on arguments */
-    if (sig == NULL || msg == NULL || res == NULL || key == NULL ||
-                                         (context == NULL && contextLen != 0))
+    if (sig == NULL || ((msg == NULL) && (msgLen != 0)) || res == NULL ||
+            key == NULL || (context == NULL && contextLen != 0))
         return BAD_FUNC_ARG;
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if (msg == NULL) {
+        static const byte ed25519_empty_msg = 0;
+        msg = &ed25519_empty_msg;
+    }
 
     if ((type == Ed25519ph) &&
         (msgLen != WC_SHA512_DIGEST_SIZE))

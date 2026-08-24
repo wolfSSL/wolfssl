@@ -1458,13 +1458,21 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
 {
     int ret = 0;
 
-    /* Validate parameters. */
+    /* Validate parameters.  A NULL msg is valid for the empty message
+     * (msgSz == 0), per RFC 8554 which permits empty messages. */
     if ((key == NULL) || (key->params == NULL) || (sig == NULL) ||
-            (sigSz == NULL) || (msg == NULL)) {
+            (sigSz == NULL) || ((msg == NULL) && (msgSz != 0))) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (msgSz < 0)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte lms_empty_msg = 0;
+        msg = &lms_empty_msg;
     }
     /* Check state. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK)) {
@@ -1929,13 +1937,21 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
 {
     int ret = 0;
 
-    /* Validate parameters. */
+    /* Validate parameters.  A NULL msg is valid for the empty message
+     * (msgSz == 0), per RFC 8554 which permits empty messages. */
     if ((key == NULL) || (key->params == NULL) || (sig == NULL) ||
-            (msg == NULL)) {
+            ((msg == NULL) && (msgSz != 0))) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (msgSz < 0)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte lms_empty_msg = 0;
+        msg = &lms_empty_msg;
     }
     /* Check state. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK) &&

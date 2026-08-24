@@ -8808,8 +8808,16 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     int ret = 0;
 
     /* sanity check on arguments */
-    if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL)) {
+    if (((in == NULL) && (inLen != 0)) || (out == NULL) || (outLen == NULL) ||
+            (key == NULL)) {
         return  BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if (in == NULL) {
+        static const byte falcon_empty_msg = 0;
+        in = &falcon_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
@@ -8869,8 +8877,16 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 {
     int ret = 0;
 
-    if (key == NULL || sig == NULL || msg == NULL || res == NULL) {
+    if (key == NULL || sig == NULL || ((msg == NULL) && (msgLen != 0)) ||
+            res == NULL) {
         return BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if (msg == NULL) {
+        static const byte falcon_empty_msg = 0;
+        msg = &falcon_empty_msg;
     }
 
 #ifdef WOLF_CRYPTO_CB
