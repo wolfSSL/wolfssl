@@ -1778,7 +1778,10 @@ int wc_ecc_sig_size(const ecc_key* key);
     ecEncCtx object
 
     \param flags indicate whether this is a server or client context
-    Options are: REQ_RESP_CLIENT, and REQ_RESP_SERVER
+    Options are: REQ_RESP_CLIENT, REQ_RESP_SERVER, and 0. With 0 the context
+    takes no part in the REQ/RESP salt exchange; it still carries the
+    algorithm selection (wc_ecc_ctx_set_algo) and the key type
+    (wc_ecc_ctx_set_curve_id) into the encrypt/decrypt calls
     \param rng pointer to a RNG object with which to generate a salt
 
     _Example_
@@ -1839,6 +1842,10 @@ void wc_ecc_ctx_free(ecEncCtx* ctx);
     \param ctx pointer to the ecEncCtx object to reset
     \param rng pointer to an RNG object with which to generate a new salt
 
+    \note A context created with flags 0 generates no salt, so the reset
+    skips the salt regeneration. The key type selected with
+    wc_ecc_ctx_set_curve_id survives the reset in every mode.
+
     _Example_
     \code
     ecEncCtx* ctx;
@@ -1891,15 +1898,187 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
 /*!
     \ingroup ECC
 
+    \brief This function selects the type of key an ecEncCtx object operates
+    on. It can optionally be called after wc_ecc_ctx_new.
+
+    ECC_CURVE_DEF, the default, means the key pointers handed to the ECIES
+    functions are ecc_key pointers. ECC_X25519 and ECC_X448 mean they are
+    curve25519_key and curve448_key pointers respectively, in which case they
+    must be passed to wc_ecc_encrypt_ex2 and wc_ecc_decrypt_ex2 - the
+    ecc_key-typed wc_ecc_encrypt, wc_ecc_encrypt_ex and wc_ecc_decrypt reject a
+    context configured for a Montgomery curve.
+
+    Individual ECC curves are not selectable here: for an ecc_key the curve is
+    carried by the key itself. This is a key type selector only.
+
+    \return 0 Returned upon successfully setting the key type.
+    \return NOT_COMPILED_IN Returned if the curve is compiled in but its ECIES
+    support is not. See WOLFSSL_ECIES_X25519 and WOLFSSL_ECIES_X448; the
+    umbrella macro WOLFSSL_ECIES_MONTGOMERY is defined whenever either
+    variant is enabled.
+    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL or
+    curveId is not one of the three values above.
+
+    \param ctx pointer to the ecEncCtx for which to set the key type
+    \param curveId ECC_CURVE_DEF, ECC_X25519 or ECC_X448
+
+    \note The setting survives wc_ecc_ctx_reset, so a context can be reused
+    across the REQ/RESP rounds without reconfiguring it.
+
+    _Example_
+    \code
+    ecEncCtx* ctx;
+    // initialize ctx
+    if (wc_ecc_ctx_set_curve_id(ctx, ECC_X25519) != 0) {
+        // error setting the key type
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_new
+    \sa wc_ecc_ctx_get_curve_id
+    \sa wc_ecc_encrypt_ex2
+    \sa wc_ecc_decrypt_ex2
+*/
+
+int wc_ecc_ctx_set_curve_id(ecEncCtx* ctx, int curveId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function reads back the key type configured on an ecEncCtx
+    object with wc_ecc_ctx_set_curve_id.
+
+    \return 0 Returned upon successfully reading the key type.
+    \return BAD_FUNC_ARG Returned if either argument is NULL.
+
+    \param ctx pointer to the ecEncCtx to read
+    \param curveId pointer to an int that receives ECC_CURVE_DEF, ECC_X25519
+    or ECC_X448
+
+    \sa wc_ecc_ctx_set_curve_id
+*/
+
+int wc_ecc_ctx_get_curve_id(ecEncCtx* ctx, int* curveId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function selects the device the whole-operation ECIES crypto
+    callback (WOLF_CRYPTO_CB) dispatches to for operations using this
+    context.  It routes only that callback: the DEM cipher, KDF and MAC
+    primitives of the software path route by wc_ecc_ctx_set_algo_dev_ids,
+    and the ECDH shared secret by the keys' own devIds.  Only an ecc_key's
+    own devId participates in the resolution: it is adopted onto the context
+    only while the context devId is INVALID_DEVID (the key is never
+    modified).  Once the context devId is set it always wins, even when the
+    key names a different device.  Like the key type set with
+    wc_ecc_ctx_set_curve_id, the devId survives wc_ecc_ctx_reset.  Only
+    built when crypto callbacks are enabled.
+
+    A registered callback that services the whole operation by re-entering
+    the software path (wc_ecc_encrypt_ex2 / wc_ecc_decrypt_ex2) must first
+    clear this devId with wc_ecc_ctx_set_dev_id(ctx, INVALID_DEVID) - and
+    clear the ecc_key's own devId as well, or it is adopted right back -
+    then restore both afterwards.  Otherwise the dispatch fires again
+    inside the forward and recurses until the stack overflows.  Backends
+    written before the context devId existed cleared only the key's devId;
+    update them before their callers start passing a context.
+
+    \return 0 Returned upon successfully setting the device id.
+    \return BAD_FUNC_ARG Returned if ctx is NULL.
+
+    \param ctx pointer to the ecEncCtx to configure
+    \param devId the device id registered with wc_CryptoCb_RegisterDevice,
+    or INVALID_DEVID to clear it
+
+    _Example_
+    \code
+    ecEncCtx* ctx = wc_ecc_ctx_new(0, &rng);
+    if (wc_ecc_ctx_set_curve_id(ctx, ECC_X25519) != 0 ||
+        wc_ecc_ctx_set_dev_id(ctx, myDevId) != 0) {
+        // error configuring the context
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_set_curve_id
+    \sa wc_ecc_encrypt_ex2
+    \sa wc_ecc_decrypt_ex2
+*/
+
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function reads back the devId configured on (or adopted by)
+    an ecEncCtx object.  Only built when crypto callbacks are enabled.
+
+    \return 0 Returned upon successfully reading the devId.
+    \return BAD_FUNC_ARG Returned if either argument is NULL.
+
+    \param ctx pointer to the ecEncCtx to read
+    \param devId pointer to an int that receives the devId, or INVALID_DEVID
+    when none is set
+
+    \sa wc_ecc_ctx_set_dev_id
+*/
+
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function declares, in a single call, the devIds the software
+    ECIES path hands the underlying primitives, mirroring the
+    wc_ecc_ctx_set_algo trio: encDevId routes the DEM cipher (AES), kdfDevId
+    the KDF (HKDF) and macDevId the MAC (HMAC/SHA).  Pass INVALID_DEVID for
+    any primitive that should stay in software; that is also the default when
+    this function is never called.  The ECIES devId
+    (wc_ecc_ctx_set_dev_id) routes only the whole-operation crypto callback
+    and is never inherited by the primitives.  The values survive
+    wc_ecc_ctx_reset.  Only built when crypto callbacks are enabled.
+    Earlier releases initialized the DEM cipher and MAC with the private
+    key's devId; that implicit routing is gone, so callers that relied on
+    it should pass the key's devId here explicitly.
+
+    \return 0 Returned upon successfully setting the devIds.
+    \return BAD_FUNC_ARG Returned if ctx is NULL.
+
+    \param ctx pointer to the ecEncCtx to configure
+    \param encDevId device for the DEM cipher, or INVALID_DEVID for software
+    \param kdfDevId device for the KDF, or INVALID_DEVID for software
+    \param macDevId device for the MAC, or INVALID_DEVID for software
+
+    _Example_
+    \code
+    ecEncCtx* ctx = wc_ecc_ctx_new(0, &rng);
+    // AES and HMAC on the accelerator, HKDF in software
+    if (wc_ecc_ctx_set_algo_dev_ids(ctx, myDevId, INVALID_DEVID,
+            myDevId) != 0) {
+        // error configuring the context
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_set_algo
+    \sa wc_ecc_ctx_set_dev_id
+*/
+
+int wc_ecc_ctx_set_algo_dev_ids(ecEncCtx* ctx, int encDevId, int kdfDevId,
+    int macDevId);
+
+/*!
+    \ingroup ECC
+
     \brief This function returns the salt of an ecEncCtx object. This
     function should only be called when the ecEncCtx's state is
     ecSRV_INIT or ecCLI_INIT.
 
     \return Success On success, returns the ecEncCtx salt
-    \return NULL Returned if the ecEncCtx object is NULL, or the ecEncCtx's
-    state is not ecSRV_INIT or ecCLI_INIT. In the latter two cases, this
-    function also sets the ecEncCtx's state to ecSRV_BAD_STATE or
-    ecCLI_BAD_STATE, respectively
+    \return NULL Returned if the ecEncCtx object is NULL, was created with
+    flags 0 (no REQ/RESP protocol, so it takes no part in the salt
+    exchange), or the ecEncCtx's state is not ecSRV_INIT or ecCLI_INIT.
+    In the latter case, this function also sets the ecEncCtx's state to
+    ecSRV_BAD_STATE or ecCLI_BAD_STATE, respectively
 
     \param ctx pointer to the ecEncCtx object from which to get the salt
 
@@ -1931,7 +2110,8 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
     \return 0 Returned upon successfully setting the peer salt for the
     ecEncCtx object.
     \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL
-    or has an invalid protocol, or if the given salt is NULL
+    or has no REQ/RESP protocol (created with flags 0, so it takes no part
+    in the salt exchange), or if the given salt is NULL
     \return BAD_ENC_STATE_E Returned if the ecEncCtx's state is
     ecSRV_SALT_GET or ecCLI_SALT_GET. In the latter two cases, this
     function also sets the ecEncCtx's state to ecSRV_BAD_STATE or
@@ -1970,8 +2150,10 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 
     \return 0 Returned upon successfully setting the salt for the
     ecEncCtx object.
-    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL
-    or if the given salt is NULL and length is not NULL.
+    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL,
+    was created with flags 0 (no REQ/RESP protocol, so there is no salt
+    storage to borrow for the custom KDF salt), or if the given salt is
+    NULL and length is not NULL.
 
     \param ctx pointer to the ecEncCtx for which to set the salt
     \param salt pointer to salt buffer
@@ -2041,8 +2223,10 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
 
     \return 0 Returned upon successfully encrypting the input message
     \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    or outSz are NULL, the ctx object specifies an unsupported
+    encryption type, or the ctx object is configured for a Montgomery
+    curve (ECC_X25519 / ECC_X448) - such a context must be used with
+    wc_ecc_encrypt_ex2
     \return BAD_ENC_STATE_E Returned if the ctx object given is in a
     state that is not appropriate for encryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2068,6 +2252,16 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
     the default IV mode requires the WOLFSSL_ECIES_STATIC_GCM_NONCE build macro;
     otherwise this function returns NOT_COMPILED_IN. See wc_ecc_encrypt_ex for
     the full rationale.
+
+    \note With WOLF_CRYPTO_CB, the device the ECIES crypto callback dispatches
+    to is the context's devId (wc_ecc_ctx_set_dev_id).  A devId given to
+    wc_ecc_init_ex() on privKey is adopted onto the context only while the
+    context devId is INVALID_DEVID (the key is never modified); a set
+    context devId always wins.  New code should prefer the context setter:
+    one setting covers both directions of the exchange, and it is the only
+    route for the Montgomery key types.  A callback that forwards to
+    software must clear the context devId (and the key's) around the
+    forward, then restore them - see wc_ecc_ctx_set_dev_id.
 
     _Example_
     \code
@@ -2108,8 +2302,10 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     \return 0 Returned upon successfully encrypting the input message
     \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    or outSz are NULL, the ctx object specifies an unsupported
+    encryption type, or the ctx object is configured for a Montgomery
+    curve (ECC_X25519 / ECC_X448) - such a context must be used with
+    wc_ecc_encrypt_ex2
     \return BAD_ENC_STATE_E Returned if the ctx object given is in a
     state that is not appropriate for encryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2144,6 +2340,16 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     build macro, otherwise this function returns NOT_COMPILED_IN for a GCM
     algorithm. The macro is not needed with WOLFSSL_ECIES_GEN_IV (random
     per-message nonce) or WOLFSSL_ECIES_OLD (nonce derived from the KDF output).
+
+    \note With WOLF_CRYPTO_CB, the device the ECIES crypto callback dispatches
+    to is the context's devId (wc_ecc_ctx_set_dev_id).  A devId given to
+    wc_ecc_init_ex() on privKey is adopted onto the context only while the
+    context devId is INVALID_DEVID (the key is never modified); a set
+    context devId always wins.  New code should prefer the context setter:
+    one setting covers both directions of the exchange, and it is the only
+    route for the Montgomery key types.  A callback that forwards to
+    software must clear the context devId (and the key's) around the
+    forward, then restore them - see wc_ecc_ctx_set_dev_id.
 
     _Example_
     \code
@@ -2185,8 +2391,10 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     \return 0 Returned upon successfully decrypting the input message
     \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    or outSz are NULL, the ctx object specifies an unsupported
+    encryption type, or the ctx object is configured for a Montgomery
+    curve (ECC_X25519 / ECC_X448) - such a context must be used with
+    wc_ecc_decrypt_ex2
     \return BAD_ENC_STATE_E Returned if the ctx object given is in
     a state that is not appropriate for decryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2215,6 +2423,16 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     otherwise this function returns NOT_COMPILED_IN. See wc_ecc_encrypt_ex for
     the full rationale.
 
+    \note With WOLF_CRYPTO_CB, the device the ECIES crypto callback dispatches
+    to is the context's devId (wc_ecc_ctx_set_dev_id).  A devId given to
+    wc_ecc_init_ex() on privKey is adopted onto the context only while the
+    context devId is INVALID_DEVID (the key is never modified); a set
+    context devId always wins.  New code should prefer the context setter:
+    one setting covers both directions of the exchange, and it is the only
+    route for the Montgomery key types.  A callback that forwards to
+    software must clear the context devId (and the key's) around the
+    forward, then restore them - see wc_ecc_ctx_set_dev_id.
+
     _Example_
     \code
     byte cipher[] = { initialize with
@@ -2242,6 +2460,121 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+/*!
+    \ingroup ECC
+
+    \brief This function encrypts the given message using ECIES, as
+    wc_ecc_encrypt_ex does, but takes the keys as void pointers so that a
+    Montgomery-curve key can be used. The type the pointers actually have is
+    whatever wc_ecc_ctx_set_curve_id selected on ctx: ecc_key for
+    ECC_CURVE_DEF, curve25519_key for ECC_X25519, curve448_key for ECC_X448.
+
+    For the Montgomery curves the ephemeral public key is placed at the front
+    of the message as a raw little-endian u-coordinate - 32 bytes for X25519,
+    56 for X448 - with no format byte and no compression. This is the RFC 7748
+    encoding used by the TLS key_share extension and by HPKE.
+
+    \return 0 Returned upon successfully encrypting the message.
+    \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, out or outSz is
+    NULL, or if compressed is set for a Montgomery curve.
+    \return BUFFER_E Returned if the supplied output buffer is too small.
+    \return NOT_COMPILED_IN Returned if the selected DEM or curve support is
+    not built in.
+
+    \param privKey pointer to the sender's private key, of the type ctx
+    selects. This is normally an ephemeral key, fresh for each message.
+    \param pubKey pointer to the peer's public key, of the type ctx selects
+    \param msg pointer to the buffer holding the message to encrypt
+    \param msgSz size of the buffer to encrypt
+    \param out pointer to the buffer in which to store the ciphertext
+    \param outSz pointer to a word32 holding the available size in out; on
+    success, holds the number of bytes written
+    \param ctx pointer to an ecEncCtx object. Mandatory for the Montgomery
+    curves: the key type cannot be recovered from a NULL context, and passing
+    NULL there would make this function read a curve25519_key or curve448_key
+    as though it were an ecc_key.
+    \param compressed whether to export the ephemeral public key as a
+    compressed point. ECC only; must be 0 for a Montgomery curve.
+
+    \note The crypto callback (WOLF_CRYPTO_CB) ECIES hooks fire for the
+    Montgomery curves too: the operation arrives as
+    WC_PK_TYPE_ECIES_ENCRYPT_MONT/DECRYPT_MONT with the key pointers typed by
+    a curveId discriminator.  The dispatch device comes from
+    wc_ecc_ctx_set_dev_id() (for ecc_key, the key's own devId is the
+    fallback).
+
+    _Example_
+    \code
+    byte msg[32];  // padded to the DEM block size
+    byte out[CURVE25519_PUB_KEY_SIZE + sizeof(msg) + WC_SHA256_DIGEST_SIZE];
+    word32 outSz = sizeof(out);
+    curve25519_key eph, peer;
+    ecEncCtx* ctx;
+    // initialize eph with a fresh key pair and peer with the peer public key
+
+    ctx = wc_ecc_ctx_new(0, &rng);
+    if (wc_ecc_ctx_set_curve_id(ctx, ECC_X25519) != 0) {
+        // error selecting the key type
+    }
+    if (wc_ecc_encrypt_ex2(&eph, &peer, msg, sizeof(msg), out, &outSz, ctx, 0)
+            != 0) {
+        // error encrypting message
+    }
+    \endcode
+
+    \sa wc_ecc_decrypt_ex2
+    \sa wc_ecc_ctx_set_curve_id
+    \sa wc_ecc_encrypt_ex
+*/
+
+int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
+
+/*!
+    \ingroup ECC
+
+    \brief This function decrypts a message produced by wc_ecc_encrypt_ex2.
+    The keys are void pointers whose actual type is whatever
+    wc_ecc_ctx_set_curve_id selected on ctx.
+
+    For the Montgomery curves the peer's ephemeral public key is read from the
+    front of the message and validated - wc_curve25519_check_public or
+    wc_curve448_check_public - before the shared secret is derived. Both
+    checks reject the low-order points; the X25519 check additionally requires
+    a canonical encoding with the high bit clear, which is what
+    wc_ecc_encrypt_ex2 produces. (An X448 u-coordinate is a 448-bit field
+    element that fills its last byte, so there is no high bit to check.)
+
+    \return 0 Returned upon successfully decrypting the message.
+    \return BAD_FUNC_ARG Returned if privKey, msg, out or outSz is NULL, or
+    the input is too short to hold a message.
+    \return BUFFER_E Returned if the supplied output buffer is too small.
+    \return HASH_TYPE_E Returned if the message MAC does not verify.
+    \return AES_GCM_AUTH_E Returned if an AES-GCM DEM fails to authenticate.
+
+    \param privKey pointer to the recipient's private key, of the type ctx
+    selects
+    \param pubKey optional pointer to storage of the type ctx selects, which
+    receives the peer's ephemeral public key. May be NULL, in which case
+    temporary storage is used. Under WOLFSSL_ECIES_OLD the ephemeral key is
+    not carried in the message, so there pubKey must supply the peer's public
+    key and NULL is rejected with BAD_FUNC_ARG.
+    \param msg pointer to the ciphertext to decrypt
+    \param msgSz size of the ciphertext
+    \param out pointer to the buffer in which to store the plaintext
+    \param outSz pointer to a word32 holding the available size in out; on
+    success, holds the number of bytes written
+    \param ctx pointer to an ecEncCtx object. Mandatory for the Montgomery
+    curves, for the same reason as in wc_ecc_encrypt_ex2.
+
+    \sa wc_ecc_encrypt_ex2
+    \sa wc_ecc_ctx_set_curve_id
+    \sa wc_ecc_decrypt
+*/
+
+int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
 
 /*!
@@ -3376,6 +3709,9 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
     \brief Sets own salt in context.
 
     \return 0 on success
+    \return BAD_FUNC_ARG when ctx is NULL, ctx was created with flags 0
+    (no REQ/RESP protocol, so it takes no part in the salt exchange), or
+    salt is NULL
     \return negative on error
 
     \param ctx ECC encryption context

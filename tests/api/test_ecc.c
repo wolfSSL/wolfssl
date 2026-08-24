@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/wolfcrypt/curve448.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_ecc.h>
 
@@ -1566,9 +1572,15 @@ int test_wc_ecc_ctx_new(void)
     cli = NULL;
     wc_ecc_ctx_free(srv);
 
+    /* No protocol is valid: there is no REQ/RESP salt exchange, but the
+     * context still carries the algorithms and the key type.  It matches the
+     * default context the encrypt/decrypt paths build internally. */
+    ExpectNotNull(cli = wc_ecc_ctx_new(0, &rng));
+    wc_ecc_ctx_free(cli);
+    cli = NULL;
+
     /* Test bad args. */
     /* wc_ecc_ctx_new_ex() will free if returned NULL. */
-    ExpectNull(cli = wc_ecc_ctx_new(0, &rng));
     ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT, NULL));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -1635,6 +1647,24 @@ int test_wc_ecc_ctx_set_peer_salt(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* A no-protocol context (wc_ecc_ctx_new(0, ...)) takes no part in the
+     * REQ/RESP salt exchange, and the salt accessors reject it. */
+    {
+        ecEncCtx* plainCtx = NULL;
+
+        ExpectNotNull(plainCtx = wc_ecc_ctx_new(0, &rng));
+        ExpectNull(wc_ecc_ctx_get_own_salt(plainCtx));
+        ExpectIntEQ(wc_ecc_ctx_set_peer_salt(plainCtx, servSalt),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_set_own_salt(plainCtx, servSalt,
+            EXCHANGE_SALT_SZ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* The custom KDF salt borrows the REQ/RESP salt storage, which a
+         * no-protocol context does not have. */
+        ExpectIntEQ(wc_ecc_ctx_set_kdf_salt(plainCtx, servSalt,
+            EXCHANGE_SALT_SZ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_ecc_ctx_free(plainCtx);
+    }
 
     wc_ecc_ctx_free(cliCtx);
     wc_ecc_ctx_free(servCtx);
@@ -1868,6 +1898,415 @@ int test_wc_ecc_encryptDecrypt(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_encryptDecrypt */
 
+/* wc_ecc_ctx_set_curve_id()/wc_ecc_ctx_get_curve_id(): bad arguments,
+ * curves not compiled in, and the setting surviving a REQ/RESP reset. */
+int test_wc_ecc_ctx_set_curve_id(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    WC_RNG    rng;
+    ecEncCtx* ctx = NULL;
+    int       curveId = ECC_CURVE_INVALID;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(NULL, ECC_CURVE_DEF), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(NULL, &curveId), BAD_FUNC_ARG);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, NULL), BAD_FUNC_ARG);
+
+    /* Defaults to the ecc_key path. */
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_CURVE_DEF);
+
+    /* A named ECC curve is not a key type - the curve comes from the key. */
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_SECP256R1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, -2), BAD_FUNC_ARG);
+
+#ifdef HAVE_CURVE25519
+    #ifdef WOLFSSL_ECIES_X25519
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_X25519);
+
+    /* The key type has to survive a reset; the REQ/RESP flow resets between
+     * rounds and reverting to ECC_CURVE_DEF would be a type confusion. */
+    ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_X25519);
+
+    /* The typed entry points stay ECC-only.  Use a live key and buffers so
+     * the rejection can only come from the Montgomery-context guard, not
+     * from the generic NULL-argument checks. */
+    {
+        curve25519_key mkey;
+        byte   mbuf[16];
+        byte   mout[CURVE25519_PUB_KEY_SIZE + 16 + WC_SHA256_DIGEST_SIZE];
+        word32 moutSz = (word32)sizeof(mout);
+        word32 mplainSz = (word32)sizeof(mbuf);
+
+        XMEMSET(&mkey, 0, sizeof(mkey));
+        XMEMSET(mbuf, 0, sizeof(mbuf));
+        ExpectIntEQ(wc_curve25519_init(&mkey), 0);
+        ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &mkey),
+            0);
+        ExpectIntEQ(wc_ecc_encrypt((ecc_key*)&mkey, (ecc_key*)&mkey, mbuf,
+            (word32)sizeof(mbuf), mout, &moutSz, ctx), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_ecc_encrypt_ex((ecc_key*)&mkey, (ecc_key*)&mkey, mbuf,
+            (word32)sizeof(mbuf), mout, &moutSz, ctx, 0), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_ecc_decrypt((ecc_key*)&mkey, (ecc_key*)&mkey, mout,
+            moutSz, mbuf, &mplainSz, ctx), BAD_FUNC_ARG);
+        wc_curve25519_free(&mkey);
+    }
+    #else
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), NOT_COMPILED_IN);
+    #endif
+#endif
+#ifdef HAVE_CURVE448
+    #ifdef WOLFSSL_ECIES_X448
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_X448);
+    #else
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), NOT_COMPILED_IN);
+    #endif
+#endif
+
+    /* Back to the default. */
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_CURVE_DEF), 0);
+    ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
+    ExpectIntEQ(curveId, ECC_CURVE_DEF);
+
+    wc_ecc_ctx_free(ctx);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ctx_set_curve_id */
+
+/* ECIES with an X25519 key: round trip, on-the-wire ephemeral key
+ * encoding, tamper rejection, and rejection of point compression. */
+int test_wc_ecc_ecies_x25519(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && \
+    defined(WOLFSSL_ECIES_X25519) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_ECIES_OLD) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128) && defined(HAVE_HKDF) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    WC_RNG         rng;
+    WC_DECLARE_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+    ecEncCtx*      ctx = NULL;
+    const char*    msg = "EccBlock Size 16";
+    word32         msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    /* ephemeral public key | [IV, GEN_IV only] | ciphertext | HMAC.
+     * The DEM here is AES-128-CBC, so the IV is one AES block. */
+    byte           out[CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE +
+                       AES_BLOCK_SIZE + WC_SHA256_DIGEST_SIZE];
+    word32         outSz = (word32)sizeof(out);
+    byte           plain[sizeof("EccBlock Size 16") + AES_BLOCK_SIZE];
+    word32         plainSz = (word32)sizeof(plain);
+    byte           wire[CURVE25519_PUB_KEY_SIZE];
+    word32         wireSz = (word32)sizeof(wire);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    WC_ALLOC_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(ephKey);
+    ExpectNotNull(srvKey);
+#endif
+    if (WC_VAR_OK(ephKey)) {
+        XMEMSET(ephKey, 0, sizeof(*ephKey));
+    }
+    if (WC_VAR_OK(srvKey)) {
+        XMEMSET(srvKey, 0, sizeof(*srvKey));
+    }
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve25519_init(ephKey), 0);
+    ExpectIntEQ(wc_curve25519_init(srvKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, ephKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, srvKey), 0);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), 0);
+
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
+        out, &outSz, ctx, 0), 0);
+#ifdef WOLFSSL_ECIES_GEN_IV
+    ExpectIntEQ(outSz, CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE + msgSz +
+        WC_SHA256_DIGEST_SIZE);
+#else
+    ExpectIntEQ(outSz,
+        CURVE25519_PUB_KEY_SIZE + msgSz + WC_SHA256_DIGEST_SIZE);
+#endif
+
+    /* The message opens with the ephemeral public key as a raw little-endian
+     * u-coordinate (RFC 7748), with no format byte. */
+    ExpectIntEQ(wc_curve25519_export_public_ex(ephKey, wire, &wireSz,
+        EC25519_LITTLE_ENDIAN), 0);
+    ExpectIntEQ(XMEMCMP(wire, out, CURVE25519_PUB_KEY_SIZE), 0);
+
+    /* Point compression does not apply to a Montgomery curve. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 1), BAD_FUNC_ARG);
+    }
+
+    /* An init-only ephemeral key - no key material generated or imported -
+     * must be rejected rather than quietly exporting base * 0. */
+    {
+        curve25519_key emptyKey;
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+
+        XMEMSET(&emptyKey, 0, sizeof(emptyKey));
+        ExpectIntEQ(wc_curve25519_init(&emptyKey), 0);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(&emptyKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        wc_curve25519_free(&emptyKey);
+    }
+
+    /* The documented error contract of the generic entry points, driven
+     * directly rather than through the typed wrappers. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        word32 smallSz = 8;
+
+        ExpectIntEQ(wc_ecc_encrypt_ex2(NULL, srvKey, (const byte*)msg, msgSz,
+            tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, NULL, (const byte*)msg, msgSz,
+            tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, NULL, msgSz, tmp,
+            &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, NULL, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, NULL, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* The Montgomery total size from ecies_pub_key_size() feeds the
+         * output-size check. */
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &smallSz, ctx, 0), WC_NO_ERR_TRACE(BUFFER_E));
+
+        tmpSz = (word32)sizeof(tmp);
+        ExpectIntEQ(wc_ecc_decrypt_ex2(NULL, NULL, out, outSz, tmp, &tmpSz,
+            ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, NULL, outSz, tmp,
+            &tmpSz, ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, NULL,
+            &tmpSz, ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, tmp, NULL,
+            ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* Too short to hold the ephemeral key, a cipher block and the MAC.
+         * A block-multiple length is used so the padding check up front
+         * stays quiet and the length check itself is what rejects it. */
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out,
+            CURVE25519_PUB_KEY_SIZE, tmp, &tmpSz, ctx),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(plainSz, msgSz);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
+    /* Caller-supplied storage for the peer's ephemeral public key: decrypt
+     * must succeed and leave the key from the front of the message imported
+     * into it. */
+    {
+        curve25519_key peerEph;
+        byte           got[CURVE25519_PUB_KEY_SIZE];
+        word32         gotSz = (word32)sizeof(got);
+
+        XMEMSET(&peerEph, 0, sizeof(peerEph));
+        XMEMSET(plain, 0, sizeof(plain));
+        plainSz = (word32)sizeof(plain);
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, &peerEph, out, outSz, plain,
+            &plainSz, ctx), 0);
+        ExpectIntEQ(plainSz, msgSz);
+        ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+        ExpectIntEQ(wc_curve25519_export_public_ex(&peerEph, got, &gotSz,
+            EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(XMEMCMP(got, out, CURVE25519_PUB_KEY_SIZE), 0);
+        wc_curve25519_free(&peerEph);
+    }
+
+    /* Corrupting the ciphertext must fail the MAC. */
+    out[outSz - 1] ^= 0x01;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntNE(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    out[outSz - 1] ^= 0x01;
+
+    /* So must corrupting the ephemeral public key. */
+    out[0] ^= 0x01;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntNE(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+
+    wc_ecc_ctx_free(ctx);
+    wc_curve25519_free(srvKey);
+    wc_curve25519_free(ephKey);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_x25519 */
+
+/* ECIES with an X448 key: round trip and the on-the-wire encoding of the
+ * ephemeral public key. */
+int test_wc_ecc_ecies_x448(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && \
+    defined(WOLFSSL_ECIES_X448) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_ECIES_OLD) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128) && defined(HAVE_HKDF) && \
+    !defined(WOLFSSL_NO_MALLOC)
+    WC_RNG       rng;
+    WC_DECLARE_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+    ecEncCtx*    ctx = NULL;
+    const char*  msg = "EccBlock Size 16";
+    word32       msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    /* ephemeral public key | [IV, GEN_IV only] | ciphertext | HMAC. */
+    byte         out[CURVE448_PUB_KEY_SIZE + AES_BLOCK_SIZE +
+                     AES_BLOCK_SIZE + WC_SHA256_DIGEST_SIZE];
+    word32       outSz = (word32)sizeof(out);
+    byte         plain[sizeof("EccBlock Size 16") + AES_BLOCK_SIZE];
+    word32       plainSz = (word32)sizeof(plain);
+    byte         wire[CURVE448_PUB_KEY_SIZE];
+    word32       wireSz = (word32)sizeof(wire);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    WC_ALLOC_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(ephKey);
+    ExpectNotNull(srvKey);
+#endif
+    if (WC_VAR_OK(ephKey)) {
+        XMEMSET(ephKey, 0, sizeof(*ephKey));
+    }
+    if (WC_VAR_OK(srvKey)) {
+        XMEMSET(srvKey, 0, sizeof(*srvKey));
+    }
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_init(ephKey), 0);
+    ExpectIntEQ(wc_curve448_init(srvKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, ephKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, srvKey), 0);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), 0);
+
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
+        out, &outSz, ctx, 0), 0);
+#ifdef WOLFSSL_ECIES_GEN_IV
+    ExpectIntEQ(outSz, CURVE448_PUB_KEY_SIZE + AES_BLOCK_SIZE + msgSz +
+        WC_SHA256_DIGEST_SIZE);
+#else
+    ExpectIntEQ(outSz, CURVE448_PUB_KEY_SIZE + msgSz + WC_SHA256_DIGEST_SIZE);
+#endif
+
+    ExpectIntEQ(wc_curve448_export_public_ex(ephKey, wire, &wireSz,
+        EC448_LITTLE_ENDIAN), 0);
+    ExpectIntEQ(XMEMCMP(wire, out, CURVE448_PUB_KEY_SIZE), 0);
+
+    /* Point compression does not apply to a Montgomery curve. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 1), BAD_FUNC_ARG);
+    }
+
+    /* An init-only ephemeral key - no key material generated or imported -
+     * must be rejected rather than quietly exporting base * 0. */
+    {
+        curve448_key emptyKey;
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+
+        XMEMSET(&emptyKey, 0, sizeof(emptyKey));
+        ExpectIntEQ(wc_curve448_init(&emptyKey), 0);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(&emptyKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        wc_curve448_free(&emptyKey);
+    }
+
+    /* The X448 total size from ecies_pub_key_size() feeds the output-size
+     * check, and a message too short for the ephemeral key and MAC is
+     * rejected outright. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        word32 smallSz = 8;
+
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &smallSz, ctx, 0), WC_NO_ERR_TRACE(BUFFER_E));
+        /* Block-multiple length, so the length check is what rejects it. */
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out,
+            CURVE448_PUB_KEY_SIZE, tmp, &tmpSz, ctx),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(plainSz, msgSz);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
+    /* Caller-supplied storage for the peer's ephemeral public key: decrypt
+     * must succeed and leave the key from the front of the message imported
+     * into it. */
+    {
+        curve448_key peerEph;
+        byte         got[CURVE448_PUB_KEY_SIZE];
+        word32       gotSz = (word32)sizeof(got);
+
+        XMEMSET(&peerEph, 0, sizeof(peerEph));
+        XMEMSET(plain, 0, sizeof(plain));
+        plainSz = (word32)sizeof(plain);
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, &peerEph, out, outSz, plain,
+            &plainSz, ctx), 0);
+        ExpectIntEQ(plainSz, msgSz);
+        ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+        ExpectIntEQ(wc_curve448_export_public_ex(&peerEph, got, &gotSz,
+            EC448_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(XMEMCMP(got, out, CURVE448_PUB_KEY_SIZE), 0);
+        wc_curve448_free(&peerEph);
+    }
+
+    out[outSz - 1] ^= 0x01;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntNE(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+
+    wc_ecc_ctx_free(ctx);
+    wc_curve448_free(srvKey);
+    wc_curve448_free(ephKey);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_x448 */
+
 /*
  * Testing ECIES with the AES-256-GCM DEM. Exercises, each with its own
  * single-use client/server ctx pair:
@@ -2015,23 +2454,37 @@ static int myEciesApiCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT) {
             if (invoked != NULL)
                 *invoked = 1;
+            /* Clear every devId that routed here - the key's, and the ctx's
+             * when one was supplied - so the forward runs in software. */
             info->pk.eciesencrypt.privKey->devId = INVALID_DEVID;
+            if (info->pk.eciesencrypt.ctx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(info->pk.eciesencrypt.ctx,
+                                            INVALID_DEVID);
             ret = wc_ecc_encrypt_ex(info->pk.eciesencrypt.privKey,
                 info->pk.eciesencrypt.pubKey, info->pk.eciesencrypt.msg,
                 info->pk.eciesencrypt.msgSz, info->pk.eciesencrypt.out,
                 info->pk.eciesencrypt.outSz, info->pk.eciesencrypt.ctx,
                 info->pk.eciesencrypt.compressed);
             info->pk.eciesencrypt.privKey->devId = devIdArg;
+            if (info->pk.eciesencrypt.ctx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(info->pk.eciesencrypt.ctx,
+                                            devIdArg);
         }
         else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
             if (invoked != NULL)
                 *invoked = 1;
             info->pk.eciesdecrypt.privKey->devId = INVALID_DEVID;
+            if (info->pk.eciesdecrypt.ctx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(info->pk.eciesdecrypt.ctx,
+                                            INVALID_DEVID);
             ret = wc_ecc_decrypt(info->pk.eciesdecrypt.privKey,
                 info->pk.eciesdecrypt.pubKey, info->pk.eciesdecrypt.msg,
                 info->pk.eciesdecrypt.msgSz, info->pk.eciesdecrypt.out,
                 info->pk.eciesdecrypt.outSz, info->pk.eciesdecrypt.ctx);
             info->pk.eciesdecrypt.privKey->devId = devIdArg;
+            if (info->pk.eciesdecrypt.ctx != NULL)
+                (void)wc_ecc_ctx_set_dev_id(info->pk.eciesdecrypt.ctx,
+                                            devIdArg);
         }
     }
     return ret;
@@ -2062,6 +2515,8 @@ int test_wc_ecc_ecies_cryptocb(void)
     int         i;
     int         registered = 0;
     int         cbInvoked  = 0;
+    int         reg0       = 0;
+    int         cb0Invoked = 0;
 
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&cliKey, 0, sizeof(cliKey));
@@ -2109,6 +2564,65 @@ int test_wc_ecc_ecies_cryptocb(void)
     ExpectIntEQ(plainSz, sizeof(msg));
     ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
 
+    /* devId resolution against a context.  A context with no devId adopts
+     * the key's (the key is never modified); once the ctx devId is set it
+     * always wins, even when the key names a different device. */
+    {
+        ecEncCtx* ctx0 = NULL;
+        int ctxDev = INVALID_DEVID;
+        ExpectNotNull(ctx0 = wc_ecc_ctx_new(0, &rng));
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(NULL, &ctxDev),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx0, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* Adoption: nothing set on the ctx, the key's devId routes it. */
+        cbInvoked = 0;
+        outSz = (word32)sizeof(out);
+        ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+            &outSz, ctx0), 0);
+        ExpectIntEQ(cbInvoked, 1);
+        /* A different ctx devId wins over the key's: the dispatch goes to
+         * the unregistered ctx device, so software runs and the key's
+         * device is never consulted.  The set ctx devId is not replaced. */
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx0, cbDevId + 1), 0);
+        cbInvoked = 0;
+        outSz = (word32)sizeof(out);
+        ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+            &outSz, ctx0), 0);
+        ExpectIntEQ(cbInvoked, 0);
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx0, &ctxDev), 0);
+        ExpectIntEQ(ctxDev, cbDevId + 1);
+        /* The same device on both sides is fine. */
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx0, cbDevId), 0);
+        cbInvoked = 0;
+        outSz = (word32)sizeof(out);
+        ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+            &outSz, ctx0), 0);
+        ExpectIntEQ(cbInvoked, 1);
+        /* Adoption went key -> ctx only: the key still has its own devId. */
+        ExpectIntEQ(cliKey.devId, cbDevId);
+        /* Device id 0 is a valid, SET devId: it survives a reset, is not
+         * replaced by key-devId adoption, and dispatches to device 0. */
+        ExpectIntEQ(wc_CryptoCb_RegisterDevice(0, myEciesApiCryptoCb,
+            &cb0Invoked), 0);
+        if (EXPECT_SUCCESS())
+            reg0 = 1;
+        ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx0, 0), 0);
+        ExpectIntEQ(wc_ecc_ctx_reset(ctx0, &rng), 0);
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx0, &ctxDev), 0);
+        ExpectIntEQ(ctxDev, 0);
+        cbInvoked = 0;
+        cb0Invoked = 0;
+        outSz = (word32)sizeof(out);
+        ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+            &outSz, ctx0), 0);
+        ExpectIntEQ(cb0Invoked, 1);
+        ExpectIntEQ(cbInvoked, 0);
+        ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx0, &ctxDev), 0);
+        ExpectIntEQ(ctxDev, 0);
+        wc_ecc_ctx_free(ctx0);
+    }
+
     cliKey.devId = INVALID_DEVID;
     srvKey.devId = INVALID_DEVID;
     wc_ecc_free(&srvKey);
@@ -2116,9 +2630,462 @@ int test_wc_ecc_ecies_cryptocb(void)
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     if (registered)
         wc_CryptoCb_UnRegisterDevice(cbDevId);
+    if (reg0)
+        wc_CryptoCb_UnRegisterDevice(0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_ecies_cryptocb */
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(WOLFSSL_ECIES_MONTGOMERY) && !defined(WOLFSSL_ECIES_OLD) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_HKDF)
+/* CryptoCb servicing the Montgomery ECIES ops by forwarding to software.
+ * The devId rides on the ecEncCtx, so the re-entrancy dance clears the ctx
+ * devId.  The registered int* ctx records the curveId the op carried. */
+static int myEciesApiMontCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int* sawCurveId = (int*)ctx;
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+        if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT_MONT) {
+            if (sawCurveId != NULL)
+                *sawCurveId = info->pk.eciesencrypt_mont.curveId;
+            /* The ctx devId is the only Montgomery routing, so clearing it
+             * is all it takes for the forward to run in software. */
+            ret = wc_ecc_ctx_set_dev_id(info->pk.eciesencrypt_mont.ctx,
+                                        INVALID_DEVID);
+            if (ret != 0)
+                return ret;
+            ret = wc_ecc_encrypt_ex2(info->pk.eciesencrypt_mont.privKey,
+                info->pk.eciesencrypt_mont.pubKey,
+                info->pk.eciesencrypt_mont.msg,
+                info->pk.eciesencrypt_mont.msgSz,
+                info->pk.eciesencrypt_mont.out,
+                info->pk.eciesencrypt_mont.outSz,
+                info->pk.eciesencrypt_mont.ctx, 0);
+            (void)wc_ecc_ctx_set_dev_id(info->pk.eciesencrypt_mont.ctx,
+                                        devIdArg);
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECIES_DECRYPT_MONT) {
+            if (sawCurveId != NULL)
+                *sawCurveId = info->pk.eciesdecrypt_mont.curveId;
+            ret = wc_ecc_ctx_set_dev_id(info->pk.eciesdecrypt_mont.ctx,
+                                        INVALID_DEVID);
+            if (ret != 0)
+                return ret;
+            ret = wc_ecc_decrypt_ex2(info->pk.eciesdecrypt_mont.privKey,
+                info->pk.eciesdecrypt_mont.pubKey,
+                info->pk.eciesdecrypt_mont.msg,
+                info->pk.eciesdecrypt_mont.msgSz,
+                info->pk.eciesdecrypt_mont.out,
+                info->pk.eciesdecrypt_mont.outSz,
+                info->pk.eciesdecrypt_mont.ctx);
+            (void)wc_ecc_ctx_set_dev_id(info->pk.eciesdecrypt_mont.ctx,
+                                        devIdArg);
+        }
+    }
+    return ret;
+}
+#endif
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_HKDF)
+/* Records that any operation reached the device it is registered under, and
+ * declines it so software still runs.  The registered ctx is an int* flag. */
+static int myEciesPrimCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int* seen = (int*)ctx;
+    (void)devIdArg;
+    (void)info;
+    if (seen != NULL)
+        *seen = 1;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+/* Records the whole-operation ECIES offer and the ECDH offer separately,
+ * declining both so the software path composes the primitives. */
+typedef struct EciesKeyCbSeen {
+    int ecies;
+    int ecdh;
+} EciesKeyCbSeen;
+
+static int myEciesKeyPrimCryptoCb(int devIdArg, wc_CryptoInfo* info,
+                                  void* ctx)
+{
+    EciesKeyCbSeen* seen = (EciesKeyCbSeen*)ctx;
+    (void)devIdArg;
+    if (seen != NULL && info->algo_type == WC_ALGO_TYPE_PK) {
+        if (info->pk.type == WC_PK_TYPE_ECIES_ENCRYPT ||
+                info->pk.type == WC_PK_TYPE_ECIES_DECRYPT) {
+            seen->ecies = 1;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDH) {
+            seen->ecdh = 1;
+        }
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/* wc_ecc_ctx_set_algo_dev_ids(): routing the software ECIES primitives
+ * (DEM/KDF/MAC) to devices, composed with the ECDH routed by the private
+ * key's own devId; INVALID_DEVID keeps a primitive in software. */
+int test_wc_ecc_ctx_algo_dev_ids(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_HKDF)
+    const int   encDev = 0x45504130; /* 'EPA0' */
+    const int   kdfDev = 0x45504B30; /* 'EPK0' */
+    const int   macDev = 0x45504D30; /* 'EPM0' */
+    const int   keyDev = 0x45504430; /* 'EPD0' */
+    ecc_key     cliKey;
+    ecc_key     srvKey;
+    ecc_key*    decPub = NULL;
+    WC_RNG      rng;
+    ecEncCtx*   ctx = NULL;
+    byte        msg[32];
+    byte        out[256];
+    byte        plain[64];
+    word32      outSz   = (word32)sizeof(out);
+    word32      plainSz = (word32)sizeof(plain);
+    int         i;
+    int         encSeen = 0, kdfSeen = 0, macSeen = 0;
+    int         regEnc = 0, regKdf = 0, regMac = 0;
+    int         regKey = 0;
+    int         gotDev = INVALID_DEVID;
+    EciesKeyCbSeen keySeen;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    XMEMSET(&keySeen, 0, sizeof(keySeen));
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(encDev, myEciesPrimCryptoCb,
+        &encSeen), 0);
+    if (EXPECT_SUCCESS())
+        regEnc = 1;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(kdfDev, myEciesPrimCryptoCb,
+        &kdfSeen), 0);
+    if (EXPECT_SUCCESS())
+        regKdf = 1;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(macDev, myEciesPrimCryptoCb,
+        &macSeen), 0);
+    if (EXPECT_SUCCESS())
+        regMac = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_set_rng(&cliKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&srvKey, &rng), 0);
+#endif
+#ifdef WOLFSSL_ECIES_OLD
+    decPub = &cliKey;
+#endif
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+        ecHMAC_SHA256), 0);
+
+    ExpectIntEQ(wc_ecc_ctx_set_algo_dev_ids(NULL, encDev, kdfDev, macDev),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ecc_ctx_set_algo_dev_ids(ctx, encDev, kdfDev, macDev), 0);
+    /* The routing survives a reset, like the algorithms and the key type. */
+    ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+        ecHMAC_SHA256), 0);
+
+    /* Each primitive must reach its own device on encrypt and decrypt (the
+     * recording callback declines, so software still produces the data). */
+    encSeen = kdfSeen = macSeen = 0;
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+        &outSz, ctx), 0);
+    ExpectIntEQ(encSeen, 1);
+    ExpectIntEQ(kdfSeen, 1);
+    ExpectIntEQ(macSeen, 1);
+
+    encSeen = kdfSeen = macSeen = 0;
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, decPub, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(encSeen, 1);
+    ExpectIntEQ(kdfSeen, 1);
+    ExpectIntEQ(macSeen, 1);
+    ExpectIntEQ(plainSz, sizeof(msg));
+    ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+
+    /* INVALID_DEVID keeps that primitive in software: the KDF device must
+     * not be consulted while the cipher and MAC still are. */
+    ExpectIntEQ(wc_ecc_ctx_set_algo_dev_ids(ctx, encDev, INVALID_DEVID,
+        macDev), 0);
+    encSeen = kdfSeen = macSeen = 0;
+    outSz = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+        &outSz, ctx), 0);
+    ExpectIntEQ(encSeen, 1);
+    ExpectIntEQ(kdfSeen, 0);
+    ExpectIntEQ(macSeen, 1);
+
+    /* Fully composed use: no whole-operation ECIES service (the key's
+     * device declines the offer), the ECDH routed by the private key's own
+     * devId and the DEM/KDF/MAC by their per-algorithm devIds. */
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(keyDev, myEciesKeyPrimCryptoCb,
+        &keySeen), 0);
+    if (EXPECT_SUCCESS())
+        regKey = 1;
+    ExpectIntEQ(wc_ecc_ctx_set_algo_dev_ids(ctx, encDev, kdfDev, macDev), 0);
+    cliKey.devId = keyDev;
+    srvKey.devId = keyDev;
+
+    encSeen = kdfSeen = macSeen = 0;
+    keySeen.ecies = keySeen.ecdh = 0;
+    outSz = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+        &outSz, ctx), 0);
+    ExpectIntEQ(keySeen.ecies, 1);
+    ExpectIntEQ(keySeen.ecdh, 1);
+    ExpectIntEQ(encSeen, 1);
+    ExpectIntEQ(kdfSeen, 1);
+    ExpectIntEQ(macSeen, 1);
+    /* The dispatch adopted the private key's devId onto the ctx. */
+    ExpectIntEQ(wc_ecc_ctx_get_dev_id(ctx, &gotDev), 0);
+    ExpectIntEQ(gotDev, keyDev);
+
+    encSeen = kdfSeen = macSeen = 0;
+    keySeen.ecies = keySeen.ecdh = 0;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, decPub, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(keySeen.ecies, 1);
+    ExpectIntEQ(keySeen.ecdh, 1);
+    ExpectIntEQ(encSeen, 1);
+    ExpectIntEQ(kdfSeen, 1);
+    ExpectIntEQ(macSeen, 1);
+    ExpectIntEQ(plainSz, sizeof(msg));
+    ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
+
+    cliKey.devId = INVALID_DEVID;
+    srvKey.devId = INVALID_DEVID;
+    wc_ecc_ctx_free(ctx);
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    if (regEnc)
+        wc_CryptoCb_UnRegisterDevice(encDev);
+    if (regKdf)
+        wc_CryptoCb_UnRegisterDevice(kdfDev);
+    if (regMac)
+        wc_CryptoCb_UnRegisterDevice(macDev);
+    if (regKey)
+        wc_CryptoCb_UnRegisterDevice(keyDev);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ctx_algo_dev_ids */
+
+/* ECIES X25519 CryptoCb dispatch: the devId rides on the ecEncCtx
+ * (wc_ecc_ctx_set_dev_id), survives a reset, and the callback receives the
+ * key type via curveId. */
+int test_wc_ecc_ecies_cryptocb_x25519(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(WOLFSSL_ECIES_X25519) && !defined(WOLFSSL_ECIES_OLD) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_HKDF)
+    const int cbDevId = 0x45434231; /* 'ECB1' */
+    WC_RNG    rng;
+    WC_DECLARE_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+    ecEncCtx* ctx = NULL;
+    const char* msg = "EccBlock Size 16";
+    word32    msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    byte      out[CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE + AES_BLOCK_SIZE +
+                  WC_SHA256_DIGEST_SIZE];
+    word32    outSz = (word32)sizeof(out);
+    byte      plain[sizeof("EccBlock Size 16") + AES_BLOCK_SIZE];
+    word32    plainSz = (word32)sizeof(plain);
+    int       registered = 0;
+    int       sawCurveId = ECC_CURVE_INVALID;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    WC_ALLOC_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(ephKey);
+    ExpectNotNull(srvKey);
+#endif
+    if (WC_VAR_OK(ephKey)) {
+        XMEMSET(ephKey, 0, sizeof(*ephKey));
+    }
+    if (WC_VAR_OK(srvKey)) {
+        XMEMSET(srvKey, 0, sizeof(*srvKey));
+    }
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(cbDevId, myEciesApiMontCryptoCb,
+        &sawCurveId), 0);
+    if (EXPECT_SUCCESS())
+        registered = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* keys stay at INVALID_DEVID; the ctx routes the dispatch */
+    ExpectIntEQ(wc_curve25519_init_ex(ephKey, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_curve25519_init_ex(srvKey, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, ephKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, srvKey), 0);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+        ecHMAC_SHA256), 0);
+
+    /* Bad args, then set the devId and prove it survives a reset by the
+     * dispatch below actually firing. */
+    ExpectIntEQ(wc_ecc_ctx_set_dev_id(NULL, cbDevId),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx, cbDevId), 0);
+    ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+        ecHMAC_SHA256), 0);
+
+    sawCurveId = ECC_CURVE_INVALID;
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
+        out, &outSz, ctx, 0), 0);
+    /* callback must have serviced the encrypt with the right key type */
+    ExpectIntEQ(sawCurveId, ECC_X25519);
+
+    sawCurveId = ECC_CURVE_INVALID;
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(sawCurveId, ECC_X25519);
+    ExpectIntEQ(plainSz, msgSz);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
+    /* A Montgomery key's own devId takes no part in the ECIES routing: the
+     * ctx devId is the only source, so a stray devId on the key neither
+     * conflicts nor reroutes. */
+    if (WC_VAR_OK(srvKey)) {
+        srvKey->devId = cbDevId + 1;
+    }
+    sawCurveId = ECC_CURVE_INVALID;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(sawCurveId, ECC_X25519);
+    if (WC_VAR_OK(srvKey)) {
+        srvKey->devId = INVALID_DEVID;
+    }
+
+    wc_ecc_ctx_free(ctx);
+    wc_curve25519_free(srvKey);
+    wc_curve25519_free(ephKey);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(cbDevId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_cryptocb_x25519 */
+
+/* The X448 sibling: curve448_key has no devId member at all, so the
+ * ctx-carried devId is the only dispatch route. */
+int test_wc_ecc_ecies_cryptocb_x448(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(WOLFSSL_ECIES_X448) && !defined(WOLFSSL_ECIES_OLD) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_HKDF)
+    const int cbDevId = 0x45434232; /* 'ECB2' */
+    WC_RNG    rng;
+    WC_DECLARE_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+    ecEncCtx* ctx = NULL;
+    const char* msg = "EccBlock Size 16";
+    word32    msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    byte      out[CURVE448_PUB_KEY_SIZE + AES_BLOCK_SIZE + AES_BLOCK_SIZE +
+                  WC_SHA256_DIGEST_SIZE];
+    word32    outSz = (word32)sizeof(out);
+    byte      plain[sizeof("EccBlock Size 16") + AES_BLOCK_SIZE];
+    word32    plainSz = (word32)sizeof(plain);
+    int       registered = 0;
+    int       sawCurveId = ECC_CURVE_INVALID;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    WC_ALLOC_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(ephKey);
+    ExpectNotNull(srvKey);
+#endif
+    if (WC_VAR_OK(ephKey)) {
+        XMEMSET(ephKey, 0, sizeof(*ephKey));
+    }
+    if (WC_VAR_OK(srvKey)) {
+        XMEMSET(srvKey, 0, sizeof(*srvKey));
+    }
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(cbDevId, myEciesApiMontCryptoCb,
+        &sawCurveId), 0);
+    if (EXPECT_SUCCESS())
+        registered = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_init(ephKey), 0);
+    ExpectIntEQ(wc_curve448_init(srvKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, ephKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, srvKey), 0);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+        ecHMAC_SHA256), 0);
+    ExpectIntEQ(wc_ecc_ctx_set_dev_id(ctx, cbDevId), 0);
+
+    sawCurveId = ECC_CURVE_INVALID;
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
+        out, &outSz, ctx, 0), 0);
+    ExpectIntEQ(sawCurveId, ECC_X448);
+
+    sawCurveId = ECC_CURVE_INVALID;
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), 0);
+    ExpectIntEQ(sawCurveId, ECC_X448);
+    ExpectIntEQ(plainSz, msgSz);
+    ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+
+    wc_ecc_ctx_free(ctx);
+    wc_curve448_free(srvKey);
+    wc_curve448_free(ephKey);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(cbDevId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_cryptocb_x448 */
 
 /*
  * The ECIES AES-GCM DEM needs an RNG only in GEN_IV mode, where it generates a
@@ -2167,6 +3134,129 @@ int test_wc_ecc_ecies_gcm_no_rng(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_ecies_gcm_no_rng */
+
+/* The AES-CBC DEM sibling of test_wc_ecc_ecies_gcm_no_rng: in GEN_IV mode
+ * the per-message IV needs an RNG, so a NULL context and a key with no RNG
+ * set must fail with MISSING_RNG_E. */
+int test_wc_ecc_ecies_cbc_no_rng(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_ECIES_GEN_IV) && !defined(WOLFSSL_NO_MALLOC) && \
+    defined(WOLFSSL_AES_128)
+    WC_RNG   rng;
+    ecc_key  cliKey;
+    ecc_key  srvKey;
+    byte     msg[32];
+    byte     out[256];
+    word32   outSz = (word32)sizeof(out);
+    int      i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&cliKey), 0);
+    ExpectIntEQ(wc_ecc_init(&srvKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &cliKey), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &srvKey), 0);
+
+    /* Deliberately do NOT call wc_ecc_set_rng() on cliKey, and pass a NULL
+     * context so no RNG is available for the CBC IV. */
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out, &outSz,
+        NULL), WC_NO_ERR_TRACE(MISSING_RNG_E));
+
+    wc_ecc_free(&srvKey);
+    wc_ecc_free(&cliKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_cbc_no_rng */
+
+/* The ECIES flow cannot resume FP_WOULDBLOCK, so a non-blocking X25519 key
+ * is rejected with NOT_COMPILED_IN on both the encrypt and decrypt paths. */
+int test_wc_ecc_ecies_x25519_nonblock(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && \
+    defined(WOLFSSL_ECIES_X25519) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_ECIES_OLD) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128) && defined(HAVE_HKDF) && \
+    !defined(WOLFSSL_NO_MALLOC) && defined(CURVE25519_SMALL) && \
+    defined(WC_X25519_NONBLOCK)
+    WC_RNG         rng;
+    WC_DECLARE_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+    x25519_nb_ctx_t nbEph;
+    x25519_nb_ctx_t nbSrv;
+    ecEncCtx*      ctx = NULL;
+    const char*    msg = "EccBlock Size 16";
+    word32         msgSz = (word32)XSTRLEN("EccBlock Size 16");
+    byte           out[CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE +
+                       AES_BLOCK_SIZE + WC_SHA256_DIGEST_SIZE];
+    word32         outSz = (word32)sizeof(out);
+    byte           out2[CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE +
+                        AES_BLOCK_SIZE + WC_SHA256_DIGEST_SIZE];
+    word32         out2Sz = (word32)sizeof(out2);
+    byte           plain[sizeof("EccBlock Size 16") + AES_BLOCK_SIZE];
+    word32         plainSz = (word32)sizeof(plain);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&nbEph, 0, sizeof(nbEph));
+    XMEMSET(&nbSrv, 0, sizeof(nbSrv));
+    XMEMSET(out, 0, sizeof(out));
+
+    WC_ALLOC_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(ephKey);
+    ExpectNotNull(srvKey);
+#endif
+    if (WC_VAR_OK(ephKey)) {
+        XMEMSET(ephKey, 0, sizeof(*ephKey));
+    }
+    if (WC_VAR_OK(srvKey)) {
+        XMEMSET(srvKey, 0, sizeof(*srvKey));
+    }
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve25519_init(ephKey), 0);
+    ExpectIntEQ(wc_curve25519_init(srvKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, ephKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, srvKey), 0);
+
+    ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
+    ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), 0);
+
+    /* A good message first, for the decrypt-side check below. */
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
+        out, &outSz, ctx, 0), 0);
+
+    /* Encrypt: the non-blocking ephemeral key is rejected. */
+    ExpectIntEQ(wc_curve25519_set_nonblock(ephKey, &nbEph), 0);
+    ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
+        out2, &out2Sz, ctx, 0), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+
+    /* Decrypt: the non-blocking recipient key is rejected the same way. */
+    ExpectIntEQ(wc_curve25519_set_nonblock(srvKey, &nbSrv), 0);
+    ExpectIntEQ(wc_ecc_ctx_reset(ctx, &rng), 0);
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
+        ctx), WC_NO_ERR_TRACE(NOT_COMPILED_IN));
+
+    wc_ecc_ctx_free(ctx);
+    wc_curve25519_free(srvKey);
+    wc_curve25519_free(ephKey);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_ecies_x25519_nonblock */
 
 /*
  * Testing wc_ecc_del_point() and wc_ecc_new_point()

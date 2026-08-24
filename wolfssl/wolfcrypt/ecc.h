@@ -1059,6 +1059,25 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz);
 #ifdef HAVE_ECC_ENCRYPT
 /* ecc encrypt */
 
+/* ECIES with a Montgomery-curve key: select the type with
+ * wc_ecc_ctx_set_curve_id(), use wc_ecc_encrypt_ex2()/wc_ecc_decrypt_ex2().
+ * The import/export sub-guards only matter outside WOLFSSL_ECIES_OLD. */
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET) && \
+    (defined(WOLFSSL_ECIES_OLD) || \
+     (defined(HAVE_CURVE25519_KEY_EXPORT) && \
+      defined(HAVE_CURVE25519_KEY_IMPORT)))
+    #define WOLFSSL_ECIES_X25519
+#endif
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_SHARED_SECRET) && \
+    (defined(WOLFSSL_ECIES_OLD) || \
+     (defined(HAVE_CURVE448_KEY_EXPORT) && \
+      defined(HAVE_CURVE448_KEY_IMPORT)))
+    #define WOLFSSL_ECIES_X448
+#endif
+#if defined(WOLFSSL_ECIES_X25519) || defined(WOLFSSL_ECIES_X448)
+    #define WOLFSSL_ECIES_MONTGOMERY
+#endif
+
 enum ecEncAlgo {
     ecAES_128_CBC = 1,  /* default */
     ecAES_256_CBC = 2,
@@ -1116,7 +1135,27 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o al
 WOLFSSL_API
 int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     byte macAlgo);
+/* Key type the context operates on: ECC_CURVE_DEF (ecc_key), ECC_X25519
+ * (curve25519_key) or ECC_X448 (curve448_key).  Montgomery types must use
+ * wc_ecc_encrypt_ex2()/wc_ecc_decrypt_ex2(); the typed calls stay ECC. */
+WOLFSSL_API
+int wc_ecc_ctx_set_curve_id(ecEncCtx* ctx, int curveId);
+WOLFSSL_API
+int wc_ecc_ctx_get_curve_id(ecEncCtx* ctx, int* curveId);
 #ifdef WOLF_CRYPTO_CB
+/* Device for the whole-operation ECIES crypto callback only (primitives
+ * route by wc_ecc_ctx_set_algo_dev_ids(), ECDH by the keys' own devIds).
+ * An ecc_key devId is adopted only while unset.  Survives reset. */
+WOLFSSL_API
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId);
+WOLFSSL_API
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId);
+/* Per-algorithm devIds mirroring the wc_ecc_ctx_set_algo() trio (DEM
+ * cipher / KDF / MAC); INVALID_DEVID keeps that primitive in software.
+ * Survives wc_ecc_ctx_reset(). */
+WOLFSSL_API
+int wc_ecc_ctx_set_algo_dev_ids(ecEncCtx* ctx, int encDevId, int kdfDevId,
+    int macDevId);
 /* Accessors for crypto-callback backends; only built with WOLF_CRYPTO_CB. */
 WOLFSSL_API
 int wc_ecc_ctx_get_algo(ecEncCtx* ctx, byte* encAlgo, byte* kdfAlgo,
@@ -1145,6 +1184,16 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+/* Generic entry points: privKey/pubKey are typed by the ctx's curve id
+ * (ecc_key*, curve25519_key* or curve448_key*).  ctx is mandatory for the
+ * Montgomery curves - the key type is unrecoverable from NULL. */
+WOLFSSL_API
+int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
+WOLFSSL_API
+int wc_ecc_decrypt_ex2(void* privKey, void* pubKey, const byte* msg,
     word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
 #endif /* HAVE_ECC_ENCRYPT */

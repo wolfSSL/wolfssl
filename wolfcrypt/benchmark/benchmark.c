@@ -14597,6 +14597,13 @@ void bench_eccEncrypt(int curveId)
             goto exit;
         }
 
+    #ifdef WOLF_CRYPTO_CB
+        /* Route the whole-op ECIES callback by the benchmark's devId, like
+         * every other benchmarked operation. */
+        (void)wc_ecc_ctx_set_dev_id(cliCtx, devId);
+        (void)wc_ecc_ctx_set_dev_id(srvCtx, devId);
+    #endif
+
         for (c = 0; eciesCiphers[c].label != NULL; c++) {
             byte algo = eciesCiphers[c].algo;
 
