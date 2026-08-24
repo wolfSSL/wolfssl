@@ -156,6 +156,10 @@ static int wc_AsuEciesCurve(ecc_key* key, u8* curveType, u8* keyLen)
         return CRYPTOCB_UNAVAILABLE;
     }
     switch (key->dp->id) {
+        case ECC_SECP192R1:
+            *curveType = (u8)XASU_ECC_NIST_P192;
+            *keyLen    = (u8)XASU_ECC_P192_SIZE_IN_BYTES;
+            break;
         case ECC_SECP256R1:
             *curveType = (u8)XASU_ECC_NIST_P256;
             *keyLen    = (u8)XASU_ECC_P256_SIZE_IN_BYTES;

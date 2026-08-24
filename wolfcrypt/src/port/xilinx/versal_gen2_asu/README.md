@@ -126,7 +126,7 @@ What the offload requires:
 | KDF context | `wc_ecc_ctx_set_info`, must not be empty |
 | MAC salt | must be empty, so no `wc_ecc_ctx_set_peer_salt` |
 | Protocol | `REQ_RESP_CLIENT` to encrypt, `REQ_RESP_SERVER` to decrypt |
-| Curves | P-256, P-384, Brainpool P-256, P-320, P-384, P-512 |
+| Curves | P-192, P-256, P-384, Brainpool P-256, P-320, P-384, P-512 |
 
 `wc_ecc_ctx_set_peer_salt` is the usual wolfSSL way to key ECIES, and it sets a
 MAC salt as a side effect. wolfSSL feeds that salt to AES-GCM as extra
