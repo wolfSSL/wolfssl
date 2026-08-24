@@ -831,6 +831,9 @@ jobs:
           apt_retry() {
             local i
             for i in 1 2; do
+              # An attempt killed mid-unpack leaves dpkg needing this, or the
+              # next apt-get aborts instantly in debSystem::Lock().
+              sudo dpkg --configure -a >/dev/null 2>&1 || true
               if sudo timeout -k 10 60 apt-get "${APT_OPTS[@]}" update -q && \
                  sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y "$@"; then
                 return 0
