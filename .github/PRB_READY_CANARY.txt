@@ -11,3 +11,5 @@ Test sequence:
 Do not merge this branch or pull request.
 
 canary run 2
+
+canary run 3
