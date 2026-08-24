@@ -150,6 +150,7 @@ set the macros in `user_settings.h` or your build flags.
 | `wolfssl/internal.h` | Internal -- do not use from applications |
 | `src/` | TLS implementation (ssl.c, tls13.c, dtls13.c, internal.c) |
 | `wolfcrypt/src/` | Crypto implementations |
+| `wolfcrypt/src/ASN_TEMPLATE.md` | How ASN.1 structures are described and parsed/encoded -- read before touching `asn.c` |
 | `wolfcrypt/src/port/` | ~30 hardware/OS crypto ports: arm, intel, Espressif, Renesas, st, nxp, atmel, silabs, psa, kcapi, caam, liboqs, ... |
 | `examples/client/`, `examples/server/` | Full-featured reference apps; run with `-h` for all flags |
 | `examples/tls13/` | Minimal TLS 1.3 samples, incl. in-memory I/O (no sockets) |

@@ -261,7 +261,12 @@ enum ASNItem_DataType {
 #endif
 };
 
-/* A template entry describing an ASN.1 item. */
+/* A template entry describing an ASN.1 item.
+ *
+ * Templates are tables of these, used by both GetASN_Items() to decode and
+ * SizeASN_Items()/SetASN_Items() to encode. How to write one is documented
+ * in wolfcrypt/src/ASN_TEMPLATE.md - read that before adding a template.
+ */
 typedef struct ASNItem {
     /* Depth of ASN.1 item - how many constructed ASN.1 items above. */
     byte depth;

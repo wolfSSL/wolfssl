@@ -33,6 +33,11 @@
  *
  * Provides routines to convert BER into DER. Replaces indefinite length
  * encoded items with explicit lengths.
+ *
+ * ASN.1 structures are described by templates - tables of ASNItem shared by
+ * the decoding and encoding routines. Writing one is documented in
+ * wolfcrypt/src/ASN_TEMPLATE.md; read it before adding support for a new
+ * ASN.1 structure.
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
