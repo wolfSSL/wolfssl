@@ -1438,6 +1438,13 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
         return BAD_FUNC_ARG;
     }
 
+    /* The APDU path below requires the port to be initialized (mutex +
+     * applet). Fail early, before allocating, if it is not. */
+    if (iotsafe->enabled && iotsafe_ensure_init() != 0) {
+        WOLFSSL_MSG("IOTSAFE: not initialized");
+        return WC_HW_E;
+    }
+
     WOLFSSL_MSG("IOTSAFE: Called wolfIoT_ecc_shared_secret");
 
 #ifdef DEBUG_IOTSAFE
