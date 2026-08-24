@@ -309,6 +309,15 @@ static int km_ed25519_set_pub(struct eddsa_tfm_type *tfm, const void *key,
     if (ctx->key == NULL)
         return -EINVAL;
 
+    /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
+     * entire old key before parsing the new one), destroy the resident key
+     * state up front -- a rejected key must leave the transform keyless,
+     * not verifying against the previously installed key. */
+    wc_ed25519_free(ctx->key);
+    err = wc_ed25519_init(ctx->key);
+    if (unlikely(err))
+        return -ENOMEM;
+
     if (keylen != ED25519_PUB_KEY_SIZE) {
         #ifdef WOLFKM_DEBUG_EDDSA
         pr_err("%s: ed25519_set_pub: invalid pub len: got %d, "
@@ -960,6 +969,15 @@ static int km_ed448_set_pub(struct eddsa_tfm_type *tfm, const void *key,
 
     if (ctx->key == NULL)
         return -EINVAL;
+
+    /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
+     * entire old key before parsing the new one), destroy the resident key
+     * state up front -- a rejected key must leave the transform keyless,
+     * not verifying against the previously installed key. */
+    wc_ed448_free(ctx->key);
+    err = wc_ed448_init(ctx->key);
+    if (unlikely(err))
+        return -ENOMEM;
 
     if (keylen != ED448_PUB_KEY_SIZE) {
         #ifdef WOLFKM_DEBUG_EDDSA
