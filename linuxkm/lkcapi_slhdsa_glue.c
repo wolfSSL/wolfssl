@@ -250,13 +250,25 @@ static int km_slhdsa_set_pub(struct slhdsa_tfm_type *tfm, const void *key,
     if (key == NULL)
         return -EINVAL;
 
+    /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
+     * entire old key before parsing the new one), destroy the resident key
+     * state up front -- a rejected key must leave the transform keyless,
+     * not verifying against the previously installed key, and installing a
+     * public key invalidates any resident private key (signing requires an
+     * explicit set_priv_key after any set_pub_key). */
+    ctx->pub_set = 0;
+    ForceZero(ctx->pub, sizeof(ctx->pub));
+    ctx->priv_set = 0;
+#ifdef LINUXKM_SLHDSA_SIGN
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+#endif
+
     pub_len = wc_SlhDsaKey_PublicSizeFromParam((enum SlhDsaParam)ctx->param);
     if ((pub_len <= 0) || (keylen != (unsigned int)pub_len))
         return -EINVAL;
 
     XMEMCPY(ctx->pub, key, pub_len);
     ctx->pub_set = 1;
-    ctx->priv_set = 0;
 
     #ifdef WOLFKM_DEBUG_SLHDSA
     pr_info("info: exiting km_slhdsa_set_pub %d\n", keylen);

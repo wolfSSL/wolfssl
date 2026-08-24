@@ -412,6 +412,19 @@ static int km_mldsa_set_pub(struct mldsa_tfm_type *tfm, const void *key,
     if (key == NULL)
         return -EINVAL;
 
+    /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
+     * entire old key before parsing the new one), destroy the resident key
+     * state up front -- a rejected key must leave the transform keyless,
+     * not verifying against the previously installed key, and installing a
+     * public key invalidates any resident private key (signing requires an
+     * explicit set_priv_key after any set_pub_key). */
+    ctx->pub_set = 0;
+    ForceZero(ctx->pub, sizeof(ctx->pub));
+#ifdef LINUXKM_MLDSA_SIGN
+    ctx->priv_set = 0;
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+#endif
+
     if (km_mldsa_sizes(ctx->level, &pub_len, NULL, NULL) != 0)
         return -EINVAL;
 
@@ -428,13 +441,6 @@ static int km_mldsa_set_pub(struct mldsa_tfm_type *tfm, const void *key,
      * interpreted by wc_MlDsaKey_ImportPubRaw() per operation. */
     XMEMCPY(ctx->pub, key, keylen);
     ctx->pub_set = 1;
-    /* Per kernel setkey semantics (cf. rsa_set_pub_key(), which frees the
-     * entire old key before parsing the new one), installing a public key
-     * invalidates any resident private key -- signing requires an explicit
-     * set_priv_key after any set_pub_key, rather than silently continuing
-     * with a key that may not correspond to the new public key. */
-    ForceZero(ctx->priv, sizeof(ctx->priv));
-    ctx->priv_set = 0;
 
     #ifdef WOLFKM_DEBUG_MLDSA
     pr_info("info: exiting km_mldsa_set_pub %d\n", keylen);
@@ -1215,6 +1221,37 @@ static int linuxkm_test_mldsa_driver(const char * driver,
         if (ret) {
             pr_err("error: crypto_sig_verify (empty msg) returned: %d\n",
                    ret);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+
+        /* a rejected set_pub_key must leave the transform keyless -- no
+         * verification against the previously installed key. */
+        ret = crypto_sig_set_pubkey(tfm, pub, pub_len - 1);
+        if (ret != -EINVAL) {
+            pr_err("error: crypto_sig_set_pubkey (short) returned %d, "
+                   "expected %d\n", ret, -EINVAL);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+        ret = crypto_sig_verify(tfm, sig_copy, sig_len, NULL, 0);
+        if (ret != -EINVAL) {
+            pr_err("error: crypto_sig_verify after rejected set_pubkey "
+                   "returned %d, expected %d\n", ret, -EINVAL);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+        ret = crypto_sig_set_pubkey(tfm, pub, pub_len);
+        if (ret) {
+            pr_err("error: crypto_sig_set_pubkey (restore) returned: %d\n",
+                   ret);
+            test_rc = BAD_FUNC_ARG;
+            goto test_mldsa_end;
+        }
+        ret = crypto_sig_verify(tfm, sig_copy, sig_len, NULL, 0);
+        if (ret) {
+            pr_err("error: crypto_sig_verify after restored set_pubkey "
+                   "returned: %d\n", ret);
             test_rc = BAD_FUNC_ARG;
             goto test_mldsa_end;
         }
