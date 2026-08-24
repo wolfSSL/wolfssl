@@ -6294,6 +6294,61 @@ int test_dtls12_scr_epoch_wrap(void)
     return EXPECT_RESULT();
 }
 
+/* Ask the client to renegotiate with one of its epoch counters at the wrap
+ * boundary. Covers both disjuncts of the _Rehandshake() epoch check. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+static int test_dtls12_scr_client_epoch_wrap_at(int useRecvEpoch)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (EXPECT_SUCCESS() && ssl_c != NULL) {
+        if (useRecvEpoch)
+            ssl_c->keys.peerSeq[0].nextEpoch = 0xFFFF;
+        else
+            ssl_c->keys.dtls_epoch = 0xFFFF;
+    }
+
+    /* refused locally: nothing is put on the wire */
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c),
+            WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E));
+    ExpectIntEQ(test_ctx.c_len, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_dtls12_scr_client_epoch_wrap(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    ExpectIntEQ(test_dtls12_scr_client_epoch_wrap_at(0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls12_scr_client_epoch_wrap_at(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls12_seq_num_wrap(void)
 {
     EXPECT_DECLS;
