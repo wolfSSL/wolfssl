@@ -2522,6 +2522,10 @@ static int wc_linuxkm_drbg_loaded = 0;
 
 #ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
 
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH)
+    #define WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+#endif
+
 static int wc__get_random_bytes(void *buf, size_t len)
 {
     struct wc_rng_bank *current_default_wc_rng_bank;
@@ -2532,15 +2536,26 @@ static int wc__get_random_bytes(void *buf, size_t len)
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-        pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc__get_random_bytes() returned %d.\n", ret);
-        return -EFAULT;
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+        pr_emerg_ratelimited("ERROR: FIPS RNG source failed in wc__get_random_bytes(): wc_rng_bank_default_checkout() returned %d.\n", ret);
+#else
+        pr_err_ratelimited("ERROR: FIPS RNG source failed in wc__get_random_bytes(): wc_rng_bank_default_checkout() returned %d.\n", ret);
+#endif
+        /* kernel must-succeed call used from hard IRQ contexts etc. -- the
+         * callback dispatch point will always fall through to native DRBG, but
+         * we log the condition loudly from here. */
+        return -ECANCELED;
     }
     else {
         ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, buf, (unsigned int)len);
         (void)wc_rng_bank_default_checkin(&current_default_wc_rng_bank);
         if (ret) {
-            pr_err_ratelimited("ERROR: wc__get_random_bytes(): wc_linuxkm_drbg_generate() failed with code %d.\n", ret);
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+            pr_emerg_ratelimited("ERROR: FIPS RNG source failed: wc__get_random_bytes(): wc_linuxkm_drbg_generate() failed with code %d.\n", ret);
+#else
+            pr_err_ratelimited("ERROR: FIPS RNG source failed: wc__get_random_bytes(): wc_linuxkm_drbg_generate() failed with code %d.\n", ret);
+#endif
         }
         return ret;
     }
@@ -2556,10 +2571,13 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-#ifdef WC_VERBOSE_RNG
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+        pr_emerg_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_get_random_bytes_user() returned %ld.\n", ret);
+        return -EIO; /* no fallthrough to native randomness */
+#else
         pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_get_random_bytes_user() returned %ld.\n", ret);
+        return -ECANCELED; /* fallthrough to native randomness */
 #endif
-        return -ECANCELED;
     }
     else {
         size_t this_copied, total_copied = 0;
@@ -2569,7 +2587,11 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, sizeof block);
             if (unlikely(ret != 0)) {
-                pr_err("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                pr_emerg_ratelimited("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#else
+                pr_err_ratelimited("ERROR: wc_get_random_bytes_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#endif
                 break;
             }
 
@@ -2597,8 +2619,13 @@ static ssize_t wc_get_random_bytes_user(struct iov_iter *iter) {
         if (total_copied == 0) {
             if (ret == 0)
                 ret = -EFAULT;
-            else
+            else {
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                ret = -EIO;
+#else
                 ret = -ECANCELED;
+#endif
+            }
         }
 
         if (ret == 0)
@@ -2618,10 +2645,13 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
 
     ret = wc_rng_bank_default_checkout(&current_default_wc_rng_bank);
     if (ret) {
-#ifdef WC_VERBOSE_RNG
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+        pr_emerg_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_extract_crng_user() returned %ld.\n", ret);
+        return -EIO; /* no fallthrough to native randomness */
+#else
         pr_err_ratelimited("ERROR: wc_rng_bank_default_checkout() in wc_extract_crng_user() returned %ld.\n", ret);
+        return -ECANCELED; /* fallthrough to native randomness */
 #endif
-        return -ECANCELED;
     }
     else {
         size_t this_copied, total_copied = 0;
@@ -2631,7 +2661,11 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
             ret = wc_linuxkm_drbg_generate(current_default_wc_rng_bank,
                                            NULL, 0, block, sizeof block);
             if (unlikely(ret != 0)) {
-                pr_err("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                pr_emerg_ratelimited("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#else
+                pr_err_ratelimited("ERROR: wc_extract_crng_user() wc_linuxkm_drbg_generate() returned %ld.\n", ret);
+#endif
                 break;
             }
 
@@ -2658,8 +2692,21 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
 
         ForceZero(block, sizeof(block));
 
-        if ((total_copied == 0) && (ret == 0)) {
-            ret = -ECANCELED;
+        if (total_copied == 0) {
+            if (ret == 0) {
+                /* Not reachable -- the loop always copies at least one
+                 * block before any zero-status exit -- but keep the belt.
+                 */
+                ret = -EFAULT;
+            }
+            else if (ret != -EFAULT) {
+                /* Generate failure with nothing delivered. */
+#ifdef WOLFSSL_LINUXKM_GET_RANDOM_NO_FALLTHROUGH
+                ret = -EIO; /* no fallthrough to native randomness */
+#else
+                ret = -ECANCELED; /* fallthrough to native randomness */
+#endif
+            }
         }
 
         if (ret == 0)
