@@ -63282,7 +63282,9 @@ static wc_test_ret_t slhdsa_test_param(enum SlhDsaParam param)
      * substantial and the code path is parameter-independent. */
     if (param == SLHDSA_SHAKE128F) {
         sigLen = WC_SLHDSA_MAX_SIG_LEN;
+        PRIVATE_KEY_UNLOCK();
         ret = wc_SlhDsaKey_Sign(key, NULL, 0, NULL, 0, sig, &sigLen, &rng);
+        PRIVATE_KEY_LOCK();
         if (ret != 0) {
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         }
