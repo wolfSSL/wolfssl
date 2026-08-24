@@ -7630,7 +7630,8 @@ static int SetSSL_CTX_CertsAndKeys(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
  * The parameters are plain buffers with no reference count on them, so a
  * session must not point at the context's: the context is free to replace
  * them at any time. They are small and only present when the application
- * asked for them, so a copy per session is the cheap way to keep them safe.
+ * asked for them, so a copy is the cheap way to keep them safe. It is given
+ * back at the end of the handshake and taken again when next needed.
  *
  * @param [in, out] ssl  SSL object. Any parameters it owns are let go of.
  * @param [in]      ctx  SSL context object.
@@ -10129,10 +10130,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     ssl->buffers.serverDH_Priv.buffer = NULL;
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     ssl->buffers.serverDH_Pub.buffer = NULL;
-    /* A server keeps the parameters (p,g): a renegotiation or a reused object
-     * needs them again, and they are freed with the object. A client reads new
-     * ones from every ServerKeyExchange, so it lets them go here. */
-    if ((ssl->options.side == WOLFSSL_CLIENT_END) && ssl->buffers.weOwnDH) {
+    /* Release the parameters (p,g) back here rather than hold them for
+     * the life of the connection. */
+    if (ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
             DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;
@@ -39030,6 +39030,14 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #endif
                     {
                         /* Allocate DH key buffers and generate key */
+                        if (ssl->buffers.serverDH_P.buffer == NULL ||
+                            ssl->buffers.serverDH_G.buffer == NULL) {
+                            /* Buffers freed at the end of the last handshake,
+                             * create a new copy from the context. */
+                            if (CopySSL_CTX_DhParams(ssl, ssl->ctx) != 0) {
+                                ERROR_OUT(MEMORY_E, exit_sske);
+                            }
+                        }
                         if (ssl->buffers.serverDH_P.buffer == NULL ||
                             ssl->buffers.serverDH_G.buffer == NULL) {
                             ERROR_OUT(NO_DH_PARAMS, exit_sske);

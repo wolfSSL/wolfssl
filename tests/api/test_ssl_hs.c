@@ -1072,12 +1072,12 @@ int test_wolfSSL_set_connect_state_dh(void)
     return EXPECT_RESULT();
 }
 
-/* DH parameters taken from the context are the object's own copy, and they
- * last as long as the object does.
+/* DH parameters taken from the context are the object's own copy, given back
+ * at the end of the handshake and taken again when next needed.
  *
  * The copy is what lets the context replace its parameters while sessions are
- * running. Since the session then holds the only copy it will ever have, the
- * end of a handshake must not take it away: a reused object needs it again.
+ * running. Holding it only for the handshake keeps the cost off connections
+ * that are established and idle.
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -1097,8 +1097,6 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
     WOLFSSL_CTX* ctx_s = NULL;
     WOLFSSL* ssl_c = NULL;
     WOLFSSL* ssl_s = NULL;
-    const byte* startP = NULL;
-    const byte* startG = NULL;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     test_ctx.c_ciphers = test_ctx.s_ciphers = "DHE-RSA-AES128-GCM-SHA256";
@@ -1143,8 +1141,6 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
         ExpectBufEQ(ssl_s->buffers.serverDH_G.buffer, ctx_s->serverDH_G.buffer,
             ctx_s->serverDH_G.length);
         ExpectIntEQ(ssl_s->buffers.weOwnDH, 1);
-        startP = ssl_s->buffers.serverDH_P.buffer;
-        startG = ssl_s->buffers.serverDH_G.buffer;
     }
 
     /* Offering no FFDHE group keeps the server on the parameters it was
@@ -1158,10 +1154,14 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
-    /* The handshake used them and the cleanup after it left them alone. */
+    /* The handshake ran on them and then gave them back. A build that may
+     * renegotiate holds on to every handshake resource, parameters included. */
     if (ssl_s != NULL) {
-        ExpectPtrEq(ssl_s->buffers.serverDH_P.buffer, startP);
-        ExpectPtrEq(ssl_s->buffers.serverDH_G.buffer, startG);
+        ExpectIntEQ(ssl_s->specs.kea, diffie_hellman_kea);
+#ifndef HAVE_SECURE_RENEGOTIATION
+        ExpectNull(ssl_s->buffers.serverDH_P.buffer);
+        ExpectNull(ssl_s->buffers.serverDH_G.buffer);
+#endif
     }
 
     /* So the object can be handed a second connection. */
@@ -1178,11 +1178,15 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
     test_memio_clear_buffer(&test_ctx, 0);
     test_memio_clear_buffer(&test_ctx, 1);
 
-    /* The second handshake ran on the parameters the first one left behind. */
+    /* The second handshake took a fresh copy from the context. Without it
+     * there would be no parameters left to send and it would not complete. */
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     if (ssl_s != NULL) {
-        ExpectPtrEq(ssl_s->buffers.serverDH_P.buffer, startP);
-        ExpectPtrEq(ssl_s->buffers.serverDH_G.buffer, startG);
+        ExpectIntEQ(ssl_s->specs.kea, diffie_hellman_kea);
+#ifndef HAVE_SECURE_RENEGOTIATION
+        ExpectNull(ssl_s->buffers.serverDH_P.buffer);
+        ExpectNull(ssl_s->buffers.serverDH_G.buffer);
+#endif
     }
 
     /* And the context still has its own to hand out. */
