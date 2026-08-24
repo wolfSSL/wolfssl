@@ -491,6 +491,39 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
+
+    /* Reseed-counter width tracks struct DRBG_internal above.  The sentinel
+     * lets wolfssl/wolfcrypt/rng_bank.h supply the same typedef when building
+     * against a legacy FIPS random.h that predates it. */
+    #ifndef WC_DRBG_RESEED_CTR_TYPE_DEFINED
+    #define WC_DRBG_RESEED_CTR_TYPE_DEFINED
+        #ifdef WORD64_AVAILABLE
+        typedef word64 wc_drbg_reseed_ctr_t;
+        #else
+        typedef word32 wc_drbg_reseed_ctr_t;
+        #endif
+    #endif
+
+    /* DRBG state accessor and reseed scheduling services.  These let
+     * applications outside the module boundary (e.g. the wc_rng_bank
+     * facility) observe DRBG status and reseed scheduling, mix in uncredited
+     * material, and request reseeds, all through defined service interfaces
+     * rather than by direct access to module-internal state.  Pre-v7 FIPS
+     * boundaries lack these services; rng_bank.h supplies source-compatible
+     * fallbacks for those builds. */
+    WOLFSSL_API int wc_RNG_GetStatus(const WC_RNG* rng);
+    WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
+    WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
+                                             wc_drbg_reseed_ctr_t* reseedCtr);
+    WOLFSSL_API int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Uncredited(WC_RNG* rng,
+                                                  const byte* seed,
+                                                  word32 seedSz);
+#ifndef CUSTOM_RAND_GENERATE_BLOCK
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
+                                           word32 nonceSz);
+#endif
+
 #ifndef NO_SHA256
     /* SHA-256 Hash_DRBG health test entry points. SHA-512-only builds
      * (NO_SHA256 + WOLFSSL_DRBG_SHA512) use wc_RNG_HealthTest_SHA512_ex
