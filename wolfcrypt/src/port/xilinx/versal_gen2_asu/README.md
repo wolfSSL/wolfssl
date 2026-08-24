@@ -39,7 +39,8 @@ The BSP must have the `xilasu` and `xilmailbox` libraries enabled.
 
 Anything outside this list is declined and wolfSSL runs it in software. That
 includes AES-192, partial AES blocks, SHA-512/224 and 512/256, Keccak padding,
-SHAKE128, deterministic ECDSA, and the older ECIES layouts.
+SHAKE128 and deterministic ECDSA. The older ECIES layouts are different: the
+port is not built at all, see below.
 
 ## Settings
 
@@ -86,6 +87,9 @@ only with firmware that front-pads.
 
 **ECIES needs the KDF context path.** See below.
 
+**ECIES needs `WOLFSSL_ECIES_GEN_IV`, and only offloads one direction.** See
+below.
+
 ## ECIES on hardware
 
 The ASU runs ECIES as one command: ECDH, then HKDF, then AES-GCM. It has no
@@ -115,6 +119,8 @@ What the offload requires:
 
 | Setting | Value |
 | --- | --- |
+| Build | `WOLFSSL_ECIES_GEN_IV`, with neither `WOLFSSL_ECIES_OLD` nor `WOLFSSL_ECIES_ISO18033` |
+| RNG | one on the key or on the context, see below |
 | Scheme | `ecAES_128_GCM` or `ecAES_256_GCM` with `ecHKDF_SHA256` |
 | KDF salt | `wc_ecc_ctx_set_kdf_salt`, passed through as given |
 | KDF context | `wc_ecc_ctx_set_info`, must not be empty |
@@ -139,6 +145,24 @@ in the output instead. The peer decrypts against the returned key, so the
 exchange works and matches software on the wire, but the key you passed in does
 not appear in the result. Decrypt is not affected, and uses the private key you
 supply.
+
+## What ECIES needs to reach the ASU
+
+Two things on top of the table above.
+
+**The build must use `WOLFSSL_ECIES_GEN_IV`.** The ASU puts the GCM nonce in
+the message, which is what that mode does. `WOLFSSL_ECIES_OLD` and
+`WOLFSSL_ECIES_ISO18033` keep the nonce elsewhere, so in those modes the port
+is not built at all and wolfSSL never calls it.
+
+**Only one direction offloads.** Client and server each use their own half of
+the derived key. The ASU always uses the first half, which is the half the
+client encrypts with and the server decrypts with. So a client encrypting, or
+a server decrypting, runs on hardware. The reply going back uses the second
+half and runs in software.
+
+Encrypt needs an RNG, on the key or on the context, or it returns
+`MISSING_RNG_E`. Decrypt does not, since the nonce arrives in the message.
 
 ## Files
 
