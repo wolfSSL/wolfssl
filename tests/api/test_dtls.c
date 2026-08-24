@@ -1002,7 +1002,7 @@ int test_dtls13_request_connection_id(void)
 
 /* Parse a connection_id extension of the given CID length as a ServerHello. */
 #if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && \
-    DTLS_CID_MAX_SIZE < 255
+    !defined(WOLFSSL_NO_TLS12) && DTLS_CID_MAX_SIZE < 255
 static int test_dtls_cid_negotiate_sz(byte cidSz, int expected)
 {
     EXPECT_DECLS;
@@ -1037,7 +1037,7 @@ int test_dtls_cid_negotiate_oversize(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && \
-    DTLS_CID_MAX_SIZE < 255
+    !defined(WOLFSSL_NO_TLS12) && DTLS_CID_MAX_SIZE < 255
     /* send paths size their buffers for at most DTLS_CID_MAX_SIZE */
     ExpectIntEQ(test_dtls_cid_negotiate_sz(DTLS_CID_MAX_SIZE + 1,
             WC_NO_ERR_TRACE(DTLS_CID_ERROR)), TEST_SUCCESS);
