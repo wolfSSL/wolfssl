@@ -6,6 +6,12 @@
     \return 0 on success
     \return WC_HW_E on hardware error
 
+    This function loads the IoT-Safe applet and must be called from a single
+    thread, before the context is used concurrently from multiple threads.
+    Once initialized, individual APDU transactions are serialized internally
+    in multi-threaded builds, so concurrent TLS sessions can safely share the
+    same IoT-Safe context.
+
     _Example_
     \code
     WOLFSSL_CTX *ctx;
@@ -124,6 +130,8 @@ int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
     usually associated to a read event of a UART channel communicating with the modem.
     The read callback associated is global and changes for all the contexts that use
     IoT-safe support at the same time.
+    This function must be called from a single thread, during initialization,
+    before any IoT-Safe operation is performed.
     \param rf Read callback associated to a UART read event. The callback function takes
     two arguments (buf, len) and return the number of characters read, up to len. When a
     newline is encountered, the callback should return the number of characters received
@@ -149,6 +157,8 @@ void wolfIoTSafe_SetCSIM_read_cb(wolfSSL_IOTSafe_CSIM_read_cb rf);
     usually associated to a write event on a UART channel communicating with the modem.
     The write callback associated is global and changes for all the contexts that use
     IoT-safe support at the same time.
+    This function must be called from a single thread, during initialization,
+    before any IoT-Safe operation is performed.
     \param rf Write callback associated to a UART write event. The callback function takes
     two arguments (buf, len) and return the number of characters written, up to len.
 
