@@ -25304,6 +25304,10 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     /* invalid record length, RFC 8446 section 5.1 */
                     SendAlert(ssl, alert_fatal, record_overflow);
                     break;
+                case WC_NO_ERR_TRACE(UNKNOWN_RECORD_TYPE):
+                    /* undefined record type, RFC 8446/9846 section 5 */
+                    SendAlert(ssl, alert_fatal, unexpected_message);
+                    break;
                 default:
                     break;
                 }
@@ -25886,6 +25890,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 FALL_THROUGH;
 #endif /* WOLFSSL_DTLS13 */
                 default:
+                    /* undefined record type, RFC 8446/9846 section 5. DTLS
+                     * must not answer an invalid record with an alert, so it
+                     * returns the error without one. */
+                    if (!ssl->options.dtls)
+                        SendAlert(ssl, alert_fatal, unexpected_message);
                     WOLFSSL_ERROR(UNKNOWN_RECORD_TYPE);
                     return UNKNOWN_RECORD_TYPE;
             }
