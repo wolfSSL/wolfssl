@@ -1648,6 +1648,24 @@ int test_wc_ecc_ctx_set_peer_salt(void)
     ExpectIntEQ(wc_ecc_ctx_set_peer_salt(cliCtx, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* A no-protocol context (wc_ecc_ctx_new(0, ...)) takes no part in the
+     * REQ/RESP salt exchange, and the salt accessors reject it. */
+    {
+        ecEncCtx* plainCtx = NULL;
+
+        ExpectNotNull(plainCtx = wc_ecc_ctx_new(0, &rng));
+        ExpectNull(wc_ecc_ctx_get_own_salt(plainCtx));
+        ExpectIntEQ(wc_ecc_ctx_set_peer_salt(plainCtx, servSalt),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_ctx_set_own_salt(plainCtx, servSalt,
+            EXCHANGE_SALT_SZ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* The custom KDF salt borrows the REQ/RESP salt storage, which a
+         * no-protocol context does not have. */
+        ExpectIntEQ(wc_ecc_ctx_set_kdf_salt(plainCtx, servSalt,
+            EXCHANGE_SALT_SZ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        wc_ecc_ctx_free(plainCtx);
+    }
+
     wc_ecc_ctx_free(cliCtx);
     wc_ecc_ctx_free(servCtx);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -1923,11 +1941,29 @@ int test_wc_ecc_ctx_set_curve_id(void)
     ExpectIntEQ(wc_ecc_ctx_get_curve_id(ctx, &curveId), 0);
     ExpectIntEQ(curveId, ECC_X25519);
 
-    /* The typed entry points stay ECC-only. */
-    ExpectIntEQ(wc_ecc_encrypt(NULL, NULL, NULL, 0, NULL, NULL, ctx),
-        BAD_FUNC_ARG);
-    ExpectIntEQ(wc_ecc_decrypt(NULL, NULL, NULL, 0, NULL, NULL, ctx),
-        BAD_FUNC_ARG);
+    /* The typed entry points stay ECC-only.  Use a live key and buffers so
+     * the rejection can only come from the Montgomery-context guard, not
+     * from the generic NULL-argument checks. */
+    {
+        curve25519_key mkey;
+        byte   mbuf[16];
+        byte   mout[CURVE25519_PUB_KEY_SIZE + 16 + WC_SHA256_DIGEST_SIZE];
+        word32 moutSz = (word32)sizeof(mout);
+        word32 mplainSz = (word32)sizeof(mbuf);
+
+        XMEMSET(&mkey, 0, sizeof(mkey));
+        XMEMSET(mbuf, 0, sizeof(mbuf));
+        ExpectIntEQ(wc_curve25519_init(&mkey), 0);
+        ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &mkey),
+            0);
+        ExpectIntEQ(wc_ecc_encrypt((ecc_key*)&mkey, (ecc_key*)&mkey, mbuf,
+            (word32)sizeof(mbuf), mout, &moutSz, ctx), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_ecc_encrypt_ex((ecc_key*)&mkey, (ecc_key*)&mkey, mbuf,
+            (word32)sizeof(mbuf), mout, &moutSz, ctx, 0), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_ecc_decrypt((ecc_key*)&mkey, (ecc_key*)&mkey, mout,
+            moutSz, mbuf, &mplainSz, ctx), BAD_FUNC_ARG);
+        wc_curve25519_free(&mkey);
+    }
     #else
     ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), NOT_COMPILED_IN);
     #endif
@@ -1967,8 +2003,8 @@ int test_wc_ecc_ecies_x25519(void)
     defined(WOLFSSL_AES_128) && defined(HAVE_HKDF) && \
     !defined(WOLFSSL_NO_MALLOC)
     WC_RNG         rng;
-    curve25519_key ephKey;
-    curve25519_key srvKey;
+    WC_DECLARE_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
     ecEncCtx*      ctx = NULL;
     const char*    msg = "EccBlock Size 16";
     word32         msgSz = (word32)XSTRLEN("EccBlock Size 16");
@@ -1983,21 +2019,32 @@ int test_wc_ecc_ecies_x25519(void)
     word32         wireSz = (word32)sizeof(wire);
 
     XMEMSET(&rng, 0, sizeof(rng));
-    XMEMSET(&ephKey, 0, sizeof(ephKey));
-    XMEMSET(&srvKey, 0, sizeof(srvKey));
     XMEMSET(out, 0, sizeof(out));
     XMEMSET(plain, 0, sizeof(plain));
 
+    WC_ALLOC_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(ephKey);
+    ExpectNotNull(srvKey);
+#endif
+    if (WC_VAR_OK(ephKey)) {
+        XMEMSET(ephKey, 0, sizeof(*ephKey));
+    }
+    if (WC_VAR_OK(srvKey)) {
+        XMEMSET(srvKey, 0, sizeof(*srvKey));
+    }
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_curve25519_init(&ephKey), 0);
-    ExpectIntEQ(wc_curve25519_init(&srvKey), 0);
-    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &ephKey), 0);
-    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &srvKey), 0);
+    ExpectIntEQ(wc_curve25519_init(ephKey), 0);
+    ExpectIntEQ(wc_curve25519_init(srvKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, ephKey), 0);
+    ExpectIntEQ(wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, srvKey), 0);
 
     ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
     ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X25519), 0);
 
-    ExpectIntEQ(wc_ecc_encrypt_ex2(&ephKey, &srvKey, (const byte*)msg, msgSz,
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
         out, &outSz, ctx, 0), 0);
 #ifdef WOLFSSL_ECIES_GEN_IV
     ExpectIntEQ(outSz, CURVE25519_PUB_KEY_SIZE + AES_BLOCK_SIZE + msgSz +
@@ -2009,7 +2056,7 @@ int test_wc_ecc_ecies_x25519(void)
 
     /* The message opens with the ephemeral public key as a raw little-endian
      * u-coordinate (RFC 7748), with no format byte. */
-    ExpectIntEQ(wc_curve25519_export_public_ex(&ephKey, wire, &wireSz,
+    ExpectIntEQ(wc_curve25519_export_public_ex(ephKey, wire, &wireSz,
         EC25519_LITTLE_ENDIAN), 0);
     ExpectIntEQ(XMEMCMP(wire, out, CURVE25519_PUB_KEY_SIZE), 0);
 
@@ -2017,31 +2064,107 @@ int test_wc_ecc_ecies_x25519(void)
     {
         byte   tmp[sizeof(out)];
         word32 tmpSz = (word32)sizeof(tmp);
-        ExpectIntEQ(wc_ecc_encrypt_ex2(&ephKey, &srvKey, (const byte*)msg,
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
             msgSz, tmp, &tmpSz, ctx, 1), BAD_FUNC_ARG);
     }
 
-    ExpectIntEQ(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+    /* An init-only ephemeral key - no key material generated or imported -
+     * must be rejected rather than quietly exporting base * 0. */
+    {
+        curve25519_key emptyKey;
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+
+        XMEMSET(&emptyKey, 0, sizeof(emptyKey));
+        ExpectIntEQ(wc_curve25519_init(&emptyKey), 0);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(&emptyKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        wc_curve25519_free(&emptyKey);
+    }
+
+    /* The documented error contract of the generic entry points, driven
+     * directly rather than through the typed wrappers. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        word32 smallSz = 8;
+
+        ExpectIntEQ(wc_ecc_encrypt_ex2(NULL, srvKey, (const byte*)msg, msgSz,
+            tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, NULL, (const byte*)msg, msgSz,
+            tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, NULL, msgSz, tmp,
+            &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, NULL, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, NULL, ctx, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* The Montgomery total size from ecies_pub_key_size() feeds the
+         * output-size check. */
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &smallSz, ctx, 0), WC_NO_ERR_TRACE(BUFFER_E));
+
+        tmpSz = (word32)sizeof(tmp);
+        ExpectIntEQ(wc_ecc_decrypt_ex2(NULL, NULL, out, outSz, tmp, &tmpSz,
+            ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, NULL, outSz, tmp,
+            &tmpSz, ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, NULL,
+            &tmpSz, ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, tmp, NULL,
+            ctx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* Too short to hold the ephemeral key, a cipher block and the MAC.
+         * A block-multiple length is used so the padding check up front
+         * stays quiet and the length check itself is what rejects it. */
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out,
+            CURVE25519_PUB_KEY_SIZE, tmp, &tmpSz, ctx),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
         ctx), 0);
     ExpectIntEQ(plainSz, msgSz);
     ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
 
+    /* Caller-supplied storage for the peer's ephemeral public key: decrypt
+     * must succeed and leave the key from the front of the message imported
+     * into it. */
+    {
+        curve25519_key peerEph;
+        byte           got[CURVE25519_PUB_KEY_SIZE];
+        word32         gotSz = (word32)sizeof(got);
+
+        XMEMSET(&peerEph, 0, sizeof(peerEph));
+        XMEMSET(plain, 0, sizeof(plain));
+        plainSz = (word32)sizeof(plain);
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, &peerEph, out, outSz, plain,
+            &plainSz, ctx), 0);
+        ExpectIntEQ(plainSz, msgSz);
+        ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+        ExpectIntEQ(wc_curve25519_export_public_ex(&peerEph, got, &gotSz,
+            EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(XMEMCMP(got, out, CURVE25519_PUB_KEY_SIZE), 0);
+        wc_curve25519_free(&peerEph);
+    }
+
     /* Corrupting the ciphertext must fail the MAC. */
     out[outSz - 1] ^= 0x01;
     plainSz = (word32)sizeof(plain);
-    ExpectIntNE(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+    ExpectIntNE(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
         ctx), 0);
     out[outSz - 1] ^= 0x01;
 
     /* So must corrupting the ephemeral public key. */
     out[0] ^= 0x01;
     plainSz = (word32)sizeof(plain);
-    ExpectIntNE(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+    ExpectIntNE(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
         ctx), 0);
 
     wc_ecc_ctx_free(ctx);
-    wc_curve25519_free(&srvKey);
-    wc_curve25519_free(&ephKey);
+    wc_curve25519_free(srvKey);
+    wc_curve25519_free(ephKey);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
@@ -2060,8 +2183,8 @@ int test_wc_ecc_ecies_x448(void)
     defined(WOLFSSL_AES_128) && defined(HAVE_HKDF) && \
     !defined(WOLFSSL_NO_MALLOC)
     WC_RNG       rng;
-    curve448_key ephKey;
-    curve448_key srvKey;
+    WC_DECLARE_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve448_key, 1, HEAP_HINT);
     ecEncCtx*    ctx = NULL;
     const char*  msg = "EccBlock Size 16";
     word32       msgSz = (word32)XSTRLEN("EccBlock Size 16");
@@ -2075,21 +2198,32 @@ int test_wc_ecc_ecies_x448(void)
     word32       wireSz = (word32)sizeof(wire);
 
     XMEMSET(&rng, 0, sizeof(rng));
-    XMEMSET(&ephKey, 0, sizeof(ephKey));
-    XMEMSET(&srvKey, 0, sizeof(srvKey));
     XMEMSET(out, 0, sizeof(out));
     XMEMSET(plain, 0, sizeof(plain));
 
+    WC_ALLOC_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    ExpectNotNull(ephKey);
+    ExpectNotNull(srvKey);
+#endif
+    if (WC_VAR_OK(ephKey)) {
+        XMEMSET(ephKey, 0, sizeof(*ephKey));
+    }
+    if (WC_VAR_OK(srvKey)) {
+        XMEMSET(srvKey, 0, sizeof(*srvKey));
+    }
+
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_curve448_init(&ephKey), 0);
-    ExpectIntEQ(wc_curve448_init(&srvKey), 0);
-    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &ephKey), 0);
-    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &srvKey), 0);
+    ExpectIntEQ(wc_curve448_init(ephKey), 0);
+    ExpectIntEQ(wc_curve448_init(srvKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, ephKey), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, srvKey), 0);
 
     ExpectNotNull(ctx = wc_ecc_ctx_new(0, &rng));
     ExpectIntEQ(wc_ecc_ctx_set_curve_id(ctx, ECC_X448), 0);
 
-    ExpectIntEQ(wc_ecc_encrypt_ex2(&ephKey, &srvKey, (const byte*)msg, msgSz,
+    ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg, msgSz,
         out, &outSz, ctx, 0), 0);
 #ifdef WOLFSSL_ECIES_GEN_IV
     ExpectIntEQ(outSz, CURVE448_PUB_KEY_SIZE + AES_BLOCK_SIZE + msgSz +
@@ -2098,23 +2232,84 @@ int test_wc_ecc_ecies_x448(void)
     ExpectIntEQ(outSz, CURVE448_PUB_KEY_SIZE + msgSz + WC_SHA256_DIGEST_SIZE);
 #endif
 
-    ExpectIntEQ(wc_curve448_export_public_ex(&ephKey, wire, &wireSz,
+    ExpectIntEQ(wc_curve448_export_public_ex(ephKey, wire, &wireSz,
         EC448_LITTLE_ENDIAN), 0);
     ExpectIntEQ(XMEMCMP(wire, out, CURVE448_PUB_KEY_SIZE), 0);
 
-    ExpectIntEQ(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+    /* Point compression does not apply to a Montgomery curve. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 1), BAD_FUNC_ARG);
+    }
+
+    /* An init-only ephemeral key - no key material generated or imported -
+     * must be rejected rather than quietly exporting base * 0. */
+    {
+        curve448_key emptyKey;
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+
+        XMEMSET(&emptyKey, 0, sizeof(emptyKey));
+        ExpectIntEQ(wc_curve448_init(&emptyKey), 0);
+        ExpectIntEQ(wc_ecc_encrypt_ex2(&emptyKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &tmpSz, ctx, 0), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+        wc_curve448_free(&emptyKey);
+    }
+
+    /* The X448 total size from ecies_pub_key_size() feeds the output-size
+     * check, and a message too short for the ephemeral key and MAC is
+     * rejected outright. */
+    {
+        byte   tmp[sizeof(out)];
+        word32 tmpSz = (word32)sizeof(tmp);
+        word32 smallSz = 8;
+
+        ExpectIntEQ(wc_ecc_encrypt_ex2(ephKey, srvKey, (const byte*)msg,
+            msgSz, tmp, &smallSz, ctx, 0), WC_NO_ERR_TRACE(BUFFER_E));
+        /* Block-multiple length, so the length check is what rejects it. */
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out,
+            CURVE448_PUB_KEY_SIZE, tmp, &tmpSz, ctx),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+
+    ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
         ctx), 0);
     ExpectIntEQ(plainSz, msgSz);
     ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
 
+    /* Caller-supplied storage for the peer's ephemeral public key: decrypt
+     * must succeed and leave the key from the front of the message imported
+     * into it. */
+    {
+        curve448_key peerEph;
+        byte         got[CURVE448_PUB_KEY_SIZE];
+        word32       gotSz = (word32)sizeof(got);
+
+        XMEMSET(&peerEph, 0, sizeof(peerEph));
+        XMEMSET(plain, 0, sizeof(plain));
+        plainSz = (word32)sizeof(plain);
+        ExpectIntEQ(wc_ecc_decrypt_ex2(srvKey, &peerEph, out, outSz, plain,
+            &plainSz, ctx), 0);
+        ExpectIntEQ(plainSz, msgSz);
+        ExpectIntEQ(XMEMCMP(msg, plain, msgSz), 0);
+        ExpectIntEQ(wc_curve448_export_public_ex(&peerEph, got, &gotSz,
+            EC448_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(XMEMCMP(got, out, CURVE448_PUB_KEY_SIZE), 0);
+        wc_curve448_free(&peerEph);
+    }
+
     out[outSz - 1] ^= 0x01;
     plainSz = (word32)sizeof(plain);
-    ExpectIntNE(wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+    ExpectIntNE(wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
         ctx), 0);
 
     wc_ecc_ctx_free(ctx);
-    wc_curve448_free(&srvKey);
-    wc_curve448_free(&ephKey);
+    wc_curve448_free(srvKey);
+    wc_curve448_free(ephKey);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();

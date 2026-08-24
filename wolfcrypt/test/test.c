@@ -47696,20 +47696,31 @@ cb_done:
 #endif /* WOLF_CRYPTO_CB && !WOLFSSL_NO_MALLOC */
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
-#ifdef WOLFSSL_ECIES_MONTGOMERY
+/* Like the rest of the ECIES tests, the Montgomery tests need malloc (the
+ * ecEncCtx construction) and, under FIPS, a 5.3+ module.  MAX_ECIES_TEST_SZ
+ * is only defined under these same guards. */
+#if !defined(WOLFSSL_NO_MALLOC) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+
+#if defined(WOLFSSL_ECIES_MONTGOMERY) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 /* ECIES over a Montgomery curve (X25519 / X448).
  *
  * The key type is carried on the context, and the keys are handed to the
- * generic wc_ecc_encrypt_ex2()/wc_ecc_decrypt_ex2() entry points. */
+ * generic wc_ecc_encrypt_ex2()/wc_ecc_decrypt_ex2() entry points.
+ *
+ * The DEM is pinned to AES-128-CBC + HMAC-SHA256 below - the size checks
+ * assume it, and the build's default algorithm tracks the configuration. */
 static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
     void* srvKey, word32 pubKeySz)
 {
     wc_test_ret_t ret = 0;
     ecEncCtx* ctx = NULL;
-    byte      enc[MAX_ECIES_TEST_SZ];
-    byte      plain[MAX_ECIES_TEST_SZ];
-    word32    encSz = (word32)sizeof(enc);
-    word32    plainSz = (word32)sizeof(plain);
+    WC_DECLARE_VAR(enc, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(tmp, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    word32    encSz = MAX_ECIES_TEST_SZ;
+    word32    plainSz = MAX_ECIES_TEST_SZ;
     word32    expectSz;
     /* The ephemeral public key is only carried in the message outside of OLD
      * mode, and GEN_IV additionally embeds the IV.  The DEM here is
@@ -47723,9 +47734,19 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
     static const byte msg[] = "ECIES on a Montgomery curve";
     const word32 msgSz = 16 * 2;
 
+    WC_ALLOC_VAR(enc, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(plain, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(tmp, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    if (!WC_VAR_OK(enc) || !WC_VAR_OK(plain) || !WC_VAR_OK(tmp)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto done;
+    }
+
     ctx = wc_ecc_ctx_new(0, rng);
-    if (ctx == NULL)
-        return WC_TEST_RET_ENC_NC;
+    if (ctx == NULL) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
 
     ret = wc_ecc_ctx_set_curve_id(ctx, curveId);
     if (ret != 0) {
@@ -47733,8 +47754,15 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
         goto done;
     }
 
-    XMEMSET(enc, 0, sizeof(enc));
-    XMEMSET(plain, 0, sizeof(plain));
+    ret = wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+                              ecHMAC_SHA256);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    XMEMSET(enc, 0, MAX_ECIES_TEST_SZ);
+    XMEMSET(plain, 0, MAX_ECIES_TEST_SZ);
     XMEMCPY(plain, msg, XSTRLEN((const char*)msg) + 1);
 
     ret = wc_ecc_encrypt_ex2(ephKey, srvKey, plain, msgSz, enc, &encSz, ctx, 0);
@@ -47758,8 +47786,7 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
 
     /* Point compression is meaningless for a Montgomery curve. */
     {
-        word32 tmpSz = (word32)sizeof(enc);
-        byte   tmp[MAX_ECIES_TEST_SZ];
+        word32 tmpSz = MAX_ECIES_TEST_SZ;
         if (wc_ecc_encrypt_ex2(ephKey, srvKey, plain, msgSz, tmp, &tmpSz, ctx,
                                1) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             ret = WC_TEST_RET_ENC_NC;
@@ -47767,14 +47794,21 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
         }
     }
 
-    /* The typed entry points stay ECC-only. */
-    if (wc_ecc_encrypt(NULL, NULL, plain, msgSz, enc, &encSz, ctx) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+    /* The typed entry points stay ECC-only.  Pass the live keys and buffers
+     * so the rejection can only come from the Montgomery-context guard, not
+     * from the generic NULL-argument checks. */
+    if (wc_ecc_encrypt((ecc_key*)ephKey, (ecc_key*)srvKey, plain, msgSz, enc,
+            &encSz, ctx) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         ret = WC_TEST_RET_ENC_NC;
         goto done;
     }
-    if (wc_ecc_decrypt(NULL, NULL, enc, encSz, plain, &plainSz, ctx) !=
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+    if (wc_ecc_encrypt_ex((ecc_key*)ephKey, (ecc_key*)srvKey, plain, msgSz,
+            enc, &encSz, ctx, 0) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+    if (wc_ecc_decrypt((ecc_key*)srvKey, (ecc_key*)ephKey, enc, encSz, plain,
+            &plainSz, ctx) != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         ret = WC_TEST_RET_ENC_NC;
         goto done;
     }
@@ -47798,8 +47832,8 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
         }
     }
 
-    XMEMSET(plain, 0, sizeof(plain));
-    plainSz = (word32)sizeof(plain);
+    XMEMSET(plain, 0, MAX_ECIES_TEST_SZ);
+    plainSz = MAX_ECIES_TEST_SZ;
     ret = wc_ecc_decrypt_ex2(srvKey, decPubKey, enc, encSz, plain, &plainSz,
                              ctx);
     if (ret != 0) {
@@ -47822,7 +47856,7 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-    plainSz = (word32)sizeof(plain);
+    plainSz = MAX_ECIES_TEST_SZ;
     if (wc_ecc_decrypt_ex2(srvKey, decPubKey, enc, encSz, plain, &plainSz, ctx)
             == 0) {
         ret = WC_TEST_RET_ENC_NC;
@@ -47838,11 +47872,40 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-    plainSz = (word32)sizeof(plain);
+    plainSz = MAX_ECIES_TEST_SZ;
     if (wc_ecc_decrypt_ex2(srvKey, decPubKey, enc, encSz, plain, &plainSz, ctx)
             == 0) {
         ret = WC_TEST_RET_ENC_NC;
         goto done;
+    }
+    enc[0] ^= 0x01;
+
+    /* An invalid ephemeral key must be rejected by the public-key validation
+     * itself - the check_public error, not a MAC failure.  A set high bit is
+     * non-canonical for X25519; wc_curve448_check_public() accepts the high
+     * bit (a 448-bit coordinate fills its last byte), so X448 uses the
+     * all-zero low-order point instead. */
+    {
+        int expErr;
+        if (curveId == ECC_X25519) {
+            enc[pubKeySz - 1] |= 0x80;
+            expErr = WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E);
+        }
+        else {
+            XMEMSET(enc, 0, pubKeySz);
+            expErr = WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+        }
+        ret = wc_ecc_ctx_reset(ctx, rng);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            goto done;
+        }
+        plainSz = MAX_ECIES_TEST_SZ;
+        if (wc_ecc_decrypt_ex2(srvKey, decPubKey, enc, encSz, plain, &plainSz,
+                ctx) != expErr) {
+            ret = WC_TEST_RET_ENC_NC;
+            goto done;
+        }
     }
 #endif
 
@@ -47850,13 +47913,17 @@ static wc_test_ret_t ecies_mont_test(WC_RNG* rng, int curveId, void* ephKey,
 
 done:
     wc_ecc_ctx_free(ctx);
+    WC_FREE_VAR(tmp, HEAP_HINT);
+    WC_FREE_VAR(plain, HEAP_HINT);
+    WC_FREE_VAR(enc, HEAP_HINT);
 
     return ret;
 }
-#endif /* WOLFSSL_ECIES_MONTGOMERY */
+#endif /* WOLFSSL_ECIES_MONTGOMERY && AES-128-CBC */
 
 #if defined(WOLFSSL_ECIES_X25519) && !defined(WOLFSSL_ECIES_OLD) && \
-    !defined(WOLFSSL_ECIES_GEN_IV) && !defined(WOLFSSL_ECIES_ISO18033)
+    !defined(WOLFSSL_ECIES_GEN_IV) && !defined(WOLFSSL_ECIES_ISO18033) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 /* Known answer test for ECIES over X25519.
  *
  * The keys are the Alice/Bob pair from RFC 7748 section 6.1.  The test first
@@ -47908,8 +47975,8 @@ static const byte ecies_x25519_kat_out[] = {
 static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    curve25519_key alice;
-    curve25519_key bob;
+    WC_DECLARE_VAR(alice, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(bob, curve25519_key, 1, HEAP_HINT);
     ecEncCtx* ctx = NULL;
     byte   out[sizeof(ecies_x25519_kat_out)];
     byte   plain[sizeof(ecies_x25519_kat_msg)];
@@ -47919,16 +47986,29 @@ static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
     word32 sharedSz = (word32)sizeof(shared);
     const word32 msgSz = (word32)sizeof(ecies_x25519_kat_msg) - 1;
 
-    XMEMSET(&alice, 0, sizeof(alice));
-    XMEMSET(&bob, 0, sizeof(bob));
+    WC_ALLOC_VAR(alice, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(bob, curve25519_key, 1, HEAP_HINT);
+    if (!WC_VAR_OK(alice) || !WC_VAR_OK(bob)) {
+        WC_FREE_VAR(bob, HEAP_HINT);
+        WC_FREE_VAR(alice, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+
+    XMEMSET(alice, 0, sizeof(*alice));
+    XMEMSET(bob, 0, sizeof(*bob));
     XMEMSET(out, 0, sizeof(out));
 
-    ret = wc_curve25519_init_ex(&alice, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_curve25519_init_ex(&bob, HEAP_HINT, INVALID_DEVID);
+    ret = wc_curve25519_init_ex(alice, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
-        wc_curve25519_free(&alice);
+        WC_FREE_VAR(bob, HEAP_HINT);
+        WC_FREE_VAR(alice, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = wc_curve25519_init_ex(bob, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        wc_curve25519_free(alice);
+        WC_FREE_VAR(bob, HEAP_HINT);
+        WC_FREE_VAR(alice, HEAP_HINT);
         return WC_TEST_RET_ENC_EC(ret);
     }
 
@@ -47936,7 +48016,7 @@ static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
         (word32)sizeof(ecies_x25519_kat_alice_priv),
         ecies_x25519_kat_alice_pub,
         (word32)sizeof(ecies_x25519_kat_alice_pub),
-        &alice, EC25519_LITTLE_ENDIAN);
+        alice, EC25519_LITTLE_ENDIAN);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
@@ -47944,19 +48024,19 @@ static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
     ret = wc_curve25519_import_private_raw_ex(
         ecies_x25519_kat_bob_priv, (word32)sizeof(ecies_x25519_kat_bob_priv),
         ecies_x25519_kat_bob_pub, (word32)sizeof(ecies_x25519_kat_bob_pub),
-        &bob, EC25519_LITTLE_ENDIAN);
+        bob, EC25519_LITTLE_ENDIAN);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
 
 #ifdef WOLFSSL_CURVE25519_BLINDING
-    ret = wc_curve25519_set_rng(&alice, rng);
+    ret = wc_curve25519_set_rng(alice, rng);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-    ret = wc_curve25519_set_rng(&bob, rng);
+    ret = wc_curve25519_set_rng(bob, rng);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
@@ -47964,7 +48044,7 @@ static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
 #endif
 
     /* The little-endian shared secret is the one RFC 7748 specifies. */
-    ret = wc_curve25519_shared_secret_ex(&alice, &bob, shared, &sharedSz,
+    ret = wc_curve25519_shared_secret_ex(alice, bob, shared, &sharedSz,
                                          EC25519_LITTLE_ENDIAN);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
@@ -47987,7 +48067,16 @@ static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
         goto done;
     }
 
-    ret = wc_ecc_encrypt_ex2(&alice, &bob, ecies_x25519_kat_msg, msgSz, out,
+    /* The fixed vector is only valid for HKDF-SHA256 + AES-128-CBC +
+     * HMAC-SHA256, so pin the DEM rather than trusting the default. */
+    ret = wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+                              ecHMAC_SHA256);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    ret = wc_ecc_encrypt_ex2(alice, bob, ecies_x25519_kat_msg, msgSz, out,
                              &outSz, ctx, 0);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
@@ -48005,7 +48094,7 @@ static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-    ret = wc_ecc_decrypt_ex2(&bob, NULL, ecies_x25519_kat_out,
+    ret = wc_ecc_decrypt_ex2(bob, NULL, ecies_x25519_kat_out,
                              (word32)sizeof(ecies_x25519_kat_out), plain,
                              &plainSz, ctx);
     if (ret != 0) {
@@ -48022,53 +48111,234 @@ static wc_test_ret_t ecies_x25519_kat(WC_RNG* rng)
 
 done:
     wc_ecc_ctx_free(ctx);
-    wc_curve25519_free(&bob);
-    wc_curve25519_free(&alice);
+    wc_curve25519_free(bob);
+    wc_curve25519_free(alice);
+    WC_FREE_VAR(bob, HEAP_HINT);
+    WC_FREE_VAR(alice, HEAP_HINT);
 
     return ret;
 }
 #endif /* WOLFSSL_ECIES_X25519 && default IV mode */
 
-#if defined(WOLFSSL_ECIES_X25519) && !defined(WOLFSSL_ECIES_OLD)
-/* ECIES over X25519 driven through the REQ/RESP salt exchange, which is the
- * flow that resets a context between rounds, and with a non-default DEM. */
-static wc_test_ret_t ecies_x25519_req_resp_test(WC_RNG* rng, byte encAlgo)
+#if defined(WOLFSSL_ECIES_X448) && !defined(WOLFSSL_ECIES_OLD) && \
+    !defined(WOLFSSL_ECIES_GEN_IV) && !defined(WOLFSSL_ECIES_ISO18033) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+/* Known answer test for ECIES over X448, the sibling of ecies_x25519_kat().
+ *
+ * The keys are the Alice/Bob pair from RFC 7748 section 6.2, and the raw
+ * shared secret is checked against the RFC's value to pin the byte order
+ * wc_curve448_shared_secret_ex() is asked to derive it in. */
+static const byte ecies_x448_kat_alice_priv[] = {
+    0x9a,0x8f,0x49,0x25,0xd1,0x51,0x9f,0x57,0x75,0xcf,0x46,0xb0,
+    0x4b,0x58,0x00,0xd4,0xee,0x9e,0xe8,0xba,0xe8,0xbc,0x55,0x65,
+    0xd4,0x98,0xc2,0x8d,0xd9,0xc9,0xba,0xf5,0x74,0xa9,0x41,0x97,
+    0x44,0x89,0x73,0x91,0x00,0x63,0x82,0xa6,0xf1,0x27,0xab,0x1d,
+    0x9a,0xc2,0xd8,0xc0,0xa5,0x98,0x72,0x6b
+};
+static const byte ecies_x448_kat_alice_pub[] = {
+    0x9b,0x08,0xf7,0xcc,0x31,0xb7,0xe3,0xe6,0x7d,0x22,0xd5,0xae,
+    0xa1,0x21,0x07,0x4a,0x27,0x3b,0xd2,0xb8,0x3d,0xe0,0x9c,0x63,
+    0xfa,0xa7,0x3d,0x2c,0x22,0xc5,0xd9,0xbb,0xc8,0x36,0x64,0x72,
+    0x41,0xd9,0x53,0xd4,0x0c,0x5b,0x12,0xda,0x88,0x12,0x0d,0x53,
+    0x17,0x7f,0x80,0xe5,0x32,0xc4,0x1f,0xa0
+};
+static const byte ecies_x448_kat_bob_priv[] = {
+    0x1c,0x30,0x6a,0x7a,0xc2,0xa0,0xe2,0xe0,0x99,0x0b,0x29,0x44,
+    0x70,0xcb,0xa3,0x39,0xe6,0x45,0x37,0x72,0xb0,0x75,0x81,0x1d,
+    0x8f,0xad,0x0d,0x1d,0x69,0x27,0xc1,0x20,0xbb,0x5e,0xe8,0x97,
+    0x2b,0x0d,0x3e,0x21,0x37,0x4c,0x9c,0x92,0x1b,0x09,0xd1,0xb0,
+    0x36,0x6f,0x10,0xb6,0x51,0x73,0x99,0x2d
+};
+static const byte ecies_x448_kat_bob_pub[] = {
+    0x3e,0xb7,0xa8,0x29,0xb0,0xcd,0x20,0xf5,0xbc,0xfc,0x0b,0x59,
+    0x9b,0x6f,0xec,0xcf,0x6d,0xa4,0x62,0x71,0x07,0xbd,0xb0,0xd4,
+    0xf3,0x45,0xb4,0x30,0x27,0xd8,0xb9,0x72,0xfc,0x3e,0x34,0xfb,
+    0x42,0x32,0xa1,0x3c,0xa7,0x06,0xdc,0xb5,0x7a,0xec,0x3d,0xae,
+    0x07,0xbd,0xc1,0xc6,0x7b,0xf3,0x36,0x09
+};
+/* RFC 7748 section 6.2 shared secret K. */
+static const byte ecies_x448_kat_shared[] = {
+    0x07,0xff,0xf4,0x18,0x1a,0xc6,0xcc,0x95,0xec,0x1c,0x16,0xa9,
+    0x4a,0x0f,0x74,0xd1,0x2d,0xa2,0x32,0xce,0x40,0xa7,0x75,0x52,
+    0x28,0x1d,0x28,0x2b,0xb6,0x0c,0x0b,0x56,0xfd,0x24,0x64,0xc3,
+    0x35,0x54,0x39,0x36,0x52,0x1c,0x24,0x40,0x30,0x85,0xd5,0x9a,
+    0x44,0x9a,0x50,0x37,0x51,0x4a,0x87,0x9d
+};
+static const byte ecies_x448_kat_msg[] =
+    "ECIES X448 known answer test!!!!";  /* 32 bytes, no NUL used */
+/* Alice's public key, then AES-128-CBC ciphertext, then HMAC-SHA256. */
+static const byte ecies_x448_kat_out[] = {
+    0x9b,0x08,0xf7,0xcc,0x31,0xb7,0xe3,0xe6,0x7d,0x22,0xd5,0xae,
+    0xa1,0x21,0x07,0x4a,0x27,0x3b,0xd2,0xb8,0x3d,0xe0,0x9c,0x63,
+    0xfa,0xa7,0x3d,0x2c,0x22,0xc5,0xd9,0xbb,0xc8,0x36,0x64,0x72,
+    0x41,0xd9,0x53,0xd4,0x0c,0x5b,0x12,0xda,0x88,0x12,0x0d,0x53,
+    0x17,0x7f,0x80,0xe5,0x32,0xc4,0x1f,0xa0,0x6e,0x25,0x43,0x12,
+    0x87,0x47,0x3a,0xbe,0xec,0x5f,0x16,0xca,0x11,0xa2,0x24,0x9b,
+    0x6c,0x4b,0xd2,0x86,0x88,0xce,0x9b,0xef,0x09,0x64,0xf8,0x1d,
+    0xaf,0xa7,0xce,0x01,0x13,0x76,0x38,0xdf,0xc0,0xa7,0x00,0x51,
+    0x9e,0x6c,0x52,0x8e,0xfd,0x6c,0x01,0x9e,0xe0,0x22,0x6b,0xae,
+    0xe3,0xac,0xfa,0xc8,0x1f,0x37,0x71,0x79,0x50,0xbe,0x9d,0x22
+};
+
+static wc_test_ret_t ecies_x448_kat(WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    curve25519_key cliKey;
-    curve25519_key srvKey;
+    WC_DECLARE_VAR(alice, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(bob, curve448_key, 1, HEAP_HINT);
+    ecEncCtx* ctx = NULL;
+    byte   out[sizeof(ecies_x448_kat_out)];
+    byte   plain[sizeof(ecies_x448_kat_msg)];
+    byte   shared[CURVE448_KEY_SIZE];
+    word32 outSz = (word32)sizeof(out);
+    word32 plainSz = (word32)sizeof(plain);
+    word32 sharedSz = (word32)sizeof(shared);
+    const word32 msgSz = (word32)sizeof(ecies_x448_kat_msg) - 1;
+
+    WC_ALLOC_VAR(alice, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(bob, curve448_key, 1, HEAP_HINT);
+    if (!WC_VAR_OK(alice) || !WC_VAR_OK(bob)) {
+        WC_FREE_VAR(bob, HEAP_HINT);
+        WC_FREE_VAR(alice, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+    }
+
+    XMEMSET(alice, 0, sizeof(*alice));
+    XMEMSET(bob, 0, sizeof(*bob));
+    XMEMSET(out, 0, sizeof(out));
+
+    ret = wc_curve448_init(alice);
+    if (ret != 0) {
+        WC_FREE_VAR(bob, HEAP_HINT);
+        WC_FREE_VAR(alice, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = wc_curve448_init(bob);
+    if (ret != 0) {
+        wc_curve448_free(alice);
+        WC_FREE_VAR(bob, HEAP_HINT);
+        WC_FREE_VAR(alice, HEAP_HINT);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_curve448_import_private_raw_ex(ecies_x448_kat_alice_priv,
+        (word32)sizeof(ecies_x448_kat_alice_priv),
+        ecies_x448_kat_alice_pub,
+        (word32)sizeof(ecies_x448_kat_alice_pub),
+        alice, EC448_LITTLE_ENDIAN);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    ret = wc_curve448_import_private_raw_ex(
+        ecies_x448_kat_bob_priv, (word32)sizeof(ecies_x448_kat_bob_priv),
+        ecies_x448_kat_bob_pub, (word32)sizeof(ecies_x448_kat_bob_pub),
+        bob, EC448_LITTLE_ENDIAN);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    /* The little-endian shared secret is the one RFC 7748 specifies. */
+    ret = wc_curve448_shared_secret_ex(alice, bob, shared, &sharedSz,
+                                       EC448_LITTLE_ENDIAN);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    if (sharedSz != (word32)sizeof(ecies_x448_kat_shared) ||
+            XMEMCMP(shared, ecies_x448_kat_shared, sharedSz) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+
+    ctx = wc_ecc_ctx_new(0, rng);
+    if (ctx == NULL) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+    ret = wc_ecc_ctx_set_curve_id(ctx, ECC_X448);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    /* The fixed vector is only valid for HKDF-SHA256 + AES-128-CBC +
+     * HMAC-SHA256, so pin the DEM rather than trusting the default. */
+    ret = wc_ecc_ctx_set_algo(ctx, ecAES_128_CBC, ecHKDF_SHA256,
+                              ecHMAC_SHA256);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+
+    ret = wc_ecc_encrypt_ex2(alice, bob, ecies_x448_kat_msg, msgSz, out,
+                             &outSz, ctx, 0);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    if (outSz != (word32)sizeof(ecies_x448_kat_out) ||
+            XMEMCMP(out, ecies_x448_kat_out, outSz) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+
+    /* And it decrypts back. */
+    ret = wc_ecc_ctx_reset(ctx, rng);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    ret = wc_ecc_decrypt_ex2(bob, NULL, ecies_x448_kat_out,
+                             (word32)sizeof(ecies_x448_kat_out), plain,
+                             &plainSz, ctx);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    if (plainSz != msgSz ||
+            XMEMCMP(plain, ecies_x448_kat_msg, msgSz) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+
+    ret = 0;
+
+done:
+    wc_ecc_ctx_free(ctx);
+    wc_curve448_free(bob);
+    wc_curve448_free(alice);
+    WC_FREE_VAR(bob, HEAP_HINT);
+    WC_FREE_VAR(alice, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WOLFSSL_ECIES_X448 && default IV mode */
+
+#if defined(WOLFSSL_ECIES_MONTGOMERY) && !defined(WOLFSSL_ECIES_OLD)
+/* ECIES over a Montgomery curve driven through the REQ/RESP salt exchange,
+ * which is the flow that resets a context between rounds, and with a
+ * caller-selected DEM.  The keys are made by the per-curve wrappers below. */
+static wc_test_ret_t ecies_mont_req_resp_test(WC_RNG* rng, byte encAlgo,
+    int curveId, void* cliKey, void* srvKey)
+{
+    wc_test_ret_t ret;
+    WC_DECLARE_VAR(out, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
     ecEncCtx* cliCtx = NULL;
     ecEncCtx* srvCtx = NULL;
     const byte* tmpSalt;
     byte   cliSalt[EXCHANGE_SALT_SZ];
     byte   srvSalt[EXCHANGE_SALT_SZ];
-    byte   out[MAX_ECIES_TEST_SZ];
-    byte   plain[MAX_ECIES_TEST_SZ];
-    word32 outSz = (word32)sizeof(out);
-    word32 plainSz = (word32)sizeof(plain);
-    static const byte msg[] = "ECIES X25519 request/response!!!";
+    word32 outSz = MAX_ECIES_TEST_SZ;
+    word32 plainSz = MAX_ECIES_TEST_SZ;
+    static const byte msg[] = "ECIES Montgomery req/response!!!";
     const word32 msgSz = (word32)sizeof(msg) - 1;
 
-    XMEMSET(&cliKey, 0, sizeof(cliKey));
-    XMEMSET(&srvKey, 0, sizeof(srvKey));
-
-    ret = wc_curve25519_init_ex(&cliKey, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_curve25519_init_ex(&srvKey, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0) {
-        wc_curve25519_free(&cliKey);
-        return WC_TEST_RET_ENC_EC(ret);
-    }
-
-    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, &cliKey);
-    if (ret != 0) {
-        ret = WC_TEST_RET_ENC_EC(ret);
-        goto done;
-    }
-    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, &srvKey);
-    if (ret != 0) {
-        ret = WC_TEST_RET_ENC_EC(ret);
+    WC_ALLOC_VAR(out, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    WC_ALLOC_VAR(plain, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    if (!WC_VAR_OK(out) || !WC_VAR_OK(plain)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         goto done;
     }
 
@@ -48079,9 +48349,9 @@ static wc_test_ret_t ecies_x25519_req_resp_test(WC_RNG* rng, byte encAlgo)
         goto done;
     }
 
-    ret = wc_ecc_ctx_set_curve_id(cliCtx, ECC_X25519);
+    ret = wc_ecc_ctx_set_curve_id(cliCtx, curveId);
     if (ret == 0)
-        ret = wc_ecc_ctx_set_curve_id(srvCtx, ECC_X25519);
+        ret = wc_ecc_ctx_set_curve_id(srvCtx, curveId);
     if (ret == 0)
         ret = wc_ecc_ctx_set_algo(cliCtx, encAlgo, ecHKDF_SHA256,
                                   ecHMAC_SHA256);
@@ -48116,7 +48386,7 @@ static wc_test_ret_t ecies_x25519_req_resp_test(WC_RNG* rng, byte encAlgo)
     }
 
     /* Client request. */
-    ret = wc_ecc_encrypt_ex2(&cliKey, &srvKey, msg, msgSz, out, &outSz,
+    ret = wc_ecc_encrypt_ex2(cliKey, srvKey, msg, msgSz, out, &outSz,
                              cliCtx, 0);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
@@ -48125,7 +48395,7 @@ static wc_test_ret_t ecies_x25519_req_resp_test(WC_RNG* rng, byte encAlgo)
 
     /* Server decrypts it, using the doubled key material of the REQ/RESP
      * protocol. */
-    ret = wc_ecc_decrypt_ex2(&srvKey, NULL, out, outSz, plain, &plainSz,
+    ret = wc_ecc_decrypt_ex2(srvKey, NULL, out, outSz, plain, &plainSz,
                              srvCtx);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
@@ -48154,7 +48424,7 @@ static wc_test_ret_t ecies_x25519_req_resp_test(WC_RNG* rng, byte encAlgo)
             ret = WC_TEST_RET_ENC_EC(ret);
             goto done;
         }
-        if (cliId != ECC_X25519 || srvId != ECC_X25519) {
+        if (cliId != curveId || srvId != curveId) {
             ret = WC_TEST_RET_ENC_NC;
             goto done;
         }
@@ -48165,53 +48435,162 @@ static wc_test_ret_t ecies_x25519_req_resp_test(WC_RNG* rng, byte encAlgo)
 done:
     wc_ecc_ctx_free(srvCtx);
     wc_ecc_ctx_free(cliCtx);
-    wc_curve25519_free(&srvKey);
-    wc_curve25519_free(&cliKey);
+    WC_FREE_VAR(plain, HEAP_HINT);
+    WC_FREE_VAR(out, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WOLFSSL_ECIES_MONTGOMERY && !WOLFSSL_ECIES_OLD */
+
+#if defined(WOLFSSL_ECIES_X25519) && !defined(WOLFSSL_ECIES_OLD)
+static wc_test_ret_t ecies_x25519_req_resp_test(WC_RNG* rng, byte encAlgo)
+{
+    wc_test_ret_t ret;
+    WC_DECLARE_VAR(cliKey, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+
+    WC_ALLOC_VAR(cliKey, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+    if (!WC_VAR_OK(cliKey) || !WC_VAR_OK(srvKey)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto done_free;
+    }
+
+    XMEMSET(cliKey, 0, sizeof(*cliKey));
+    XMEMSET(srvKey, 0, sizeof(*srvKey));
+
+    ret = wc_curve25519_init_ex(cliKey, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+    ret = wc_curve25519_init_ex(srvKey, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        wc_curve25519_free(cliKey);
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+
+    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, cliKey);
+    if (ret == 0)
+        ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, srvKey);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    if (ret == 0)
+        ret = ecies_mont_req_resp_test(rng, encAlgo, ECC_X25519, cliKey,
+                                       srvKey);
+
+    wc_curve25519_free(srvKey);
+    wc_curve25519_free(cliKey);
+done_free:
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(cliKey, HEAP_HINT);
 
     return ret;
 }
 #endif /* WOLFSSL_ECIES_X25519 && !WOLFSSL_ECIES_OLD */
 
+#if defined(WOLFSSL_ECIES_X448) && !defined(WOLFSSL_ECIES_OLD)
+static wc_test_ret_t ecies_x448_req_resp_test(WC_RNG* rng, byte encAlgo)
+{
+    wc_test_ret_t ret;
+    WC_DECLARE_VAR(cliKey, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+
+    WC_ALLOC_VAR(cliKey, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+    if (!WC_VAR_OK(cliKey) || !WC_VAR_OK(srvKey)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto done_free;
+    }
+
+    XMEMSET(cliKey, 0, sizeof(*cliKey));
+    XMEMSET(srvKey, 0, sizeof(*srvKey));
+
+    ret = wc_curve448_init(cliKey);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+    ret = wc_curve448_init(srvKey);
+    if (ret != 0) {
+        wc_curve448_free(cliKey);
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+
+    ret = wc_curve448_make_key(rng, CURVE448_KEY_SIZE, cliKey);
+    if (ret == 0)
+        ret = wc_curve448_make_key(rng, CURVE448_KEY_SIZE, srvKey);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    if (ret == 0)
+        ret = ecies_mont_req_resp_test(rng, encAlgo, ECC_X448, cliKey,
+                                       srvKey);
+
+    wc_curve448_free(srvKey);
+    wc_curve448_free(cliKey);
+done_free:
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(cliKey, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WOLFSSL_ECIES_X448 && !WOLFSSL_ECIES_OLD */
+
 #ifdef WOLFSSL_ECIES_X25519
 static wc_test_ret_t ecies_x25519_test(WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    curve25519_key ephKey;
-    curve25519_key srvKey;
+    WC_DECLARE_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(enc, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
     byte wire[CURVE25519_PUB_KEY_SIZE];
     word32 wireSz = (word32)sizeof(wire);
-    byte enc[MAX_ECIES_TEST_SZ];
-    word32 encSz = (word32)sizeof(enc);
+    word32 encSz = MAX_ECIES_TEST_SZ;
     byte msg[32];
     ecEncCtx* ctx;
 
-    XMEMSET(&ephKey, 0, sizeof(ephKey));
-    XMEMSET(&srvKey, 0, sizeof(srvKey));
-
-    ret = wc_curve25519_init_ex(&ephKey, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_curve25519_init_ex(&srvKey, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0) {
-        wc_curve25519_free(&ephKey);
-        return WC_TEST_RET_ENC_EC(ret);
+    WC_ALLOC_VAR(ephKey, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve25519_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(enc, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    if (!WC_VAR_OK(ephKey) || !WC_VAR_OK(srvKey) || !WC_VAR_OK(enc)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto done_free;
     }
 
-    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, &ephKey);
+    XMEMSET(ephKey, 0, sizeof(*ephKey));
+    XMEMSET(srvKey, 0, sizeof(*srvKey));
+
+    ret = wc_curve25519_init_ex(ephKey, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+    ret = wc_curve25519_init_ex(srvKey, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        wc_curve25519_free(ephKey);
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+
+    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, ephKey);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, &srvKey);
+    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, srvKey);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
 
-    ret = ecies_mont_test(rng, ECC_X25519, &ephKey, &srvKey,
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    ret = ecies_mont_test(rng, ECC_X25519, ephKey, srvKey,
                           CURVE25519_PUB_KEY_SIZE);
     if (ret != 0)
         goto done;
+#endif
 
 #ifndef WOLFSSL_ECIES_OLD
     /* The ephemeral key goes on the wire as a raw little-endian
@@ -48224,11 +48603,11 @@ static wc_test_ret_t ecies_x25519_test(WC_RNG* rng)
     }
     ret = wc_ecc_ctx_set_curve_id(ctx, ECC_X25519);
     if (ret == 0) {
-        ret = wc_ecc_encrypt_ex2(&ephKey, &srvKey, msg, (word32)sizeof(msg),
+        ret = wc_ecc_encrypt_ex2(ephKey, srvKey, msg, (word32)sizeof(msg),
                                  enc, &encSz, ctx, 0);
     }
     if (ret == 0) {
-        ret = wc_curve25519_export_public_ex(&ephKey, wire, &wireSz,
+        ret = wc_curve25519_export_public_ex(ephKey, wire, &wireSz,
                                              EC25519_LITTLE_ENDIAN);
     }
     wc_ecc_ctx_free(ctx);
@@ -48245,8 +48624,12 @@ static wc_test_ret_t ecies_x25519_test(WC_RNG* rng)
 #endif /* !WOLFSSL_ECIES_OLD */
 
 done:
-    wc_curve25519_free(&srvKey);
-    wc_curve25519_free(&ephKey);
+    wc_curve25519_free(srvKey);
+    wc_curve25519_free(ephKey);
+done_free:
+    WC_FREE_VAR(enc, HEAP_HINT);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
 
     return ret;
 }
@@ -48256,42 +48639,55 @@ done:
 static wc_test_ret_t ecies_x448_test(WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    curve448_key ephKey;
-    curve448_key srvKey;
+    WC_DECLARE_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(enc, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
     byte wire[CURVE448_PUB_KEY_SIZE];
     word32 wireSz = (word32)sizeof(wire);
-    byte enc[MAX_ECIES_TEST_SZ];
-    word32 encSz = (word32)sizeof(enc);
+    word32 encSz = MAX_ECIES_TEST_SZ;
     byte msg[32];
     ecEncCtx* ctx;
 
-    XMEMSET(&ephKey, 0, sizeof(ephKey));
-    XMEMSET(&srvKey, 0, sizeof(srvKey));
-
-    ret = wc_curve448_init(&ephKey);
-    if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
-    ret = wc_curve448_init(&srvKey);
-    if (ret != 0) {
-        wc_curve448_free(&ephKey);
-        return WC_TEST_RET_ENC_EC(ret);
+    WC_ALLOC_VAR(ephKey, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(srvKey, curve448_key, 1, HEAP_HINT);
+    WC_ALLOC_VAR(enc, byte, MAX_ECIES_TEST_SZ, HEAP_HINT);
+    if (!WC_VAR_OK(ephKey) || !WC_VAR_OK(srvKey) || !WC_VAR_OK(enc)) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto done_free;
     }
 
-    ret = wc_curve448_make_key(rng, CURVE448_KEY_SIZE, &ephKey);
+    XMEMSET(ephKey, 0, sizeof(*ephKey));
+    XMEMSET(srvKey, 0, sizeof(*srvKey));
+
+    ret = wc_curve448_init(ephKey);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+    ret = wc_curve448_init(srvKey);
+    if (ret != 0) {
+        wc_curve448_free(ephKey);
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done_free;
+    }
+
+    ret = wc_curve448_make_key(rng, CURVE448_KEY_SIZE, ephKey);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-    ret = wc_curve448_make_key(rng, CURVE448_KEY_SIZE, &srvKey);
+    ret = wc_curve448_make_key(rng, CURVE448_KEY_SIZE, srvKey);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
 
-    ret = ecies_mont_test(rng, ECC_X448, &ephKey, &srvKey,
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    ret = ecies_mont_test(rng, ECC_X448, ephKey, srvKey,
                           CURVE448_PUB_KEY_SIZE);
     if (ret != 0)
         goto done;
+#endif
 
 #ifndef WOLFSSL_ECIES_OLD
     XMEMSET(msg, 0, sizeof(msg));
@@ -48302,11 +48698,11 @@ static wc_test_ret_t ecies_x448_test(WC_RNG* rng)
     }
     ret = wc_ecc_ctx_set_curve_id(ctx, ECC_X448);
     if (ret == 0) {
-        ret = wc_ecc_encrypt_ex2(&ephKey, &srvKey, msg, (word32)sizeof(msg),
+        ret = wc_ecc_encrypt_ex2(ephKey, srvKey, msg, (word32)sizeof(msg),
                                  enc, &encSz, ctx, 0);
     }
     if (ret == 0) {
-        ret = wc_curve448_export_public_ex(&ephKey, wire, &wireSz,
+        ret = wc_curve448_export_public_ex(ephKey, wire, &wireSz,
                                            EC448_LITTLE_ENDIAN);
     }
     wc_ecc_ctx_free(ctx);
@@ -48323,12 +48719,18 @@ static wc_test_ret_t ecies_x448_test(WC_RNG* rng)
 #endif /* !WOLFSSL_ECIES_OLD */
 
 done:
-    wc_curve448_free(&srvKey);
-    wc_curve448_free(&ephKey);
+    wc_curve448_free(srvKey);
+    wc_curve448_free(ephKey);
+done_free:
+    WC_FREE_VAR(enc, HEAP_HINT);
+    WC_FREE_VAR(srvKey, HEAP_HINT);
+    WC_FREE_VAR(ephKey, HEAP_HINT);
 
     return ret;
 }
 #endif /* WOLFSSL_ECIES_X448 */
+
+#endif /* !WOLFSSL_NO_MALLOC && (!HAVE_FIPS || FIPS_VERSION_GE(5,3)) */
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
 {
@@ -48414,12 +48816,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
     if (ret == 0)
         ret = ecc_encrypt_cryptocb_test(&rng);
 #endif
+#ifndef WOLFSSL_NO_MALLOC
 #ifdef WOLFSSL_ECIES_X25519
     if (ret == 0)
         ret = ecies_x25519_test(&rng);
 #ifndef WOLFSSL_ECIES_OLD
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     if (ret == 0)
         ret = ecies_x25519_req_resp_test(&rng, ecAES_128_CBC);
+#endif
 #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_256)
     /* A different DEM: AES-256-CTR does no block padding. */
     if (ret == 0)
@@ -48432,7 +48837,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
 #endif
 #endif /* !WOLFSSL_ECIES_OLD */
 #if !defined(WOLFSSL_ECIES_OLD) && !defined(WOLFSSL_ECIES_GEN_IV) && \
-    !defined(WOLFSSL_ECIES_ISO18033)
+    !defined(WOLFSSL_ECIES_ISO18033) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     if (ret == 0)
         ret = ecies_x25519_kat(&rng);
 #endif
@@ -48440,7 +48846,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
 #ifdef WOLFSSL_ECIES_X448
     if (ret == 0)
         ret = ecies_x448_test(&rng);
+#if !defined(WOLFSSL_ECIES_OLD) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    if (ret == 0)
+        ret = ecies_x448_req_resp_test(&rng, ecAES_128_CBC);
 #endif
+#if !defined(WOLFSSL_ECIES_OLD) && !defined(WOLFSSL_ECIES_GEN_IV) && \
+    !defined(WOLFSSL_ECIES_ISO18033) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    if (ret == 0)
+        ret = ecies_x448_kat(&rng);
+#endif
+#endif
+#endif /* !WOLFSSL_NO_MALLOC */
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 done:

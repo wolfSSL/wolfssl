@@ -15233,7 +15233,11 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
  */
 int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz)
 {
-    if (ctx == NULL || (salt == NULL && sz != 0))
+    /* The custom KDF salt borrows the REQ/RESP clientSalt/serverSalt
+     * storage, so a no-protocol context (wc_ecc_ctx_new(0, ...)) has nowhere
+     * to keep it - kdfSalt would stay NULL and the copy below would write
+     * through it. */
+    if (ctx == NULL || ctx->protocol == 0 || (salt == NULL && sz != 0))
         return BAD_FUNC_ARG;
 
     /* truncate salt if exceeds max */
@@ -15813,15 +15817,17 @@ static int ecies_peer_import(ecEncCtx* ctx, void* privKey, void* pubKey,
 
 #ifdef WOLFSSL_ECIES_X25519
     if (ctx != NULL && ctx->curveId == ECC_X25519) {
+        /* Init before any validation, so the caller's cleanup path always
+         * frees an initialized key even when the encoding is rejected. */
+        ret = wc_curve25519_init_ex((curve25519_key*)pubKey,
+                                    ecies_heap(ctx, privKey), INVALID_DEVID);
+        if (ret != 0)
+            return ret;
         /* wc_curve25519_import_public_ex() does no validation of its own;
          * this is the counterpart of the on-curve check that
          * wc_ecc_import_x963_ex() performs. */
         ret = wc_curve25519_check_public(msg, pubKeySz,
                                          EC25519_LITTLE_ENDIAN);
-        if (ret != 0)
-            return ret;
-        ret = wc_curve25519_init_ex((curve25519_key*)pubKey,
-                                    ecies_heap(ctx, privKey), INVALID_DEVID);
         if (ret != 0)
             return ret;
         return wc_curve25519_import_public_ex(msg, pubKeySz,
@@ -15831,10 +15837,10 @@ static int ecies_peer_import(ecEncCtx* ctx, void* privKey, void* pubKey,
 #endif
 #ifdef WOLFSSL_ECIES_X448
     if (ctx != NULL && ctx->curveId == ECC_X448) {
-        ret = wc_curve448_check_public(msg, pubKeySz, EC448_LITTLE_ENDIAN);
+        ret = wc_curve448_init((curve448_key*)pubKey);
         if (ret != 0)
             return ret;
-        ret = wc_curve448_init((curve448_key*)pubKey);
+        ret = wc_curve448_check_public(msg, pubKeySz, EC448_LITTLE_ENDIAN);
         if (ret != 0)
             return ret;
         return wc_curve448_import_public_ex(msg, pubKeySz,
@@ -15905,7 +15911,10 @@ static int ecies_shared_secret(ecEncCtx* ctx, void* privKey, void* pubKey,
     }
 #endif
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+    /* Only the first wc_AsyncWait() reads this value. */
     ret = 0;
+#endif
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         ret = wc_AsyncWait(ret, &((ecc_key*)privKey)->asyncDev,

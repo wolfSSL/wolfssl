@@ -1778,7 +1778,10 @@ int wc_ecc_sig_size(const ecc_key* key);
     ecEncCtx object
 
     \param flags indicate whether this is a server or client context
-    Options are: REQ_RESP_CLIENT, and REQ_RESP_SERVER
+    Options are: REQ_RESP_CLIENT, REQ_RESP_SERVER, and 0. With 0 the context
+    takes no part in the REQ/RESP salt exchange; it still carries the
+    algorithm selection (wc_ecc_ctx_set_algo) and the key type
+    (wc_ecc_ctx_set_curve_id) into the encrypt/decrypt calls
     \param rng pointer to a RNG object with which to generate a salt
 
     _Example_
@@ -1838,6 +1841,10 @@ void wc_ecc_ctx_free(ecEncCtx* ctx);
 
     \param ctx pointer to the ecEncCtx object to reset
     \param rng pointer to an RNG object with which to generate a new salt
+
+    \note A context created with flags 0 generates no salt, so the reset
+    skips the salt regeneration. The key type selected with
+    wc_ecc_ctx_set_curve_id survives the reset in every mode.
 
     _Example_
     \code
@@ -1959,10 +1966,11 @@ int wc_ecc_ctx_get_curve_id(ecEncCtx* ctx, int* curveId);
     ecSRV_INIT or ecCLI_INIT.
 
     \return Success On success, returns the ecEncCtx salt
-    \return NULL Returned if the ecEncCtx object is NULL, or the ecEncCtx's
-    state is not ecSRV_INIT or ecCLI_INIT. In the latter two cases, this
-    function also sets the ecEncCtx's state to ecSRV_BAD_STATE or
-    ecCLI_BAD_STATE, respectively
+    \return NULL Returned if the ecEncCtx object is NULL, was created with
+    flags 0 (no REQ/RESP protocol, so it takes no part in the salt
+    exchange), or the ecEncCtx's state is not ecSRV_INIT or ecCLI_INIT.
+    In the latter case, this function also sets the ecEncCtx's state to
+    ecSRV_BAD_STATE or ecCLI_BAD_STATE, respectively
 
     \param ctx pointer to the ecEncCtx object from which to get the salt
 
@@ -1994,7 +2002,8 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
     \return 0 Returned upon successfully setting the peer salt for the
     ecEncCtx object.
     \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL
-    or has an invalid protocol, or if the given salt is NULL
+    or has no REQ/RESP protocol (created with flags 0, so it takes no part
+    in the salt exchange), or if the given salt is NULL
     \return BAD_ENC_STATE_E Returned if the ecEncCtx's state is
     ecSRV_SALT_GET or ecCLI_SALT_GET. In the latter two cases, this
     function also sets the ecEncCtx's state to ecSRV_BAD_STATE or
@@ -2033,8 +2042,10 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 
     \return 0 Returned upon successfully setting the salt for the
     ecEncCtx object.
-    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL
-    or if the given salt is NULL and length is not NULL.
+    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL,
+    was created with flags 0 (no REQ/RESP protocol, so there is no salt
+    storage to borrow for the custom KDF salt), or if the given salt is
+    NULL and length is not NULL.
 
     \param ctx pointer to the ecEncCtx for which to set the salt
     \param salt pointer to salt buffer
@@ -2104,8 +2115,10 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
 
     \return 0 Returned upon successfully encrypting the input message
     \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    or outSz are NULL, the ctx object specifies an unsupported
+    encryption type, or the ctx object is configured for a Montgomery
+    curve (ECC_X25519 / ECC_X448) - such a context must be used with
+    wc_ecc_encrypt_ex2
     \return BAD_ENC_STATE_E Returned if the ctx object given is in a
     state that is not appropriate for encryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2171,8 +2184,10 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     \return 0 Returned upon successfully encrypting the input message
     \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    or outSz are NULL, the ctx object specifies an unsupported
+    encryption type, or the ctx object is configured for a Montgomery
+    curve (ECC_X25519 / ECC_X448) - such a context must be used with
+    wc_ecc_encrypt_ex2
     \return BAD_ENC_STATE_E Returned if the ctx object given is in a
     state that is not appropriate for encryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2248,8 +2263,10 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     \return 0 Returned upon successfully decrypting the input message
     \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    or outSz are NULL, the ctx object specifies an unsupported
+    encryption type, or the ctx object is configured for a Montgomery
+    curve (ECC_X25519 / ECC_X448) - such a context must be used with
+    wc_ecc_decrypt_ex2
     \return BAD_ENC_STATE_E Returned if the ctx object given is in
     a state that is not appropriate for decryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2381,9 +2398,11 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
 
     For the Montgomery curves the peer's ephemeral public key is read from the
     front of the message and validated - wc_curve25519_check_public or
-    wc_curve448_check_public - before the shared secret is derived. That check
-    requires a canonical encoding with the high bit clear, which is what
-    wc_ecc_encrypt_ex2 produces.
+    wc_curve448_check_public - before the shared secret is derived. Both
+    checks reject the low-order points; the X25519 check additionally requires
+    a canonical encoding with the high bit clear, which is what
+    wc_ecc_encrypt_ex2 produces. (An X448 u-coordinate is a 448-bit field
+    element that fills its last byte, so there is no high bit to check.)
 
     \return 0 Returned upon successfully decrypting the message.
     \return BAD_FUNC_ARG Returned if privKey, msg, out or outSz is NULL, or
@@ -2396,7 +2415,9 @@ int wc_ecc_encrypt_ex2(void* privKey, void* pubKey, const byte* msg,
     selects
     \param pubKey optional pointer to storage of the type ctx selects, which
     receives the peer's ephemeral public key. May be NULL, in which case
-    temporary storage is used.
+    temporary storage is used. Under WOLFSSL_ECIES_OLD the ephemeral key is
+    not carried in the message, so there pubKey must supply the peer's public
+    key and NULL is rejected with BAD_FUNC_ARG.
     \param msg pointer to the ciphertext to decrypt
     \param msgSz size of the ciphertext
     \param out pointer to the buffer in which to store the plaintext
@@ -3546,6 +3567,9 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
     \brief Sets own salt in context.
 
     \return 0 on success
+    \return BAD_FUNC_ARG when ctx is NULL, ctx was created with flags 0
+    (no REQ/RESP protocol, so it takes no part in the salt exchange), or
+    salt is NULL
     \return negative on error
 
     \param ctx ECC encryption context

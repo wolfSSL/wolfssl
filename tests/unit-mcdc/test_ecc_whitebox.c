@@ -32,11 +32,14 @@
  *   Class 4  wc_ecc_ctx_get_own_salt() ctx->protocol==0 half ....... 1 condition
  *   Class 5  wc_ecc_ctx_set_peer_salt() ctx->protocol==0 half ...... 1 condition
  *   Class 6  wc_ecc_ctx_set_own_salt() ctx->protocol==0 half ....... 1 condition
- * These are the only ecc.c gaps confirmed structurally unreachable through
- * any public wrapper (every wrapper either hard-codes the "safe" side of the
- * static helper's own re-check, or -- for the ecEncCtx cases -- there is no
- * public constructor that leaves ctx->protocol == 0 on a live, non-NULL
- * context). See RESIDUALS.md for everything else.
+ * Classes 1-3 are confirmed structurally unreachable through any public
+ * wrapper (every wrapper hard-codes the "safe" side of the static helper's
+ * own re-check). Classes 4-6 became API-reachable when
+ * wc_ecc_ctx_new()/wc_ecc_ctx_new_ex() started accepting flags==0 -
+ * tests/api/test_ecc.c (test_wc_ecc_ctx_set_peer_salt) now drives them
+ * through the public API - and are kept here so this binary still completes
+ * both halves of each pair with a directly-built ctx (see the note above on
+ * per-binary MC/DC independence). See RESIDUALS.md for everything else.
  */
 
 /* ecc.c refuses the AES-GCM ECIES DEM in the default IV mode unless one of
