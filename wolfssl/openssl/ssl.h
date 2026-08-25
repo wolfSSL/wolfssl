@@ -1457,6 +1457,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_secure_renegotiation_support wolfSSL_SSL_get_secure_renegotiation_support
 #define SSL_renegotiate_pending         wolfSSL_SSL_renegotiate_pending
 #define SSL_set_tlsext_debug_arg        wolfSSL_set_tlsext_debug_arg
+#define SSL_set_tlsext_debug_callback(ssl, cb) \
+    wolfSSL_set_tlsext_debug_callback((ssl), (WOLFSSL_TLSEXT_DEBUG_CB)(cb))
 #define SSL_set_tlsext_status_type      wolfSSL_set_tlsext_status_type
 #define SSL_get_tlsext_status_type      wolfSSL_get_tlsext_status_type
 #define SSL_set_tlsext_status_exts      wolfSSL_set_tlsext_status_exts
