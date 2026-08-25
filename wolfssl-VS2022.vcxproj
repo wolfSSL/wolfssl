@@ -57,6 +57,21 @@
     <ProjectName>wolfssl</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="WolfSSLSpAsm">
+    <!-- Feature macros the single precision (SP) x86_64 assembly is guarded by.
+         ml64.exe cannot read user_settings.h, so every opt-in IFDEF section of
+         wolfcrypt\src\sp_x86_64_asm.asm has to be enabled on the assembler
+         command line instead.  RSA/DH 2048 and 3072 and ECC P-256 are always
+         assembled; ECC P-384, ECC P-521, RSA/DH 4096 and SAKKE 1024 are opt in
+         and are turned on here so the assembly always provides a superset of
+         what the C compile of sp_x86_64.c can reference.  A section assembled
+         but not enabled for the C build is simply unreferenced code, while a
+         section the C build enables but that is missing here is an unresolved
+         external at link time (LNK2001 on sp_384_*, sp_521_*, sp_4096_* or
+         sp_1024_*).  Trim the list for a smaller library, e.g.:
+             msbuild /p:WolfSSLSpAsmDefs="/DWOLFSSL_SP_384" -->
+    <WolfSSLSpAsmDefs Condition="'$(WolfSSLSpAsmDefs)'==''">/DWOLFSSL_SP_384 /DWOLFSSL_SP_521 /DWOLFSSL_SP_4096 /DWOLFSSL_SP_1024</WolfSSLSpAsmDefs>
+  </PropertyGroup>
   <PropertyGroup Label="WolfSSLIntelAsm">
     <!-- Build the x86_64 crypto assembly (curve25519 / SHA-2 / SHA-3 / ML-KEM /
          ML-DSA) and enable the matching USE_INTEL_SPEEDUP code paths.  Off by
@@ -607,14 +622,14 @@
     <CustomBuild Include="wolfcrypt\src\sp_x86_64_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
