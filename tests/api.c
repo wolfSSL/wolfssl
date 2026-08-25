@@ -32579,6 +32579,13 @@ static int test_SSL_CIPHER_get_xxx(void)
     int   expect_nid24 = NID_undef;
     int   expect_nid25 = 0;
 
+    const char* cipher_id3 = NULL;
+    int   expect_nid31 = NID_undef;
+    int   expect_nid32 = NID_undef;
+    int   expect_nid33 = NID_undef;
+    int   expect_nid34 = NID_undef;
+    int   expect_nid35 = 0;
+
     (void)cipher;
     (void)supportedCiphers;
     (void)i;
@@ -32590,7 +32597,7 @@ static int test_SSL_CIPHER_get_xxx(void)
 
 #if defined(WOLFSSL_TLS13)
     cipher_id = "TLS13-AES128-GCM-SHA256";
-    expect_nid1 = NID_auth_rsa;
+    expect_nid1 = NID_auth_any;
     expect_nid2 = NID_aes_128_gcm;
     expect_nid3 = NID_sha256;
     expect_nid4 = NID_kx_any;
@@ -32604,6 +32611,13 @@ static int test_SSL_CIPHER_get_xxx(void)
     expect_nid24 = NID_kx_ecdhe;
     expect_nid25 = 1;
     #endif
+
+    cipher_id3 = "TLS13-CHACHA20-POLY1305-SHA256";
+    expect_nid31 = NID_auth_any;
+    expect_nid32 = NID_chacha20_poly1305;
+    expect_nid33 = NID_sha256;
+    expect_nid34 = NID_kx_any;
+    expect_nid35 = 1;
 #endif
 
     #ifdef NO_WOLFSSL_SERVER
@@ -32674,6 +32688,28 @@ static int test_SSL_CIPHER_get_xxx(void)
                 ExpectIntEQ(wolfSSL_CIPHER_get_digest_nid(cipher), expect_nid23);
                 ExpectIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), expect_nid24);
                 ExpectIntEQ(wolfSSL_CIPHER_is_aead(cipher), expect_nid25);
+            }
+        }
+
+        if (cipher_id3) {
+
+            for (i = 0; i < numCiphers; ++i) {
+
+                if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
+                    SSL_CIPHER_description(cipher, buf, sizeof(buf));
+                }
+
+                if (XMEMCMP(cipher_id3, buf, XSTRLEN(cipher_id3)) == 0) {
+                    break;
+                }
+            }
+            /* test case for */
+            if (i != numCiphers) {
+                ExpectIntEQ(wolfSSL_CIPHER_get_auth_nid(cipher), expect_nid31);
+                ExpectIntEQ(wolfSSL_CIPHER_get_cipher_nid(cipher), expect_nid32);
+                ExpectIntEQ(wolfSSL_CIPHER_get_digest_nid(cipher), expect_nid33);
+                ExpectIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), expect_nid34);
+                ExpectIntEQ(wolfSSL_CIPHER_is_aead(cipher), expect_nid35);
             }
         }
     }
