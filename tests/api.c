@@ -18895,9 +18895,11 @@ static int test_wolfSSL_curves_mismatch(void)
     } test_params[] = {
 #ifdef WOLFSSL_TLS13
         {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3",
-                /* Client gets error because server will attempt HRR */
-                WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA),
-                WC_NO_ERR_TRACE(FATAL_ERROR)
+                /* No shared group: server rejects the ClientHello with a
+                 * fatal handshake_failure alert (RFC 8446 4.2.1) instead of
+                 * a HelloRetryRequest. */
+                WC_NO_ERR_TRACE(FATAL_ERROR),
+                WC_NO_ERR_TRACE(KEY_SHARE_ERROR)
         },
 #endif
 #ifndef WOLFSSL_NO_TLS12
