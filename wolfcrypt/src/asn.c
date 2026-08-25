@@ -33971,6 +33971,23 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
         curve->cofactor = cofactor;
     }
     if (ret == 0) {
+        /* Reject any explicit-parameter field that would overflow the fixed
+         * ecc_set_type hex buffers (WOLFSSL_ECC_CURVE_STATIC: each field is
+         * char[MAX_ECC_STRING] == 2*MAX_ECC_BYTES+2) or wrap the 2*len+1
+         * allocation size (dynamic build). prime length also becomes
+         * curve->size, which bounds the base X/Y ordinates below. */
+        if ((dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length >
+                    (word32)MAX_ECC_BYTES) ||
+            (dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.length >
+                    (word32)MAX_ECC_BYTES) ||
+            (dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.length >
+                    (word32)MAX_ECC_BYTES) ||
+            (dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.length >
+                    (word32)MAX_ECC_BYTES)) {
+            ret = ASN_PARSE_E;
+        }
+    }
+    if (ret == 0) {
         /* Length of the prime in bytes is the curve size. */
         curve->size =
                 (int)dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length;
