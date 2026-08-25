@@ -146,6 +146,7 @@ int test_tls_msgtype_arg_guard(void)
  * binder sized at the SHA-256 digest length (33 bytes: 1-byte binder length
  * of 32, 32 zero binder bytes). See TLSX_PreSharedKey_Parse_ClientHello() /
  * MIN_PSK_ID_LEN / MIN_PSK_BINDERS_LEN. */
+TEST_TLS_MSGTYPE_UNUSED
 static const byte psk_ch_body[] = {
     0x00, 0x06,                                     /* identities len */
     0x00, 0x00,                                     /* identity len = 0 */
