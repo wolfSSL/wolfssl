@@ -283,73 +283,114 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* HAVE_AES_CBC */
 
 #ifdef WOLFSSL_AES_OFB
-int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+/* OFB is symmetric (encrypt and decrypt run the same keystream). Generate the
+ * keystream one block at a time with the SDK's ECB primitive and keep the
+ * feedback register plus any unused keystream bytes in the Aes context, so a
+ * message split across calls continues the stream instead of restarting from
+ * the original IV. */
+static int _hashcrypt_aes_ofb(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret;
+    byte* tmp;
+
+    if (aes == NULL || out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0)
+        return 0;
 
     ret = _hashcrypt_set_key(aes);
     if (ret)
         return ret;
 
-    if (HASHCRYPT_AES_CryptOfb(
-            HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
-                != kStatus_Success)
-         return WC_HW_E;
+    while (sz > 0) {
+        if (aes->left == 0) {
+            /* keystream block O = E(reg); OFB feeds O back as the next reg */
+            if (HASHCRYPT_AES_EncryptEcb(HASHCRYPT, &aes_handle,
+                    (const uint8_t *)aes->reg, (uint8_t *)aes->tmp,
+                    WC_AES_BLOCK_SIZE) != kStatus_Success)
+                return WC_HW_E;
+            XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
+            aes->left = WC_AES_BLOCK_SIZE;
+        }
+        tmp = (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left;
+        while (aes->left > 0 && sz > 0) {
+            *(out++) = *(in++) ^ *(tmp++);
+            aes->left--;
+            sz--;
+        }
+    }
 
     return 0;
+}
+
+int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return _hashcrypt_aes_ofb(aes, out, in, sz);
 }
 
 #ifdef HAVE_AES_DECRYPT
 int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    int ret;
-
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
-        return ret;
-
-    if (HASHCRYPT_AES_CryptOfb(
-            HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
-                != kStatus_Success)
-         return WC_HW_E;
-
-    return 0;
+    return _hashcrypt_aes_ofb(aes, out, in, sz);
 }
 #endif
 #endif /* WOLFSSL_AES_OFB */
 
 #ifdef WOLFSSL_AES_CFB
-int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+/* CFB-128, byte capable. The keystream block is E(reg); each ciphertext byte is
+ * fed back into reg at the matching offset, so once a full block has passed reg
+ * holds the next feedback block. State (reg, tmp keystream, left) persists in
+ * the Aes context so one message may be processed across several calls. */
+static int _hashcrypt_aes_cfb(Aes* aes, byte* out, const byte* in, word32 sz,
+                              int decrypt)
 {
     int ret;
+    word32 idx;
+    byte c;
+
+    if (aes == NULL || out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0)
+        return 0;
 
     ret = _hashcrypt_set_key(aes);
     if (ret)
         return ret;
 
-    if (HASHCRYPT_AES_EncryptCfb(
-            HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
-                != kStatus_Success)
-         return WC_HW_E;
+    while (sz > 0) {
+        if (aes->left == 0) {
+            if (HASHCRYPT_AES_EncryptEcb(HASHCRYPT, &aes_handle,
+                    (const uint8_t *)aes->reg, (uint8_t *)aes->tmp,
+                    WC_AES_BLOCK_SIZE) != kStatus_Success)
+                return WC_HW_E;
+            aes->left = WC_AES_BLOCK_SIZE;
+        }
+        idx = WC_AES_BLOCK_SIZE - aes->left;
+        /* ciphertext = plaintext XOR keystream (and vice-versa for decrypt) */
+        c = (byte)(*in ^ ((byte*)aes->tmp)[idx]);
+        /* feedback register always takes the ciphertext byte */
+        ((byte*)aes->reg)[idx] = decrypt ? *in : c;
+        *out = c;
+        in++;
+        out++;
+        sz--;
+        aes->left--;
+    }
 
     return 0;
+}
+
+int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return _hashcrypt_aes_cfb(aes, out, in, sz, 0);
 }
 
 #ifdef HAVE_AES_DECRYPT
 int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    int ret;
-
-    ret = _hashcrypt_set_key(aes);
-    if (ret)
-        return ret;
-
-    if (HASHCRYPT_AES_DecryptCfb(
-            HASHCRYPT, &aes_handle, in, out, sz, (const uint8_t *)aes->reg)
-                != kStatus_Success)
-         return WC_HW_E;
-
-    return 0;
+    return _hashcrypt_aes_cfb(aes, out, in, sz, 1);
 }
 #endif
 #endif /* WOLFSSL_AES_CFB */

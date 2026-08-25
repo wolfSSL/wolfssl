@@ -13828,11 +13828,9 @@ static wc_test_ret_t aes_ofb_256_test(Aes* enc, Aes* dec, byte* cipher,
             plain1 + WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-#ifndef WOLFSSL_NXP_HASHCRYPT_AES
     if (XMEMCMP(cipher + WC_AES_BLOCK_SIZE, cipher1 + WC_AES_BLOCK_SIZE,
                 WC_AES_BLOCK_SIZE))
         return WC_TEST_RET_ENC_NC;
-#endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 
 #ifdef HAVE_AES_DECRYPT
     ret = wc_AesOfbDecrypt(dec, plain, cipher1, WC_AES_BLOCK_SIZE);
@@ -13845,11 +13843,9 @@ static wc_test_ret_t aes_ofb_256_test(Aes* enc, Aes* dec, byte* cipher,
             cipher1 + WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-#ifndef WOLFSSL_NXP_HASHCRYPT_AES
     if (XMEMCMP(plain + WC_AES_BLOCK_SIZE, plain1 + WC_AES_BLOCK_SIZE,
                 WC_AES_BLOCK_SIZE))
         return WC_TEST_RET_ENC_NC;
-#endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* HAVE_AES_DECRYPT */
 
     /* Multiple blocks at once */
@@ -13922,10 +13918,8 @@ static wc_test_ret_t aes_ofb_256_test(Aes* enc, Aes* dec, byte* cipher,
     ret = wc_AesOfbEncrypt(enc, cipher + 3, plain1 + 3, WC_AES_BLOCK_SIZE);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-#ifndef WOLFSSL_NXP_HASHCRYPT_AES
     if (XMEMCMP(cipher + 3, cipher1 + 3, WC_AES_BLOCK_SIZE))
         return WC_TEST_RET_ENC_NC;
-#endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 
 #ifdef HAVE_AES_DECRYPT
     ret = wc_AesOfbDecrypt(dec, plain, cipher1, 6);
@@ -13937,10 +13931,8 @@ static wc_test_ret_t aes_ofb_256_test(Aes* enc, Aes* dec, byte* cipher,
     ret = wc_AesOfbDecrypt(dec, plain + 6, cipher1 + 6, WC_AES_BLOCK_SIZE);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
-#ifndef WOLFSSL_NXP_HASHCRYPT_AES
     if (XMEMCMP(plain + 6, plain1 + 6, WC_AES_BLOCK_SIZE))
         return WC_TEST_RET_ENC_NC;
-#endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* HAVE_AES_DECRYPT */
 
     return 0;
@@ -14302,7 +14294,6 @@ out:
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
         /* test restarting encryption process */
-    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         ret = wc_AesCfbEncrypt(enc, cipher + (WC_AES_BLOCK_SIZE * 2),
                 msg1 + (WC_AES_BLOCK_SIZE * 2), WC_AES_BLOCK_SIZE);
         if (ret != 0)
@@ -14320,7 +14311,6 @@ out:
         if (XMEMCMP(plain, msg1, WC_AES_BLOCK_SIZE * 3))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
-    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* WOLFSSL_AES_128 */
 
 #ifdef WOLFSSL_AES_192
@@ -14386,7 +14376,6 @@ out:
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     #endif
 
-    #ifndef WOLFSSL_NXP_HASHCRYPT_AES
         /* test with data left overs, magic lengths are checking near edges */
         XMEMSET(cipher, 0, sizeof(cipher));
         ret = wc_AesCfbEncrypt(enc, cipher, msg3, 4);
@@ -14438,7 +14427,6 @@ out:
         if (XMEMCMP(plain, msg3, WC_AES_BLOCK_SIZE * 4))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
-    #endif /* !WOLFSSL_NXP_HASHCRYPT_AES */
 #endif /* WOLFSSL_AES_256 */
 
   out:
