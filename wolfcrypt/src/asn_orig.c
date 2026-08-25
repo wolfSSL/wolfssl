@@ -5911,10 +5911,6 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
 
 /* Set Date validity from now until now + daysValid
  * return size in bytes written to output, 0 on error */
-/* TODO https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5
- * "MUST always encode certificate validity dates through the year 2049 as
- *  UTCTime; certificate validity dates in 2050 or later MUST be encoded as
- *  GeneralizedTime." */
 static int SetValidity(byte* output, int daysValid)
 {
 #ifndef NO_ASN_TIME
@@ -5922,6 +5918,8 @@ static int SetValidity(byte* output, int daysValid)
     byte  after[MAX_DATE_SIZE];
 
     word32 beforeSz, afterSz, seqSz;
+    word32 timeSz;
+    byte format;
 
     time_t now;
     time_t then;
@@ -5941,9 +5939,6 @@ static int SetValidity(byte* output, int daysValid)
     now = wc_Time(0);
 
     /* before now */
-    before[0] = ASN_GENERALIZED_TIME;
-    beforeSz = SetLength(ASN_GEN_TIME_SZ, before + 1) + 1;  /* gen tag */
-
     /* subtract 1 day of seconds for more compliance */
     then = now - 86400;
     expandedTime = XGMTIME(&then, tmpTime);
@@ -5957,11 +5952,13 @@ static int SetValidity(byte* output, int daysValid)
     localTime.tm_year += 1900;
     localTime.tm_mon +=    1;
 
-    SetTime(&localTime, before + beforeSz);
-    beforeSz += ASN_GEN_TIME_SZ;
-
-    after[0] = ASN_GENERALIZED_TIME;
-    afterSz  = SetLength(ASN_GEN_TIME_SZ, after + 1) + 1;  /* gen tag */
+    format = ValidityTimeFormat(&localTime);
+    timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
+                                      : ASN_GEN_TIME_SZ;
+    before[0] = format;
+    beforeSz = SetLength(timeSz, before + 1) + 1;
+    SetTime(&localTime, before + beforeSz, format);
+    beforeSz += timeSz;
 
     /* add daysValid of seconds */
     then = now + (daysValid * (time_t)86400);
@@ -5976,8 +5973,13 @@ static int SetValidity(byte* output, int daysValid)
     localTime.tm_year += 1900;
     localTime.tm_mon  +=    1;
 
-    SetTime(&localTime, after + afterSz);
-    afterSz += ASN_GEN_TIME_SZ;
+    format = ValidityTimeFormat(&localTime);
+    timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
+                                      : ASN_GEN_TIME_SZ;
+    after[0] = format;
+    afterSz  = SetLength(timeSz, after + 1) + 1;
+    SetTime(&localTime, after + afterSz, format);
+    afterSz += timeSz;
 
     /* headers and output */
     seqSz = SetSequence(beforeSz + afterSz, output);
