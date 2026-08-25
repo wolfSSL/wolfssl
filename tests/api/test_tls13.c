@@ -6419,6 +6419,7 @@ int test_key_share_mismatch(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
     int client_group[] = {WOLFSSL_ECC_SECP521R1};
     int server_group[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
 
@@ -6430,7 +6431,14 @@ int test_key_share_mismatch(void)
     ExpectIntEQ(wolfSSL_set_groups(ssl_s,
             server_group, XELEM_CNT(server_group)), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), BAD_KEY_SHARE_DATA);
+    /* No mutual group: server sends a fatal handshake_failure alert instead
+     * of an HRR for a group the client never advertised (RFC 8446 4.2.1).
+     * The client reads the alert on the next connect. */
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WC_NO_ERR_TRACE(FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+    ExpectIntEQ(h.last_rx.code, handshake_failure);
+    ExpectIntEQ(h.last_rx.level, alert_fatal);
 
     wolfSSL_free(ssl_s);
     ssl_s = NULL;

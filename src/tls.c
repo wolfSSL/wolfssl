@@ -11817,27 +11817,13 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     curve = preferredCurve;
 
     if (curve == NULL) {
-        byte i;
-        /* Fallback to user selected group */
-        preferredRank = WOLFSSL_MAX_GROUP_COUNT;
-        for (i = 0; i < ssl->numGroups; i++) {
-            rank = TLSX_KeyShare_GroupRank(ssl, ssl->group[i]);
-            if (rank == -1)
-                continue;
-            if (rank < preferredRank) {
-                name = ssl->group[i];
-                preferredRank = rank;
-            }
-        }
-        if (name == WOLFSSL_NAMED_GROUP_INVALID) {
-            /* No group selected or specified by the server */
-            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
-            return BAD_KEY_SHARE_DATA;
-        }
+        /* No mutual group exists. An HRR may request only a group the
+         * client advertised in supported_groups, so it cannot recover.
+         * RFC 8446 4.2.1. */
+        WOLFSSL_ERROR_VERBOSE(KEY_SHARE_ERROR);
+        return KEY_SHARE_ERROR;
     }
-    else {
-        name = curve->name;
-    }
+    name = curve->name;
 
     #ifdef WOLFSSL_ASYNC_CRYPT
     /* Check the old key share data list. */
@@ -12224,9 +12210,12 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
 
     /* No supported group found - send HelloRetryRequest. */
     if (clientKSE == NULL) {
-        /* Set KEY_SHARE_ERROR to indicate HelloRetryRequest required. */
-        *doHelloRetry = 1;
-        return TLSX_KeyShare_SetSupported(ssl, &ssl->extensions);
+        /* HRR is only valid if it requests a group the client advertised.
+         * SetSupported fails when no mutual group exists. */
+        ret = TLSX_KeyShare_SetSupported(ssl, &ssl->extensions);
+        if (ret == 0)
+            *doHelloRetry = 1;
+        return ret;
     }
 
     return TLSX_KeyShare_Setup(ssl, clientKSE);
