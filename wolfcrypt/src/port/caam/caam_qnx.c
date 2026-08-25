@@ -62,11 +62,21 @@ sem_t localMemSem;
     #define WOLFSSL_CAAM_QNX_MEMORY 250000
 #endif
 
-/* Maximum input size accepted for a single AES operation. Sizes are taken from
- * the device client and are not trusted, this bounds them so that the
- * aggregate buffer size (key + input + output + IV) can not overflow. */
-#ifndef WOLFSSL_CAAM_QNX_MAX_AES_SZ
-    #define WOLFSSL_CAAM_QNX_MAX_AES_SZ (16 * 1024 * 1024)
+/* Maximum input size accepted for a single operation. Sizes are taken from the
+ * device client and are not trusted, this bounds them so that the aggregate
+ * buffer sizes calculated from them can not overflow. */
+#ifndef WOLFSSL_CAAM_QNX_MAX_SZ
+    #define WOLFSSL_CAAM_QNX_MAX_SZ (16 * 1024 * 1024)
+#endif
+
+/* Permissions that the /dev/wolfCrypt device node is created with. Any process
+ * that can open the device is able to submit operations to it, which is the
+ * intended use case of the resource manager, offering the CAAM to unprivileged
+ * applications. Requests are treated as untrusted and sanity checked before
+ * use. Deployments that instead want the CAAM reserved for privileged callers
+ * should override this, i.e. 0600 or 0660 with a dedicated group. */
+#ifndef WOLFSSL_CAAM_QNX_DEV_MODE
+    #define WOLFSSL_CAAM_QNX_DEV_MODE 0666
 #endif
 
 /* keep track of which ID memory belongs to so it can be free'd up */
@@ -364,23 +374,46 @@ static int doCMAC(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     CAAM_BUFFER tmp[3];
     iov_t in_iovs[3], out_iov;
 
-    int msgSz = 0, ret, numBuf, keySz;
+    int msgSz = 0, ret, numBuf, keySz, expSz;
     unsigned char ctx[32];    /* running CMAC context is a constant 32 bytes */
     unsigned char keybuf[32 + BLACK_KEY_MAC_SZ];/*max AES key size is 32 + MAC*/
     unsigned char *buf = NULL;
 
     numBuf = 2; /* start with 2 (key + ctx) for case with no msg input */
-    keySz  = args[1];
-    if (args[2] == 1) { /* is it a black key? */
-        keySz = keySz + BLACK_KEY_MAC_SZ;
-    }
-    SETIOV(&in_iovs[0], keybuf, keySz);
-    SETIOV(&in_iovs[1], ctx, sizeof(ctx));
-    msgSz = args[3];
-    if (msgSz < 0) {
-        WOLFSSL_MSG("CMAC msg size was a negative value");
+
+    /* The sizes here come from the device client and are not trusted. The key
+     * size is used as the length to read into the fixed size keybuf, check
+     * that it is a valid AES key size before using it. */
+    keySz = args[1];
+    if (keySz != 16 && keySz != 24 && keySz != 32) {
+        WOLFSSL_MSG("Bad CMAC key size found");
         return EBADMSG;
     }
+
+    /* Is it a black key? This is not a boolean, it carries the black key type
+     * (CAAM_BLACK_KEY_SM / _CCM / _ECB), so test it the same way caamAesCmac
+     * does. Matching its non-zero test keeps the amount read here equal to the
+     * amount the descriptor consumes for any type. If a client sends a type
+     * that it did not append the MAC for, the short read is caught below. */
+    if (args[2] != 0) {
+        keySz = keySz + BLACK_KEY_MAC_SZ;
+    }
+
+    /* the key sizes accepted above always fit, this guards against keybuf
+     * being resized without the check above getting updated */
+    if (keySz > (int)sizeof(keybuf)) {
+        WOLFSSL_MSG("CMAC key size larger than key buffer");
+        return EBADMSG;
+    }
+
+    if (args[3] > WOLFSSL_CAAM_QNX_MAX_SZ) {
+        WOLFSSL_MSG("CMAC msg size out of range");
+        return EBADMSG;
+    }
+    msgSz = (int)args[3];
+
+    SETIOV(&in_iovs[0], keybuf, keySz);
+    SETIOV(&in_iovs[1], ctx, sizeof(ctx));
 
     if (msgSz > 0) {
         buf = (unsigned char*)CAAM_ADR_MAP(0, msgSz, 0);
@@ -391,9 +424,20 @@ static int doCMAC(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         numBuf = numBuf + 1; /* increase buffer size by one when adding msg */
     }
 
+    expSz = msgSz + keySz + (int)sizeof(ctx);
     ret = resmgr_msgreadv(ctp, in_iovs, numBuf, idx);
-    if (ret < (msgSz + keySz + sizeof(ctx))) {
-        /* sanity check that enough data was sent */
+    if (ret < 0) {
+        /* the read itself failed */
+        WOLFSSL_MSG("error reading input for CMAC operation");
+        if (buf != NULL)
+            CAAM_ADR_UNMAP(buf, 0, msgSz, 0);
+        return ECANCELED;
+    }
+
+    if (ret < expSz) {
+        /* sanity check that enough data was sent, otherwise part of the
+         * buffers would be left holding data from a previous operation */
+        WOLFSSL_MSG("not enough input data sent for CMAC operation");
         if (buf != NULL)
             CAAM_ADR_UNMAP(buf, 0, msgSz, 0);
         return EOVERFLOW;
@@ -784,7 +828,15 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         return EBADMSG;
     }
 
-    if (args[2] == 0 || args[2] > WOLFSSL_CAAM_QNX_MAX_AES_SZ) {
+    if (args[2] == 0) {
+        /* the descriptor built up below always expects input to operate on,
+         * the client side only submits whole blocks (wc_CAAM_AesCbcCtrCommon
+         * and wc_CAAM_AesEcbCommon skip the call when there are none) */
+        WOLFSSL_MSG("AES zero length input is not supported");
+        return EBADMSG;
+    }
+
+    if (args[2] > WOLFSSL_CAAM_QNX_MAX_SZ) {
         WOLFSSL_MSG("AES input size out of range");
         return EBADMSG;
     }
@@ -1778,7 +1830,7 @@ int main(int argc, char *argv[])
     io_funcs.write     = io_write;
     io_funcs.devctl    = io_devctl;
 
-    iofunc_attr_init (&ioattr, S_IFCHR | 0666, NULL, NULL);
+    iofunc_attr_init (&ioattr, S_IFCHR | WOLFSSL_CAAM_QNX_DEV_MODE, NULL, NULL);
     name = resmgr_attach(dpp, &rattr, "/dev/wolfCrypt",
             _FTYPE_ANY, 0, &connect_funcs, &io_funcs, &ioattr);
     if (name == -1) {
