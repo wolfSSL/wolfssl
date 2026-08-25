@@ -390,25 +390,32 @@ static CB_INLINE int store_verify_peer(WOLFSSL_X509_STORE_CTX* store)
 {
     int ret = WOLFSSL_FAILURE;
     int i;
+    WOLFSSL_X509* this_cert;
     WOLFSSL_X509_STORE_CTX* peer_store;
     WOLF_STACK_OF(WOLFSSL_X509)* untrusted;
 
     untrusted = wolfSSL_sk_X509_new_null();
-    for (i = store->error_depth + 1; i < store->totalCerts; i++) {
-        /* A cert missing here can only make the verify below fail. */
-        WOLFSSL_X509* this_cert = wolfSSL_X509_d2i(NULL,
-                                                   store->certs[i].buffer,
-                                                   (int)store->certs[i].length);
-        if (wolfSSL_sk_X509_push(untrusted, this_cert) <= 0) {
-            wolfSSL_X509_free(this_cert);
+    peer_store = wolfSSL_X509_STORE_CTX_new();
+    if ((untrusted == NULL) || (peer_store == NULL)) {
+        ESP_LOGE(TAG, "store_verify_peer out of memory");
+    }
+    else {
+        for (i = store->error_depth + 1; i < store->totalCerts; i++) {
+            /* A cert missing here can only make the verify below fail. */
+            this_cert = wolfSSL_X509_d2i(NULL, store->certs[i].buffer,
+                                         (int)store->certs[i].length);
+            if ((this_cert != NULL) &&
+                (wolfSSL_sk_X509_push(untrusted, this_cert) <= 0)) {
+                wolfSSL_X509_free(this_cert);
+            }
+        }
+
+        if (wolfSSL_X509_STORE_CTX_init(peer_store, store->store,
+                        store->current_cert, untrusted) == WOLFSSL_SUCCESS) {
+            ret = wolfSSL_X509_verify_cert(peer_store);
         }
     }
 
-    peer_store = wolfSSL_X509_STORE_CTX_new();
-    if (wolfSSL_X509_STORE_CTX_init(peer_store, store->store,
-                    store->current_cert, untrusted) == WOLFSSL_SUCCESS) {
-        ret = wolfSSL_X509_verify_cert(peer_store);
-    }
     wolfSSL_X509_STORE_CTX_free(peer_store);
     wolfSSL_sk_X509_pop_free(untrusted, NULL);
 
