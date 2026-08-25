@@ -2645,9 +2645,16 @@ struct CRL_Entry {
     WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
 #endif
     CRL_Entry* next;                      /* next entry */
+#ifdef CRL_STATIC_REVOKED_LIST
+    RevokedCert certs[CRL_MAX_REVOKED_CERTS];
+#else
+    RevokedCert* certs;             /* revoked cert list  */
+#endif
     wolfSSL_Mutex verifyMutex;
-    /* DupCRL_Entry copies data after the `verifyMutex` member. Using the mutex
-     * as the marker because clang-tidy doesn't like taking the sizeof a
+    /* DupCRL_Entry bulk copies the data after the `verifyMutex` member, so
+     * only self-contained value data belongs below it. Anything holding a
+     * pointer goes above, where DupCRL_Entry copies it explicitly. Using the
+     * mutex as the marker because clang-tidy doesn't like taking the sizeof a
      * pointer. */
     char    crlNumber[CRL_MAX_NUM_HEX_STR_SZ];    /* CRL number extension */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
@@ -2660,11 +2667,6 @@ struct CRL_Entry {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_ASN1_TIME lastDateAsn1;  /* last date updated  */
     WOLFSSL_ASN1_TIME nextDateAsn1;  /* next update date   */
-#endif
-#ifdef CRL_STATIC_REVOKED_LIST
-    RevokedCert certs[CRL_MAX_REVOKED_CERTS];
-#else
-    RevokedCert* certs;             /* revoked cert list  */
 #endif
     int     totalCerts;             /* number on list     */
     int     version;                /* version of certificate */
