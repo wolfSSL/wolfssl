@@ -62,6 +62,13 @@ sem_t localMemSem;
     #define WOLFSSL_CAAM_QNX_MEMORY 250000
 #endif
 
+/* Maximum input size accepted for a single AES operation. Sizes are taken from
+ * the device client and are not trusted, this bounds them so that the
+ * aggregate buffer size (key + input + output + IV) can not overflow. */
+#ifndef WOLFSSL_CAAM_QNX_MAX_AES_SZ
+    #define WOLFSSL_CAAM_QNX_MAX_AES_SZ (16 * 1024 * 1024)
+#endif
+
 /* keep track of which ID memory belongs to so it can be free'd up */
 #define MAX_PART 7
 pthread_mutex_t sm_mutex;
@@ -755,39 +762,64 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     iov_t in_iovs[6], out_iovs[2];
     int inIdx = 0, outIdx = 0;
     int algo;
+    int readSz;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL;
     unsigned char *pt = NULL;
     int keySz, ivSz = 0, inSz, outSz;
+    unsigned int totalSz;
     unsigned int phyMem = 0;
+    int useLocalMem = 0;
 
     memset(tmp, 0, sizeof(tmp));
 
-    /* get key info */
+    /* The sizes here come from the device client and are not trusted. Sanity
+     * check them before doing any size arithmetic or pointer math. The key
+     * size is required to be a valid AES key size, which is also enforced
+     * later on by caamAesInternal, and the input size is bounded so that the
+     * aggregate size below can not overflow and wrongly select the fixed size
+     * local memory mapping. */
     keySz = args[1] & 0xFFFF; /* key size */
-    inSz = args[2]; /* input size */
-    outSz = args[2]; /* output size */
+    if (keySz != 16 && keySz != 24 && keySz != 32) {
+        WOLFSSL_MSG("Bad AES key size found");
+        return EBADMSG;
+    }
+
+    if (args[2] == 0 || args[2] > WOLFSSL_CAAM_QNX_MAX_AES_SZ) {
+        WOLFSSL_MSG("AES input size out of range");
+        return EBADMSG;
+    }
+    inSz  = (int)args[2]; /* input size */
+    outSz = (int)args[2]; /* output size */
+
     if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
         ivSz = 16;
     }
 
-    if (keySz + inSz + outSz + ivSz < WOLFSSL_CAAM_QNX_MEMORY) {
+    totalSz = (unsigned int)keySz + (unsigned int)inSz +
+              (unsigned int)outSz + (unsigned int)ivSz;
+
+    if (totalSz < WOLFSSL_CAAM_QNX_MEMORY) {
         if (sem_trywait(&localMemSem) == 0) {
             key = localMemory;
             phyMem = localPhy;
+            useLocalMem = 1;
         }
     }
 
     /* local pre-mapped memory was not used, try to map some memory now */
     if (key == NULL) {
-        pt = (unsigned char*)CAAM_ADR_MAP(0, keySz + inSz + outSz + ivSz, 0);
+        pt = (unsigned char*)CAAM_ADR_MAP(0, totalSz, 0);
         key = pt;
     }
 
     if (key == NULL) {
         ret = ECANCELED;
     }
-    SETIOV(&in_iovs[inIdx], key, keySz);
-    inIdx++;
+
+    if (ret == EOK) {
+        SETIOV(&in_iovs[inIdx], key, keySz);
+        inIdx++;
+    }
 
     /* check for IV */
     if (ret == EOK) {
@@ -821,8 +853,15 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (ret == EOK) {
-        if (resmgr_msgreadv(ctp, in_iovs, inIdx, idx) < 0) {
+        readSz = resmgr_msgreadv(ctp, in_iovs, inIdx, idx);
+        if (readSz < 0) {
             ret = ECANCELED;
+        }
+        else if (readSz < (keySz + ivSz + inSz)) {
+            /* sanity check that enough data was sent, otherwise part of the
+             * buffer would be left holding data from a previous operation */
+            WOLFSSL_MSG("not enough input data sent for AES operation");
+            ret = EOVERFLOW;
         }
     }
 
@@ -863,7 +902,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* sync the new IV/MAC and output buffer */
     if (ret == EOK) {
-        CAAM_ADR_SYNC(key, keySz + inSz + ivSz + outSz);
+        CAAM_ADR_SYNC(key, totalSz);
         if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
             SETIOV(&out_iovs[1], iv, ivSz);
             outIdx++;
@@ -877,9 +916,10 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (pt != NULL) {
-        CAAM_ADR_UNMAP(pt, 0, keySz + inSz + outSz + ivSz, 0);
+        CAAM_ADR_UNMAP(pt, 0, totalSz, 0);
     }
-    else {
+
+    if (useLocalMem) {
         /* done using local mapped memory */
         sem_post(&localMemSem);
     }
