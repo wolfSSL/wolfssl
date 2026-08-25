@@ -211,8 +211,15 @@ static int _hashcrypt_set_key(Aes* aes)
 #ifdef HAVE_AES_ECB
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    int ret = _hashcrypt_set_key(aes);
+    int ret;
 
+    if (aes == NULL || out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0)
+        return 0;
+
+    ret = _hashcrypt_set_key(aes);
     if (ret)
         return ret;
 
@@ -226,8 +233,15 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #ifdef HAVE_AES_DECRYPT
 int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    int ret = _hashcrypt_set_key(aes);
+    int ret;
 
+    if (aes == NULL || out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0)
+        return 0;
+
+    ret = _hashcrypt_set_key(aes);
     if (ret)
         return ret;
 
@@ -243,8 +257,15 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #ifdef HAVE_AES_CBC
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    int ret = _hashcrypt_set_key(aes);
+    int ret;
 
+    if (aes == NULL || out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0)
+        return 0;
+
+    ret = _hashcrypt_set_key(aes);
     if (ret)
         return ret;
 
@@ -263,6 +284,12 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret;
     byte tmp_iv[16];
+
+    if (aes == NULL || out == NULL || in == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0)
+        return 0;
 
     ret = _hashcrypt_set_key(aes);
     if (ret)
