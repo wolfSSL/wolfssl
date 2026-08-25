@@ -37875,7 +37875,7 @@ static int test_wolfSSL_SendUserCanceled(void)
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
         defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-            if (quiet)
+            if (quiet && ssl_s != NULL)
                 wolfSSL_set_quiet_shutdown(ssl_s, 1);
     #endif
             ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_s),
@@ -37891,6 +37891,11 @@ static int test_wolfSSL_SendUserCanceled(void)
             ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
             ExpectIntEQ(h.last_rx.code, close_notify);
             ExpectIntEQ(h.last_rx.level, alert_warning);
+
+            /* SendUserCanceled must restore the quiet-shutdown flag it
+             * cleared to emit the paired close_notify. */
+            if (quiet && ssl_s != NULL)
+                ExpectIntEQ(ssl_s->options.quietShutdown, 1);
 
             wolfSSL_free(ssl_c);
             wolfSSL_free(ssl_s);
