@@ -13085,8 +13085,7 @@ then
 fi
 
 
-# Deprecated Algorithm Handling
-if test "$ENABLED_ARC4" = "yes"
+if test "$ENABLED_ARC4" == "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_RC4"
 fi
@@ -14199,6 +14198,16 @@ fi # $silent != yes
 if test "$MINGW_LIB_WARNING" = "yes"
 then
     AC_MSG_WARN([Building with shared and static library at the same time on this system may cause export/import problems when using non contemporary GNU tools.])
+fi
+
+# Deprecated Algorithm Handling
+if test "$ENABLED_ARC4" = "yes"
+then
+    if test "$ENABLED_TLS" != "no"
+    then
+        echo "---"
+        AC_MSG_NOTICE([RC4 cipher suites are built into this TLS configuration. RFC 7465 prohibits RC4 in TLS, and RFC 8446 Appendix D.5 says a TLS 1.3 capable implementation MUST NOT offer or negotiate RC4 in any protocol version. Use --disable-arc4 unless RC4 is required.])
+    fi
 fi
 
 if test -n "$WITH_MAX_ECC_BITS"; then
