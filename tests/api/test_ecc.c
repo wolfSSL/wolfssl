@@ -3487,3 +3487,176 @@ int test_wc_EccDecisionCoverage4(void)
 #endif /* HAVE_ECC && !WC_NO_RNG && !WOLF_CRYPTO_CB_ONLY_ECC */
     return EXPECT_RESULT();
 } /* END test_wc_EccDecisionCoverage4 */
+
+
+/*
+ * Regression test for the explicit EC-domain buffer overflow (issue 11288).
+ *
+ * EccSpecifiedECDomainDecode() takes the prime, coordinate, A, B and order
+ * lengths straight from DER and converts each to a hex string. In the
+ * WOLFSSL_ECC_CURVE_STATIC build those strings go into fixed
+ * char[MAX_ECC_STRING] (== 2*MAX_ECC_BYTES+2) fields, and DataToHexString()
+ * writes 2*len+1 bytes, so any field longer than MAX_ECC_BYTES overflowed the
+ * heap-allocated ecc_set_type before key validation. The fix rejects such
+ * fields with ASN_PARSE_E.
+ *
+ * The SubjectPublicKeyInfo is assembled at run time so the field lengths are
+ * relative to this build's MAX_ECC_BYTES: MAX_ECC_BYTES+8 must be rejected,
+ * MAX_ECC_BYTES (the largest representable size) must not be rejected by the
+ * new length check.
+ */
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_NO_MALLOC)
+/* Append a DER definite length. */
+static word32 ecc11288_len(byte* out, word32 n)
+{
+    if (n < 0x80U) {
+        out[0] = (byte)n;
+        return 1;
+    }
+    if (n < 0x100U) {
+        out[0] = 0x81U;
+        out[1] = (byte)n;
+        return 2;
+    }
+    out[0] = 0x82U;
+    out[1] = (byte)(n >> 8);
+    out[2] = (byte)(n & 0xffU);
+    return 3;
+}
+/* Append tag || length || value at off; return the new offset. */
+static word32 ecc11288_tlv(byte* out, word32 off, byte tag, const byte* val,
+    word32 vlen)
+{
+    out[off++] = tag;
+    off += ecc11288_len(out + off, vlen);
+    if (vlen > 0) {
+        XMEMCPY(out + off, val, vlen);
+    }
+    return off + vlen;
+}
+/* Build an explicit-parameter EC SubjectPublicKeyInfo with the requested
+ * field byte lengths (prime length is also the curve size). out must hold at
+ * least 2048 bytes. Returns the encoded length. */
+static word32 ecc11288_build(byte* out, word32 primeLen, word32 aLen,
+    word32 bLen, word32 orderLen)
+{
+    static const byte primeFieldOid[] =
+        { 0x2a,0x86,0x48,0xce,0x3d,0x01,0x01 };  /* 1.2.840.10045.1.1 */
+    static const byte ecPubKeyOid[] =
+        { 0x2a,0x86,0x48,0xce,0x3d,0x02,0x01 };  /* 1.2.840.10045.2.1 */
+    static const byte ver2[1] = { 0x02 };
+    static const byte cof1[1] = { 0x01 };
+    byte num[512];
+    byte inner[1024];
+    byte body[2048];
+    word32 io, bo, i;
+
+    /* fieldID ::= SEQ { OID prime-field, INTEGER prime } */
+    num[0] = 0x01;                       /* positive: MSB clear, no pad */
+    for (i = 1; i < primeLen; i++) num[i] = 0x11;
+    io = ecc11288_tlv(inner, 0, 0x06, primeFieldOid, sizeof(primeFieldOid));
+    io = ecc11288_tlv(inner, io, 0x02, num, primeLen);
+    bo = ecc11288_tlv(body, 0, 0x02, ver2, 1);       /* version 2 */
+    bo = ecc11288_tlv(body, bo, 0x30, inner, io);
+
+    /* curve ::= SEQ { OCTET a, OCTET b } */
+    XMEMSET(num, 0x00, sizeof(num));
+    io = ecc11288_tlv(inner, 0, 0x04, num, aLen);
+    io = ecc11288_tlv(inner, io, 0x04, num, bLen);
+    bo = ecc11288_tlv(body, bo, 0x30, inner, io);
+
+    /* base ::= OCTET { 0x04 || X(size) || Y(size) }, size == primeLen */
+    inner[0] = 0x04;
+    for (i = 0; i < primeLen; i++) inner[1 + i] = 0x22;
+    for (i = 0; i < primeLen; i++) inner[1 + primeLen + i] = 0x33;
+    bo = ecc11288_tlv(body, bo, 0x04, inner, 1 + 2 * primeLen);
+
+    /* order INTEGER, cofactor INTEGER */
+    num[0] = 0x01;
+    for (i = 1; i < orderLen; i++) num[i] = 0x11;
+    bo = ecc11288_tlv(body, bo, 0x02, num, orderLen);
+    bo = ecc11288_tlv(body, bo, 0x02, cof1, 1);      /* cofactor 1 */
+
+    /* ECParameters SEQ -> AlgorithmIdentifier SEQ { OID ecPublicKey, params } */
+    io = ecc11288_tlv(inner, 0, 0x06, ecPubKeyOid, sizeof(ecPubKeyOid));
+    io = ecc11288_tlv(inner, io, 0x30, body, bo);   /* wrap params content */
+
+    /* SubjectPublicKeyInfo SEQ { AlgId, BIT STRING pubkey } */
+    bo = ecc11288_tlv(body, 0, 0x30, inner, io);
+    {
+        /* Point is 0x04 || X || Y with each ordinate the curve size
+         * (primeLen), so the encoded point length tracks MAX_ECC_BYTES rather
+         * than a fixed 32 bytes and the at-bound control decodes a
+         * correctly-sized point. */
+        byte pub[2 + 2 * (MAX_ECC_BYTES + 8)];
+        word32 pl = 0;
+        pub[pl++] = 0x00;                 /* BIT STRING unused-bits */
+        pub[pl++] = 0x04;                 /* uncompressed point */
+        for (i = 0; i < primeLen; i++) pub[pl++] = 0x44;
+        for (i = 0; i < primeLen; i++) pub[pl++] = 0x55;
+        bo = ecc11288_tlv(body, bo, 0x03, pub, pl);
+    }
+    return ecc11288_tlv(out, 0, 0x30, body, bo);
+}
+#endif /* HAVE_ECC && WOLFSSL_CUSTOM_CURVES && WOLFSSL_ASN_TEMPLATE &&
+        * !WOLFSSL_NO_MALLOC */
+
+int test_wc_EccPublicKeyDecode_specifiedOverflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_NO_MALLOC)
+    const word32 mb = (word32)MAX_ECC_BYTES;   /* largest representable field */
+    const word32 ov = (word32)MAX_ECC_BYTES + 8; /* one field, over the limit */
+    byte* der = (byte*)XMALLOC(2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    word32 len;
+    word32 idx;
+    ecc_key key;
+
+    ExpectNotNull(der);
+
+    /* Each oversized field, in turn, must be rejected (not overflow). */
+    if (der != NULL) {
+        len = ecc11288_build(der, ov, mb, mb, mb);   /* prime / base X,Y */
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, len),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_ecc_free(&key);
+
+        len = ecc11288_build(der, mb, ov, mb, mb);   /* parameter A */
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, len),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_ecc_free(&key);
+
+        len = ecc11288_build(der, mb, mb, ov, mb);   /* parameter B */
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, len),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_ecc_free(&key);
+
+        len = ecc11288_build(der, mb, mb, mb, ov);   /* order */
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_EccPublicKeyDecode(der, &idx, &key, len),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_ecc_free(&key);
+
+        /* Boundary: every field exactly MAX_ECC_BYTES must NOT be rejected by
+         * the length check (the largest size the fixed buffers can hold). */
+        len = ecc11288_build(der, mb, mb, mb, mb);
+        idx = 0;
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntNE(wc_EccPublicKeyDecode(der, &idx, &key, len),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_ecc_free(&key);
+    }
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_EccPublicKeyDecode_specifiedOverflow */
