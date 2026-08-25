@@ -58,6 +58,9 @@ This library contains implementation for the random number generator.
  * FORCE_FAILURE_GETRANDOM:  Force getrandom failure (testing)    default: off
  * NO_DEV_RANDOM:            Don't use /dev/random for seeding    default: off
  * NO_DEV_URANDOM:           Don't use /dev/urandom for seeding   default: off
+ * WC_RNG_SEED_DEVICE:       Device tried before the usual seed   default: off
+ *                            sources. Must be a quoted string,
+ *                            e.g. -DWC_RNG_SEED_DEVICE='"/dev/hwrng"'
  * HAVE_INTEL_RDRAND:        Use Intel RDRAND instruction         default: off
  * HAVE_INTEL_RDSEED:        Use Intel RDSEED instruction         default: off
  * HAVE_AMD_RDSEED:          Use AMD RDSEED instruction           default: off
@@ -351,6 +354,11 @@ enum {
 /* Verify max gen block len */
 #if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
     #error RNG_MAX_BLOCK_LEN is larger than NIST DBRG max request length
+#endif
+
+/* the seed device is read through the filesystem API */
+#if defined(WC_RNG_SEED_DEVICE) && defined(NO_FILESYSTEM)
+    #error WC_RNG_SEED_DEVICE requires filesystem support
 #endif
 
 enum {
@@ -5930,6 +5938,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret = 0;
+    /* Same condition as the seed-device block below: with
+     * ENTROPY_MEMUSE_FORCE_FAILURE the code that uses these is compiled out,
+     * and declaring them anyway is an unused-variable error under -Werror. */
+    #if defined(WC_RNG_SEED_DEVICE) && (!defined(HAVE_ENTROPY_MEMUSE) || \
+        !defined(ENTROPY_MEMUSE_FORCE_FAILURE))
+        byte*  devOut;
+        word32 devSz;
+        int    devFd;
+        int    devLen;
+    #endif
 
         /* Validate output before any entropy backend dereferences it: some
          * (e.g. glibc's vDSO getrandom()) fault on a NULL buffer rather than
@@ -5967,6 +5985,43 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
 
     #if !defined(HAVE_ENTROPY_MEMUSE) || !defined(ENTROPY_MEMUSE_FORCE_FAILURE)
+
+    #ifdef WC_RNG_SEED_DEVICE
+        /* Nominated entropy source, usually a hardware RNG. Best effort: on
+         * any failure fall through to the default sources below. Those refill
+         * the whole request from the start, so bytes a partial read left in
+         * output are overwritten rather than mixed in. */
+        devOut = output;
+        devSz  = sz;
+        devFd  = wc_open_cloexec(WC_RNG_SEED_DEVICE, O_RDONLY);
+        if (devFd != XBADFD) {
+            while (devSz > 0) {
+                errno = 0;
+                devLen = (int)read(devFd, devOut, devSz);
+                if (devLen < 0) {
+                    if (errno == EINTR)
+                        continue; /* interrupted, read again */
+                    break;
+                }
+                if (devLen == 0)
+                    break;        /* at EOF, will never fill the request */
+
+                devSz  -= (word32)devLen;
+                devOut += devLen;
+            }
+            close(devFd);
+        }
+        #if defined(DEBUG_WOLFSSL)
+            if (devSz == 0)
+                WOLFSSL_MSG("seeded from WC_RNG_SEED_DEVICE.");
+            else
+                WOLFSSL_MSG("WC_RNG_SEED_DEVICE unusable, using default.");
+        #endif /* DEBUG_WOLFSSL */
+        if (devSz == 0) {
+            /* success, we're done */
+            return 0;
+        }
+    #endif /* WC_RNG_SEED_DEVICE */
 
     #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
         if (IS_INTEL_RDSEED(intel_flags)) {
@@ -6035,25 +6090,27 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
         if (!os->seedFdOpen)
         {
+            os->fd = XBADFD;
         #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-            os->fd = wc_open_cloexec("/dev/urandom", O_RDONLY);
+            if (os->fd == XBADFD) {
+                os->fd = wc_open_cloexec("/dev/urandom", O_RDONLY);
             #if defined(DEBUG_WOLFSSL)
-                WOLFSSL_MSG("opened /dev/urandom.");
+                if (os->fd != XBADFD)
+                    WOLFSSL_MSG("opened /dev/urandom.");
             #endif /* DEBUG_WOLFSSL */
-            if (os->fd == XBADFD)
+            }
         #endif /* NO_DEV_URANDOM */
-            {
+            if (os->fd == XBADFD) {
                 /* may still have /dev/random */
                 os->fd = wc_open_cloexec("/dev/random", O_RDONLY);
             #if defined(DEBUG_WOLFSSL)
-                WOLFSSL_MSG("opened /dev/random.");
+                if (os->fd != XBADFD)
+                    WOLFSSL_MSG("opened /dev/random.");
             #endif /* DEBUG_WOLFSSL */
                 if (os->fd == XBADFD)
                     return OPEN_RAN_E;
-                else {
-                    os->keepSeedFdOpen = 0;
-                    os->seedFdOpen = 1;
-                }
+                os->keepSeedFdOpen = 0;
+                os->seedFdOpen = 1;
             }
             else {
                 os->keepSeedFdOpen = 1;
@@ -6061,18 +6118,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
         }
     #else /* WOLFSSL_KEEP_RNG_SEED_FD_OPEN */
-        #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-        os->fd = wc_open_cloexec("/dev/urandom", O_RDONLY);
+        os->fd = XBADFD;
+    #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
+        if (os->fd == XBADFD) {
+            os->fd = wc_open_cloexec("/dev/urandom", O_RDONLY);
         #if defined(DEBUG_WOLFSSL)
-            WOLFSSL_MSG("opened /dev/urandom.");
+            if (os->fd != XBADFD)
+                WOLFSSL_MSG("opened /dev/urandom.");
         #endif /* DEBUG_WOLFSSL */
-        if (os->fd == XBADFD)
-        #endif /* !NO_DEV_URANDOM */
-        {
+        }
+    #endif /* !NO_DEV_URANDOM */
+        if (os->fd == XBADFD) {
             /* may still have /dev/random */
             os->fd = wc_open_cloexec("/dev/random", O_RDONLY);
         #if defined(DEBUG_WOLFSSL)
-            WOLFSSL_MSG("opened /dev/random.");
+            if (os->fd != XBADFD)
+                WOLFSSL_MSG("opened /dev/random.");
         #endif /* DEBUG_WOLFSSL */
             if (os->fd == XBADFD)
                 return OPEN_RAN_E;
@@ -6083,7 +6144,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* DEBUG_WOLFSSL */
         while (sz) {
             int len = (int)read(os->fd, output, sz);
-            if (len == -1) {
+            /* EOF never fills the request, don't retry forever */
+            if (len <= 0) {
                 ret = READ_RAN_E;
                 break;
             }

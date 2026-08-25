@@ -8771,6 +8771,23 @@ then
 fi
 
 
+# RNG seed device (best effort, falls back to the default sources)
+AC_ARG_WITH([rng-seed-device],
+    [AS_HELP_STRING([--with-rng-seed-device=PATH],[Seed the RNG from PATH before the default sources, e.g. /dev/hwrng (default: disabled)])],
+    [ RNG_SEED_DEVICE=$withval ],
+    [ RNG_SEED_DEVICE=no ]
+    )
+
+if test "$RNG_SEED_DEVICE" != "no"
+then
+    if test "$RNG_SEED_DEVICE" = "yes"
+    then
+        RNG_SEED_DEVICE="/dev/hwrng"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWC_RNG_SEED_DEVICE=\\\"$RNG_SEED_DEVICE\\\""
+fi
+
+
 # Filesystem Build
 if test "$HAVE_KERNEL_MODE" = "yes"
 then
