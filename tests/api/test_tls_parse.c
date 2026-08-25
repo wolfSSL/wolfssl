@@ -859,7 +859,8 @@ int test_TLSX_SecureRenegotiation_parse(void)
     EXPECT_DECLS;
 #if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(USE_WOLFSSL_MEMORY)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8 + 2 * TLS_FINISHED_SZ];
@@ -1243,7 +1244,8 @@ int test_TLSX_CSR_parse(void)
     EXPECT_DECLS;
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(USE_WOLFSSL_MEMORY)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[32];
@@ -1946,7 +1948,10 @@ int test_TLSX_SupportedGroups_parse(void)
     EXPECT_DECLS;
 #if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13) &&  !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(USE_WOLFSSL_MEMORY) && \
+    !defined(NO_DH) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     /* secp256r1: a real, locally supported curve. */
@@ -2493,7 +2498,8 @@ int test_TLSX_KeyShare_gen(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && \
+    defined(USE_WOLFSSL_MEMORY)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 

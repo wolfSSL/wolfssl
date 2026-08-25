@@ -1782,6 +1782,7 @@ int test_TLSX_PopulateExtensions_bounds(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
+#ifdef HAVE_SESSION_TICKET
     /* Operand 1 of "ssl->options.resuming && ssl->session->ticketLen > 0":
      * resuming fixed true, ticketLen flipped. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1806,6 +1807,7 @@ int test_TLSX_PopulateExtensions_bounds(void)
     }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif /* HAVE_SESSION_TICKET */
 
     /* Operand 1 of "client_psk_cb != NULL || client_psk_tls13_cb != NULL":
      * operand 0 fixed false (no client_psk_cb), operand 1 flipped true by

@@ -2398,7 +2398,8 @@ int test_tls_msgtype_tca_new_alloc(void)
     EXPECT_DECLS;
 #if defined(HAVE_TRUSTED_CA) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) &&  !defined(NO_SHA) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(USE_WOLFSSL_MEMORY)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     wolfSSL_Malloc_cb prevM = NULL;
