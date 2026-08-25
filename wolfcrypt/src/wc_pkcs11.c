@@ -41,7 +41,8 @@
 
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
-    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define wc_ecc_key_get_priv(key)  (&((key)->k))
+    #define ecc_forcezero_k(key)      mp_forcezero(&((key)->k))
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
 
@@ -2186,7 +2187,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                         ret = ret2;
                 }
                 if (ret == 0 && clear)
-                    mp_forcezero(wc_ecc_key_get_priv(eccKey));
+                    ecc_forcezero_k(eccKey);
                 break;
             }
     #endif

@@ -40,7 +40,9 @@ static sl_se_key_descriptor_t private_device_key =
 
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
-    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define wc_ecc_key_get_priv(key)  (&((key)->k))
+    #define ecc_get_k_raw(key)        (&((key)->k))
+    #define ecc_blind_k_rng(key, rng) 0
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
 
@@ -209,12 +211,18 @@ int silabs_ecc_make_key(ecc_key* key, int keysize)
         key->type = ECC_PRIVATEKEY;
 
         /* copy key to mp components */
-        mp_read_unsigned_bin(key->pubkey.x,
-            key->key.storage.location.buffer.pointer, keysize);
-        mp_read_unsigned_bin(key->pubkey.y,
-            key->key.storage.location.buffer.pointer  + keysize, keysize);
-        mp_read_unsigned_bin(wc_ecc_key_get_priv(key),
-            key->key.storage.location.buffer.pointer + (2 * keysize), keysize);
+        if ((mp_read_unsigned_bin(key->pubkey.x,
+                key->key.storage.location.buffer.pointer,
+                keysize) != MP_OKAY) ||
+            (mp_read_unsigned_bin(key->pubkey.y,
+                key->key.storage.location.buffer.pointer + keysize,
+                keysize) != MP_OKAY) ||
+            (mp_read_unsigned_bin(ecc_get_k_raw(key),
+                key->key.storage.location.buffer.pointer + (2 * keysize),
+                keysize) != MP_OKAY) ||
+            (ecc_blind_k_rng(key, NULL) != 0)) {
+            return WC_HW_E;
+        }
     }
 
     return (sl_stat == SL_STATUS_OK) ? 0 : WC_HW_E;

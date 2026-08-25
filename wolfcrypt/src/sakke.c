@@ -39,7 +39,9 @@
 
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
-    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define wc_ecc_key_get_priv(key)  (&((key)->k))
+    #define ecc_get_k_raw(key)        (&((key)->k))
+    #define ecc_blind_k_rng(key, rng) 0
     #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 #endif
 
@@ -533,14 +535,18 @@ int wc_MakeSakkeKey(SakkeKey* key, WC_RNG* rng)
                 err = RNG_FAILURE_E;
             }
             if (err == 0) {
-                err = mp_rand(wc_ecc_key_get_priv(&key->ecc), digits, rng);
+                err = mp_rand(ecc_get_k_raw(&key->ecc), digits, rng);
             }
             if (err == 0) {
-                err = mp_mod(wc_ecc_key_get_priv(&key->ecc), &key->params.q,
-                    wc_ecc_key_get_priv(&key->ecc));
+                err = mp_mod(ecc_get_k_raw(&key->ecc), &key->params.q,
+                    ecc_get_k_raw(&key->ecc));
             }
         }
-        while ((err == 0) && mp_iszero(wc_ecc_key_get_priv(&key->ecc)));
+        while ((err == 0) && mp_iszero(ecc_get_k_raw(&key->ecc)));
+
+        if (err == 0) {
+            err = ecc_blind_k_rng(&key->ecc, rng);
+        }
     }
     if (err == 0) {
         /* Calculate public key by multiply master secret by base point. */
@@ -672,8 +678,11 @@ int wc_ImportSakkeKey(SakkeKey* key, const byte* data, word32 sz)
 
     if (err == 0) {
         /* Read the secret value from key size bytes. */
-        err = mp_read_unsigned_bin(wc_ecc_key_get_priv(&key->ecc), data,
+        err = mp_read_unsigned_bin(ecc_get_k_raw(&key->ecc), data,
             (word32)key->ecc.dp->size);
+    }
+    if (err == 0) {
+        err = ecc_blind_k_rng(&key->ecc, NULL);
     }
     if (err == 0) {
         data += key->ecc.dp->size;
@@ -770,8 +779,11 @@ int wc_ImportSakkePrivateKey(SakkeKey* key, const byte* data, word32 sz)
 
     if (err == 0) {
         /* Read the secret value from key size bytes. */
-        err = mp_read_unsigned_bin(wc_ecc_key_get_priv(&key->ecc), data,
+        err = mp_read_unsigned_bin(ecc_get_k_raw(&key->ecc), data,
             (word32)key->ecc.dp->size);
+    }
+    if (err == 0) {
+        err = ecc_blind_k_rng(&key->ecc, NULL);
     }
 
     return err;
