@@ -37,6 +37,9 @@ EXTRA_DIST += \
              certs/client-ca-cert.pem \
              certs/dh2048.pem \
              certs/server-cert.pem \
+             certs/server-cert-sha1.pem \
+             certs/server-cert-sha1-root.pem \
+             certs/client-cert-sha1.pem \
              certs/tsa-bad-ku-cert.pem \
              certs/tsa-extra-eku-cert.pem \
              certs/tsa-chain-cert.pem \
