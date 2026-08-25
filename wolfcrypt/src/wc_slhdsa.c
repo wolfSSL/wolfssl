@@ -7076,6 +7076,52 @@ int wc_SlhDsaKey_MakeKey(SlhDsaKey* key, WC_RNG* rng)
     return ret;
 }
 
+#ifndef WOLF_CRYPTO_CB_ONLY_SLHDSA
+/* Compute the public key root from the seeds already staged in the key.
+ *
+ * FIPS 205, Section 9.1, Algorithm 18, steps 1 to 3.
+ *
+ * Deliberately does not dispatch to a crypto callback. Callers that must stay
+ * in software use this directly: wc_SlhDsaKey_CheckKey recomputes the root to
+ * compare against the stored one, and dispatching there would ask the device
+ * to generate a key instead of validating the one it was given.
+ *
+ * @param [in, out]  key  SLH-DSA key with SK.seed, SK.prf and PK.seed set.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ * @return  Digest error return code on failure.
+ */
+static int slhdsakey_compute_root(SlhDsaKey* key)
+{
+    int         ret = 0;
+    byte        n   = key->params->n;
+    HashAddress adrs;
+
+#ifdef WOLFSSL_SLHDSA_SHA2
+    /* Pre-compute SHA2 midstates now that PK.seed is set. */
+    if (SLHDSA_IS_SHA2(key->params->param)) {
+        ret = slhdsakey_precompute_sha2_midstates(key);
+    }
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
+    /* Step 1: Set address to all zeroes. */
+    HA_Init(adrs);
+    /* Step 2: Set the address layer to the top of the subtree. */
+    HA_SetLayerAddress(adrs, key->params->d - 1);
+    /* Step 3: Compute the root node. */
+    ret = slhdsakey_xmss_node(key, key->sk, 0, key->params->h_m,
+        key->sk + 2 * n, adrs, &key->sk[3 * n]);
+    if (ret == 0) {
+        key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
+    }
+
+    return ret;
+}
+#endif /* !WOLF_CRYPTO_CB_ONLY_SLHDSA */
+
 /* Generate an SLH-DSA key pair.
  *
  * FIPS 205. Section 9.1. Algorithm 18.
@@ -7162,29 +7208,9 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
     }
 #else
     if (ret == 0) {
-        byte n = key->params->n;
-        HashAddress adrs;
-
-#ifdef WOLFSSL_SLHDSA_SHA2
-        /* Pre-compute SHA2 midstates now that PK.seed is set. */
-        if (SLHDSA_IS_SHA2(key->params->param)) {
-            ret = slhdsakey_precompute_sha2_midstates(key);
-        }
-        if (ret != 0) {
-            return ret;
-        }
-#endif
-
-        /* Step 1: Set address to all zeroes. */
-        HA_Init(adrs);
-        /* Step 2: Set the address layer to the top of the subtree. */
-        HA_SetLayerAddress(adrs, key->params->d - 1);
-        /* Step 3: Compute the root node. */
-        ret = slhdsakey_xmss_node(key, sk_seed, 0, key->params->h_m, pk_seed,
-             adrs, &key->sk[3 * n]);
-        if (ret == 0) {
-            key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
-        }
+        /* The seeds are staged in the key above, so the shared helper works
+         * from key->sk for both this caller and the CheckKey fallback. */
+        ret = slhdsakey_compute_root(key);
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -7564,6 +7590,11 @@ int wc_SlhDsaKey_SignDeterministic(SlhDsaKey* key, const byte* ctx, byte ctxSz,
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* addrnd is the public key seed (PK.seed) and must be present for
+     * signing. */
+    else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
+        ret = MISSING_KEY;
+    }
     else {
         /* Alg 22, Step 3: addrnd is the public key seed. */
         ret = wc_SlhDsaKey_SignWithRandom(key, ctx, ctxSz, msg, msgSz, sig,
@@ -7766,6 +7797,11 @@ int wc_SlhDsaKey_SignMsgDeterministic(SlhDsaKey* key, const byte* mprime,
 
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* addrnd is the public key seed (PK.seed) and must be present for
+     * signing. */
+    else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
+        ret = MISSING_KEY;
     }
     else {
         /* opt_rand is the public key seed. */
@@ -8633,8 +8669,10 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key, const byte* ctx,
     if ((key == NULL) || (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check we have a private key to sign with. */
-    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+    /* Private half to sign; public half because addrnd is PK.seed from the
+     * local key, and a device-only key would pass zeros. */
+    else if ((key->flags & WC_SLHDSA_FLAG_BOTH_KEYS) !=
+             WC_SLHDSA_FLAG_BOTH_KEYS) {
         ret = MISSING_KEY;
     }
     else {
@@ -8721,6 +8759,12 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key, const byte* ctx, byte ctxSz,
         }
     }
 #endif
+
+    /* Check for a private key to decapsulate with. Done after dispatch for
+     * cases where the private key lives in a device. */
+    if ((ret == 0) && ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0)) {
+        ret = MISSING_KEY;
+    }
 
 #ifdef WOLF_CRYPTO_CB_ONLY_SLHDSA
     if (ret == 0) {
