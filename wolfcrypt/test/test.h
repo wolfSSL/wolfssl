@@ -255,6 +255,11 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 #ifdef WC_RNG_BANK_SUPPORT
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
+#endif
 #endif /* WC_NO_RNG */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
 #if defined(USE_CERT_BUFFERS_2048) && \
