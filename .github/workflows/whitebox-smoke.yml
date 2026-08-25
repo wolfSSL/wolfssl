@@ -1,0 +1,60 @@
+name: White-box Smoke
+
+# The tests/unit-mcdc/*_whitebox.c translation units each #include one library
+# source and exercise its file-static functions directly - code the public API
+# cannot reach. They are not part of tests/unit.test, so nothing else in CI
+# builds or runs them: a change to a library source can break one and every
+# other job still passes.
+#
+# This builds --enable-all once and runs the subset that works against that
+# configuration (see tests/unit-mcdc/run-whitebox-smoke.sh). It is a smoke
+# gate, not a coverage measurement - no instrumentation, no llvm tooling, and
+# the cost does not depend on which files the pull request touches.
+#
+# Scope note: the TUs that need a narrower configuration are reported as skips
+# rather than run here, so a green result means "nothing that worked before is
+# broken", not "every white-box passed".
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ master, main ]
+
+concurrency:
+  group: whitebox-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  whitebox-smoke:
+    name: White-box smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool
+
+      - name: Configure and build
+        # --enable-static is required: each white-box relinks against
+        # libwolfssl.a with the object it replaces removed.
+        run: |
+          ./autogen.sh
+          ./configure --enable-all --enable-static --disable-shared \
+                      CPPFLAGS=-DWOLFSSL_TEST_STATIC_BUILD
+          make -j"$(nproc)"
+
+      - name: Run white-box smoke
+        # smoke-expected.txt is generated with gcc; six TUs build under clang
+        # and not gcc, so the compiler has to match or the run reports false
+        # regressions.
+        env:
+          CC: gcc
+        run: ./tests/unit-mcdc/run-whitebox-smoke.sh .
