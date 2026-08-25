@@ -32,6 +32,7 @@ int test_wc_curve25519_make_key(void);
 int test_wc_curve25519_shared_secret_ex(void);
 int test_wc_curve25519_shared_secret_zero_check(void);
 int test_wc_curve25519_shared_secret_ex_kat(void);
+int test_wc_curve25519_shared_secret_noncanonical_kat(void);
 int test_wc_curve25519_make_pub(void);
 int test_wc_curve25519_make_pub_generic(void);
 int test_wc_curve25519_export_public_ex(void);
@@ -58,6 +59,7 @@ int test_wc_curve25519_cryptocb(void);
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_shared_secret_ex),        \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_shared_secret_zero_check),\
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_shared_secret_ex_kat),    \
+    TEST_DECL_GROUP("curve25519", test_wc_curve25519_shared_secret_noncanonical_kat), \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_make_pub),                \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_make_pub_generic),        \
     TEST_DECL_GROUP("curve25519", test_wc_curve25519_export_public_ex),        \
