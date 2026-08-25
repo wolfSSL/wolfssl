@@ -8163,21 +8163,21 @@ int test_dtls_sctp_app_data_size(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS) && \
     !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
-    /* Above MAX_MTU so the two branches of the size check differ, and below
-     * MAX_RECORD_SIZE so it is not the CTX default being observed. */
-    #define TEST_SCTP_MTU   3000
-    #define TEST_SCTP_FITS  2048
-    #define TEST_SCTP_OVER  4096
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    ((WOLFSSL_MAX_MTU + 1024) <= MAX_RECORD_SIZE)
+    /* Sized from the datagram MTU so the relationships hold for any
+     * WOLFSSL_MAX_MTU: FITS is above it, the configured MTU is above FITS plus
+     * record overhead, and OVER is above the configured MTU. The guard above
+     * keeps the configured MTU within what wolfSSL_dtls_set_mtu() accepts. */
+    #define TEST_SCTP_FITS  (WOLFSSL_MAX_MTU + 512)
+    #define TEST_SCTP_MTU   (TEST_SCTP_FITS + 512)
+    #define TEST_SCTP_OVER  (TEST_SCTP_MTU + 512)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     byte* msg = NULL;
     byte* readBuf = NULL;
     int   i;
-
-    wc_static_assert(TEST_SCTP_FITS > WOLFSSL_MAX_MTU);
-    wc_static_assert(TEST_SCTP_MTU < MAX_RECORD_SIZE);
 
     ExpectNotNull(msg = (byte*)XMALLOC(TEST_SCTP_OVER, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
@@ -8225,6 +8225,12 @@ int test_dtls_sctp_app_data_size(void)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#if defined(WOLFSSL_DTLS_MTU)
+    /* Where the MTU is configurable it governs this object too, and the CTX
+     * default is the SCTP record size for the whole build, so give it the
+     * datagram MTU it would otherwise have. */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_c, WOLFSSL_MAX_MTU), WOLFSSL_SUCCESS);
+#endif
     ExpectIntLT(wolfSSL_write(ssl_c, msg, TEST_SCTP_FITS), 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
         WC_NO_ERR_TRACE(DTLS_SIZE_ERROR));

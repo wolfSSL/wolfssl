@@ -29190,7 +29190,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 #elif defined(WOLFSSL_SCTP)
             /* An SCTP association is a reliable stream, so it is bounded by
              * the configured record size rather than by a datagram MTU. A
-             * connection that never enabled SCTP still is. */
+             * connection that never enabled SCTP keeps the datagram bound. */
             mtu = IsDtlsNotSctpMode(ssl) ? MAX_MTU : ssl->dtlsMtuSz;
 #else
             mtu = MAX_MTU;
