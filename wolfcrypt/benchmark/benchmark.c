@@ -4136,12 +4136,24 @@ static void* benchmarks_do(void* args)
         bench_aesxts();
 #endif
 #ifdef WOLFSSL_AES_CFB
-    if (bench_all || (bench_cipher_algs & BENCH_AES_CFB))
-        bench_aescfb();
+    if (bench_all || (bench_cipher_algs & BENCH_AES_CFB)) {
+    #ifndef NO_SW_BENCH
+        bench_aescfb(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_aescfb(1);
+    #endif
+    }
 #endif
 #ifdef WOLFSSL_AES_OFB
-    if (bench_all || (bench_cipher_algs & BENCH_AES_OFB))
-        bench_aesofb();
+    if (bench_all || (bench_cipher_algs & BENCH_AES_OFB)) {
+    #ifndef NO_SW_BENCH
+        bench_aesofb(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_aesofb(1);
+    #endif
+    }
 #endif
 #ifdef WOLFSSL_AES_COUNTER
     if (bench_all || (bench_cipher_algs & BENCH_AES_CTR)) {
@@ -6678,7 +6690,7 @@ void bench_aesecb(int useDeviceID)
 #endif /* HAVE_AES_ECB || (HAVE_FIPS && WOLFSSL_AES_DIRECT) */
 
 #ifdef WOLFSSL_AES_CFB
-static void bench_aescfb_internal(const byte* key,
+static void bench_aescfb_internal(int useDeviceID, const byte* key,
                                   word32 keySz, const byte* iv,
                                   const char* label_enc, const char* label_dec)
 {
@@ -6689,7 +6701,7 @@ static void bench_aescfb_internal(const byte* key,
 
     bench_stats_prepare();
 
-    ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID);
+    ret = wc_AesInit(&enc, HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
     if (ret != 0) {
         printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
         return;
@@ -6718,7 +6730,8 @@ static void bench_aescfb_internal(const byte* key,
 #endif
            );
 
-    bench_stats_sym_finish(label_enc, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(label_enc, useDeviceID, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -6749,7 +6762,8 @@ static void bench_aescfb_internal(const byte* key,
 #endif
            );
 
-    bench_stats_sym_finish(label_dec, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(label_dec, useDeviceID, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -6762,18 +6776,18 @@ out:
     return;
 }
 
-void bench_aescfb(void)
+void bench_aescfb(int useDeviceID)
 {
 #ifdef WOLFSSL_AES_128
-    bench_aescfb_internal(bench_key, 16, bench_iv,
+    bench_aescfb_internal(useDeviceID, bench_key, 16, bench_iv,
         "AES-128-CFB-enc", "AES-128-CFB-dec");
 #endif
 #ifdef WOLFSSL_AES_192
-    bench_aescfb_internal(bench_key, 24, bench_iv,
+    bench_aescfb_internal(useDeviceID, bench_key, 24, bench_iv,
         "AES-192-CFB-enc", "AES-192-CFB-dec");
 #endif
 #ifdef WOLFSSL_AES_256
-    bench_aescfb_internal(bench_key, 32, bench_iv,
+    bench_aescfb_internal(useDeviceID, bench_key, 32, bench_iv,
         "AES-256-CFB-enc", "AES-256-CFB-dec");
 #endif
 }
@@ -6781,7 +6795,7 @@ void bench_aescfb(void)
 
 
 #ifdef WOLFSSL_AES_OFB
-static void bench_aesofb_internal(const byte* key,
+static void bench_aesofb_internal(int useDeviceID, const byte* key,
                                   word32 keySz, const byte* iv,
                                   const char* label_enc, const char* label_dec)
 {
@@ -6792,7 +6806,7 @@ static void bench_aesofb_internal(const byte* key,
 
     bench_stats_prepare();
 
-    ret = wc_AesInit(&enc, HEAP_HINT, INVALID_DEVID);
+    ret = wc_AesInit(&enc, HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
     if (ret != 0) {
         printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
         return;
@@ -6801,7 +6815,7 @@ static void bench_aesofb_internal(const byte* key,
     ret = wc_AesSetKey(&enc, key, keySz, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("AesSetKey failed, ret = %d\n", ret);
-        return;
+        goto out;
     }
 
     bench_stats_start(&count, &start);
@@ -6810,7 +6824,7 @@ static void bench_aesofb_internal(const byte* key,
             if((ret = wc_AesOfbEncrypt(&enc, bench_plain, bench_cipher,
                             bench_size)) != 0) {
                 printf("wc_AesOfbEncrypt failed, ret = %d\n", ret);
-                return;
+                goto out;
             }
             RECORD_MULTI_VALUE_STATS();
         }
@@ -6821,7 +6835,8 @@ static void bench_aesofb_internal(const byte* key,
 #endif
            );
 
-    bench_stats_sym_finish(label_enc, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(label_enc, useDeviceID, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -6829,7 +6844,7 @@ static void bench_aesofb_internal(const byte* key,
     ret = wc_AesSetKey(&enc, key, keySz, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("AesSetKey failed, ret = %d\n", ret);
-        return;
+        goto out;
     }
 
 #ifdef HAVE_AES_DECRYPT
@@ -6841,7 +6856,7 @@ static void bench_aesofb_internal(const byte* key,
             if((ret = wc_AesOfbDecrypt(&enc, bench_cipher, bench_plain,
                             bench_size)) != 0) {
                 printf("wc_AesOfbDecrypt failed, ret = %d\n", ret);
-                return;
+                goto out;
             }
             RECORD_MULTI_VALUE_STATS();
         }
@@ -6852,33 +6867,36 @@ static void bench_aesofb_internal(const byte* key,
 #endif
            );
 
-    bench_stats_sym_finish(label_dec, 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(label_dec, useDeviceID, count, bench_size, start,
+                           ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 #endif
 
      (void)label_dec;
+out:
 
     wc_AesFree(&enc);
+    return;
 }
 
-void bench_aesofb(void)
+void bench_aesofb(int useDeviceID)
 {
 #ifdef WOLFSSL_AES_128
-    bench_aesofb_internal(bench_key, 16, bench_iv,
+    bench_aesofb_internal(useDeviceID, bench_key, 16, bench_iv,
         "AES-128-OFB-enc", "AES-128-OFB-dec");
 #endif
 #ifdef WOLFSSL_AES_192
-    bench_aesofb_internal(bench_key, 24, bench_iv,
+    bench_aesofb_internal(useDeviceID, bench_key, 24, bench_iv,
         "AES-192-OFB-enc", "AES-192-OFB-dec");
 #endif
 #ifdef WOLFSSL_AES_256
-    bench_aesofb_internal(bench_key, 32, bench_iv,
+    bench_aesofb_internal(useDeviceID, bench_key, 32, bench_iv,
         "AES-256-OFB-enc", "AES-256-OFB-dec");
 #endif
 }
-#endif /* WOLFSSL_AES_CFB */
+#endif /* WOLFSSL_AES_OFB */
 
 
 #ifdef WOLFSSL_AES_XTS
