@@ -330,18 +330,22 @@ int test_wc_Base64_EncodeDecisionCoverage(void)
         byte enc[128];
         word32 i;
         int nlCount = 0;
+
+        XMEMSET(enc, 0, sizeof(enc));
         for (i = 0; i < (word32)sizeof(in48); i++)
             in48[i] = (byte)(i + 1);
         outLen = (word32)sizeof(enc);
         ExpectIntEQ(Base64_Encode(in48, (word32)sizeof(in48), enc, &outLen),
                     0);
-        for (i = 0; i < outLen; i++) {
-            if (enc[i] == '\n')
-                nlCount++;
+        if (EXPECT_SUCCESS()) {
+            for (i = 0; i < outLen; i++) {
+                if (enc[i] == '\n')
+                    nlCount++;
+            }
+            /* exactly one (trailing) newline -- none inserted mid-stream */
+            ExpectIntEQ(nlCount, 1);
+            ExpectIntEQ(enc[outLen - 1], '\n');
         }
-        /* exactly one (trailing) newline -- none inserted mid-stream */
-        ExpectIntEQ(nlCount, 1);
-        ExpectIntEQ(enc[outLen - 1], '\n');
     }
 
     /* --- force a BUFFER_E from CEscape() inside the *main* while loop

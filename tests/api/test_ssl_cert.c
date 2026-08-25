@@ -963,7 +963,9 @@ int test_wolfSSL_load_client_CA_file(void)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names = NULL;
 
     /* A file that cannot be opened reports no names. */
-    ExpectNull(wolfSSL_load_client_CA_file("does/not/exist.pem"));
+    ExpectNull(names = wolfSSL_load_client_CA_file("does/not/exist.pem"));
+    wolfSSL_sk_X509_NAME_pop_free(names, NULL);
+    names = NULL;
 
     /* Every certificate in the file contributes its subject name. */
     ExpectNotNull(names = wolfSSL_load_client_CA_file(caCertFile));

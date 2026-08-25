@@ -651,6 +651,12 @@ static int wolfssl_read_der_bio(WOLFSSL_BIO* bio, unsigned char** out)
         WOLFSSL_ERROR_MSG("DER SEQUENCE decode failed");
         err = 1;
     }
+    /* Cap at 8x the maximum modulus size, leaves headroom for the full
+     * private key encoding. */
+    if ((!err) && (derLen > RSA_MAX_SIZE)) {
+        WOLFSSL_ERROR_MSG("DER length too large");
+        err = 1;
+    }
     /* Allocate a buffer to read DER data into. */
     if ((!err) && ((der = (unsigned char*)XMALLOC((size_t)derLen, bio->heap,
             DYNAMIC_TYPE_TMP_BUFFER)) == NULL)) {
