@@ -2807,6 +2807,46 @@ void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
 
 #ifdef HAVE_NETX
 
+/* Map a failing NetX status onto a wolfSSL CBIO error code.
+ * Transient conditions must not be reported as fatal, otherwise a non
+ * blocking (or short wait option) setup cannot retry the operation. */
+static int NetX_TranslateReturnCode(UINT status, int direction)
+{
+    int ret;
+
+    switch (status) {
+        /* Receive queue empty, packet pool exhausted, peer receive window
+         * full or transmit queue at max depth. All clear on their own. */
+        case NX_NO_PACKET:
+        case NX_WINDOW_OVERFLOW:
+        case NX_TX_QUEUE_DEPTH:
+            WOLFSSL_MSG("\tWould block");
+            ret = (direction == SOCKET_SENDING) ? WOLFSSL_CBIO_ERR_WANT_WRITE
+                                                : WOLFSSL_CBIO_ERR_WANT_READ;
+            break;
+
+        /* A suspended wait was aborted, treated like an interrupted call. */
+        case NX_WAIT_ABORTED:
+            WOLFSSL_MSG("\tSocket interrupted");
+            ret = WOLFSSL_CBIO_ERR_ISR;
+            break;
+
+        /* NetX has no separate reset status, so a peer reset also lands
+         * here and is reported as a close. */
+        case NX_NOT_CONNECTED:
+            WOLFSSL_MSG("\tConnection closed");
+            ret = WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            break;
+
+        default:
+            WOLFSSL_MSG_EX("\tGeneral error: %u", (unsigned int)status);
+            ret = WOLFSSL_CBIO_ERR_GENERAL;
+            break;
+    }
+
+    return ret;
+}
+
 /* The NetX receive callback for TLS
  *  return :  bytes read, or error
  */
@@ -2830,7 +2870,7 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                                        nxCtx->nxWait);
         if (status != NX_SUCCESS) {
             WOLFSSL_MSG("NetX Recv receive error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
+            return NetX_TranslateReturnCode(status, SOCKET_RECEIVING);
         }
     }
 
@@ -2885,21 +2925,21 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
                                 nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         WOLFSSL_MSG("NetX Send packet alloc error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     status = nx_packet_data_append(packet, buf, sz, pool, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send data append error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     status = nx_tcp_socket_send(nxCtx->nxTcpSocket, packet, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send socket send error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     return sz;
@@ -3019,7 +3059,7 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                            : WOLFSSL_CBIO_ERR_TIMEOUT;
                 }
                 WOLFSSL_MSG("NetX Recv receive error");
-                return WOLFSSL_CBIO_ERR_GENERAL;
+                return NetX_TranslateReturnCode(status, SOCKET_RECEIVING);
             }
 
             status = nxd_udp_source_extract(nxCtx->nxPacket, &srcIp, &srcPort);
@@ -3137,14 +3177,14 @@ int NetX_SendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
                                 nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         WOLFSSL_MSG("NetX Send packet alloc error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     status = nx_packet_data_append(packet, buf, sz, pool, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send data append error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     if (nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V4) {
@@ -3159,7 +3199,7 @@ int NetX_SendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send socket send error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     return sz;
