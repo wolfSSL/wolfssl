@@ -6580,6 +6580,7 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
+    WOLFSSL_TLSEXT_DEBUG_CB tlsextDebugCb; /* TLS ext debug callback */
 #endif
 #endif /* OPENSSL_EXTRA */
 #ifndef NO_RSA

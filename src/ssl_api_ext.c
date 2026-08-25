@@ -1634,6 +1634,29 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
 
     return ret;
 }
+
+/* Set the callback invoked for each TLS extension received during the
+ * handshake.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @param [in]      cb   Debug callback, or NULL to disable.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl is NULL.
+ */
+long wolfSSL_set_tlsext_debug_callback(WOLFSSL* ssl,
+        WOLFSSL_TLSEXT_DEBUG_CB cb)
+{
+    long ret = WOLFSSL_SUCCESS;
+
+    if (ssl == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ssl->tlsextDebugCb = cb;
+    }
+
+    return ret;
+}
 #endif /* HAVE_PK_CALLBACKS */
 
 #ifndef NO_WOLFSSL_STUB

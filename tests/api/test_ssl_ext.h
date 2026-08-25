@@ -34,6 +34,8 @@ int test_wolfSSL_DisableExtendedMasterSecret_ext(void);
 int test_wolfSSL_set_tlsext_host_name_ext(void);
 int test_wolfSSL_CTX_set_tlsext_servername_callback_ext(void);
 int test_wolfSSL_set_tlsext_debug_arg_ext(void);
+int test_wolfSSL_set_tlsext_debug_callback_ext(void);
+int test_wolfSSL_set_tlsext_debug_callback_handshake_ext(void);
 int test_wolfSSL_set_SessionTicket_cb_ext(void);
 int test_wolfSSL_set1_curves_list_ext(void);
 int test_wolfSSL_SecureResume_ext(void);
@@ -74,6 +76,9 @@ int test_wolfSSL_ticket_key_cb_renew_ext(void);
         TEST_DECL_GROUP("ssl_ext",                                             \
             test_wolfSSL_CTX_set_tlsext_servername_callback_ext),              \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set_tlsext_debug_arg_ext),     \
+        TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set_tlsext_debug_callback_ext), \
+        TEST_DECL_GROUP("ssl_ext",                                             \
+            test_wolfSSL_set_tlsext_debug_callback_handshake_ext),              \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set_SessionTicket_cb_ext),     \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_set1_curves_list_ext),         \
         TEST_DECL_GROUP("ssl_ext", test_wolfSSL_SecureResume_ext),             \
