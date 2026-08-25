@@ -416,7 +416,7 @@ int test_TLSX_CSR2_InitRequests_bounds(void)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     DecodedCert cert;
-    TLSX* ext;
+    TLSX* ext = NULL;
     CertificateStatusRequestItemV2* csr2;
 
     XMEMSET(&cert, 0, sizeof(cert));
@@ -465,7 +465,7 @@ int test_TLSX_CSR2_ForceRequest_bounds(void)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    TLSX* ext;
+    TLSX* ext = NULL;
     CertificateStatusRequestItemV2* csr2;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -913,7 +913,7 @@ int test_TLSX_Cookie_bounds(void)
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    TLSX* ext;
+    TLSX* ext = NULL;
     byte cookieData[4] = { 1, 2, 3, 4 };
     byte out[64];
     word32 offset;
@@ -2183,7 +2183,9 @@ int test_TLSX_ext_dispatch_ctx_extensions_bounds(void)
          * "!isRequest && !extension->resp" guard skips it before ever
          * reaching the ssl->ctx merge under test. */
         {
-            TLSX* ext;
+            /* ExpectNotNull() does not assign once an earlier expectation in
+             * the same test has failed, so this must start defined. */
+            TLSX* ext = NULL;
             ExpectIntEQ(TLSX_Push(&ssl->ctx->extensions,
                         TLSX_RENEGOTIATION_INFO, NULL, ssl->ctx->heap), 0);
             ExpectNotNull(ext = TLSX_Find(ssl->ctx->extensions,

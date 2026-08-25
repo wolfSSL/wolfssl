@@ -45,6 +45,17 @@ TEST_TLS_PARSE_UNUSED
 static WOLFSSL_CTX* test_tls_parse_server_ctx(WOLFSSL_METHOD* method)
 {
     WOLFSSL_CTX* ctx = NULL;
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
+    /* An ECC-only build has no RSA server certificate to load. */
+    #ifndef NO_RSA
+    const char* certFile = svrCertFile;
+    const char* keyFile  = svrKeyFile;
+    #else
+    const char* certFile = eccCertFile;
+    const char* keyFile  = eccKeyFile;
+    #endif
+#endif
 
     if (method == NULL)
         return NULL;
@@ -55,15 +66,6 @@ static WOLFSSL_CTX* test_tls_parse_server_ctx(WOLFSSL_METHOD* method)
 
 #if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     (!defined(NO_RSA) || defined(HAVE_ECC))
-    #ifndef NO_RSA
-    const char* certFile = svrCertFile;
-    const char* keyFile  = svrKeyFile;
-    #else
-    /* An ECC-only build has no RSA server certificate to load. */
-    const char* certFile = eccCertFile;
-    const char* keyFile  = eccKeyFile;
-    #endif
-
     if (wolfSSL_CTX_use_certificate_file(ctx, certFile, CERT_FILETYPE)
             != WOLFSSL_SUCCESS ||
         wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile, CERT_FILETYPE)
@@ -2241,7 +2243,7 @@ int test_TLSX_KeyShare_negotiate(void)
     ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
-        TLSX* extension;
+        TLSX* extension = NULL;
         KeyShareEntry* kse = NULL;
         byte searched = 0;
 
@@ -2406,7 +2408,7 @@ int test_TLSX_KeyShare_negotiate(void)
     if (ssl != NULL) {
         byte body[2 + 2 + 256];
         word16 off = 0;
-        KeyShareEntry* kse;
+        KeyShareEntry* kse = NULL;
         DhKey* dhKey = NULL;
 
         body[off++] = (byte)(WOLFSSL_FFDHE_2048 >> 8);
@@ -2445,7 +2447,7 @@ int test_TLSX_KeyShare_negotiate(void)
     if (ssl != NULL) {
         byte body[2 + 2 + 256];
         word16 off = 0;
-        KeyShareEntry* kse;
+        KeyShareEntry* kse = NULL;
 
         body[off++] = (byte)(WOLFSSL_FFDHE_2048 >> 8);
         body[off++] = (byte)(WOLFSSL_FFDHE_2048 & 0xFF);
@@ -2769,7 +2771,7 @@ int test_TLSX_KeyShare_freesizewrite(void)
         byte out[64];
         word32 reqOff;
         word16 respOff;
-        KeyShareEntry* kse;
+        KeyShareEntry* kse = NULL;
 
         /* pubKey == NULL: response direction skips it (0 bytes); request
          * direction still writes it (pubKeyLen == 0, so just the header).
@@ -2876,7 +2878,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         KeyShareEntry* peer = NULL;
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
 
         ExpectNotNull(peer = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
@@ -2914,7 +2916,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         KeyShareEntry* peer = NULL;
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
 
         ExpectNotNull(peer = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
@@ -2952,7 +2954,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
 
         target = test_tls_parse_push_kse(&ssl->extensions, ssl,
                 WOLFSSL_ECC_X25519);
@@ -2983,7 +2985,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         KeyShareEntry* peer = NULL;
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
 
         ExpectNotNull(peer = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
@@ -3018,7 +3020,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
         KeyShareEntry* peer = NULL;
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
 
         ExpectNotNull(peer = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
                     ssl->heap, DYNAMIC_TYPE_TLSX));
@@ -3056,7 +3058,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
 
         target = test_tls_parse_push_kse(&ssl->extensions, ssl,
                 WOLFSSL_ECC_SECP256R1);
@@ -3089,7 +3091,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
         byte* ke = NULL;
 
         target = test_tls_parse_push_kse(&ssl->extensions, ssl,
@@ -3124,7 +3126,7 @@ int test_TLSX_KeyShare_process(void)
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
-        KeyShareEntry* target;
+        KeyShareEntry* target = NULL;
         byte* ke = NULL;
 
         target = test_tls_parse_push_kse(&ssl->extensions, ssl,

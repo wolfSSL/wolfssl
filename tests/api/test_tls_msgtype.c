@@ -213,7 +213,7 @@ int test_tls_msgtype_certificate_ext_offered(void)
     WOLFSSL* ssl = NULL;
     byte buf[8];
     word16 len;
-    WOLFSSL_CTX* savedCtx;
+    WOLFSSL_CTX* savedCtx = NULL;
 
     /* op0 false: not a Certificate message. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
