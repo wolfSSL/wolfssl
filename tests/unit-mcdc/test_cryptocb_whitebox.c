@@ -99,12 +99,16 @@
  * (success) for the fallback attempt specifically - see wb_cb_hash_fallback_ok
  * below for how that is done without needing to inject a fault mid-dispatch.
  *
- * Third pass - the "no devId argument" guard at cryptocb.c :1159 / :1189,
- * `if (dev == NULL || dev->cb == NULL) dev = wc_CryptoCb_FindDeviceByIndex(0);`
- * in wc_CryptoCb_Curve25519MakePub() and wc_CryptoCb_Curve25519Generic().
- * These two functions take no key struct, so they resolve their device with
- * wc_CryptoCb_FindDevice(INVALID_DEVID, WC_ALGO_TYPE_PK) and the guard is
- * driven purely by the state of the gCryptoDev[] table:
+ * Third pass - the first-registered-device fallback guard at cryptocb.c
+ * :1159 / :1189, `if ((dev == NULL || dev->cb == NULL) &&
+ * (devId == INVALID_DEVID)) dev = wc_CryptoCb_FindDeviceByIndex(0);` in
+ * wc_CryptoCb_Curve25519MakePub() and wc_CryptoCb_Curve25519Generic().
+ * The third operand keeps a caller that named a device from having its
+ * private scalar handed to a different one; it is driven directly by the
+ * devId argument, TRUE for every vector below except the dedicated
+ * `devId != INVALID_DEVID` one at the end of the section. The first two
+ * operands are driven purely by the state of the gCryptoDev[] table, with
+ * the lookup issued for INVALID_DEVID so the third operand holds:
  *   - (F,T)  at least one free slot exists. wc_CryptoCb_ClearDev() leaves
  *            free slots at devId == INVALID_DEVID with cb == NULL, so
  *            wc_CryptoCb_GetDevice(INVALID_DEVID) returns that slot:
@@ -1051,10 +1055,12 @@ int main(void)
 #endif
 
     /* ---- Curve25519 MakePub / Generic ----
-     * These take no devId: they resolve a device with FindDevice(INVALID_DEVID)
-     * and fall back to FindDeviceByIndex(0), so their `if (dev && dev->cb)`
-     * guard is driven by what is registered rather than by an argument. Run
-     * last, since the rows below deregister everything. */
+     * These take an explicit devId and resolve a device with
+     * FindDevice(devId), falling back to FindDeviceByIndex(0) only when the
+     * caller passed INVALID_DEVID. The calls below all pass INVALID_DEVID, so
+     * their `if (dev && dev->cb)` guard is driven by what is registered
+     * rather than by the argument. Run last, since the rows below deregister
+     * everything. */
 #ifdef HAVE_CURVE25519
     {
         byte c25pub[CURVE25519_KEYSIZE];
@@ -1067,39 +1073,39 @@ int main(void)
 
         /* Argument guards: one operand true per call, then all false. The
          * device state is irrelevant here -- each returns before resolving. */
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), NULL,
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(c25pub), NULL,
                 sizeof(c25priv), c25priv);
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
-                sizeof(c25priv), NULL);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), NULL,
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), NULL);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(c25pub), NULL,
                 sizeof(c25priv), c25priv, sizeof(c25base), c25base);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
-                sizeof(c25priv), NULL, sizeof(c25base), c25base);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
-                sizeof(c25priv), c25priv, sizeof(c25base), NULL);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), NULL, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), c25priv, sizeof(c25base), NULL);
 
         /* `dev && dev->cb` (T,T): a registered device with a callback is the
          * first slot FindDeviceByIndex(0) reaches. */
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
-                sizeof(c25priv), c25priv);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
-                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), c25priv, sizeof(c25base), c25base);
 
         /* (T,F): the only registered device has a NULL callback. */
         wc_CryptoCb_UnRegisterDevice(WB_DEVID);
         wc_CryptoCb_UnRegisterDevice(WB_DEVID_HASH_OK);
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
-                sizeof(c25priv), c25priv);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
-                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), c25priv, sizeof(c25base), c25base);
 
         /* (F,-): nothing registered at all, so FindDeviceByIndex returns NULL
          * and the guard short-circuits on its first operand. */
         wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(c25pub), c25pub,
-                sizeof(c25priv), c25priv);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(c25pub), c25pub,
-                sizeof(c25priv), c25priv, sizeof(c25base), c25base);
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), c25priv);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(c25pub),
+                c25pub, sizeof(c25priv), c25priv, sizeof(c25base), c25base);
 
         /* Put the callback device back for anything that follows. */
         if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
@@ -1137,10 +1143,10 @@ int main(void)
         wc_CryptoCb_Init();
         if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
             wb_fail = 1;
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(g25pub), g25pub,
-                sizeof(g25priv), g25priv);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(g25pub), g25pub,
-                sizeof(g25priv), g25priv, sizeof(g25base), g25base);
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv, sizeof(g25base), g25base);
 
         /* (T,-): every slot registered, so no slot holds INVALID_DEVID and
          * wc_CryptoCb_GetDevice(INVALID_DEVID) returns NULL. dev == NULL is
@@ -1152,10 +1158,10 @@ int main(void)
                     NULL) != 0)
                 wb_fail = 1;
         }
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(g25pub), g25pub,
-                sizeof(g25priv), g25priv);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(g25pub), g25pub,
-                sizeof(g25priv), g25priv, sizeof(g25base), g25base);
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv, sizeof(g25base), g25base);
 
         /* (F,F): the find callback rewrites the INVALID_DEVID lookup into
          * WB_DEVID, which is registered with wb_cb, so the lookup returns a
@@ -1166,10 +1172,10 @@ int main(void)
         if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
             wb_fail = 1;
         wc_CryptoCb_SetDeviceFindCb(wb_find_cb);
-        (void)wc_CryptoCb_Curve25519MakePub(sizeof(g25pub), g25pub,
-                sizeof(g25priv), g25priv);
-        (void)wc_CryptoCb_Curve25519Generic(sizeof(g25pub), g25pub,
-                sizeof(g25priv), g25priv, sizeof(g25base), g25base);
+        (void)wc_CryptoCb_Curve25519MakePub(INVALID_DEVID, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv);
+        (void)wc_CryptoCb_Curve25519Generic(INVALID_DEVID, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv, sizeof(g25base), g25base);
         wc_CryptoCb_SetDeviceFindCb(NULL);
         WB_NOTE("Curve25519MakePub/Generic: dev==NULL||dev->cb==NULL "
                 "[:1159,:1189] driven (F,T) / (T,-) / (F,F)");
@@ -1178,6 +1184,26 @@ int main(void)
                 "[:1159,:1189] driven (F,T) / (T,-); (F,F) needs "
                 "WOLF_CRYPTO_CB_FIND, not compiled here");
 #endif
+
+        /* devId != INVALID_DEVID with the first two operands genuinely left
+         * in the (F,T) state of the vector above: WB_DEVID_NOCB is
+         * registered with a NULL callback, so the lookup returns a non-NULL
+         * slot (dev == NULL FALSE) whose cb is NULL (dev->cb == NULL TRUE).
+         * Only the third operand changes, so this is a unique-cause
+         * independence pair. The caller named a device that cannot serve the
+         * request, so the fallback must not run and the scalar goes
+         * nowhere. */
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_NOCB, NULL, NULL) != 0)
+            wb_fail = 1;
+        (void)wc_CryptoCb_Curve25519MakePub(WB_DEVID_NOCB, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv);
+        (void)wc_CryptoCb_Curve25519Generic(WB_DEVID_NOCB, sizeof(g25pub),
+                g25pub, sizeof(g25priv), g25priv, sizeof(g25base), g25base);
+        WB_NOTE("Curve25519MakePub/Generic: devId==INVALID_DEVID "
+                "[:1159,:1189] driven false against the (F,T) vector");
 
         /* Leave the table the way the rest of this file expects it. */
         wc_CryptoCb_Init();

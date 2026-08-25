@@ -612,6 +612,11 @@ int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
     \return ECC_BAD_ARG_E Returned if outLen is less than
     CURVE25519_PUB_KEY_SIZE.
     \return BAD_FUNC_ARG Returned if any of the input parameters are NULL.
+    \return NO_VALID_DEVID Returned when the public point still has to be
+    derived, the build is WOLF_CRYPTO_CB_ONLY_CURVE25519 and the key is not
+    bound to a device. Such a key has no software path to fall back on and is
+    never offloaded to an arbitrary registered device, so it must be created
+    with wc_curve25519_init_ex() and a real devId.
 
     \param [in] key Pointer to the curve25519_key structure in from which to
     export the key.
