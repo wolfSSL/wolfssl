@@ -37,6 +37,11 @@
  *       WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD - RSA on, padding in software
  *       WOLFSSL_VERSAL_GEN2_ASU_IPI_BASEADDR - IPI channel to use
  *       WOLFSSL_VERSAL_GEN2_ASU_NO_CLIENT_INIT - app starts the client itself
+ *
+ * The xilasu client API changed in Vitis 2026.1. Name the release the BSP was
+ * built with; 2025.2 is assumed when neither is given:
+ *       WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1
+ *       WOLFSSL_VERSAL_GEN2_ASU_XILASU_2025_2
  */
 
 #ifndef WOLFSSL_VERSAL_GEN2_ASU_SETTINGS_H
@@ -52,6 +57,22 @@
 /* Register command, where the port brings the ASU client up. */
 #ifndef WOLF_CRYPTO_CB_CMD
     #define WOLF_CRYPTO_CB_CMD
+#endif
+
+/* Which xilasu the BSP carries. 2026.1 renamed the operation flags and moved
+ * the key fields of several request structures into key objects, so the port
+ * has to be told which one it is building against. Unlike the engine switches
+ * there is no software fallback for guessing wrong: the two APIs are not
+ * source compatible, so a conflict is an error rather than an #undef. */
+#if defined(WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1) && \
+    defined(WOLFSSL_VERSAL_GEN2_ASU_XILASU_2025_2)
+    #error "Name only one of WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1 or _2025_2"
+#endif
+
+/* Assume 2025.2, so a build that predates this switch keeps working. */
+#if !defined(WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1) && \
+    !defined(WOLFSSL_VERSAL_GEN2_ASU_XILASU_2025_2)
+    #define WOLFSSL_VERSAL_GEN2_ASU_XILASU_2025_2
 #endif
 
 /* No engine was named, so turn them all on. */
@@ -83,6 +104,28 @@
     !defined(WOLF_CRYPTO_CB_RSA_PAD) && \
     !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD)
     #define WOLF_CRYPTO_CB_RSA_PAD
+#endif
+
+/* P-521 needs the firmware to front-pad the digest, which it does from Vitis
+ * 2026.1. Before that the curve stayed off because the padding was wrong. */
+#if defined(WOLFSSL_VERSAL_GEN2_ASU_ECC) && \
+    defined(WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1) && \
+    !defined(WOLFSSL_VERSAL_GEN2_ASU_NO_ECC_P521)
+    #define WOLFSSL_VERSAL_GEN2_ASU_ECC_P521
+#endif
+
+/* X25519 and X448 key agreement: Curve25519 and Curve448 joined the ASU curve
+ * list in Vitis 2026.1, so there is nothing to offload before that. */
+#if defined(WOLFSSL_VERSAL_GEN2_ASU_ECC) && \
+    defined(WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1)
+    #ifndef WOLFSSL_VERSAL_GEN2_ASU_NO_X25519
+        #define WOLFSSL_VERSAL_GEN2_ASU_X25519
+    #endif
+    #ifndef WOLFSSL_VERSAL_GEN2_ASU_NO_X448
+        #define WOLFSSL_VERSAL_GEN2_ASU_X448
+    #endif
+    /* The key export APIs these need are checked in asu_ecdh.c, where the
+     * offload actually compiles: this macro alone does not mean it is built. */
 #endif
 
 /* ECDH and ECIES come along with ECC when their features are built. */

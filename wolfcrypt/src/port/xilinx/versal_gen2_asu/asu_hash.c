@@ -70,6 +70,7 @@ typedef struct {
 typedef struct {
     XAsu_ShaOperationCmd cmd;
     int isSha3;
+    WC_ASU_ALIGN64 byte hash[WC_ASU_SHAKE_MAX_HASH_LEN]; /* DMA out */
 } AsuHashReq;
 
 /* Free a saved message. It holds the data we hashed, so wipe it first. */
@@ -260,35 +261,38 @@ static int wc_AsuHashOneShot(u8 shaType, u8 shaMode, const byte* data,
 {
     AsuHashReq req;
     word32 status;
-    byte*  outAddr = digest;
-    word32 outLen  = hashLen;
-    byte   xofTmp[XASU_SHAKE_256_MAX_HASH_LEN];
+    word32 outLen = hashLen;
 
     if (digest == NULL || (data == NULL && dataLen > 0)) {
         return BAD_FUNC_ARG;
     }
+    if (hashLen > (word32)sizeof(req.hash)) {
+        return BAD_FUNC_ARG;
+    }
 
-    /* The ASU reads the digest 4 bytes at a time, so round the length up into
-     * a temporary buffer and copy back only what was asked for. */
-    if ((shaMode == XASU_SHA_MODE_SHAKE256) && ((hashLen % 4u) != 0u) &&
-        (hashLen <= XASU_SHAKE_256_MAX_HASH_LEN)) {
-        outLen  = (hashLen + 3u) & ~3u;
-        outAddr = xofTmp;
+    /* The ASU writes the digest 4 bytes at a time, so round the length up. */
+    outLen = (hashLen + 3u) & ~3u;
+    if (outLen > (word32)sizeof(req.hash)) {
+        return BAD_FUNC_ARG;
     }
 
     XMEMSET(&req, 0, sizeof(req));
     req.cmd.DataAddr    = (u64)(UINTPTR)data;
     req.cmd.DataSize    = dataLen;
-    req.cmd.HashAddr    = (u64)(UINTPTR)outAddr;
+    /* Always land the digest in our own aligned buffer, never the caller's:
+     * the ASU writes it by DMA and the cache maintenance below is by line. */
+    req.cmd.HashAddr    = (u64)(UINTPTR)req.hash;
     req.cmd.HashBufSize = outLen;
     req.cmd.ShaMode     = shaMode;
     req.cmd.IsLast      = (u8)XASU_TRUE;
     if (dataLen > 0) {
         req.cmd.OperationFlags =
-            (u8)(XASU_SHA_START | XASU_SHA_UPDATE | XASU_SHA_FINISH);
+            (u8)(WC_ASU_SHA_OP_START | WC_ASU_SHA_OP_UPDATE |
+                 WC_ASU_SHA_OP_FINISH);
     }
     else {
-        req.cmd.OperationFlags = (u8)(XASU_SHA_START | XASU_SHA_FINISH);
+        req.cmd.OperationFlags =
+            (u8)(WC_ASU_SHA_OP_START | WC_ASU_SHA_OP_FINISH);
     }
     if (shaType == XASU_SHA3_TYPE) {
         req.isSha3 = 1;
@@ -300,28 +304,30 @@ static int wc_AsuHashOneShot(u8 shaType, u8 shaMode, const byte* data,
     WC_ASU_PRINTF("[ASU] hash type=%d mode=%d dataLen=%u hashLen=%u\r\n",
         (int)shaType, (int)shaMode, (unsigned int)dataLen, (unsigned int)hashLen);
 
-    /* The ASU reads the message from memory, so push it out first. The digest
-     * comes back another way and needs nothing here. */
+    /* The ASU reads the message from memory, so push it out first. */
     if (dataLen > 0) {
         wc_AsuCacheFlush(data, dataLen);
     }
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1
+    /* 2026.1 returns the digest by DMA; 2025.2 sent it back in the mailbox. */
+    wc_AsuCacheFlush(req.hash, outLen);
+#endif
 
     status = wc_AsuTransact(wc_AsuHashSubmit, &req, NULL);
     if (status != XST_SUCCESS) {
         return WC_HW_E;
     }
 
-    /* Copy back only the bytes asked for when a temp buffer was used. */
-    if (outAddr != digest) {
-        XMEMCPY(digest, xofTmp, hashLen);
-    }
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1
+    /* Reload the digest the ASU wrote, or the read returns stale data. */
+    wc_AsuCacheInvalidate(req.hash, outLen);
+#endif
+
+    /* Hand back only the bytes asked for, dropping any round-up padding. */
+    XMEMCPY(digest, req.hash, hashLen);
 
     return 0;
 }
-
-/* The ASU sends the hash back in a 64 byte slot. A SHAKE output that fits goes
- * to the ASU, and anything longer is done in software. */
-#define WC_ASU_SHAKE_HW_MAX_BYTES 64
 
 #ifdef WOLFSSL_SHAKE256
 /* Do SHAKE256 in software for long outputs. The private context uses an
@@ -407,7 +413,7 @@ static int wc_AsuHashCompute(wc_CryptoInfo* info)
          * Everything else is one ASU operation. */
 #ifdef WOLFSSL_SHAKE256
         if ((shaMode == XASU_SHA_MODE_SHAKE256) &&
-            (hashLen > WC_ASU_SHAKE_HW_MAX_BYTES)) {
+            (hashLen > WC_ASU_SHAKE_MAX_HASH_LEN)) {
             ret = wc_AsuShakeSoftware(data, dataLen, info->hash.digest, hashLen);
         }
         else

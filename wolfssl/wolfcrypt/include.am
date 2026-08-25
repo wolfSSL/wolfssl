@@ -107,6 +107,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h \
                          wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cipher.h \
                          wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cmac.h \
+                         wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_compat.h \
                          wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_cryptocb.h \
                          wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecc.h \
                          wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_ecdh.h \

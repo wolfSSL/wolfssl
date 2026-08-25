@@ -34,6 +34,7 @@ The BSP must have the `xilasu` and `xilmailbox` libraries enabled.
 | ECDSA | NIST P-192/256/384, Brainpool P-256/320/384/512 |
 | EdDSA | plain Ed25519 and Ed448 sign and verify |
 | ECDH | the same curves as ECDSA |
+| X25519 / X448 | key agreement, Vitis 2026.1 and later |
 | ECIES | AES-GCM with HKDF-SHA256 |
 | TRNG | seed and random block |
 
@@ -70,7 +71,10 @@ Other switches:
 | `WOLFSSL_VERSAL_GEN2_ASU_IPI_BASEADDR` | IPI channel, default `XPAR_XIPIPSU_0_BASEADDR` |
 | `WOLFSSL_VERSAL_GEN2_ASU_NO_CLIENT_INIT` | the application calls `XAsu_ClientInit` itself |
 | `WOLFSSL_VERSAL_GEN2_ASU_NO_RSA_PAD` | RSA on, padding in software |
-| `WOLFSSL_VERSAL_GEN2_ASU_ECC_P521` | add P-521, off by default, see below |
+| `WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1` | the BSP has Vitis 2026.1 xilasu |
+| `WOLFSSL_VERSAL_GEN2_ASU_NO_ECC_P521` | drop P-521, which 2026.1 offloads |
+| `WOLFSSL_VERSAL_GEN2_ASU_NO_X25519` | drop X25519, which 2026.1 offloads |
+| `WOLFSSL_VERSAL_GEN2_ASU_NO_X448` | drop X448, which 2026.1 offloads |
 | `WOLFSSL_VERSAL_GEN2_ASU_DEBUG` | print every ASU operation over the UART |
 | `WOLFSSL_VERSAL_GEN2_ASU_RTC` | supply the benchmark time source from the port |
 | `XASU_DISABLE_CACHE` | cache is off, so skip all buffer flush and reload work |
@@ -79,11 +83,52 @@ The port sets `WOLF_CRYPTO_CB`, `WOLF_CRYPTO_CB_CMD`, `WOLF_CRYPTO_CB_COPY` and
 `WOLF_CRYPTO_CB_FREE` for you, and points `WC_USE_DEVID` at the ASU device so
 the unmodified wolfCrypt test and benchmark route through it.
 
+## Which Vitis release
+
+The xilasu client API changed in Vitis 2026.1: the operation flags became
+generic, several request structures moved their key fields into key objects,
+and RSA gained an output length. The port builds against either release, but it
+cannot tell them apart on its own, so name the one the BSP was built with:
+
+```c
+#define WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1
+```
+
+2025.2 is assumed when neither that nor `..._XILASU_2025_2` is named, so an
+existing build keeps working untouched. Naming the wrong one stops the build
+with a message rather than failing later.
+
+2026.1 also brings work the older release could not offload at all: P-521,
+X25519 and X448, RSA OAEP decrypt, SHAKE output past 64 bytes, and CCM on data
+that is not a whole number of blocks. Each turns on by itself there.
+
+The X25519 and X448 offload reads the scalar and the peer point out of the
+wolfSSL key, so it needs the curve key export APIs. Naming
+`NO_CURVE25519_KEY_EXPORT` or `NO_CURVE448_KEY_EXPORT` alongside it stops the
+build with a message from `asu_ecdh.c` rather than failing at link: drop
+the macro, or turn the offload off with `WOLFSSL_VERSAL_GEN2_ASU_NO_X25519` /
+`..._NO_X448`.
+
 ## Known limits
 
-**P-521 is off by default.** Stock ASU firmware pads the digest wrong and the
-client caps it at 64 bytes, which is short of the 66 P-521 needs. Turn it on
-only with firmware that front-pads.
+**P-521 needs Vitis 2026.1 firmware.** The client still caps the digest at 64
+bytes, short of the 66 P-521 uses, so the firmware has to front-pad it. 2026.1
+does, and `WOLFSSL_VERSAL_GEN2_ASU_ECC_P521` turns on there by itself for both
+ECDSA and ECDH; `WOLFSSL_VERSAL_GEN2_ASU_NO_ECC_P521` opts back out. Earlier
+firmware padded it wrong, so the curve stays in software on 2025.2.
+
+**CCM block alignment is a 2025.2 limit.** That AES-CCM engine only took data
+and AAD in whole 16-byte blocks, so
+`WOLFSSL_VERSAL_GEN2_ASU_CCM_ALIGN_DECLINE` sends anything else to software -
+the RFC 3610 vectors in the wolfCrypt self-test among them. 2026.1 accepts
+unaligned lengths, so leave the macro undefined there and keep the work on
+hardware.
+
+The benchmark trips over the same limit. It authenticates `AES_AUTH_ADD_SZ`
+bytes of extra data, which defaults to 13, so on 2025.2 every AES-CCM row
+declines to software however long the message is. Build the benchmark with
+`AES_AUTH_ADD_SZ` set to 16 to keep those rows on hardware; wolfSSL already
+does that for the first-generation Versal port for the same reason.
 
 **ECIES needs the KDF context path.** See below.
 
@@ -175,7 +220,7 @@ asu_cipher.c     AES
 asu_cmac.c       AES-CMAC
 asu_rsa.c        RSA
 asu_ecc.c        ECDSA, Ed25519, Ed448
-asu_ecdh.c       ECDH
+asu_ecdh.c       ECDH, X25519, X448
 asu_ecies.c      ECIES
 asu_rng.c        TRNG
 ```

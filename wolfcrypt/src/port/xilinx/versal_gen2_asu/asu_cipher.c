@@ -48,10 +48,11 @@
 #include "xasu_status.h"
 #include "xstatus.h"
 
-/* One ASU AES request: the params block and the key object it points at. */
+/* One ASU AES request: the params block and the key object it points at. The
+ * key object is read by DMA, so keep it on a cache line of its own. */
 typedef struct {
-    XAsu_AesParams    params;
-    XAsu_AesKeyObject keyObj;
+    XAsu_AesParams params;
+    WC_ASU_ALIGN64 XAsu_AesKeyObject keyObj;
 } AsuCipherReq;
 
 /* Queue one ASU AES operation. The lock is held here, so only queue it. */
@@ -121,7 +122,8 @@ static int wc_AsuCipherOneShot(Aes* aes, byte* out, const byte* in, word32 sz,
     req.params.DataLen        = sz;
     req.params.EngineMode     = engineMode;
     req.params.OperationFlags =
-        (u8)(XASU_AES_INIT | XASU_AES_UPDATE | XASU_AES_FINAL);
+        (u8)(WC_ASU_AES_OP_INIT | WC_ASU_AES_OP_UPDATE |
+             WC_ASU_AES_OP_FINAL);
     req.params.IsLast         = (u8)XASU_TRUE;
     if (enc) {
         req.params.OperationType = (u8)XASU_AES_ENCRYPT_OPERATION;
@@ -463,7 +465,8 @@ static int wc_AsuCipherGcm(wc_CryptoInfo* info)
     req.params.TagLen         = info->cipher.aesgcm_enc.authTagSz;
     req.params.EngineMode     = (u8)XASU_AES_GCM_MODE;
     req.params.OperationFlags =
-        (u8)(XASU_AES_INIT | XASU_AES_UPDATE | XASU_AES_FINAL);
+        (u8)(WC_ASU_AES_OP_INIT | WC_ASU_AES_OP_UPDATE |
+             WC_ASU_AES_OP_FINAL);
     req.params.IsLast         = (u8)XASU_TRUE;
     if (info->cipher.enc) {
         req.params.OperationType = (u8)XASU_AES_ENCRYPT_OPERATION;
@@ -620,7 +623,8 @@ static int wc_AsuCipherCcm(wc_CryptoInfo* info)
     req.params.TagLen         = info->cipher.aesccm_enc.authTagSz;
     req.params.EngineMode     = (u8)XASU_AES_CCM_MODE;
     req.params.OperationFlags =
-        (u8)(XASU_AES_INIT | XASU_AES_UPDATE | XASU_AES_FINAL);
+        (u8)(WC_ASU_AES_OP_INIT | WC_ASU_AES_OP_UPDATE |
+             WC_ASU_AES_OP_FINAL);
     req.params.IsLast         = (u8)XASU_TRUE;
     if (info->cipher.enc) {
         req.params.OperationType = (u8)XASU_AES_ENCRYPT_OPERATION;
