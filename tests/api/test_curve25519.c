@@ -428,6 +428,32 @@ int test_wc_curve25519_shared_secret_zero_check(void)
         &outLen, EC25519_BIG_ENDIAN),
         WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
 
+    /* Other cheaply encoded low-order points, canonical and non-canonical:
+     * 1, p-1 (u = -1), p (== 0) and p+1 (== 1), p = 2^255-19. None may
+     * yield a shared secret, independent of wc_curve25519_check_public. */
+    {
+        static const byte kLowByte[4] = { 0x01, 0xec, 0xed, 0xee };
+        byte low_pub[CURVE25519_KEYSIZE];
+        int i;
+
+        for (i = 0; i < 4; i++) {
+            if (i == 0) {
+                XMEMSET(low_pub, 0, sizeof(low_pub));
+            }
+            else {
+                XMEMSET(low_pub, 0xff, sizeof(low_pub));
+                low_pub[CURVE25519_KEYSIZE - 1] = 0x7f;
+            }
+            low_pub[0] = kLowByte[i];
+            ExpectIntEQ(wc_curve25519_import_public_ex(low_pub,
+                sizeof(low_pub), &public_key, EC25519_LITTLE_ENDIAN), 0);
+            outLen = sizeof(out);
+            ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key,
+                &public_key, out, &outLen, EC25519_LITTLE_ENDIAN),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        }
+    }
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_curve25519_free(&private_key);
     wc_curve25519_free(&public_key);
@@ -1032,8 +1058,8 @@ int test_wc_curve25519_check_public_le(void)
     ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
         EC25519_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
 
-    /* pub[31] == 0x7f, all of pub[1..30] == 0xff, pub[0] >= 0xec: order or
-     * higher, i reaches 0 in the inner loop too. */
+    /* pub[31] == 0x7f, all of pub[1..30] == 0xff, pub[0] == 0xec: p-1, the
+     * low-order point u = -1; i reaches 0 in the inner loop too. */
     XMEMSET(buf, 0xff, sizeof(buf));
     buf[CURVE25519_KEYSIZE - 1] = 0x7f;
     buf[0] = 0xec;
@@ -1046,6 +1072,44 @@ int test_wc_curve25519_check_public_le(void)
     buf[0] = 0xeb;
     ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
         EC25519_LITTLE_ENDIAN), 0);
+    /* p = 2^255-19 (0x7fff..ffed) and p+1 (0x7fff..ffee) are the
+     * non-canonical encodings of the low-order values 0 and 1: rejected
+     * just like 0 and 1. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[CURVE25519_KEYSIZE - 1] = 0x7f;
+    buf[0] = 0xed;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    buf[0] = 0xee;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_LITTLE_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* p+2 (0x7fff..ffef) .. p+18 (0x7fff..ffff) are the non-canonical
+     * encodings of 2 .. 18: RFC 7748 Section 5 requires them to be accepted
+     * and processed as if reduced modulo p. */
+    buf[0] = 0xef;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_LITTLE_ENDIAN), 0);
+    buf[0] = 0xff;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_LITTLE_ENDIAN), 0);
+    /* "As if reduced modulo p": p+k must get the same verdict as k for every
+     * non-canonical value, k = 0 .. 18. */
+    {
+        byte canon[CURVE25519_KEYSIZE];
+        int k;
+
+        for (k = 0; k <= 18; k++) {
+            XMEMSET(buf, 0xff, sizeof(buf));
+            buf[CURVE25519_KEYSIZE - 1] = 0x7f;
+            buf[0] = (byte)(0xed + k);
+            XMEMSET(canon, 0, sizeof(canon));
+            canon[0] = (byte)k;
+            ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+                EC25519_LITTLE_ENDIAN),
+                wc_curve25519_check_public(canon, sizeof(canon),
+                EC25519_LITTLE_ENDIAN));
+        }
+    }
     /* pub[31] == 0x7f but the inner loop breaks early (a middle byte is
      * not 0xff): inner first operand false side, second never evaluated. */
     XMEMSET(buf, 0xff, sizeof(buf));
@@ -1104,8 +1168,7 @@ int test_wc_curve25519_check_public_be(void)
         EC25519_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
 
     /* pub[0] == 0x7f, pub[1..30] == 0xff (inner loop runs to i==KEYSIZE-1),
-     * pub[31] >= 0xec: both operands of the compound true -> "order or
-     * higher" rejection. */
+     * pub[31] == 0xec: p-1, the low-order point u = -1 -> rejection. */
     XMEMSET(buf, 0xff, sizeof(buf));
     buf[0] = 0x7f;
     buf[CURVE25519_KEYSIZE - 1] = 0xec;
@@ -1118,6 +1181,40 @@ int test_wc_curve25519_check_public_be(void)
     buf[CURVE25519_KEYSIZE - 1] = 0xeb;
     ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
         EC25519_BIG_ENDIAN), 0);
+    /* p (0x7fff..ffed) and p+1 (0x7fff..ffee): non-canonical 0 and 1,
+     * rejected. */
+    XMEMSET(buf, 0xff, sizeof(buf));
+    buf[0] = 0x7f;
+    buf[CURVE25519_KEYSIZE - 1] = 0xed;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    buf[CURVE25519_KEYSIZE - 1] = 0xee;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_BIG_ENDIAN), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    /* p+2 .. p+18: non-canonical 2 .. 18, accepted (RFC 7748 Section 5). */
+    buf[CURVE25519_KEYSIZE - 1] = 0xef;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_BIG_ENDIAN), 0);
+    buf[CURVE25519_KEYSIZE - 1] = 0xff;
+    ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+        EC25519_BIG_ENDIAN), 0);
+    /* p+k must get the same verdict as k, k = 0 .. 18. */
+    {
+        byte canon[CURVE25519_KEYSIZE];
+        int k;
+
+        for (k = 0; k <= 18; k++) {
+            XMEMSET(buf, 0xff, sizeof(buf));
+            buf[0] = 0x7f;
+            buf[CURVE25519_KEYSIZE - 1] = (byte)(0xed + k);
+            XMEMSET(canon, 0, sizeof(canon));
+            canon[CURVE25519_KEYSIZE - 1] = (byte)k;
+            ExpectIntEQ(wc_curve25519_check_public(buf, sizeof(buf),
+                EC25519_BIG_ENDIAN),
+                wc_curve25519_check_public(canon, sizeof(canon),
+                EC25519_BIG_ENDIAN));
+        }
+    }
     /* pub[0] == 0x7f but inner loop breaks early (a middle byte != 0xff):
      * i != KEYSIZE-1, compound false on the first operand (accepted). */
     XMEMSET(buf, 0xff, sizeof(buf));
@@ -1335,3 +1432,102 @@ int test_wc_curve25519_nonblock(void)
     return EXPECT_RESULT();
 } /* END test_wc_curve25519_nonblock */
 
+
+
+/*
+ * Known-answer tests for non-canonical X25519 public values.
+ *
+ * RFC 7748 Section 5: u in [p, 2^255-1], p = 2^255-19, MUST be accepted and
+ * processed as if reduced modulo p. Private key: RFC 7748 Section 6.1 Alice.
+ * Peer u = p+2, p+9 and p+18, the non-canonical encodings of 2, 9 and 18.
+ * Expected shared secrets computed with OpenSSL 3.6.3 (pkeyutl -derive); the
+ * results must also equal those for the canonical encodings 2, 9 and 18.
+ */
+int test_wc_curve25519_shared_secret_noncanonical_kat(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT) && \
+    defined(HAVE_CURVE25519_SHARED_SECRET) && \
+    !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_SE050)
+    static const byte kPriv[CURVE25519_KEYSIZE] = {
+        0x77,0x07,0x6d,0x0a,0x73,0x18,0xa5,0x7d,
+        0x3c,0x16,0xc1,0x72,0x51,0xb2,0x66,0x45,
+        0xdf,0x4c,0x2f,0x87,0xeb,0xc0,0x99,0x2a,
+        0xb1,0x77,0xfb,0xa5,0x1d,0xb9,0x2c,0x2a
+    };
+    /* Reduced values; the non-canonical encoding of v is 0x7fff..ff(0xed+v). */
+    static const byte kVal[3] = { 2, 9, 18 };
+    static const byte kExpected[3][CURVE25519_KEYSIZE] = {
+        {
+            0xe8,0x0c,0x0b,0xe9,0xd3,0xa1,0xc5,0xd7,
+            0x1e,0xdd,0x63,0x16,0xe8,0xc9,0x11,0x5c,
+            0xa3,0x53,0x97,0xcd,0x47,0x10,0x9b,0xd3,
+            0x8e,0x32,0x86,0x4f,0x1a,0xde,0xcf,0x4d
+        },
+        {
+            0x85,0x20,0xf0,0x09,0x89,0x30,0xa7,0x54,
+            0x74,0x8b,0x7d,0xdc,0xb4,0x3e,0xf7,0x5a,
+            0x0d,0xbf,0x3a,0x0d,0x26,0x38,0x1a,0xf4,
+            0xeb,0xa4,0xa9,0x8e,0xaa,0x9b,0x4e,0x6a
+        },
+        {
+            0x35,0x96,0x68,0xd7,0x9a,0x67,0x26,0x7a,
+            0x57,0xff,0xef,0x8f,0x0f,0x4a,0x98,0x82,
+            0xa7,0xc0,0xe3,0x12,0x2c,0xb1,0x99,0x9c,
+            0x56,0x26,0x34,0x63,0x83,0xf9,0xf8,0x11
+        }
+    };
+    curve25519_key private_key;
+    curve25519_key public_key;
+    WC_RNG         rng;
+    byte           u[CURVE25519_KEYSIZE];
+    byte           out[CURVE25519_KEYSIZE];
+    byte           outCanon[CURVE25519_KEYSIZE];
+    word32         outLen;
+    int            i;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_curve25519_init(&private_key), 0);
+    ExpectIntEQ(wc_curve25519_init(&public_key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    ExpectIntEQ(wc_curve25519_set_rng(&private_key, &rng), 0);
+#endif
+    ExpectIntEQ(wc_curve25519_import_private_ex(kPriv, sizeof(kPriv),
+        &private_key, EC25519_LITTLE_ENDIAN), 0);
+
+    for (i = 0; i < 3; i++) {
+        /* Non-canonical encoding p + kVal[i]. */
+        XMEMSET(u, 0xff, sizeof(u));
+        u[CURVE25519_KEYSIZE - 1] = 0x7f;
+        u[0] = (byte)(0xed + kVal[i]);
+        ExpectIntEQ(wc_curve25519_check_public(u, sizeof(u),
+            EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(wc_curve25519_import_public_ex(u, sizeof(u), &public_key,
+            EC25519_LITTLE_ENDIAN), 0);
+        outLen = sizeof(out);
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
+            out, &outLen, EC25519_LITTLE_ENDIAN), 0);
+        ExpectIntEQ(outLen, CURVE25519_KEYSIZE);
+        ExpectBufEQ(out, kExpected[i], CURVE25519_KEYSIZE);
+
+        /* Canonical encoding kVal[i] gives the same shared secret. */
+        XMEMSET(u, 0, sizeof(u));
+        u[0] = kVal[i];
+        ExpectIntEQ(wc_curve25519_import_public_ex(u, sizeof(u), &public_key,
+            EC25519_LITTLE_ENDIAN), 0);
+        outLen = sizeof(outCanon);
+        XMEMSET(outCanon, 0, sizeof(outCanon));
+        ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
+            outCanon, &outLen, EC25519_LITTLE_ENDIAN), 0);
+        ExpectBufEQ(outCanon, out, CURVE25519_KEYSIZE);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve25519_free(&private_key);
+    wc_curve25519_free(&public_key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_curve25519_shared_secret_noncanonical_kat */
