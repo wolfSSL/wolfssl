@@ -816,7 +816,15 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
             WOLFSSL_ERROR(ssl->error);
         }
         else {
+            /* RFC 9846: user_canceled must be followed by close_notify. Quiet
+             * shutdown suppresses a standalone close_notify, but the alert just
+             * sent obligates the paired close_notify, so clear quiet shutdown
+             * across this shutdown call to guarantee it is sent, then restore
+             * the caller's setting. */
+            int quietShutdown = ssl->options.quietShutdown;
+            ssl->options.quietShutdown = 0;
             ret = wolfSSL_shutdown(ssl);
+            ssl->options.quietShutdown = quietShutdown;
         }
     }
 

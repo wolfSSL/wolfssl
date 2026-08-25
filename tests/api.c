@@ -37843,40 +37843,60 @@ static int test_wolfSSL_SendUserCanceled(void)
     };
 
     for (i = 0; i < sizeof(params)/sizeof(*params) && !EXPECT_FAIL(); i++) {
-        WOLFSSL_CTX *ctx_c = NULL;
-        WOLFSSL_CTX *ctx_s = NULL;
-        WOLFSSL *ssl_c = NULL;
-        WOLFSSL *ssl_s = NULL;
-        struct test_memio_ctx test_ctx;
-        WOLFSSL_ALERT_HISTORY h;
+        int quiet;
+        int quietMax = 0;
+        /* Run once normally and, where the quiet-shutdown compat API is
+         * available, once more with quiet shutdown enabled: quiet shutdown must
+         * not suppress the close_notify that RFC 9846 requires after
+         * user_canceled. */
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+        quietMax = 1;
+    #endif
+        for (quiet = 0; quiet <= quietMax && !EXPECT_FAIL(); quiet++) {
+            WOLFSSL_CTX *ctx_c = NULL;
+            WOLFSSL_CTX *ctx_s = NULL;
+            WOLFSSL *ssl_c = NULL;
+            WOLFSSL *ssl_s = NULL;
+            struct test_memio_ctx test_ctx;
+            WOLFSSL_ALERT_HISTORY h;
 
-        printf("Testing %s\n", params[i].tls_version);
+            printf("Testing %s%s\n", params[i].tls_version,
+                    quiet ? " (quiet shutdown)" : "");
 
-        XMEMSET(&h, 0, sizeof(h));
-        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-                params[i].client_meth, params[i].server_meth), 0);
+            XMEMSET(&h, 0, sizeof(h));
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s, params[i].client_meth, params[i].server_meth), 0);
 
-        /* CH1 */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            /* CH1 */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
 
-        ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+            if (quiet)
+                wolfSSL_set_quiet_shutdown(ssl_s, 1);
+    #endif
+            ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_s),
+                    WOLFSSL_SHUTDOWN_NOT_DONE);
 
-        /* Alert closed connection */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_ZERO_RETURN);
+            /* Alert closed connection */
+            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+                    WOLFSSL_ERROR_ZERO_RETURN);
 
-        /* Last alert will be close notify because user_canceled should be
-         * followed by a close_notify */
-        ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
-        ExpectIntEQ(h.last_rx.code, close_notify);
-        ExpectIntEQ(h.last_rx.level, alert_warning);
+            /* Last alert will be close notify because user_canceled should be
+             * followed by a close_notify */
+            ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_rx.code, close_notify);
+            ExpectIntEQ(h.last_rx.level, alert_warning);
 
-        wolfSSL_free(ssl_c);
-        wolfSSL_free(ssl_s);
-        wolfSSL_CTX_free(ctx_c);
-        wolfSSL_CTX_free(ctx_s);
+            wolfSSL_free(ssl_c);
+            wolfSSL_free(ssl_s);
+            wolfSSL_CTX_free(ctx_c);
+            wolfSSL_CTX_free(ctx_s);
+        }
     }
 #endif
     return EXPECT_RESULT();
