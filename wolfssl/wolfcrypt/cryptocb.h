@@ -375,6 +375,18 @@ typedef struct wc_CryptoInfo {
                 byte*    out;
                 word32*  outlen;
             } sm2dh;
+            /* Digest binds the signer id and public key point, so it needs
+             * the key the device holds. */
+            struct {
+                const byte*      id;
+                word16           idSz;
+                const byte*      msg;
+                int              msgSz;
+                enum wc_HashType hashType;
+                byte*            out;
+                int              outSz;
+                ecc_key*         key;
+            } sm2digest;
         #endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
         #ifdef HAVE_CURVE25519
             struct {
@@ -1064,6 +1076,10 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sm2Verify(const byte* sig, word32 siglen,
 
 WOLFSSL_LOCAL int wc_CryptoCb_Sm2SharedSecret(ecc_key* private_key,
     ecc_key* public_key, byte* out, word32* outlen);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2CreateDigest(const byte* id, word16 idSz,
+    const byte* msg, int msgSz, enum wc_HashType hashType, byte* out,
+    int outSz, ecc_key* key);
 #endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
 
 #ifdef HAVE_CURVE25519

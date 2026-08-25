@@ -79550,6 +79550,7 @@ typedef struct {
     int sm2SignCount;     /* SM2 sign callback invocations */
     int sm2VerifyCount;   /* SM2 verify callback invocations */
     int sm2SecretCount;   /* SM2 shared secret callback invocations */
+    int sm2DigestCount;   /* SM2 create digest callback invocations */
 #endif
 #if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
     int sm3Count;         /* SM3 hash callback invocations */
@@ -81107,6 +81108,23 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             /* reset devId */
             info->pk.sm2dh.private_key->devId = devIdArg;
+        #endif
+        }
+        else if (info->pk.type == WC_PK_TYPE_SM2_CREATE_DIGEST) {
+        #ifdef WOLFSSL_SM3
+            myCtx->sm2DigestCount++;
+
+            /* set devId to invalid, so software is used */
+            info->pk.sm2digest.key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_sm2_create_digest(
+                info->pk.sm2digest.id, info->pk.sm2digest.idSz,
+                info->pk.sm2digest.msg, info->pk.sm2digest.msgSz,
+                info->pk.sm2digest.hashType, info->pk.sm2digest.out,
+                info->pk.sm2digest.outSz, info->pk.sm2digest.key);
+
+            /* reset devId */
+            info->pk.sm2digest.key->devId = devIdArg;
         #endif
         }
     #endif /* WOLFSSL_SM2 && WOLFSSL_SM_CRYPTOCB */
@@ -83779,6 +83797,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     myCtx.sm2SignCount = 0;
     myCtx.sm2VerifyCount = 0;
     myCtx.sm2SecretCount = 0;
+    myCtx.sm2DigestCount = 0;
 #endif
 #if defined(WOLFSSL_SM3) && defined(WOLFSSL_SM_CRYPTOCB)
     myCtx.sm3Count = 0;
@@ -84423,6 +84442,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         myCtx.sm2SignCount = 0;
         myCtx.sm2VerifyCount = 0;
         myCtx.sm2SecretCount = 0;
+        myCtx.sm2DigestCount = 0;
 
         if (ret == 0) {
             ret = wc_InitRng_ex(&sm2Rng, HEAP_HINT, devId);
@@ -84497,6 +84517,44 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
                 ret = WC_TEST_RET_ENC_NC;
             }
         }
+    #ifdef WOLFSSL_SM3
+        /* The digest binds the signer id and the public key point, so it has
+         * to reach the device too. Sign and verify over the result to show
+         * what came back is usable. */
+        if (ret == 0 && !sm2Skip) {
+            const byte sm2Id[] = "wolfssl@wolfssl.com";
+            const byte sm2Msg[] = "SM2 crypto callback message";
+            byte sm2Za[WC_SM3_DIGEST_SIZE];
+
+            sm2SigLen = ECC_SIG_SIZE;
+            sm2Verify = 0;
+            XMEMSET(sm2Za, 0, sizeof(sm2Za));
+
+            ret = wc_ecc_sm2_create_digest(sm2Id,
+                (word16)XSTRLEN((const char*)sm2Id), sm2Msg,
+                (int)XSTRLEN((const char*)sm2Msg), WC_HASH_TYPE_SM3, sm2Za,
+                (int)sizeof(sm2Za), sm2KeyA);
+            if (ret != 0)
+                ret = WC_TEST_RET_ENC_EC(ret);
+            else if (myCtx.sm2DigestCount == 0)
+                ret = WC_TEST_RET_ENC_NC;
+
+            if (ret == 0) {
+                ret = wc_ecc_sm2_sign_hash(sm2Za, (word32)sizeof(sm2Za),
+                    sm2Sig, &sm2SigLen, &sm2Rng, sm2KeyA);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+            }
+            if (ret == 0) {
+                ret = wc_ecc_sm2_verify_hash(sm2Sig, sm2SigLen, sm2Za,
+                    (word32)sizeof(sm2Za), &sm2Verify, sm2KeyA);
+                if (ret != 0)
+                    ret = WC_TEST_RET_ENC_EC(ret);
+                else if (sm2Verify != 1)
+                    ret = WC_TEST_RET_ENC_NC;
+            }
+        }
+    #endif /* WOLFSSL_SM3 */
     #if defined(HAVE_ECC_DHE) && defined(ECC_TIMING_RESISTANT)
         /* blinding needs an RNG on the key before the shared secret */
         if (ret == 0 && !sm2Skip) {

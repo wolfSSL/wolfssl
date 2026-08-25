@@ -186,6 +186,7 @@ static const char* GetPkTypeStr(int pk)
         case WC_PK_TYPE_SM2_SIGN: return "SM2-Sign";
         case WC_PK_TYPE_SM2_VERIFY: return "SM2-Verify";
         case WC_PK_TYPE_SM2_SHARED_SECRET: return "SM2-SharedSecret";
+        case WC_PK_TYPE_SM2_CREATE_DIGEST: return "SM2-CreateDigest";
 #endif
     }
     return NULL;
@@ -205,11 +206,19 @@ static const char* GetCipherTypeStr(int cipher)
         case WC_CIPHER_DES3: return "DES3";
         case WC_CIPHER_DES: return "DES";
         case WC_CIPHER_CHACHA: return "ChaCha20";
-#ifdef WOLFSSL_SM4
+#ifdef WOLFSSL_SM4_ECB
         case WC_CIPHER_SM4_ECB: return "SM4 ECB";
+#endif
+#ifdef WOLFSSL_SM4_CBC
         case WC_CIPHER_SM4_CBC: return "SM4 CBC";
+#endif
+#ifdef WOLFSSL_SM4_CTR
         case WC_CIPHER_SM4_CTR: return "SM4 CTR";
+#endif
+#ifdef WOLFSSL_SM4_GCM
         case WC_CIPHER_SM4_GCM: return "SM4 GCM";
+#endif
+#ifdef WOLFSSL_SM4_CCM
         case WC_CIPHER_SM4_CCM: return "SM4 CCM";
 #endif
     }
@@ -234,7 +243,9 @@ static const char* GetHashTypeStr(int hash)
         case WC_HASH_TYPE_SHA3_512: return "SHA3-512";
         case WC_HASH_TYPE_BLAKE2B: return "Blake2B";
         case WC_HASH_TYPE_BLAKE2S: return "Blake2S";
+#ifdef WOLFSSL_SM3
         case WC_HASH_TYPE_SM3: return "SM3";
+#endif
     }
     return NULL;
 }
@@ -1290,6 +1301,38 @@ int wc_CryptoCb_Sm2SharedSecret(ecc_key* private_key, ecc_key* public_key,
         cryptoInfo.pk.sm2dh.public_key = public_key;
         cryptoInfo.pk.sm2dh.out = out;
         cryptoInfo.pk.sm2dh.outlen = outlen;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Sm2CreateDigest(const byte* id, word16 idSz,
+    const byte* msg, int msgSz, enum wc_HashType hashType, byte* out,
+    int outSz, ecc_key* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_SM2_CREATE_DIGEST;
+        cryptoInfo.pk.sm2digest.id = id;
+        cryptoInfo.pk.sm2digest.idSz = idSz;
+        cryptoInfo.pk.sm2digest.msg = msg;
+        cryptoInfo.pk.sm2digest.msgSz = msgSz;
+        cryptoInfo.pk.sm2digest.hashType = hashType;
+        cryptoInfo.pk.sm2digest.out = out;
+        cryptoInfo.pk.sm2digest.outSz = outSz;
+        cryptoInfo.pk.sm2digest.key = key;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
