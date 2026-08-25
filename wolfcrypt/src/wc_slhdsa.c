@@ -8804,6 +8804,7 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key)
  *                            On out, length of private key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, key's parameters, priv or privLen is NULL.
+ * @return  MISSING_KEY when no private key is available.
  * @return  BAD_LENGTH_E when privLen is too small for private key.
  */
 int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* priv, word32* privLen)
@@ -8814,6 +8815,10 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* priv, word32* privLen)
     if ((key == NULL) || (key->params == NULL) || (priv == NULL) ||
             (privLen == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Check we have a private key to export. */
+    else if ((key->flags & WC_SLHDSA_FLAG_PRIVATE) == 0) {
+        ret = MISSING_KEY;
     }
     /* Check private key buffer length. */
     else if (*privLen < key->params->n * 4) {
@@ -8839,6 +8844,7 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* priv, word32* privLen)
  *                           On out, length of public key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, key's parameters, pub or pubLen is NULL.
+ * @return  MISSING_KEY when no public key is available.
  * @return  BAD_LENGTH_E when pubLen is too small for public key.
  */
 int wc_SlhDsaKey_ExportPublic(SlhDsaKey* key, byte* pub, word32* pubLen)
@@ -8849,6 +8855,10 @@ int wc_SlhDsaKey_ExportPublic(SlhDsaKey* key, byte* pub, word32* pubLen)
     if ((key == NULL) || (key->params == NULL) || (pub == NULL) ||
             (pubLen == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Check we have a public key to export. */
+    else if ((key->flags & WC_SLHDSA_FLAG_PUBLIC) == 0) {
+        ret = MISSING_KEY;
     }
     /* Check public key buffer length. */
     else if (*pubLen < key->params->n * 2) {
@@ -9505,6 +9515,7 @@ int wc_SlhDsaKey_PublicKeyDecode(const byte* input, word32* inOutIdx,
  *          whose parameter set isn't compiled in. In practice unreachable
  *          because SlhDsaParams[] is itself gated on the build, but the
  *          contract matches wc_SlhDsaOidToParam for forward compatibility.
+ * @return  MISSING_KEY when public key not set.
  */
 int wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output, word32 inLen,
     int withAlg)

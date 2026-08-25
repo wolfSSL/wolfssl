@@ -793,6 +793,7 @@ int wc_SlhDsaKey_CheckKey(SlhDsaKey* key);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key, out, or outLen is NULL.
+    \return MISSING_KEY if the key object holds no private key.
     \return BUFFER_E if the output buffer is too small.
 
     \param [in] key Pointer to the SlhDsaKey containing a private key.
@@ -824,6 +825,7 @@ int wc_SlhDsaKey_ExportPrivate(SlhDsaKey* key, byte* out,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key, out, or outLen is NULL.
+    \return MISSING_KEY if the key object holds no public key.
     \return BUFFER_E if the output buffer is too small.
 
     \param [in] key Pointer to the SlhDsaKey containing a public key.
