@@ -41,6 +41,14 @@ IFNDEF _WIN64
 _WIN64 = 1
 ENDIF
 
+fips_version = 0
+IFDEF HAVE_FIPS
+  fips_version = 1
+  IFDEF HAVE_FIPS_VERSION
+    fips_version = HAVE_FIPS_VERSION
+  ENDIF
+ENDIF
+
 _DATA SEGMENT
 ALIGN 16
 L_GCM_generate_m0_aesni_rev8 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
@@ -51,7 +59,11 @@ ALIGN 16
 L_GCM_generate_m0_aesni_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_aesni_mod2_128 QWORD L_GCM_generate_m0_aesni_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 GCM_generate_m0_aesni PROC
         sub	rsp, 88
         movdqu	OWORD PTR [rsp+8], xmm6
@@ -293,7 +305,11 @@ GCM_generate_m0_aesni PROC
         add	rsp, 88
         ret
 GCM_generate_m0_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
@@ -349,7 +365,11 @@ ALIGN 16
 L_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
 ptr_L_aes_gcm_mod2_128 QWORD L_aes_gcm_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_aesni PROC
         push	r13
         push	rdi
@@ -2219,8 +2239,16 @@ L_AES_GCM_encrypt_aesni_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_aesni PROC
         push	r13
         push	rdi
@@ -3642,8 +3670,16 @@ L_AES_GCM_decrypt_aesni_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_init_aesni PROC
         push	rdi
         push	rsi
@@ -4000,8 +4036,16 @@ L_AES_GCM_init_aesni_iv_done:
         pop	rdi
         ret
 AES_GCM_init_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_aad_update_aesni PROC
         mov	rax, rcx
         sub	rsp, 40
@@ -4077,8 +4121,16 @@ L_AES_GCM_aad_update_aesni_16_loop:
         add	rsp, 40
         ret
 AES_GCM_aad_update_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_block_aesni PROC
         mov	r10, r8
         mov	r11, r9
@@ -4117,8 +4169,16 @@ L_AES_GCM_encrypt_block_aesni_aesenc_block_aesenc_avx_last:
         pshufb	xmm0, OWORD PTR L_aes_gcm_bswap_mask
         ret
 AES_GCM_encrypt_block_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_ghash_block_aesni PROC
         sub	rsp, 40
         movdqu	OWORD PTR [rsp+8], xmm6
@@ -4188,8 +4248,16 @@ AES_GCM_ghash_block_aesni PROC
         add	rsp, 40
         ret
 AES_GCM_ghash_block_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_update_aesni PROC
         push	r13
         push	r12
@@ -5427,8 +5495,16 @@ L_AES_GCM_encrypt_update_aesni_done_enc:
         pop	r13
         ret
 AES_GCM_encrypt_update_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_final_aesni PROC
         push	r13
         push	r12
@@ -5539,8 +5615,16 @@ L_AES_GCM_encrypt_final_aesni_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_final_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_update_aesni PROC
         push	r13
         push	r12
@@ -6322,8 +6406,16 @@ L_AES_GCM_decrypt_update_aesni_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_final_aesni PROC
         push	r13
         push	r12
@@ -6455,14 +6547,22 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_final_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcm_siv_bswap_mask QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask QWORD L_aes_gcm_siv_bswap_mask
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_polyval_aesni PROC
         push	r12
         sub	rsp, 144
@@ -6822,13 +6922,21 @@ L_AES_GCMSIV_polyval_aesni_done:
         pop	r12
         ret
 AES_GCMSIV_polyval_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcmsiv_ctr_aesni_one QWORD 0000000000000001h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_aesni_one QWORD L_aes_gcmsiv_ctr_aesni_one
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_ctr_aesni PROC
         push	r12
         push	r13
@@ -7018,7 +7126,11 @@ L_AES_GCMSIV_ctr_aesni_done_enc:
         pop	r12
         ret
 AES_GCMSIV_ctr_aesni ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX1
 _DATA SEGMENT
@@ -7031,7 +7143,11 @@ ALIGN 16
 L_GCM_generate_m0_avx1_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_avx1_mod2_128 QWORD L_GCM_generate_m0_avx1_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 GCM_generate_m0_avx1 PROC
         sub	rsp, 88
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -7239,7 +7355,11 @@ GCM_generate_m0_avx1 PROC
         add	rsp, 88
         ret
 GCM_generate_m0_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_avx1_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
@@ -7295,7 +7415,11 @@ ALIGN 16
 L_avx1_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
 ptr_L_avx1_aes_gcm_mod2_128 QWORD L_avx1_aes_gcm_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_avx1 PROC
         push	r13
         push	rdi
@@ -8893,8 +9017,16 @@ L_AES_GCM_encrypt_avx1_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_avx1 PROC
         push	r13
         push	rdi
@@ -10086,8 +10218,16 @@ L_AES_GCM_decrypt_avx1_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_init_avx1 PROC
         push	rdi
         push	rsi
@@ -10408,8 +10548,16 @@ L_AES_GCM_init_avx1_iv_done:
         pop	rdi
         ret
 AES_GCM_init_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_aad_update_avx1 PROC
         mov	rax, rcx
         sub	rsp, 40
@@ -10474,8 +10622,16 @@ L_AES_GCM_aad_update_avx1_16_loop:
         add	rsp, 40
         ret
 AES_GCM_aad_update_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_block_avx1 PROC
         mov	r10, r8
         mov	r11, r9
@@ -10514,8 +10670,16 @@ L_AES_GCM_encrypt_block_avx1_aesenc_block_last:
         vzeroupper
         ret
 AES_GCM_encrypt_block_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_ghash_block_avx1 PROC
         sub	rsp, 40
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -10575,8 +10739,16 @@ AES_GCM_ghash_block_avx1 PROC
         add	rsp, 40
         ret
 AES_GCM_ghash_block_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_update_avx1 PROC
         push	r13
         push	r12
@@ -11617,8 +11789,16 @@ L_AES_GCM_encrypt_update_avx1_done_enc:
         pop	r13
         ret
 AES_GCM_encrypt_update_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_final_avx1 PROC
         push	r13
         push	r12
@@ -11718,8 +11898,16 @@ L_AES_GCM_encrypt_final_avx1_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_final_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_update_avx1 PROC
         push	r13
         push	r12
@@ -12344,8 +12532,16 @@ L_AES_GCM_decrypt_update_avx1_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_final_avx1 PROC
         push	r13
         push	r12
@@ -12466,14 +12662,22 @@ L_AES_GCM_decrypt_final_avx1_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_final_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcm_siv_bswap_mask_avx1 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask_avx1 QWORD L_aes_gcm_siv_bswap_mask_avx1
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_polyval_avx1 PROC
         push	r12
         sub	rsp, 112
@@ -12733,13 +12937,21 @@ L_AES_GCMSIV_polyval_avx1_done:
         pop	r12
         ret
 AES_GCMSIV_polyval_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcmsiv_ctr_avx1_one QWORD 0000000000000001h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_avx1_one QWORD L_aes_gcmsiv_ctr_avx1_one
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_ctr_avx1 PROC
         push	r12
         push	r13
@@ -12924,7 +13136,11 @@ L_AES_GCMSIV_ctr_avx1_done_enc:
         pop	r12
         ret
 AES_GCMSIV_ctr_avx1 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX2
@@ -12938,7 +13154,11 @@ ALIGN 16
 L_GCM_generate_m0_avx2_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_avx2_mod2_128 QWORD L_GCM_generate_m0_avx2_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 GCM_generate_m0_avx2 PROC
         sub	rsp, 88
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -13146,7 +13366,11 @@ GCM_generate_m0_avx2 PROC
         add	rsp, 88
         ret
 GCM_generate_m0_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_avx2_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
@@ -13207,7 +13431,11 @@ ALIGN 16
 L_avx2_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
 ptr_L_avx2_aes_gcm_mod2_128 QWORD L_avx2_aes_gcm_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_avx2 PROC
         push	r13
         push	rdi
@@ -14703,8 +14931,16 @@ L_AES_GCM_encrypt_avx2_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_avx2 PROC
         push	r13
         push	rdi
@@ -15863,8 +16099,16 @@ L_AES_GCM_decrypt_avx2_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_init_avx2 PROC
         push	rbx
         push	rdi
@@ -16137,8 +16381,16 @@ L_AES_GCM_init_avx2_iv_done:
         pop	rbx
         ret
 AES_GCM_init_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_aad_update_avx2 PROC
         mov	rax, rcx
         sub	rsp, 24
@@ -16189,8 +16441,16 @@ L_AES_GCM_aad_update_avx2_16_loop:
         add	rsp, 24
         ret
 AES_GCM_aad_update_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_block_avx2 PROC
         mov	r10, r8
         mov	r11, r9
@@ -16244,8 +16504,16 @@ L_AES_GCM_encrypt_block_avx2_aesenc_block_last:
         add	rsp, 152
         ret
 AES_GCM_encrypt_block_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_ghash_block_avx2 PROC
         sub	rsp, 24
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -16290,8 +16558,16 @@ AES_GCM_ghash_block_avx2 PROC
         add	rsp, 24
         ret
 AES_GCM_ghash_block_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_update_avx2 PROC
         push	r12
         push	r13
@@ -17165,8 +17441,16 @@ L_AES_GCM_encrypt_update_avx2_done_enc:
         pop	r12
         ret
 AES_GCM_encrypt_update_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_final_avx2 PROC
         push	r12
         push	r13
@@ -17236,8 +17520,16 @@ L_AES_GCM_encrypt_final_avx2_store_tag_done:
         pop	r12
         ret
 AES_GCM_encrypt_final_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_update_avx2 PROC
         push	r13
         push	r12
@@ -17764,8 +18056,16 @@ L_AES_GCM_decrypt_update_avx2_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_final_avx2 PROC
         push	r12
         push	r13
@@ -17849,7 +18149,11 @@ L_AES_GCM_decrypt_final_avx2_cmp_tag_done:
         pop	r12
         ret
 AES_GCM_decrypt_final_avx2 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 ENDIF
 IFDEF HAVE_INTEL_VAES
 _DATA SEGMENT
@@ -17886,7 +18190,11 @@ ALIGN 16
 L_GCM_generate_m0_vaes_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_vaes_mod2_128 QWORD L_GCM_generate_m0_vaes_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 GCM_generate_m0_vaes PROC
         sub	rsp, 88
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -18094,7 +18402,11 @@ GCM_generate_m0_vaes PROC
         add	rsp, 88
         ret
 GCM_generate_m0_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_vaes_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
@@ -18150,7 +18462,11 @@ ALIGN 16
 L_vaes_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
 ptr_L_vaes_aes_gcm_mod2_128 QWORD L_vaes_aes_gcm_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_vaes PROC
         push	r13
         push	rdi
@@ -20169,8 +20485,16 @@ L_AES_GCM_encrypt_vaes_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_vaes PROC
         push	r13
         push	rdi
@@ -22144,8 +22468,16 @@ L_AES_GCM_decrypt_vaes_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_init_vaes PROC
         push	rdi
         push	rsi
@@ -22466,8 +22798,16 @@ L_AES_GCM_init_vaes_iv_done:
         pop	rdi
         ret
 AES_GCM_init_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_aad_update_vaes PROC
         mov	r10, r8
         mov	r8, rcx
@@ -23010,8 +23350,16 @@ L_AES_GCM_aad_update_vaes_done:
         add	rsp, 680
         ret
 AES_GCM_aad_update_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_block_vaes PROC
         mov	r10, r8
         mov	r11, r9
@@ -23050,8 +23398,16 @@ L_AES_GCM_encrypt_block_vaes_aesenc_block_last:
         vzeroupper
         ret
 AES_GCM_encrypt_block_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_ghash_block_vaes PROC
         sub	rsp, 40
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -23111,8 +23467,16 @@ AES_GCM_ghash_block_vaes PROC
         add	rsp, 40
         ret
 AES_GCM_ghash_block_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_update_vaes PROC
         push	r13
         push	r12
@@ -24083,8 +24447,16 @@ L_AES_GCM_encrypt_update_vaes_done_enc:
         pop	r13
         ret
 AES_GCM_encrypt_update_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_final_vaes PROC
         push	r13
         push	r12
@@ -24170,8 +24542,16 @@ L_AES_GCM_encrypt_final_vaes_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_final_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_update_vaes PROC
         push	r13
         push	r12
@@ -25091,8 +25471,16 @@ L_AES_GCM_decrypt_update_vaes_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_final_vaes PROC
         push	r13
         push	r12
@@ -25199,14 +25587,22 @@ L_AES_GCM_decrypt_final_vaes_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_final_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcm_siv_bswap_mask_vaes QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask_vaes QWORD L_aes_gcm_siv_bswap_mask_vaes
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_polyval_vaes PROC
         push	r12
         sub	rsp, 160
@@ -25736,7 +26132,11 @@ L_AES_GCMSIV_polyval_vaes_done:
         pop	r12
         ret
 AES_GCMSIV_polyval_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcmsiv_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
@@ -25758,7 +26158,11 @@ L_aes_gcmsiv_ctr_inc_vaes QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000010h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_inc_vaes QWORD L_aes_gcmsiv_ctr_inc_vaes
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_ctr_vaes PROC
         push	r12
         push	r13
@@ -26008,7 +26412,11 @@ L_AES_GCMSIV_ctr_vaes_done_enc:
         pop	r12
         ret
 AES_GCMSIV_ctr_vaes ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX512
@@ -26059,7 +26467,11 @@ ALIGN 16
 L_GCM_generate_m0_avx512_mod2_128 QWORD 0000000000000000h, 0e100000000000000h
 ptr_L_GCM_generate_m0_avx512_mod2_128 QWORD L_GCM_generate_m0_avx512_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 GCM_generate_m0_avx512 PROC
         sub	rsp, 88
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -26267,7 +26679,11 @@ GCM_generate_m0_avx512 PROC
         add	rsp, 88
         ret
 GCM_generate_m0_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_avx512_aes_gcm_one QWORD 0000000000000000h, 0000000000000001h
@@ -26323,7 +26739,11 @@ ALIGN 16
 L_avx512_aes_gcm_mod2_128 QWORD 0000000000000001h, 0c200000000000000h
 ptr_L_avx512_aes_gcm_mod2_128 QWORD L_avx512_aes_gcm_mod2_128
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_avx512 PROC
         push	r13
         push	rdi
@@ -29041,8 +29461,16 @@ L_AES_GCM_encrypt_avx512_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_avx512 PROC
         push	r13
         push	rdi
@@ -31560,8 +31988,16 @@ L_AES_GCM_decrypt_avx512_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_init_avx512 PROC
         push	rdi
         push	rsi
@@ -31882,8 +32318,16 @@ L_AES_GCM_init_avx512_iv_done:
         pop	rdi
         ret
 AES_GCM_init_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_aad_update_avx512 PROC
         mov	r10, r8
         mov	r8, rcx
@@ -32325,8 +32769,16 @@ L_AES_GCM_aad_update_avx512_done:
         add	rsp, 424
         ret
 AES_GCM_aad_update_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_block_avx512 PROC
         mov	r10, r8
         mov	r11, r9
@@ -32365,8 +32817,16 @@ L_AES_GCM_encrypt_block_avx512_aesenc_block_last:
         vzeroupper
         ret
 AES_GCM_encrypt_block_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_ghash_block_avx512 PROC
         sub	rsp, 40
         vmovdqu	OWORD PTR [rsp+8], xmm6
@@ -32426,8 +32886,16 @@ AES_GCM_ghash_block_avx512 PROC
         add	rsp, 40
         ret
 AES_GCM_ghash_block_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_update_avx512 PROC
         push	r13
         push	r12
@@ -34196,8 +34664,16 @@ L_AES_GCM_encrypt_update_avx512_done_enc:
         pop	r13
         ret
 AES_GCM_encrypt_update_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_encrypt_final_avx512 PROC
         push	r13
         push	r12
@@ -34284,8 +34760,16 @@ L_AES_GCM_encrypt_final_avx512_store_tag_done:
         pop	r13
         ret
 AES_GCM_encrypt_final_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_update_avx512 PROC
         push	r13
         push	r12
@@ -35848,8 +36332,16 @@ L_AES_GCM_decrypt_update_avx512_done_dec:
         pop	r13
         ret
 AES_GCM_decrypt_update_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCM_decrypt_final_avx512 PROC
         push	r13
         push	r12
@@ -35957,14 +36449,22 @@ L_AES_GCM_decrypt_final_avx512_cmp_tag_done:
         pop	r13
         ret
 AES_GCM_decrypt_final_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 IFDEF WOLFSSL_AESGCM_SIV
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcm_siv_bswap_mask_avx512 QWORD 08090a0b0c0d0e0fh, 0001020304050607h
 ptr_L_aes_gcm_siv_bswap_mask_avx512 QWORD L_aes_gcm_siv_bswap_mask_avx512
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_polyval_avx512 PROC
         push	r12
         sub	rsp, 160
@@ -36693,7 +37193,11 @@ L_AES_GCMSIV_polyval_avx512_done:
         pop	r12
         ret
 AES_GCMSIV_polyval_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcmsiv_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
@@ -36715,7 +37219,11 @@ L_aes_gcmsiv_ctr_inc_avx512 QWORD 0000000000000000h, 0000000000000000h
         QWORD 0000000000000010h, 0000000000000000h
 ptr_L_aes_gcmsiv_ctr_inc_avx512 QWORD L_aes_gcmsiv_ctr_inc_avx512
 _DATA ENDS
+IF fips_version GE 7
+fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
+ELSE
 _TEXT SEGMENT READONLY PARA
+ENDIF
 AES_GCMSIV_ctr_avx512 PROC
         push	r12
         push	r13
@@ -36971,7 +37479,11 @@ L_AES_GCMSIV_ctr_avx512_done_enc:
         pop	r12
         ret
 AES_GCMSIV_ctr_avx512 ENDP
+IF fips_version GE 7
+fipsAb ENDS
+ELSE
 _TEXT ENDS
+ENDIF
 ENDIF
 ENDIF
 END
