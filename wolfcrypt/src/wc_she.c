@@ -501,12 +501,6 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
         return BAD_FUNC_ARG;
     }
 
-    /* Reject values wider than their packed field */
-    if (counter > WC_SHE_COUNTER_MAX || flags > WC_SHE_FLAGS_MAX ||
-        authKeyId > WC_SHE_KEY_ID_MAX || targetKeyId > WC_SHE_KEY_ID_MAX) {
-        return BAD_FUNC_ARG;
-    }
-
 #ifdef WOLF_CRYPTO_CB
     /* Try callback first -- callback handles its own parameter validation.
      * This allows callers to pass NULL authKey/newKey when a secure element
@@ -524,6 +518,13 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
         ret = 0;
     }
 #endif
+
+    /* Only the software path packs these into M1 and M2, so the widths
+     * are checked here.  A callback may use its own key numbering. */
+    if (counter > WC_SHE_COUNTER_MAX || flags > WC_SHE_FLAGS_MAX ||
+        authKeyId > WC_SHE_KEY_ID_MAX || targetKeyId > WC_SHE_KEY_ID_MAX) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Software path -- validate all parameters */
     if (uid == NULL || uidSz != WC_SHE_UID_SZ ||
@@ -682,12 +683,6 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
         return BAD_FUNC_ARG;
     }
 
-    /* Reject values wider than their packed field */
-    if (counter > WC_SHE_COUNTER_MAX ||
-        authKeyId > WC_SHE_KEY_ID_MAX || targetKeyId > WC_SHE_KEY_ID_MAX) {
-        return BAD_FUNC_ARG;
-    }
-
 #ifdef WOLF_CRYPTO_CB
     /* Try callback first -- useful for uploading M1/M2/M3 to an HSM which
      * loads the key and returns the correct M4/M5 proof values.  The callback
@@ -704,6 +699,13 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
         ret = 0;
     }
 #endif
+
+    /* Only the software path packs these into M4, so the widths are
+     * checked here.  A callback may use its own key numbering. */
+    if (counter > WC_SHE_COUNTER_MAX ||
+        authKeyId > WC_SHE_KEY_ID_MAX || targetKeyId > WC_SHE_KEY_ID_MAX) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Software path -- validate all parameters */
     if (uid == NULL || uidSz != WC_SHE_UID_SZ ||
