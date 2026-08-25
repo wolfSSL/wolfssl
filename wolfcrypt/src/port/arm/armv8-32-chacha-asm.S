@@ -45,11 +45,6 @@ wc_chacha_setiv:
 	ldr	r12, [r1, #4]
 	ldr	lr, [r1, #8]
 	str	r2, [r0, #48]
-#ifdef BIG_ENDIAN_ORDER
-	rev	r4, r4
-	rev	r12, r12
-	rev	lr, lr
-#endif /* BIG_ENDIAN_ORDER */
 	stm	r3, {r4, r12, lr}
 	pop	{r4, pc}
 	.size	wc_chacha_setiv,.-wc_chacha_setiv
@@ -88,12 +83,6 @@ wc_chacha_setkey:
 	ldr	r5, [r1, #4]
 	ldr	r12, [r1, #8]
 	ldr	lr, [r1, #12]
-#ifdef BIG_ENDIAN_ORDER
-	rev	r4, r4
-	rev	r5, r5
-	rev	r12, r12
-	rev	lr, lr
-#endif /* BIG_ENDIAN_ORDER */
 	stm	r0!, {r4, r5, r12, lr}
 	# Next 16 bytes of key.
 	beq	L_chacha_arm32_setkey_same_key_bytes
@@ -1199,15 +1188,9 @@ wc_chacha_setkey:
 	# Start with constants
 	vldm	r3, {q0}
 	vld1.8	{q1}, [r1]!
-#ifdef BIG_ENDIAN_ORDER
-	vrev32.16	q1, q1
-#endif /* BIG_ENDIAN_ORDER */
 	vstm	r0!, {q0-q1}
 	beq	L_chacha_setkey_arm32_done
 	vld1.8	{q1}, [r1]
-#ifdef BIG_ENDIAN_ORDER
-	vrev32.16	q1, q1
-#endif /* BIG_ENDIAN_ORDER */
 L_chacha_setkey_arm32_done:
 	vstm	r0, {q1}
 	bx	lr
