@@ -29182,6 +29182,17 @@ static int test_wolfSSL_PEM_read(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_BIO)
     const char* filename = "./certs/server-keyEnc.pem";
+    /* Footer's final "-----" is the last byte of the input - no trailing EOL. */
+    const char* pemNoEol =
+        "-----BEGIN TEST-----\n"
+        "AAECAwQ=\n"
+        "-----END TEST-----";
+    /* Blank line after the footer - must not be taken as an encryption
+     * header terminator. */
+    const char* pemBlankEol =
+        "-----BEGIN TEST-----\n"
+        "AAECAwQ=\n"
+        "-----END TEST-----\n\n";
     XFILE fp = XBADFILE;
     char* name = NULL;
     char* header = NULL;
@@ -29330,7 +29341,36 @@ static int test_wolfSSL_PEM_read(void)
     ExpectIntEQ(XMEMCMP(out, fileData, fileDataSz), 0);
 
     BIO_free(bio);
+    bio = NULL;
     XFREE(fileData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* Valid PEM that ends at the last dash of the footer must still parse. */
+    name = NULL;
+    header = NULL;
+    data = NULL;
+    ExpectNotNull(bio = BIO_new_mem_buf(pemNoEol, (int)XSTRLEN(pemNoEol)));
+    ExpectIntEQ(PEM_read_bio(bio, &name, &header, &data, &len), 1);
+    ExpectIntEQ(XSTRNCMP(name, "TEST", 4), 0);
+    ExpectIntEQ(len, 5);
+    BIO_free(bio);
+    bio = NULL;
+    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* Valid PEM ending with a blank line must still parse. */
+    name = NULL;
+    header = NULL;
+    data = NULL;
+    ExpectNotNull(bio = BIO_new_mem_buf(pemBlankEol, (int)XSTRLEN(pemBlankEol)));
+    ExpectIntEQ(PEM_read_bio(bio, &name, &header, &data, &len), 1);
+    ExpectIntEQ(XSTRNCMP(name, "TEST", 4), 0);
+    ExpectIntEQ(XSTRLEN(header), 0);
+    ExpectIntEQ(len, 5);
+    BIO_free(bio);
     XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
