@@ -11780,8 +11780,8 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
 /* Set a key share that is supported by the client into extensions.
  *
  * ssl  The SSL/TLS object.
- * returns BAD_KEY_SHARE_DATA if no supported group has a key share,
- * 0 if a supported group has a key share and other values indicate an error.
+ * returns 0 if a mutual group was found, KEY_SHARE_ERROR if no mutual
+ * group exists and other values indicate an error.
  */
 int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
 {
