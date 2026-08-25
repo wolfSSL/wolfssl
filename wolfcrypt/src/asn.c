@@ -19241,7 +19241,7 @@ int wolfssl_local_MatchBaseName(int type, const char* name, int nameSz,
             count = 0;
 
             /* find the '@' in the base */
-            while (*p != '@' && count < baseSz) {
+            while (count < baseSz && *p != '@') {
                 count++;
                 p++;
             }
