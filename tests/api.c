@@ -32695,9 +32695,11 @@ static int test_SSL_CIPHER_get_xxx(void)
 
             for (i = 0; i < numCiphers; ++i) {
 
-                if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
-                    SSL_CIPHER_description(cipher, buf, sizeof(buf));
+                cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i);
+                if (cipher == NULL) {
+                    continue;
                 }
+                SSL_CIPHER_description(cipher, buf, sizeof(buf));
 
                 if (XMEMCMP(cipher_id3, buf, XSTRLEN(cipher_id3)) == 0) {
                     break;
