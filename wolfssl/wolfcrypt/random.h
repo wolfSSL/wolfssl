@@ -362,6 +362,11 @@ struct WC_RNG {
     struct OS_Seed seed;
     void* heap;
     byte status;
+    /* Set when this instance was seeded from another DRBG's output
+     * (wc_InitRng*RBGC(), wc_RNG_DRBG_ReseedRBGC()) -- an SP 800-90C chain
+     * leaf.  Sticky by policy: a leaf is never usable as a chain root, even
+     * after a subsequent reseed from the module's seed source. */
+    byte isRbgcLeaf;
 
 #if defined(WC_RNG_BANK_SUPPORT) || defined(HAVE_HASHDRBG)
 
@@ -611,6 +616,7 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
      * fallbacks for those builds. */
     WOLFSSL_API int wc_RNG_GetStatus(const WC_RNG* rng);
     WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
+    WOLFSSL_API int wc_RNG_DRBG_IsRBGCLeaf(const WC_RNG* rng);
     WOLFSSL_API int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
                                              wc_drbg_reseed_ctr_t* reseedCtr);
     WOLFSSL_API int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
@@ -620,6 +626,20 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #ifndef CUSTOM_RAND_GENERATE_BLOCK
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
                                            word32 nonceSz);
+
+    /* SP 800-90C RBG-chain spawn: instantiate leaf as a subordinate DRBG
+     * seeded from root's generate output.  The _New variants allocate the
+     * leaf from root's heap; release those with wc_rng_free(). */
+    WOLFSSL_API int wc_InitRngRBGC(WC_RNG* leaf, WC_RNG* root);
+    WOLFSSL_API int wc_InitRngNonceRBGC(WC_RNG* leaf, WC_RNG* root,
+                                        byte* nonce, word32 nonceSz);
+#ifndef WC_NO_CONSTRUCTORS
+    WOLFSSL_API int wc_InitRngRBGC_New(WC_RNG** leaf, WC_RNG* root);
+    WOLFSSL_API int wc_InitRngNonceRBGC_New(WC_RNG** leaf, WC_RNG* root,
+                                            byte* nonce, word32 nonceSz);
+#endif /* !WC_NO_CONSTRUCTORS */
+    WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root,
+                                           const byte* nonce, word32 nonceSz);
 #endif
 
 #ifndef NO_SHA256
