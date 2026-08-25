@@ -8640,6 +8640,11 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
             pathLen = 0;
             XMEMSET(buf, 0, MAX_FILENAME_SZ);
         }
+        if (pathLen >= MAX_FILENAME_SZ) {
+            WOLFSSL_MSG("Could not write full dir name not enough space");
+                WC_FREE_VAR_EX(buf, 0, DYNAMIC_TYPE_OPENSSL);
+            return 0;
+        }
         buf[pathLen++] = *c;
 
     } while(*c++ != '\0');

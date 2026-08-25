@@ -294,6 +294,63 @@ int test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     return EXPECT_RESULT();
 }
 
+/* Check that a path element longer than the internal MAX_FILENAME_SZ buffer is
+ * rejected instead of overflowing it. */
+int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    X509_STORE* str = NULL;
+    X509_LOOKUP* lookup = NULL;
+    char* longPath = NULL;
+    char maxPath[MAX_FILENAME_SZ + 1];
+
+    /* one element that does not fit in the buffer - must fail */
+    ExpectNotNull(longPath = (char*)XMALLOC(MAX_FILENAME_SZ + 4, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (longPath != NULL) {
+        XMEMSET(longPath, 'a', MAX_FILENAME_SZ + 3);
+        longPath[MAX_FILENAME_SZ + 3] = '\0';
+    }
+
+    ExpectNotNull((str = wolfSSL_X509_STORE_new()));
+    ExpectNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, longPath,
+        SSL_FILETYPE_PEM, NULL), 0);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    /* oversized element preceded by a valid one - still fails */
+    ExpectNotNull((str = wolfSSL_X509_STORE_new()));
+    ExpectNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    if (longPath != NULL) {
+        longPath[0] = '.';
+        longPath[1] = SEPARATOR_CHAR;
+    }
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, longPath,
+        SSL_FILETYPE_PEM, NULL), 0);
+
+    X509_STORE_free(str);
+    str = NULL;
+
+    XFREE(longPath, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    longPath = NULL;
+
+    /* an element that exactly fills the buffer is still accepted */
+    XMEMSET(maxPath, 'a', MAX_FILENAME_SZ);
+    maxPath[MAX_FILENAME_SZ] = '\0';
+
+    ExpectNotNull((str = wolfSSL_X509_STORE_new()));
+    ExpectNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, maxPath,
+        SSL_FILETYPE_PEM, NULL), 1);
+
+    X509_STORE_free(str);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_load_crl_file(void)
 {
     EXPECT_DECLS;
