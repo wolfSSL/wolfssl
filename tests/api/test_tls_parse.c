@@ -1684,6 +1684,7 @@ int test_TLSX_SNI_parse(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
+#ifndef NO_WOLFSSL_CLIENT
     /* Client side response direction: SNI configured (extension and its
      * data both present) accepts the empty echo; a non-empty echo is
      * rejected. */
@@ -1723,6 +1724,7 @@ int test_TLSX_SNI_parse(void)
     }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif /* !NO_WOLFSSL_CLIENT */
 #endif
     return EXPECT_RESULT();
 }
