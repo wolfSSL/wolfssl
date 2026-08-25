@@ -411,7 +411,10 @@
     #define SOCKET_ECONNREFUSED SOCKET_ERROR
     #define SOCKET_ECONNABORTED SOCKET_ERROR
 #elif defined(HAVE_NETX)
-    /* NetX has no errno, these map onto the closest nx_api.h status codes */
+    /* NetX has no errno, these map onto the closest nx_api.h status codes.
+     * A send can also block as NX_WINDOW_OVERFLOW or NX_TX_QUEUE_DEPTH, so
+     * use the WANT_READ/WANT_WRITE the callbacks return rather than testing
+     * a NetX status against these. */
     #define SOCKET_EWOULDBLOCK NX_NO_PACKET
     #define SOCKET_EAGAIN      NX_NO_PACKET
     #define SOCKET_ECONNRESET  NX_NOT_CONNECTED
