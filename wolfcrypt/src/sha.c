@@ -155,6 +155,15 @@
             return BAD_FUNC_ARG;
         }
 
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha->silabsCtx, 0, sizeof(sha->silabsCtx));
+        #endif
         (void)devId;
         (void)heap;
 
@@ -210,6 +219,15 @@
             return BAD_FUNC_ARG;
         }
 
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha->silabsCtx, 0, sizeof(sha->silabsCtx));
+        #endif
         (void)devId;
         (void)heap;
 
@@ -387,6 +405,15 @@
         if (sha == NULL) {
             return BAD_FUNC_ARG;
         }
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha->silabsCtx, 0, sizeof(sha->silabsCtx));
+        #endif
         (void)devId;
 
         return se050_hash_init(&sha->se050Ctx, heap);
@@ -579,6 +606,15 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
         return BAD_FUNC_ARG;
     }
 
+    #ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* The crypto callback port adds an SE context beside the software
+         * members and uses its "started" flag as a lazy-init sentinel.
+         * These fields are set individually rather than by zeroing the
+         * object, so clear it here: a fresh object whose storage happened
+         * to hold a non-zero byte would otherwise skip SE initialisation
+         * and hand an uninitialised context to update or final. */
+        XMEMSET(&sha->silabsCtx, 0, sizeof(sha->silabsCtx));
+    #endif
     sha->heap = heap;
 #ifdef WOLF_CRYPTO_CB
     sha->devId = devId;
@@ -1251,7 +1287,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     wc_ShaFree(dst);
     XMEMCPY(dst, src, sizeof(wc_Sha));
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
+#if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
     dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
     dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
 #endif

@@ -154,7 +154,7 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL
+#ifdef WOLFSSL_SILABS_SE_TYPES
     #include <wolfssl/wolfcrypt/port/silabs/silabs_aes.h>
 #endif
 
@@ -478,7 +478,7 @@ struct Aes {
 #if defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;
 #endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     silabs_aes_t ctx;
 #endif
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO

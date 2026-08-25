@@ -793,6 +793,15 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
 
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+        #endif
         sha256->heap = heap;
     #ifdef WOLF_CRYPTO_CB
         sha256->devId = devId;
@@ -939,6 +948,15 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
 
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+        #endif
         (void)devId;
         (void)heap;
 
@@ -1002,6 +1020,15 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha256 == NULL) {
             return BAD_FUNC_ARG;
         }
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+        #endif
         (void)devId;
 
         return se050_hash_init(&sha256->se050Ctx, heap);
@@ -1083,6 +1110,15 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
 
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+        #endif
         sha256->heap = heap;
 
         ret = InitSha256(sha256);
@@ -1141,6 +1177,15 @@ static int InitSha256(wc_Sha256* sha256)
             return BAD_FUNC_ARG;
         }
 
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+        #endif
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
        !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
         /* We know this is a fresh, uninitialized item, so set to INIT */
@@ -1242,6 +1287,15 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    #ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* The crypto callback port adds an SE context beside the software
+         * members and uses its "started" flag as a lazy-init sentinel.
+         * These fields are set individually rather than by zeroing the
+         * object, so clear it here: a fresh object whose storage happened
+         * to hold a non-zero byte would otherwise skip SE initialisation
+         * and hand an uninitialised context to update or final. */
+        XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+    #endif
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1379,6 +1433,15 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    #ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* The crypto callback port adds an SE context beside the software
+         * members and uses its "started" flag as a lazy-init sentinel.
+         * These fields are set individually rather than by zeroing the
+         * object, so clear it here: a fresh object whose storage happened
+         * to hold a non-zero byte would otherwise skip SE initialisation
+         * and hand an uninitialised context to update or final. */
+        XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+    #endif
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1486,6 +1549,15 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    #ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* The crypto callback port adds an SE context beside the software
+         * members and uses its "started" flag as a lazy-init sentinel.
+         * These fields are set individually rather than by zeroing the
+         * object, so clear it here: a fresh object whose storage happened
+         * to hold a non-zero byte would otherwise skip SE initialisation
+         * and hand an uninitialised context to update or final. */
+        XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+    #endif
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1552,6 +1624,15 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    #ifdef WOLFSSL_SILABS_CRYPTOCB
+        /* The crypto callback port adds an SE context beside the software
+         * members and uses its "started" flag as a lazy-init sentinel.
+         * These fields are set individually rather than by zeroing the
+         * object, so clear it here: a fresh object whose storage happened
+         * to hold a non-zero byte would otherwise skip SE initialisation
+         * and hand an uninitialised context to update or final. */
+        XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+    #endif
     ret = InitSha256(sha256);
     if (ret != 0)
         return ret;
@@ -1605,6 +1686,15 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret;
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+        #endif
         ret = InitSha256(sha256);
         if (ret != 0)
             return ret;
@@ -1621,6 +1711,15 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret = 0;
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* The crypto callback port adds an SE context beside the software
+             * members and uses its "started" flag as a lazy-init sentinel.
+             * These fields are set individually rather than by zeroing the
+             * object, so clear it here: a fresh object whose storage happened
+             * to hold a non-zero byte would otherwise skip SE initialisation
+             * and hand an uninitialised context to update or final. */
+            XMEMSET(&sha256->silabsCtx, 0, sizeof(sha256->silabsCtx));
+        #endif
         ret = InitSha256(sha256);
         if (ret != 0)
             return ret;
@@ -2548,6 +2647,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     {
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* SHA-224 shares wc_Sha256 storage; clear the SE context for the
+             * same reason as wc_InitSha256_ex(). */
+            XMEMSET(&sha224->silabsCtx, 0, sizeof(sha224->silabsCtx));
+        #endif
         (void)devId;
         (void)heap;
 
@@ -2599,6 +2703,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (sha224 == NULL) {
             return BAD_FUNC_ARG;
         }
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* SHA-224 shares wc_Sha256 storage; clear the SE context for the
+             * same reason as wc_InitSha256_ex(). */
+            XMEMSET(&sha224->silabsCtx, 0, sizeof(sha224->silabsCtx));
+        #endif
         (void)devId;
 
         return se050_hash_init(&sha224->se050Ctx, heap);
@@ -2657,6 +2766,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         int ret;
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* SHA-224 shares wc_Sha256 storage; clear the SE context for the
+             * same reason as wc_InitSha256_ex(). */
+            XMEMSET(&sha224->silabsCtx, 0, sizeof(sha224->silabsCtx));
+        #endif
         ret = InitSha256((wc_Sha256*)sha224);
         if (ret != 0)
             return ret;
@@ -2757,6 +2871,11 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
 
+        #ifdef WOLFSSL_SILABS_CRYPTOCB
+            /* SHA-224 shares wc_Sha256 storage; clear the SE context for the
+             * same reason as wc_InitSha256_ex(). */
+            XMEMSET(&sha224->silabsCtx, 0, sizeof(sha224->silabsCtx));
+        #endif
         sha224->heap = heap;
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         sha224->W = NULL;
@@ -3269,7 +3388,7 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
         }
     #endif
 
-    #if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
+    #if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
         dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
         dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
     #endif
@@ -3423,7 +3542,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     }
 #endif
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
+#if defined(WOLFSSL_SILABS_SE_TYPES) && defined(WOLFSSL_SILABS_SE_ACCEL_3)
     dst->silabsCtx.hash_ctx.cmd_ctx = &dst->silabsCtx.cmd_ctx;
     dst->silabsCtx.hash_ctx.hash_type_ctx = &dst->silabsCtx.hash_type_ctx;
 #endif

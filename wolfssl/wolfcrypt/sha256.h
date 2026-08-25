@@ -93,7 +93,7 @@
 #if defined(WOLFSSL_CRYPTOCELL)
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
 #if defined(WOLFSSL_KCAPI_HASH)
@@ -199,7 +199,15 @@ struct wc_Sha256 {
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
 
-#endif
+#endif /* end of the hardware-vs-software member chain */
+
+/* The callback port keeps the software implementation compiled in so an
+ * operation the SE declines can fall back to it. The SE context is therefore
+ * added alongside those members rather than replacing them, which is why this
+ * block sits outside the chain closed just above. */
+#if defined(WOLFSSL_SILABS_CRYPTOCB)
+    wc_silabs_sha_t silabsCtx;
+#endif /* WOLFSSL_SILABS_CRYPTOCB */
     void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */

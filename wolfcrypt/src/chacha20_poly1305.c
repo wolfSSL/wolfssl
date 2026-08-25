@@ -34,6 +34,10 @@ or Authenticated Encryption with Additional Data (AEAD) algorithm.
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #ifdef NO_INLINE
 #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -645,6 +649,14 @@ int wc_ChaCha20Poly1305_Encrypt(
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB_CHACHA_KEYLESS
+    ret = wc_CryptoCb_Chacha20Poly1305Encrypt(inKey, inIV, inAAD, inAADLen,
+        inPlaintext, inPlaintextLen, outCiphertext, outAuthTag);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall-through when unavailable */
+#endif
+
     WC_ALLOC_VAR_EX(aead, ChaChaPoly_Aead, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);
 
@@ -734,6 +746,14 @@ int wc_ChaCha20Poly1305_Decrypt(
     {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB_CHACHA_KEYLESS
+    ret = wc_CryptoCb_Chacha20Poly1305Decrypt(inKey, inIV, inAAD, inAADLen,
+        inCiphertext, inCiphertextLen, inAuthTag, outPlaintext);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        return ret;
+    /* fall-through when unavailable */
+#endif
 
     WC_ALLOC_VAR_EX(aead, ChaChaPoly_Aead, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
         return MEMORY_E);

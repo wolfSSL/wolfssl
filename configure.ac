@@ -3784,6 +3784,31 @@ then
 fi
 
 
+# Silicon Labs EFR32 Secure Element crypto-callback port.
+# On-target the application supplies the Simplicity SDK include path. This
+# option is a host compile-test of the port: it swaps the SE Manager headers
+# for a shim (WOLFSSL_SILABS_HOST_TEST) so the cryptocb dispatch and wiring
+# build without the vendor SDK. It forces crypto callbacks on (see the
+# cryptocb block).
+# Example: "./configure --enable-silabs-cryptocb"
+ENABLED_SILABS_CRYPTOCB="no"
+AC_ARG_ENABLE([silabs-cryptocb],
+    [AS_HELP_STRING([--enable-silabs-cryptocb],
+        [Enable Silicon Labs EFR32 Secure Element crypto-callback port (host compile-test).])],
+    [ ENABLED_SILABS_CRYPTOCB=$enableval ],
+    [ ENABLED_SILABS_CRYPTOCB=no ])
+
+if test "x$ENABLED_SILABS_CRYPTOCB" != "xno"
+then
+    # The shim models an EFR32xG25 (Series 2 Config 5) with Secure Vault High.
+    # The port's AES-ECB dispatch is gated on HAVE_AES_ECB and compiles out
+    # without it, so this option does not turn AES-ECB on. To compile-test that
+    # path too, add --enable-aesecb, which enables the (public,
+    # unauthenticated) AES-ECB API through the normal option.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SILABS_CRYPTOCB -DWOLFSSL_SILABS_HOST_TEST"
+fi
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -11632,7 +11657,7 @@ then
     fi
 fi
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no" || test "x$ENABLED_RTL8735B" != "xno" || test "x$ENABLED_SILABS_CRYPTOCB" != "xno" || test "x$ENABLED_VAULTIC" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -13531,6 +13556,7 @@ AM_CONDITIONAL([BUILD_VAULTIC],[test "x$ENABLED_VAULTIC" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 AM_CONDITIONAL([BUILD_STSAFE],[test "x$ENABLED_STSAFE" != "xno"])
 AM_CONDITIONAL([BUILD_RTL8735B],[test "x$ENABLED_RTL8735B" != "xno"])
+AM_CONDITIONAL([BUILD_SILABS_CRYPTOCB],[test "x$ENABLED_SILABS_CRYPTOCB" != "xno"])
 AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])

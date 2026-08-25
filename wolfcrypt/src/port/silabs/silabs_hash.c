@@ -28,7 +28,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
 
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -38,7 +38,7 @@
 static sl_se_hash_type_t wc_silabs_gethashtype(enum wc_HashType type)
 {
  /* set init state */
-    switch (type) {
+    switch ((int)type) {
     case WC_HASH_TYPE_SHA:
         return SL_SE_HASH_SHA1;
         break;
@@ -47,11 +47,11 @@ static sl_se_hash_type_t wc_silabs_gethashtype(enum wc_HashType type)
         break;
     case WC_HASH_TYPE_SHA256:
         return SL_SE_HASH_SHA256;
-#ifdef WOLFSSL_SILABS_SHA384
+#ifdef WOLFSSL_SILABS_SE_SHA384
     case WC_HASH_TYPE_SHA384:
         return SL_SE_HASH_SHA384;
 #endif
-#ifdef WOLFSSL_SILABS_SHA512
+#ifdef WOLFSSL_SILABS_SE_SHA512
     case WC_HASH_TYPE_SHA512:
         return SL_SE_HASH_SHA512;
 #endif
@@ -61,14 +61,16 @@ static sl_se_hash_type_t wc_silabs_gethashtype(enum wc_HashType type)
     return SL_SE_HASH_NONE;
 }
 
-int wc_silabs_se_hash_init (wc_silabs_sha_t* sha, enum wc_HashType type)
+/* The _status variants hand back the raw SE Manager status so a caller can tell
+ * "this SE does not implement the command" (which the crypto callback port
+ * turns into a software fallback) from a genuine hardware failure. The plain
+ * wrappers keep the original contract of 0 or WC_HW_E. */
+int wc_silabs_se_hash_init_status(wc_silabs_sha_t* sha, enum wc_HashType type)
 {
-    int ret = 0;
-    sl_status_t rr;
     sl_se_hash_type_t ht = wc_silabs_gethashtype(type);
 
     if (ht == SL_SE_HASH_NONE) {
-        return NOT_COMPILED_IN;
+        return (int)SL_STATUS_NOT_SUPPORTED;
     }
 
     /* set sizes and state */
@@ -76,53 +78,66 @@ int wc_silabs_se_hash_init (wc_silabs_sha_t* sha, enum wc_HashType type)
 
     /* set init state */
 #ifdef WOLFSSL_SILABS_SE_ACCEL_3
-    rr = sl_se_hash_starts(&sha->hash_ctx, &sha->cmd_ctx, ht,
+    return (int)sl_se_hash_starts(&sha->hash_ctx, &sha->cmd_ctx, ht,
         &sha->hash_type_ctx);
 #else
-    rr = sl_se_hash_multipart_starts(&sha->hash_type_ctx, &sha->cmd_ctx, ht);
+    return (int)sl_se_hash_multipart_starts(&sha->hash_type_ctx, &sha->cmd_ctx,
+        ht);
 #endif
-    if (rr != SL_STATUS_OK) {
-      ret = WC_HW_E;
+}
+
+int wc_silabs_se_hash_update_status(wc_silabs_sha_t* sha, const byte* data,
+    word32 len)
+{
+#ifdef WOLFSSL_SILABS_SE_ACCEL_3
+    return (int)sl_se_hash_update(&sha->hash_ctx, data, len);
+#else
+    return (int)sl_se_hash_multipart_update(&sha->hash_type_ctx, &sha->cmd_ctx,
+        data, len);
+#endif
+}
+
+int wc_silabs_se_hash_final_status(wc_silabs_sha_t* sha, byte* hash, word32 len)
+{
+#ifdef WOLFSSL_SILABS_SE_ACCEL_3
+    return (int)sl_se_hash_finish(&sha->hash_ctx, hash, len);
+#else
+    return (int)sl_se_hash_multipart_finish(&sha->hash_type_ctx, &sha->cmd_ctx,
+        hash, len);
+#endif
+}
+
+int wc_silabs_se_hash_init (wc_silabs_sha_t* sha, enum wc_HashType type)
+{
+    int status = wc_silabs_se_hash_init_status(sha, type);
+
+    if ((sl_status_t)status == SL_STATUS_NOT_SUPPORTED) {
+        return NOT_COMPILED_IN;
     }
 
-    return ret;
+    return ((sl_status_t)status == SL_STATUS_OK) ? 0 : WC_HW_E;
 }
 
 int wc_silabs_se_hash_update(wc_silabs_sha_t* sha, const byte* data,
     word32 len)
 {
-    int ret = 0;
-    sl_status_t status;
+    int status = wc_silabs_se_hash_update_status(sha, data, len);
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL_3
-    status = sl_se_hash_update(&sha->hash_ctx, data, len);
-#else
-    status = sl_se_hash_multipart_update(&sha->hash_type_ctx, &sha->cmd_ctx,
-        data, len);
-#endif
-    if (status != SL_STATUS_OK) {
-        ret = WC_HW_E;
-    }
-    return ret;
+    return ((sl_status_t)status == SL_STATUS_OK) ? 0 : WC_HW_E;
 }
 
 int wc_silabs_se_hash_final(wc_silabs_sha_t* sha, byte* hash, word32 len)
 {
-    int ret = 0;
-    sl_status_t status;
+    int status = wc_silabs_se_hash_final_status(sha, hash, len);
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL_3
-    status = sl_se_hash_finish(&sha->hash_ctx, hash, len);
-#else
-    status = sl_se_hash_multipart_finish(&sha->hash_type_ctx, &sha->cmd_ctx,
-        hash, len);
-#endif
-    if (status != SL_STATUS_OK) {
-        ret = WC_HW_E;
-    }
-    return ret;
+    return ((sl_status_t)status == SL_STATUS_OK) ? 0 : WC_HW_E;
 }
 
+
+#if defined(WOLFSSL_SILABS_SE_ACCEL)
+/* Below this point the SE replaces the software hash implementations outright.
+ * The crypto callback port leaves them in place and drives the SE through the
+ * wc_silabs_se_hash_* helpers above instead. */
 
 static int wc_HashUpdate_ex(wc_silabs_sha_t* sha, const byte* data, word32 len)
 {
@@ -311,3 +326,5 @@ int wc_Sha512Final(wc_Sha512* sha, byte* hash)
 #endif /* WOLFSSL_SILABS_SHA512 */
 
 #endif /* WOLFSSL_SILABS_SE_ACCEL */
+
+#endif /* WOLFSSL_SILABS_SE_TYPES */

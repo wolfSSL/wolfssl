@@ -2,6 +2,10 @@
 
 Tested with ERF32xG21 Starter Kit and Gecko SDK v3.2.2 and v4.2.3.
 
+This page covers the GUI flow for the direct port (`WOLFSSL_SILABS_SE_ACCEL`).
+For the EFR32xG25 crypto callback port there is a headless project that builds
+with `slc-cli` and needs no GUI: see [xg25/README.md](xg25/README.md).
+
 ## Simplicity Studio Example
 
 Based on `cli_kernel_freertos`.

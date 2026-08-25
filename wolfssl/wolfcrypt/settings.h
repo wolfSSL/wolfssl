@@ -437,6 +437,22 @@
     #include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_settings.h>
 #endif
 
+/* Silicon Labs SE Manager context members are embedded in the public Aes,
+ * ecc_key and wc_Sha* structs. Both SiLabs ports need them, so gate those
+ * members on this umbrella rather than on either port's own macro. The
+ * WOLFSSL_SILABS_CRYPTOCB arm is added with that port. */
+#if defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SILABS_SE_TYPES)
+    #define WOLFSSL_SILABS_SE_TYPES
+#endif
+
+/* Silicon Labs crypto callback port: enable the crypto callback and map
+ * WC_USE_DEVID before the rest of settings.h and before the unmodified test
+ * and benchmark read it. This header is macro only and pulls in no SDK
+ * dependencies. */
+#if defined(WOLFSSL_SILABS_CRYPTOCB)
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_settings.h>
+#endif
+
 /* Forward propagation of the legacy parent gate to the canonical name
  * (HAVE_DILITHIUM -> WOLFSSL_HAVE_MLDSA). Always active: required so that
  * a user_settings.h or build flag using only the legacy spelling still

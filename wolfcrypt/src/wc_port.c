@@ -160,6 +160,10 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/tropicsquare/tropic01.h>
 #endif
 
+#if defined(WOLFSSL_SILABS_CRYPTOCB)
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h>
+#endif
+
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) \
     && !defined(WOLFCRYPT_ONLY)
     #include <wolfssl/openssl/evp.h>
@@ -581,6 +585,15 @@ int wolfCrypt_Init(void)
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
+
+    /* Register the Silicon Labs Secure Element device so wolfCrypt operations
+     * route to the SE. sl_se_init() runs further down in this function. */
+    #if defined(WOLFSSL_SILABS_CRYPTOCB) && defined(WOLF_CRYPTO_CB)
+        ret = wc_SilabsCryptoCb_RegisterDevice(WOLFSSL_SILABS_DEVID);
+        if (ret != 0) {
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
     #if defined(MAX3266X_RTC)
         ret = wc_MXC_RTC_Init();
         if (ret != 0) {
@@ -636,11 +649,11 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef WOLFSSL_SILABS_SE_ACCEL
+    #ifdef WOLFSSL_SILABS_SE_TYPES
         /* init handles if it is already initialized */
         ret = sl_se_init();
         if (ret != 0) {
-            WOLFSSL_MSG("SILABS_SE_ACCEL init failed");
+            WOLFSSL_MSG("SiLabs SE Manager init failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
@@ -871,7 +884,7 @@ int wolfCrypt_Cleanup(void)
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
     #endif
-    #ifdef WOLFSSL_SILABS_SE_ACCEL
+    #ifdef WOLFSSL_SILABS_SE_TYPES
         {
             int ret2 = sl_se_deinit();
             if (ret == 0)

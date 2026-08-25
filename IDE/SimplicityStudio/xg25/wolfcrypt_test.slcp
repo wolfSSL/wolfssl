@@ -1,0 +1,189 @@
+project_name: wolfcrypt_test
+package: platform
+quality: experimental
+label: wolfSSL - wolfCrypt test and benchmark (EFR32xG25)
+description: >
+  Runs the wolfCrypt algorithm self-test and benchmark on an EFR32xG25, with
+  crypto routed to the Secure Element through the wolfSSL crypto callback port
+  (WOLFSSL_SILABS_CRYPTOCB). Output goes to the kit VCOM.
+category: Example|Platform
+filter:
+  - name: "Device Type"
+    value: ["SoC"]
+  - name: "MCU"
+    value: ["32-bit MCU"]
+  - name: "Project Difficulty"
+    value: ["Advanced"]
+source:
+  - path: app.c
+  - path: ../../../wolfcrypt/src/aes.c
+  - path: ../../../wolfcrypt/src/arc4.c
+  - path: ../../../wolfcrypt/src/ascon.c
+  - path: ../../../wolfcrypt/src/asn.c
+  - path: ../../../wolfcrypt/src/async.c
+  - path: ../../../wolfcrypt/src/blake2b.c
+  - path: ../../../wolfcrypt/src/blake2s.c
+  - path: ../../../wolfcrypt/src/camellia.c
+  - path: ../../../wolfcrypt/src/chacha.c
+  - path: ../../../wolfcrypt/src/chacha20_poly1305.c
+  - path: ../../../wolfcrypt/src/cmac.c
+  - path: ../../../wolfcrypt/src/coding.c
+  - path: ../../../wolfcrypt/src/compress.c
+  - path: ../../../wolfcrypt/src/cpuid.c
+  - path: ../../../wolfcrypt/src/cryptocb.c
+  - path: ../../../wolfcrypt/src/curve25519.c
+  - path: ../../../wolfcrypt/src/curve448.c
+  - path: ../../../wolfcrypt/src/des3.c
+  - path: ../../../wolfcrypt/src/dh.c
+  - path: ../../../wolfcrypt/src/dsa.c
+  - path: ../../../wolfcrypt/src/ecc.c
+  - path: ../../../wolfcrypt/src/eccsi.c
+  - path: ../../../wolfcrypt/src/ed25519.c
+  - path: ../../../wolfcrypt/src/ed448.c
+  - path: ../../../wolfcrypt/src/error.c
+  - path: ../../../wolfcrypt/src/falcon.c
+  - path: ../../../wolfcrypt/src/fe_448.c
+  - path: ../../../wolfcrypt/src/fe_low_mem.c
+  - path: ../../../wolfcrypt/src/fe_operations.c
+  - path: ../../../wolfcrypt/src/fips.c
+  - path: ../../../wolfcrypt/src/fips_test.c
+  - path: ../../../wolfcrypt/src/ge_448.c
+  - path: ../../../wolfcrypt/src/ge_low_mem.c
+  - path: ../../../wolfcrypt/src/ge_operations.c
+  - path: ../../../wolfcrypt/src/hash.c
+  - path: ../../../wolfcrypt/src/hmac.c
+  - path: ../../../wolfcrypt/src/hpke.c
+  - path: ../../../wolfcrypt/src/integer.c
+  - path: ../../../wolfcrypt/src/kdf.c
+  - path: ../../../wolfcrypt/src/logging.c
+  - path: ../../../wolfcrypt/src/md2.c
+  - path: ../../../wolfcrypt/src/md4.c
+  - path: ../../../wolfcrypt/src/md5.c
+  - path: ../../../wolfcrypt/src/memory.c
+  - path: ../../../wolfcrypt/src/pkcs12.c
+  - path: ../../../wolfcrypt/src/pkcs7.c
+  - path: ../../../wolfcrypt/src/poly1305.c
+  - path: ../../../wolfcrypt/src/puf.c
+  - path: ../../../wolfcrypt/src/pwdbased.c
+  - path: ../../../wolfcrypt/src/random.c
+  - path: ../../../wolfcrypt/src/rc2.c
+  - path: ../../../wolfcrypt/src/ripemd.c
+  - path: ../../../wolfcrypt/src/rng_bank.c
+  - path: ../../../wolfcrypt/src/rsa.c
+  - path: ../../../wolfcrypt/src/sakke.c
+  - path: ../../../wolfcrypt/src/selftest.c
+  - path: ../../../wolfcrypt/src/sha.c
+  - path: ../../../wolfcrypt/src/sha256.c
+  - path: ../../../wolfcrypt/src/sha3.c
+  - path: ../../../wolfcrypt/src/sha512.c
+  - path: ../../../wolfcrypt/src/signature.c
+  - path: ../../../wolfcrypt/src/siphash.c
+  - path: ../../../wolfcrypt/src/sm2.c
+  - path: ../../../wolfcrypt/src/sm3.c
+  - path: ../../../wolfcrypt/src/sm4.c
+  - path: ../../../wolfcrypt/src/sp_arm32.c
+  - path: ../../../wolfcrypt/src/sp_arm64.c
+  - path: ../../../wolfcrypt/src/sp_armthumb.c
+  - path: ../../../wolfcrypt/src/sp_c32.c
+  - path: ../../../wolfcrypt/src/sp_c64.c
+  - path: ../../../wolfcrypt/src/sp_cortexm.c
+  - path: ../../../wolfcrypt/src/sp_int.c
+  - path: ../../../wolfcrypt/src/sp_riscv64.c
+  - path: ../../../wolfcrypt/src/sp_sm2_arm32.c
+  - path: ../../../wolfcrypt/src/sp_sm2_arm64.c
+  - path: ../../../wolfcrypt/src/sp_sm2_armthumb.c
+  - path: ../../../wolfcrypt/src/sp_sm2_c32.c
+  - path: ../../../wolfcrypt/src/sp_sm2_c64.c
+  - path: ../../../wolfcrypt/src/sp_sm2_cortexm.c
+  - path: ../../../wolfcrypt/src/sp_sm2_riscv64.c
+  - path: ../../../wolfcrypt/src/sp_sm2_x86_64.c
+  - path: ../../../wolfcrypt/src/sp_x86_64.c
+  - path: ../../../wolfcrypt/src/srp.c
+  - path: ../../../wolfcrypt/src/tfm.c
+  - path: ../../../wolfcrypt/src/tsp.c
+  - path: ../../../wolfcrypt/src/wc_encrypt.c
+  - path: ../../../wolfcrypt/src/wc_frodokem.c
+  - path: ../../../wolfcrypt/src/wc_frodokem_mat.c
+  - path: ../../../wolfcrypt/src/wc_lms.c
+  - path: ../../../wolfcrypt/src/wc_lms_impl.c
+  - path: ../../../wolfcrypt/src/wc_mldsa.c
+  - path: ../../../wolfcrypt/src/wc_mlkem.c
+  - path: ../../../wolfcrypt/src/wc_mlkem_poly.c
+  - path: ../../../wolfcrypt/src/wc_pkcs11.c
+  - path: ../../../wolfcrypt/src/wc_port.c
+  - path: ../../../wolfcrypt/src/wc_she.c
+  - path: ../../../wolfcrypt/src/wc_slhdsa.c
+  - path: ../../../wolfcrypt/src/wc_xmss.c
+  - path: ../../../wolfcrypt/src/wc_xmss_impl.c
+  - path: ../../../wolfcrypt/src/wolfcrypt_first.c
+  - path: ../../../wolfcrypt/src/wolfcrypt_last.c
+  - path: ../../../wolfcrypt/src/wolfentropy.c
+  - path: ../../../wolfcrypt/src/wolfevent.c
+  - path: ../../../wolfcrypt/src/wolfmath.c
+  - path: ../../../src/internal.c
+  - path: ../../../src/keys.c
+  - path: ../../../src/ssl.c
+  - path: ../../../src/tls.c
+  - path: ../../../src/tls13.c
+  - path: ../../../src/wolfio.c
+  - path: tls13_test.c
+  - path: ../../../wolfcrypt/src/port/arm/thumb2-aes-asm_c.c
+  - path: ../../../wolfcrypt/src/port/arm/thumb2-sha256-asm_c.c
+  - path: ../../../wolfcrypt/src/port/arm/thumb2-sha512-asm_c.c
+  - path: ../../../wolfcrypt/src/port/arm/thumb2-chacha-asm_c.c
+  - path: ../../../wolfcrypt/src/port/arm/thumb2-poly1305-asm_c.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_aes.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_cb_cipher.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_cb_cmac.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_cb_hash.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_cb_kdf.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_cb_pk.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_cb_rng.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_cryptocb.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_ecc.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_hash.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_key.c
+  - path: ../../../wolfcrypt/src/port/silabs/silabs_random.c
+  - path: ../../../wolfcrypt/test/test.c
+  - path: ../../../wolfcrypt/benchmark/benchmark.c
+include:
+  - path: .
+    file_list:
+      - path: user_settings.h
+  - path: ../../..
+    file_list:
+      - path: wolfssl/wolfcrypt/settings.h
+readme:
+  - path: README.md
+component:
+  - id: se_manager
+  - id: sl_main
+  - id: device_init
+  - id: clock_manager
+  - id: printf
+  - id: iostream_retarget_stdio
+  - id: iostream_recommended_stream
+  - id: sleeptimer
+  - id: sl_string
+  - id: status_string
+requires:
+  - name: device_has_semailbox
+configuration:
+  - name: SL_STATUS_STRING_ENABLE_BLUETOOTH
+    value: 0
+  - name: SL_STATUS_STRING_ENABLE_WIFI
+    value: 0
+  - name: SL_BOARD_ENABLE_VCOM
+    value: 1
+  # wolfcrypt_test exercises deep call chains (ECC, RSA, ASN.1). The part has
+  # 512 KB of RAM and the app uses about 2 KB of static data, so spend some of it
+  # on stack rather than risk an overflow mid-test.
+  - name: SL_STACK_SIZE
+    value: 32768
+  - name: SL_IOSTREAM_USART_VCOM_FLOW_CONTROL_TYPE
+    value: usartHwFlowControlNone
+define:
+  - name: WOLFSSL_USER_SETTINGS
+toolchain_settings:
+  - option: optimize
+    value: speed

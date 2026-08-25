@@ -271,6 +271,8 @@ static const char* GetKdfTypeStr(int type)
             return "HKDF Extract";
         case WC_KDF_TYPE_HKDF_EXPAND:
             return "HKDF Expand";
+        case WC_KDF_TYPE_PBKDF2:
+            return "PBKDF2";
         case WC_KDF_TYPE_TWOSTEP_CMAC:
             return "TWOSTEP_CMAC";
     }
@@ -2101,8 +2103,76 @@ int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
 }
 #endif /* HAVE_FALCON || WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
 
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    defined(WOLF_CRYPTO_CB_CHACHA_KEYLESS)
+int wc_CryptoCb_Chacha20Poly1305Encrypt(const byte* inKey, const byte* inIV,
+    const byte* inAAD, word32 inAADSz, const byte* in, word32 inSz,
+    byte* out, byte* outAuthTag)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* No key object and so no devId on the public API: use the first
+     * registered device, the same keyless path as a NULL-rng random block. */
+    dev = wc_CryptoCb_FindDeviceByIndex(0);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_CHACHA;
+        cryptoInfo.cipher.enc  = 1;
+        cryptoInfo.cipher.chacha20_poly1305_enc.inKey      = inKey;
+        cryptoInfo.cipher.chacha20_poly1305_enc.inIV       = inIV;
+        cryptoInfo.cipher.chacha20_poly1305_enc.inAAD      = inAAD;
+        cryptoInfo.cipher.chacha20_poly1305_enc.inAADSz    = inAADSz;
+        cryptoInfo.cipher.chacha20_poly1305_enc.in         = in;
+        cryptoInfo.cipher.chacha20_poly1305_enc.inSz       = inSz;
+        cryptoInfo.cipher.chacha20_poly1305_enc.out        = out;
+        cryptoInfo.cipher.chacha20_poly1305_enc.outAuthTag = outAuthTag;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Chacha20Poly1305Decrypt(const byte* inKey, const byte* inIV,
+    const byte* inAAD, word32 inAADSz, const byte* in, word32 inSz,
+    const byte* inAuthTag, byte* out)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    dev = wc_CryptoCb_FindDeviceByIndex(0);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type   = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_CHACHA;
+        cryptoInfo.cipher.enc  = 0;
+        cryptoInfo.cipher.chacha20_poly1305_dec.inKey     = inKey;
+        cryptoInfo.cipher.chacha20_poly1305_dec.inIV      = inIV;
+        cryptoInfo.cipher.chacha20_poly1305_dec.inAAD     = inAAD;
+        cryptoInfo.cipher.chacha20_poly1305_dec.inAADSz   = inAADSz;
+        cryptoInfo.cipher.chacha20_poly1305_dec.in        = in;
+        cryptoInfo.cipher.chacha20_poly1305_dec.inSz      = inSz;
+        cryptoInfo.cipher.chacha20_poly1305_dec.inAuthTag = inAuthTag;
+        cryptoInfo.cipher.chacha20_poly1305_dec.out       = out;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+
 #ifndef NO_AES
 #ifdef HAVE_AESGCM
+
 int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz,
                                const byte* iv, word32 ivSz,
@@ -3457,6 +3527,39 @@ int wc_CryptoCb_DefaultDevID(void)
 
     return ret;
 }
+
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+int wc_CryptoCb_Pbkdf2(byte* output, const byte* passwd, int pLen,
+    const byte* salt, int sLen, int iterations, int kLen, int hashType,
+    int devId)
+{
+    int       ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KDF);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type             = WC_ALGO_TYPE_KDF;
+        cryptoInfo.kdf.type              = WC_KDF_TYPE_PBKDF2;
+        cryptoInfo.kdf.pbkdf2.output     = output;
+        cryptoInfo.kdf.pbkdf2.passwd     = passwd;
+        cryptoInfo.kdf.pbkdf2.pLen       = pLen;
+        cryptoInfo.kdf.pbkdf2.salt       = salt;
+        cryptoInfo.kdf.pbkdf2.sLen       = sLen;
+        cryptoInfo.kdf.pbkdf2.iterations = iterations;
+        cryptoInfo.kdf.pbkdf2.kLen       = kLen;
+        cryptoInfo.kdf.pbkdf2.hashType   = hashType;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,

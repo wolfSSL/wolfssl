@@ -1536,8 +1536,9 @@ enum wc_KdfType {
     WC_KDF_TYPE_HKDF = 1,
     WC_KDF_TYPE_TWOSTEP_CMAC = 2, /* NIST SP 800-56C two-step cmac kdf. */
     WC_KDF_TYPE_HKDF_EXTRACT = 3,
-    WC_KDF_TYPE_HKDF_EXPAND = 4
-    /* Future: WC_KDF_TYPE_PBKDF2 = 5, WC_KDF_TYPE_SCRYPT = 6, etc. */
+    WC_KDF_TYPE_HKDF_EXPAND = 4,
+    WC_KDF_TYPE_PBKDF2 = 5
+    /* Future: WC_KDF_TYPE_SCRYPT = 6, etc. */
 };
 
 /* hash types */
