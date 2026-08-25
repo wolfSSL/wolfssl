@@ -43,36 +43,26 @@ CRYS_RND_State_t     wc_rndState;
 CRYS_RND_WorkBuff_t  wc_rndWorkBuff;
 SaSiRndGenerateVectWorkFunc_t wc_rndGenVectFunc = CRYS_RND_GenerateVector;
 
-static word32 cc310_enableCount = 0;
+static int cc310_initialized = 0;
 
 static void cc310_enable(void)
 {
-    cc310_enableCount++;
-
-    /* Enable the CC310 HW/IQ once*/
-
     NRF_CRYPTOCELL->ENABLE = 1;
     NVIC_EnableIRQ(CRYPTOCELL_IRQn);
 }
 
 static void cc310_disable(void)
 {
-    cc310_enableCount--;
-
-    /* Disable HW/IRQ if no more users */
-    if (cc310_enableCount == 0) {
-        NRF_CRYPTOCELL->ENABLE = 0;
-        NVIC_DisableIRQ(CRYPTOCELL_IRQn);
-    }
+    NRF_CRYPTOCELL->ENABLE = 0;
+    NVIC_DisableIRQ(CRYPTOCELL_IRQn);
 }
 
 int cc310_Init(void)
 {
     int ret = 0;
-    static int initialized = 0;
 
-    if (!initialized) {
-        /* Enable the CC310 HW. */
+    if (!cc310_initialized) {
+        /* Enable the CC310 HW/IRQ once*/
         cc310_enable();
 
         /*Initialize the CC310 run-time library*/
@@ -80,6 +70,7 @@ int cc310_Init(void)
 
         if (ret != SA_SILIB_RET_OK) {
             WOLFSSL_MSG("Error SaSi_LibInit");
+            cc310_disable();
             return ret;
         }
 
@@ -87,25 +78,30 @@ int cc310_Init(void)
         ret = CRYS_RndInit(&wc_rndState, &wc_rndWorkBuff);
         if (ret != CRYS_OK) {
             WOLFSSL_MSG("Error CRYS_RndInit");
+            SaSi_LibFini();
+            cc310_disable();
             return ret;
         }
-        initialized = 1;
+        cc310_initialized = 1;
     }
     return ret;
 }
 
 void cc310_Free(void)
 {
-    CRYSError_t crys_result;
+    if (cc310_initialized) {
+        CRYSError_t crys_result;
 
-    SaSi_LibFini();
+        crys_result = CRYS_RND_UnInstantiation(&wc_rndState);
 
-    crys_result = CRYS_RND_UnInstantiation(&wc_rndState);
+        if (crys_result != CRYS_OK) {
+            WOLFSSL_MSG("Error CRYS_RND_UnInstantiation");
+        }
 
-    if (crys_result != CRYS_OK) {
-        WOLFSSL_MSG("Error RYS_RND_UnInstantiation");
+        SaSi_LibFini();
+        cc310_disable();
+        cc310_initialized = 0;
     }
-    cc310_disable();
 }
 
 int cc310_random_generate(byte* output, word32 size)
