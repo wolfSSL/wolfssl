@@ -309,6 +309,10 @@ int GetX509Error(int e)
              * accept ASN_NO_SIGNER_E / UNABLE_TO_GET_ISSUER_CERT_LOCALLY do not
              * accidentally accept an unauthenticated RPK. */
             return WOLFSSL_X509_V_ERR_RPK_UNTRUSTED;
+        case WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH):
+            return WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
+        case WC_NO_ERR_TRACE(IPADDR_MISMATCH):
+            return WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
         case WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E):
             return WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
         case WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E):
