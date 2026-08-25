@@ -113,6 +113,9 @@ sub print_enum {
             $sum += $oids->[$i]->{add_sum};
         }
 
+        if (exists $oids->[$i]->{guard}) {
+            print "#ifdef " . $oids->[$i]->{guard} . "\n";
+        }
         print "    /* " . oid_array_to_string(@a) . "  */\n";
         if ($comment_col == 0) {
             print "    /* " . dotted_to_string($oids->[$i]->{oid}) . " */\n";
@@ -131,6 +134,9 @@ sub print_enum {
         else {
             print "\n";
         }
+        if (exists $oids->[$i]->{guard}) {
+            print "#endif\n";
+        }
     }
     print "#else\n";
     for (my $i = 0; $i < 0+@$oids; $i++) {
@@ -143,6 +149,9 @@ sub print_enum {
             $oid_sum_xors{$sum} = $oids->[$i]->{name};
         }
 
+        if (exists $oids->[$i]->{guard}) {
+            print "#ifdef " . $oids->[$i]->{guard} . "\n";
+        }
         print "    /* " . oid_array_to_string(@a) . "  */\n";
         if ($comment_col == 0) {
             print "    /* " . dotted_to_string($oids->[$i]->{oid}) . " */\n";
@@ -160,6 +169,9 @@ sub print_enum {
         }
         else {
             print "\n";
+        }
+        if (exists $oids->[$i]->{guard}) {
+            print "#endif\n";
         }
     }
     print "#endif\n";
@@ -490,6 +502,8 @@ my @policy_map = ( 2, 5, 29, 33 );
 my @policy_const = ( 2, 5, 29, 36 );
 my @issue_alt_names = ( 2, 5, 29, 18 );
 my @tls_feature = ( 1, 3, 6, 1, 5, 5, 7, 1, 24 );
+# RFC 8737 acmeIdentifier, only compiled in with WOLFSSL_ACME_OID
+my @acme_identifier = ( 1, 3, 6, 1, 5, 5, 7, 1, 31 );
 my @dns_srv = ( 1, 3, 6, 1, 5, 5, 7, 8, 7 );
 my @netscape_ct = ( 2, 16, 840, 1, 113730, 1, 1 );
 my @ocsp_nocheck = ( 1, 3, 6, 1, 5, 5, 7, 48, 1, 5 );
@@ -520,6 +534,8 @@ my @exts = (
     { name => "POLICY_CONST",           oid => \@policy_const           },
     { name => "ISSUE_ALT_NAMES",        oid => \@issue_alt_names        },
     { name => "TLS_FEATURE",            oid => \@tls_feature            },
+    { name => "ACME_IDENTIFIER",        oid => \@acme_identifier,
+      guard => "WOLFSSL_ACME_OID" },
     { name => "DNS_SRV",                oid => \@dns_srv                },
     { name => "NETSCAPE_CT",            oid => \@netscape_ct            },
     { name => "OCSP_NOCHECK",           oid => \@ocsp_nocheck           },
