@@ -1383,8 +1383,12 @@ int test_certificate_authorities_short_parse(void) {
 }
 
 /* An empty CA list must send no certificate_authorities extension at all.
- * We used to send an empty one, which RFC 8446 section 4.2.4 says is too
- * short, so the peer sent a decode_error alert and the handshake failed. */
+ * RFC 8446 section 4.2.4 requires at least one authority, so a present-but-empty
+ * extension is malformed; a strict peer would reject it with decode_error. Both
+ * peers here are wolfSSL, which accepts the empty extension and completes the
+ * handshake, so rather than a handshake failure this verifies the send-side fix:
+ * with an empty CA list the client sends no extension, so the server's callback
+ * sees none (cb_arg stays NULL). */
 int test_certificate_authorities_empty_client_hello(void) {
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
