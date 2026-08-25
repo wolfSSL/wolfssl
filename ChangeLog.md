@@ -172,18 +172,22 @@
 
 ## Fixes
 
-* **Fix (sniffer could not decrypt Encrypt-Then-MAC sessions)**: the sniffer
-  never handled the `encrypt_then_mac` extension (RFC 7366) in the ServerHello,
-  so for a CBC suite it passed the trailing MAC to the block decrypt along with
-  the ciphertext, the length was not a multiple of the block size, and every
-  record failed.  Since wolfSSL peers negotiate it by default, this covered
-  most TLS 1.2 CBC captures.  A build without Encrypt-Then-MAC support now
-  reports that, once the negotiated suite is known to be a block cipher, rather
-  than failing every record with a generic decrypt error.  Both the
-  `client_key_exchange` handler and the TLS 1.3 ServerHello path also overwrote
-  a specific error with "Server Client Key Mismatch", which hid the reason a
-  session could not be decrypted; they now keep an error that has already been
-  described.
+* **Fix (sniffer could not decrypt Encrypt-Then-MAC or X25519 sessions)**: the
+  sniffer never handled the `encrypt_then_mac` extension (RFC 7366) in the
+  ServerHello, so for a CBC suite it passed the trailing MAC to the block
+  decrypt along with the ciphertext, the length was not a multiple of the block
+  size, and every record failed.  Since wolfSSL peers negotiate it by default,
+  this covered most TLS 1.2 CBC captures.  Separately, curve25519 blinding
+  draws from the private key's own RNG, which the sniffer's static ephemeral
+  key never had, so every X25519 shared secret failed with `BAD_FUNC_ARG` and
+  no X25519 traffic could be read; the key now gets `wc_curve25519_set_rng()`,
+  as the library's own static ephemeral path already did.  A build without
+  Encrypt-Then-MAC support now reports that, once the negotiated suite is known
+  to be a block cipher, rather than failing every record with a generic decrypt
+  error.  Both the `client_key_exchange` handler and the TLS 1.3 ServerHello
+  path also overwrote a specific error with "Server Client Key Mismatch", which
+  hid the reason a session could not be decrypted; they now keep an error that
+  has already been described.
 
 * **Fix (sniffer reported plaintext lengths that included the MAC or AEAD
   tag)**: the length returned to the caller was taken from the record size

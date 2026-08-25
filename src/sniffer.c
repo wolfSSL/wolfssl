@@ -2958,6 +2958,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 #endif
                 }
             }
+        #ifdef WOLFSSL_CURVE25519_BLINDING
+            /* Blinding draws from the key's RNG on every shared secret. */
+            if (ret == 0) {
+                ret = wc_curve25519_set_rng(&args->key->priv.x25519,
+                    session->sslServer->rng);
+            }
+        #endif
             if (ret == 0) {
                 idx = 0;
                 ret = wc_Curve25519PrivateKeyDecode(args->keyBuf->buffer, &idx,
