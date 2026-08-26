@@ -57,6 +57,9 @@
 #pragma GCC diagnostic pop
 #endif
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 /* Default key ID's */
 #ifndef SE050_KEYSTOREID_AES
@@ -217,4 +220,9 @@ WOLFSSL_LOCAL int se050_curve25519_shared_secret(
     struct ECPoint* out);
 WOLFSSL_LOCAL void se050_curve25519_free_key(struct curve25519_key* key);
 #endif /* HAVE_CURVE25519 */
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
+
 #endif /* _SE050_PORT_H_ */
