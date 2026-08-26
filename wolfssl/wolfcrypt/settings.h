@@ -2567,7 +2567,7 @@
     defined(WOLFSSL_STM32WL)  || defined(WOLFSSL_STM32G4)   || \
     defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
     defined(WOLFSSL_STM32WBA) || defined(WOLFSSL_STM32N6)   || \
-    defined(WOLFSSL_STM32C5)
+    defined(WOLFSSL_STM32C5)  || defined(WOLFSSL_STM32V8)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2599,6 +2599,13 @@
          * (TinyAES, no 192-bit) lacks it -- so gate NO_AES_192 on that, leaving
          * 192-bit available for N6 CubeMX/CRYP builds. */
         #if defined(WOLFSSL_STM32N6) && defined(WOLFSSL_STM32_USE_SAES)
+            #define NO_AES_192
+        #endif
+        /* STM32V8 has the same arrangement as N6: a "fat" CRYP (K0LR..K3RR,
+         * CSGCMCCM0..7R, 2-bit KEYSIZE) that does support AES-192, alongside a
+         * separate TinyAES-shaped SAES instance that does not. Only gate
+         * NO_AES_192 on routing AES through the SAES. */
+        #if defined(WOLFSSL_STM32V8) && defined(WOLFSSL_STM32_USE_SAES)
             #define NO_AES_192
         #endif
     #endif
@@ -2673,11 +2680,13 @@
             #endif
         #elif defined(WOLFSSL_STM32WBA)
             #include "stm32wbaxx.h"
+        #elif defined(WOLFSSL_STM32V8)
+            #include "stm32v8xx.h"
         #else
             #error "WOLFSSL_STM32_BARE requires a STM32 family macro \
                 (e.g. WOLFSSL_STM32F4, WOLFSSL_STM32H5, WOLFSSL_STM32U5, \
-                WOLFSSL_STM32N6, ...). Define the matching family flag in \
-                user_settings.h."
+                WOLFSSL_STM32N6, WOLFSSL_STM32V8, ...). Define the matching \
+                family flag in user_settings.h."
         #endif
     #elif defined(WOLFSSL_STM32_CUBEMX)
         #if defined(WOLFSSL_STM32F1)
@@ -2716,6 +2725,8 @@
             #include "stm32c5xx_hal.h"
         #elif defined(WOLFSSL_STM32N6)
             #include "stm32n6xx_hal.h"
+        #elif defined(WOLFSSL_STM32V8)
+            #include "stm32v8xx_hal.h"
         #elif defined(WOLFSSL_STM32MP13)
             /* HAL headers error on our ASM files */
             #ifndef __ASSEMBLER__
