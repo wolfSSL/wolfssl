@@ -1244,15 +1244,27 @@ static int wolfIoT_ecc_keygen(WOLFSSL* ssl, struct ecc_key* key,
 #endif
 
     if (iotsafe->enabled) {
-        ret = iotsafe_gen_keypair((byte *)&iotsafe->ecdh_keypair_slot,
-                IOTSAFE_ID_SIZE, key);
+        /* GEN_KEYPAIR and READ_KEY must run as a single transaction: the
+         * keypair slot is applet state shared with every other session
+         * using the same slot id. A concurrent regeneration landing
+         * between the two steps would export a public key that no longer
+         * matches the private key held in the slot. */
+        if (iotsafe_lock() != 0)
+            return BAD_MUTEX_E;
+        ret = iotsafe_ensure_init_locked();
         if (ret == 0) {
-            ret = iotsafe_get_public_key((byte *)&iotsafe->ecdh_keypair_slot,
-                    IOTSAFE_ID_SIZE, key);
-        } else if (ret > 0) {
-            /* Key has been stored during generation */
-            ret = 0;
+            ret = iotsafe_gen_keypair_locked(
+                    (byte *)&iotsafe->ecdh_keypair_slot, IOTSAFE_ID_SIZE, key);
+            if (ret == 0) {
+                ret = iotsafe_get_public_key_locked(
+                        (byte *)&iotsafe->ecdh_keypair_slot, IOTSAFE_ID_SIZE,
+                        key);
+            } else if (ret > 0) {
+                /* Key has been stored during generation */
+                ret = 0;
+            }
         }
+        iotsafe_unlock();
     } else {
         WC_RNG *rng = wolfSSL_GetRNG(ssl);
         ret = wc_ecc_init(key);
@@ -1418,20 +1430,35 @@ static int wolfIoT_ecc_verify(WOLFSSL *ssl,
             ret = wc_EccPublicKeyDecode(keyDer, &inOutIdx, key, keySz);
         }
         if (ret == 0) {
-            /* Store public key in IoT-safe slot */
-            ret = iotsafe_put_public_key(pubkey_slot, id_size, key);
-            if (ret < 0) {
-            #ifdef DEBUG_IOTSAFE
-                printf("IOTSAFE: put public key failed\n");
-            #endif
+            /* PutPublic and VerifyHash must run as a single transaction:
+             * the peer key slot is applet state shared with every other
+             * session using the same slot id, so a concurrent store
+             * landing between the two steps would check this signature
+             * against another session's key. */
+            if (iotsafe_lock() != 0) {
+                ret = BAD_MUTEX_E;
             }
-        }
-        if (ret == 0) {
-            /* Call iotsafe_verify_hash with ECC256 + SHA256 */
-            ret = iotsafe_verify_hash(pubkey_slot, id_size,
-                    IOTSAFE_HASH_SHA256, IOTSAFE_SIGN_ECDSA,
-                    hash, hashSz, sig_raw, 2 * IOTSAFE_ECC_KSIZE,
-                    result);
+            else {
+                ret = iotsafe_ensure_init_locked();
+                if (ret == 0) {
+                    /* Store public key in IoT-safe slot */
+                    ret = iotsafe_put_public_key_locked(pubkey_slot, id_size,
+                            key);
+                    if (ret < 0) {
+                    #ifdef DEBUG_IOTSAFE
+                        printf("IOTSAFE: put public key failed\n");
+                    #endif
+                    }
+                }
+                if (ret == 0) {
+                    /* Call iotsafe_verify_hash with ECC256 + SHA256 */
+                    ret = iotsafe_verify_hash_locked(pubkey_slot, id_size,
+                            IOTSAFE_HASH_SHA256, IOTSAFE_SIGN_ECDSA,
+                            hash, hashSz, sig_raw, 2 * IOTSAFE_ECC_KSIZE,
+                            result);
+                }
+                iotsafe_unlock();
+            }
         }
     }
     else {
