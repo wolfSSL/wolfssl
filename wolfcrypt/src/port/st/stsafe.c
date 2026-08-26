@@ -391,7 +391,7 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
     int rc = STSAFE_A_OK;
     stse_ReturnCode_t ret;
     int key_sz = stsafe_get_key_size(curve_id);
-    int copy_sz = (int)hashSz;
+    int copy_sz;
     uint8_t pubKey[STSAFE_MAX_PUBKEY_RAW_LEN];
     uint8_t digest[STSAFE_MAX_KEY_LEN];
     uint8_t validity = 0;
@@ -403,9 +403,13 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
 
     /* The SE takes a field-size prehash: normalize the digest to key_sz
      * (truncate if longer, left-pad if shorter) so the submitted value
-     * maps to the same integer e ECDSA uses. */
-    if (copy_sz > key_sz) {
+     * maps to the same integer e ECDSA uses. Clamp in the word32 domain
+     * first so an oversized hashSz cannot wrap to a negative int. */
+    if (hashSz > (word32)key_sz) {
         copy_sz = key_sz;
+    }
+    else {
+        copy_sz = (int)hashSz;
     }
     XMEMSET(digest, 0, key_sz);
     XMEMCPY(digest + (key_sz - copy_sz), pHash, copy_sz);
@@ -796,7 +800,7 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
     int rc = (int)(uint8_t)-1;
     uint8_t status_code;
     int key_sz = stsafe_get_key_size(curve_id);
-    int copy_sz = (int)hashSz;
+    int copy_sz;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     StSafeA_CoordinateBuffer* X = NULL;
     StSafeA_CoordinateBuffer* Y = NULL;
@@ -849,9 +853,13 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
 
     /* The SE takes a field-size prehash: normalize the digest to key_sz
      * (truncate if longer, left-pad if shorter) so the submitted value
-     * maps to the same integer e ECDSA uses. */
-    if (copy_sz > key_sz) {
+     * maps to the same integer e ECDSA uses. Clamp in the word32 domain
+     * first so an oversized hashSz cannot wrap to a negative int. */
+    if (hashSz > (word32)key_sz) {
         copy_sz = key_sz;
+    }
+    else {
+        copy_sz = (int)hashSz;
     }
 
     R->Length = key_sz;
