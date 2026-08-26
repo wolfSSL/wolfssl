@@ -380,16 +380,12 @@ int wc_linuxkm_can_block(void) {
      * -- stranding kernel_fpu_begin()'s section on the origin CPU for the life
      * of the module (1 event in 920,727 saves).
      */
-    return (preempt_count() == 0) && (! irqs_disabled())
-/* Guarded exactly like the declaration at the top of this file and like the
- * other caller: wc_linuxkm_in_svr_bracket() only exists when the vector
- * register glue is compiled in.  Without it there are no brackets to be
- * inside, so the term is vacuously true and its absence changes nothing. */
-#if !defined(WOLFSSL_LINUXKM_USE_MUTEXES) && \
-    defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
-        && (! wc_linuxkm_in_svr_bracket())
-#endif
-        ;
+    /* An open vector-register bracket is a fourth reason not to sleep here,
+     * but detecting one needs wc_linuxkm_in_svr_bracket(), which is part of
+     * the vector-register glue and is not in this branch.  It has to be added
+     * back by whichever change brings that glue in; without the definition the
+     * term is an implicit declaration and does not build under -Werror. */
+    return (preempt_count() == 0) && (! irqs_disabled());
 }
 
 /* for simplicity, we use a global count to suspend signal processing while any
