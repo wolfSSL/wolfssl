@@ -23767,43 +23767,58 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aeskeywrap_test(void)
     /* Drive wc_AesKeyWrap_ex/wc_AesKeyUnWrap_ex directly with a caller Aes; the
      * KAT loop above already covers every vector via the key-based wrappers. */
     {
-        /* Aes must not come from XMALLOC here: struct Aes carries ALIGN16
-         * members, so _Alignof(Aes) is 16 under the default --enable-aligndata,
-         * while malloc() only guarantees 8 on 32-bit targets. A local gets the
-         * type's alignment from the compiler. See wc_AesSetIV(), which clang
-         * lowers to an alignment-qualified NEON store on armv8-a+crypto. */
-        Aes aes[1];
+        /* struct Aes carries ALIGN16 members, so _Alignof(Aes) is 16 under the
+         * default --enable-aligndata, while malloc() only guarantees 8 on
+         * 32-bit targets; wc_AesSetIV() lowers to an alignment-qualified NEON
+         * store on armv8-a+crypto. wc_AesNew() is the allocator that accounts
+         * for that. A plain local would also be correctly aligned but is large
+         * enough to push this function's frame past 4096 bytes in some
+         * configurations. */
+        Aes* aes;
+        int aesRet = 0;
+        wc_test_ret_t exRet = 0;
+
+        /* wc_AesNew() initialises the object, so no wc_AesInit() here; every
+         * exit below goes through wc_AesDelete(). */
+        aes = wc_AesNew(HEAP_HINT, devId, &aesRet);
+        if (aes == NULL)
+            return WC_TEST_RET_ENC_NC;
 
         XMEMSET(output, 0, sizeof(output));
         XMEMSET(plain,  0, sizeof(plain));
 
-        if (wc_AesInit(aes, HEAP_HINT, devId) != 0)
-            return WC_TEST_RET_ENC_NC;
         if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
                          AES_ENCRYPTION) != 0) {
-            wc_AesFree(aes);
-            return WC_TEST_RET_ENC_NC;
+            exRet = WC_TEST_RET_ENC_NC;
         }
-        wrapSz = wc_AesKeyWrap_ex(aes, test_wrap[0].data, test_wrap[0].dataLen,
-                                  output, sizeof(output), NULL);
-        wc_AesFree(aes);
-        if ( (wrapSz < 0) || (wrapSz != (int)test_wrap[0].verifyLen) ||
-             XMEMCMP(output, test_wrap[0].verify, test_wrap[0].verifyLen) != 0)
-            return WC_TEST_RET_ENC_NC;
-
-        if (wc_AesInit(aes, HEAP_HINT, devId) != 0)
-            return WC_TEST_RET_ENC_NC;
-        if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
-                         AES_DECRYPTION) != 0) {
-            wc_AesFree(aes);
-            return WC_TEST_RET_ENC_NC;
+        if (exRet == 0) {
+            wrapSz = wc_AesKeyWrap_ex(aes, test_wrap[0].data,
+                                      test_wrap[0].dataLen,
+                                      output, sizeof(output), NULL);
+            if ((wrapSz < 0) || (wrapSz != (int)test_wrap[0].verifyLen) ||
+                XMEMCMP(output, test_wrap[0].verify,
+                        test_wrap[0].verifyLen) != 0) {
+                exRet = WC_TEST_RET_ENC_NC;
+            }
         }
-        plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz,
-                                     plain, sizeof(plain), NULL);
-        wc_AesFree(aes);
-        if ( (plainSz < 0) || (plainSz != (int)test_wrap[0].dataLen) ||
-             XMEMCMP(plain, test_wrap[0].data, test_wrap[0].dataLen) != 0)
-            return WC_TEST_RET_ENC_NC;
+        if (exRet == 0) {
+            if (wc_AesSetKey(aes, test_wrap[0].kek, test_wrap[0].kekLen, NULL,
+                             AES_DECRYPTION) != 0) {
+                exRet = WC_TEST_RET_ENC_NC;
+            }
+        }
+        if (exRet == 0) {
+            plainSz = wc_AesKeyUnWrap_ex(aes, output, (word32)wrapSz,
+                                         plain, sizeof(plain), NULL);
+            if ((plainSz < 0) || (plainSz != (int)test_wrap[0].dataLen) ||
+                XMEMCMP(plain, test_wrap[0].data,
+                        test_wrap[0].dataLen) != 0) {
+                exRet = WC_TEST_RET_ENC_NC;
+            }
+        }
+        wc_AesDelete(aes, &aes);
+        if (exRet != 0)
+            return exRet;
     }
 
     /* In-place round-trip (in == out): wrap then unwrap a single buffer.
