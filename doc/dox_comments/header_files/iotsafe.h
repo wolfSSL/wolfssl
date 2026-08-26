@@ -6,11 +6,14 @@
     \return 0 on success
     \return WC_HW_E on hardware error
 
-    This function loads the IoT-Safe applet and must be called from a single
-    thread, before the context is used concurrently from multiple threads.
-    Once initialized, individual APDU transactions are serialized internally
-    in multi-threaded builds, so concurrent TLS sessions can safely share the
-    same IoT-Safe context.
+    This function loads the IoT-Safe applet on first use. In multi-threaded
+    builds both the applet load and every individual APDU transaction are
+    serialized internally on a port-level lock, so concurrent TLS sessions
+    can safely share the same IoT-Safe context, and this function may be
+    called concurrently for several contexts.
+    The CSIM read and write callbacks must still be installed beforehand,
+    from a single thread; see wolfIoTSafe_SetCSIM_read_cb() and
+    wolfIoTSafe_SetCSIM_write_cb().
 
     _Example_
     \code
