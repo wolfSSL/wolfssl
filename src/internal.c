@@ -29599,16 +29599,8 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     }
 
 #ifdef WOLFSSL_QUIC
-    if (WOLFSSL_IS_QUIC(ssl)) {
-        /* Record for the duplicate-alert guards, as the TLS path below does. */
-        ssl->alert_history.last_tx.code = type;
-        ssl->alert_history.last_tx.level = severity;
-        ret = !ssl->quic.method->send_alert(ssl, ssl->quic.enc_level_write, (uint8_t)type);
-        if (ret) {
-            WOLFSSL_MSG("QUIC send_alert callback error");
-        }
-        return ret;
-    }
+    if (WOLFSSL_IS_QUIC(ssl))
+        return wolfSSL_quic_send_alert(ssl, severity, type);
 #endif
 
 #ifdef HAVE_WRITE_DUP

@@ -1811,6 +1811,9 @@ static int test_quic_key_update_rejected(int verbose) {
                 wolfssl_encryption_application, lbuffer, len), WOLFSSL_SUCCESS);
     ret = wolfSSL_process_quic_post_handshake(tserver.ssl);
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(SANITY_MSG_E));
+    /* 0x0100 | unexpected_message = 0x010a, the code RFC 9001 Section 6
+     * requires. */
+    ExpectIntEQ(tserver.alert, unexpected_message);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);

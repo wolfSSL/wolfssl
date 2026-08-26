@@ -14901,6 +14901,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
              * rejected as a fatal unexpected_message connection error. */
             if (WOLFSSL_IS_QUIC(ssl)) {
                 WOLFSSL_MSG("KeyUpdate received over QUIC");
+                SendAlert(ssl, alert_fatal, unexpected_message);
                 WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                 return SANITY_MSG_E;
             }

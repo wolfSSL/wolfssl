@@ -9441,7 +9441,9 @@ int test_tls13_serverhello_legacy_version(void)
         WOLFSSL_ERROR_WANT_READ);
 
     /* Claim TLS 1.0 in legacy_version. supported_versions still selects
-     * TLS 1.3. */
+     * TLS 1.3. Rejected by the version floor when old TLS is compiled out,
+     * and by the supported_versions check when it is not; either way the
+     * result must be a fatal protocol_version alert. */
     if (EXPECT_SUCCESS()) {
         ExpectIntGT(test_ctx.c_len, verOff + 1);
         test_ctx.c_buff[verOff + 0] = SSLv3_MAJOR;
@@ -9459,6 +9461,25 @@ int test_tls13_serverhello_legacy_version(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_s);
+
+    /* supported_versions on a ServerHello negotiating below TLS 1.3 is
+     * refused whatever version it names (RFC 8446 Section 4.2.1). Hand the
+     * extension straight to the parser as a TLS 1.2 client: no version floor
+     * filters this route, so the check runs in every build. */
+    {
+        /* supported_versions (43) of length 2 naming TLS 1.3 */
+        static const byte svExt[6] = { 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04 };
+
+        ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+        ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+        ExpectIntEQ(TLSX_Parse(ssl_c, svExt, (word16)sizeof(svExt),
+            server_hello, NULL), WC_NO_ERR_TRACE(VERSION_ERROR));
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        ssl_c = NULL;
+        ctx_c = NULL;
+    }
 
     /* A ServerHello that really is older still downgrades: no
      * supported_versions extension to contradict its legacy_version. */
