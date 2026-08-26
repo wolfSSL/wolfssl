@@ -376,6 +376,10 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     int keyslot;
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    /* A context owns at most one DCP channel; drop whatever this struct
+     * recorded before (no-op when it holds none) so re-initializing a
+     * live context cannot leak its channel. */
+    dcp_free(sha256->handle.channel);
     ch = dcp_get_channel();
     if (ch == 0)
         return WC_PENDING_E;
@@ -493,6 +497,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     handleWord = dcp_hash_handle_word();
     if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
+    /* The copy replaces dst (software contract: free dst resources,
+     * then clone); drop any channel dst recorded. */
+    dcp_free(dst->handle.channel);
     ch = dcp_get_channel();
     if (ch == 0)
         return WC_PENDING_E;
@@ -509,6 +516,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
      * running hash per channel, so a copy sharing the source channel
      * would corrupt both digests. */
     dst->ctx.x[handleWord] = (word32)&dst->handle;
+    dst->heap = src->heap;
+#ifdef WOLFSSL_HASH_FLAGS
+    dst->flags = src->flags;
+    dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
     dcp_unlock();
     return 0;
 }
@@ -524,6 +536,10 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     int keyslot;
     if (sha == NULL)
         return BAD_FUNC_ARG;
+    /* A context owns at most one DCP channel; drop whatever this struct
+     * recorded before (no-op when it holds none) so re-initializing a
+     * live context cannot leak its channel. */
+    dcp_free(sha->handle.channel);
     ch = dcp_get_channel();
     if (ch == 0)
         return WC_PENDING_E;
@@ -642,6 +658,9 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     handleWord = dcp_hash_handle_word();
     if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
+    /* The copy replaces dst (software contract: free dst resources,
+     * then clone); drop any channel dst recorded. */
+    dcp_free(dst->handle.channel);
     ch = dcp_get_channel();
     if (ch == 0)
         return WC_PENDING_E;
@@ -658,6 +677,11 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
      * running hash per channel, so a copy sharing the source channel
      * would corrupt both digests. */
     dst->ctx.x[handleWord] = (word32)&dst->handle;
+    dst->heap = src->heap;
+#ifdef WOLFSSL_HASH_FLAGS
+    dst->flags = src->flags;
+    dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
     dcp_unlock();
     return 0;
 }
