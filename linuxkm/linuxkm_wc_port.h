@@ -217,23 +217,18 @@
     WOLFSSL_API void wc_linuxkm_relax_long_loop(void);
 
     #ifdef LINUXKM_RBGC
-        /* Interrupt save/restore as calls.  local_irq_save() expands, on arm64
-         * before 6.6, to an ALTERNATIVE() asm whose "r" operand cannot be
-         * satisfied from a PIE-compiled in-boundary object ("impossible
-         * constraint in 'asm'"); keeping the expansion in non-PIE glue builds
-         * on every arm64 tree. */
+        /* Interrupt save/restore as calls: on arm64 before 6.6 the inline asm
+         * in local_irq_save() will not compile inside a PIE object. */
         WOLFSSL_API unsigned long wc_linuxkm_irq_save(void);
         WOLFSSL_API void wc_linuxkm_irq_restore(unsigned long flags);
 
-        /* Current CPU index, for the per-CPU DRBG leaves.
-         * raw_smp_processor_id() reads a kernel symbol the container may not
-         * reference, so it goes through the redirect table. */
+        /* Current CPU index for the per-CPU leaves.  Goes through the
+         * redirect table because the container cannot name the kernel
+         * symbol. */
         WOLFSSL_API int wc_linuxkm_cpu_id(void);
 
-        /* Monotonic nanoseconds for the interrupts-off measurement in
-         * linuxkm_get_entropy.c.  ktime_get_mono_fast_ns() is the NMI-safe
-         * reader (seqcount latch, no lock), so it is legal with interrupts
-         * off and in NMI. */
+        /* Monotonic nanoseconds.  The fast reader takes no lock, so it is
+         * safe with interrupts off and in NMI. */
         WOLFSSL_API unsigned long long wc_linuxkm_mono_ns(void);
     #endif
 

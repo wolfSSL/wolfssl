@@ -361,30 +361,14 @@ unsigned long long wc_linuxkm_mono_ns(void)
 #endif /* LINUXKM_RBGC */
 
 int wc_linuxkm_can_block(void) {
-    /* preempt_count() is NOT an accurate "may I sleep here" test on its own.
-     * In !CONFIG_PREEMPT_COUNT configs (PREEMPT_VOLUNTARY without
-     * PREEMPT_DYNAMIC -- the default through 5.15) preempt_disable() expands to
-     * barrier() and never touches __preempt_count
-     * (include/linux/preempt.h), so a task inside kernel_fpu_begin() still
-     * reads 0 here.  preempt_count() is exactly as blind as preemptible() in
-     * that configuration; the earlier comment claimed the opposite.
-     *
-     * The hardirq/softirq masks ARE still maintained there, so the irqs and
-     * interrupt-context halves of this test remain sound.  Only the
-     * preempt-disabled half is blind, which is why an open vector-register
-     * section has to be tested directly.
-     *
-     * Measured consequence when it was not: on 5.7.19 a cond_resched() from
-     * WC_RELAX_LONG_LOOP() inside an open bracket slept, the task migrated,
-     * and wc_restore_vector_registers_x86() ran on a CPU with no open section
-     * -- stranding kernel_fpu_begin()'s section on the origin CPU for the life
-     * of the module (1 event in 920,727 saves).
+    /* Without CONFIG_PREEMPT_COUNT (the default through 5.15)
+     * preempt_disable() is just barrier(), so preempt_count() reads 0 even
+     * inside kernel_fpu_begin() and cannot be trusted alone.  The irq and
+     * interrupt-context halves are still accurate.
      */
-    /* An open vector-register bracket is a fourth reason not to sleep here,
-     * but detecting one needs wc_linuxkm_in_svr_bracket(), which is part of
-     * the vector-register glue and is not in this branch.  It has to be added
-     * back by whichever change brings that glue in; without the definition the
-     * term is an implicit declaration and does not build under -Werror. */
+    /* An open vector-register bracket is another reason not to sleep, but the
+     * check for it lives in the vector-register glue, which is not in this
+     * branch.  Add it back with that glue. */
     return (preempt_count() == 0) && (! irqs_disabled());
 }
 
@@ -624,15 +608,11 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 /* cpus_read_lock()/cpus_read_unlock() around the per-CPU work setup. */
 #include <linux/cpu.h>
 
-/* The boundary cannot schedule work itself, so the glue drives it.
- *
- * One delayed work PER CPU, queued with queue_delayed_work_on() so it runs on
- * the CPU whose leaf it reseeds.  That is what lets the reseed take interrupts
- * off and know no caller on that CPU can be inside the leaf, which is what
- * removes the need for any exclusion flag in the boundary.
- *
- * The root's own refresh from the noise source is a separate, unpinned work:
- * it is the entropy gather and must not be coupled to leaf demand. */
+/* The boundary cannot schedule work, so the glue does it.  One delayed work
+ * per CPU, pinned with queue_delayed_work_on() so it reseeds that CPU's leaf
+ * with interrupts off and no caller can be inside it -- which is why the
+ * boundary needs no exclusion flag.  The root's refresh is separate work: it
+ * gathers entropy and must not follow leaf demand. */
 #define WC_GRB_MAINT_POLL_MS 50
 
 struct wc_grb_cpu_work {
@@ -646,10 +626,8 @@ static int                     wc_grb_maint_running;
 
 static void wc_grb_cpu_work_fn(struct work_struct *work)
 {
-    /* dw is the first member of wc_grb_cpu_work and work is the first member
-     * of delayed_work, so the work pointer is the wrapper pointer.
-     * container_of() cannot be used here: it does void* arithmetic and this
-     * builds with -Werror=pointer-arith. */
+    /* Both are first members, so the pointers are the same.  container_of()
+     * would do void* arithmetic and this builds -Werror=pointer-arith. */
     struct wc_grb_cpu_work *cw = (struct wc_grb_cpu_work *) work;
     int ret;
 

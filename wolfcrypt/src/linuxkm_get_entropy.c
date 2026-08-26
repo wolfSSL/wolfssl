@@ -19,44 +19,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Serves the Linux kernel's get_random_bytes() from inside the FIPS module
- * cryptographic boundary.
+/* Serves the kernel's get_random_bytes() from inside the FIPS boundary.
  *
- * SP 800-90C Sec. 7 DRBG tree.  A root DRBG reseeds 2*ncpu leaf DRBGs: one
- * leaf per CPU for process, softirq and hardirq, and one leaf per CPU for NMI.
- * Only the root ever touches the entropy source: leaves are instantiated and
- * reseeded from it.  Everything here is SHA-512.
+ * An SP 800-90C Sec. 7 DRBG tree, all SHA-512.  One root DRBG owns the entropy
+ * source and reseeds 2*ncpu leaves: one per CPU for process/softirq/hardirq,
+ * and one per CPU for NMI.  Leaves reseed from the root, never from the
+ * entropy source.  One root, not several, because there is a single noise
+ * source behind one mutex and one shared health state.
  *
- * The root seeding a leaf is one instantiated DRBG serving a second,
- * separately instantiated DRBG, which is what SP 800-90C Sec. 7.2.3.2.1 calls
- * for: a leaf reseeds by asking its parent to generate, not by asking the
- * entropy source.  SP 800-90A Sec. 8.6.9 bars a DRBG from reseeding itself,
- * and that is a rule about one instantiation, so it does not reach a parent
- * feeding a child.  Each leaf reseed takes its own fresh root generate
- * (Sec. 7.3.1 req 15), no leaf output ever reaches the root (req 16), and
- * prediction resistance is not claimed for the leaves (Sec. 7.2.3.2.1).
+ * Callers run with interrupts off, and each leaf's reseed runs on that leaf's
+ * own CPU, so no caller can be inside a leaf while it is rewritten and no lock
+ * is needed.  NMI is not masked by that, so an NMI leaf keeps two instances
+ * and publishes a reseed with one atomic index store; a reader gets the old or
+ * the new one, never a torn one.  Hotplug can move the reseed off its CPU, and
+ * a per-instance generation counter covers that.
  *
- * One root, not one per leaf: wolfentropy.c has a single noise source, one
- * mutex and one shared SP 800-90B RCT/APT state, so extra roots would
- * serialize on it and share its health verdict for 3x the cost.
+ * Requests are served in WC_GRB_CHUNK_SZ pieces, so the interrupts-off window
+ * depends on the chunk size, not on how much the caller asked for.
  *
- * Concurrency: a caller runs with interrupts off, so on one CPU process,
- * softirq and hardirq cannot overlap.  The maintenance reseed for a general
- * leaf runs ON THAT LEAF'S OWN CPU, also with interrupts off, so no caller can
- * be inside while it writes and no exclusion is needed at all.
- *
- * NMI is not masked by that, so an NMI leaf is two instantiations: the reseed
- * writes the spare and then publishes it with one atomic index store.  An NMI
- * reads either the old or the new instance, both fully instantiated, so a torn
- * state is not representable.  That reseed also runs on the leaf's own CPU, so
- * a stalled NMI stalls it too and it cannot come round twice underneath a read.
- * CPU hotplug is the one thing that can move it off that CPU; a per-instance
- * generation counter backstops that case and is the only path that declines.
- *
- * A request is served in WC_GRB_CHUNK_SZ pieces, so the interrupts-off window
- * is set by the chunk size rather than by the size the caller asked for.
- *
- * Nothing here waits.
+ * Nothing here waits.  See linuxkm/RBGC-design.md for the reasoning.
  */
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -159,31 +140,15 @@ struct wc_grb_slot {
 struct wc_grb_nmi_slot {
     WC_RNG            rng[2];
     atomic_t          live;
-    /* Bumped before an instance is reseeded.  An NMI reads it either side of
-     * its generate and discards the result if it changed, which turns the
-     * reuse interval from a timing assumption into a checked one: a vCPU
-     * descheduled inside an NMI handler can outlive two flips, and 926 ms of
-     * steal has been measured on this hardware. */
+    /* Bumped before a reseed.  An NMI reads it either side of its generate
+     * and retries if it moved, so a long stall cannot go unnoticed. */
     atomic_t          gen[2];
     atomic_t          pending;
-    /* One reseed at a time.  Three maintenance contexts can reach one leaf and
-     * none excluded another: the leaf's own pinned worker through
-     * wc_grb_maintain_cpu(cpu), the unbound sweep in wc_grb_root_tick() which
-     * passes want_cpu -1, and the service path's self-help
-     * wc_grb_maintain_cpu(-1).  wc_grb_maint_busy guards only
-     * wc_grb_root_tick() against itself.
-     *
-     * Two reseeders in one leaf break both of the things that keep an NMI out
-     * of an instantiation whose exclusion flag is held.  They derive the same
-     * spare from the same live, so the first to finish stores live = spare
-     * while the second is still inside wc_RNG_DRBG_Reseed(); and the second's
-     * own increment of gen[spare] returns that counter to EVEN while the first
-     * still holds the flag, so the odd-means-busy check below reads even and
-     * lets the caller in.  Measured on 6.12.59/x86_64 over 49 runs with the
-     * exclusion window widened: 10 runs wedged and every one of them had two
-     * reseeders in one leaf; of the 36 runs that never had two, none wedged.
-     * The race itself needs no widening -- at the natural window it fired
-     * about 4,000 times in a 20-second run. */
+    /* One reseed at a time.  Three maintenance paths can reach one leaf and
+     * nothing else keeps them apart.  Two at once pick the same spare and
+     * cancel each other's gen[] bump, which lets an NMI into an instance that
+     * is being rewritten.  Measured: 10 of 49 runs wedged, all of them with
+     * two reseeders in one leaf. */
     atomic_t          reseeding;
     struct wc_grb_ctr since;
     unsigned long     at;
@@ -596,25 +561,12 @@ int wc_grb_service(void *buf, size_t len)
                                            (word32) want);
 
                 if (ret != 0) {
-                    /* This instantiation could not answer.  The reachable
-                     * reason is that it has reached its own reseed interval,
-                     * and a reseed cannot be performed from NMI because the
-                     * noise source takes a mutex.
-                     *
-                     * Ask the leaf's OTHER instantiation before giving up.  It
-                     * is separately instantiated with its own state and its own
-                     * reseed counter, so it is not in the same condition, and
-                     * reading it is the same on-demand generate into the same
-                     * caller-owned buffer -- nothing is held, nothing is
-                     * produced ahead of the request.
-                     *
-                     * Giving up here is not a neutral outcome.  The kernel
-                     * patch retries this hook WOLFSSL_LINUXKM_GRB_TRIES times
-                     * and then panic()s rather than let its own generator
-                     * answer, because those bytes would not be validated
-                     * output and _get_random_bytes() returns void, so the
-                     * caller could not tell which generator it got.  A decline
-                     * that survives the retries takes the machine down. */
+                    /* Usually means this instance is due a reseed, which NMI
+                     * cannot do (the noise source takes a mutex).  Try the
+                     * leaf's other instance first: it has its own state and
+                     * counter.  Declining is not free -- the kernel patch
+                     * retries and then panics rather than hand out
+                     * unvalidated bytes. */
                     int other = live ? 0 : 1;
                     int og;
 

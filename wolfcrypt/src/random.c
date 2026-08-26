@@ -352,11 +352,8 @@ enum {
 #define MAX_SEED_SZ       WC_DRBG_MAX_SEED_SZ
 
 
-/* Selects the branch of _InitRng() that takes its seed material from the
- * caller instead of from a randomness source.  One caller compiles it in here:
- * wc_InitRngRBGC() under LINUXKM_RBGC.  Build-time only; nothing chooses
- * between the branches at run time -- _InitRng() takes the caller-supplied
- * path if and only if the caller passed a seed pointer. */
+/* Makes _InitRng() take its seed from the caller.  Only wc_InitRngRBGC()
+ * uses it.  Build-time only. */
 #ifdef LINUXKM_RBGC
     #define WC_RNG_SEED_FROM_CALLER
 #endif
@@ -2201,12 +2198,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     else {
 #ifdef WC_RNG_SEED_FROM_CALLER
             if (rbgcSeed != NULL) {
-                /* The caller already holds the seed material, so no randomness
-                 * source is consulted: neither seedCb nor wc_GenerateSeed()
-                 * below runs.  The one caller here is wc_InitRngRBGC(), where
-                 * the material came from the parent construction per
-                 * SP 800-90C Sec. 7.2.1.2, and which bounds rbgcSeedSz by
-                 * MAX_SEED_SZ before calling. */
+                /* Caller supplied the seed, so skip seedCb and
+                 * wc_GenerateSeed(). */
                 XMEMCPY(seed, rbgcSeed, rbgcSeedSz);
                 seedSz = rbgcSeedSz;
                 ret = 0;
@@ -2249,10 +2242,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
             if (ret == 0) {
 #ifdef WC_RNG_SEED_FROM_CALLER
-                /* wc_RNG_TestSeed() is a repetition check on raw noise.  The
-                 * seed material on this path is not raw noise: it is the
-                 * parent's DRBG output, and SP 800-90C Sec. 7.2.1.2 makes the
-                 * parent's generate status the check instead. */
+                /* No repetition check: this is the parent's DRBG output, not
+                 * raw noise (SP 800-90C 7.2.1.2). */
                 if (rbgcSeed != NULL) {
                     ret = DRBG_SUCCESS;
                 }
@@ -2279,11 +2270,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 word32      instSeedSz;
 
             #if defined(HAVE_FIPS) || !defined(WOLFSSL_RNG_USE_FULL_SEED)
-                /* The SEED_BLOCK_SZ prefix is the block wc_RNG_TestSeed()
-                 * compares against the rest of a raw seed, so it is not part of
-                 * the seed material.  A caller-supplied seed runs no such test
-                 * -- SP 800-90C Sec. 7.2.1.2 wants the whole 3s/2 bits in the
-                 * instantiate -- so that path keeps the whole buffer. */
+                /* No repetition check here, so no SEED_BLOCK_SZ prefix to
+                 * skip: use the whole buffer. */
             #ifdef WC_RNG_SEED_FROM_CALLER
                 if (rbgcSeed != NULL) {
                     instSeed   = seed;
@@ -2461,16 +2449,10 @@ void wc_rng_free(WC_RNG* rng)
 }
 
 #ifdef LINUXKM_RBGC
-/* Instantiate a non-root RBGC construction from its parent, SP 800-90C
- * Sec. 7.2.1.2.  Internal to the RBGC: not WOLFSSL_API, so it is not exported.
- *
- * WC_RBGC_INSTANTIATE_SZ is 3s/2 at s = 256, which is the amount that section
- * names for Hash_DRBG and also the larger of the two amounts it gives.  The
- * s/2 above the security strength is the nonce entropy of SP 800-90A
- * Sec. 8.6.7(b), so no separate nonce is passed.
- *
- * SHA-512 only, matching the construction; a parent that is not SHA-512 means
- * that DRBG was disabled, and a leaf must not quietly be built on the other. */
+/* Instantiate a child DRBG from its parent (SP 800-90C 7.2.1.2).  Not
+ * exported.  Draws 3s/2 bits, so the extra s/2 covers the nonce and none is
+ * passed separately.  SHA-512 only: a different parent means that DRBG was
+ * disabled, and we must not silently build on another one. */
 int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent)
 {
     byte seed[WC_RBGC_INSTANTIATE_SZ];
@@ -2490,8 +2472,8 @@ int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent)
                        INVALID_DEVID);
     }
 
-    /* CSP: the parent's output, which is this leaf's seed material.  SP
-     * 800-90C Sec. 7.3.1 req 15 bars reusing it for anything else. */
+    /* CSP: parent output, this child's seed.  Not reusable (SP 800-90C
+     * 7.3.1 req 15). */
     ForceZero(seed, sizeof(seed));
 
     if ((ret == 0) && (rng->drbgType != WC_DRBG_SHA512)) {

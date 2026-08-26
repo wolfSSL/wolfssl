@@ -99,14 +99,9 @@ ifeq "$(KERNEL_ARCH_X86)" "yes"
 endif
 endif
 
-# -Wextra (from configure's warning set) turns on -Wunused-parameter, which
-# fires on the KERNEL's own headers, not on wolfSSL code: e.g. 6.8's
-# include/linux/node.h:88 node_set_perf_attrs() is an empty static inline with
-# three named parameters when !CONFIG_HMEM_REPORTING.  The kernel never builds
-# with that warning on -- scripts/Makefile.extrawarn:90 pairs it as
-# "-Wextra -Wunused -Wno-unused-parameter" even at W=1 -- so an out-of-tree
-# module that adds -Wextra must pair it the same way.  This was clang-only;
-# gcc fails identically (measured: gcc 14.3 vs linux-6.8.12 defconfig).
+# -Wextra turns on -Wunused-parameter, which fires on the kernel's own headers,
+# not on ours.  The kernel always pairs it with -Wno-unused-parameter, so do
+# the same.
 WOLFSSL_CFLAGS += -Wno-unused-parameter
 
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
@@ -195,11 +190,8 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	# __x86_indirect_thunk_foo implementations.  _all_ references must be
 	# eliminated, not just those in PIE objects, otherwise some kernels will
 	# false-positively complain about unpatched thunks.
-	# RETHUNK is the return-thunk mitigation and gates -mfunction-return;
-	# RETPOLINE is the indirect-branch one and gates -mindirect-branch.  Both
-	# gained a MITIGATION_ prefix in 6.9, so both spellings are accepted --
-	# testing only the new name silently takes the "keep" branch on every
-	# kernel older than that.
+	# RETHUNK gates -mfunction-return, RETPOLINE gates -mindirect-branch.
+	# Both were renamed with a MITIGATION_ prefix in 6.9, so accept either.
 	WC_KM_RETHUNK := $(or $(CONFIG_MITIGATION_RETHUNK),$(CONFIG_RETHUNK))
 	WC_KM_RETPOLINE := $(or $(CONFIG_MITIGATION_RETPOLINE),$(CONFIG_RETPOLINE))
 	ifeq "$(WC_KM_RETHUNK)" "y"

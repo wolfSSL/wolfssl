@@ -455,9 +455,8 @@ WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 #ifndef WC_NO_RNG
 #ifdef LINUXKM_RBGC
-/* SP 800-90C Sec. 7.2.1.2 instantiation of a non-root RBGC construction from
- * its parent.  WOLFSSL_LOCAL, not WOLFSSL_API: internal to the RBGC and never
- * exported.  3s/2 bits are drawn from the parent; see the definition. */
+/* Instantiate a child DRBG from its parent (SP 800-90C 7.2.1.2).  Internal,
+ * never exported. */
 #define WC_RBGC_INSTANTIATE_SZ (RNG_SECURITY_STRENGTH * 3 / 2 / 8)
 WOLFSSL_LOCAL int wc_InitRngRBGC(WC_RNG* rng, WC_RNG* parent);
 #endif

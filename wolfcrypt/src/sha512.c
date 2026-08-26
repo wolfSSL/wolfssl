@@ -138,17 +138,8 @@
 
 
 #if defined(WOLFSSL_ARMASM) && defined(LINUXKM_RBGC)
-    /* src/include.am compiles exactly one SHA-512 transform under
-     * BUILD_LINUXKM_RBGC -- the portable C one in this file -- and emits no
-     * ARM assembly object for it.  The dispatch below has to agree with what
-     * is actually compiled: left defined, it installs
-     * Transform_Sha512_Len_neon, which nothing then defines, and the wolfCrypt
-     * PIE container fails to link with "U Transform_Sha512_Len_neon".
-     * This is the ARM counterpart of the !defined(LINUXKM_RBGC) already on the
-     * Intel dispatch immediately below.  Both pin the implementation at build
-     * time; neither introduces a run-time choice, and the scalar transform is
-     * what makes the RBGC DRBG callable with interrupts off, where the vector
-     * registers are not available. */
+    /* RBGC builds only the C transform, so don't let the ARM dispatch pick a
+     * NEON one that was never compiled. */
     #undef WOLFSSL_ARMASM
 #endif
 
@@ -923,9 +914,7 @@ int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags)
 
 #ifdef WOLFSSL_SHA512
 
-/* A pinned x86 build has no transform to select, so Sha512_SetTransform() is
- * a do-nothing macro there rather than a function.  Defined here, ahead of
- * its first call site below. */
+/* RBGC has nothing to select, so this is a macro there, not a function. */
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     !defined(LINUXKM_RBGC) && \
        (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
@@ -1092,21 +1081,8 @@ static int InitSha512_256(wc_Sha512* sha512)
     !defined(LINUXKM_RBGC) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
-    /* SHA-512 transforms compiled here: unpinned that is AVX1 and AVX2, each
-     * with and without RORX, and the C one, chosen from CPUID at run time.
-     * IG 10.3.A GeneralNote1 requires each implementation in the module to be
-     * self-tested separately.  A certified build compiles several and CPUID
-      * selects one per OE; what a save failure must never do is select a
-      * different one. */
-
-    /* Suppress the C transform (and K512, which only it uses) when an
-     * accelerated implementation is pinned: it would be a second SHA-512 in
-     * the boundary, reachable from the same services. */
-
-    /* Does the compiled transform want the block as host-endian words?  Only
-     * the C one does; the accelerated ones byte-reverse internally.  Unpinned
-     * this is a CPUID test at every call site, which is the run-time
-     * selection the pin removes; pinned it is a build-time constant. */
+    /* Only the C transform wants host-endian words; the asm ones byte-reverse
+     * themselves. */
         #define WC_SHA512_REV_BLOCK() \
             (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
 
