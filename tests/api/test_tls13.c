@@ -7318,6 +7318,11 @@ int test_tls13_sha1_cert_chain(void)
     byte*       chainBuf = NULL;
     size_t      leafSz = 0;
     size_t      sha1Sz = 0;
+#ifdef WC_RSA_PSS
+    const char* pssCaFile = "./certs/rsapss/ca-rsapss.pem";
+    byte*       pssBuf = NULL;
+    size_t      pssSz = 0;
+#endif
 
     /* A TLS 1.3 client does not offer SHA-1, so the SHA-1 signed leaf must
      * not be sent. */
@@ -7417,6 +7422,39 @@ int test_tls13_sha1_cert_chain(void)
     wolfSSL_free(ssl_s);    ssl_s = NULL;
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#ifdef WC_RSA_PSS
+    /* An RSASSA-PSS signed certificate carries one signature OID for every
+     * digest and names the digest in the algorithm parameters instead, so the
+     * chain check has to read the parameters to tell it apart from SHA-1.
+     * This CA is SHA-256 signed, so the chain may be sent. Verification is off
+     * because the chain is a leaf and an unrelated CA, which is all this case
+     * needs the server to send. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(load_file(svrCertFile, &leafBuf, &leafSz), 0);
+    ExpectIntEQ(load_file(pssCaFile, &pssBuf, &pssSz), 0);
+    ExpectNotNull(chainBuf = (byte*)XMALLOC(leafSz + pssSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chainBuf, leafBuf, leafSz);
+        XMEMCPY(chainBuf + leafSz, pssBuf, pssSz);
+    }
+    ExpectIntEQ(wolfSSL_use_certificate_chain_buffer_format(ssl_s, chainBuf,
+        (long)(leafSz + pssSz), WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    XFREE(chainBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER); chainBuf = NULL;
+    XFREE(leafBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);  leafBuf = NULL;
+    XFREE(pssBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);   pssBuf = NULL;
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* WC_RSA_PSS */
 
     /* signature_algorithms_cert covers the chain on its own: this client
      * offers no SHA-1 for handshake signatures but does allow a SHA-1 signed
