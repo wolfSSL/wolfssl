@@ -1476,6 +1476,9 @@ static void wb_decode_policy_oid(void)
  *           total_length==0 empty-SEQUENCE check, reached before that loop
  *   :21369  ret==0 && cert->deviceType==NULL          (WOLFSSL_SEP)
  *   :21401  duplicate-OID scan loop (WOLFSSL_CERT_EXT, !WOLFSSL_DUP_CERTPOL)
+ *   post-loop  (ret==0) && critical && (idx < policyEnd)  (WOLFSSL_CERT_EXT,
+ *              !WOLFSSL_NO_ASN_STRICT): reject a critical certificatePolicies
+ *              whose policies could not all be stored (ASN_CRIT_EXT_E).
  * MAX_CERTPOL_NB is 2, so three policies exercise the count limit.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
@@ -1525,13 +1528,14 @@ static void wb_decode_cert_policy(void)
 
     WB_NOTE("DecodeCertPolicy(): empty SEQUENCE rejected before the loop (total_length==0)");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(noPolicies, sizeof(noPolicies), &cert);
+    /* 4-arg signature (critical) + upstream's empty-SEQUENCE rejection. */
+    ret = DecodeCertPolicy(noPolicies, sizeof(noPolicies), &cert, 0);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             "empty SEQUENCE rejected: RFC 5280 4.2.1.4 requires SIZE (1..MAX)");
 
     WB_NOTE("DecodeCertPolicy(): one policy (loop true then false) [:21346,:21369]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(onePolicy, sizeof(onePolicy), &cert);
+    ret = DecodeCertPolicy(onePolicy, sizeof(onePolicy), &cert, 0);
 #if defined(WOLFSSL_CERT_EXT)
     WB_CHECK(ret == 0 && cert.extCertPoliciesNb == 1,
             "single policy accepted");
@@ -1548,7 +1552,7 @@ static void wb_decode_cert_policy(void)
 
     WB_NOTE("DecodeCertPolicy(): second policy, deviceType already set [:21369]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert);
+    ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert, 0);
     WB_CHECK(ret == 0, "two policies accepted (:21369 2nd operand false on "
             "the second, :21401 2nd operand true)");
 #ifdef WOLFSSL_SEP
@@ -1559,14 +1563,14 @@ static void wb_decode_cert_policy(void)
 
     WB_NOTE("DecodeCertPolicy(): malformed PolicyInformation [:21369 1st operand]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(badPolicy, sizeof(badPolicy), &cert);
+    ret = DecodeCertPolicy(badPolicy, sizeof(badPolicy), &cert, 0);
     WB_CHECK(ret != 0 && cert.deviceType == NULL,
             "INTEGER in place of the policy OID (:21369 1st operand false)");
 
 #if defined(WOLFSSL_CERT_EXT)
     WB_NOTE("DecodeCertPolicy(): MAX_CERTPOL_NB cap with 3 policies [:21346 3rd operand]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert);
+    ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert, 0);
     WB_CHECK(ret == 0 && cert.extCertPoliciesNb == MAX_CERTPOL_NB,
             "loop stops at MAX_CERTPOL_NB even though bytes remain "
             "(3rd operand false while 1st/2nd stay true)");
@@ -1576,10 +1580,39 @@ static void wb_decode_cert_policy(void)
     }
 #endif
 
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* Post-loop critical check: (ret==0) && critical && (idx < policyEnd).
+     * Independence pair for the `critical` and `idx < policyEnd` operands. */
+    WB_NOTE("DecodeCertPolicy(): critical + policies remain -> ASN_CRIT_EXT_E");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert, 1);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E) &&
+            cert.extCertPoliciesNb == MAX_CERTPOL_NB,
+            "critical cert policies over MAX_CERTPOL_NB rejected as "
+            "unsupported-critical (critical true, idx < policyEnd true)");
+#ifdef WOLFSSL_SEP
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
+
+    WB_NOTE("DecodeCertPolicy(): critical but all policies consumed -> accepted");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert, 1);
+    WB_CHECK(ret == 0,
+            "critical cert policies within MAX_CERTPOL_NB accepted "
+            "(critical true, idx < policyEnd false)");
+#ifdef WOLFSSL_SEP
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
+#endif /* !WOLFSSL_NO_ASN_STRICT */
+
 #ifndef WOLFSSL_DUP_CERTPOL
     WB_NOTE("DecodeCertPolicy(): duplicate-OID rejection [:21401]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(dupPolicies, sizeof(dupPolicies), &cert);
+    ret = DecodeCertPolicy(dupPolicies, sizeof(dupPolicies), &cert, 0);
     WB_CHECK(ret == WC_NO_ERR_TRACE(CERTPOLICIES_E),
             "duplicate policy OID rejected (loop finds a match)");
 #ifdef WOLFSSL_SEP
