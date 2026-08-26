@@ -3464,7 +3464,15 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
 
     switch (csr->status_type) {
         case WOLFSSL_CSR_OCSP:
-            for (i = 0; i < csr->requests; i++) {
+            /* Requests are stored at the certificate's position in the chain,
+             * not packed: ProcessChainOCSPRequest() writes
+             * csr->request.ocsp[i] with i counting from 1 for the first
+             * intermediate, while csr->requests is a count. Bounding the free
+             * by that count leaves the tail entries allocated and unreachable
+             * whenever it is lower than the highest index written. Walk the
+             * whole array instead; FreeOcspRequest() is a no-op on a request
+             * that was never populated. */
+            for (i = 0; i < MAX_CERT_EXTENSIONS; i++) {
                 FreeOcspRequest(&csr->request.ocsp[i]);
             }
         break;
