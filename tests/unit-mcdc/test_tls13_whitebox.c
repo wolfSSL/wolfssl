@@ -33,6 +33,8 @@
  * user_settings.h via -DWOLFSSL_USER_SETTINGS. */
 #include <src/tls13.c>
 
+#include "mcdc_fault_alloc.h"
+
 #include <stdio.h>
 
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
@@ -738,6 +740,261 @@ static void wb_sanity_check_msgs(void)
 { WB_NOTE("no WOLFSSL fixture on this build axis; skipped"); }
 #endif /* WB_HAVE_SSL_FIXTURE */
 
+/* ------------------------------------------------------------------------- *
+ * The RFC 8446 Section 4.4.2.2 rule on the chain this end sends:
+ * IsSha1SignedCert(), CheckCertChainSigAlgo() and the check at the head of
+ * SendTls13Certificate().
+ *
+ * IsSha1SignedCert() reads two fields of a DER encoded certificate, the
+ * tbsCertificate (for its length only) and the signatureAlgorithm that
+ * follows it, so the vectors below are AlgorithmIdentifiers with a one byte
+ * placeholder in front rather than complete certificates. That is what makes
+ * the signature OID arms reachable at all: certs/ carries no ecdsa-with-SHA1
+ * or dsa-with-sha1 material, and an RSASSA-PSS AlgorithmIdentifier whose
+ * parameters do not decode is by construction not something a certificate
+ * generator emits.
+ *
+ * A certificate that does not parse is reported as not self signed
+ * (IsSelfSignedCert()), so a placeholder tbsCertificate still takes the
+ * MATCH_SUITE_ERROR arm the rule is there to produce.
+ * ------------------------------------------------------------------------- */
+#if defined(WB_HAVE_SSL_FIXTURE) && !defined(NO_CERTS) && \
+    !defined(WOLFSSL_NO_SIGALG)
+
+/* sha1WithRSAEncryption, 1.2.840.113549.1.1.5 */
+static const byte wb_sig_sha1_rsa[] = {
+    0x30, 0x10,
+        0x30, 0x01, 0x00,
+        0x30, 0x0b,
+            0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x05
+};
+/* ecdsa-with-SHA1, 1.2.840.10045.4.1 */
+static const byte wb_sig_sha1_ecdsa[] = {
+    0x30, 0x0e,
+        0x30, 0x01, 0x00,
+        0x30, 0x09,
+            0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x01
+};
+/* id-dsa-with-sha1, 1.2.840.10040.4.3 */
+static const byte wb_sig_sha1_dsa[] = {
+    0x30, 0x0e,
+        0x30, 0x01, 0x00,
+        0x30, 0x09,
+            0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x38, 0x04, 0x03
+};
+/* sha256WithRSAEncryption, 1.2.840.113549.1.1.11 */
+static const byte wb_sig_sha256_rsa[] = {
+    0x30, 0x10,
+        0x30, 0x01, 0x00,
+        0x30, 0x0b,
+            0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b
+};
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+/* id-RSASSA-PSS, 1.2.840.113549.1.1.10, parameters absent. RFC 4055 Section
+ * 3.1 makes that mean every default, and the default digest is SHA-1. */
+static const byte wb_sig_pss_absent[] = {
+    0x30, 0x10,
+        0x30, 0x01, 0x00,
+        0x30, 0x0b,
+            0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0a
+};
+/* id-RSASSA-PSS whose parameters are not an RSASSA-PSS-params SEQUENCE. */
+static const byte wb_sig_pss_bad[] = {
+    0x30, 0x14,
+        0x30, 0x01, 0x00,
+        0x30, 0x0f,
+            0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0a,
+            0x04, 0x02, 0xaa, 0xbb
+};
+#endif
+
+/* Report a vector whose outcome is not the one the decision table above
+ * assumes, so a change in the ASN.1 layer shows up here instead of silently
+ * turning a vector into a repeat of its partner. */
+static void wb_expect_sha1(const char* what, int got, int want)
+{
+    if (got != want)
+        printf("  [wb] %s: expected %d, got %d\n", what, want, got);
+}
+
+static void wb_is_sha1_signed_cert(void)
+{
+    /* (T,-,-) */
+    wb_expect_sha1("sha1WithRSAEncryption",
+        IsSha1SignedCert(wb_sig_sha1_rsa, (word32)sizeof(wb_sig_sha1_rsa)), 1);
+    /* (F,T,-) */
+    wb_expect_sha1("ecdsa-with-SHA1",
+        IsSha1SignedCert(wb_sig_sha1_ecdsa, (word32)sizeof(wb_sig_sha1_ecdsa)),
+        1);
+    /* (F,F,T) */
+    wb_expect_sha1("id-dsa-with-sha1",
+        IsSha1SignedCert(wb_sig_sha1_dsa, (word32)sizeof(wb_sig_sha1_dsa)), 1);
+    /* (F,F,F), and the (F,-,-) partner of the RSASSA-PSS decision. */
+    wb_expect_sha1("sha256WithRSAEncryption",
+        IsSha1SignedCert(wb_sig_sha256_rsa, (word32)sizeof(wb_sig_sha256_rsa)),
+        0);
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+    /* (T,T,T): the parameters decode, and to SHA-1. */
+    wb_expect_sha1("id-RSASSA-PSS, absent parameters",
+        IsSha1SignedCert(wb_sig_pss_absent, (word32)sizeof(wb_sig_pss_absent)),
+        1);
+    /* (T,T,F): the signature OID matches but the parameters do not decode, so
+     * the digest is unknown and the certificate is not treated as SHA-1. */
+    wb_expect_sha1("id-RSASSA-PSS, undecodable parameters",
+        IsSha1SignedCert(wb_sig_pss_bad, (word32)sizeof(wb_sig_pss_bad)), 0);
+#endif
+
+    WB_NOTE("IsSha1SignedCert signature algorithm arms driven with both "
+            "halves of each independence pair");
+}
+
+/* Discards the record layer output so SendAlert() below has somewhere to
+ * write: the fixture has no socket and no memio pair. */
+static int wb_discard_send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)ctx;
+    return sz;
+}
+
+/* Point ssl->buffers.certificate / certChain at caller owned DerBuffers for
+ * the duration of one call. The fixture never loaded a certificate, so the
+ * saved values are NULL and weOwnCert / weOwnCertChain stay clear; nothing
+ * here is ever handed to FreeDer(). */
+static void wb_cert_chain_sigalgo(void)
+{
+    WOLFSSL*   ssl = wb_ssl_c;
+    DerBuffer  leafSha256;
+    DerBuffer  leafSha1;
+    DerBuffer  noBuffer;
+    DerBuffer  chain;
+    DerBuffer* savedCert;
+    DerBuffer* savedChain;
+    int        savedCnt;
+    int        savedSide;
+    byte       savedVerify;
+    byte       chainBuf[CERT_HEADER_SZ + sizeof(wb_sig_sha256_rsa)];
+    int        ret;
+
+    if (ssl == NULL) {
+        WB_NOTE("no ssl fixture; SHA-1 chain rule skipped");
+        return;
+    }
+
+    savedCert  = ssl->buffers.certificate;
+    savedChain = ssl->buffers.certChain;
+    savedCnt   = ssl->buffers.certChainCnt;
+    savedSide  = ssl->options.side;
+    savedVerify = ssl->options.sendVerify;
+
+    XMEMSET(&leafSha256, 0, sizeof(leafSha256));
+    leafSha256.buffer = (byte*)wb_sig_sha256_rsa;
+    leafSha256.length = (word32)sizeof(wb_sig_sha256_rsa);
+    XMEMSET(&leafSha1, 0, sizeof(leafSha1));
+    leafSha1.buffer = (byte*)wb_sig_sha1_rsa;
+    leafSha1.length = (word32)sizeof(wb_sig_sha1_rsa);
+    XMEMSET(&noBuffer, 0, sizeof(noBuffer));
+
+    /* One entry, in the 3 byte length prefixed form SendTls13Certificate
+     * writes and NextCert() walks. */
+    c32to24((word32)sizeof(wb_sig_sha256_rsa), chainBuf);
+    XMEMCPY(chainBuf + CERT_HEADER_SZ, wb_sig_sha256_rsa,
+            sizeof(wb_sig_sha256_rsa));
+    XMEMSET(&chain, 0, sizeof(chain));
+    chain.buffer = chainBuf;
+    chain.length = (word32)sizeof(chainBuf);
+
+    ssl->options.peerSha1CertOk = 0;
+
+    /* if (certificate == NULL || certificate->buffer == NULL) */
+    ssl->buffers.certificate  = NULL;              /* (T,-) */
+    ssl->buffers.certChain    = NULL;
+    ssl->buffers.certChainCnt = 0;
+    (void)CheckCertChainSigAlgo(ssl);
+
+    ssl->buffers.certificate = &noBuffer;          /* (F,T) */
+    (void)CheckCertChainSigAlgo(ssl);
+
+    /* (F,F), and on to the chain guard:
+     *   ret == 0 && certChain != NULL && certChain->buffer != NULL &&
+     *   certChainCnt > 0                                                     */
+    ssl->buffers.certificate = &leafSha256;        /* (T,F,-,-) */
+    (void)CheckCertChainSigAlgo(ssl);
+
+    ssl->buffers.certChain    = &noBuffer;         /* (T,T,F,-) */
+    ssl->buffers.certChainCnt = 1;
+    (void)CheckCertChainSigAlgo(ssl);
+
+    ssl->buffers.certChain    = &chain;            /* (T,T,T,F) */
+    ssl->buffers.certChainCnt = 0;
+    (void)CheckCertChainSigAlgo(ssl);
+
+    /* (T,T,T,T): the chain is walked. Its one certificate is SHA-256 signed,
+     * so the walk runs to the NextCert() terminator with ret still 0. */
+    ssl->buffers.certChainCnt = 1;
+    ret = CheckCertChainSigAlgo(ssl);
+    if (ret != 0)
+        printf("  [wb] SHA-256 chain rejected: %d\n", ret);
+
+    /* The head of SendTls13Certificate(): the check that separates a chain the
+     * peer will not accept, which each side resolves its own way, from a
+     * failure to examine one, which is returned to the caller as it stands.
+     * Every vector below returns before the Certificate message is built. */
+    wolfSSL_SSLSetIOSend(ssl, wb_discard_send);
+    ssl->options.sendVerify = SEND_CERT;
+    ssl->fragOffset = 0;
+    ssl->buffers.certChain    = NULL;
+    ssl->buffers.certChainCnt = 0;
+
+    /* (F,-): no certificate at all, so the rule has nothing to check and
+     * SendTls13Certificate falls through to its own missing certificate
+     * guard. */
+    ssl->buffers.certificate = NULL;
+    (void)SendTls13Certificate(ssl);
+
+    ssl->buffers.certificate = &noBuffer;
+    (void)SendTls13Certificate(ssl);
+
+    /* (T,F): a SHA-1 signed certificate that is not self signed. On the
+     * server this is fatal, which is the arm that returns without building a
+     * message. */
+    ssl->buffers.certificate = &leafSha1;
+    ssl->options.side = WOLFSSL_SERVER_END;
+    ret = SendTls13Certificate(ssl);
+    if (ret != WC_NO_ERR_TRACE(MATCH_SUITE_ERROR))
+        printf("  [wb] SHA-1 leaf not rejected: %d\n", ret);
+
+    /* (T,T): the only other value the check produces is MEMORY_E, from the
+     * decoder IsSelfSignedCert() cannot allocate. Every allocation is failed
+     * rather than a chosen one, so this does not depend on how many the call
+     * makes before reaching the decoder. */
+    mcdc_fa_install();
+    mcdc_fa_arm(1);
+    ret = SendTls13Certificate(ssl);
+    mcdc_fa_disarm();
+    mcdc_fa_restore();
+    if (ret != WC_NO_ERR_TRACE(MEMORY_E))
+        printf("  [wb] allocation failure did not reach IsSelfSignedCert: "
+               "%d\n", ret);
+
+    ssl->options.side         = savedSide;
+    ssl->buffers.certificate  = savedCert;
+    ssl->buffers.certChain    = savedChain;
+    ssl->buffers.certChainCnt = savedCnt;
+    ssl->options.sendVerify   = savedVerify;
+
+    WB_NOTE("CheckCertChainSigAlgo certificate and chain guards, and the "
+            "SendTls13Certificate result check, driven with both halves of "
+            "each independence pair");
+}
+#else
+static void wb_is_sha1_signed_cert(void)
+{ WB_NOTE("IsSha1SignedCert not compiled in this variant; skipped"); }
+static void wb_cert_chain_sigalgo(void)
+{ WB_NOTE("CheckCertChainSigAlgo not compiled in this variant; skipped"); }
+#endif /* WB_HAVE_SSL_FIXTURE && !NO_CERTS && !WOLFSSL_NO_SIGALG */
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -757,6 +1014,8 @@ int main(void)
     wb_build_handshake_hmac_guard();
     wb_create_cookie_ext_guards();
     wb_sanity_check_msgs();
+    wb_is_sha1_signed_cert();
+    wb_cert_chain_sigalgo();
 
 #ifdef WB_HAVE_SSL_FIXTURE
     wb_fixture_teardown();
