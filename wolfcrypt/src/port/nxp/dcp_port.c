@@ -225,7 +225,9 @@ static word32 dcp_hash_handle_word(void)
     word32 i;
 
     XMEMSET(&bound, 0, sizeof(bound));
-    (void)DCP_HASH_Init(DCP, &probe, &bound, kDCP_Sha256);
+    XMEMSET(&probe, 0, sizeof(probe));
+    if (DCP_HASH_Init(DCP, &probe, &bound, kDCP_Sha256) != kStatus_Success)
+        return DCP_HASH_CTX_SIZE;
     for (i = 0; i < DCP_HASH_CTX_SIZE; i++) {
         if (bound.x[i] == (word32)&probe)
             return i;
