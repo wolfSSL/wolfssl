@@ -4623,7 +4623,8 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
 static int DecodeNameConstraints(const byte* input, word32 sz, DecodedCert* cert);
 #endif
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
-static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert);
+static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
+                            int critical);
 #endif
 #ifdef WOLFSSL_SUBJ_DIR_ATTR
 static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert);
@@ -22063,7 +22064,8 @@ exit:
 
 /* Reference: https://tools.ietf.org/html/rfc5280#section-4.2.1.4 */
 #ifdef WOLFSSL_ASN_TEMPLATE
-static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert,
+                            int critical)
 {
     word32 idx = 0;
     word32 seqEnd = 0;
@@ -22074,6 +22076,10 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
 #endif
 
     WOLFSSL_ENTER("DecodeCertPolicy");
+
+#if !defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_NO_ASN_STRICT)
+    (void)critical;
+#endif
 
     /* Check if cert is null before dereferencing below */
     if (cert == NULL) {
@@ -22173,7 +22179,25 @@ static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
     #endif /* WOLFSSL_CERT_EXT */
     }
 
-    WOLFSSL_LEAVE("DecodeCertPolicy", 0);
+#if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_NO_ASN_STRICT)
+    /* RFC 5280 4.2: reject a critical extension whose information cannot be
+     * fully processed. The loop above stops once the fixed-size store fills
+     * (MAX_CERTPOL_NB); if policies remain (idx has not reached the end of the
+     * SEQUENCE), a critical certificatePolicies cannot be honoured. Report it
+     * as an unsupported critical extension (ASN_CRIT_EXT_E) - the same code
+     * the "policy support not compiled" case returns for identical input -
+     * so DecodeCertExtensions defers it like every other such extension
+     * instead of aborting the parse immediately. A non-critical one may be
+     * left partially processed (relying parties may ignore it), so it is
+     * still accepted. */
+    if ((ret == 0) && critical && (idx < seqEnd)) {
+        WOLFSSL_MSG("Cannot fully process critical certificatePolicies");
+        WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
+        ret = ASN_CRIT_EXT_E;
+    }
+#endif /* WOLFSSL_CERT_EXT && !WOLFSSL_NO_ASN_STRICT */
+
+    WOLFSSL_LEAVE("DecodeCertPolicy", ret);
     return ret;
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -22684,7 +22708,11 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
         #ifdef WOLFSSL_SEP
             cert->extCertPolicyCrit = critical ? 1 : 0;
         #endif
-            if (DecodeCertPolicy(input, length, cert) < 0) {
+            ret = DecodeCertPolicy(input, length, cert, critical);
+            /* Preserve ASN_CRIT_EXT_E so it is deferred like the other
+             * unsupported-critical-extension paths; map any other failure to
+             * ASN_PARSE_E. */
+            if ((ret != 0) && (ret != WC_NO_ERR_TRACE(ASN_CRIT_EXT_E))) {
                 ret = ASN_PARSE_E;
             }
         #else
