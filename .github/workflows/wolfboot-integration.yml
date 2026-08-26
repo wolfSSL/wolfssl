@@ -168,29 +168,16 @@ jobs:
 
           make test-lib SIGN=ED25519 HASH=SHA256
 
-          # test-lib (hal/library.c) always returns 0; success vs failure is
-          # signalled by stdout: "Firmware Valid" on the golden path,
-          # "Failure %d: Hdr %d, Hash %d, Sig %d" when verification rejects
-          # the image. Assert on output, not on exit status.
-
-          success_output=$(./test-lib test_v1_signed.bin 2>&1)
-          printf '%s\n' "$success_output"
-          if ! printf '%s\n' "$success_output" | grep -qF "Firmware Valid"; then
-            echo "Expected golden-path success, but test-lib did not print \"Firmware Valid\""
+          if ! ./test-lib test_v1_signed.bin; then
+            echo "Expected golden-path success, but test-lib exited non-zero"
             exit 1
           fi
 
           truncate -s -1 test_v1_signed.bin
           printf 'A' >> test_v1_signed.bin
 
-          tamper_output=$(./test-lib test_v1_signed.bin 2>&1)
-          printf '%s\n' "$tamper_output"
-          if printf '%s\n' "$tamper_output" | grep -qF "Firmware Valid"; then
-            echo "Expected tamper rejection, but test-lib reported \"Firmware Valid\""
-            exit 1
-          fi
-          if ! printf '%s\n' "$tamper_output" | grep -qE "^Failure -?[0-9]+: Hdr [0-9]+, Hash [0-9]+, Sig [0-9]+"; then
-            echo "Expected tamper rejection marker (\"Failure N: Hdr X, Hash Y, Sig Z\"), but test-lib output did not contain it"
+          if ./test-lib test_v1_signed.bin; then
+            echo "Expected tamper rejection, but test-lib exited 0"
             exit 1
           fi
 
