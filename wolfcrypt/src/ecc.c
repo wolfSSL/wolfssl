@@ -6879,7 +6879,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         mp_reverse(&out[keysize], keysize);
 
 error_out:
-        ForceZero(K, MAX_ECC_BYTES);
+        ForceZero(K, keysize);
         WC_FREE_VAR_EX(incopy, key->heap, DYNAMIC_TYPE_HASH_TMP);
         WC_FREE_VAR_EX(K, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         if (err) {
