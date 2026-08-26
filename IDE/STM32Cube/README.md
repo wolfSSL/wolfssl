@@ -102,6 +102,7 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 * To enable STM32H5 support define `WOLFSSL_STM32H5`.
 * To enable STM32MP13 support define `WOLFSSL_STM32MP13`.
 * To enable STM32N6 support define `WOLFSSL_STM32N6`.
+* To enable STM32V8 support define `WOLFSSL_STM32V8` (STM32V873 only; other V8 variants such as V863 have a different peripheral set).
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 

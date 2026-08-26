@@ -252,6 +252,15 @@ extern ${variable.value} ${variable.name};
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart1
     #endif
+#elif defined(STM32V873xx)
+    #define WOLFSSL_STM32V8
+    #define STM32_HAL_V2
+    #undef NO_STM32_HASH
+    #undef NO_STM32_CRYPTO
+    #define WOLFSSL_STM32_PKA
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart1
+    #endif
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
@@ -259,7 +268,7 @@ extern ${variable.value} ${variable.name};
     /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4,
         WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4, WOLFSSL_STM32L5,
         WOLFSSL_STM32G0, WOLFSSL_STM32G4, WOLFSSL_STM32WB, WOLFSSL_STM32U3,
-        WOLFSSL_STM32U5 and WOLFSSL_STM32MP13 */
+        WOLFSSL_STM32U5, WOLFSSL_STM32V8 and WOLFSSL_STM32MP13 */
     #define WOLFSSL_STM32F4
 
     /* Debug UART used for printf */

@@ -100,6 +100,9 @@
 #elif defined(WOLFSSL_STM32N6)
 #include <stm32n6xx_hal_conf.h>
 #include <stm32n6xx_hal_pka.h>
+#elif defined(WOLFSSL_STM32V8)
+#include <stm32v8xx_hal_conf.h>
+#include <stm32v8xx_hal_pka.h>
 #elif defined(WOLFSSL_STM32H5)
 #include <stm32h5xx_hal_conf.h>
 #include <stm32h5xx_hal_pka.h>
@@ -1027,7 +1030,7 @@ static void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
     ctx->HASH_IMR = HASH->IMR;
     ctx->HASH_STR = HASH->STR;
     ctx->HASH_CR  = HASH->CR;
-#ifdef STM32_HASH_SHA3
+#ifdef WC_STM32_HASH_HAS_SHA3CFGR
     ctx->SHA3CFGR  = HASH->SHA3CFGR;
 #endif
     for (i=0; i<HASH_CR_SIZE; i++) {
@@ -1072,7 +1075,7 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, word32 algo,
         /* restore context registers */
         HASH->IMR = ctx->HASH_IMR;
         HASH->STR = ctx->HASH_STR;
-#ifdef STM32_HASH_SHA3
+#ifdef WC_STM32_HASH_HAS_SHA3CFGR
         HASH->SHA3CFGR = ctx->SHA3CFGR;
 #endif
 
@@ -2295,7 +2298,7 @@ int wc_Stm32_Aes_DhukOp(struct Aes* aes, byte* out, const byte* in,
 
 /* ===== Bare-metal direct-register AES driver =====
  * No HAL or StdPeriph. Two IP variants:
- *   - CRYP (FIFO-based):  F2/F4/F7/H7/MP13
+ *   - CRYP (FIFO-based):  F2/F4/F7/H7/MP13/V8
  *   - AES/SAES (TinyAES): L4/L5/U5/H573/G0/G4/WB/WL/WBA/H7S(via SAES)
  *
  * H7S3 has both a "fat" CRYP (same register shape as H753) AND a
@@ -2303,11 +2306,17 @@ int wc_Stm32_Aes_DhukOp(struct Aes* aes, byte* out, const byte* in,
  * SAES -- the plain CRYP is gated behind the security domain. The H7S
  * arm therefore goes through the TinyAES branch with WC_STM32_AES_INST
  * = SAES (forced via WOLFSSL_STM32_USE_SAES in the per-board settings).
+ *
+ * V8 also carries both IPs, but the part always runs Secure and its fat
+ * CRYP is reachable (unlike N6/H7S), so V8 defaults to the CRYP branch
+ * (AES-192 capable); WOLFSSL_STM32_USE_SAES routes it through the
+ * TinyAES branch on the SAES instance instead.
  * Variant selected via family ifdefs below. */
 
 #if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32H7) || \
-    defined(WOLFSSL_STM32MP13)
+    defined(WOLFSSL_STM32MP13) || \
+    (defined(WOLFSSL_STM32V8) && !defined(WOLFSSL_STM32_USE_SAES))
 /* ----- CRYP IP (FIFO-based) ----- */
 
 #ifndef STM32_BARE_AES_TIMEOUT
@@ -2428,18 +2437,63 @@ static int Stm32AesXferBlock(const byte* in, byte* out)
     return 0;
 }
 
-/* CBC/ECB decrypt requires a key-prep pass first (per F4/H7 reference manual:
- * load key, run ALGOMODE=AES_KEY, wait BUSY=0, then start the actual op). */
-static int Stm32AesPrepareKey(word32 keyLen)
+#ifdef CRYP_SR_KEYVALID
+/* Key-management CRYP variant (e.g. STM32V8): the engine refuses to
+ * process data until the loaded key validates (SR.KEYVALID). */
+static int Stm32AesWaitKeyValid(void)
 {
-    int ret;
+    int t = 0;
+    while ((CRYP->SR & CRYP_SR_KEYVALID) == 0) {
+        if (++t >= STM32_BARE_AES_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    return 0;
+}
+#endif
 
-    CRYP->CR = CRYP_CR_ALGOMODE_AES_KEY |
-               STM32_CRYP_DATATYPE_BYTE |
-               Stm32AesKeySizeBits(keyLen);
-    CRYP->CR |= CRYP_CR_CRYPEN;
-    ret = Stm32AesWaitBusy();
-    CRYP->CR &= ~CRYP_CR_CRYPEN;
+/* Program the CR configuration, load the key, and (for decrypt) run the
+ * AES key-derivation pass (per F4/H7 reference manual: run ALGOMODE=AES_KEY,
+ * wait BUSY=0, then start the actual op).
+ *
+ * The CR write deliberately happens BEFORE the key registers: on the
+ * key-management CRYP variant (STM32V8, SR.KEYVALID/KERF) the key is
+ * latched against the already-programmed KEYSIZE/KMOD and never validates
+ * -- stalling the engine with a FIFO-wait timeout -- if the key registers
+ * are written first. The order is harmless on the classic CRYP
+ * (F2/F4/F7/H7/MP13). Verified on V873 silicon: KEYVALID sets with this
+ * order and survives both the key-derivation pass and the ALGOMODE-only
+ * rewrite to the final operating mode. */
+static int Stm32AesSetupKey(const word32* key, word32 keyLen, word32 cr,
+    int isEnc)
+{
+    int ret = 0;
+
+    if (!isEnc) {
+        CRYP->CR = CRYP_CR_ALGOMODE_AES_KEY |
+                   STM32_CRYP_DATATYPE_BYTE |
+                   Stm32AesKeySizeBits(keyLen);
+        Stm32AesLoadKey(key, keyLen);
+    #ifdef CRYP_SR_KEYVALID
+        ret = Stm32AesWaitKeyValid();
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+        CRYP->CR |= CRYP_CR_CRYPEN;
+        ret = Stm32AesWaitBusy();
+        CRYP->CR &= ~CRYP_CR_CRYPEN;
+        if (ret == 0) {
+            CRYP->CR = cr;
+        }
+    }
+    else {
+        CRYP->CR = cr;
+        Stm32AesLoadKey(key, keyLen);
+    #ifdef CRYP_SR_KEYVALID
+        ret = Stm32AesWaitKeyValid();
+    #endif
+    }
     return ret;
 }
 
@@ -2469,21 +2523,16 @@ int wc_Stm32_Aes_Ecb(struct Aes* aes, byte* out, const byte* in,
 
     WC_STM32_AES_CLK_ENABLE();
 
-    Stm32AesLoadKey(aes->key, keyLen);
-    if (!isEnc) {
-        ret = Stm32AesPrepareKey(keyLen);
-        if (ret != 0) {
-            goto exit;
-        }
-    }
-
     cr = CRYP_CR_ALGOMODE_AES_ECB |
          STM32_CRYP_DATATYPE_BYTE |
          Stm32AesKeySizeBits(keyLen);
     if (!isEnc) {
         cr |= CRYP_CR_ALGODIR;
     }
-    CRYP->CR = cr;
+    ret = Stm32AesSetupKey(aes->key, keyLen, cr, isEnc);
+    if (ret != 0) {
+        goto exit;
+    }
     CRYP->CR |= CRYP_CR_FFLUSH;
     CRYP->CR |= CRYP_CR_CRYPEN;
 
@@ -2533,22 +2582,17 @@ int wc_Stm32_Aes_Cbc(struct Aes* aes, byte* out, const byte* in,
 
     WC_STM32_AES_CLK_ENABLE();
 
-    Stm32AesLoadKey(aes->key, keyLen);
-    if (!isEnc) {
-        ret = Stm32AesPrepareKey(keyLen);
-        if (ret != 0) {
-            goto exit;
-        }
-    }
-    Stm32AesLoadIV((const byte*)aes->reg, WC_AES_BLOCK_SIZE);
-
     cr = CRYP_CR_ALGOMODE_AES_CBC |
          STM32_CRYP_DATATYPE_BYTE |
          Stm32AesKeySizeBits(keyLen);
     if (!isEnc) {
         cr |= CRYP_CR_ALGODIR;
     }
-    CRYP->CR = cr;
+    ret = Stm32AesSetupKey(aes->key, keyLen, cr, isEnc);
+    if (ret != 0) {
+        goto exit;
+    }
+    Stm32AesLoadIV((const byte*)aes->reg, WC_AES_BLOCK_SIZE);
     CRYP->CR |= CRYP_CR_FFLUSH;
     CRYP->CR |= CRYP_CR_CRYPEN;
 
@@ -2782,6 +2826,14 @@ int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
     CRYP->CR = cr_base | (0u << CRYP_CR_GCM_CCMPH_Pos);
 
     Stm32AesLoadKey(aes->key, keyLen);
+#ifdef CRYP_SR_KEYVALID
+    /* Key-management CRYP (STM32V8): key latches against the CR config
+     * written above; wait for it to validate before the init phase. */
+    ret = Stm32AesWaitKeyValid();
+    if (ret != 0) {
+        goto exit;
+    }
+#endif
 
     /* 12-byte IV || counter=0x00000002 (HW pre-increments to 2 for the
      * first payload block; init phase sets up J0). */
