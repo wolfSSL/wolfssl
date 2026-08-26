@@ -822,11 +822,12 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
 #endif
     StSafeA_VerifySignatureBuffer* Verif = NULL;
 
-    *pResult = 0;
-
-    if (hashSz == 0) {
+    if (pHash == NULL || pSigRS == NULL || pPubKeyX == NULL ||
+        pPubKeyY == NULL || pResult == NULL || hashSz == 0) {
         return BAD_FUNC_ARG;
     }
+
+    *pResult = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate buffers */
