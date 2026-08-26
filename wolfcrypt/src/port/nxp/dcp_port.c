@@ -137,14 +137,16 @@ static int dcp_get_channel(void)
 
 static int dcp_key_slot(int ch)
 {
+#if DCP_USE_OTP_KEY
+    (void)ch;
+    return kDCP_OtpKey;
+#elif defined(SINGLE_THREADED)
+    (void)ch;
+    return 0;
+#else
+    int i;
     int ret = -1;
 
-#if DCP_USE_OTP_KEY
-    return kDCP_OtpKey;
-#endif
-
-#ifndef SINGLE_THREADED
-    int i;
     dcp_lock();
     for (i = 0; i < 4; i++) {
         if (ch == dcp_channels[i]) {
@@ -153,10 +155,8 @@ static int dcp_key_slot(int ch)
         }
     }
     dcp_unlock();
-#else
-    ret = 0;
-#endif
     return ret;
+#endif
 }
 
 
