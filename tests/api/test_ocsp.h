@@ -38,6 +38,7 @@ int test_tls13_nonblock_ocsp_low_mfl(void);
 int test_ocsp_ctx_request_cache(void);
 int test_ocsp_responder(void);
 int test_ocsp_ancestor_responder_rejected(void);
+int test_ocsp_forged_responder_cert_rejected(void);
 int test_wolfIO_DecodeUrl_crlf_reject(void);
 #endif /* WOLFSSL_TEST_OCSP_H */
 

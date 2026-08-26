@@ -25122,15 +25122,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                     return ret;
             }
 
-        #ifdef HAVE_OCSP
-            if (verify == VERIFY_OCSP_CERT) {
-                /* trust for the lifetime of the responder's cert*/
-                if (cert->ocspNoCheckSet)
-                    verify = VERIFY;
-                else
-                    verify = VERIFY_OCSP;
-            }
-        #endif
             /* advance past extensions */
             cert->srcIdx = cert->sigIndex;
         }
@@ -25205,6 +25196,28 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 return ret;
             }
 #endif /* HAVE_RPK */
+        }
+#endif
+
+#ifdef HAVE_OCSP
+        /* Map the OCSP responder-certificate mode onto a mode the signer
+         * lookup below and the ConfirmSignature() gate further down both
+         * understand. Without this, VERIFY_OCSP_CERT reaches that gate, which
+         * matches only VERIFY/VERIFY_OCSP/VERIFY_SKIP_DATE, and the responder
+         * certificate embedded in an OCSP response would be accepted without
+         * its signature ever being checked against the issuing CA.
+         *
+         * This must run after the extensions have been decoded (ocspNoCheckSet
+         * is set there) and before the signer lookup, which itself tests for
+         * VERIFY_OCSP. Both ASN.1 implementations have finished decoding by
+         * this point, so keep the mapping here, shared, rather than once per
+         * implementation. */
+        if (verify == VERIFY_OCSP_CERT) {
+            /* trust for the lifetime of the responder's cert */
+            if (cert->ocspNoCheckSet)
+                verify = VERIFY;
+            else
+                verify = VERIFY_OCSP;
         }
 #endif
 
@@ -25493,8 +25506,14 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 
     if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
         if (cert->ca) {
+            /* VERIFY_OCSP_CERT is normally rewritten to VERIFY/VERIFY_OCSP
+             * during the parse above, so it does not reach here. It still
+             * belongs in this list: the parse block is skipped on re-entry
+             * (sigCtx.state past SIG_STATE_BEGIN, e.g. resuming an
+             * asynchronous ConfirmSignature), and a mode missing from this
+             * list is a silently skipped signature check, not an error. */
             if (verify == VERIFY || verify == VERIFY_OCSP ||
-                                                 verify == VERIFY_SKIP_DATE) {
+                verify == VERIFY_OCSP_CERT || verify == VERIFY_SKIP_DATE) {
                 word32 keyOID = cert->ca->keyOID;
             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                 if (cert->selfSigned && (cert->signatureOID == CTC_SM3wSM2)) {

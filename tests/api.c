@@ -40743,6 +40743,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_status_callback),
     TEST_DECL_GROUP("ocsp", test_ocsp_basic_verify),
     TEST_DECL_GROUP("ocsp", test_ocsp_ancestor_responder_rejected),
+    TEST_DECL_GROUP("ocsp", test_ocsp_forged_responder_cert_rejected),
     TEST_DECL_GROUP("ocsp", test_ocsp_responder_keyhash_binding),
     TEST_DECL_GROUP("ocsp", test_ocsp_response_parsing),
     TEST_DECL_GROUP("ocsp", test_ocsp_certid_enc_dec),
