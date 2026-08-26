@@ -4083,6 +4083,7 @@ WOLFSSL_LOCAL int DeriveHandshakeSecret(WOLFSSL* ssl);
     #define DeriveTls13Keys wolfSSL_DeriveTls13Keys
 #endif
 WOLFSSL_TEST_VIS int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store);
+WOLFSSL_LOCAL int Tls13DeriveRecordKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int DeriveMasterSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret);
 WOLFSSL_LOCAL int DeriveResumptionSecret(WOLFSSL* ssl, byte* key);
