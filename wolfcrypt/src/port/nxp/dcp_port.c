@@ -116,11 +116,17 @@ static const int dcp_channels[4] = {
 
 #ifndef SINGLE_THREADED
 static int dcp_status[4] = {0, 0, 0, 0};
+/* Context that reserved each channel: a release only takes effect from
+ * the recorded owner, so a stale or uninitialized handle.channel value
+ * (a struct never zeroed before init, a freed struct reused) cannot
+ * free a channel another live context holds. */
+static void* dcp_owner[4] = {NULL, NULL, NULL, NULL};
 #endif
 
-static int dcp_get_channel(void)
+static int dcp_get_channel(void* owner)
 {
 #ifdef SINGLE_THREADED
+    (void)owner;
     return dcp_channels[0];
 #else
     int i;
@@ -132,6 +138,7 @@ static int dcp_get_channel(void)
     for (i = 0; i < 4; i++) {
         if (dcp_status[i] == 0) {
             dcp_status[i]++;
+            dcp_owner[i] = owner;
             ret = dcp_channels[i];
             break;
         }
@@ -189,7 +196,7 @@ int wc_dcp_init(void)
     return 0;
 }
 
-static void dcp_free(int ch)
+static void dcp_free(void* owner, int ch)
 {
 #ifndef SINGLE_THREADED
     int i;
@@ -197,8 +204,9 @@ static void dcp_free(int ch)
     if (dcp_lock() != 0)
         return;
     for (i = 0; i < 4; i++) {
-        if (ch == dcp_channels[i]) {
+        if (ch == dcp_channels[i] && dcp_owner[i] == owner) {
             dcp_status[i] = 0;
+            dcp_owner[i] = NULL;
             break;
         }
     }
@@ -243,7 +251,7 @@ int DCPAesInit(Aes *aes)
     int ch;
     if (!aes)
         return BAD_FUNC_ARG;
-    ch = dcp_get_channel();
+    ch = dcp_get_channel(aes);
     if (ch == 0)
         return WC_PENDING_E;
     XMEMSET(&aes->handle, 0, sizeof(aes->handle));
@@ -264,7 +272,7 @@ void DCPAesFree(Aes *aes)
         ForceZero(aes_key_aligned, sizeof(aes_key_aligned));
         dcp_unlock();
     }
-    dcp_free(aes->handle.channel);
+    dcp_free(aes, aes->handle.channel);
     aes->handle.channel = 0;
 }
 
@@ -377,15 +385,16 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
     /* A context owns at most one DCP channel; drop whatever this struct
-     * recorded before (no-op when it holds none) so re-initializing a
-     * live context cannot leak its channel. */
-    dcp_free(sha256->handle.channel);
-    ch = dcp_get_channel();
+     * recorded before so re-initializing a live context cannot leak its
+     * channel. dcp_free only acts on a channel this struct owns, so a
+     * struct never zeroed before init is harmless. */
+    dcp_free(sha256, sha256->handle.channel);
+    ch = dcp_get_channel(sha256);
     if (ch == 0)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(ch);
+        dcp_free(sha256, ch);
         return WC_HW_E;
     }
     (void)devId;
@@ -402,7 +411,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
          * failure (after dropping the lock: dcp_free takes it itself)
          * so repeated failures cannot exhaust the channels, and leave
          * the context explicitly uninitialized. */
-        dcp_free(ch);
+        dcp_free(sha256, ch);
         sha256->handle.channel = 0;
     }
     return ret;
@@ -411,7 +420,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 void DCPSha256Free(wc_Sha256* sha256)
 {
     if (sha256)
-        dcp_free(sha256->handle.channel);
+        dcp_free(sha256, sha256->handle.channel);
 }
 
 int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
@@ -498,14 +507,14 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
     /* The copy replaces dst (software contract: free dst resources,
-     * then clone); drop any channel dst recorded. */
-    dcp_free(dst->handle.channel);
-    ch = dcp_get_channel();
+     * then clone); drop any channel dst owns. */
+    dcp_free(dst, dst->handle.channel);
+    ch = dcp_get_channel(dst);
     if (ch == 0)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(ch);
+        dcp_free(dst, ch);
         return WC_HW_E;
     }
     dst->handle.channel    = (dcp_channel_t)ch;
@@ -537,15 +546,16 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     if (sha == NULL)
         return BAD_FUNC_ARG;
     /* A context owns at most one DCP channel; drop whatever this struct
-     * recorded before (no-op when it holds none) so re-initializing a
-     * live context cannot leak its channel. */
-    dcp_free(sha->handle.channel);
-    ch = dcp_get_channel();
+     * recorded before so re-initializing a live context cannot leak its
+     * channel. dcp_free only acts on a channel this struct owns, so a
+     * struct never zeroed before init is harmless. */
+    dcp_free(sha, sha->handle.channel);
+    ch = dcp_get_channel(sha);
     if (ch == 0)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(ch);
+        dcp_free(sha, ch);
         return WC_HW_E;
     }
     (void)devId;
@@ -562,7 +572,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
          * failure (after dropping the lock: dcp_free takes it itself)
          * so repeated failures cannot exhaust the channels, and leave
          * the context explicitly uninitialized. */
-        dcp_free(ch);
+        dcp_free(sha, ch);
         sha->handle.channel = 0;
     }
     return ret;
@@ -571,7 +581,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 void DCPShaFree(wc_Sha* sha)
 {
     if (sha)
-        dcp_free(sha->handle.channel);
+        dcp_free(sha, sha->handle.channel);
 }
 
 int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
@@ -659,14 +669,14 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
     /* The copy replaces dst (software contract: free dst resources,
-     * then clone); drop any channel dst recorded. */
-    dcp_free(dst->handle.channel);
-    ch = dcp_get_channel();
+     * then clone); drop any channel dst owns. */
+    dcp_free(dst, dst->handle.channel);
+    ch = dcp_get_channel(dst);
     if (ch == 0)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(ch);
+        dcp_free(dst, ch);
         return WC_HW_E;
     }
     dst->handle.channel    = (dcp_channel_t)ch;
