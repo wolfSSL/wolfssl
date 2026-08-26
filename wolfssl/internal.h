@@ -1403,6 +1403,9 @@ enum {
 #error "Max size for DTLS CID is 255 bytes"
 #endif
 
+/* the tx CID is the peer's choice, bounded only by its one byte length field */
+#define DTLS_CID_MAX_TX_SIZE 255
+
 /* Record Payload Protection Section 5
  *   https://www.rfc-editor.org/rfc/rfc9146.html#section-5 */
 #define WOLFSSL_TLS_HMAC_CID_INNER_SZ                               \
@@ -1660,7 +1663,6 @@ enum Misc {
     TLS_EXPORT_OPT_SZ_5      = 66, /* number of bytes used from Options */
     TLS_EXPORT_OPT_SZ_4      = 65, /* number of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_3     = 60, /* number of bytes used from Options */
-    DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max number of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 85 + (DTLS_SEQ_SZ * 2),
                                    /* min number of bytes used from Keys */
@@ -1670,9 +1672,10 @@ enum Misc {
     WOLFSSL_EXPORT_SPC_SZ    = 16, /* number of bytes used from CipherSpecs */
 #endif
     WOLFSSL_EXPORT_LEN       = 2,  /* 2 bytes for length and protocol */
-    WOLFSSL_EXPORT_VERSION   = 6,  /* wolfSSL version for serialized session */
+    WOLFSSL_EXPORT_VERSION   = 7,  /* wolfSSL version for serialized session */
 
     /* older export versions supported */
+    WOLFSSL_EXPORT_VERSION_6 = 6,  /* version before DTLS 1.3 state */
     WOLFSSL_EXPORT_VERSION_5 = 5,  /* version before DTLS Encrypt-Then-MAC */
     WOLFSSL_EXPORT_VERSION_4 = 4,  /* 5.6.4 release and before */
     WOLFSSL_EXPORT_VERSION_3 = 3,  /* wolfSSL version before TLS 1.3 addition */
@@ -1682,7 +1685,6 @@ enum Misc {
                                    /* Additional bytes to read so that
                                     * we can work with a peer that has
                                     * a slightly different MTU than us. */
-    MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
     MAX_EXPORT_STATE_BUFFER  = (DTLS_EXPORT_MIN_KEY_SZ) + (3 * WOLFSSL_EXPORT_LEN),
                                     /* max size of buffer for exporting state */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
@@ -3027,6 +3029,65 @@ WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
     #define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
 #endif
 
+/* worst case serialized size of what ExportKeyState() writes */
+#define DTLS_EXPORT_KEY_SZ                                                   \
+    ((4 * OPAQUE32_LEN) +                 /* TLS sequence numbers */         \
+     42 +                                 /* DTLS record layer counters */   \
+     (2 * OPAQUE32_LEN) + (2 * OPAQUE8_LEN) + /* encryptSz, padSz, flags */  \
+     (2 * (OPAQUE16_LEN + DTLS_SEQ_SZ)) +  /* window and prevWindow */       \
+     OPAQUE8_LEN +                        /* truncated hmac flag */          \
+     (OPAQUE8_LEN + (2 * WC_MAX_DIGEST_SIZE)) +   /* MAC secrets */          \
+     (OPAQUE8_LEN + (2 * MAX_SYM_KEY_SIZE)) +     /* write keys */           \
+     (OPAQUE8_LEN + (2 * MAX_WRITE_IV_SZ) + AEAD_MAX_EXP_SZ) + /* IVs */     \
+     (OPAQUE8_LEN + (2 * AEAD_MAX_IMP_SZ)))       /* implicit AEAD IVs */
+
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS13)
+/* epoch number, send/peer sequence numbers, failed decryption count and
+ * replay window; key material is derived again on import */
+#define DTLS_EXPORT_DTLS13_EPOCH_SZ                                          \
+    ((4 * OPAQUE64_LEN) + OPAQUE16_LEN +                                     \
+     (WOLFSSL_DTLS_WINDOW_WORDS * OPAQUE32_LEN))
+/* key material appended to the previous peer epoch: write key, record number
+ * key and write IV of the direction the peer sends in, each with its length */
+#define DTLS_EXPORT_DTLS13_EPOCH_KEY_SZ                                      \
+    ((2 * OPAQUE8_LEN) + (2 * MAX_SYM_KEY_SIZE) + MAX_WRITE_IV_SZ)
+/* epoch numbers, traffic secrets and three length prefixed epoch fields */
+#define DTLS_EXPORT_DTLS13_SZ                                                \
+    ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (2 * SECRET_LEN) +                   \
+     (3 * WOLFSSL_EXPORT_LEN) +                                              \
+     (3 * DTLS_EXPORT_DTLS13_EPOCH_SZ) + DTLS_EXPORT_DTLS13_EPOCH_KEY_SZ)
+#endif /* WOLFSSL_SESSION_EXPORT && WOLFSSL_DTLS13 */
+
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS_CID)
+/* negotiated flag plus the length prefixed rx and tx connection ids */
+#define DTLS_EXPORT_CID_SZ                                                   \
+    (OPAQUE8_LEN + (OPAQUE8_LEN + DTLS_CID_MAX_SIZE) +                       \
+     (OPAQUE8_LEN + DTLS_CID_MAX_TX_SIZE))
+#define DTLS_EXPORT_CID_TOTAL (WOLFSSL_EXPORT_LEN + DTLS_EXPORT_CID_SZ)
+#elif defined(WOLFSSL_SESSION_EXPORT)
+/* the length prefix is written whether or not CID is compiled in */
+#define DTLS_EXPORT_CID_TOTAL WOLFSSL_EXPORT_LEN
+#else
+#define DTLS_EXPORT_CID_TOTAL 0
+#endif /* WOLFSSL_SESSION_EXPORT && WOLFSSL_DTLS_CID */
+
+/* protocol and total length bytes, then the length prefixed options, key
+ * state, cipher specs and peer address */
+#define DTLS_EXPORT_BASE_SZ                                                  \
+    ((2 * WOLFSSL_EXPORT_LEN) +                                              \
+     (WOLFSSL_EXPORT_LEN + DTLS_EXPORT_OPT_SZ) +                             \
+     (WOLFSSL_EXPORT_LEN + DTLS_EXPORT_KEY_SZ) +                             \
+     (WOLFSSL_EXPORT_LEN + WOLFSSL_EXPORT_SPC_SZ) +                          \
+     (WOLFSSL_EXPORT_LEN + MAX_EXPORT_IP + (3 * WOLFSSL_EXPORT_LEN)))
+
+/* max size of buffer for exporting */
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS13)
+#define MAX_EXPORT_BUFFER (DTLS_EXPORT_BASE_SZ + WOLFSSL_EXPORT_LEN +        \
+                           DTLS_EXPORT_DTLS13_SZ + DTLS_EXPORT_CID_TOTAL)
+#else
+#define MAX_EXPORT_BUFFER (DTLS_EXPORT_BASE_SZ + DTLS_EXPORT_CID_TOTAL)
+#endif
+
 /* keys and secrets
  * keep as a constant size (no additional ifdefs) for session export */
 typedef struct Keys {
@@ -4114,6 +4175,11 @@ WOLFSSL_LOCAL int Dtls13UnifiedHeaderCIDPresent(byte flags);
 #endif /* WOLFSSL_DTLS_CID */
 WOLFSSL_LOCAL byte DtlsGetCidTxSize(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsGetCidRxSize(WOLFSSL* ssl);
+#ifdef WOLFSSL_SESSION_EXPORT
+WOLFSSL_LOCAL int DtlsCidExport(WOLFSSL* ssl, byte* exp, word32 len);
+WOLFSSL_LOCAL int DtlsCidImport(WOLFSSL* ssl, const byte* exp, word32 len);
+WOLFSSL_LOCAL void DtlsCidClear(WOLFSSL* ssl);
+#endif
 
 #ifdef OPENSSL_EXTRA
 enum SetCBIO {
@@ -7791,6 +7857,10 @@ WOLFSSL_TEST_VIS int Dtls13DoScheduledWork(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
     enum encrypt_side side);
+#ifdef WOLFSSL_SESSION_EXPORT
+WOLFSSL_LOCAL int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len);
+WOLFSSL_LOCAL int ImportDtls13State(WOLFSSL* ssl, const byte* exp, word32 len);
+#endif
 
 WOLFSSL_LOCAL int Dtls13AddHeaders(byte* output, word32 length,
     enum HandShakeType hs_type, WOLFSSL* ssl);

@@ -3235,11 +3235,9 @@ int test_wolfSSL_dtls_export_peers(void)
         {wolfDTLSv1_client_method, wolfDTLSv1_server_method, "1.0"},
 #endif
         {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "1.2"},
-        /* TODO DTLS 1.3 exporting not supported
 #ifdef WOLFSSL_DTLS13
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "1.3"},
 #endif
-         */
     };
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
@@ -7177,6 +7175,3013 @@ int test_dtls12_export_import_etm(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    defined(WOLFSSL_SESSION_EXPORT)
+#define TEST_DTLS_EXPORT
+#endif
+#if defined(TEST_DTLS_EXPORT) && defined(WOLFSSL_DTLS13)
+#define TEST_DTLS13_EXPORT
+#endif
+
+#if defined(TEST_DTLS_EXPORT) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+/* the exporter needs peer info callbacks unless the library was built with
+ * WOLFSSL_SESSION_EXPORT_NOPEER */
+static int test_dtls_export_get_peer(WOLFSSL* ssl, char* ip, int* ipSz,
+        unsigned short* port, int* fam)
+{
+    (void)ssl;
+    ip[0] = -1;
+    *ipSz = 1;
+    *port = 1;
+    *fam = 2;
+    return 1;
+}
+
+static int test_dtls_export_set_peer(WOLFSSL* ssl, char* ip, int ipSz,
+        unsigned short port, int fam)
+{
+    (void)ssl;
+    if (ip[0] != -1 || ipSz != 1 || port != 1 || fam != 2)
+        return 0;
+    return 1;
+}
+
+/* the longest peer address an application can hand back, an IPv4 mapped IPv6
+ * one, MAX_EXPORT_IP being what ExportPeerInfo() accepts */
+#define TEST_DTLS_EXPORT_LONG_IP "0000:0000:0000:0000:0000:ffff:255.255.255.255"
+
+static int test_dtls_export_get_peer_long(WOLFSSL* ssl, char* ip, int* ipSz,
+        unsigned short* port, int* fam)
+{
+    (void)ssl;
+    *ipSz = (int)XSTRLEN(TEST_DTLS_EXPORT_LONG_IP);
+    XMEMCPY(ip, TEST_DTLS_EXPORT_LONG_IP, (size_t)*ipSz);
+    *port = 1;
+    *fam = 2;
+    return 1;
+}
+
+static int test_dtls_export_set_peer_long(WOLFSSL* ssl, char* ip, int ipSz,
+        unsigned short port, int fam)
+{
+    (void)ssl;
+    (void)ip;
+    (void)ipSz;
+    if (port != 1 || fam != 2)
+        return 0;
+    return 1;
+}
+
+/* memio DTLS connection with the peer callbacks the exporter needs */
+static int test_dtls_export_connect(struct test_memio_ctx* test_ctx,
+        WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c,
+        WOLFSSL** ssl_s, method_provider method_c, method_provider method_s)
+{
+    EXPECT_DECLS;
+
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    ExpectIntEQ(test_memio_setup(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+                    method_c, method_s), 0);
+    wolfSSL_CTX_SetIOGetPeer(*ctx_s, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(*ctx_s, test_dtls_export_set_peer);
+    ExpectIntEQ(test_memio_do_handshake(*ssl_c, *ssl_s, 10, NULL), 0);
+
+    return EXPECT_RESULT();
+}
+
+static int test_dtls_export_alloc(WOLFSSL* ssl, unsigned char** out,
+        unsigned int* outSz)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl, NULL, outSz), 0);
+    ExpectNotNull(*out = (unsigned char*)XMALLOC(*outSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wolfSSL_dtls_export(ssl, *out, outSz), 0);
+
+    return EXPECT_RESULT();
+}
+
+static int test_dtls_export_xfer(WOLFSSL* w, WOLFSSL* r, const void* msg,
+        int msgSz)
+{
+    EXPECT_DECLS;
+    unsigned char buf[64];
+
+    ExpectIntEQ(wolfSSL_write(w, msg, msgSz), msgSz);
+    ExpectIntEQ(wolfSSL_read(r, buf, (int)sizeof(buf)), msgSz);
+    ExpectBufEQ(buf, msg, msgSz);
+
+    return EXPECT_RESULT();
+}
+
+/* import 'session' into a fresh WOLFSSL wired to the same memio buffers */
+static int test_dtls_export_import(WOLFSSL_CTX* ctx,
+        struct test_memio_ctx* test_ctx, WOLFSSL** ssl,
+        const unsigned char* session, unsigned int sessionSz)
+{
+    EXPECT_DECLS;
+
+    ExpectNotNull(*ssl = wolfSSL_new(ctx));
+    ExpectIntGT(wolfSSL_dtls_import(*ssl, session, sessionSz), 0);
+    if (*ssl != NULL) {
+        wolfSSL_SetIOWriteCtx(*ssl, test_ctx);
+        wolfSSL_SetIOReadCtx(*ssl, test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+
+static void test_dtls_export_free(WOLFSSL_CTX* ctx_c, WOLFSSL_CTX* ctx_s,
+        WOLFSSL* ssl_c, WOLFSSL* ssl_s)
+{
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+}
+#endif
+
+#ifdef TEST_DTLS13_EXPORT
+static int test_dtls13_export_connect(struct test_memio_ctx* test_ctx,
+        WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s, WOLFSSL** ssl_c,
+        WOLFSSL** ssl_s)
+{
+    return test_dtls_export_connect(test_ctx, ctx_c, ctx_s, ssl_c, ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method);
+}
+
+/* Dtls13GetEpoch() is internal, walk the array the same way it does */
+static Dtls13Epoch* test_dtls13_export_epoch(WOLFSSL* ssl, w64wrapper number)
+{
+    int i;
+
+    for (i = 0; i < DTLS13_EPOCH_SIZE; i++) {
+        if (ssl->dtls13Epochs[i].isValid &&
+                w64Equal(ssl->dtls13Epochs[i].epochNumber, number))
+            return &ssl->dtls13Epochs[i];
+    }
+    return NULL;
+}
+
+/* process buffered post-handshake messages, success being WANT_READ */
+static int test_dtls13_export_pump(WOLFSSL* ssl)
+{
+    unsigned char buf[8];
+    int ret;
+
+    ret = wolfSSL_read(ssl, buf, (int)sizeof(buf));
+    if (ret > 0)
+        return -1;
+    if (wolfSSL_get_error(ssl, ret) != WOLFSSL_ERROR_WANT_READ)
+        return -1;
+    return 0;
+}
+#endif
+
+/* A version 6 blob has neither of the trailing sections version 7 added and
+ * must still import. A single build only ever writes the current version, so
+ * the blob is rewritten here to look like it came from a version 6 one. */
+int test_dtls12_export_import_v6(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS_EXPORT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char state[MAX_EXPORT_STATE_BUFFER];
+    unsigned int sessionSz = 0;
+    unsigned int stateSz = (unsigned int)sizeof(state);
+    const char msg[] = "hello wolfssl dtls12";
+    const char msg2[] = "hello client dtls12";
+    word16 cidLen = 1;
+
+    ExpectIntEQ(test_dtls_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s, wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method), TEST_SUCCESS);
+
+    ExpectIntGE(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+    ExpectNotNull(session = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+
+    /* move the version nibble back and drop the trailing CID section */
+    if (session != NULL && sessionSz > (2 * WOLFSSL_EXPORT_LEN)) {
+        word16 totalLen;
+
+        ato16(session + sessionSz - WOLFSSL_EXPORT_LEN, &cidLen);
+        session[1] = (byte)((session[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
+        ato16(session + WOLFSSL_EXPORT_LEN, &totalLen);
+        c16toa((word16)(totalLen - WOLFSSL_EXPORT_LEN),
+               session + WOLFSSL_EXPORT_LEN);
+        sessionSz -= WOLFSSL_EXPORT_LEN;
+    }
+    /* no CID was negotiated, so only an empty section was cut off */
+    ExpectIntEQ(cidLen, 0);
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+
+    /* the blob parsed at the right offsets, so data still flows */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    /* The state only blob has no trailing section at all, only the version. */
+    ExpectIntGT(wolfSSL_dtls_export_state_only(ssl_s, state, &stateSz), 0);
+    if (EXPECT_SUCCESS())
+        state[1] = (byte)((state[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
+    wolfSSL_free(ssl_imp);
+    ssl_imp = NULL;
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+    ExpectIntGT(wolfSSL_dtls_import(ssl_imp, state, stateSz), 0);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Round trip a DTLS 1.3 session in steady state: data still flows both ways,
+ * the epoch/sequence state is kept and a KeyUpdate still completes. */
+int test_dtls13_export_import(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    w64wrapper expEpoch, expPeerEpoch, expNextSeq, epochAfterKu;
+
+    expEpoch = w64From32(0, 0);
+    expPeerEpoch = w64From32(0, 0);
+    expNextSeq = w64From32(0, 0);
+    epochAfterKu = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* non-trivial sequence numbers and replay window before the export */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_s, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_s, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    if (ssl_s != NULL) {
+        expEpoch = ssl_s->dtls13Epoch;
+        expPeerEpoch = ssl_s->dtls13PeerEpoch;
+        ExpectTrue(w64Equal(expEpoch, w64From32(0, DTLS13_EPOCH_TRAFFIC0)));
+        ExpectNotNull(ssl_s->dtls13EncryptEpoch);
+        if (ssl_s->dtls13EncryptEpoch != NULL)
+            expNextSeq = ssl_s->dtls13EncryptEpoch->nextSeqNumber;
+    }
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+    ExpectIntGT(sessionSz, 0);
+    ExpectNotNull(session = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+
+        /* same epochs and no reuse of send sequence numbers (AEAD nonces) */
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, expEpoch));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, expPeerEpoch));
+        ExpectNotNull(ssl_imp->dtls13EncryptEpoch);
+        ExpectNotNull(ssl_imp->dtls13DecryptEpoch);
+        if (ssl_imp->dtls13EncryptEpoch != NULL)
+            ExpectTrue(w64Equal(ssl_imp->dtls13EncryptEpoch->nextSeqNumber,
+                        expNextSeq));
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    /* KeyUpdate from the imported side, which asks the peer to update too, so
+     * both directions advance one epoch */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_imp), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_imp), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    if (ssl_imp != NULL) {
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, epochAfterKu));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, epochAfterKu));
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    /* Both sides rekeyed, so the epochs are the same again, but the one they
+     * left behind is still what the peer falls back to and gets its own entry. */
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    session = NULL;
+    ExpectIntEQ(test_dtls_export_alloc(ssl_imp, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_imp);
+    ssl_imp = NULL;
+
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+    ExpectIntGT(wolfSSL_dtls_import(ssl_imp, session, sessionSz), 0);
+    if (ssl_imp != NULL) {
+        Dtls13Epoch* prev = test_dtls13_export_epoch(ssl_imp,
+                w64From32(0, DTLS13_EPOCH_TRAFFIC0));
+
+        wolfSSL_SetIOWriteCtx(ssl_imp, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_imp, &test_ctx);
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, epochAfterKu));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, epochAfterKu));
+
+        /* the left behind epoch is a slot of its own, only for decryption */
+        ExpectNotNull(prev);
+        if (prev != NULL)
+            ExpectIntEQ(prev->side, DECRYPT_SIDE_ONLY);
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Round trip a session whose send and receive epochs differ, so that the
+ * serialized state carries two distinct epochs. */
+int test_dtls13_export_unequal_epochs(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    unsigned char peerKey[MAX_SYM_KEY_SIZE];
+    w64wrapper sendEpoch, peerEpoch;
+    word16 keySz = 0;
+
+    sendEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 2);
+    peerEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    XMEMSET(peerKey, 0, sizeof(peerKey));
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* both directions one epoch further */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+
+    /* with update_not_requested the client does not rekey in return, so only
+     * the server's send epoch advances */
+    if (ssl_s != NULL)
+        ssl_s->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    if (ssl_s != NULL) {
+        ExpectTrue(w64Equal(ssl_s->dtls13Epoch, sendEpoch));
+        ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, peerEpoch));
+    }
+
+    /* the receive epoch key, from the traffic secret generation before the one
+     * the send epoch uses */
+    if (ssl_s != NULL) {
+        keySz = ssl_s->specs.key_size;
+        ExpectIntLE(keySz, (word16)sizeof(peerKey));
+        ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+        if (ssl_s->dtls13DecryptEpoch != NULL &&
+                keySz <= (word16)sizeof(peerKey))
+            XMEMCPY(peerKey, ssl_s->dtls13DecryptEpoch->client_write_key,
+                    keySz);
+    }
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, sendEpoch));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, peerEpoch));
+
+        /* each epoch may only hold the key material of the direction it is
+         * used in, the two being one traffic secret generation apart */
+        ExpectNotNull(ssl_imp->dtls13EncryptEpoch);
+        ExpectNotNull(ssl_imp->dtls13DecryptEpoch);
+        if (ssl_imp->dtls13EncryptEpoch != NULL &&
+                ssl_imp->dtls13DecryptEpoch != NULL) {
+            ExpectIntEQ(ssl_imp->dtls13EncryptEpoch->side, ENCRYPT_SIDE_ONLY);
+            ExpectIntEQ(ssl_imp->dtls13DecryptEpoch->side, DECRYPT_SIDE_ONLY);
+            /* the receive epoch reads with the key it was reading with */
+            ExpectBufEQ(ssl_imp->dtls13DecryptEpoch->client_write_key,
+                        peerKey, keySz);
+            /* and the direction it does not use was left alone */
+            ExpectIntNE(XMEMCMP(ssl_imp->dtls13DecryptEpoch->server_write_key,
+                                ssl_imp->dtls13EncryptEpoch->server_write_key,
+                                ssl_imp->specs.key_size), 0);
+        }
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* exporting is refused while a KeyUpdate is in flight, and the state only
+ * export is not supported for DTLS 1.3 at all */
+int test_dtls13_export_restrictions(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    unsigned char state[MAX_EXPORT_STATE_BUFFER];
+    unsigned int stateSz = (unsigned int)sizeof(state);
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* State-only export is not defined for DTLS 1.3. */
+    ExpectIntEQ(wolfSSL_dtls_export_state_only(ssl_s, state, &stateSz),
+                WC_NO_ERR_TRACE(VERSION_ERROR));
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+    ExpectNotNull(session = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* a KeyUpdate the peer asked for that is not on the wire yet is deferred
+     * work the blob has nowhere to record */
+    if (ssl_s != NULL)
+        ssl_s->options.sendKeyUpdate = 1;
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, session, &sessionSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+    if (ssl_s != NULL)
+        ssl_s->options.sendKeyUpdate = 0;
+    ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+    /* a successful export leaves behind the size it used, not the size of the
+     * buffer: ask for the buffer size again before reusing it */
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+
+    /* A KeyUpdate is now in flight (not yet ACKed): export must refuse. */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, session, &sessionSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    /* Once the KeyUpdate completes, exporting works again. */
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The rest of a half sent fragmented message is held in
+ * ssl->dtls13FragmentsBuffer, which the blob has no section for. */
+int test_dtls13_export_half_sent_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_DTLS_MTU) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+    ExpectNotNull(session = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    /* Nothing is half sent yet, so this connection is exportable. */
+    ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+
+    /* An MTU this small splits a post-handshake NewSessionTicket over several
+     * records. Refusing the transport leaves the message half sent. */
+    ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl_s, 150), WOLFSSL_SUCCESS);
+    test_memio_simulate_want_write(&test_ctx, 0, 1);
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_WRITE);
+    test_memio_simulate_want_write(&test_ctx, 0, 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->dtls13SendingFragments, 1);
+        ExpectIntGT(ssl_s->dtls13MessageLength, ssl_s->dtls13FragOffset);
+    }
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, session, &sessionSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The read side of a write dup can not transmit, so the KeyUpdate the peer
+ * asked for is parked in the shared object, where no export guard field
+ * records it. */
+int test_dtls13_export_write_dup_pending(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && defined(HAVE_WRITE_DUP)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_SetIOGetPeer(ctx_c, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_c, test_dtls_export_set_peer);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Drain the post-handshake ticket before splitting the object. */
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_c, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_c, NULL, &sessionSz), 0);
+
+    /* ssl_c becomes the read side, ssl_c2 the write side. */
+    ExpectNotNull(ssl_c2 = wolfSSL_write_dup(ssl_c));
+
+    /* The peer asks for a KeyUpdate response. The read side can not send it,
+     * so it parks the obligation in the shared object. */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    if (ssl_c != NULL) {
+        ExpectNotNull(ssl_c->dupWrite);
+        if (ssl_c->dupWrite != NULL)
+            ExpectIntEQ(ssl_c->dupWrite->keyUpdateRespond, 1);
+        /* None of these say anything about the parked work. */
+        ExpectIntEQ(ssl_c->dtls13WaitKeyUpdateAck, 0);
+        ExpectIntEQ(ssl_c->dtls13DoKeyUpdate, 0);
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 0);
+    }
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_c, session, &sessionSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    /* The write side owns the same obligation until it has sent it. */
+    ExpectIntEQ(wolfSSL_write(ssl_c2, msg, (int)sizeof(msg)),
+                (int)sizeof(msg));
+    if (ssl_c != NULL && ssl_c->dupWrite != NULL)
+        ExpectIntEQ(ssl_c->dupWrite->keyUpdateRespond, 0);
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_c, NULL, &sessionSz), 0);
+    ExpectIntGT(wolfSSL_dtls_export(ssl_c, session, &sessionSz), 0);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+/* The state only payload has not changed since export version 6 and is stamped
+ * with that version rather than the current one. */
+int test_dtls12_export_state_version(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS_EXPORT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char state[MAX_EXPORT_STATE_BUFFER];
+    unsigned int stateSz = (unsigned int)sizeof(state);
+
+    ExpectIntEQ(test_dtls_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s, wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method), TEST_SUCCESS);
+
+    ExpectIntGT(wolfSSL_dtls_export_state_only(ssl_s, state, &stateSz), 0);
+    /* the version a reader that predates the DTLS 1.3 session format accepts */
+    ExpectIntEQ(state[1] & 0x0F, WOLFSSL_EXPORT_VERSION_6);
+
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An unACKed NewSessionTicket is dropped rather than refused, the blob having
+ * no section for the retransmit queue, so the imported connection has nothing
+ * to retransmit it with. */
+int test_dtls13_export_pending_ticket_lost(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && defined(HAVE_SESSION_TICKET)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* the server is holding the ticket for retransmission, unACKed */
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->dtls13Rtx.rtxRecords);
+        if (ssl_s->dtls13Rtx.rtxRecords != NULL) {
+            ExpectIntEQ(ssl_s->dtls13Rtx.rtxRecords->handshakeType,
+                        session_ticket);
+            ExpectNull(ssl_s->dtls13Rtx.rtxRecords->next);
+        }
+    }
+
+    /* the datagram carrying it never reaches the client */
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(test_ctx.c_len, 0);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+
+        /* nothing came across to resend it with */
+        ExpectNull(ssl_imp->dtls13Rtx.rtxRecords);
+    }
+
+    /* the connection itself is unharmed and carries data both ways */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    /* but the client is left without a ticket to resume with */
+    if (ssl_c != NULL) {
+        ExpectNotNull(ssl_c->session);
+        if (ssl_c->session != NULL)
+            ExpectIntEQ(ssl_c->session->ticketLen, 0);
+    }
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Importing a state only blob into a DTLS 1.3 object has to be refused the
+ * same way exporting is: ImportKeyState() writes the DTLS 1.2 record layer
+ * fields and leaves dtls13Epochs untouched. */
+int test_dtls13_import_state_restrictions(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL_CTX *ctx_imp = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char state[MAX_EXPORT_STATE_BUFFER];
+    unsigned int stateSz = (unsigned int)sizeof(state);
+
+    /* a state only blob can only come from a DTLS 1.2 session */
+    ExpectIntEQ(test_dtls_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s, wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method), TEST_SUCCESS);
+    ExpectIntGT(wolfSSL_dtls_export_state_only(ssl_s, state, &stateSz), 0);
+
+    /* the application upgraded to DTLS 1.3: the old blob must be rejected */
+    ExpectNotNull(ctx_imp = wolfSSL_CTX_new(wolfDTLSv1_3_server_method()));
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_imp));
+    ExpectIntEQ(wolfSSL_dtls_import(ssl_imp, state, stateSz),
+                WC_NO_ERR_TRACE(VERSION_ERROR));
+
+    wolfSSL_free(ssl_imp);
+    wolfSSL_CTX_free(ctx_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+/* the same round trip run from the client, nothing in the format being
+ * server specific */
+int test_dtls13_export_import_client(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    w64wrapper expEpoch, expPeerEpoch, expNextSeq, epochAfterKu;
+
+    expEpoch = w64From32(0, 0);
+    expPeerEpoch = w64From32(0, 0);
+    expNextSeq = w64From32(0, 0);
+    epochAfterKu = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    wolfSSL_CTX_SetIOGetPeer(ctx_c, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_c, test_dtls_export_set_peer);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* non-trivial sequence numbers and replay window before the export */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_s, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_s, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    if (ssl_c != NULL) {
+        expEpoch = ssl_c->dtls13Epoch;
+        expPeerEpoch = ssl_c->dtls13PeerEpoch;
+        ExpectTrue(w64Equal(expEpoch, w64From32(0, DTLS13_EPOCH_TRAFFIC0)));
+        ExpectNotNull(ssl_c->dtls13EncryptEpoch);
+        if (ssl_c->dtls13EncryptEpoch != NULL)
+            expNextSeq = ssl_c->dtls13EncryptEpoch->nextSeqNumber;
+    }
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_c, NULL, &sessionSz), 0);
+    ExpectIntGT(sessionSz, 0);
+    ExpectNotNull(session = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wolfSSL_dtls_export(ssl_c, session, &sessionSz), 0);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_c, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+
+        ExpectIntEQ(wolfSSL_is_server(ssl_imp), 0);
+
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, expEpoch));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, expPeerEpoch));
+        ExpectNotNull(ssl_imp->dtls13EncryptEpoch);
+        ExpectNotNull(ssl_imp->dtls13DecryptEpoch);
+        if (ssl_imp->dtls13EncryptEpoch != NULL)
+            ExpectTrue(w64Equal(ssl_imp->dtls13EncryptEpoch->nextSeqNumber,
+                        expNextSeq));
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_s, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_s, ssl_imp, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    /* KeyUpdate initiated by the imported client. */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_imp), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_imp), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    if (ssl_imp != NULL) {
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, epochAfterKu));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, epochAfterKu));
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_s, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_s, ssl_imp, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The replay window and peer sequence number are part of the serialized epoch,
+ * so a datagram the exported connection accepted must still be discarded. */
+int test_dtls13_export_replay_window(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    unsigned char reply[64];
+    unsigned char replay[512];
+    int replaySz = 0;
+    word32 expWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+    w64wrapper expPeerSeq;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(expWindow, 0, sizeof(expWindow));
+    expPeerSeq = w64From32(0, 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Capture the first application record, then let the server consume it. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(test_ctx.s_msg_count, 1);
+    ExpectIntGT(test_ctx.s_len, 0);
+    ExpectIntLE(test_ctx.s_len, (int)sizeof(replay));
+    if (test_ctx.s_len > 0 && test_ctx.s_len <= (int)sizeof(replay)) {
+        replaySz = test_ctx.s_len;
+        XMEMCPY(replay, test_ctx.s_buff, (size_t)replaySz);
+    }
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+                (int)sizeof(msg));
+
+    /* Push the window further along so the captured record sits behind the
+     * window head and can only be caught by the replay bitmap. */
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+                    (int)sizeof(msg));
+    }
+
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+        if (ssl_s->dtls13DecryptEpoch != NULL) {
+            expPeerSeq = ssl_s->dtls13DecryptEpoch->nextPeerSeqNumber;
+            XMEMCPY(expWindow, ssl_s->dtls13DecryptEpoch->window,
+                    sizeof(expWindow));
+        }
+    }
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+
+        ExpectNotNull(ssl_imp->dtls13DecryptEpoch);
+        if (ssl_imp->dtls13DecryptEpoch != NULL) {
+            /* The replay state came across intact. */
+            ExpectTrue(w64Equal(ssl_imp->dtls13DecryptEpoch->nextPeerSeqNumber,
+                        expPeerSeq));
+            for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++)
+                ExpectIntEQ(ssl_imp->dtls13DecryptEpoch->window[i],
+                            expWindow[i]);
+        }
+    }
+
+    /* Replay the captured datagram at the imported side. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    if (replaySz > 0) {
+        XMEMCPY(test_ctx.s_buff, replay, (size_t)replaySz);
+        test_ctx.s_msg_sizes[0] = replaySz;
+        test_ctx.s_msg_count = 1;
+        test_ctx.s_len = replaySz;
+    }
+    ExpectIntEQ(test_dtls13_export_pump(ssl_imp), 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    /* a new record is still accepted */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#ifdef TEST_DTLS13_EXPORT
+/* Locate the DTLS 1.3 state section, which opens with the three epoch numbers
+ * followed by the secret length. Returns the offset of the section payload,
+ * whose length prefix sits WOLFSSL_EXPORT_LEN before it, or 0 when not found. */
+static unsigned int test_dtls13_export_find_state(const unsigned char* session,
+        unsigned int sessionSz, word32 epoch, byte hashSz)
+{
+    unsigned char pat[(3 * OPAQUE64_LEN) + OPAQUE8_LEN];
+    w64wrapper epochNum;
+    unsigned int at;
+
+    epochNum = w64From32(0, epoch);
+    c64toa(&epochNum, pat);
+    c64toa(&epochNum, pat + OPAQUE64_LEN);
+    /* the invalidate before epoch: zero, none of these tests drives the
+     * connection into the failed decryption count that sets it */
+    XMEMSET(pat + (2 * OPAQUE64_LEN), 0, OPAQUE64_LEN);
+    pat[3 * OPAQUE64_LEN] = hashSz;
+
+    for (at = WOLFSSL_EXPORT_LEN; at + (unsigned int)sizeof(pat) <= sessionSz;
+            at++) {
+        if (XMEMCMP(session + at, pat, sizeof(pat)) == 0)
+            return at;
+    }
+    return 0;
+}
+
+/* Locate the replay window word count of the serialized epoch whose next peer
+ * sequence number is 'peerSeq', or 0 when not found. */
+static unsigned int test_dtls13_export_find_window(const unsigned char* session,
+        unsigned int sessionSz, w64wrapper peerSeq)
+{
+    unsigned char pat[(2 * OPAQUE64_LEN) + OPAQUE16_LEN];
+    unsigned int at;
+
+    c64toa(&peerSeq, pat);
+    /* the failed decryption count: zero, none of these tests feeds the
+     * connection a record it can not decrypt */
+    XMEMSET(pat + OPAQUE64_LEN, 0, OPAQUE64_LEN);
+    c16toa(WOLFSSL_DTLS_WINDOW_WORDS, pat + (2 * OPAQUE64_LEN));
+
+    for (at = 0; at + (unsigned int)sizeof(pat) <= sessionSz; at++) {
+        if (XMEMCMP(session + at, pat, sizeof(pat)) == 0)
+            return at + (2 * OPAQUE64_LEN);
+    }
+    return 0;
+}
+
+/* Locate the CipherSpecs section, a fixed size one opening with the four 16 bit
+ * sizes of the negotiated suite. Returns the offset of the section payload, or
+ * 0 when not found. */
+static unsigned int test_dtls13_export_find_specs(const unsigned char* session,
+        unsigned int sessionSz, const CipherSpecs* specs)
+{
+    unsigned char pat[WOLFSSL_EXPORT_LEN + (4 * OPAQUE16_LEN)];
+    unsigned int at;
+
+    c16toa((word16)WOLFSSL_EXPORT_SPC_SZ, pat);
+    c16toa(specs->key_size, pat + WOLFSSL_EXPORT_LEN);
+    c16toa(specs->iv_size, pat + WOLFSSL_EXPORT_LEN + OPAQUE16_LEN);
+    c16toa(specs->block_size, pat + WOLFSSL_EXPORT_LEN + (2 * OPAQUE16_LEN));
+    c16toa(specs->aead_mac_size,
+            pat + WOLFSSL_EXPORT_LEN + (3 * OPAQUE16_LEN));
+
+    for (at = 0; at + (unsigned int)sizeof(pat) <= sessionSz; at++) {
+        if (XMEMCMP(session + at, pat, sizeof(pat)) == 0)
+            return at + WOLFSSL_EXPORT_LEN;
+    }
+    return 0;
+}
+
+/* Import 'session' into a fresh WOLFSSL and require it to fail with 'expected'.
+ * A rejected blob must still leave the object safe to free. */
+static int test_dtls13_export_import_fails(WOLFSSL_CTX* ctx,
+        const unsigned char* session, unsigned int sessionSz, int expected)
+{
+    EXPECT_DECLS;
+    WOLFSSL* ssl = NULL;
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_dtls_import(ssl, session, sessionSz), expected);
+    wolfSSL_free(ssl);
+
+    return EXPECT_RESULT();
+}
+
+/* Offset of the first epoch field's length prefix in the DTLS 1.3 state section
+ * at 'secAt', the fields following the epoch numbers and traffic secrets. */
+static unsigned int test_dtls13_export_fields_at(unsigned int secAt,
+        byte hashSz)
+{
+    return secAt + (3 * OPAQUE64_LEN) + OPAQUE8_LEN + (2u * hashSz);
+}
+
+/* Apply 'delta' to the length prefix of the epoch field at 'fieldAt', after
+ * that many bytes were added to or removed from the epoch entry it holds. */
+static void test_dtls13_export_fix_field(unsigned char* session,
+        unsigned int fieldAt, int delta)
+{
+    word16 len;
+
+    ato16(session + fieldAt, &len);
+    c16toa((word16)(len + delta), session + fieldAt);
+}
+
+/* Apply 'delta' to the DTLS 1.3 section length prefix in front of 'secAt' and
+ * to the total length in the blob header. */
+static void test_dtls13_export_fix_lengths(unsigned char* session,
+        unsigned int secAt, int delta)
+{
+    word16 len;
+
+    ato16(session + secAt - WOLFSSL_EXPORT_LEN, &len);
+    c16toa((word16)(len + delta), session + secAt - WOLFSSL_EXPORT_LEN);
+    ato16(session + WOLFSSL_EXPORT_LEN, &len);
+    c16toa((word16)(len + delta), session + WOLFSSL_EXPORT_LEN);
+}
+#endif
+
+/* A peer with a smaller WOLFSSL_DTLS_WINDOW_WORDS exports fewer replay window
+ * words than we track, and the ones it never tracked count as already received.
+ * A single build only makes one window size, so the epoch is rewritten here to
+ * look like it came from such a peer. */
+int test_dtls13_export_smaller_window(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && WOLFSSL_DTLS_WINDOW_WORDS >= 2
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    unsigned char reply[64];
+    unsigned char replay[512];
+    int replaySz = 0;
+    w64wrapper expPeerSeq;
+    word32 expWindow0 = 0;
+    byte hashSz = 0;
+    int n, i;
+
+    /* enough records that the captured one lands in the last window word */
+    n = ((WOLFSSL_DTLS_WINDOW_WORDS - 1) * DTLS_WORD_BITS) + 8;
+    expPeerSeq = w64From32(0, 0);
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* Capture the first record, then push the head far enough past it. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntGT(test_ctx.s_len, 0);
+    ExpectIntLE(test_ctx.s_len, (int)sizeof(replay));
+    if (test_ctx.s_len > 0 && test_ctx.s_len <= (int)sizeof(replay)) {
+        replaySz = test_ctx.s_len;
+        XMEMCPY(replay, test_ctx.s_buff, (size_t)replaySz);
+    }
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+                (int)sizeof(msg));
+    for (i = 1; i < n; i++) {
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+                    (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+                    (int)sizeof(msg));
+    }
+    if (ssl_s != NULL) {
+        /* the blob carries the negotiated hash size, not a fixed one */
+        hashSz = (byte)ssl_s->specs.hash_size;
+        ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+        if (ssl_s->dtls13DecryptEpoch != NULL) {
+            expPeerSeq = ssl_s->dtls13DecryptEpoch->nextPeerSeqNumber;
+            expWindow0 = ssl_s->dtls13DecryptEpoch->window[0];
+        }
+    }
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* drop the last window word and shrink the word count, the section length
+     * and the total length along with it */
+    if (session != NULL) {
+        unsigned int secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0, hashSz);
+        unsigned int cnt = test_dtls13_export_find_window(session, sessionSz,
+                expPeerSeq);
+
+        ExpectIntGT(secAt, 0);
+        ExpectIntGT(cnt, 0);
+        if (secAt > 0 && cnt > 0) {
+            unsigned int last = cnt + OPAQUE16_LEN +
+                ((WOLFSSL_DTLS_WINDOW_WORDS - 1) * OPAQUE32_LEN);
+
+            c16toa(WOLFSSL_DTLS_WINDOW_WORDS - 1, session + cnt);
+            XMEMMOVE(session + last, session + last + OPAQUE32_LEN,
+                     sessionSz - last - OPAQUE32_LEN);
+            test_dtls13_export_fix_field(session,
+                    test_dtls13_export_fields_at(secAt, hashSz),
+                    -OPAQUE32_LEN);
+            test_dtls13_export_fix_lengths(session, secAt, -OPAQUE32_LEN);
+            sessionSz -= OPAQUE32_LEN;
+        }
+    }
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+
+        ExpectNotNull(ssl_imp->dtls13DecryptEpoch);
+        if (ssl_imp->dtls13DecryptEpoch != NULL) {
+            /* the rewrite landed on the window and the rest still parsed */
+            ExpectTrue(w64Equal(ssl_imp->dtls13DecryptEpoch->nextPeerSeqNumber,
+                        expPeerSeq));
+            ExpectIntEQ(ssl_imp->dtls13DecryptEpoch->window[0], expWindow0);
+            /* the word the peer never tracked must be closed, not open */
+            ExpectIntEQ(
+                ssl_imp->dtls13DecryptEpoch->window[
+                    WOLFSSL_DTLS_WINDOW_WORDS - 1],
+                (word32)0xFFFFFFFF);
+        }
+    }
+
+    /* The record the exporter had already accepted must not be replayable. */
+    test_memio_clear_buffer(&test_ctx, 0);
+    if (replaySz > 0) {
+        XMEMCPY(test_ctx.s_buff, replay, (size_t)replaySz);
+        test_ctx.s_msg_sizes[0] = replaySz;
+        test_ctx.s_msg_count = 1;
+        test_ctx.s_len = replaySz;
+    }
+    ExpectIntEQ(test_dtls13_export_pump(ssl_imp), 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Mirror of test_dtls13_export_smaller_window: a peer with a larger
+ * WOLFSSL_DTLS_WINDOW_WORDS exports more words than we track and the extra ones
+ * have to be skipped, not parsed as the fields that follow them. */
+int test_dtls13_export_larger_window(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    unsigned char reply[64];
+    w64wrapper expPeerSeq;
+    word32 expWindow0 = 0;
+    byte hashSz = 0;
+
+    expPeerSeq = w64From32(0, 0);
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* one record so the replay window has a bit set to compare against */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+                (int)sizeof(msg));
+    if (ssl_s != NULL) {
+        hashSz = (byte)ssl_s->specs.hash_size;
+        ExpectNotNull(ssl_s->dtls13DecryptEpoch);
+        if (ssl_s->dtls13DecryptEpoch != NULL) {
+            expPeerSeq = ssl_s->dtls13DecryptEpoch->nextPeerSeqNumber;
+            expWindow0 = ssl_s->dtls13DecryptEpoch->window[0];
+        }
+    }
+
+    ExpectIntEQ(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+    ExpectNotNull(session = (unsigned char*)XMALLOC(sessionSz + OPAQUE32_LEN,
+                    NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* Insert one window word the importer must drop, and grow the word count,
+     * the DTLS 1.3 section length and the total length along with it. */
+    if (session != NULL) {
+        unsigned int secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0, hashSz);
+        unsigned int cnt = test_dtls13_export_find_window(session, sessionSz,
+                expPeerSeq);
+
+        ExpectIntGT(secAt, 0);
+        ExpectIntGT(cnt, 0);
+        if (secAt > 0 && cnt > 0) {
+            unsigned int end = cnt + OPAQUE16_LEN +
+                (WOLFSSL_DTLS_WINDOW_WORDS * OPAQUE32_LEN);
+
+            c16toa(WOLFSSL_DTLS_WINDOW_WORDS + 1, session + cnt);
+            XMEMMOVE(session + end + OPAQUE32_LEN, session + end,
+                     sessionSz - end);
+            c32toa(0xDEADBEEF, session + end);
+            test_dtls13_export_fix_field(session,
+                    test_dtls13_export_fields_at(secAt, hashSz), OPAQUE32_LEN);
+            test_dtls13_export_fix_lengths(session, secAt, OPAQUE32_LEN);
+            sessionSz += OPAQUE32_LEN;
+        }
+    }
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+
+        ExpectNotNull(ssl_imp->dtls13DecryptEpoch);
+        if (ssl_imp->dtls13DecryptEpoch != NULL) {
+            /* the words we do track came through, the extra one was dropped */
+            ExpectTrue(w64Equal(ssl_imp->dtls13DecryptEpoch->nextPeerSeqNumber,
+                        expPeerSeq));
+            ExpectIntEQ(ssl_imp->dtls13DecryptEpoch->window[0], expWindow0);
+        }
+    }
+
+    /* everything after the window parsed too, so the connection still works */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Each case takes a valid export, applies one mutation to a length in the new
+ * sections and requires a refusal. */
+int test_dtls13_export_malformed(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* mutated = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int secAt = 0, fieldsAt = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    unsigned char reply[64];
+    byte hashSz = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, reply, (int)sizeof(reply)),
+                (int)sizeof(msg));
+    if (ssl_s != NULL)
+        hashSz = (byte)ssl_s->specs.hash_size;
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(mutated = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    if (session != NULL) {
+        secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0, hashSz);
+        ExpectIntGT(secAt, 0);
+        fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+        ExpectIntLT(fieldsAt, sessionSz);
+    }
+
+    if (session != NULL && mutated != NULL && secAt > 0) {
+        /* a session serialized before version 7 has no state section */
+        XMEMCPY(mutated, session, sessionSz);
+        mutated[1] = (byte)((mutated[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(VERSION_ERROR)), TEST_SUCCESS);
+
+        /* the sending epoch field, the one field every blob has to carry */
+        XMEMCPY(mutated, session, sessionSz);
+        c16toa(0, mutated + fieldsAt);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* a field that reaches past the section holding it */
+        XMEMCPY(mutated, session, sessionSz);
+        c16toa((word16)(DTLS_EXPORT_DTLS13_EPOCH_SZ +
+                    (2 * WOLFSSL_EXPORT_LEN) + 1), mutated + fieldsAt);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* The peer epoch field has to be empty when the header names one epoch
+         * for both directions: the field before it is already that epoch. */
+        XMEMCPY(mutated, session, sessionSz);
+        c16toa(1, mutated + fieldsAt + WOLFSSL_EXPORT_LEN +
+                DTLS_EXPORT_DTLS13_EPOCH_SZ);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* a secret longer than the buffer that holds it */
+        XMEMCPY(mutated, session, sessionSz);
+        mutated[secAt + (3 * OPAQUE64_LEN)] = SECRET_LEN + 1;
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* an empty DTLS 1.3 state section */
+        XMEMCPY(mutated, session, sessionSz);
+        c16toa(0, mutated + secAt - WOLFSSL_EXPORT_LEN);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* a section that stops in the middle of the replay window */
+        XMEMCPY(mutated, session, sessionSz);
+        test_dtls13_export_fix_lengths(mutated, secAt, -OPAQUE32_LEN);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* a blob cut short of the length its own header announces */
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, session,
+                    sessionSz - 1, WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        {
+            /* the trailing CID section is written whether or not CID is
+             * compiled in, here with a zero length */
+            word16 cidLen = 0;
+
+            ato16(session + sessionSz - WOLFSSL_EXPORT_LEN, &cidLen);
+            ExpectIntEQ(cidLen, 0);
+            XMEMCPY(mutated, session, sessionSz);
+            c16toa(1, mutated + sessionSz - WOLFSSL_EXPORT_LEN);
+            ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated,
+                        sessionSz, WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+        }
+    }
+
+    XFREE(mutated, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Every epoch number a blob carries has to name an epoch the imported
+ * connection can use: not epoch 0, the unprotected one Dtls13SetEpochKeys()
+ * installs no key for, and not an epoch the header does not name. */
+int test_dtls13_export_epoch_numbers(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* mutated = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int secAt = 0, fieldsAt = 0;
+    byte hashSz = 0;
+    w64wrapper zero, stray, traffic0, hsEpoch;
+
+    zero = w64From32(0, 0);
+    stray = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 8);
+    traffic0 = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    hsEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 - 1);
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    if (ssl_s != NULL)
+        hashSz = (byte)ssl_s->specs.hash_size;
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(mutated = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    if (session != NULL) {
+        secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0, hashSz);
+        ExpectIntGT(secAt, 0);
+        fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+        ExpectIntLT(fieldsAt, sessionSz);
+    }
+
+    if (session != NULL && mutated != NULL && secAt > 0 && EXPECT_SUCCESS()) {
+        /* the send epoch, the receive epoch and the single entry all moved
+         * down onto the unprotected epoch */
+        XMEMCPY(mutated, session, sessionSz);
+        c64toa(&zero, mutated + secAt);
+        c64toa(&zero, mutated + secAt + OPAQUE64_LEN);
+        c64toa(&zero, mutated + fieldsAt + WOLFSSL_EXPORT_LEN);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BAD_STATE_E)), TEST_SUCCESS);
+    }
+
+    /* past a KeyUpdate the blob carries a second entry, the epoch the peer may
+     * still be sending in, whose number the header does not repeat */
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    session = NULL;
+    XFREE(mutated, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    mutated = NULL;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+
+    sessionSz = 0;
+    secAt = 0;
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(mutated = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    if (session != NULL) {
+        secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0 + 1, hashSz);
+        ExpectIntGT(secAt, 0);
+        word16 fieldSz = 0;
+
+        fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+        ExpectIntLT(fieldsAt, sessionSz);
+        /* the sending epoch, then an empty peer epoch field because the two
+         * are the same epoch here, then the previous peer epoch */
+        ato16(session + fieldsAt, &fieldSz);
+        ExpectIntEQ(fieldSz, DTLS_EXPORT_DTLS13_EPOCH_SZ);
+        ato16(session + fieldsAt + WOLFSSL_EXPORT_LEN +
+                DTLS_EXPORT_DTLS13_EPOCH_SZ, &fieldSz);
+        ExpectIntEQ(fieldSz, 0);
+    }
+
+    if (session != NULL && mutated != NULL && secAt > 0 && EXPECT_SUCCESS()) {
+        unsigned int prevAt = fieldsAt + (3 * WOLFSSL_EXPORT_LEN) +
+                DTLS_EXPORT_DTLS13_EPOCH_SZ;
+
+        /* an epoch the connection never had, brought in with the key material
+         * of the entry that is allowed to carry it */
+        XMEMCPY(mutated, session, sessionSz);
+        c64toa(&stray, mutated + prevAt);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BAD_STATE_E)), TEST_SUCCESS);
+
+        /* the same entry aimed at the unprotected epoch, whose slot a fresh
+         * object already holds */
+        XMEMCPY(mutated, session, sessionSz);
+        c64toa(&zero, mutated + prevAt);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BAD_STATE_E)), TEST_SUCCESS);
+
+        /* A previous peer epoch field where the peer epoch is the first
+         * traffic one, so the field is for the handshake epoch. Every other
+         * number moves down with the header, leaving only the field. */
+        XMEMCPY(mutated, session, sessionSz);
+        c64toa(&traffic0, mutated + secAt);
+        c64toa(&traffic0, mutated + secAt + OPAQUE64_LEN);
+        c64toa(&traffic0, mutated + fieldsAt + WOLFSSL_EXPORT_LEN);
+        c64toa(&hsEpoch, mutated + prevAt);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BAD_STATE_E)), TEST_SUCCESS);
+    }
+
+    XFREE(mutated, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* The previous peer epoch is the one entry that carries key material, and with
+ * it two more lengths. */
+int test_dtls13_export_malformed_epoch_keys(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* mutated = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int keyAt = 0, ivAt = 0;
+    byte keySz = 0, ivSz = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* A KeyUpdate from the client puts a previous peer epoch in the state. */
+    if (ssl_c != NULL)
+        ssl_c->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    if (ssl_s != NULL) {
+        keySz = (byte)ssl_s->specs.key_size;
+        ivSz  = (byte)ssl_s->specs.iv_size;
+    }
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(mutated = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* The key material closes the DTLS 1.3 state section, which is followed
+     * only by the (here empty) Connection ID section. */
+    if (session != NULL && keySz > 0) {
+        keyAt = sessionSz - WOLFSSL_EXPORT_LEN -
+                ((2 * OPAQUE8_LEN) + (2 * (unsigned int)keySz) + ivSz);
+        ivAt  = keyAt + OPAQUE8_LEN + (2 * (unsigned int)keySz);
+        ExpectIntEQ(session[keyAt], keySz);
+        ExpectIntEQ(session[ivAt], ivSz);
+    }
+
+    if (session != NULL && mutated != NULL && keyAt > 0 && EXPECT_SUCCESS()) {
+        /* a key longer than the buffer that holds it */
+        XMEMCPY(mutated, session, sessionSz);
+        mutated[keyAt] = MAX_SYM_KEY_SIZE + 1;
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* an IV longer than the buffer that holds it */
+        XMEMCPY(mutated, session, sessionSz);
+        mutated[ivAt] = MAX_WRITE_IV_SZ + 1;
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* an IV that fits its buffer but runs past the end of the section; a
+         * key that long reaches the buffer bound first */
+        XMEMCPY(mutated, session, sessionSz);
+        mutated[ivAt] = MAX_WRITE_IV_SZ;
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+    }
+
+    XFREE(mutated, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#ifdef TEST_DTLS13_EXPORT
+/* Rewrite the epoch key material at 'keyAt' with shorter lengths, leaving what
+ * that frees as padding at the end of the section so the lengths stay put. */
+static void test_dtls13_export_shorten_keys(unsigned char* mutated,
+        const unsigned char* session, unsigned int sessionSz,
+        unsigned int keyAt, byte keySz, byte newKeySz, byte newIvSz)
+{
+    unsigned int ivAt = keyAt + OPAQUE8_LEN + (2u * keySz);
+    unsigned int at = keyAt;
+
+    XMEMCPY(mutated, session, sessionSz);
+    mutated[at++] = newKeySz;
+    XMEMCPY(mutated + at, session + keyAt + OPAQUE8_LEN, newKeySz);
+    at += newKeySz;
+    XMEMCPY(mutated + at, session + keyAt + OPAQUE8_LEN + keySz, newKeySz);
+    at += newKeySz;
+    mutated[at++] = newIvSz;
+    XMEMCPY(mutated + at, session + ivAt + OPAQUE8_LEN, newIvSz);
+    at += newIvSz;
+    XMEMSET(mutated + at, 0, sessionSz - WOLFSSL_EXPORT_LEN - at);
+}
+#endif
+
+/* The key material of the previous peer epoch carries its own lengths, but
+ * SetKeysSide() keys the ciphers with specs.key_size and specs.iv_size whatever
+ * the blob says, so a length short of those has to be refused. */
+int test_dtls13_export_short_epoch_keys(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* mutated = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int keyAt = 0, ivAt = 0;
+    byte keySz = 0, ivSz = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* A KeyUpdate from the client puts a previous peer epoch in the state. */
+    if (ssl_c != NULL)
+        ssl_c->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    if (ssl_s != NULL) {
+        keySz = (byte)ssl_s->specs.key_size;
+        ivSz  = (byte)ssl_s->specs.iv_size;
+    }
+    /* one byte less has to still be a length the parse can carry out */
+    ExpectIntGT(keySz, 1);
+    ExpectIntGT(ivSz, 1);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(mutated = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* The key material closes the DTLS 1.3 state section, which is followed
+     * only by the (here empty) Connection ID section. */
+    if (session != NULL && keySz > 0) {
+        keyAt = sessionSz - WOLFSSL_EXPORT_LEN -
+                ((2 * OPAQUE8_LEN) + (2 * (unsigned int)keySz) + ivSz);
+        ivAt  = keyAt + OPAQUE8_LEN + (2 * (unsigned int)keySz);
+        ExpectIntEQ(session[keyAt], keySz);
+        ExpectIntEQ(session[ivAt], ivSz);
+    }
+
+    if (session != NULL && mutated != NULL && keyAt > 0 && EXPECT_SUCCESS()) {
+        /* a key shorter than the one the suite is keyed with */
+        test_dtls13_export_shorten_keys(mutated, session, sessionSz, keyAt,
+                keySz, (byte)(keySz - 1), ivSz);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+
+        /* an IV shorter than the one the suite is keyed with */
+        test_dtls13_export_shorten_keys(mutated, session, sessionSz, keyAt,
+                keySz, keySz, (byte)(ivSz - 1));
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+    }
+
+    XFREE(mutated, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Every epoch key is derived over specs.hash_size bytes of the traffic secrets,
+ * so a blob announcing fewer has to be refused even though it fits in
+ * ssl->clientSecret and ssl->serverSecret. */
+int test_dtls13_export_short_secret(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* mutated = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int secAt = 0, szAt = 0;
+    byte hashSz = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    if (ssl_s != NULL)
+        hashSz = (byte)ssl_s->specs.hash_size;
+    ExpectIntGT(hashSz, 1);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(mutated = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    if (session != NULL) {
+        secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0, hashSz);
+        ExpectIntGT(secAt, 0);
+        szAt = secAt + (3 * OPAQUE64_LEN);
+    }
+
+    if (session != NULL && mutated != NULL && secAt > 0 && EXPECT_SUCCESS()) {
+        /* both secrets one byte shorter than the hash, what that frees left as
+         * padding so the section lengths stay put */
+        unsigned int from = szAt + OPAQUE8_LEN + (2u * hashSz);
+        unsigned int at = szAt;
+
+        XMEMCPY(mutated, session, sessionSz);
+        mutated[at++] = (byte)(hashSz - 1);
+        XMEMCPY(mutated + at, session + szAt + OPAQUE8_LEN, hashSz - 1);
+        at += hashSz - 1;
+        XMEMCPY(mutated + at, session + szAt + OPAQUE8_LEN + hashSz,
+                hashSz - 1);
+        at += hashSz - 1;
+        XMEMCPY(mutated + at, session + from,
+                sessionSz - WOLFSSL_EXPORT_LEN - from);
+        at += sessionSz - WOLFSSL_EXPORT_LEN - from;
+        XMEMSET(mutated + at, 0, sessionSz - WOLFSSL_EXPORT_LEN - at);
+
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BUFFER_E)), TEST_SUCCESS);
+    }
+
+    XFREE(mutated, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* A CID section holding more than this build reads has to be reported as read
+ * in full. */
+int test_dtls13_export_padded_cid_section(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && defined(WOLFSSL_DTLS_CID)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* padded = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int paddedSz = 0;
+    unsigned int secAt = 0;
+    unsigned char server_cid[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2 };
+    const char msg[] = "hello wolfssl dtls13";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(padded = (unsigned char*)XMALLOC(sessionSz + OPAQUE32_LEN,
+                    NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    if (session != NULL) {
+        /* the CID section is the last one in the blob */
+        unsigned int cidSectionSz = OPAQUE8_LEN +
+            (2 * (OPAQUE8_LEN + (unsigned int)sizeof(client_cid)));
+        word16 secLen = 0;
+
+        ExpectIntGT(sessionSz, cidSectionSz + WOLFSSL_EXPORT_LEN);
+        secAt = sessionSz - cidSectionSz;
+        ato16(session + secAt - WOLFSSL_EXPORT_LEN, &secLen);
+        ExpectIntEQ(secLen, cidSectionSz);
+    }
+
+    if (session != NULL && padded != NULL && secAt > 0) {
+        /* four bytes of filler the parser has no field for */
+        XMEMCPY(padded, session, sessionSz);
+        XMEMSET(padded + sessionSz, 0xAA, OPAQUE32_LEN);
+        test_dtls13_export_fix_lengths(padded, secAt, OPAQUE32_LEN);
+        paddedSz = sessionSz + OPAQUE32_LEN;
+    }
+
+    /* the whole blob was read, filler included */
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+    ExpectIntEQ(wolfSSL_dtls_import(ssl_imp, padded, paddedSz), (int)paddedSz);
+    if (ssl_imp != NULL) {
+        wolfSSL_SetIOWriteCtx(ssl_imp, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_imp, &test_ctx);
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+
+    XFREE(padded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* A second import has to replace the record layer wholesale: no epoch of the
+ * first one may be left in the table. */
+int test_dtls13_export_reimport(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* first = NULL;
+    unsigned char* second = NULL;
+    unsigned int firstSz = 0, secondSz = 0;
+    w64wrapper epochAfterKu;
+
+    epochAfterKu = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* a KeyUpdate first, so the blob names an epoch the second session never
+     * reaches */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &first, &firstSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* a second, unrelated connection, still on its first traffic epoch */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &second, &secondSz),
+                TEST_SUCCESS);
+
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+    ExpectIntGT(wolfSSL_dtls_import(ssl_imp, first, firstSz), 0);
+    ExpectIntGT(wolfSSL_dtls_import(ssl_imp, second, secondSz), 0);
+    if (ssl_imp != NULL) {
+        /* the first session's epoch may not be left in the table */
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch,
+                    w64From32(0, DTLS13_EPOCH_TRAFFIC0)));
+        ExpectNull(test_dtls13_export_epoch(ssl_imp, epochAfterKu));
+    }
+
+    XFREE(second, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(first, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Dtls13ImportEpoch() marks the slot valid as soon as it has read the epoch
+ * number, while the bounds check, key import and key derivation below it can
+ * still fail. A refused blob must not leave a valid looking epoch behind. */
+int test_dtls13_export_failed_epoch_commit(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int secAt = 0;
+    byte hashSz = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    if (ssl_s != NULL)
+        hashSz = (byte)ssl_s->specs.hash_size;
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+
+    if (session != NULL) {
+        secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0, hashSz);
+        ExpectIntGT(secAt, 0);
+    }
+
+    if (session != NULL && secAt > 0 && EXPECT_SUCCESS()) {
+        /* an epoch field that stops in the middle of the replay window, which
+         * is rejected after the epoch number has been read */
+        test_dtls13_export_fix_field(session,
+                test_dtls13_export_fields_at(secAt, hashSz), -OPAQUE32_LEN);
+        test_dtls13_export_fix_lengths(session, secAt, -OPAQUE32_LEN);
+        ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+        ExpectIntEQ(wolfSSL_dtls_import(ssl_imp, session, sessionSz),
+                WC_NO_ERR_TRACE(BUFFER_E));
+        if (ssl_imp != NULL)
+            ExpectNull(test_dtls13_export_epoch(ssl_imp,
+                        w64From32(0, DTLS13_EPOCH_TRAFFIC0)));
+    }
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* iv_size is the output length the epoch write IV is derived with and nothing
+ * between the CipherSpecs section it comes from and the derivation bounds it,
+ * SetKeys() setting up the cipher from key_size alone, so a blob that inflates
+ * it has to be refused. */
+int test_dtls13_export_malformed_specs(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* mutated = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int specAt = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(mutated = (unsigned char*)XMALLOC(sessionSz, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER));
+
+    if (session != NULL && ssl_s != NULL) {
+        specAt = test_dtls13_export_find_specs(session, sessionSz,
+                &ssl_s->specs);
+        ExpectIntGT(specAt, 0);
+    }
+
+    if (session != NULL && mutated != NULL && specAt > 0 && EXPECT_SUCCESS()) {
+        /* an IV one byte longer than the buffer it is derived into */
+        XMEMCPY(mutated, session, sessionSz);
+        c16toa(MAX_WRITE_IV_SZ + 1, mutated + specAt + OPAQUE16_LEN);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BAD_STATE_E)), TEST_SUCCESS);
+
+        /* the same, reaching well past ssl->keys but still under the 255 hash
+         * output cap of HKDF */
+        XMEMCPY(mutated, session, sessionSz);
+        c16toa(MAX_WRITE_IV_SZ * 64, mutated + specAt + OPAQUE16_LEN);
+        ExpectIntEQ(test_dtls13_export_import_fails(ctx_s, mutated, sessionSz,
+                    WC_NO_ERR_TRACE(BAD_STATE_E)), TEST_SUCCESS);
+    }
+
+    XFREE(mutated, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* A section holding more than this build knows how to read must not move the
+ * sections behind it: the importer has to step over it by the length the
+ * section carries, not by how far it got. */
+int test_dtls13_export_padded_state_section(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned char* padded = NULL;
+    unsigned int sessionSz = 0;
+    unsigned int paddedSz = 0;
+    unsigned int secAt = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    byte hashSz = 0;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+    if (ssl_s != NULL)
+        hashSz = (byte)ssl_s->specs.hash_size;
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    ExpectNotNull(padded = (unsigned char*)XMALLOC(sessionSz + OPAQUE32_LEN,
+                    NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    if (session != NULL) {
+        secAt = test_dtls13_export_find_state(session, sessionSz,
+                DTLS13_EPOCH_TRAFFIC0, hashSz);
+        ExpectIntGT(secAt, 0);
+    }
+
+    if (session != NULL && padded != NULL && secAt > 0) {
+        unsigned int secEnd;
+        word16 secLen = 0;
+
+        ato16(session + secAt - WOLFSSL_EXPORT_LEN, &secLen);
+        secEnd = secAt + secLen;
+        ExpectIntLE(secEnd, sessionSz);
+
+        /* four bytes of non zero filler the parser has no field for */
+        XMEMCPY(padded, session, secEnd);
+        XMEMSET(padded + secEnd, 0xAA, OPAQUE32_LEN);
+        XMEMCPY(padded + secEnd + OPAQUE32_LEN, session + secEnd,
+                sessionSz - secEnd);
+        test_dtls13_export_fix_lengths(padded, secAt, OPAQUE32_LEN);
+        paddedSz = sessionSz + OPAQUE32_LEN;
+    }
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                padded, paddedSz), TEST_SUCCESS);
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(padded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Every section has to be located by the lengths the blob carries, not by what
+ * is left in the caller's buffer, which is sized for the worst case. */
+int test_dtls_export_import_oversized_buffer(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS_EXPORT) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* dtls_version;
+    } params[] = {
+#ifndef WOLFSSL_NO_TLS12
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "1.2"},
+#endif
+#ifdef WOLFSSL_DTLS13
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "1.3"},
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(params) / sizeof(*params); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        WOLFSSL *ssl_imp = NULL;
+        struct test_memio_ctx test_ctx;
+        unsigned char* session = NULL;
+        unsigned int sessionSz = 0;
+        unsigned int bufSz = 0;
+        const char msg[] = "hello wolfssl dtls";
+
+        printf("\n\tTesting DTLS %s connection\n", params[i].dtls_version);
+
+        ExpectIntEQ(test_dtls_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                        &ssl_s, params[i].client_meth,
+                        params[i].server_meth), TEST_SUCCESS);
+
+        /* the worst case size the library reports, kept as the buffer size */
+        ExpectIntEQ(wolfSSL_dtls_export(ssl_s, NULL, &sessionSz), 0);
+        bufSz = sessionSz;
+        ExpectIntGT(bufSz, 0);
+        ExpectNotNull(session = (unsigned char*)XMALLOC(bufSz, NULL,
+                        DYNAMIC_TYPE_TMP_BUFFER));
+        if (session != NULL)
+            XMEMSET(session, 0, bufSz);
+        ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+        ExpectIntLT(sessionSz, bufSz);
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+
+        /* import with the buffer size, not the serialized size */
+        ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                    session, bufSz), TEST_SUCCESS);
+        ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg,
+                    (int)sizeof(msg)), TEST_SUCCESS);
+
+        XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_free(ssl_imp);
+        test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+
+        if (!EXPECT_SUCCESS())
+            break;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* The epoch key material is derived on import, so the result depends on the
+ * negotiated suite. The other export tests run on the default
+ * TLS_AES_256_GCM_SHA384; this one pins the shorter SHA256 / AES-128 suite. */
+/* The integrity only suites of RFC 9150 have no AEAD key but the largest hash,
+ * so they drive the serialized key state to the maximum
+ * DTLS_EXPORT_KEY_SZ has to cover. */
+int test_dtls13_export_integrity_only_suite(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && defined(HAVE_NULL_CIPHER) && \
+    defined(WOLFSSL_SHA384)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-SHA384-SHA384";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* the suite really is the integrity only one */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->specs.hash_size, WC_SHA384_DIGEST_SIZE);
+        ExpectIntEQ(ssl_s->specs.key_size, WC_SHA384_DIGEST_SIZE);
+        ExpectIntEQ(ssl_s->specs.iv_size, WC_SHA384_DIGEST_SIZE);
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_s, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls13_export_sha256_suite(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && !defined(NO_SHA256) && !defined(NO_AES) && \
+    defined(HAVE_AESGCM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    byte expKey[MAX_SYM_KEY_SIZE];
+    byte expIV[MAX_WRITE_IV_SZ];
+    byte expSn[MAX_SYM_KEY_SIZE];
+    int keySz = 0, ivSz = 0;
+    w64wrapper epochAfterKu;
+
+    epochAfterKu = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    XMEMSET(expKey, 0, sizeof(expKey));
+    XMEMSET(expIV, 0, sizeof(expIV));
+    XMEMSET(expSn, 0, sizeof(expSn));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "TLS13-AES128-GCM-SHA256";
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* the negotiated suite really is the short one */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->specs.hash_size, WC_SHA256_DIGEST_SIZE);
+        keySz = ssl_s->specs.key_size;
+        ivSz = ssl_s->specs.iv_size;
+        ExpectIntEQ(keySz, AES_128_KEY_SIZE);
+    }
+
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_s, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->dtls13EncryptEpoch);
+        if (ssl_s->dtls13EncryptEpoch != NULL && keySz > 0) {
+            XMEMCPY(expKey, ssl_s->dtls13EncryptEpoch->server_write_key,
+                    (size_t)keySz);
+            XMEMCPY(expIV, ssl_s->dtls13EncryptEpoch->server_write_IV,
+                    (size_t)ivSz);
+            XMEMCPY(expSn, ssl_s->dtls13EncryptEpoch->server_sn_key,
+                    (size_t)keySz);
+        }
+    }
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+
+        /* derived, not copied: it still has to match the original exactly */
+        ExpectIntEQ(ssl_imp->specs.hash_size, WC_SHA256_DIGEST_SIZE);
+        ExpectNotNull(ssl_imp->dtls13EncryptEpoch);
+        if (ssl_imp->dtls13EncryptEpoch != NULL && keySz > 0) {
+            ExpectBufEQ(ssl_imp->dtls13EncryptEpoch->server_write_key,
+                        expKey, (size_t)keySz);
+            ExpectBufEQ(ssl_imp->dtls13EncryptEpoch->server_write_IV,
+                        expIV, (size_t)ivSz);
+            ExpectBufEQ(ssl_imp->dtls13EncryptEpoch->server_sn_key,
+                        expSn, (size_t)keySz);
+        }
+    }
+
+    /* and it actually works on the wire */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    /* KeyUpdate derives the next secret with the same hash */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_imp), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_imp), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    if (ssl_imp != NULL) {
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, epochAfterKu));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, epochAfterKu));
+    }
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Client counterpart of test_dtls13_export_unequal_epochs: which direction a
+ * one-sided epoch maps to depends on the side the export was taken from. */
+int test_dtls13_export_unequal_epochs_client(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    unsigned char peerKey[MAX_SYM_KEY_SIZE];
+    w64wrapper sendEpoch, peerEpoch;
+    word16 keySz = 0;
+
+    sendEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 2);
+    peerEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    XMEMSET(peerKey, 0, sizeof(peerKey));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    /* the client is the side being exported */
+    wolfSSL_CTX_SetIOGetPeer(ctx_c, test_dtls_export_get_peer);
+    wolfSSL_CTX_SetIOSetPeer(ctx_c, test_dtls_export_set_peer);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* both directions one epoch further */
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+
+    /* with update_not_requested the server does not rekey in return, so only
+     * the client's send epoch advances */
+    if (ssl_c != NULL)
+        ssl_c->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    if (ssl_c != NULL) {
+        ExpectTrue(w64Equal(ssl_c->dtls13Epoch, sendEpoch));
+        ExpectTrue(w64Equal(ssl_c->dtls13PeerEpoch, peerEpoch));
+    }
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_c, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_c, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+        ExpectIntEQ(wolfSSL_is_server(ssl_imp), 0);
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, sendEpoch));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, peerEpoch));
+
+        /* each epoch may only hold the key material of the direction it is
+         * used in, the two being one traffic secret generation apart */
+        ExpectNotNull(ssl_imp->dtls13EncryptEpoch);
+        ExpectNotNull(ssl_imp->dtls13DecryptEpoch);
+        if (ssl_imp->dtls13EncryptEpoch != NULL &&
+                ssl_imp->dtls13DecryptEpoch != NULL) {
+            ExpectIntEQ(ssl_imp->dtls13EncryptEpoch->side, ENCRYPT_SIDE_ONLY);
+            ExpectIntEQ(ssl_imp->dtls13DecryptEpoch->side, DECRYPT_SIDE_ONLY);
+            /* the receive epoch reads with the key it was reading with */
+            ExpectBufEQ(ssl_imp->dtls13DecryptEpoch->server_write_key,
+                        peerKey, keySz);
+            /* and the direction it does not use was left alone */
+            ExpectIntNE(XMEMCMP(ssl_imp->dtls13DecryptEpoch->client_write_key,
+                                ssl_imp->dtls13EncryptEpoch->client_write_key,
+                                ssl_imp->specs.key_size), 0);
+        }
+    }
+
+    /* both directions work, so each epoch derived from the right secret */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_s, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_s, ssl_imp, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Until the peer sees our ACK of its KeyUpdate it keeps retransmitting in the
+ * previous epoch, which the export has to carry: its key material can not be
+ * derived again, the traffic secret it came from having been advanced in place.
+ * Here the ACK is dropped and the client retransmits after the round trip. */
+int test_dtls13_export_prev_peer_epoch(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DTLS13_EXPORT
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    const char msg2[] = "hello client dtls13";
+    unsigned char prevKey[MAX_SYM_KEY_SIZE];
+    w64wrapper sendEpoch, peerEpoch;
+    word16 keySz = 0;
+    byte hashSz = 0, ivSz = 0;
+
+    sendEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    peerEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    XMEMSET(prevKey, 0, sizeof(prevKey));
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* update_not_requested, so only the client's sending epoch is involved */
+    if (ssl_c != NULL)
+        ssl_c->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+
+    /* the ACK is lost, so the client is still sending in
+     * DTLS13_EPOCH_TRAFFIC0 */
+    ExpectIntEQ(test_dtls13_export_pump(ssl_s), 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+    if (ssl_s != NULL) {
+        ExpectTrue(w64Equal(ssl_s->dtls13Epoch, sendEpoch));
+        ExpectTrue(w64Equal(ssl_s->dtls13PeerEpoch, peerEpoch));
+    }
+    if (ssl_c != NULL)
+        ExpectTrue(w64Equal(ssl_c->dtls13Epoch, sendEpoch));
+
+    /* the key the peer is still sending with, from the traffic secret
+     * generation the KeyUpdate replaced */
+    if (ssl_s != NULL) {
+        Dtls13Epoch* prev = test_dtls13_export_epoch(ssl_s, sendEpoch);
+
+        keySz = ssl_s->specs.key_size;
+        hashSz = (byte)ssl_s->specs.hash_size;
+        ivSz = (byte)ssl_s->specs.iv_size;
+        ExpectIntLE(keySz, (word16)sizeof(prevKey));
+        ExpectNotNull(prev);
+        if (prev != NULL && keySz <= (word16)sizeof(prevKey))
+            XMEMCPY(prevKey, prev->client_write_key, keySz);
+    }
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    /* the previous peer epoch is the sending epoch, whose state the first field
+     * already holds, so the last field carries key material alone */
+    if (session != NULL && keySz > 0 && EXPECT_SUCCESS()) {
+        unsigned int keysSz = (2 * OPAQUE8_LEN) + (2u * keySz) + ivSz;
+        unsigned int stateSz = (3 * OPAQUE64_LEN) + OPAQUE8_LEN +
+                (2u * hashSz) + (3 * WOLFSSL_EXPORT_LEN) +
+                (2u * DTLS_EXPORT_DTLS13_EPOCH_SZ) + keysSz;
+        unsigned int secAt = sessionSz - WOLFSSL_EXPORT_LEN - stateSz;
+        word16 len = 0;
+
+        ExpectIntGT(secAt, WOLFSSL_EXPORT_LEN);
+        if (EXPECT_SUCCESS()) {
+            unsigned int fieldsAt = test_dtls13_export_fields_at(secAt, hashSz);
+
+            ato16(session + secAt - WOLFSSL_EXPORT_LEN, &len);
+            ExpectIntEQ(len, stateSz);
+            /* the sending epoch and the peer epoch, then keys with no state */
+            ato16(session + fieldsAt, &len);
+            ExpectIntEQ(len, DTLS_EXPORT_DTLS13_EPOCH_SZ);
+            ato16(session + fieldsAt + WOLFSSL_EXPORT_LEN +
+                    DTLS_EXPORT_DTLS13_EPOCH_SZ, &len);
+            ExpectIntEQ(len, DTLS_EXPORT_DTLS13_EPOCH_SZ);
+            ato16(session + fieldsAt + (2 * (WOLFSSL_EXPORT_LEN +
+                        DTLS_EXPORT_DTLS13_EPOCH_SZ)), &len);
+            ExpectIntEQ(len, keysSz);
+        }
+    }
+
+    ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+    ExpectIntGT(wolfSSL_dtls_import(ssl_imp, session, sessionSz), 0);
+    if (ssl_imp != NULL) {
+        Dtls13Epoch* prev = test_dtls13_export_epoch(ssl_imp, sendEpoch);
+
+        wolfSSL_SetIOWriteCtx(ssl_imp, &test_ctx);
+        wolfSSL_SetIOReadCtx(ssl_imp, &test_ctx);
+        ExpectTrue(w64Equal(ssl_imp->dtls13Epoch, sendEpoch));
+        ExpectTrue(w64Equal(ssl_imp->dtls13PeerEpoch, peerEpoch));
+
+        /* the one slot has to come back usable in both directions */
+        ExpectNotNull(prev);
+        if (prev != NULL) {
+            ExpectIntEQ(prev->side, ENCRYPT_AND_DECRYPT_SIDE);
+            ExpectBufEQ(prev->client_write_key, prevKey, keySz);
+        }
+    }
+
+    /* the client retransmits the KeyUpdate in the old epoch, which the imported
+     * side must still read and ACK */
+    if (wolfSSL_dtls13_use_quick_timeout(ssl_c))
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_ctx.s_len, 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_imp), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    if (ssl_c != NULL)
+        ExpectTrue(w64Equal(ssl_c->dtls13Epoch, peerEpoch));
+
+    /* With the client finally moved on, both directions work again. */
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2, (int)sizeof(msg2)),
+                TEST_SUCCESS);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* dtls13InvalidateBefore holds the peer epoch whose first record must retire
+ * every epoch below it for decryption (RFC 9147 Section 4.5.3). Nothing re-arms
+ * it, so an export taken while it is pending has to carry it. */
+int test_dtls13_export_invalidate_before(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    const char msg[] = "hello wolfssl dtls13";
+    w64wrapper firstEpoch, nextEpoch;
+
+    firstEpoch = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    nextEpoch  = w64From32(0, DTLS13_EPOCH_TRAFFIC0 + 1);
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* stand in for the failed decryption count reaching its soft limit */
+    if (ssl_s != NULL)
+        ssl_s->dtls13InvalidateBefore = nextEpoch;
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+    if (ssl_imp != NULL) {
+        ExpectTrue(w64Equal(ssl_imp->dtls13InvalidateBefore, nextEpoch));
+    }
+
+    /* The peer rekeys and, once our ACK reaches it, sends in the new epoch. */
+    if (ssl_c != NULL)
+        ssl_c->keys.updateResponseReq = 1;
+    ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_imp), 0);
+    ExpectIntEQ(test_dtls13_export_pump(ssl_c), 0);
+    ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg, (int)sizeof(msg)),
+                TEST_SUCCESS);
+
+    /* the peer moved on, so the epoch below may no longer decrypt; it stays
+     * usable for sending, our own sending epoch never advanced */
+    if (ssl_imp != NULL) {
+        Dtls13Epoch* old = test_dtls13_export_epoch(ssl_imp, firstEpoch);
+
+        ExpectTrue(w64IsZero(ssl_imp->dtls13InvalidateBefore));
+        ExpectNotNull(old);
+        if (old != NULL)
+            ExpectIntEQ(old->side, ENCRYPT_SIDE_ONLY);
+    }
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if defined(TEST_DTLS13_EXPORT) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+/* Send one record from 'ssl_c' corrupted so that 'ssl_s' can not decrypt it,
+ * spending the failed decryption budget of the epoch. The last byte is the one
+ * to flip, the bytes right after the header encrypting the record number.
+ * Returns 0 when the record was dropped and the connection carried on. */
+static int test_dtls13_export_fail_decrypt(struct test_memio_ctx* test_ctx,
+        WOLFSSL* ssl_c, WOLFSSL* ssl_s)
+{
+    const char msg[] = "hello wolfssl dtls13";
+    unsigned char reply[64];
+    int ret;
+
+    if (ssl_c == NULL || ssl_s == NULL)
+        return -1;
+    if (wolfSSL_write(ssl_c, msg, (int)sizeof(msg)) != (int)sizeof(msg))
+        return -1;
+    if (test_ctx->s_len <= 0)
+        return -1;
+    test_ctx->s_buff[test_ctx->s_len - 1] ^= 0xFF;
+
+    ret = wolfSSL_read(ssl_s, reply, (int)sizeof(reply));
+    if (ret > 0)
+        return -1;
+    if (wolfSSL_get_error(ssl_s, ret) != WOLFSSL_ERROR_WANT_READ)
+        return -1;
+    return 0;
+}
+
+/* Require the epoch 'ssl' decrypts in to have counted 'expected' failures. */
+static int test_dtls13_export_check_drops(WOLFSSL* ssl, w64wrapper expected)
+{
+    Dtls13Epoch* e;
+
+    if (ssl == NULL)
+        return -1;
+    e = test_dtls13_export_epoch(ssl, ssl->dtls13PeerEpoch);
+    if (e == NULL)
+        return -1;
+    if (!w64Equal(e->dropCount, expected))
+        return -1;
+    return 0;
+}
+#endif
+
+/* The count of records that failed to decrypt bounds how much longer the epoch
+ * may be used (RFC 9147 Section 4.5.3) and nothing re-derives it, so the export
+ * has to carry it. */
+int test_dtls13_export_drop_count(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS13_EXPORT) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_imp = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+    int i;
+    /* how much of the budget to spend before the export */
+    int drops = 3;
+    w64wrapper expDrops;
+
+    ExpectIntEQ(test_dtls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                    &ssl_s), TEST_SUCCESS);
+
+    /* Spend part of the epoch budget the way a real connection does. */
+    for (i = 0; i < drops; i++)
+        ExpectIntEQ(test_dtls13_export_fail_decrypt(&test_ctx, ssl_c, ssl_s),
+                    0);
+    expDrops = w64From32(0, (word32)drops);
+    ExpectIntEQ(test_dtls13_export_check_drops(ssl_s, expDrops), 0);
+
+    ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                session, sessionSz), TEST_SUCCESS);
+
+    /* the next failure counts on top rather than starting the budget over */
+    ExpectIntEQ(test_dtls13_export_check_drops(ssl_imp, expDrops), 0);
+    ExpectIntEQ(test_dtls13_export_fail_decrypt(&test_ctx, ssl_c, ssl_imp), 0);
+    w64Increment(&expDrops);
+    ExpectIntEQ(test_dtls13_export_check_drops(ssl_imp, expDrops), 0);
+
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_imp);
+    test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* A peer that negotiated a CID keeps tagging its records with it, so the
+ * imported connection has to know the CID it receives (rx) and the one it sends
+ * (tx), and still be flagged as using CID. DTLS 1.2 and 1.3 both covered. */
+/* A session exported without a CID has to import as one without, whatever the
+ * object it is imported into was carrying. */
+int test_dtls_export_no_cid_clears_target(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS_EXPORT) && defined(WOLFSSL_DTLS_CID) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* dtls_version;
+    } params[] = {
+#ifndef WOLFSSL_NO_TLS12
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "1.2"},
+#endif
+#ifdef WOLFSSL_DTLS13
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "1.3"},
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(params) / sizeof(*params); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        WOLFSSL *ssl_imp = NULL;
+        struct test_memio_ctx test_ctx;
+        unsigned char* session = NULL;
+        unsigned int sessionSz = 0;
+        unsigned char stale_cid[] = { 0xC1, 0xC2, 0xC3, 0xC4 };
+        const char msg[] = "hello wolfssl dtls";
+
+        printf("\n\tTesting DTLS %s connection\n", params[i].dtls_version);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        params[i].client_meth, params[i].server_meth), 0);
+        wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer);
+        wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer);
+
+        /* no CID is negotiated on this connection */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl_s), 0);
+
+        ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                    TEST_SUCCESS);
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+
+        /* the object the blob lands in already has one armed */
+        ExpectNotNull(ssl_imp = wolfSSL_new(ctx_s));
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_imp), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_imp, stale_cid,
+                        sizeof(stale_cid)), WOLFSSL_SUCCESS);
+        ExpectIntGT(wolfSSL_dtls_import(ssl_imp, session, sessionSz), 0);
+        if (ssl_imp != NULL) {
+            wolfSSL_SetIOWriteCtx(ssl_imp, &test_ctx);
+            wolfSSL_SetIOReadCtx(ssl_imp, &test_ctx);
+
+            /* the blob said there is no CID, so the object must not keep one */
+            ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl_imp), 0);
+
+            ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg,
+                        (int)sizeof(msg)), TEST_SUCCESS);
+        }
+
+        XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_free(ssl_imp);
+        test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+
+        if (!EXPECT_SUCCESS())
+            break;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_dtls_export() reports the buffer it needs through LENGTH_ONLY_E, so
+ * every section it writes has to stay inside it, whatever the peer address and
+ * Connection ID lengths are. */
+int test_dtls_export_tight_buffer(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS_EXPORT) && !defined(WOLFSSL_SESSION_EXPORT_NOPEER) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* dtls_version;
+    } params[] = {
+#ifndef WOLFSSL_NO_TLS12
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "1.2"},
+#endif
+#ifdef WOLFSSL_DTLS13
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "1.3"},
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(params) / sizeof(*params); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        unsigned char* session = NULL;
+        unsigned char probe[1];
+        unsigned int sessionSz = 0;
+        unsigned int allocSz = 0;
+        unsigned int j;
+        /* written past the size the library asked for, so it must stay set */
+        const unsigned int guardSz = 64;
+#ifdef WOLFSSL_DTLS_CID
+        unsigned char server_cid[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+        unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2 };
+#endif
+
+        printf("\n\tTesting DTLS %s connection\n", params[i].dtls_version);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        params[i].client_meth, params[i].server_meth), 0);
+        wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer_long);
+        wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer_long);
+#ifdef WOLFSSL_DTLS_CID
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)),
+                    WOLFSSL_SUCCESS);
+#endif
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* too small a buffer: the library answers with the size it wants */
+        sessionSz = (unsigned int)sizeof(probe);
+        ExpectIntEQ(wolfSSL_dtls_export(ssl_s, probe, &sessionSz),
+                    WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+        ExpectIntGT(sessionSz, sizeof(probe));
+
+        allocSz = sessionSz;
+        ExpectNotNull(session = (unsigned char*)XMALLOC(allocSz + guardSz, NULL,
+                        DYNAMIC_TYPE_TMP_BUFFER));
+        if (session != NULL) {
+            XMEMSET(session + allocSz, 0xA5, guardSz);
+            ExpectIntGT(wolfSSL_dtls_export(ssl_s, session, &sessionSz), 0);
+            ExpectIntLE(sessionSz, allocSz);
+            for (j = 0; j < guardSz; j++)
+                ExpectIntEQ(session[allocSz + j], 0xA5);
+        }
+
+        XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+
+        if (!EXPECT_SUCCESS())
+            break;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_dtls_export_cid_restored(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_DTLS_EXPORT) && defined(WOLFSSL_DTLS_CID) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* dtls_version;
+    } params[] = {
+#ifndef WOLFSSL_NO_TLS12
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "1.2"},
+#endif
+#ifdef WOLFSSL_DTLS13
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "1.3"},
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(params) / sizeof(*params); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        WOLFSSL *ssl_imp = NULL;
+        struct test_memio_ctx test_ctx;
+        unsigned char* session = NULL;
+        unsigned int sessionSz = 0;
+        unsigned char server_cid[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+        unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2 };
+        const char msg[] = "hello wolfssl dtls";
+        const char msg2[] = "hello client dtls";
+        unsigned char cidBuf[DTLS_CID_MAX_SIZE];
+        unsigned int cidSz = 0;
+
+        printf("\n\tTesting DTLS %s connection\n", params[i].dtls_version);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        params[i].client_meth, params[i].server_meth), 0);
+        wolfSSL_CTX_SetIOGetPeer(ctx_s, test_dtls_export_get_peer);
+        wolfSSL_CTX_SetIOSetPeer(ctx_s, test_dtls_export_set_peer);
+
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* server receives on client_cid and sends on server_cid */
+        ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl_s), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_get_rx_size(ssl_s, &cidSz),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(cidSz, (unsigned int)sizeof(client_cid));
+        ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_s, &cidSz),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(cidSz, (unsigned int)sizeof(server_cid));
+
+        ExpectIntEQ(test_dtls_export_alloc(ssl_s, &session, &sessionSz),
+                    TEST_SUCCESS);
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+
+        ExpectIntEQ(test_dtls_export_import(ctx_s, &test_ctx, &ssl_imp,
+                    session, sessionSz), TEST_SUCCESS);
+        if (ssl_imp != NULL) {
+
+            /* the CID state came back intact */
+            ExpectIntEQ(wolfSSL_dtls_cid_is_enabled(ssl_imp), 1);
+            XMEMSET(cidBuf, 0, sizeof(cidBuf));
+            ExpectIntEQ(wolfSSL_dtls_cid_get_rx_size(ssl_imp, &cidSz),
+                        WOLFSSL_SUCCESS);
+            ExpectIntEQ(cidSz, (unsigned int)sizeof(client_cid));
+            ExpectIntEQ(wolfSSL_dtls_cid_get_rx(ssl_imp, cidBuf, cidSz),
+                        WOLFSSL_SUCCESS);
+            ExpectBufEQ(cidBuf, client_cid, sizeof(client_cid));
+
+            XMEMSET(cidBuf, 0, sizeof(cidBuf));
+            ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_imp, &cidSz),
+                        WOLFSSL_SUCCESS);
+            ExpectIntEQ(cidSz, (unsigned int)sizeof(server_cid));
+            ExpectIntEQ(wolfSSL_dtls_cid_get_tx(ssl_imp, cidBuf, cidSz),
+                        WOLFSSL_SUCCESS);
+            ExpectBufEQ(cidBuf, server_cid, sizeof(server_cid));
+        }
+
+        /* and the connection keeps working with CID-tagged records both ways */
+        ExpectIntEQ(test_dtls_export_xfer(ssl_c, ssl_imp, msg,
+                    (int)sizeof(msg)), TEST_SUCCESS);
+        ExpectIntEQ(test_dtls_export_xfer(ssl_imp, ssl_c, msg2,
+                    (int)sizeof(msg2)), TEST_SUCCESS);
+
+#if DTLS_CID_MAX_SIZE < 255
+        /* The tx id is the peer's choice and DTLS_CID_MAX_SIZE does not bound
+         * it, so rebuild the section with a tx id larger than
+         * wolfSSL_dtls_cid_set() accepts. */
+        if (session != NULL) {
+            unsigned int cidSectionSz = OPAQUE8_LEN +
+                (2 * (OPAQUE8_LEN + (unsigned int)sizeof(client_cid)));
+            unsigned int headSz = sessionSz - cidSectionSz - WOLFSSL_EXPORT_LEN;
+            unsigned char longCid[DTLS_CID_MAX_SIZE + 1];
+            unsigned int newSectionSz = OPAQUE8_LEN +
+                (OPAQUE8_LEN + (unsigned int)sizeof(client_cid)) +
+                (OPAQUE8_LEN + (unsigned int)sizeof(longCid));
+            unsigned int longSz = headSz + WOLFSSL_EXPORT_LEN + newSectionSz;
+            unsigned char* longBlob = NULL;
+            unsigned char* reexp = NULL;
+            unsigned int reexpSz = 0;
+            WOLFSSL* ssl_long = NULL;
+            WOLFSSL* ssl_long2 = NULL;
+            unsigned int j;
+
+            for (j = 0; j < (unsigned int)sizeof(longCid); j++)
+                longCid[j] = (unsigned char)(0xA0 + j);
+
+            ExpectNotNull(longBlob = (unsigned char*)XMALLOC(longSz, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER));
+            if (longBlob != NULL) {
+                unsigned int idx = headSz;
+
+                XMEMCPY(longBlob, session, headSz);
+                c16toa((word16)newSectionSz, longBlob + idx);
+                idx += WOLFSSL_EXPORT_LEN;
+                longBlob[idx++] = 1; /* negotiated */
+                longBlob[idx++] = (unsigned char)sizeof(client_cid);
+                XMEMCPY(longBlob + idx, client_cid, sizeof(client_cid));
+                idx += (unsigned int)sizeof(client_cid);
+                longBlob[idx++] = (unsigned char)sizeof(longCid);
+                XMEMCPY(longBlob + idx, longCid, sizeof(longCid));
+                c16toa((word16)(longSz - WOLFSSL_EXPORT_LEN),
+                       longBlob + WOLFSSL_EXPORT_LEN);
+
+                ExpectNotNull(ssl_long = wolfSSL_new(ctx_s));
+                ExpectIntGT(wolfSSL_dtls_import(ssl_long, longBlob, longSz), 0);
+                ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_long, &cidSz),
+                            WOLFSSL_SUCCESS);
+                ExpectIntEQ(cidSz, (unsigned int)sizeof(longCid));
+
+                /* the worst case buffer has to hold it */
+                ExpectIntEQ(test_dtls_export_alloc(ssl_long, &reexp, &reexpSz),
+                            TEST_SUCCESS);
+                ExpectNotNull(ssl_long2 = wolfSSL_new(ctx_s));
+                ExpectIntGT(wolfSSL_dtls_import(ssl_long2, reexp, reexpSz), 0);
+                ExpectIntEQ(wolfSSL_dtls_cid_get_tx_size(ssl_long2, &cidSz),
+                            WOLFSSL_SUCCESS);
+                ExpectIntEQ(cidSz, (unsigned int)sizeof(longCid));
+
+                wolfSSL_free(ssl_long);
+                wolfSSL_free(ssl_long2);
+                XFREE(reexp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            XFREE(longBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+#endif /* DTLS_CID_MAX_SIZE < 255 */
+
+        /* the rx id is the one we hand the peer and has to fit our buffers */
+        if (session != NULL) {
+            unsigned int cidSectionSz = OPAQUE8_LEN +
+                (2 * (OPAQUE8_LEN + (unsigned int)sizeof(client_cid)));
+            WOLFSSL* ssl_bad = NULL;
+            word16 cidLen = 0;
+
+            ExpectIntGT(sessionSz, cidSectionSz + WOLFSSL_EXPORT_LEN);
+            ato16(session + sessionSz - cidSectionSz - WOLFSSL_EXPORT_LEN,
+                  &cidLen);
+            ExpectIntEQ(cidLen, cidSectionSz);
+            session[sessionSz - cidSectionSz + OPAQUE8_LEN] =
+                DTLS_CID_MAX_SIZE + 1;
+            ExpectNotNull(ssl_bad = wolfSSL_new(ctx_s));
+            ExpectIntEQ(wolfSSL_dtls_import(ssl_bad, session, sessionSz),
+                        WC_NO_ERR_TRACE(BUFFER_E));
+            wolfSSL_free(ssl_bad);
+        }
+
+        XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_free(ssl_imp);
+        test_dtls_export_free(ctx_c, ctx_s, ssl_c, ssl_s);
+
+        if (!EXPECT_SUCCESS())
+            break;
+    }
 #endif
     return EXPECT_RESULT();
 }
