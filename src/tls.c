@@ -9741,6 +9741,11 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
 
 #ifdef HAVE_CURVE25519
     curve25519_key* key = (curve25519_key*)keyShareEntry->key;
+    const byte* peerPub = keyShareEntry->ke;
+    word32 peerPubLen = keyShareEntry->keLen;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte maskedPub[CURVE25519_KEYSIZE];
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (keyShareEntry->lastRet == 0) /* don't enter here if WC_PENDING_E */
@@ -9771,15 +9776,24 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
         WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
     #endif
 
-        if (wc_curve25519_check_public(keyShareEntry->ke, keyShareEntry->keLen,
+    #ifndef WOLFSSL_X25519_NO_MASK_PEER
+        if (peerPubLen == CURVE25519_KEYSIZE) {
+            XMEMCPY(maskedPub, peerPub, CURVE25519_KEYSIZE);
+            /* RFC 7748 Section 5: X25519 receivers MUST mask (clear) the
+             * reserved high bit of the final wire byte before use. */
+            maskedPub[CURVE25519_KEYSIZE - 1] &= 0x7f;
+            peerPub = maskedPub;
+        }
+    #endif
+
+        if (wc_curve25519_check_public(peerPub, peerPubLen,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
             ret = ECC_PEERKEY_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
         }
 
         if (ret == 0) {
-            if (wc_curve25519_import_public_ex(keyShareEntry->ke,
-                                        keyShareEntry->keLen,
+            if (wc_curve25519_import_public_ex(peerPub, peerPubLen,
                                         ssl->peerX25519Key,
                                         EC25519_LITTLE_ENDIAN) != 0) {
                 ret = ECC_PEERKEY_ERROR;

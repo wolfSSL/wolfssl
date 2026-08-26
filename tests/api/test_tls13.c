@@ -10025,3 +10025,112 @@ int test_tls13_pha_status_request(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* RFC 7748 Section 5: a receiver of a 32-byte X25519 u-coordinate MUST mask
+ * (clear) the reserved high bit of the final byte rather than reject it.
+ * Craft a ClientHello whose key_share entry has that bit set and confirm
+ * the server masks it and proceeds, instead of aborting the handshake with
+ * ECC_PEERKEY_ERROR the way wc_curve25519_check_public() alone would.
+ */
+int test_tls13_x25519_keyshare_masks_reserved_bit(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE25519) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    (defined(HAVE_ECC) || !defined(NO_RSA))
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte ch_buf[4096];
+    const char* ch_bytes = NULL;
+    int ch_sz = 0;
+    int i;
+    int keShareOff = -1;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+#if defined(HAVE_ECC)
+    ExpectTrue(wolfSSL_use_certificate_file(ssl_s, eccCertFile,
+        CERT_FILETYPE) == WOLFSSL_SUCCESS);
+    ExpectTrue(wolfSSL_use_PrivateKey_file(ssl_s, eccKeyFile,
+        CERT_FILETYPE) == WOLFSSL_SUCCESS);
+#else
+    ExpectTrue(wolfSSL_use_certificate_file(ssl_s, svrCertFile,
+        CERT_FILETYPE) == WOLFSSL_SUCCESS);
+    ExpectTrue(wolfSSL_use_PrivateKey_file(ssl_s, svrKeyFile,
+        CERT_FILETYPE) == WOLFSSL_SUCCESS);
+#endif
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, NULL);
+
+    /* Force an X25519 key share so the ClientHello carries a key_share
+     * entry we can find by its fixed group id (0x001D) and length
+     * (0x0020) markers, without parsing the full extension list. */
+    do {
+        ret = wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_X25519);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+            wolfSSL_AsyncPoll(ssl_c, WOLF_POLL_FLAG_CHECK_HW);
+#endif
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+
+    ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Pull the ClientHello out of the buffer the server will read from
+     * (client=0), tamper with the X25519 public value in place, then feed
+     * the modified message back in. */
+    ExpectIntEQ(test_memio_get_message(&test_ctx, 0, &ch_bytes, &ch_sz, 0),
+        0);
+    ExpectTrue(ch_sz > 0 && ch_sz <= (int)sizeof(ch_buf));
+    if (ch_sz > 0 && ch_sz <= (int)sizeof(ch_buf)) {
+        XMEMCPY(ch_buf, ch_bytes, (size_t)ch_sz);
+
+        for (i = 0; i + 4 + CURVE25519_KEYSIZE <= ch_sz; i++) {
+            if (ch_buf[i] == 0x00 && ch_buf[i + 1] == 0x1D &&
+                    ch_buf[i + 2] == 0x00 &&
+                    ch_buf[i + 3] == CURVE25519_KEYSIZE) {
+                keShareOff = i;
+                break;
+            }
+        }
+        ExpectIntGE(keShareOff, 0);
+        if (keShareOff >= 0) {
+            /* Set the reserved high bit of the final wire byte of the
+             * public value -- the bit RFC 7748 requires masking. */
+            ch_buf[keShareOff + 4 + CURVE25519_KEYSIZE - 1] |= 0x80;
+        }
+    }
+
+    test_memio_clear_buffer(&test_ctx, 0);
+    if (keShareOff >= 0) {
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0,
+            (const char*)ch_buf, ch_sz), 0);
+    }
+
+    /* Before the fix: wc_curve25519_check_public() sees the reserved bit
+     * and returns ECC_OUT_OF_RANGE_E, which DoTls13ClientHello turns into
+     * ECC_PEERKEY_ERROR and a fatal alert -- the handshake dies here.
+     * After the fix: the bit is masked before the check, so the server
+     * accepts the share and moves on to building its response flight. */
+    ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WOLFSSL_ERROR_WANT_READ);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}

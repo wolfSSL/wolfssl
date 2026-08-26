@@ -35505,6 +35505,12 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
 #endif
     int curveOid;
     word16 length;
+#ifdef HAVE_CURVE25519
+    const byte* peerPub;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte maskedPub[CURVE25519_KEYSIZE];
+#endif
+#endif
 
     if ((args->idx - args->begin) + ENUM_LEN + OPAQUE16_LEN +
         OPAQUE8_LEN > size) {
@@ -35547,7 +35553,18 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
             }
         }
 
-        if ((ret = wc_curve25519_check_public(input + args->idx, length,
+        peerPub = input + args->idx;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+        if (length == CURVE25519_KEYSIZE) {
+            XMEMCPY(maskedPub, peerPub, CURVE25519_KEYSIZE);
+            /* RFC 7748 Section 5: X25519 receivers MUST mask (clear) the
+             * reserved high bit of the final wire byte before use. */
+            maskedPub[CURVE25519_KEYSIZE - 1] &= 0x7f;
+            peerPub = maskedPub;
+        }
+#endif
+
+        if ((ret = wc_curve25519_check_public(peerPub, length,
                                               EC25519_LITTLE_ENDIAN)) != 0) {
 #ifdef WOLFSSL_EXTRA_ALERTS
             if (ret == WC_NO_ERR_TRACE(BUFFER_E))
@@ -35563,7 +35580,7 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
             return ECC_PEERKEY_ERROR;
         }
 
-        if (wc_curve25519_import_public_ex(input + args->idx,
+        if (wc_curve25519_import_public_ex(peerPub,
                                            length, ssl->peerX25519Key,
                                            EC25519_LITTLE_ENDIAN) != 0) {
             return ECC_PEERKEY_ERROR;
@@ -44364,6 +44381,12 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
     {
         int ret;
         int kea = ssl->specs.kea;
+    #ifdef HAVE_CURVE25519
+        const byte* peerPub;
+    #ifndef WOLFSSL_X25519_NO_MASK_PEER
+        byte maskedPub[CURVE25519_KEYSIZE];
+    #endif
+    #endif
 
         *haveCb = 0;
         if ((args->idx - args->begin) + OPAQUE8_LEN > size)
@@ -44408,7 +44431,19 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 }
             }
 
-            if ((ret = wc_curve25519_check_public(input + args->idx,
+            peerPub = input + args->idx;
+        #ifndef WOLFSSL_X25519_NO_MASK_PEER
+            if (args->length == CURVE25519_KEYSIZE) {
+                XMEMCPY(maskedPub, peerPub, CURVE25519_KEYSIZE);
+                /* RFC 7748 Section 5: X25519 receivers MUST mask (clear)
+                 * the reserved high bit of the final wire byte before
+                 * use. */
+                maskedPub[CURVE25519_KEYSIZE - 1] &= 0x7f;
+                peerPub = maskedPub;
+            }
+        #endif
+
+            if ((ret = wc_curve25519_check_public(peerPub,
                                    args->length, EC25519_LITTLE_ENDIAN)) != 0) {
             #ifdef WOLFSSL_EXTRA_ALERTS
                 if (ret == WC_NO_ERR_TRACE(BUFFER_E))
@@ -44424,7 +44459,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 return ECC_PEERKEY_ERROR;
             }
 
-            if (wc_curve25519_import_public_ex(input + args->idx, args->length,
+            if (wc_curve25519_import_public_ex(peerPub, args->length,
                                ssl->peerX25519Key, EC25519_LITTLE_ENDIAN)) {
              #ifdef WOLFSSL_EXTRA_ALERTS
                 SendAlert(ssl, alert_fatal, illegal_parameter);
