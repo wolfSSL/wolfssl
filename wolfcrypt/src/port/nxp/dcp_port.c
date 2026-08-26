@@ -198,10 +198,12 @@ int wc_dcp_init(void)
     return 0;
 }
 
-/* Release a channel without taking the DCP lock. For the dcp_lock()
- * failure branches only: a contended lock blocks rather than fails, so
- * a failure there means no other thread can be inside the critical
- * section and the clear cannot race a live access. */
+/* Release a channel without taking the DCP lock. Safe whenever
+ * dcp_lock() is known to be unavailable: a contended lock blocks
+ * rather than fails, so a failure means no other thread can be
+ * inside the critical section (or the caller already holds the
+ * mutex), and the owner check prevents releasing a channel held by
+ * another context. */
 static void dcp_free_unlocked(void* owner, int ch)
 {
 #ifndef SINGLE_THREADED
@@ -220,12 +222,17 @@ static void dcp_free_unlocked(void* owner, int ch)
 #endif
 }
 
+/* Total: always releases, so callers may drop their handle record
+ * unconditionally. A lock failure falls back to the unlocked release
+ * (safe per dcp_free_unlocked) instead of orphaning the reservation. */
 static void dcp_free(void* owner, int ch)
 {
-    if (dcp_lock() != 0)
-        return;
+    int locked;
+
+    locked = (dcp_lock() == 0);
     dcp_free_unlocked(owner, ch);
-    dcp_unlock();
+    if (locked)
+        dcp_unlock();
 }
 
 /*
