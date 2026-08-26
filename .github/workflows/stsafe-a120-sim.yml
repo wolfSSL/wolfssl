@@ -37,7 +37,7 @@ permissions:
 #      CFLAG to the new --enable-stsafe=a120 option.
 
 env:
-  SIMULATORS_REF: 7e4a50ac3316680c523ec2f66711ea8403c94468
+  SIMULATORS_REF: c827ac79584523b7070c4d8c98ca618a370ad76e
 
 jobs:
   stsafe_a120_sim:
