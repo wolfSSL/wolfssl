@@ -66,8 +66,13 @@
 #define WC_ASU_ECIES_NONCE_SZ     12
 #define WC_ASU_ECIES_TAG_SZ       16
 
-/* Biggest curve we support here, Brainpool P-512 at 64 bytes. */
-#define WC_ASU_ECIES_MAX_KEYLEN   XASU_ECC_P512_SIZE_IN_BYTES
+/* Biggest curve we support here. P-521 joins only where the firmware handles
+ * it, so the buffers follow the same switch. */
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_ECC_P521
+#define WC_ASU_ECIES_MAX_KEYLEN   WC_ASU_ECC_P521_LEN
+#else
+#define WC_ASU_ECIES_MAX_KEYLEN   WC_ASU_ECC_P512_LEN
+#endif
 
 /* One ASU ECIES request. The fixed size fields live on the heap so the ASU
  * can reach them. The message stays in the caller buffers. */
@@ -158,32 +163,39 @@ static int wc_AsuEciesCurve(ecc_key* key, u8* curveType, u8* keyLen)
     switch (key->dp->id) {
         case ECC_SECP192R1:
             *curveType = (u8)XASU_ECC_NIST_P192;
-            *keyLen    = (u8)XASU_ECC_P192_SIZE_IN_BYTES;
+            *keyLen    = (u8)WC_ASU_ECC_P192_LEN;
             break;
         case ECC_SECP256R1:
             *curveType = (u8)XASU_ECC_NIST_P256;
-            *keyLen    = (u8)XASU_ECC_P256_SIZE_IN_BYTES;
+            *keyLen    = (u8)WC_ASU_ECC_P256_LEN;
             break;
         case ECC_SECP384R1:
             *curveType = (u8)XASU_ECC_NIST_P384;
-            *keyLen    = (u8)XASU_ECC_P384_SIZE_IN_BYTES;
+            *keyLen    = (u8)WC_ASU_ECC_P384_LEN;
             break;
+#ifdef WOLFSSL_VERSAL_GEN2_ASU_ECC_P521
+        /* Same P-521 switch as ECDSA and ECDH, on from Vitis 2026.1. */
+        case ECC_SECP521R1:
+            *curveType = (u8)XASU_ECC_NIST_P521;
+            *keyLen    = (u8)WC_ASU_ECC_P521_LEN;
+            break;
+#endif
 #ifdef HAVE_ECC_BRAINPOOL
         case ECC_BRAINPOOLP256R1:
             *curveType = (u8)XASU_ECC_BRAINPOOL_P256;
-            *keyLen    = (u8)XASU_ECC_P256_SIZE_IN_BYTES;
+            *keyLen    = (u8)WC_ASU_ECC_P256_LEN;
             break;
         case ECC_BRAINPOOLP320R1:
             *curveType = (u8)XASU_ECC_BRAINPOOL_P320;
-            *keyLen    = (u8)XASU_ECC_P320_SIZE_IN_BYTES;
+            *keyLen    = (u8)WC_ASU_ECC_P320_LEN;
             break;
         case ECC_BRAINPOOLP384R1:
             *curveType = (u8)XASU_ECC_BRAINPOOL_P384;
-            *keyLen    = (u8)XASU_ECC_P384_SIZE_IN_BYTES;
+            *keyLen    = (u8)WC_ASU_ECC_P384_LEN;
             break;
         case ECC_BRAINPOOLP512R1:
             *curveType = (u8)XASU_ECC_BRAINPOOL_P512;
-            *keyLen    = (u8)XASU_ECC_P512_SIZE_IN_BYTES;
+            *keyLen    = (u8)WC_ASU_ECC_P512_LEN;
             break;
 #endif
         default:

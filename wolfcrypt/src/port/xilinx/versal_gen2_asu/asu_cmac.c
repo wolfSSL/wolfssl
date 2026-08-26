@@ -64,10 +64,11 @@ typedef struct {
     word32 keyLen;
 } AsuCmacKeep;
 
-/* One ASU AES request: the params block and the key object it points at. */
+/* One ASU AES request: the params block and the key object it points at. The
+ * key object is read by DMA, so keep it on a cache line of its own. */
 typedef struct {
-    XAsu_AesParams    params;
-    XAsu_AesKeyObject keyObj;
+    XAsu_AesParams params;
+    WC_ASU_ALIGN64 XAsu_AesKeyObject keyObj;
 } AsuCmacReq;
 
 /* Hands one CMAC request to the ASU queue. wc_AsuTransact calls this while it
@@ -149,7 +150,8 @@ static int wc_AsuCmacHw(const byte* key, word32 keyLen, u32 keySize,
     req.params.TagLen         = XASU_AES_MAX_TAG_LENGTH_IN_BYTES;
     req.params.EngineMode     = (u8)XASU_AES_CMAC_MODE;
     req.params.OperationFlags =
-        (u8)(XASU_AES_INIT | XASU_AES_UPDATE | XASU_AES_FINAL);
+        (u8)(WC_ASU_AES_OP_INIT | WC_ASU_AES_OP_UPDATE |
+             WC_ASU_AES_OP_FINAL);
     req.params.IsLast         = (u8)XASU_TRUE;
     req.params.OperationType  = (u8)XASU_AES_ENCRYPT_OPERATION;
 

@@ -62,7 +62,7 @@
 #define WC_ASU_ECC_OP_VERIFY  1   /* XAsu_EccVerifySign */
 
 /* Biggest curve we support, P-521 at 66 bytes. */
-#define WC_ASU_ECC_MAX_KEYLEN  XASU_ECC_P521_SIZE_IN_BYTES
+#define WC_ASU_ECC_MAX_KEYLEN  WC_ASU_ECC_P521_LEN
 
 /* One ASU ECC request. The buffers live on the heap so the ASU can reach them. */
 typedef struct {
@@ -166,41 +166,41 @@ static int wc_AsuEccCurve(ecc_key* key, u32* curveType, u32* keyLen)
     switch (key->dp->id) {
         case ECC_SECP192R1:
             type = (u32)XASU_ECC_NIST_P192;
-            len  = (u32)XASU_ECC_P192_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P192_LEN;
             break;
         case ECC_SECP256R1:
             type = (u32)XASU_ECC_NIST_P256;
-            len  = (u32)XASU_ECC_P256_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P256_LEN;
             break;
         case ECC_SECP384R1:
             type = (u32)XASU_ECC_NIST_P384;
-            len  = (u32)XASU_ECC_P384_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P384_LEN;
             break;
 #ifdef WOLFSSL_VERSAL_GEN2_ASU_ECC_P521
-        /* Off by default. Stock firmware pads the digest wrong and caps it at
-         * 64 bytes, which is too small for P-521. */
+        /* On from Vitis 2026.1, whose firmware front-pads the digest. Earlier
+         * firmware padded it wrong, so the curve stayed in software. */
         case ECC_SECP521R1:
             type = (u32)XASU_ECC_NIST_P521;
-            len  = (u32)XASU_ECC_P521_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P521_LEN;
             break;
 #endif
 #ifdef HAVE_ECC_BRAINPOOL
         /* Brainpool curves work like the NIST ones and all fit in 64 bytes. */
         case ECC_BRAINPOOLP256R1:
             type = (u32)XASU_ECC_BRAINPOOL_P256;
-            len  = (u32)XASU_ECC_P256_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P256_LEN;
             break;
         case ECC_BRAINPOOLP320R1:
             type = (u32)XASU_ECC_BRAINPOOL_P320;
-            len  = (u32)XASU_ECC_P320_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P320_LEN;
             break;
         case ECC_BRAINPOOLP384R1:
             type = (u32)XASU_ECC_BRAINPOOL_P384;
-            len  = (u32)XASU_ECC_P384_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P384_LEN;
             break;
         case ECC_BRAINPOOLP512R1:
             type = (u32)XASU_ECC_BRAINPOOL_P512;
-            len  = (u32)XASU_ECC_P512_SIZE_IN_BYTES;
+            len  = (u32)WC_ASU_ECC_P512_LEN;
             break;
 #endif
         default:
@@ -322,9 +322,8 @@ static int wc_AsuEccSign(wc_CryptoInfo* info)
 
     mem.req->op                 = WC_ASU_ECC_OP_SIGN;
     mem.req->params.CurveType   = curveType;
-    mem.req->params.KeyLen      = keyLen;
     mem.req->params.DigestLen   = digLen;
-    mem.req->params.KeyAddr     = (u64)(UINTPTR)mem.req->key;
+    wc_AsuEccSetKey(&mem.req->params, mem.req->key, keyLen);
     mem.req->params.DigestAddr  = (u64)(UINTPTR)mem.req->digest;
     mem.req->params.SignAddr    = (u64)(UINTPTR)mem.req->sign;
 
@@ -443,9 +442,8 @@ static int wc_AsuEccVerify(wc_CryptoInfo* info)
 
     mem.req->op                 = WC_ASU_ECC_OP_VERIFY;
     mem.req->params.CurveType   = curveType;
-    mem.req->params.KeyLen      = keyLen;
     mem.req->params.DigestLen   = digLen;
-    mem.req->params.KeyAddr     = (u64)(UINTPTR)mem.req->key;
+    wc_AsuEccSetKey(&mem.req->params, mem.req->key, keyLen);
     mem.req->params.DigestAddr  = (u64)(UINTPTR)mem.req->digest;
     mem.req->params.SignAddr    = (u64)(UINTPTR)mem.req->sign;
 
@@ -538,9 +536,8 @@ static int wc_AsuEd25519Sign(wc_CryptoInfo* info)
 
     mem.req->op                = WC_ASU_ECC_OP_SIGN;
     mem.req->params.CurveType  = (u32)XASU_ECC_NIST_ED25519;
-    mem.req->params.KeyLen     = (u32)ED25519_KEY_SIZE;
     mem.req->params.DigestLen  = msgLen;
-    mem.req->params.KeyAddr    = (u64)(UINTPTR)mem.req->key;
+    wc_AsuEccSetKey(&mem.req->params, mem.req->key, (u32)ED25519_KEY_SIZE);
     mem.req->params.DigestAddr = (u64)(UINTPTR)msg;
     mem.req->params.SignAddr   = (u64)(UINTPTR)mem.req->sign;
 
@@ -654,9 +651,8 @@ static int wc_AsuEd25519Verify(wc_CryptoInfo* info)
 
     mem.req->op                = WC_ASU_ECC_OP_VERIFY;
     mem.req->params.CurveType  = (u32)XASU_ECC_NIST_ED25519;
-    mem.req->params.KeyLen     = (u32)ED25519_KEY_SIZE;
     mem.req->params.DigestLen  = msgLen;
-    mem.req->params.KeyAddr    = (u64)(UINTPTR)mem.req->key;
+    wc_AsuEccSetKey(&mem.req->params, mem.req->key, (u32)ED25519_KEY_SIZE);
     mem.req->params.DigestAddr = (u64)(UINTPTR)msg;
     mem.req->params.SignAddr   = (u64)(UINTPTR)mem.req->sign;
 
@@ -755,9 +751,8 @@ static int wc_AsuEd448Sign(wc_CryptoInfo* info)
 
     mem.req->op                = WC_ASU_ECC_OP_SIGN;
     mem.req->params.CurveType  = (u32)XASU_ECC_NIST_ED448;
-    mem.req->params.KeyLen     = (u32)ED448_KEY_SIZE;
     mem.req->params.DigestLen  = msgLen;
-    mem.req->params.KeyAddr    = (u64)(UINTPTR)mem.req->key;
+    wc_AsuEccSetKey(&mem.req->params, mem.req->key, (u32)ED448_KEY_SIZE);
     mem.req->params.DigestAddr = (u64)(UINTPTR)msg;
     mem.req->params.SignAddr   = (u64)(UINTPTR)mem.req->sign;
 
@@ -875,9 +870,8 @@ static int wc_AsuEd448Verify(wc_CryptoInfo* info)
 
     mem.req->op                = WC_ASU_ECC_OP_VERIFY;
     mem.req->params.CurveType  = (u32)XASU_ECC_NIST_ED448;
-    mem.req->params.KeyLen     = (u32)ED448_KEY_SIZE;
     mem.req->params.DigestLen  = msgLen;
-    mem.req->params.KeyAddr    = (u64)(UINTPTR)mem.req->key;
+    wc_AsuEccSetKey(&mem.req->params, mem.req->key, (u32)ED448_KEY_SIZE);
     mem.req->params.DigestAddr = (u64)(UINTPTR)msg;
     mem.req->params.SignAddr   = (u64)(UINTPTR)mem.req->sign;
 

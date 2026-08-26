@@ -32,10 +32,10 @@
  * example).
  *
  * OAEP encrypt is full hardware (ASU does the SHA/MGF encode and the RSA math).
- * OAEP decrypt is NOT offloaded here: the ASU OAEP-decode command returns no
- * recovered-message length, which wolfSSL requires, so it declines to software
- * (the private RSA math is still offloaded through the raw WC_PK_TYPE_RSA
- * path).
+ * OAEP decrypt is full hardware from Vitis 2026.1, which returns the recovered
+ * message length the decode needs; before that the length was lost, so it
+ * declined to software with only the private RSA math offloaded through the raw
+ * WC_PK_TYPE_RSA path, and it still does on 2025.2.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -74,12 +74,24 @@
     #define WC_ASU_RSA_PAD
 #endif
 
+/* OAEP decrypt needs the recovered-message length back, which only the 2026.1
+ * client returns (through OutputLenAddr). Before that the decode ran on the
+ * ASU but the length was lost, so wolfSSL could not use the result. */
+/* It also needs the private exponent, which RsaKey does not carry under
+ * WOLFSSL_RSA_PUBLIC_ONLY, so the offload stays out of that build. */
+#if defined(WC_ASU_RSA_PAD) && \
+    defined(WOLFSSL_VERSAL_GEN2_ASU_XILASU_2026_1) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    #define WC_ASU_RSA_OAEP_DEC
+#endif
+
 /* Submit-thunk op selector. */
 #define WC_ASU_RSA_OP_PUB        0   /* XAsu_RsaEnc:       public  m^e mod n */
 #define WC_ASU_RSA_OP_PVT        1   /* XAsu_RsaDec:       private c^d mod n */
 #define WC_ASU_RSA_OP_PSS_SIGN   2   /* XAsu_RsaPssSignGen */
 #define WC_ASU_RSA_OP_PSS_VERIFY 3   /* XAsu_RsaPssSignVer */
 #define WC_ASU_RSA_OP_OAEP_ENC   4   /* XAsu_RsaOaepEnc */
+#define WC_ASU_RSA_OP_OAEP_DEC   5   /* XAsu_RsaOaepDec */
 
 /* Everything one RSA request needs: the operation/padding info plus the key.
  * Public-key operations (encrypt, verify) use only the public part. */
@@ -93,6 +105,9 @@ typedef struct {
      * CPU-owned data and stamps stale bytes over the DMA result. */
     WC_ASU_ALIGN64 byte   out[XRSA_4096_KEY_SIZE];  /* DMA result, copied out */
     WC_ASU_ALIGN64 byte   scratch[XRSA_4096_KEY_SIZE]; /* PSS sig/OAEP label */
+    /* 2026.1 returns the produced length here through the mailbox, and the
+     * client refuses a request that does not offer somewhere to put it. */
+    u32                   outLen;
     int                   op;
 } AsuRsaReq;
 
@@ -159,6 +174,10 @@ static int wc_AsuRsaSubmit(XAsu_ClientParams* params, void* ctx)
             return XAsu_RsaPssSignVer(params, &req->pad);
         case WC_ASU_RSA_OP_OAEP_ENC:
             return XAsu_RsaOaepEnc(params, &req->oaep);
+    #ifdef WC_ASU_RSA_OAEP_DEC
+        case WC_ASU_RSA_OP_OAEP_DEC:
+            return XAsu_RsaOaepDec(params, &req->oaep);
+    #endif
         default:
             return XST_FAILURE;
     }
@@ -224,7 +243,7 @@ static int wc_AsuRsaShaMap(enum wc_HashType hash, int mgf, u8* shaType,
         case WC_HASH_TYPE_SHA256:
             *shaType = (u8)XASU_SHA2_TYPE;
             *shaMode = (u8)XASU_SHA_MODE_256;
-            *hashLen = XASU_SHA_256_HASH_LEN;
+            *hashLen = WC_ASU_SHA_256_HASH_LEN;
             if (mgf != WC_MGF1SHA256) {
                 return CRYPTOCB_UNAVAILABLE;
             }
@@ -248,7 +267,7 @@ static int wc_AsuRsaShaMap(enum wc_HashType hash, int mgf, u8* shaType,
         case WC_HASH_TYPE_SHA3_256:
             *shaType = (u8)XASU_SHA3_TYPE;
             *shaMode = (u8)XASU_SHA_MODE_256;
-            *hashLen = XASU_SHA_256_HASH_LEN;
+            *hashLen = WC_ASU_SHA_256_HASH_LEN;
             if (mgf != WC_MGF1SHA3_256) {
                 return CRYPTOCB_UNAVAILABLE;
             }
@@ -323,6 +342,8 @@ static int wc_AsuRsaRaw(wc_CryptoInfo* info, RsaKey* key, u32 keySize, int op)
     mem.req->pad.XAsu_RsaOpComp.ExpoCompAddr   = 0U;
     mem.req->pad.XAsu_RsaOpComp.Len            = keySize;
     mem.req->pad.XAsu_RsaOpComp.KeySize        = keySize;
+    wc_AsuRsaSetOutLen(&mem.req->pad.XAsu_RsaOpComp, keySize,
+        &mem.req->outLen);
 
     WC_ASU_PRINTF("[ASU] rsa raw op=%d keySize=%u\r\n",
         op, (unsigned int)keySize);
@@ -492,6 +513,8 @@ static int wc_AsuRsaPssSign(wc_CryptoInfo* info)
     mem.req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
     mem.req->pad.XAsu_RsaOpComp.Len            = hashLen;
     mem.req->pad.XAsu_RsaOpComp.KeySize        = keySize;
+    wc_AsuRsaSetOutLen(&mem.req->pad.XAsu_RsaOpComp, keySize,
+        &mem.req->outLen);
     mem.req->pad.SignatureDataAddr             = (u64)(UINTPTR)mem.req->scratch;
     mem.req->pad.SignatureLen                  = keySize;
     mem.req->pad.SaltLen                       = (u32)saltLen;
@@ -543,6 +566,25 @@ static int wc_AsuRsaPssIsReject(word32 status)
     return ((first  >= 0xC4U && first  <= 0xCAU) ||
             (second >= 0xC4U && second <= 0xCAU));
 }
+
+#ifdef WC_ASU_RSA_OAEP_DEC
+/* Same packing. Measured 0x4002F0BC, 0xBC OAEP_DECODE_ERROR, on a tampered
+ * ciphertext; 0xBD is its hash compare. Anything else is a fault, not a
+ * verdict. */
+static int wc_AsuRsaOaepStatusIsPadding(word32 status)
+{
+    word32 first  = status & 0x3FFU;
+    word32 second = (status >> 10) & 0x3FFU;
+
+    if (first == 0xBCU || first == 0xBDU) {
+        return 1;
+    }
+    if (second == 0xBCU || second == 0xBDU) {
+        return 1;
+    }
+    return 0;
+}
+#endif /* WC_ASU_RSA_OAEP_DEC */
 
 /* Decode an ASU RSA verify into a verdict: *res = 1 verified / 0 rejected,
  * return 0 when the ASU gave a verdict, WC_HW_E only on transport fault. */
@@ -632,6 +674,8 @@ static int wc_AsuRsaPssVerify(wc_CryptoInfo* info)
     mem.req->pad.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
     mem.req->pad.XAsu_RsaOpComp.Len            = hashLen;
     mem.req->pad.XAsu_RsaOpComp.KeySize        = keySize;
+    wc_AsuRsaSetOutLen(&mem.req->pad.XAsu_RsaOpComp, keySize,
+        &mem.req->outLen);
     mem.req->pad.SignatureDataAddr             =
         (u64)(UINTPTR)info->pk.rsa_pss_verify.sig;
     mem.req->pad.SignatureLen                  = keySize;
@@ -685,7 +729,6 @@ static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
         info->pk.rsa.out == NULL) {
         return BAD_FUNC_ARG;
     }
-    /* Only encrypt is offloaded; ASU OAEP-decode returns no message length. */
     if (info->pk.rsa.type != RSA_PUBLIC_ENCRYPT) {
         return CRYPTOCB_UNAVAILABLE;
     }
@@ -744,6 +787,8 @@ static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
     mem.req->oaep.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
     mem.req->oaep.XAsu_RsaOpComp.Len            = info->pk.rsa.inLen;
     mem.req->oaep.XAsu_RsaOpComp.KeySize        = keySize;
+    wc_AsuRsaSetOutLen(&mem.req->oaep.XAsu_RsaOpComp, keySize,
+        &mem.req->outLen);
     mem.req->oaep.OptionalLabelAddr             = (u64)(UINTPTR)label;
     mem.req->oaep.OptionalLabelSize             = labelSz;
     mem.req->oaep.ShaType                       = shaType;
@@ -773,6 +818,139 @@ static int wc_AsuRsaOaepEnc(wc_CryptoInfo* info)
     wc_AsuRsaReqFree(&mem);
     return 0;
 }
+#ifdef WC_ASU_RSA_OAEP_DEC
+/* OAEP decrypt: the ASU does the private math and the OAEP decode, and reports
+ * how many message bytes it recovered. */
+static int wc_AsuRsaOaepDec(wc_CryptoInfo* info)
+{
+    AsuRsaMem mem;
+    RsaKey* key = info->pk.rsa.key;
+    RsaPadding* padding = info->pk.rsa.padding;
+    u32     keySize = 0;
+    u8      shaType = 0;
+    u8      shaMode = 0;
+    word32  hashLen = 0;
+    word32  recovered;
+    const byte* label;
+    word32  labelSz;
+    word32  status;
+    word32  addl = 0;
+    int     ret = 0;
+
+    if (key == NULL || padding == NULL || info->pk.rsa.in == NULL ||
+        info->pk.rsa.out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (info->pk.rsa.type != RSA_PRIVATE_DECRYPT) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    /* Private op needs the private exponent, same as the raw and PSS paths. */
+    if (mp_unsigned_bin_size(&key->d) == 0) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    ret = wc_AsuRsaKeySize(key, &keySize);
+    if (ret != 0) {
+        return ret;
+    }
+    /* The ciphertext is one modulus wide; anything else is not ours. */
+    if (info->pk.rsa.inLen != keySize) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    if (info->pk.rsa.outLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    ret = wc_AsuRsaShaMap(padding->hash, padding->mgf, &shaType, &shaMode,
+        &hashLen);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_AsuRsaReqNew(&mem);
+    if (ret != 0) {
+        return ret;
+    }
+    XMEMSET(mem.req, 0, sizeof(*mem.req));
+    ret = wc_AsuRsaPubComp(key, keySize, &mem.req->key.PubKeyComp);
+    if (ret != 0) {
+        wc_AsuRsaReqFree(&mem);
+        return ret;
+    }
+    mem.req->key.PrimeCompOrTotientPrsnt = 0U;
+    if (mp_to_unsigned_bin_len_ct(&key->d, (byte*)mem.req->key.PvtExp,
+            (int)keySize) < 0) {
+        wc_AsuRsaReqFree(&mem);
+        return WC_HW_E;
+    }
+
+    /* Same empty-label rule as encrypt: a valid address with size 0. */
+    label = padding->label;
+    labelSz = padding->labelSz;
+    if (label == NULL && labelSz > 0) {
+        wc_AsuRsaReqFree(&mem);
+        return BUFFER_E;
+    }
+    if (label == NULL) {
+        label = mem.req->scratch;
+        labelSz = 0;
+    }
+
+    mem.req->op                                 = WC_ASU_RSA_OP_OAEP_DEC;
+    mem.req->oaep.XAsu_RsaOpComp.InputDataAddr  = (u64)(UINTPTR)info->pk.rsa.in;
+    /* Recover into our own buffer: the message is shorter than the modulus and
+     * the caller's buffer may be smaller than what the ASU is told it has. */
+    mem.req->oaep.XAsu_RsaOpComp.OutputDataAddr = (u64)(UINTPTR)mem.req->out;
+    mem.req->oaep.XAsu_RsaOpComp.KeyCompAddr    = (u64)(UINTPTR)&mem.req->key;
+    mem.req->oaep.XAsu_RsaOpComp.Len            = info->pk.rsa.inLen;
+    mem.req->oaep.XAsu_RsaOpComp.KeySize        = keySize;
+    wc_AsuRsaSetOutLen(&mem.req->oaep.XAsu_RsaOpComp,
+        (u32)sizeof(mem.req->out), &mem.req->outLen);
+    mem.req->oaep.OptionalLabelAddr             = (u64)(UINTPTR)label;
+    mem.req->oaep.OptionalLabelSize             = labelSz;
+    mem.req->oaep.ShaType                       = shaType;
+    mem.req->oaep.ShaMode                       = shaMode;
+
+    WC_ASU_PRINTF("[ASU] rsa oaep-dec keySize=%u shaMode=%u labelSz=%u\r\n",
+        (unsigned int)keySize, (unsigned int)shaMode, (unsigned int)labelSz);
+
+    wc_AsuCacheFlush(info->pk.rsa.in, info->pk.rsa.inLen);
+    if (labelSz > 0) {
+        wc_AsuCacheFlush(label, labelSz);
+    }
+    wc_AsuCacheFlush(&mem.req->key, sizeof(mem.req->key));
+    /* out is a DMA target so it is flushed and invalidated; outLen is not one,
+     * it arrives in the mailbox response - see wc_AsuRsaSetOutLen. */
+    wc_AsuCacheFlush(mem.req->out, sizeof(mem.req->out));
+
+    status = wc_AsuTransact(wc_AsuRsaSubmit, mem.req, &addl);
+
+    wc_AsuCacheInvalidate(mem.req->out, sizeof(mem.req->out));
+
+    /* A decode failure is an answer, the padding is valid for this key or it
+     * is not. A transport or argument fault is not, so keep the two apart. */
+    if (status != XST_SUCCESS) {
+        int isPadding = wc_AsuRsaOaepStatusIsPadding((word32)status);
+
+        wc_AsuRsaReqFree(&mem);
+        if (isPadding) {
+            return RSA_PAD_E;
+        }
+        return WC_HW_E;
+    }
+
+    /* Trust the reported length only as far as both buffers allow. */
+    recovered = mem.req->outLen;
+    if (recovered > sizeof(mem.req->out) || recovered > *info->pk.rsa.outLen) {
+        wc_AsuRsaReqFree(&mem);
+        return RSA_BUFFER_E;
+    }
+    XMEMCPY(info->pk.rsa.out, mem.req->out, recovered);
+    *info->pk.rsa.outLen = recovered;
+    wc_AsuRsaReqFree(&mem);
+    return 0;
+}
+#endif /* WC_ASU_RSA_OAEP_DEC */
+
 #endif /* WC_ASU_RSA_PAD (OAEP encrypt) */
 
 /* WC_ALGO_TYPE_PK entry: dispatch on RSA pk sub-type. Raw always offloaded;
@@ -797,6 +975,11 @@ int wc_AsuRsa(wc_CryptoInfo* info)
         case WC_PK_TYPE_RSA_PSS_VERIFY:
             return wc_AsuRsaPssVerify(info);
         case WC_PK_TYPE_RSA_OAEP:
+        #ifdef WC_ASU_RSA_OAEP_DEC
+            if (info->pk.rsa.type == RSA_PRIVATE_DECRYPT) {
+                return wc_AsuRsaOaepDec(info);
+            }
+        #endif
             return wc_AsuRsaOaepEnc(info);
     #endif /* WC_ASU_RSA_PAD */
         default:

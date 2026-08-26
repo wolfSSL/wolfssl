@@ -30,6 +30,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include "xasu_client.h"
+#include <wolfssl/wolfcrypt/port/xilinx/versal_gen2_asu/asu_compat.h>
 
 #ifdef __cplusplus
 extern "C" {

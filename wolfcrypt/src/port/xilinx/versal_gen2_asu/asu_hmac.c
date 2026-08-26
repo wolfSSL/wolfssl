@@ -162,18 +162,19 @@ static int wc_AsuHmacOneShot(u8 shaType, u8 shaMode, const byte* key,
     req.params.ShaType        = shaType;
     req.params.ShaMode        = shaMode;
     req.params.IsLast         = (u8)XASU_TRUE;
-    req.params.KeyLen         = keyLen;
     req.params.MsgLen         = msgLen;
     req.params.HmacLen        = macLen;
-    req.params.KeyAddr        = (u64)(UINTPTR)key;
     req.params.MsgBufferAddr  = (u64)(UINTPTR)msg;
     req.params.HmacAddr       = (u64)(UINTPTR)mac;
+    wc_AsuHmacSetKey(&req.params, key, keyLen);
     if (msgLen > 0) {
         req.params.OperationFlags =
-            (u8)(XASU_HMAC_INIT | XASU_HMAC_UPDATE | XASU_HMAC_FINAL);
+            (u8)(WC_ASU_HMAC_OP_INIT | WC_ASU_HMAC_OP_UPDATE |
+                 WC_ASU_HMAC_OP_FINAL);
     }
     else {
-        req.params.OperationFlags = (u8)(XASU_HMAC_INIT | XASU_HMAC_FINAL);
+        req.params.OperationFlags =
+            (u8)(WC_ASU_HMAC_OP_INIT | WC_ASU_HMAC_OP_FINAL);
     }
 
     WC_ASU_PRINTF("[ASU] hmac type=%d mode=%d keyLen=%u msgLen=%u macLen=%u\r\n",
@@ -181,7 +182,7 @@ static int wc_AsuHmacOneShot(u8 shaType, u8 shaMode, const byte* key,
         (unsigned int)macLen);
 
     /* The ASU reads the key and message from memory, so push them out first.
-     * The MAC comes back another way and needs nothing here. */
+     * The MAC returns in the mailbox response, so it needs no cache work. */
     wc_AsuCacheFlush(key, keyLen);
     if (msgLen > 0) {
         wc_AsuCacheFlush(msg, msgLen);
@@ -216,11 +217,16 @@ static int wc_AsuHmacCompute(wc_CryptoInfo* info)
 
     ret = wc_AsuHmacResolve(info->hmac.macType, &shaType, &shaMode, &hmacLen);
     if (ret != 0) {
+        WC_ASU_PRINTF("[ASU] hmac decline: macType=%d unsupported\r\n",
+            (int)info->hmac.macType);
         return ret;
     }
 
     /* The ASU needs the raw key. If wolfSSL did not keep one, use software. */
     if ((hmac->keyRaw == NULL) || (hmac->keyLen == 0)) {
+        WC_ASU_PRINTF("[ASU] hmac decline: no raw key "
+            "(keyRaw=%p keyLen=%u)\r\n",
+            (void*)hmac->keyRaw, (unsigned int)hmac->keyLen);
         return CRYPTOCB_UNAVAILABLE;
     }
 
