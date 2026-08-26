@@ -1790,9 +1790,11 @@ static int test_dual_alg_support(void)
 /* Handshake that signs the CertificateVerify with the alternative key. The
  * server loads that key onto the session, so the session owns it and has to
  * release it exactly once. */
+/* altOnCtx puts the alternative key on the context, so the session borrows it
+ * rather than owning a copy. */
 static int do_dual_alg_tls13_alt_sig_connection(byte *caCert, word32 caCertSz,
     byte *serverCert, word32 serverCertSz, byte *serverKey, word32 serverKeySz,
-    byte *altKey, word32 altKeySz)
+    byte *altKey, word32 altKeySz, int altOnCtx)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL;
@@ -1805,14 +1807,33 @@ static int do_dual_alg_tls13_alt_sig_connection(byte *caCert, word32 caCertSz,
     cks[0] = WOLFSSL_CKS_SIGSPEC_ALTERNATIVE;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (altOnCtx) {
+        /* Built here so the context already holds the alternative key when
+         * the object is made from it, which is what makes the object borrow
+         * the buffer instead of taking a copy. test_memio_setup_ex only
+         * builds a context it is handed as NULL. */
+        ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx_s, serverKey,
+                    (long)serverKeySz, WOLFSSL_FILETYPE_ASN1),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(ctx_s,
+                    serverCert, (long)serverCertSz, WOLFSSL_FILETYPE_ASN1),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_AltPrivateKey_buffer(ctx_s, altKey,
+                    (long)altKeySz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    }
     ExpectIntEQ(test_memio_setup_ex(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                 wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
                 caCert, caCertSz, serverCert, serverCertSz,
                 serverKey, serverKeySz), 0);
 
-    /* the session's own copy, nothing in the context points at it */
-    ExpectIntEQ(wolfSSL_use_AltPrivateKey_buffer(ssl_s, altKey, (long)altKeySz,
-                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    if (!altOnCtx) {
+        /* the session's own copy, nothing in the context points at it */
+        ExpectIntEQ(wolfSSL_use_AltPrivateKey_buffer(ssl_s, altKey,
+                    (long)altKeySz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
     ExpectIntEQ(wolfSSL_UseCKS(ssl_c, cks, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseCKS(ssl_s, cks, 1), WOLFSSL_SUCCESS);
 
@@ -1823,6 +1844,7 @@ static int do_dual_alg_tls13_alt_sig_connection(byte *caCert, word32 caCertSz,
     defined(WOLFSSL_WPAS_SMALL))
     ExpectNotNull(ssl_s);
     if (ssl_s != NULL) {
+        int keyOwned = ssl_s->buffers.weOwnKey;
         /* the handshake really did take the alternative path */
         ExpectNotNull(ssl_s->sigSpec);
         if (ssl_s->sigSpec != NULL) {
@@ -1834,6 +1856,23 @@ static int do_dual_alg_tls13_alt_sig_connection(byte *caCert, word32 caCertSz,
         ExpectPtrEq(ssl_s->buffers.altKey, ssl_s->buffers.key);
         /* but only the primary field owns it, so it is released once */
         ExpectIntEQ(ssl_s->buffers.weOwnAltKey, 0);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        /* the mask went with the key, so re-blinding through the alternate
+         * field cannot release it a second time */
+        ExpectNull(ssl_s->buffers.altKeyMask);
+#endif
+
+        /* Unloading releases only what the object owns. A key borrowed from
+         * the context is not released, so it has to stay reachable for a
+         * later CertificateVerify. */
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl_s), WOLFSSL_SUCCESS);
+        if (keyOwned) {
+            ExpectNull(ssl_s->buffers.altKey);
+        }
+        else {
+            ExpectPtrEq(ssl_s->buffers.altKey, ctx_s->altPrivateKey);
+            ExpectPtrEq(ssl_s->buffers.key, ctx_s->altPrivateKey);
+        }
     }
 #endif
 
@@ -1959,7 +1998,13 @@ static int test_dual_alg_alt_sig_key_ownership(void)
 
     ExpectIntEQ(do_dual_alg_tls13_alt_sig_connection(root, (word32)rootSz,
                 server, (word32)serverSz, serverKey, (word32)serverKeySz,
-                altKey, (word32)altKeySz), TEST_SUCCESS);
+                altKey, (word32)altKeySz, 0), TEST_SUCCESS);
+
+    /* again with the alternative key owned by the context and only borrowed
+     * by the session */
+    ExpectIntEQ(do_dual_alg_tls13_alt_sig_connection(root, (word32)rootSz,
+                server, (word32)serverSz, serverKey, (word32)serverKeySz,
+                altKey, (word32)altKeySz, 1), TEST_SUCCESS);
 
     /* skipped rather than run when the build has no post-handshake auth */
     ExpectIntNE(do_dual_alg_tls13_repeat_certverify(root, (word32)rootSz,
@@ -31126,6 +31171,16 @@ static int test_wolfSSL_alt_key_ownership(void)
     ExpectFalse(ssl->buffers.altKey == ctx->altPrivateKey);
 #else
     ExpectIntEQ(ssl->buffers.weOwnAltKey, 0);
+    ExpectTrue(ssl->buffers.altKey == ctx->altPrivateKey);
+#endif
+
+    /* unloading releases what this object owns and leaves what it borrows,
+     * so that a later signature can still reach the context's key */
+    ExpectIntEQ(wolfSSL_UnloadCertsKeys(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->buffers.weOwnAltKey, 0);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    ExpectNull(ssl->buffers.altKey);
+#else
     ExpectTrue(ssl->buffers.altKey == ctx->altPrivateKey);
 #endif
 

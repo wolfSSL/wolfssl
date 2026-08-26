@@ -973,6 +973,11 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
         ret = BAD_FUNC_ARG;
     }
     else {
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
+        /* Whether releasing the key below takes the alternate fields with it */
+        int altAliasesKey = 0;
+        #endif
+
         if (ssl->buffers.weOwnCert && (!ssl->keepCert)) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
@@ -991,6 +996,11 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
 
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
+            #ifdef WOLFSSL_DUAL_ALG_CERTS
+            /* When aliased, key is freed here. */
+            altAliasesKey = (ssl->buffers.altKey != NULL) &&
+                            (ssl->buffers.altKey == ssl->buffers.key);
+            #endif
             if ((ssl->buffers.key != NULL) &&
                 (ssl->buffers.key->buffer != NULL)) {
                 ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
@@ -1016,12 +1026,13 @@ int wolfSSL_UnloadCertsKeys(WOLFSSL* ssl)
             #endif
             ssl->buffers.weOwnAltKey = 0;
         }
-        /* May still point at the key just released, as signing with the
-         * alternative key hands the buffer over to buffers.key. */
-        ssl->buffers.altKey = NULL;
-        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        ssl->buffers.altKeyMask = NULL;
-        #endif
+        else if (altAliasesKey) {
+            /* Released above through buffers.key. */
+            ssl->buffers.altKey = NULL;
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+            ssl->buffers.altKeyMask = NULL;
+            #endif
+        }
         #endif /* WOLFSSL_DUAL_ALG_CERTS */
     }
 

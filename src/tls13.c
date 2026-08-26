@@ -10830,6 +10830,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
                     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                         ssl->buffers.keyMask = ssl->buffers.altKeyMask;
+                        ssl->buffers.altKeyMask = NULL;
                         /* Unblind the alternative key before decoding */
                         wolfssl_priv_der_blind_toggle(ssl->buffers.key,
                                                       ssl->buffers.keyMask);
