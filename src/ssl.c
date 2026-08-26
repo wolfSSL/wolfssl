@@ -5714,6 +5714,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
         ssl->options.ticketsSent = 0;
+        #if defined(WOLFSSL_EARLY_DATA) && !defined(NO_SESSION_CACHE)
+        ssl->options.ticketCacheHit = 0;
+        #endif
         #endif
         ssl->options.rejectTicket = 0;
     #endif

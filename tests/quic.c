@@ -2204,12 +2204,18 @@ static int test_quic_early_data(int verbose) {
     ExpectIntEQ(wolfSSL_get_early_data_status(tclient.ssl),
                 WOLFSSL_EARLY_DATA_ACCEPTED);
 
+    /* RFC 8446 Sect. 8: 0-RTT is single use, so the next connection resumes
+     * with the ticket this one issued, not the one it just spent. */
+    wolfSSL_SESSION_free(session);
+    ExpectNotNull(session = wolfSSL_get1_session(tclient.ssl));
+
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
     ExpectIntEQ(wolfSSL_set_session(tclient.ssl, session), WOLFSSL_SUCCESS);
+    wolfSSL_set_quic_early_data_enabled(tserver.ssl, 1);
     /* client will send, and server will receive */
     QuicConversation_init(&conv, &tclient, &tserver);
     /* make QuicConversation_do() use wolfSSL_read_early_data() */

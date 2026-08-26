@@ -5153,6 +5153,50 @@ static void test_tls13_0rtt_replay_rem_cb(WOLFSSL_CTX* ctx,
     test_tls13_0rtt_replay_cache.rem_calls++;
 }
 
+#ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+/* Resume sess offering early data. Returns the early-data bytes the server
+ * accepted, or -1 if the round did not complete. */
+static int test_tls13_0rtt_replay_round(WOLFSSL_CTX* ctx_c, WOLFSSL_CTX* ctx_s,
+        WOLFSSL_SESSION* sess)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    const char earlyMsg[] = "0rtt-replay";
+    char earlyBuf[sizeof(earlyMsg)];
+    int written = 0;
+    int earlyRead = 0;
+    int ret = -1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(earlyBuf, 0, sizeof(earlyBuf));
+
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method) != 0)
+        goto done;
+    if (wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ) < 0)
+        goto done;
+    if (wolfSSL_set_session(ssl_c, sess) != WOLFSSL_SUCCESS)
+        goto done;
+    if (test_tls13_early_data_write_until_write_ok(ssl_c, earlyMsg,
+            (int)sizeof(earlyMsg), &written) != (int)sizeof(earlyMsg))
+        goto done;
+    (void)test_tls13_early_data_read_until_write_ok(ssl_s, earlyBuf,
+            sizeof(earlyBuf), &earlyRead);
+    /* Refused early data still leaves a completed 1-RTT handshake. */
+    if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) != 0)
+        goto done;
+    if (earlyRead != 0 && (earlyRead != (int)sizeof(earlyMsg) ||
+            XMEMCMP(earlyMsg, earlyBuf, sizeof(earlyMsg)) != 0))
+        goto done;
+    ret = earlyRead;
+done:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    return ret;
+}
+#endif /* !WOLFSSL_NO_DEF_TICKET_ENC_CB */
+
 /* RFC 8446 section 8 anti-replay: a 0-RTT-eligible session must be
  * evicted from both the internal and external caches on resumption so
  * the same ClientHello cannot replay early data. */
@@ -5357,11 +5401,8 @@ int test_tls13_0rtt_stateless_replay(void)
     wolfSSL_free(ssl_c); ssl_c = NULL;
     wolfSSL_free(ssl_s); ssl_s = NULL;
 
-    /* Suppress ticket reissuance on resume so the eviction from round 0
-     * is not undone by AddSession from a new NewSessionTicket. */
-    ExpectIntEQ(wolfSSL_CTX_set_num_tickets(ctx_s, 0), WOLFSSL_SUCCESS);
-
-    /* Step 2: resume twice. Round 0 = first use, round 1 = replay. */
+    /* Step 2: resume twice, reissuance on. Each new ticket gets its own ID,
+     * so round 0's claimed entry is not resurrected. Round 1 = replay. */
     for (round = 0; round < 2 && !EXPECT_FAIL(); round++) {
         const char earlyMsg[] = "stateless-0rtt";
         int written = 0;
@@ -5531,6 +5572,137 @@ int test_tls13_0rtt_ext_cache_eviction(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Establish a stateless-ticket session against an already-configured server
+ * CTX and hand back the client session. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_EXT_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+static int test_tls13_0rtt_make_session(WOLFSSL_CTX* ctx_c, WOLFSSL_CTX* ctx_s,
+        WOLFSSL_SESSION** sess)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    char buf[64];
+    int ret = -1;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    *sess = NULL;
+
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method) != 0)
+        goto done;
+    if (wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ) < 0)
+        goto done;
+    if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) != 0)
+        goto done;
+    /* Let the client consume NewSessionTicket. */
+    if (wolfSSL_read(ssl_c, buf, sizeof(buf)) != -1 ||
+            wolfSSL_get_error(ssl_c, -1) != WOLFSSL_ERROR_WANT_READ)
+        goto done;
+    *sess = wolfSSL_get1_session(ssl_c);
+    if (*sess == NULL || !wolfSSL_SessionIsSetup(*sess))
+        goto done;
+    ret = 0;
+done:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    return ret;
+}
+#endif
+
+/* An external-only cache reports presence through its get callback: 0-RTT is
+ * accepted once, the replay misses. Fails without the fix. */
+int test_tls13_0rtt_ext_cache_replay(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_EXT_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_tls13_0rtt_replay_cache_reset();
+
+    /* Build the CTXs, then drop the SSL objects: only the CTXs are reused. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    ExpectIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx_s,
+                    WOLFSSL_SESS_CACHE_NO_INTERNAL), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_sess_set_new_cb(ctx_s, test_tls13_0rtt_replay_new_cb);
+    wolfSSL_CTX_sess_set_get_cb(ctx_s, test_tls13_0rtt_replay_get_cb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx_s, test_tls13_0rtt_replay_rem_cb);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+
+    ExpectIntEQ(test_tls13_0rtt_make_session(ctx_c, ctx_s, &sess), 0);
+    ExpectIntEQ(test_tls13_0rtt_replay_cache.has_entry, 1);
+
+    /* First use: cache hit, 0-RTT accepted. Replay: the entry is gone, so
+     * early data is refused and the handshake completes as 1-RTT. */
+    ExpectIntEQ(test_tls13_0rtt_replay_round(ctx_c, ctx_s, sess),
+                (int)sizeof("0rtt-replay"));
+    ExpectIntEQ(test_tls13_0rtt_replay_round(ctx_c, ctx_s, sess), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    test_tls13_0rtt_replay_cache_reset();
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A registered remove callback must not weaken the internal cache's own
+ * anti-replay bound. Fails without the fix. */
+int test_tls13_0rtt_remove_cb_replay(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+    !defined(NO_SESSION_CACHE) && defined(HAVE_EXT_CACHE) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char earlyMsg[] = "0rtt-replay";
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_tls13_0rtt_replay_cache_reset();
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Internal cache left on; only the remove callback is registered. */
+    wolfSSL_CTX_sess_set_remove_cb(ctx_s, test_tls13_0rtt_replay_rem_cb);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+
+    ExpectIntEQ(test_tls13_0rtt_make_session(ctx_c, ctx_s, &sess), 0);
+
+    ExpectIntEQ(test_tls13_0rtt_replay_round(ctx_c, ctx_s, sess),
+                (int)sizeof(earlyMsg));
+    ExpectIntEQ(test_tls13_0rtt_replay_round(ctx_c, ctx_s, sess), 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    test_tls13_0rtt_replay_cache_reset();
 #endif
     return EXPECT_RESULT();
 }

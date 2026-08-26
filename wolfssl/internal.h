@@ -5505,6 +5505,9 @@ struct Options {
     word16            noTicketTls13:1;    /* Server won't create new Ticket */
 #ifdef WOLFSSL_EARLY_DATA
     word16            ticketPredatesCtx:1; /* PSK ticket minted before ctx */
+#ifndef NO_SESSION_CACHE
+    word16            ticketCacheHit:1;   /* Ticket's session was cached */
+#endif
 #endif
 #endif
 #endif
