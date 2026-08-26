@@ -1275,6 +1275,9 @@ static int Hash_DRBG_Instantiate(DRBG_internal* drbg, const byte* seed,
     int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
 
     XMEMSET(drbg, 0, sizeof(DRBG_internal));
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    wolfSSL_Atomic_Int_Init(&drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+#endif
     drbg->heap = heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     drbg->devId = devId;
@@ -1784,6 +1787,9 @@ static int Hash512_DRBG_Instantiate(DRBG_SHA512_internal* drbg,
     int ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
 
     XMEMSET(drbg, 0, sizeof(DRBG_SHA512_internal));
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    wolfSSL_Atomic_Int_Init(&drbg->nextSeedLen, WC_DRBG_NEXT_SEED_EMPTY);
+#endif
     drbg->heap = heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     drbg->devId = devId;
@@ -2917,6 +2923,259 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root, const byte* nonce,
 
     return ret;
 }
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+
+/* Banked-next-seed ("aperture") protocol.
+ *
+ * Entropy is gathered incrementally, in-boundary, from the
+ * module's seed source by wc_RNG_DRBG_NextSeedGenerate(), and consumed
+ * (source-free, atomic-context-safe) by wc_RNG_DRBG_NextSeedNow().
+ * nextSeedLen is the hand-off aperture: values in [0, bank length)
+ * count banked bytes (filling); WC_DRBG_NEXT_SEED_READY marks a complete,
+ * health-tested bank; WC_DRBG_NEXT_SEED_CONSUMING marks exclusive ownership by a
+ * consumer.
+ *
+ * DRBG_internal.nextSeedLen (and the DRBG_SHA512_internal analog) is a
+ * wolfSSL_Atomic_Int with C-native atomic semantics (release stores, acquire
+ * loads, sequentially consistent RMWs):
+ *
+ * The single scheduling daemon (one writer per instance, by contract) advances
+ * the fill with the AddFetch in wc_RNG_DRBG_NextSeedGenerate() and publishes by
+ * storing _READY; a consumer claims with a CAS from _READY to _CONSUMING,
+ * consumes, zeroizes, and releases to _EMPTY.  Ownership-taking transitions are
+ * atomic RMWs and releases are atomic stores with release semantics, so the
+ * hand-off is ordered on all supported targets, and the daemon never touches
+ * any other DRBG state.  Gathering draws from the configured / installed
+ * entropy source directly, never from rng->seed, so the daemon also does not
+ * race an owner's own source reseed. */
+
+/* Locate the aperture members for rng's live DRBG.  Returns nonzero when no
+ * DRBG is instantiated (RDRAND et al.). */
+static int NextSeedPtrs(WC_RNG* rng, byte** seed, wolfSSL_Atomic_Int** len)
+{
+#ifndef NO_SHA256
+    if ((rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)) {
+        *seed = ((DRBG_internal*)rng->drbg)->nextSeed;
+        *len  = &((DRBG_internal*)rng->drbg)->nextSeedLen;
+        return 0;
+    }
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    if ((rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)) {
+        *seed = ((DRBG_SHA512_internal*)rng->drbg512)->nextSeed;
+        *len  = &((DRBG_SHA512_internal*)rng->drbg512)->nextSeedLen;
+        return 0;
+    }
+#endif
+    return MISSING_RNG_E;
+}
+
+/* Bank up to n more bytes of seed material from the module's seed source into
+ * rng's next-seed bank.  Callable without owning the instance (the scheduling
+ * daemon's entry point); deliberately independent of rng->status so that
+ * banking can proceed for any instantiated DRBG.  n is clamped to the space
+ * remaining; a ready or consuming bank is signaled with ALREADY_E.  On
+ * completing the bank, the material is health-tested (wc_RNG_TestSeed()) and
+ * published; a failed test consumes the material (use-once) and returns the
+ * test's error, leaving an empty bank for the next cycle.  A gather failure
+ * leaves the partial bank intact for retry. */
+int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n)
+{
+    byte* seed;
+    wolfSSL_Atomic_Int* lenp;
+    WC_ATOMIC_INT_ARG cur;
+    int ret;
+
+    if ((rng == NULL) || (n == 0))
+        return BAD_FUNC_ARG;
+
+    if (NextSeedPtrs(rng, &seed, &lenp) != 0) {
+        /* No DRBG instantiated -- nothing to bank (RDRAND et al.). */
+        return BAD_FUNC_ARG;
+    }
+
+    cur = *lenp;
+    if ((cur < 0) || (cur >= (WC_ATOMIC_INT_ARG)WC_DRBG_NEXT_SEED_LEN)) {
+        if (cur != (WC_ATOMIC_INT_ARG)WC_DRBG_NEXT_SEED_LEN) {
+            /* Ready, consuming, or other sentinel -- nothing to do. */
+            return ALREADY_E;
+        }
+        /* Complete but unpublished (interrupted between fill completion and
+         * publication): retry the health test and publication below. */
+        n = 0;
+    }
+    else if (n > WC_DRBG_NEXT_SEED_LEN - (word32)cur) {
+        n = WC_DRBG_NEXT_SEED_LEN - (word32)cur;
+    }
+
+    if (n > 0) {
+        /* wc_GenerateSeed() must be called completely independent of rng, aside
+         * from the memory aperture itself.  For safety, we pass a dummy
+         * OS_Seed, which will be ignored by the wc_GenerateSeed() typically
+         * used in conjunction with WC_RNG_HAVE_NEXT_SEED.
+         */
+        struct OS_Seed os;
+
+        /* Named-member init: layout-proof against OS_Seed growing or
+         * reordering members under its several config axes. */
+        XMEMSET(&os, 0, sizeof(os));
+#ifndef USE_WINDOWS_API
+        os.fd = -1;
+#endif
+#ifdef WOLF_CRYPTO_CB
+        os.devId = INVALID_DEVID;
+#endif
+
+        ret = wc_GenerateSeed(&os, seed + cur, n);
+        if (ret != 0) {
+            /* Partial bank preserved -- retry on a later cycle. */
+            return ret;
+        }
+        cur = wolfSSL_Atomic_Int_AddFetch(lenp, (WC_ATOMIC_INT_ARG)n);
+    }
+
+    if (cur == (WC_ATOMIC_INT_ARG)WC_DRBG_NEXT_SEED_LEN) {
+        /* Bank complete: health-test now, in advance of consumption, so
+         * that wc_RNG_DRBG_NextSeedNow() is pure computation. */
+        ret = wc_RNG_TestSeed(seed, WC_DRBG_NEXT_SEED_LEN);
+        if (ret == 0) {
+            WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_READY);
+        }
+        else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
+            /* wc_RNG_TestSeed() did nothing with the data -- not
+             * dispositive. */
+            return RETRY_E;
+        }
+        else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+                 (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
+        {
+            /* Use-once: a failed test consumes the material.  Release
+             * store: the ForceZero() must be visible before the empty
+             * aperture is. */
+            ForceZero(seed, WC_DRBG_NEXT_SEED_LEN);
+            WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
+            return ret;
+        }
+        else {
+            /* Buggy or brokey */
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+/* Report the raw aperture value: a racy snapshot by design.  Values in [0, bank
+ * length) count banked bytes; WC_DRBG_NEXT_SEED_READY and
+ * WC_DRBG_NEXT_SEED_CONSUMING indicate a ready or in-consumption bank,
+ * respectively.  With no DRBG instantiated, reports WC_DRBG_NEXT_SEED_EMPTY. */
+int wc_RNG_DRBG_NextSeedCurrent(WC_RNG* rng, WC_ATOMIC_INT_ARG* n)
+{
+    byte* seed;
+    wolfSSL_Atomic_Int* lenp;
+
+    if ((rng == NULL) || (n == NULL))
+        return BAD_FUNC_ARG;
+
+    if (NextSeedPtrs(rng, &seed, &lenp) != 0) {
+        *n = WC_DRBG_NEXT_SEED_EMPTY;
+        return 0;
+    }
+
+    *n = *lenp;
+    return 0;
+}
+
+/* Consume a ready next-seed bank in an immediate credited reseed.  The
+ * caller must own the instance.  Source-free by construction -- the
+ * material was gathered from the module's seed source and health-tested at
+ * bank time -- so consumption is pure computation and safe in atomic
+ * context: the one credited reseed shape with that property.  Distinct
+ * protocol results: NOT_READY_E when no bank is ready (nothing consumed),
+ * MISSING_RNG_E when the instance has no DRBG (RDRAND et al.) -- both
+ * deliberately loud, so a direct caller must demonstrate it understands
+ * the instance it holds.  (The WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED
+ * checkout arm is return-agnostic by construction and needs neither.)
+ * Use-once: the bank is consumed by the attempt, success or failure.  Note
+ * that a banked reseed can never provide SP 800-90 prediction resistance
+ * (the material predates the request by construction);
+ * wc_RNG_DRBG_Reseed_Now() remains the live-gather shape. */
+int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
+                                  word32 nonceSz)
+{
+    byte* seed;
+    wolfSSL_Atomic_Int* lenp;
+    WC_ATOMIC_INT_ARG expected = WC_DRBG_NEXT_SEED_READY;
+    int ret;
+
+    if (rng == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((nonce == NULL) && (nonceSz != 0))
+        return BAD_FUNC_ARG;
+
+    /* Mirror wc_RNG_GenerateBlock(): only an in-service DRBG may reseed. */
+    if (rng->status != DRBG_OK)
+        return RNG_FAILURE_E;
+
+    ret = NextSeedPtrs(rng, &seed, &lenp);
+    if (ret != 0) {
+        /* No DRBG instantiated -- nothing to reseed (RDRAND et al.). */
+        return ret;
+    }
+
+    if (! wolfSSL_Atomic_Int_CompareExchange(lenp, &expected,
+                                             WC_DRBG_NEXT_SEED_CONSUMING))
+    {
+        /* No ready bank -- nothing consumed; reported distinctly. */
+        return NOT_READY_E;
+    }
+
+    /* Identical byte accounting to PollAndReSeed(): the SEED_BLOCK_SZ
+     * prefix was consumed by the bank-time health testing. */
+#ifndef NO_SHA256
+    if (rng->drbgType == WC_DRBG_SHA256)
+        ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg,
+                               seed + SEED_BLOCK_SZ, SEED_SZ,
+                               nonce, nonceSz);
+    else
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    if (rng->drbgType == WC_DRBG_SHA512)
+        ret = Hash512_DRBG_Reseed((DRBG_SHA512_internal *)rng->drbg512,
+                                  seed + SEED_BLOCK_SZ, SEED_SZ,
+                                  nonce, nonceSz);
+    else
+#endif
+        ret = WC_NO_ERR_TRACE(DRBG_FAILURE);
+
+    /* Use-once: consumed by the attempt, success or not.  Release store:
+     * the ForceZero() must be visible before the empty aperture is. */
+    ForceZero(seed, WC_DRBG_NEXT_SEED_LEN);
+    WOLFSSL_ATOMIC_STORE(*lenp, WC_DRBG_NEXT_SEED_EMPTY);
+
+    /* Identical outcome mapping to the generate-path reseed. */
+    if (ret == DRBG_SUCCESS) {
+        ret = 0;
+    }
+    else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
+        ret = DRBG_CONT_FIPS_E;
+        rng->status = DRBG_CONT_FAILED;
+    }
+    else {
+        ret = RNG_FAILURE_E;
+        rng->status = DRBG_FAILED;
+    }
+
+    return ret;
+}
+
+int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng) {
+    return wc_RNG_DRBG_NextSeedNow_Nonce(rng, NULL, 0);
+}
+
+#endif /* WC_RNG_HAVE_NEXT_SEED */
 #endif
 
 /* place a generated block in output */
