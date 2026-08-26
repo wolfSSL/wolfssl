@@ -1912,10 +1912,6 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     const byte* rbgcSeed, word32 rbgcSeedSz,
                     void* heap, int devId)
 {
-#ifndef WC_RNG_SEED_FROM_CALLER
-    (void)rbgcSeed;
-    (void)rbgcSeedSz;
-#endif
     int ret = 0;
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_RNG_USE_FULL_SEED)
@@ -1931,6 +1927,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     (void)nonce;
     (void)nonceSz;
+#ifndef WC_RNG_SEED_FROM_CALLER
+    (void)rbgcSeed;
+    (void)rbgcSeedSz;
+#endif
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
