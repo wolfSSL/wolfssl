@@ -15,12 +15,17 @@
 # tree is roughly 2G, and anything running "git clean -xdff" over this checkout
 # will delete the default location mid-build.
 #
-# Env: WORK, WOLFSSL_SRC, FIPS_FLAVOR (e.g. FIPS_FLAVOR=v7).
+# Env: WORK, WOLFSSL_SRC, FIPS_FLAVOR (default v7).
+#
+# RBGC only compiles under FIPS v7+ -- src/include.am puts BUILD_LINUXKM_RBGC
+# inside BUILD_FIPS_V7_PLUS -- so the FIPS sources have to be in place first,
+# via fips-check.sh or your own symlinks.
 set -u -o pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 WORK="${WORK:-$HERE/work}"
 WOLFSSL_SRC="${WOLFSSL_SRC:-$(cd "$HERE/../.." && pwd)}"
+FIPS_FLAVOR="${FIPS_FLAVOR:-v7}"
 
 # version : gcc : patch base : kernel.org path
 KNOWN="
@@ -53,6 +58,11 @@ for v in "${WANT[@]}"; do
     command -v "$g" >/dev/null 2>&1 || missing="$missing $g"
 done
 [ -f "$WOLFSSL_SRC/configure.ac" ] || die "no wolfSSL source at $WOLFSSL_SRC (set WOLFSSL_SRC)"
+if [ -n "$FIPS_FLAVOR" ] && [ ! -s "$WOLFSSL_SRC/wolfcrypt/src/fips.c" ]; then
+    die "FIPS_FLAVOR=$FIPS_FLAVOR but wolfcrypt/src/fips.c is absent.
+Put the FIPS sources in place first (fips-check.sh), or set FIPS_FLAVOR= to
+build without FIPS -- but note RBGC compiles no sources at all in that case."
+fi
 [ -x "$HERE/patch-kernel.sh" ]     || die "patch-kernel.sh missing beside this script"
 
 if [ -n "$missing" ]; then
@@ -133,7 +143,7 @@ for v in "${WANT[@]}"; do
     ( cd "$WOLFSSL_SRC" \
       && ./configure --enable-linuxkm --enable-linuxkm-pie --disable-sp-asm \
             --enable-linuxkm-rbgc "--with-linux-source=$DIR" \
-            ${FIPS_FLAVOR:+--enable-fips=$FIPS_FLAVOR} \
+            ${FIPS_FLAVOR:+--enable-fips="$FIPS_FLAVOR"} \
       && env KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 $OBJTOOL_OFF \
             make -j"$(nproc)" ) >"$MLOG" 2>&1 \
         || { say "  FAIL module build -- see $MLOG"; rc_all=1; continue; }
