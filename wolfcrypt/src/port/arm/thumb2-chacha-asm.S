@@ -47,14 +47,9 @@ wc_chacha_setiv:
 	LDR	r5, [r1, #4]
 	LDR	r6, [r1, #8]
 	STR	r2, [r0, #48]
-#ifdef BIG_ENDIAN_ORDER
-	REV	r4, r4
-	REV	r5, r5
-	REV	r6, r6
-#endif /* BIG_ENDIAN_ORDER */
 	STM	r3, {r4, r5, r6}
 	POP	{r4, r5, r6, pc}
-	/* Cycle Count = 26 */
+	/* Cycle Count = 23 */
 	.size	wc_chacha_setiv,.-wc_chacha_setiv
 #ifndef __APPLE__
 	.text
@@ -90,12 +85,6 @@ wc_chacha_setkey:
 	LDR	r4, [r1, #4]
 	LDR	r5, [r1, #8]
 	LDR	r6, [r1, #12]
-#ifdef BIG_ENDIAN_ORDER
-	REV	r3, r3
-	REV	r4, r4
-	REV	r5, r5
-	REV	r6, r6
-#endif /* BIG_ENDIAN_ORDER */
 	STM	r0!, {r3, r4, r5, r6}
 	/* Next 16 bytes of key. */
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
@@ -112,7 +101,7 @@ wc_chacha_setkey:
 L_chacha_thumb2_setkey_same_key_bytes:
 	STM	r0, {r3, r4, r5, r6}
 	POP	{r4, r5, r6, r7, pc}
-	/* Cycle Count = 60 */
+	/* Cycle Count = 56 */
 	.size	wc_chacha_setkey,.-wc_chacha_setkey
 	.text
 	.align	4

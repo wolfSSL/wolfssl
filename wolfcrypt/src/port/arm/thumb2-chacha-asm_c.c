@@ -72,11 +72,6 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x, const byte* iv,
         "LDR	r5, [%[iv], #4]\n\t"
         "LDR	r6, [%[iv], #8]\n\t"
         "STR	%[counter], [%[x], #48]\n\t"
-#ifdef BIG_ENDIAN_ORDER
-        "REV	r4, r4\n\t"
-        "REV	r5, r5\n\t"
-        "REV	r6, r6\n\t"
-#endif /* BIG_ENDIAN_ORDER */
         "STM	r3, {r4, r5, r6}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [iv] "+r" (iv), [counter] "+r" (counter)
@@ -125,12 +120,6 @@ WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
         "LDR	r4, [%[key], #4]\n\t"
         "LDR	r5, [%[key], #8]\n\t"
         "LDR	r6, [%[key], #12]\n\t"
-#ifdef BIG_ENDIAN_ORDER
-        "REV	r3, r3\n\t"
-        "REV	r4, r4\n\t"
-        "REV	r5, r5\n\t"
-        "REV	r6, r6\n\t"
-#endif /* BIG_ENDIAN_ORDER */
         "STM	%[x]!, {r3, r4, r5, r6}\n\t"
         /* Next 16 bytes of key. */
 #if defined(__GNUC__)
