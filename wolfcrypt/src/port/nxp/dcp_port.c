@@ -132,7 +132,9 @@ static int dcp_get_channel(void* owner)
     int i;
     int ret = 0;
 
-    /* 0 = no channel available; callers map it to WC_PENDING_E. */
+    /* 0 = no channel available; callers map it to WC_HW_WAIT_E
+     * ("Hardware waiting on resource"), the same code the CAAM and
+     * Atmel ports return when a hardware slot pool is exhausted. */
     if (dcp_lock() != 0)
         return 0;
     for (i = 0; i < 4; i++) {
@@ -265,7 +267,7 @@ int DCPAesInit(Aes *aes)
         return BAD_FUNC_ARG;
     ch = dcp_get_channel(aes);
     if (ch == 0)
-        return WC_PENDING_E;
+        return WC_HW_WAIT_E;
     XMEMSET(&aes->handle, 0, sizeof(aes->handle));
     aes->handle.channel = (dcp_channel_t)ch;
     aes->handle.keySlot = (dcp_key_slot_t)dcp_key_slot(aes->handle.channel);
@@ -403,7 +405,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     dcp_free(sha256, sha256->handle.channel);
     ch = dcp_get_channel(sha256);
     if (ch == 0)
-        return WC_PENDING_E;
+        return WC_HW_WAIT_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
         dcp_free_unlocked(sha256, ch);
@@ -527,7 +529,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dcp_free(dst, dst->handle.channel);
     ch = dcp_get_channel(dst);
     if (ch == 0)
-        return WC_PENDING_E;
+        return WC_HW_WAIT_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
         dcp_free_unlocked(dst, ch);
@@ -568,7 +570,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     dcp_free(sha, sha->handle.channel);
     ch = dcp_get_channel(sha);
     if (ch == 0)
-        return WC_PENDING_E;
+        return WC_HW_WAIT_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
         dcp_free_unlocked(sha, ch);
@@ -693,7 +695,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     dcp_free(dst, dst->handle.channel);
     ch = dcp_get_channel(dst);
     if (ch == 0)
-        return WC_PENDING_E;
+        return WC_HW_WAIT_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
         dcp_free_unlocked(dst, ch);
