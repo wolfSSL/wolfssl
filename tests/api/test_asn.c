@@ -2413,6 +2413,104 @@ int test_DecodeCertExtensions_empty_certpol_trailing(void)
     return EXPECT_RESULT();
 }
 
+
+/* wolfSSL stores at most MAX_CERTPOL_NB certificate policies. Before the fix
+ * the decoder stopped at that limit and returned success, so a critical
+ * certificatePolicies extension carrying MAX_CERTPOL_NB+1 unique policies was
+ * accepted with its extra policies left uninterpreted (issue 10628). RFC 5280
+ * 4.2 requires rejecting a critical extension that cannot be fully processed:
+ * it is now reported as an unsupported critical extension (ASN_CRIT_EXT_E,
+ * unless WOLFSSL_NO_ASN_STRICT). A non-critical over-limit extension keeps the
+ * first MAX_CERTPOL_NB policies and is still accepted, as is an at-limit one. */
+#if defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && !defined(NO_ASN)
+/* Build a certificatePolicies extnValue with n PolicyInformation entries,
+ * each SEQUENCE { policyIdentifier OID 1.2.3.4.(k+1) }. The outer SEQUENCE
+ * length is written in short form, or long form with a single length octet
+ * once the content reaches 0x80, so the result is valid DER for content up to
+ * 255 bytes (n <= 31) - ample for the handful of policies used here. Returns
+ * the encoded length. out must hold 3 + 8*n bytes. n <= 127 keeps the OID arc
+ * single-byte. */
+static word32 test_certpol_build(byte* out, int n)
+{
+    word32 content = (word32)(8 * n);
+    word32 o;
+    int k;
+
+    out[0] = 0x30;                       /* certificatePolicies SEQUENCE OF */
+    if (content < 0x80U) {
+        out[1] = (byte)content;
+        o = 2;
+    }
+    else {
+        out[1] = 0x81U;                  /* long form, one length octet */
+        out[2] = (byte)content;
+        o = 3;
+    }
+    for (k = 0; k < n; k++) {
+        out[o++] = 0x30; out[o++] = 0x06;            /* PolicyInformation SEQ */
+        out[o++] = 0x06; out[o++] = 0x04;            /* policyIdentifier OID */
+        out[o++] = 0x2A; out[o++] = 0x03;            /* 1.2.3 */
+        out[o++] = 0x04; out[o++] = (byte)(k + 1);   /* .4.(k+1) */
+    }
+    return o;
+}
+#endif
+
+int test_DecodeCertPolicy_tooMany(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_EXT) && !defined(NO_CERTS) && !defined(NO_ASN)
+    byte ext[3 + 8 * (MAX_CERTPOL_NB + 1)];
+    word32 len;
+    DecodedCert cert;
+    int isUnknown;
+
+    /* Exactly MAX_CERTPOL_NB policies: fully processed, accepted. */
+    len = test_certpol_build(ext, MAX_CERTPOL_NB);
+    isUnknown = 0;
+    wc_InitDecodedCert(&cert, ext, len, NULL);
+    ExpectIntEQ(DecodeExtensionType(ext, len, CERT_POLICY_OID, 1, &cert,
+        &isUnknown), 0);
+    ExpectIntEQ(cert.extCertPoliciesNb, MAX_CERTPOL_NB);
+    wc_FreeDecodedCert(&cert);
+
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* One more than can be stored, critical: cannot be fully processed, so it
+     * is rejected as an unsupported critical extension rather than accepted
+     * with the extra policy left uninterpreted. */
+    len = test_certpol_build(ext, MAX_CERTPOL_NB + 1);
+    isUnknown = 0;
+    wc_InitDecodedCert(&cert, ext, len, NULL);
+    ExpectIntEQ(DecodeExtensionType(ext, len, CERT_POLICY_OID, 1, &cert,
+        &isUnknown), WC_NO_ERR_TRACE(ASN_CRIT_EXT_E));
+    wc_FreeDecodedCert(&cert);
+#endif
+
+    /* Non-critical: RFC 5280 4.2 lets a relying party ignore a non-critical
+     * extension it cannot fully process, so an over-limit non-critical
+     * certificatePolicies is still accepted (this is what FPKI certs, which
+     * carry many non-critical policies, rely on). */
+    len = test_certpol_build(ext, MAX_CERTPOL_NB + 1);
+    isUnknown = 0;
+    wc_InitDecodedCert(&cert, ext, len, NULL);
+    ExpectIntEQ(DecodeExtensionType(ext, len, CERT_POLICY_OID, 0, &cert,
+        &isUnknown), 0);
+    /* The policies that fit are still stored. */
+    ExpectIntEQ(cert.extCertPoliciesNb, MAX_CERTPOL_NB);
+    wc_FreeDecodedCert(&cert);
+
+    /* A single policy is still accepted. */
+    len = test_certpol_build(ext, 1);
+    isUnknown = 0;
+    wc_InitDecodedCert(&cert, ext, len, NULL);
+    ExpectIntEQ(DecodeExtensionType(ext, len, CERT_POLICY_OID, 1, &cert,
+        &isUnknown), 0);
+    ExpectIntEQ(cert.extCertPoliciesNb, 1);
+    wc_FreeDecodedCert(&cert);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_ParseCert_SM3wSM2_short_pubkey(void)
 {
     EXPECT_DECLS;
