@@ -419,8 +419,12 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 
 void DCPSha256Free(wc_Sha256* sha256)
 {
-    if (sha256)
+    if (sha256) {
         dcp_free(sha256, sha256->handle.channel);
+        /* Drop the channel record: the context no longer owns a
+         * channel, and the value must not outlive the reservation. */
+        sha256->handle.channel = 0;
+    }
 }
 
 int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
@@ -580,8 +584,12 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 
 void DCPShaFree(wc_Sha* sha)
 {
-    if (sha)
+    if (sha) {
         dcp_free(sha, sha->handle.channel);
+        /* Drop the channel record: the context no longer owns a
+         * channel, and the value must not outlive the reservation. */
+        sha->handle.channel = 0;
+    }
 }
 
 int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
