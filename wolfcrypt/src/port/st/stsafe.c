@@ -384,19 +384,31 @@ static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
  * \return Other value on failure.
  */
 static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
-                         uint8_t* pSigRS, uint8_t* pPubKeyX, uint8_t* pPubKeyY,
+                         word32 hashSz, uint8_t* pSigRS,
+                         uint8_t* pPubKeyX, uint8_t* pPubKeyY,
                          int32_t* pResult)
 {
     int rc = STSAFE_A_OK;
     stse_ReturnCode_t ret;
     int key_sz = stsafe_get_key_size(curve_id);
+    int copy_sz = (int)hashSz;
     uint8_t pubKey[STSAFE_MAX_PUBKEY_RAW_LEN];
+    uint8_t digest[STSAFE_MAX_KEY_LEN];
     uint8_t validity = 0;
 
     if (pHash == NULL || pSigRS == NULL || pPubKeyX == NULL ||
-        pPubKeyY == NULL || pResult == NULL) {
+        pPubKeyY == NULL || pResult == NULL || hashSz == 0) {
         return BAD_FUNC_ARG;
     }
+
+    /* The SE takes a field-size prehash: normalize the digest to key_sz
+     * (truncate if longer, left-pad if shorter) so the submitted value
+     * maps to the same integer e ECDSA uses. */
+    if (copy_sz > key_sz) {
+        copy_sz = key_sz;
+    }
+    XMEMSET(digest, 0, key_sz);
+    XMEMCPY(digest + (key_sz - copy_sz), pHash, copy_sz);
 
     /* Combine X and Y into single buffer (X||Y) */
     XMEMCPY(pubKey, pPubKeyX, key_sz);
@@ -406,7 +418,7 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
     ret = stse_ecc_verify_signature(&g_stse_handler, curve_id,
         pubKey,     /* public key X||Y */
         pSigRS,     /* signature R||S */
-        pHash,      /* message (hash) */
+        digest,     /* normalized message hash */
         (uint16_t)key_sz,  /* message length */
         0,          /* eddsa_variant (0 for non-EdDSA) */
         &validity);
@@ -777,12 +789,14 @@ static int stsafe_sign(stsafe_slot_t slot, stsafe_curve_id_t curve_id,
  * \return Other value on failure.
  */
 static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
-                         uint8_t* pSigRS, uint8_t* pPubKeyX, uint8_t* pPubKeyY,
+                         word32 hashSz, uint8_t* pSigRS,
+                         uint8_t* pPubKeyX, uint8_t* pPubKeyY,
                          int32_t* pResult)
 {
     int rc = (int)(uint8_t)-1;
     uint8_t status_code;
     int key_sz = stsafe_get_key_size(curve_id);
+    int copy_sz = (int)hashSz;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     StSafeA_CoordinateBuffer* X = NULL;
     StSafeA_CoordinateBuffer* Y = NULL;
@@ -805,6 +819,10 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
     StSafeA_VerifySignatureBuffer* Verif = NULL;
 
     *pResult = 0;
+
+    if (hashSz == 0) {
+        return BAD_FUNC_ARG;
+    }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate buffers */
@@ -829,6 +847,13 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
     }
 #endif
 
+    /* The SE takes a field-size prehash: normalize the digest to key_sz
+     * (truncate if longer, left-pad if shorter) so the submitted value
+     * maps to the same integer e ECDSA uses. */
+    if (copy_sz > key_sz) {
+        copy_sz = key_sz;
+    }
+
     R->Length = key_sz;
     S->Length = key_sz;
     Hash->Length = key_sz;
@@ -837,7 +862,8 @@ static int stsafe_verify(stsafe_curve_id_t curve_id, uint8_t* pHash,
 
     XMEMCPY(R->Data, pSigRS, key_sz);
     XMEMCPY(S->Data, pSigRS + key_sz, key_sz);
-    XMEMCPY(Hash->Data, pHash, key_sz);
+    XMEMSET(Hash->Data, 0, key_sz);
+    XMEMCPY(Hash->Data + (key_sz - copy_sz), pHash, copy_sz);
     XMEMCPY(X->Data, pPubKeyX, key_sz);
     XMEMCPY(Y->Data, pPubKeyY, key_sz);
 
@@ -1215,7 +1241,6 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
 
     (void)ssl;
     (void)ctx;
-    (void)hashSz;
 
 #ifdef USE_STSAFE_VERBOSE
     WOLFSSL_MSG("VerifyPeerCertCB: STSAFE");
@@ -1272,7 +1297,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
         XMEMMOVE(&sigRS[key_sz + (key_sz - s_len)], s, s_len);
         XMEMSET(&sigRS[key_sz], 0, key_sz - s_len);
 
-        err = stsafe_verify(curve_id, (uint8_t*)hash, sigRS,
+        err = stsafe_verify(curve_id, (uint8_t*)hash, (word32)hashSz, sigRS,
             pubKeyX, pubKeyY, (int32_t*)result);
         if (err != STSAFE_A_OK) {
             STSAFE_INTERFACE_PRINTF("stsafe_verify error: %d\n", err);
@@ -1791,7 +1816,8 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 XMEMSET(&sigRS[key_sz], 0, key_sz - s_len);
 
                 rc = stsafe_verify(curve_id, (uint8_t*)info->pk.eccverify.hash,
-                    sigRS, pubKeyX, pubKeyY, (int32_t*)info->pk.eccverify.res);
+                    info->pk.eccverify.hashlen, sigRS, pubKeyX, pubKeyY,
+                    (int32_t*)info->pk.eccverify.res);
                 if (rc != STSAFE_A_OK) {
                     STSAFE_INTERFACE_PRINTF("stsafe_verify error: %d\n", rc);
                     rc = WC_HW_E;
