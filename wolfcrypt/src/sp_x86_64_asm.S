@@ -3747,22 +3747,38 @@ _sp_2048_mul_avx2_16:
         cmpq	%rdi, %rbp
         jne	L_end_2048_mul_avx2_16
 L_start_2048_mul_avx2_16:
-        vmovdqu	(%rbx), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbx), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbx), %xmm0
-        vmovups	%xmm0, 32(%rdi)
-        vmovdqu	48(%rbx), %xmm0
-        vmovups	%xmm0, 48(%rdi)
-        vmovdqu	64(%rbx), %xmm0
-        vmovups	%xmm0, 64(%rdi)
-        vmovdqu	80(%rbx), %xmm0
-        vmovups	%xmm0, 80(%rdi)
-        vmovdqu	96(%rbx), %xmm0
-        vmovups	%xmm0, 96(%rdi)
-        vmovdqu	112(%rbx), %xmm0
-        vmovups	%xmm0, 112(%rdi)
+        movq	(%rbx), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbx), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbx), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbx), %rax
+        movq	%rax, 24(%rdi)
+        movq	32(%rbx), %rax
+        movq	%rax, 32(%rdi)
+        movq	40(%rbx), %rax
+        movq	%rax, 40(%rdi)
+        movq	48(%rbx), %rax
+        movq	%rax, 48(%rdi)
+        movq	56(%rbx), %rax
+        movq	%rax, 56(%rdi)
+        movq	64(%rbx), %rax
+        movq	%rax, 64(%rdi)
+        movq	72(%rbx), %rax
+        movq	%rax, 72(%rdi)
+        movq	80(%rbx), %rax
+        movq	%rax, 80(%rdi)
+        movq	88(%rbx), %rax
+        movq	%rax, 88(%rdi)
+        movq	96(%rbx), %rax
+        movq	%rax, 96(%rdi)
+        movq	104(%rbx), %rax
+        movq	%rax, 104(%rdi)
+        movq	112(%rbx), %rax
+        movq	%rax, 112(%rdi)
+        movq	120(%rbx), %rax
+        movq	%rax, 120(%rdi)
 L_end_2048_mul_avx2_16:
         addq	$0x80, %rsp
         popq	%r14
@@ -7631,18 +7647,30 @@ _sp_2048_sqr_avx2_16:
         subq	$0x80, %rdi
         cmpq	%rdi, %rsi
         jne	L_end_2048_sqr_avx2_16
-        vmovdqu	(%rbp), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbp), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbp), %xmm0
-        vmovups	%xmm0, 32(%rdi)
-        vmovdqu	48(%rbp), %xmm0
-        vmovups	%xmm0, 48(%rdi)
-        vmovdqu	64(%rbp), %xmm0
-        vmovups	%xmm0, 64(%rdi)
-        vmovdqu	80(%rbp), %xmm0
-        vmovups	%xmm0, 80(%rdi)
+        movq	(%rbp), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbp), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbp), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbp), %rax
+        movq	%rax, 24(%rdi)
+        movq	32(%rbp), %rax
+        movq	%rax, 32(%rdi)
+        movq	40(%rbp), %rax
+        movq	%rax, 40(%rdi)
+        movq	48(%rbp), %rax
+        movq	%rax, 48(%rdi)
+        movq	56(%rbp), %rax
+        movq	%rax, 56(%rdi)
+        movq	64(%rbp), %rax
+        movq	%rax, 64(%rdi)
+        movq	72(%rbp), %rax
+        movq	%rax, 72(%rdi)
+        movq	80(%rbp), %rax
+        movq	%rax, 80(%rdi)
+        movq	88(%rbp), %rax
+        movq	%rax, 88(%rdi)
 L_end_2048_sqr_avx2_16:
         addq	$0x88, %rsp
         popq	%rbx
@@ -17757,18 +17785,30 @@ _sp_3072_mul_avx2_12:
         cmpq	%rdi, %rbp
         jne	L_end_3072_mul_avx2_12
 L_start_3072_mul_avx2_12:
-        vmovdqu	(%rbx), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbx), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbx), %xmm0
-        vmovups	%xmm0, 32(%rdi)
-        vmovdqu	48(%rbx), %xmm0
-        vmovups	%xmm0, 48(%rdi)
-        vmovdqu	64(%rbx), %xmm0
-        vmovups	%xmm0, 64(%rdi)
-        vmovdqu	80(%rbx), %xmm0
-        vmovups	%xmm0, 80(%rdi)
+        movq	(%rbx), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbx), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbx), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbx), %rax
+        movq	%rax, 24(%rdi)
+        movq	32(%rbx), %rax
+        movq	%rax, 32(%rdi)
+        movq	40(%rbx), %rax
+        movq	%rax, 40(%rdi)
+        movq	48(%rbx), %rax
+        movq	%rax, 48(%rdi)
+        movq	56(%rbx), %rax
+        movq	%rax, 56(%rdi)
+        movq	64(%rbx), %rax
+        movq	%rax, 64(%rdi)
+        movq	72(%rbx), %rax
+        movq	%rax, 72(%rdi)
+        movq	80(%rbx), %rax
+        movq	%rax, 80(%rdi)
+        movq	88(%rbx), %rax
+        movq	%rax, 88(%rdi)
 L_end_3072_mul_avx2_12:
         addq	$0x60, %rsp
         popq	%r12
@@ -22793,12 +22833,18 @@ _sp_3072_sqr_avx2_12:
         subq	$0x60, %rdi
         cmpq	%rdi, %rsi
         jne	L_end_3072_sqr_avx2_12
-        vmovdqu	(%rbp), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbp), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbp), %xmm0
-        vmovups	%xmm0, 32(%rdi)
+        movq	(%rbp), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbp), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbp), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbp), %rax
+        movq	%rax, 24(%rdi)
+        movq	32(%rbp), %rax
+        movq	%rax, 32(%rdi)
+        movq	40(%rbp), %rax
+        movq	%rax, 40(%rdi)
         movq	48(%rbp), %rax
         movq	%rax, 48(%rdi)
 L_end_3072_sqr_avx2_12:
@@ -45182,7 +45228,7 @@ _sp_256_mont_tpl_4:
         movq	$0xffffffff00000001, %r10
         adcq	16(%rsi), %rcx
         adcq	24(%rsi), %r8
-        sbbq	$0x00, %r11
+        sbbq	%r11, %r11
         movl	%r11d, %r9d
         andq	%r11, %r10
         subq	%r11, %rdx
@@ -45361,7 +45407,7 @@ _sp_256_mont_rsb_sub_dbl_4:
         movq	$0xffffffff00000001, %r15
         sbbq	%r12, %r8
         sbbq	%r13, %r9
-        sbbq	$0x00, %rsi
+        sbbq	%rsi, %rsi
         movl	%esi, %r14d
         andq	%rsi, %r15
         addq	%rsi, %rax
@@ -45436,7 +45482,7 @@ WC_ASM_ATT_HIDDEN(_sp_256_get_point_33_4)
 _sp_256_get_point_33_4:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        vmovd	%edx, %xmm13
+        movd	%edx, %xmm13
         addq	$0xc8, %rsi
         movd	%eax, %xmm15
         movq	$32, %rax
@@ -49839,7 +49885,7 @@ WC_ASM_ATT_HIDDEN(_sp_384_get_point_33_6)
 _sp_384_get_point_33_6:
 #endif /* __APPLE__ */
         movq	$0x01, %rax
-        vmovd	%edx, %xmm13
+        movd	%edx, %xmm13
         addq	$0x128, %rsi
         movd	%eax, %xmm15
         movq	$32, %rax
@@ -49885,7 +49931,7 @@ L_384_get_point_33_6_start_1:
         movdqu	%xmm4, 112(%rdi)
         movdqu	%xmm5, 128(%rdi)
         movq	$0x01, %rax
-        vmovd	%edx, %xmm13
+        movd	%edx, %xmm13
         subq	$0x2500, %rsi
         movd	%eax, %xmm15
         movq	$32, %rax
@@ -52539,14 +52585,22 @@ _sp_521_mul_avx2_9:
         cmpq	%rdi, %rbp
         jne	L_end_521_mul_avx2_9
 L_start_521_mul_avx2_9:
-        vmovdqu	(%rbx), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbx), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbx), %xmm0
-        vmovups	%xmm0, 32(%rdi)
-        vmovdqu	48(%rbx), %xmm0
-        vmovups	%xmm0, 48(%rdi)
+        movq	(%rbx), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbx), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbx), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbx), %rax
+        movq	%rax, 24(%rdi)
+        movq	32(%rbx), %rax
+        movq	%rax, 32(%rdi)
+        movq	40(%rbx), %rax
+        movq	%rax, 40(%rdi)
+        movq	48(%rbx), %rax
+        movq	%rax, 48(%rdi)
+        movq	56(%rbx), %rax
+        movq	%rax, 56(%rdi)
         movq	64(%rbx), %rax
         movq	%rax, 64(%rdi)
 L_end_521_mul_avx2_9:
@@ -53373,10 +53427,14 @@ _sp_521_sqr_avx2_9:
         subq	$0x48, %rdi
         cmpq	%rdi, %rsi
         jne	L_end_521_sqr_avx2_9
-        vmovdqu	(%rbp), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbp), %xmm0
-        vmovups	%xmm0, 16(%rdi)
+        movq	(%rbp), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbp), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbp), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbp), %rax
+        movq	%rax, 24(%rdi)
 L_end_521_sqr_avx2_9:
         addq	$0x48, %rsp
         popq	%rbx
@@ -55472,7 +55530,7 @@ _sp_521_get_point_33_9:
         pushq	%r12
         movq	$0x01, %r12
         movq	$0x01, %rax
-        vmovd	%edx, %xmm13
+        movd	%edx, %xmm13
 #ifndef SP_ALIGN_16
         addq	$0x1b8, %rsi
 #else
@@ -55538,7 +55596,7 @@ L_521_get_point_33_9_start_1:
         movdqu	%xmm5, 160(%rdi)
         movq	$0x01, %r12
         movq	$0x01, %rax
-        vmovd	%edx, %xmm13
+        movd	%edx, %xmm13
 #ifndef SP_ALIGN_16
         subq	$0x3700, %rsi
 #else
@@ -63051,22 +63109,38 @@ _sp_1024_mul_avx2_16:
         cmpq	%rdi, %rbp
         jne	L_end_1024_mul_avx2_16
 L_start_1024_mul_avx2_16:
-        vmovdqu	(%rbx), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbx), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbx), %xmm0
-        vmovups	%xmm0, 32(%rdi)
-        vmovdqu	48(%rbx), %xmm0
-        vmovups	%xmm0, 48(%rdi)
-        vmovdqu	64(%rbx), %xmm0
-        vmovups	%xmm0, 64(%rdi)
-        vmovdqu	80(%rbx), %xmm0
-        vmovups	%xmm0, 80(%rdi)
-        vmovdqu	96(%rbx), %xmm0
-        vmovups	%xmm0, 96(%rdi)
-        vmovdqu	112(%rbx), %xmm0
-        vmovups	%xmm0, 112(%rdi)
+        movq	(%rbx), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbx), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbx), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbx), %rax
+        movq	%rax, 24(%rdi)
+        movq	32(%rbx), %rax
+        movq	%rax, 32(%rdi)
+        movq	40(%rbx), %rax
+        movq	%rax, 40(%rdi)
+        movq	48(%rbx), %rax
+        movq	%rax, 48(%rdi)
+        movq	56(%rbx), %rax
+        movq	%rax, 56(%rdi)
+        movq	64(%rbx), %rax
+        movq	%rax, 64(%rdi)
+        movq	72(%rbx), %rax
+        movq	%rax, 72(%rdi)
+        movq	80(%rbx), %rax
+        movq	%rax, 80(%rdi)
+        movq	88(%rbx), %rax
+        movq	%rax, 88(%rdi)
+        movq	96(%rbx), %rax
+        movq	%rax, 96(%rdi)
+        movq	104(%rbx), %rax
+        movq	%rax, 104(%rdi)
+        movq	112(%rbx), %rax
+        movq	%rax, 112(%rdi)
+        movq	120(%rbx), %rax
+        movq	%rax, 120(%rdi)
 L_end_1024_mul_avx2_16:
         addq	$0x80, %rsp
         popq	%r14
@@ -64115,18 +64189,30 @@ _sp_1024_sqr_avx2_16:
         subq	$0x80, %rdi
         cmpq	%rdi, %rsi
         jne	L_end_1024_sqr_avx2_16
-        vmovdqu	(%rbp), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbp), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbp), %xmm0
-        vmovups	%xmm0, 32(%rdi)
-        vmovdqu	48(%rbp), %xmm0
-        vmovups	%xmm0, 48(%rdi)
-        vmovdqu	64(%rbp), %xmm0
-        vmovups	%xmm0, 64(%rdi)
-        vmovdqu	80(%rbp), %xmm0
-        vmovups	%xmm0, 80(%rdi)
+        movq	(%rbp), %rax
+        movq	%rax, (%rdi)
+        movq	8(%rbp), %rax
+        movq	%rax, 8(%rdi)
+        movq	16(%rbp), %rax
+        movq	%rax, 16(%rdi)
+        movq	24(%rbp), %rax
+        movq	%rax, 24(%rdi)
+        movq	32(%rbp), %rax
+        movq	%rax, 32(%rdi)
+        movq	40(%rbp), %rax
+        movq	%rax, 40(%rdi)
+        movq	48(%rbp), %rax
+        movq	%rax, 48(%rdi)
+        movq	56(%rbp), %rax
+        movq	%rax, 56(%rdi)
+        movq	64(%rbp), %rax
+        movq	%rax, 64(%rdi)
+        movq	72(%rbp), %rax
+        movq	%rax, 72(%rdi)
+        movq	80(%rbp), %rax
+        movq	%rax, 80(%rdi)
+        movq	88(%rbp), %rax
+        movq	%rax, 88(%rdi)
 L_end_1024_sqr_avx2_16:
         addq	$0x88, %rsp
         popq	%rbx

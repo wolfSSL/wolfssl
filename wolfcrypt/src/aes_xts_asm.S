@@ -3401,6 +3401,7 @@ L_AES_XTS_encrypt_vaes_last_15_aes_enc_block_last:
         leaq	(%rsi,%r13,1), %rcx
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_encrypt_vaes_done_enc:
+        vzeroupper
         addq	$0x48, %rsp
         popq	%r13
         popq	%r12
@@ -3866,6 +3867,7 @@ L_AES_XTS_encrypt_update_vaes_last_15_aes_enc_block_last:
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_encrypt_update_vaes_done_enc:
         vmovdqu	%xmm8, (%r8)
+        vzeroupper
         addq	$0x40, %rsp
         popq	%r12
         repz retq
@@ -4440,6 +4442,7 @@ L_AES_XTS_decrypt_vaes_last_31_2_aes_dec_block_last:
         leaq	(%rsi,%r13,1), %rcx
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_decrypt_vaes_done_dec:
+        vzeroupper
         addq	$0x48, %rsp
         popq	%r13
         popq	%r12
@@ -4979,6 +4982,7 @@ L_AES_XTS_decrypt_update_vaes_last_31_2_aes_dec_block_last:
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_decrypt_update_vaes_done_dec:
         vmovdqu	%xmm8, (%r8)
+        vzeroupper
         addq	$0x40, %rsp
         popq	%r12
         repz retq
@@ -5597,6 +5601,7 @@ L_AES_XTS_encrypt_avx512_last_15_aes_enc_block_last:
         leaq	(%rsi,%r13,1), %rcx
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_encrypt_avx512_done_enc:
+        vzeroupper
         addq	$0x48, %rsp
         popq	%r13
         popq	%r12
@@ -6069,6 +6074,7 @@ L_AES_XTS_encrypt_update_avx512_last_15_aes_enc_block_last:
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_encrypt_update_avx512_done_enc:
         vmovdqu	%xmm8, (%r8)
+        vzeroupper
         addq	$0x40, %rsp
         popq	%r12
         repz retq
@@ -6660,6 +6666,7 @@ L_AES_XTS_decrypt_avx512_last_31_2_aes_dec_block_last:
         leaq	(%rsi,%r13,1), %rcx
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_decrypt_avx512_done_dec:
+        vzeroupper
         addq	$0x48, %rsp
         popq	%r13
         popq	%r12
@@ -7216,6 +7223,7 @@ L_AES_XTS_decrypt_update_avx512_last_31_2_aes_dec_block_last:
         vmovdqu	%xmm0, (%rcx)
 L_AES_XTS_decrypt_update_avx512_done_dec:
         vmovdqu	%xmm8, (%r8)
+        vzeroupper
         addq	$0x40, %rsp
         popq	%r12
         repz retq
