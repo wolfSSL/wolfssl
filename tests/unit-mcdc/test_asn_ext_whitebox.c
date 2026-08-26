@@ -254,6 +254,100 @@ static void wb_match_base_name(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS; skipped
 #endif
 
 /* ------------------------------------------------------------------------- *
+ * Section 1b: MatchDirAttr() AttributeTypeAndValue validation.
+ *   :19011  if ((GetASNObjectId(a, ...) != 0) || (GetASNObjectId(b, ...) != 0))
+ *   :19015  if ((aLen != bLen) || (XMEMCMP(...) != 0))
+ *   :19023  the four GetASNTag()/GetLength_ex() arms, a then b
+ *   :19031  if (((ai + aLen) != aSz) || ((bi + bLen) != bSz))
+ *
+ * a and b are the content octets of an AttributeTypeAndValue SEQUENCE. The
+ * checks above reject an AVA whose AttributeType is not an OBJECT IDENTIFIER,
+ * whose AttributeValue header is missing or truncated, or that carries
+ * anything after the AttributeValue -- none of which a DN built by the
+ * encoder in tests/api can present, since it derives every length from the
+ * value it is given. Reporting a match for such an AVA would let a name that
+ * no decoder agrees on through a name constraint, so each arm returns the
+ * parse error instead, and each is driven here from both operand positions.
+ * ------------------------------------------------------------------------- */
+#ifndef IGNORE_NAME_CONSTRAINTS
+static void wb_match_dir_attr(void)
+{
+    /* type 2.5.4.10 (organizationName), value UTF8String "x". */
+    static const byte avaOk[] =
+        { 0x06,0x03,0x55,0x04,0x0A, 0x0C,0x01,'x' };
+    /* Same type, value "y". */
+    static const byte avaOkY[] =
+        { 0x06,0x03,0x55,0x04,0x0A, 0x0C,0x01,'y' };
+    /* AttributeType is an INTEGER rather than an OBJECT IDENTIFIER. */
+    static const byte avaBadOid[] =
+        { 0x02,0x01,0x00, 0x0C,0x01,'x' };
+    /* A four octet attribute type OID (1.3.6.1.5). */
+    static const byte avaLongOid[] =
+        { 0x06,0x04,0x2B,0x06,0x01,0x05, 0x0C,0x01,'x' };
+    /* Nothing at all after the AttributeType. */
+    static const byte avaNoValue[] =
+        { 0x06,0x03,0x55,0x04,0x0A };
+    /* AttributeValue header claims five content octets and carries none. */
+    static const byte avaBadLen[] =
+        { 0x06,0x03,0x55,0x04,0x0A, 0x0C,0x05 };
+    /* One octet after the AttributeValue, inside the same SEQUENCE. */
+    static const byte avaTrail[] =
+        { 0x06,0x03,0x55,0x04,0x0A, 0x0C,0x01,'x', 0x00 };
+
+    WB_NOTE("MatchDirAttr(): well formed baseline [:19011,:19015,:19031 all"
+            " operands false]");
+    WB_CHECK(MatchDirAttr(avaOk, (word32)sizeof(avaOk),
+                          avaOk, (word32)sizeof(avaOk)) == 1,
+            "same type and value match");
+    WB_CHECK(MatchDirAttr(avaOk, (word32)sizeof(avaOk),
+                          avaOkY, (word32)sizeof(avaOkY)) == 0,
+            "same type, different value");
+
+    WB_NOTE("MatchDirAttr(): AttributeType is not an OID [:19011]");
+    WB_CHECK(MatchDirAttr(avaBadOid, (word32)sizeof(avaBadOid),
+                          avaOk, (word32)sizeof(avaOk)) < 0,
+            ":19011 1st operand true (type of a)");
+    WB_CHECK(MatchDirAttr(avaOk, (word32)sizeof(avaOk),
+                          avaBadOid, (word32)sizeof(avaBadOid)) < 0,
+            ":19011 2nd operand true (type of b)");
+
+    WB_NOTE("MatchDirAttr(): attribute type OIDs of different length"
+            " [:19015 1st operand]");
+    WB_CHECK(MatchDirAttr(avaOk, (word32)sizeof(avaOk),
+                          avaLongOid, (word32)sizeof(avaLongOid)) == 0,
+            ":19015 1st operand true (3 octet type vs 4 octet type)");
+
+    WB_NOTE("MatchDirAttr(): AttributeValue header missing or truncated"
+            " [:19023]");
+    WB_CHECK(MatchDirAttr(avaNoValue, (word32)sizeof(avaNoValue),
+                          avaOk, (word32)sizeof(avaOk)) < 0,
+            ":19023 1st operand true (no value tag in a)");
+    WB_CHECK(MatchDirAttr(avaBadLen, (word32)sizeof(avaBadLen),
+                          avaOk, (word32)sizeof(avaOk)) < 0,
+            ":19023 2nd operand true (value length of a exceeds the AVA)");
+    WB_CHECK(MatchDirAttr(avaOk, (word32)sizeof(avaOk),
+                          avaNoValue, (word32)sizeof(avaNoValue)) < 0,
+            ":19023 3rd operand true (no value tag in b)");
+    WB_CHECK(MatchDirAttr(avaOk, (word32)sizeof(avaOk),
+                          avaBadLen, (word32)sizeof(avaBadLen)) < 0,
+            ":19023 4th operand true (value length of b exceeds the AVA)");
+
+    WB_NOTE("MatchDirAttr(): octets after the AttributeValue [:19031]");
+    WB_CHECK(MatchDirAttr(avaTrail, (word32)sizeof(avaTrail),
+                          avaOk, (word32)sizeof(avaOk)) < 0,
+            ":19031 1st operand true (trailing octet in a)");
+    WB_CHECK(MatchDirAttr(avaOk, (word32)sizeof(avaOk),
+                          avaTrail, (word32)sizeof(avaTrail)) < 0,
+            ":19031 2nd operand true (trailing octet in b)");
+}
+#else
+static void wb_match_dir_attr(void)
+{
+    WB_NOTE("IGNORE_NAME_CONSTRAINTS; MatchDirAttr() skipped");
+}
+#endif
+
+/* ------------------------------------------------------------------------- *
  * Section 2: URI host classification helpers used by URI name constraints.
  *   UriHostIsDecOctet():   :18664 (NULL/sSz<=0/sSz>3), :18667 (leading zero)
  *   UriHostIsIpv4Address(): :18687 (NULL/hostSz<=0), :18699 (non-digit)
@@ -2909,6 +3003,7 @@ int main(void)
     printf("asn.c white-box MC/DC supplement -- extensions wave\n");
 
     wb_match_base_name();
+    wb_match_dir_attr();
     wb_uri_host_helpers();
     wb_match_dns_wildcard();
     wb_match_ip_subnet();
