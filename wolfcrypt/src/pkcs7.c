@@ -14811,30 +14811,64 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 #endif
                         segBase = pkcs7->totalEncryptedContentSz;
 
-                    if (ret == 0 &&
-                         pkcs7->cachedEncryptedContentSz <
-                         segBase + (word32)encryptedContentSz) {
-                        byte* grown = (byte*)XMALLOC(
-                            segBase + (word32)encryptedContentSz, pkcs7->heap,
-                            DYNAMIC_TYPE_PKCS7);
-                        if (grown == NULL) {
-                            ret = MEMORY_E;
+                #ifdef ASN_BER_TO_DER
+                    if (pkcs7->streamOutCb != NULL) {
+                        /* callback path: the cache only ever holds the segment
+                         * in hand, and its size is read back after the loop */
+                        if (ret == 0 && pkcs7->cachedEncryptedContentSz <
+                                (word32)encryptedContentSz) {
+                            XFREE(pkcs7->cachedEncryptedContent, pkcs7->heap,
+                                DYNAMIC_TYPE_PKCS7);
+                            pkcs7->cachedEncryptedContent = (byte*)XMALLOC(
+                                (word32)encryptedContentSz, pkcs7->heap,
+                                DYNAMIC_TYPE_PKCS7);
+                            if (pkcs7->cachedEncryptedContent == NULL)
+                                ret = MEMORY_E;
+                        }
+                        if (ret == 0) {
+                            pkcs7->cachedEncryptedContentSz =
+                                (word32)encryptedContentSz;
                         }
                         else {
-                            if (pkcs7->cachedEncryptedContent != NULL) {
-                                if (segBase > 0) {
-                                    XMEMCPY(grown,
-                                        pkcs7->cachedEncryptedContent, segBase);
-                                }
-                                XFREE(pkcs7->cachedEncryptedContent,
-                                    pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                            }
-                            pkcs7->cachedEncryptedContent = grown;
+                            pkcs7->cachedEncryptedContentSz = 0;
                         }
                     }
-                    if (ret == 0) {
-                        pkcs7->cachedEncryptedContentSz =
-                            segBase + (word32)encryptedContentSz;
+                    else
+                #endif /* ASN_BER_TO_DER */
+                    {
+                        /* Buffered path: size the cache once instead of per
+                         * segment. The accumulated plaintext cannot exceed
+                         * what the caller accepts, so outputSz plus one block
+                         * for the pad bounds it. Here
+                         * cachedEncryptedContentSz is the allocated size and
+                         * totalEncryptedContentSz is how much is used. */
+                        if (ret == 0 && pkcs7->cachedEncryptedContent == NULL) {
+                            word32 cacheSz;
+
+                            if (!WC_SAFE_SUM_WORD32(outputSz,
+                                    (word32)expBlockSz, cacheSz)) {
+                                ret = BUFFER_E;
+                            }
+                            else {
+                                pkcs7->cachedEncryptedContent = (byte*)XMALLOC(
+                                    cacheSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                                if (pkcs7->cachedEncryptedContent == NULL)
+                                    ret = MEMORY_E;
+                                else
+                                    pkcs7->cachedEncryptedContentSz = cacheSz;
+                            }
+                        }
+
+                        /* this segment has to fit what was allocated */
+                        if (ret == 0) {
+                            word32 needSz;
+
+                            if (!WC_SAFE_SUM_WORD32(segBase,
+                                    (word32)encryptedContentSz, needSz) ||
+                                    needSz > pkcs7->cachedEncryptedContentSz) {
+                                ret = BUFFER_E;
+                            }
+                        }
                     }
 
                     /* sanity check that the buffer has all of the data */
@@ -14980,7 +15014,13 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
             /* use cached content */
             encryptedContent = pkcs7->cachedEncryptedContent;
-            encryptedContentSz = (int)pkcs7->cachedEncryptedContentSz;
+            encryptedContentSz = (int)pkcs7->totalEncryptedContentSz;
+        #ifdef ASN_BER_TO_DER
+            if (pkcs7->streamOutCb != NULL) {
+                /* the callback path caches only the segment in hand */
+                encryptedContentSz = (int)pkcs7->cachedEncryptedContentSz;
+            }
+        #endif
 
             if (encryptedContentSz <= 0) {
                 ret = BUFFER_E;
