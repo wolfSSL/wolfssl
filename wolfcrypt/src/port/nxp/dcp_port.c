@@ -205,6 +205,34 @@ static void dcp_free(int ch)
 #endif
 }
 
+/*
+ * The DCP SDK's opaque hash context embeds a pointer to the
+ * dcp_handle_t passed to DCP_HASH_Init; all engine scheduling goes
+ * through that pointer, so a copied context must be rebound to its own
+ * handle. The internal layout is not exported by fsl_dcp.h, so locate
+ * the pointer word by binding a scratch context to a probe handle and
+ * scanning for the word holding the probe address. DCP_HASH_Init is a
+ * pure software state setup and touches neither the DCP peripheral nor
+ * shared port state. Returns DCP_HASH_CTX_SIZE if the layout no longer
+ * matches, so the copy fails instead of binding a wrong word.
+ */
+#if !defined(NO_SHA256) || !defined(NO_SHA)
+static word32 dcp_hash_handle_word(void)
+{
+    dcp_hash_ctx_t bound;
+    dcp_handle_t probe;
+    word32 i;
+
+    XMEMSET(&bound, 0, sizeof(bound));
+    (void)DCP_HASH_Init(DCP, &probe, &bound, kDCP_Sha256);
+    for (i = 0; i < DCP_HASH_CTX_SIZE; i++) {
+        if (bound.x[i] == (word32)&probe)
+            return i;
+    }
+    return DCP_HASH_CTX_SIZE;
+}
+#endif
+
 
 #ifndef NO_AES
 int DCPAesInit(Aes *aes)
@@ -449,11 +477,33 @@ int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags)
 
 int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
+    int ch;
+    int keyslot;
+    word32 handleWord;
+
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
-    if (dcp_lock() != 0)
+    if (src == dst)
+        return 0;
+    handleWord = dcp_hash_handle_word();
+    if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
+    ch = dcp_get_channel();
+    if (ch == 0)
+        return WC_PENDING_E;
+    keyslot = dcp_key_slot(ch);
+    if (dcp_lock() != 0) {
+        dcp_free(ch);
+        return WC_HW_E;
+    }
+    dst->handle.channel    = (dcp_channel_t)ch;
+    dst->handle.keySlot    = (dcp_key_slot_t)keyslot;
+    dst->handle.swapConfig = kDCP_NoSwap;
     XMEMCPY(&dst->ctx, &src->ctx, sizeof(dcp_hash_ctx_t));
+    /* Rebind the copied context to its own handle: the SDK stages the
+     * running hash per channel, so a copy sharing the source channel
+     * would corrupt both digests. */
+    dst->ctx.x[handleWord] = (word32)&dst->handle;
     dcp_unlock();
     return 0;
 }
@@ -572,11 +622,33 @@ int wc_ShaGetFlags(wc_Sha* sha, word32* flags)
 
 int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 {
+    int ch;
+    int keyslot;
+    word32 handleWord;
+
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
-    if (dcp_lock() != 0)
+    if (src == dst)
+        return 0;
+    handleWord = dcp_hash_handle_word();
+    if (handleWord >= DCP_HASH_CTX_SIZE)
         return WC_HW_E;
+    ch = dcp_get_channel();
+    if (ch == 0)
+        return WC_PENDING_E;
+    keyslot = dcp_key_slot(ch);
+    if (dcp_lock() != 0) {
+        dcp_free(ch);
+        return WC_HW_E;
+    }
+    dst->handle.channel    = (dcp_channel_t)ch;
+    dst->handle.keySlot    = (dcp_key_slot_t)keyslot;
+    dst->handle.swapConfig = kDCP_NoSwap;
     XMEMCPY(&dst->ctx, &src->ctx, sizeof(dcp_hash_ctx_t));
+    /* Rebind the copied context to its own handle: the SDK stages the
+     * running hash per channel, so a copy sharing the source channel
+     * would corrupt both digests. */
+    dst->ctx.x[handleWord] = (word32)&dst->handle;
     dcp_unlock();
     return 0;
 }
