@@ -52,6 +52,47 @@
  * (wc_RNG_DRBG_Reseed_Uncredited()), leaving the reseed schedule governed
  * solely by the module's own seed source. */
 #define WC_RNG_BANK_FLAG_SEED_UNCREDITED      (1<<6)
+/* WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED applies only to wc_rng_bank_checkout():
+ * if the checked-out instance has a ready banked next seed (see
+ * wc_RNG_DRBG_NextSeedGenerate() et al.), consume it in an immediate,
+ * source-free credited reseed before returning the instance; a no-op when
+ * no bank is ready or the build/instance has no next-seed support.  Safe in
+ * atomic context. */
+#define WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED    (1<<7)
+/* WC_RNG_BANK_FLAG_FOR_RECOVERY declares a recovery-intent checkout of a
+ * specific instance (e.g. by a reseed-and-recovery daemon's patrol):
+ * out-of-service status is expected and accepted, and the
+ * WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED arm is suppressed (a consume would
+ * fail on exactly the instances recovery targets).  Requires an explicit
+ * instance: rejected in combination with _CAN_FAIL_OVER_INST or
+ * _PREFER_AFFINITY_INST, and by the seed/reseed walkers.  Note that a
+ * targeted (non-failover) checkout admits out-of-service instances with or
+ * without this flag; the flag makes the intent explicit and
+ * interaction-safe. */
+#define WC_RNG_BANK_FLAG_FOR_RECOVERY         (1<<8)
+/* WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED guarantees that
+ * wc_rng_bank_checkout() (and APIs built on it, e.g. wc_rng_bank_spawn())
+ * either returns a lease on an in-service instance (status WC_DRBG_OK) or
+ * returns an error with NO lease held -- never a lease on an out-of-service
+ * instance.  This closes the two paths that can otherwise lease one: a
+ * targeted (non-failover) checkout, and a failover checkout after a full
+ * unsuccessful lap (the anti-livelock disarm).  Under _CAN_WAIT, an
+ * out-of-service instance is retried within the timeout budget (allowing a
+ * recovery patrol to restore it) before the error is returned; the
+ * distinguished error for a lap or wait that found only out-of-service
+ * instances is BAD_STATE_E.  Contradicts, and is rejected with,
+ * _FOR_RECOVERY.  Applies to instance status only; reseed-due diversion
+ * semantics are unchanged. */
+#define WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED  (1<<9)
+/* WC_RNG_BANK_FLAG_QUIET suppresses the facility's WC_VERBOSE_RNG
+ * operational warnings -- expected-condition notices such as the
+ * reseed-due-instance handout, reinit retry/timeout reports, the
+ * all-instances-busy notice, and the seed-walker's out-of-service reports
+ * -- so that deliberate exercising (e.g. unit tests) doesn't spam the
+ * log.  A bank-level flag only, set at wc_rng_bank_init(); it has no
+ * per-call meaning and never suppresses refcount/consistency
+ * diagnostics. */
+#define WC_RNG_BANK_FLAG_QUIET                (1<<10)
 
 #define WC_RNG_BANK_INST_LOCK_FREE                0
 #define WC_RNG_BANK_INST_LOCK_HELD            (1<<0)
@@ -283,6 +324,16 @@ struct wc_rng_bank {
     wc_affinity_unlock_fn_t affinity_unlock_cb;
     void *cb_arg; /* if mutable, caller is responsible for thread safety. */
     int n_rngs;
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* Serializes whole-instance operations (wc_rng_bank_inst_reinit()'s
+     * free/reinstantiate cycle) against the entropy daemon's lockless
+     * banking calls (wc_rng_bank_next_seed_generate()).  0 = free,
+     * WC_RNG_BANK_INST_OP_DAEMON = daemon banking in progress,
+     * WC_RNG_BANK_INST_OP_REINIT = reinit in progress.  Lease-holders
+     * never consult it: instance-lock exclusion already covers every
+     * lease-holder <-> reinit and lease-holder <-> consume interaction. */
+    wolfSSL_Atomic_Int inst_op_gate;
+#endif
 #ifdef WC_RNG_BANK_STATIC
     struct wc_rng_bank_inst rngs[WC_RNG_BANK_STATIC_SIZE];
 #else
@@ -351,11 +402,83 @@ WOLFSSL_API int wc_rng_bank_checkin(
 WOLFSSL_API int wc_rng_bank_inst_checkin(
     struct wc_rng_bank_inst **rng_inst);
 
+#ifdef WC_RNG_HAVE_NEXT_SEED
+/* Daemon entry point for banking next-seed material: resolves the instance
+ * at inst_offset and calls wc_RNG_DRBG_NextSeedGenerate(rng, n) under the
+ * bank's whole-instance-operation gate, so a concurrent
+ * wc_rng_bank_inst_reinit() can never free the DRBG out from under the
+ * gather.  Returns BUSY_E (skip this turn) when the gate is held by a
+ * reinit; ALREADY_E when the instance's bank is already complete (sleep
+ * until consumed); MISSING_RNG_E when the instance has no DRBG (RDRAND
+ * et al.) and can be retired from the banking rotation permanently.
+ * Other errors are transient gather/health-test failures: skip the turn
+ * and alarm if persistent.  The caller must hold a bank reference (e.g.
+ * per the daemon association) for the duration of the call.
+ */
+WOLFSSL_API int wc_rng_bank_next_seed_generate(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    word32 n);
+#endif
+
 WOLFSSL_API int wc_rng_bank_inst_reinit(
     struct wc_rng_bank *bank,
     struct wc_rng_bank_inst *rng_inst,
     int timeout_secs,
     word32 flags);
+
+/* Patrol helper: check out the instance at inst_offset with
+ * WC_RNG_BANK_FLAG_FOR_RECOVERY, reinitialize it iff it is out of service,
+ * and check it back in.  A healthy instance is a success no-op, so callers
+ * can invoke this unconditionally on a status observed locklessly (a stale
+ * observation costs one harmless round trip).  Returns BUSY_E when the
+ * instance lock or the whole-instance-operation gate is contended -- retry
+ * on a later patrol turn.  flags may include WC_RNG_BANK_FLAG_CAN_WAIT and
+ * WC_RNG_BANK_FLAG_AFFINITY_LOCK, which are passed through; bank must be
+ * non-NULL. */
+WOLFSSL_API int wc_rng_bank_recover_inst(
+    struct wc_rng_bank *bank,
+    int inst_offset,
+    int timeout_secs,
+    word32 flags);
+
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+/* Spawn an SP 800-90C chain leaf from a bank instance: check out an
+ * instance (honoring the usual selection flags), wc_InitRngNonceRBGC() /
+ * wc_InitRngNonceRBGC_New() the leaf from it, and check the instance back
+ * in.  The leaf's lifetime is thereafter decoupled from the bank: it is
+ * lock-free for its owner and is released with wc_FreeRng() (stack form)
+ * or wc_rng_free() (heap form).  nonce/nonceSz may be NULL/0 for a plain
+ * spawn; per the bank's distinctness convention, passing the address of
+ * the leaf's owning object or request is recommended.  bank == NULL uses
+ * the default bank where support is compiled in.
+ * WC_RNG_BANK_FLAG_CONSUME_NEXT_SEED composes (banked reseed before the
+ * spawn draw); WC_RNG_BANK_FLAG_SEED_UNCREDITED and
+ * WC_RNG_BANK_FLAG_FOR_RECOVERY are rejected.
+ * WC_RNG_BANK_FLAG_ERROR_ON_RNG_FAILED is implied: the root is guaranteed
+ * in-service, or an error is returned with no lease and no leaf. */
+WOLFSSL_API int wc_rng_bank_spawn(
+    struct wc_rng_bank *bank,
+    WC_RNG *leaf_rng,
+    byte *nonce,
+    word32 nonceSz,
+    int preferred_inst_offset,
+    int timeout_secs,
+    word32 flags);
+
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API int wc_rng_bank_spawn_new(
+    struct wc_rng_bank *bank,
+    WC_RNG **leaf_rng,
+    byte *nonce,
+    word32 nonceSz,
+    int preferred_inst_offset,
+    int timeout_secs,
+    word32 flags);
+#endif /* !WC_NO_CONSTRUCTORS */
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK &&
+        * (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
 WOLFSSL_API int wc_rng_bank_seed(struct wc_rng_bank *bank,
                                  const byte* seed, word32 seedSz,
