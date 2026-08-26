@@ -99,9 +99,15 @@ ifeq "$(KERNEL_ARCH_X86)" "yes"
 endif
 endif
 
-ifdef CONFIG_CC_IS_CLANG
-    WOLFSSL_CFLAGS += -Wno-unused-parameter
-endif
+# -Wextra (from configure's warning set) turns on -Wunused-parameter, which
+# fires on the KERNEL's own headers, not on wolfSSL code: e.g. 6.8's
+# include/linux/node.h:88 node_set_perf_attrs() is an empty static inline with
+# three named parameters when !CONFIG_HMEM_REPORTING.  The kernel never builds
+# with that warning on -- scripts/Makefile.extrawarn:90 pairs it as
+# "-Wextra -Wunused -Wno-unused-parameter" even at W=1 -- so an out-of-tree
+# module that adds -Wextra must pair it the same way.  This was clang-only;
+# gcc fails identically (measured: gcc 14.3 vs linux-6.8.12 defconfig).
+WOLFSSL_CFLAGS += -Wno-unused-parameter
 
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
 $(obj)/linuxkm/get_thread_size: $(src)/linuxkm/get_thread_size.c

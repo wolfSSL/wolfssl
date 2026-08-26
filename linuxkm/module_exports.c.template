@@ -46,6 +46,11 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
+/* Kbuild generates the export list from the WOLFSSL_API wc_ and wolf symbols
+ * visible here, so the get_random_bytes service declarations must be too. */
+#ifdef LINUXKM_RBGC
+    #include <wolfssl/wolfcrypt/linuxkm_get_entropy.h>
+#endif
 #include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/md2.h>

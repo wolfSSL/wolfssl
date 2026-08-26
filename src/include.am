@@ -1082,6 +1082,13 @@ endif !BUILD_PPC64_ASM_INLINE
 endif BUILD_PPC64_ASM
 
 if BUILD_SHA512
+if BUILD_LINUXKM_RBGC
+# RBGC compiles ONE SHA-512: the portable C transform.  No Intel or ARM asm, so
+# there is no second implementation in the boundary and nothing to select at run
+# time.  linuxkm_get_entropy.c takes the place of the asm it replaces.
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/linuxkm_get_entropy.c
+else
 if BUILD_RISCV_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha512.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv64/riscv-64-sha512-asm.S
@@ -1137,6 +1144,7 @@ endif BUILD_INTELASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 endif !BUILD_RISCV_ASM
+endif !BUILD_LINUXKM_RBGC
 
 if BUILD_PPC64_ASM
 if BUILD_PPC64_ASM_INLINE

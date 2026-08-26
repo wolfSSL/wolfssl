@@ -48,6 +48,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/chacha.h \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \
+                         wolfssl/wolfcrypt/linuxkm_get_entropy.h \
                          wolfssl/wolfcrypt/wolfentropy.h \
                          wolfssl/wolfcrypt/rng_bank.h \
                          wolfssl/wolfcrypt/ripemd.h \
