@@ -114,6 +114,10 @@ wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
     #endif
 #endif
 
+/* Note, all macro gates used below must be available with just
+ * wolfcrypt/types.h included, i.e. no macros in alg-specific headers can be
+ * used here.
+ */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  octets_test(void);
@@ -259,6 +263,7 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);
+extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_nextseed_test(void);
 #endif
 #endif /* WC_NO_RNG */
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
