@@ -50,6 +50,15 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
 #include <wolfssl/wolfcrypt/random.h>
+#ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    #include <wolfssl/wolfcrypt/wc_mldsa.h>
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -195,13 +204,526 @@ static int run_one_cast(int id, int iters,
 }
 
 
+/* --------------------------------------------------------------- PCT ---
+ *
+ * The table above measures wc_RunCast_fips(), the per-algorithm Known Answer
+ * Test.  A CAST runs once per algorithm; a Pairwise Consistency Test runs on
+ * EVERY key generation, so its cost is paid by the application for the life
+ * of the process and does not appear anywhere in the CAST numbers.
+ *
+ * FIPS 140-3 IG 10.3.A Additional Comment 1 (TE10.35.01 for a KEM,
+ * TE10.35.02 for a signature) / ISO/IEC 19790:2012 sec 7.10.3.3.
+ *
+ * Three quantities per algorithm:
+ *
+ *   KeyGen+PCT  the generation call as the module ships it.  The PCT is
+ *               unconditional inside that call, so this is what a caller
+ *               actually pays.  MEASURED.
+ *   PCT alone   the same operations the module's PCT performs, run again on
+ *               the key that generation produced.  MEASURED.
+ *   KeyGen raw  KeyGen+PCT minus PCT alone.  DERIVED, and labelled as such
+ *               in the header: no build of this module generates a key
+ *               without running the PCT, so there is nothing to measure.
+ */
+
+#define BENCH_PCT_DEFAULT_ITERS 1
+
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+    #define BENCH_HAVE_PCT
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA)
+    /* The two families that share the four-column table. */
+    #define BENCH_HAVE_PCT_TABLE
+#endif
+
+#ifdef BENCH_HAVE_PCT
+
+/* Largest n (security parameter) over the FIPS 205 parameter sets, which is
+ * 32 for the category 5 sets.  Checked against the key at run time rather
+ * than assumed, so a parameter set with a larger n is skipped with a message
+ * instead of overflowing the seed buffers. */
+#define BENCH_SLHDSA_MAX_N 32
+
+/* KeyGen raw is KeyGen+PCT minus PCT alone, so it is positive only while the
+ * PCT really is inside the generation call.  Compiling the SLH-DSA PCT out
+ * and re-running took KeyGen raw for SHAKE-128s from +54.8 ms to -365.5 ms,
+ * which is how this test was calibrated.  Noise cannot produce that: the
+ * margin below asks for a deficit worth more than a twentieth of the PCT
+ * before it says anything.
+ *
+ * Returns 1 when key generation does not appear to run the PCT. */
+static int pct_missing(double raw_ms, double pct_ms)
+{
+    return (raw_ms < 0.0) && ((-raw_ms) > (pct_ms * 0.05));
+}
+
+#ifdef BENCH_HAVE_PCT_TABLE
+static void pct_hdr(const char* title, const char* what)
+{
+    printf("%s\n", title);
+    printf("  PCT = %s\n", what);
+    printf("Alg             | KeyGen+PCT | PCT alone  | KeyGen raw | PCT share\n");
+    printf("                |       (ms) |       (ms) | (ms) DERIV |       (%%)\n");
+    printf("----------------+------------+------------+------------+----------\n");
+}
+
+/* Returns 1 when the row shows the PCT missing from key generation. */
+static int pct_row(const char* name, long long kg_ns, long long pct_ns,
+                   int iters)
+{
+    double kg    = (double)kg_ns  / (double)iters / 1.0e6;
+    double pct   = (double)pct_ns / (double)iters / 1.0e6;
+    double raw   = kg - pct;
+    double share = (kg > 0.0) ? (pct * 100.0 / kg) : 0.0;
+
+    printf("%-15s | %10.3f | %10.3f | %10.3f | %8.1f%s\n",
+           name, kg, pct, raw, share,
+           pct_missing(raw, pct) ? "   PCT NOT IN KEYGEN" : "");
+
+    return pct_missing(raw, pct);
+}
+#endif /* BENCH_HAVE_PCT_TABLE */
+
+static void pct_skip(const char* name, int rc)
+{
+    printf("%-15s | not available in this build (rc=%d, %s)\n",
+           name, rc, wc_GetErrorString(rc));
+}
+
+static void pct_fail(const char* name, int rc)
+{
+    printf("%-15s | FAILED rc=%d (%s)\n", name, rc, wc_GetErrorString(rc));
+}
+#endif /* BENCH_HAVE_PCT */
+
+
+#ifdef WOLFSSL_HAVE_MLKEM
+/* ML-KEM PCT: encapsulate with ek, decapsulate with dk, compare the two
+ * shared secrets.  Mirrors the block in wc_mlkem.c, including the fixed `m`,
+ * so the measurement is of the same work and not of a different round trip. */
+static int bench_pct_mlkem(int iters)
+{
+    static const int   types[] = { WC_ML_KEM_512, WC_ML_KEM_768,
+                                   WC_ML_KEM_1024 };
+    static const char* names[] = { "ML-KEM-512", "ML-KEM-768",
+                                   "ML-KEM-1024" };
+    static const byte  pct_m[WC_ML_KEM_ENC_RAND_SZ] = {
+        0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+        0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+        0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+        0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB
+    };
+    byte   kgrand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+    byte   ss1[WC_ML_KEM_SS_SZ];
+    byte   ss2[WC_ML_KEM_SS_SZ];
+    byte*  ct;
+    int    failures = 0;
+    size_t t;
+
+    ct = (byte*)XMALLOC(WC_ML_KEM_MAX_CIPHER_TEXT_SIZE, NULL,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (ct == NULL)
+        return MEMORY_E;
+
+    XMEMSET(kgrand, 0x5A, sizeof(kgrand));
+
+    pct_hdr("ML-KEM (FIPS 203)", "encapsulate + decapsulate + compare");
+
+    for (t = 0; t < sizeof(types) / sizeof(types[0]); t++) {
+        MlKemKey  key;
+        long long kg_ns = 0;
+        long long pct_ns = 0;
+        int       i;
+        int       rc;
+
+        rc = wc_MlKemKey_Init(&key, types[t], NULL, INVALID_DEVID);
+        if (rc != 0) {
+            pct_skip(names[t], rc);
+            continue;
+        }
+
+        for (i = 0; i < iters; i++) {
+            long long t0;
+            long long t1;
+            word32    ctSz = 0;
+
+            /* Different key material each iteration, so no measurement here
+             * can be a repeat of byte-identical work. */
+            kgrand[0] = (byte)i;
+
+            t0 = now_ns();
+            rc = wc_MlKemKey_MakeKeyWithRandom(&key, kgrand,
+                    (int)sizeof(kgrand));
+            t1 = now_ns();
+            if (rc != 0)
+                break;
+            kg_ns += t1 - t0;
+
+            t0 = now_ns();
+            rc = wc_MlKemKey_CipherTextSize(&key, &ctSz);
+            if (rc == 0) {
+                rc = wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss1, pct_m,
+                        (int)sizeof(pct_m));
+            }
+            if (rc == 0)
+                rc = wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz);
+            if ((rc == 0) && (XMEMCMP(ss1, ss2, WC_ML_KEM_SS_SZ) != 0))
+                rc = ML_KEM_PCT_E;
+            t1 = now_ns();
+            if (rc != 0)
+                break;
+            pct_ns += t1 - t0;
+        }
+
+        if (rc != 0) {
+            pct_fail(names[t], rc);
+            failures++;
+        }
+        else {
+            failures += pct_row(names[t], kg_ns, pct_ns, iters);
+        }
+        wc_MlKemKey_Free(&key);
+    }
+
+    /* Fixed-seed test material, not live key material, but leaving a shared
+     * secret on the stack of a FIPS benchmark reads badly and costs nothing
+     * to avoid. */
+    XMEMSET(ss1, 0, sizeof(ss1));
+    XMEMSET(ss2, 0, sizeof(ss2));
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    printf("\n");
+    return failures;
+}
+#endif /* WOLFSSL_HAVE_MLKEM */
+
+
+#ifdef WOLFSSL_HAVE_MLDSA
+/* ML-DSA PCT: sign with the new sk, verify with the matching pk.  Mirrors
+ * mldsa_pct() in wc_mldsa.c, same message and same all-zero rnd, so the
+ * deterministic-signing path measured here is the one the module runs. */
+static int bench_pct_mldsa(int iters)
+{
+    static const byte  levels[] = { WC_ML_DSA_44, WC_ML_DSA_65, WC_ML_DSA_87 };
+    static const char* names[]  = { "ML-DSA-44", "ML-DSA-65", "ML-DSA-87" };
+    static const byte  pct_msg[] = "wolfSSL ML-DSA PCT";
+    static const byte  pct_seed[MLDSA_SEED_SZ] = { 0 };
+    byte   seed[MLDSA_SEED_SZ];
+    byte*  sig;
+    int    failures = 0;
+    size_t t;
+
+    sig = (byte*)XMALLOC(MLDSA_MAX_SIG_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sig == NULL)
+        return MEMORY_E;
+
+    XMEMSET(seed, 0x3C, sizeof(seed));
+
+    pct_hdr("ML-DSA (FIPS 204)", "sign + verify");
+
+    for (t = 0; t < sizeof(levels) / sizeof(levels[0]); t++) {
+        wc_MlDsaKey key;
+        long long   kg_ns = 0;
+        long long   pct_ns = 0;
+        int         i;
+        int         rc;
+        int         inited = 0;
+
+        rc = wc_MlDsaKey_Init(&key, NULL, INVALID_DEVID);
+        if (rc == 0) {
+            inited = 1;
+            rc = wc_MlDsaKey_SetParams(&key, levels[t]);
+        }
+        if (rc != 0) {
+            pct_skip(names[t], rc);
+            if (inited)
+                wc_MlDsaKey_Free(&key);
+            continue;
+        }
+
+        for (i = 0; i < iters; i++) {
+            long long t0;
+            long long t1;
+            word32    sigSz = MLDSA_MAX_SIG_SIZE;
+            int       res = 0;
+
+            seed[0] = (byte)i;
+
+            t0 = now_ns();
+            rc = wc_MlDsaKey_MakeKeyFromSeed(&key, seed);
+            t1 = now_ns();
+            if (rc != 0)
+                break;
+            kg_ns += t1 - t0;
+
+            t0 = now_ns();
+            rc = wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigSz,
+                    pct_msg, (word32)sizeof(pct_msg), pct_seed);
+            if (rc == 0) {
+                rc = wc_MlDsaKey_VerifyCtx(&key, sig, sigSz, NULL, 0, pct_msg,
+                        (word32)sizeof(pct_msg), &res);
+            }
+            if ((rc == 0) && (res != 1))
+                rc = ML_DSA_PCT_E;
+            t1 = now_ns();
+            if (rc != 0)
+                break;
+            pct_ns += t1 - t0;
+        }
+
+        if (rc != 0) {
+            pct_fail(names[t], rc);
+            failures++;
+        }
+        else {
+            failures += pct_row(names[t], kg_ns, pct_ns, iters);
+        }
+        wc_MlDsaKey_Free(&key);
+    }
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    printf("\n");
+    return failures;
+}
+#endif /* WOLFSSL_HAVE_MLDSA */
+
+
+#ifdef WOLFSSL_HAVE_SLHDSA
+/* SLH-DSA is the one where the choice of PCT is open, so three candidates are
+ * timed side by side.  What each one proves is spelled out by
+ * bench_pct_slhdsa_notes() below; read that before using the numbers. */
+static void bench_pct_slhdsa_notes(void)
+{
+    printf(
+"A  sign + verify.  What wc_SlhDsaKey_MakeKeyWithRandom() does today.\n"
+"B  recompute PK.root from SK.seed and compare it with the stored root -- what\n"
+"   wc_SlhDsaKey_CheckKey() already implements.  Its cost is the raw key\n"
+"   generation, because for SLH-DSA generating the key IS computing PK.root,\n"
+"   so column B is the KeyGen raw figure rather than a second measurement of\n"
+"   the same work.\n"
+"C  compare PK.SEED between the public and the private key -- the relaxation\n"
+"   FIPS 140-3 IG 10.3.A Additional Comment 1 permits for SLH-DSA.\n"
+"   VACUOUS IN THIS IMPLEMENTATION, and the number below must not be read as\n"
+"   an option.  SlhDsaKey holds a single buffer, sk = SK.seed | SK.prf |\n"
+"   PK.seed | PK.root; wc_SlhDsaKey_ExportPrivate() returns sk and\n"
+"   wc_SlhDsaKey_ExportPublic() returns sk + 2n.  The two copies of PK.seed\n"
+"   are the same bytes, so the comparison cannot fail and detects nothing.\n"
+"   It is timed only to show it was measured rather than assumed.\n");
+}
+
+static int bench_pct_slhdsa(int iters)
+{
+    static const int params[] = {
+        SLHDSA_SHAKE128S, SLHDSA_SHAKE128F, SLHDSA_SHAKE192S,
+        SLHDSA_SHAKE192F, SLHDSA_SHAKE256S, SLHDSA_SHAKE256F
+#ifdef WOLFSSL_SLHDSA_SHA2
+        , SLHDSA_SHA2_128S, SLHDSA_SHA2_128F, SLHDSA_SHA2_192S,
+        SLHDSA_SHA2_192F, SLHDSA_SHA2_256S, SLHDSA_SHA2_256F
+#endif
+    };
+    static const char* names[] = {
+        "SHAKE-128s", "SHAKE-128f", "SHAKE-192s",
+        "SHAKE-192f", "SHAKE-256s", "SHAKE-256f"
+#ifdef WOLFSSL_SLHDSA_SHA2
+        , "SHA2-128s", "SHA2-128f", "SHA2-192s",
+        "SHA2-192f", "SHA2-256s", "SHA2-256f"
+#endif
+    };
+    static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
+    byte   sk_seed[BENCH_SLHDSA_MAX_N];
+    byte   sk_prf[BENCH_SLHDSA_MAX_N];
+    byte   pk_seed[BENCH_SLHDSA_MAX_N];
+    byte   priv[BENCH_SLHDSA_MAX_N * 4];
+    byte   pub[BENCH_SLHDSA_MAX_N * 2];
+    int    failures = 0;
+    size_t t;
+
+    printf("SLH-DSA (FIPS 205)\n");
+    printf("Param           | KeyGen+A | A sign+vfy | KeyGen raw"
+           " | B root recomp | C PK.seed\n");
+    printf("                |     (ms) |       (ms) | (ms) DERIV"
+           " |    (ms) DERIV |      (ms)\n");
+    printf("----------------+----------+------------+-----------"
+           "-+---------------+----------\n");
+
+    for (t = 0; t < sizeof(params) / sizeof(params[0]); t++) {
+        SlhDsaKey key;
+        long long kg_ns = 0;
+        long long a_ns = 0;
+        long long c_ns = 0;
+        byte*     sig = NULL;
+        int       sigLen;
+        int       privLen;
+        int       n;
+        int       i;
+        int       rc;
+
+        rc = wc_SlhDsaKey_Init(&key, (enum SlhDsaParam)params[t], NULL,
+                INVALID_DEVID);
+        if (rc != 0) {
+            pct_skip(names[t], rc);
+            continue;
+        }
+
+        privLen = wc_SlhDsaKey_PrivateSize(&key);
+        sigLen  = wc_SlhDsaKey_SigSize(&key);
+        n       = (privLen > 0) ? (privLen / 4) : 0;
+        if ((n <= 0) || (n > BENCH_SLHDSA_MAX_N) || (sigLen <= 0)) {
+            printf("%-15s | skipped: n=%d sigLen=%d outside what this"
+                   " benchmark allocates\n", names[t], n, sigLen);
+            wc_SlhDsaKey_Free(&key);
+            continue;
+        }
+
+        sig = (byte*)XMALLOC((size_t)sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sig == NULL) {
+            wc_SlhDsaKey_Free(&key);
+            return MEMORY_E;
+        }
+
+        for (i = 0; i < iters; i++) {
+            long long t0;
+            long long t1;
+            word32    sigSz = (word32)sigLen;
+            word32    pl = (word32)privLen;
+            word32    ul = (word32)(n * 2);
+
+            XMEMSET(sk_seed, (byte)(0x11 + i), (size_t)n);
+            XMEMSET(sk_prf,  (byte)(0x22 + i), (size_t)n);
+            XMEMSET(pk_seed, (byte)(0x33 + i), (size_t)n);
+
+            t0 = now_ns();
+            rc = wc_SlhDsaKey_MakeKeyWithRandom(&key, sk_seed, (word32)n,
+                    sk_prf, (word32)n, pk_seed, (word32)n);
+            t1 = now_ns();
+            if (rc != 0)
+                break;
+            kg_ns += t1 - t0;
+
+            /* Option A, as the module runs it now. */
+            t0 = now_ns();
+            rc = wc_SlhDsaKey_SignDeterministic(&key, NULL, 0, pct_msg,
+                    (word32)sizeof(pct_msg), sig, &sigSz);
+            if (rc == 0) {
+                rc = wc_SlhDsaKey_Verify(&key, NULL, 0, pct_msg,
+                        (word32)sizeof(pct_msg), sig, sigSz);
+            }
+            t1 = now_ns();
+            if (rc != 0)
+                break;
+            a_ns += t1 - t0;
+
+            /* Option C, the IG relaxation.  See bench_pct_slhdsa_notes(). */
+            t0 = now_ns();
+            rc = wc_SlhDsaKey_ExportPrivate(&key, priv, &pl);
+            if (rc == 0)
+                rc = wc_SlhDsaKey_ExportPublic(&key, pub, &ul);
+            if ((rc == 0) &&
+                    (XMEMCMP(priv + (size_t)(n * 2), pub, (size_t)n) != 0)) {
+                rc = SLH_DSA_PCT_E;
+            }
+            t1 = now_ns();
+            if (rc != 0)
+                break;
+            c_ns += t1 - t0;
+        }
+
+        if (rc != 0) {
+            pct_fail(names[t], rc);
+            failures++;
+        }
+        else {
+            double kg  = (double)kg_ns / (double)iters / 1.0e6;
+            double a   = (double)a_ns  / (double)iters / 1.0e6;
+            double c   = (double)c_ns  / (double)iters / 1.0e6;
+            double raw = kg - a;
+
+            printf("%-15s | %8.3f | %10.3f | %10.3f | %13.3f | %9.4f%s\n",
+                   names[t], kg, a, raw, raw, c,
+                   pct_missing(raw, a) ? "   PCT NOT IN KEYGEN" : "");
+            failures += pct_missing(raw, a);
+        }
+
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_SlhDsaKey_Free(&key);
+    }
+
+    printf("\n");
+    bench_pct_slhdsa_notes();
+    printf("\n");
+    return failures;
+}
+#endif /* WOLFSSL_HAVE_SLHDSA */
+
+
+/* Returns the number of algorithms whose PCT measurement failed. */
+static int bench_pct(int iters, const char* only)
+{
+    int failures = 0;
+    int ran = 0;
+
+#ifndef BENCH_HAVE_PCT
+    (void)iters;
+#endif
+
+    /* The replicas below drive private-key operations through the public API
+     * -- ML-KEM decapsulate, ML-DSA and SLH-DSA sign, SLH-DSA ExportPrivate.
+     * In a FIPS build those are gated by the private-key lock
+     * (PRIVATE_KEY_UNLOCK, types.h), and without this they return -287.  The
+     * module's own PCTs run inside the boundary and never meet that gate, so
+     * the unlock is taken here, outside every timed region, rather than
+     * charging a PCT for a check it does not actually pay. */
+#ifdef BENCH_HAVE_PCT
+    PRIVATE_KEY_UNLOCK();
+#endif
+
+    printf("KeyGen+PCT and PCT alone are MEASURED; KeyGen raw is DERIVED as\n"
+           "the difference, because no build of this module generates a key\n"
+           "without running the PCT.\n\n");
+
+#ifdef WOLFSSL_HAVE_MLKEM
+    if ((only == NULL) || (XSTRCMP(only, "mlkem") == 0)) {
+        failures += bench_pct_mlkem(iters);
+        ran++;
+    }
+#endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    if ((only == NULL) || (XSTRCMP(only, "mldsa") == 0)) {
+        failures += bench_pct_mldsa(iters);
+        ran++;
+    }
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    if ((only == NULL) || (XSTRCMP(only, "slhdsa") == 0)) {
+        failures += bench_pct_slhdsa(iters);
+        ran++;
+    }
+#endif
+
+    /* Selecting a family that this build does not have would otherwise print
+     * a header and nothing else, which reads as "measured, no cost". */
+#ifdef BENCH_HAVE_PCT
+    PRIVATE_KEY_LOCK();
+#endif
+
+    if (ran == 0) {
+        fprintf(stderr, "no PCT algorithm to benchmark%s%s\n",
+                (only != NULL) ? " for -a " : "",
+                (only != NULL) ? only : "");
+        return -1;
+    }
+    return failures;
+}
+
 static void usage(const char* prog)
 {
-    printf("usage: %s [-i ITERS] [-c CAST_ID] [-l]\n", prog);
-    printf("  -i ITERS    iterations per CAST (default %d)\n",
-           BENCH_DEFAULT_ITERS);
+    printf("usage: %s [-i ITERS] [-c CAST_ID] [-l] [-p [-a FAMILY]]\n", prog);
+    printf("  -i ITERS    iterations (default %d for CASTs, %d for -p)\n",
+           BENCH_DEFAULT_ITERS, BENCH_PCT_DEFAULT_ITERS);
     printf("  -c CAST_ID  benchmark only the named CAST id\n");
     printf("  -l          list CAST ids and names; do not run\n");
+    printf("  -p          benchmark the Pairwise Consistency Tests instead\n");
+    printf("  -a FAMILY   with -p, one of mlkem, mldsa, slhdsa\n");
     printf("  -h          show this help\n");
 }
 
@@ -230,8 +752,11 @@ static int parse_int_arg(const char* s, long* out)
 int main(int argc, char** argv)
 {
     int iters = BENCH_DEFAULT_ITERS;
+    int iters_set = 0;
     int single = -1;
     int list_only = 0;
+    int pct_only = 0;
+    const char* pct_family = NULL;
     int i;
     int first, last;
     int failures = 0;
@@ -252,6 +777,18 @@ int main(int argc, char** argv)
                 return 2;
             }
             iters = (int)v;
+            iters_set = 1;
+        } else if (XSTRCMP(argv[i], "-p") == 0) {
+            pct_only = 1;
+        } else if (XSTRCMP(argv[i], "-a") == 0 && i + 1 < argc) {
+            pct_family = argv[++i];
+            if ((XSTRCMP(pct_family, "mlkem") != 0) &&
+                    (XSTRCMP(pct_family, "mldsa") != 0) &&
+                    (XSTRCMP(pct_family, "slhdsa") != 0)) {
+                fprintf(stderr,
+                        "-a requires one of mlkem, mldsa, slhdsa\n");
+                return 2;
+            }
         } else if (XSTRCMP(argv[i], "-c") == 0 && i + 1 < argc) {
             long v = 0;
             if ((parse_int_arg(argv[++i], &v) != 0) || (v < 0)) {
@@ -272,6 +809,20 @@ int main(int argc, char** argv)
         }
     }
 
+    if ((pct_family != NULL) && !pct_only) {
+        fprintf(stderr, "-a selects a PCT family and only applies with -p\n");
+        return 2;
+    }
+    if (pct_only && (single >= 0)) {
+        fprintf(stderr, "-c names a CAST id and does not apply with -p\n");
+        return 2;
+    }
+    /* The PCT families are far more expensive per iteration than a CAST --
+     * an SLH-DSA 's' key generation is seconds, not milliseconds -- so -p
+     * defaults lower.  An explicit -i still wins. */
+    if (pct_only && !iters_set)
+        iters = BENCH_PCT_DEFAULT_ITERS;
+
     if (list_only) {
         printf("FIPS CAST IDs (FIPS_CAST_COUNT = %d):\n", FIPS_CAST_COUNT);
         for (i = 0; i < FIPS_CAST_COUNT; i++)
@@ -285,10 +836,10 @@ int main(int argc, char** argv)
         return 2;
     }
 
-    printf("wolfCrypt FIPS CAST benchmark\n");
+    printf("wolfCrypt FIPS %s benchmark\n", pct_only ? "PCT" : "CAST");
     printf("Library version: %s\n", LIBWOLFSSL_VERSION_STRING);
     printf("FIPS_CAST_COUNT: %d\n", FIPS_CAST_COUNT);
-    printf("Iterations per CAST: %d\n", iters);
+    printf("Iterations per %s: %d\n", pct_only ? "algorithm" : "CAST", iters);
     printf("Clock: %s\n",
 #ifdef _WIN32
            "QueryPerformanceCounter"
@@ -321,6 +872,13 @@ int main(int argc, char** argv)
                 "Per-CAST measurements continue but failed CASTs will report errors.\n\n",
                 prime_rc);
         }
+    }
+
+    if (pct_only) {
+        int pct_rc = bench_pct(iters, pct_family);
+        if (pct_rc != 0)
+            return 1;
+        return 0;
     }
 
     printf("ID | Name                | Mean(ms) | StdDev(ms) | Min(ms) "
@@ -382,3 +940,4 @@ int main(void)
 }
 
 #endif /* HAVE_FIPS && v7.0.0+ && !WOLFSSL_FIPS_DEV_NO_POST */
+
