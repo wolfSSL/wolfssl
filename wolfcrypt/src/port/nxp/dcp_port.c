@@ -358,8 +358,14 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     sha256->handle.keySlot    = (dcp_key_slot_t)keyslot;
     sha256->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
-    if (ret != kStatus_Success)
+    if (ret != kStatus_Success) {
+        /* The channel is reserved before the SDK init; release it on
+         * failure so repeated failures cannot exhaust the channels, and
+         * leave the context explicitly uninitialized. */
+        dcp_free(ch);
+        sha256->handle.channel = 0;
         ret = WC_HW_E;
+    }
     dcp_unlock();
 
     return ret;
@@ -475,8 +481,14 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     sha->handle.keySlot    = (dcp_key_slot_t)keyslot;
     sha->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
-    if (ret != kStatus_Success)
+    if (ret != kStatus_Success) {
+        /* The channel is reserved before the SDK init; release it on
+         * failure so repeated failures cannot exhaust the channels, and
+         * leave the context explicitly uninitialized. */
+        dcp_free(ch);
+        sha->handle.channel = 0;
         ret = WC_HW_E;
+    }
     dcp_unlock();
     return ret;
 }
