@@ -2353,8 +2353,9 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
 
     /* Public key, root node, is top of data stack. */
     if (ret == 0) {
-        XMEMCPY(stack, stackCache->stack,
-                (word32)params->height * params->hash_len);
+        /* Restore exactly the nodes the offset says are on the stack; the
+         * slots above it are never read. */
+        XMEMCPY(stack, stackCache->stack, stackCache->offset);
         sp = stack + stackCache->offset;
         spEnd = stack + LMS_STACK_CACHE_LEN(params->height, params->hash_len);
     }
@@ -2471,9 +2472,8 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
     if (ret == 0) {
         if (!useRoot) {
             /* Copy stack back. */
-            XMEMCPY(stackCache->stack, stack,
-                    (word32)params->height * params->hash_len);
             stackCache->offset = (word32)((size_t)sp - (size_t)stack);
+            XMEMCPY(stackCache->stack, stack, stackCache->offset);
         }
     }
 

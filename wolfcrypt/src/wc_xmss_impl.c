@@ -2874,6 +2874,12 @@ static void wc_xmss_bds_next_idx(XmssState* state, BdsState* bds,
 
     /* Top node on Stack has same height t' as node. */
     while ((o >= 1) && (h == height[o - 1])) {
+        /* Nodes below the root are merged here, so a height at or above the
+         * subtree's can only come from a bad stored height chain. */
+        if (h >= hs) {
+            state->ret = WC_FAILURE;
+            return;
+        }
         /* HDSS, Section 4.5, 1: AUTH[h] = v[h][1], h = 0,...,H-1.
          * Cache left node if on authentication path. */
         if ((i >> h) == 1) {
@@ -2898,6 +2904,15 @@ static void wc_xmss_bds_next_idx(XmssState* state, BdsState* bds,
              */
             word32 ro = (word32)(((word32)1U << (hs - 1 - h)) + h - hs +
                                  (((i >> h) - 3) >> 1));
+
+            /* Only the second and later right nodes are retained; a lower
+             * index underflows ro. Checked first so that ro is small enough
+             * for the bound below to be computed. */
+            if (((i >> h) < 3) ||
+                    (ro * n >= XMSS_RETAIN_LEN(params->bds_k, n))) {
+                state->ret = WC_FAILURE;
+                return;
+            }
             XMEMCPY(bds->retain + ro * n, node, n);
         }
 
