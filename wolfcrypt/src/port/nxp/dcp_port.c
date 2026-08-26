@@ -196,13 +196,15 @@ int wc_dcp_init(void)
     return 0;
 }
 
-static void dcp_free(void* owner, int ch)
+/* Release a channel without taking the DCP lock. For the dcp_lock()
+ * failure branches only: a contended lock blocks rather than fails, so
+ * a failure there means no other thread can be inside the critical
+ * section and the clear cannot race a live access. */
+static void dcp_free_unlocked(void* owner, int ch)
 {
 #ifndef SINGLE_THREADED
     int i;
 
-    if (dcp_lock() != 0)
-        return;
     for (i = 0; i < 4; i++) {
         if (ch == dcp_channels[i] && dcp_owner[i] == owner) {
             dcp_status[i] = 0;
@@ -210,8 +212,18 @@ static void dcp_free(void* owner, int ch)
             break;
         }
     }
-    dcp_unlock();
+#else
+    (void)owner;
+    (void)ch;
 #endif
+}
+
+static void dcp_free(void* owner, int ch)
+{
+    if (dcp_lock() != 0)
+        return;
+    dcp_free_unlocked(owner, ch);
+    dcp_unlock();
 }
 
 /*
@@ -394,7 +406,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(sha256, ch);
+        dcp_free_unlocked(sha256, ch);
         return WC_HW_E;
     }
     (void)devId;
@@ -518,7 +530,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(dst, ch);
+        dcp_free_unlocked(dst, ch);
         return WC_HW_E;
     }
     dst->handle.channel    = (dcp_channel_t)ch;
@@ -559,7 +571,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(sha, ch);
+        dcp_free_unlocked(sha, ch);
         return WC_HW_E;
     }
     (void)devId;
@@ -684,7 +696,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
         return WC_PENDING_E;
     keyslot = dcp_key_slot(ch);
     if (dcp_lock() != 0) {
-        dcp_free(dst, ch);
+        dcp_free_unlocked(dst, ch);
         return WC_HW_E;
     }
     dst->handle.channel    = (dcp_channel_t)ch;
