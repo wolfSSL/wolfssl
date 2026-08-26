@@ -1042,8 +1042,92 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #endif
 #endif
 
-    /* Note: PCT is performed in wc_MlKemKey_MakeKey() which calls this
-     * function and has the RNG parameter needed for encapsulation. */
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A Additional
+     * Comment 1 and ISO/IEC 19790:2012 Section 7.10.3.3, which for a FIPS 203
+     * KEM is the TE10.35.01 test: encapsulate with the generated
+     * encapsulation key (ek), decapsulate with the matching decapsulation
+     * key (dk), and verify the recovered shared secret matches.  This is a
+     * deterministic key-gen path with no caller RNG, so the PCT uses
+     * wc_MlKemKey_EncapsulateWithRandom() with a fixed 32-byte `m` (FIPS 203
+     * Algorithm 17 input); `m` need not be unpredictable for a PCT roundtrip.
+     */
+    if (ret == 0) {
+        WC_DECLARE_VAR(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
+            key->heap);
+        byte pct_ss1[WC_ML_KEM_SS_SZ];
+        byte pct_ss2[WC_ML_KEM_SS_SZ];
+        word32 pct_ctSz = 0;
+        /* Fixed test pattern for the FIPS 203 Alg 17 `m` input; the value is
+         * arbitrary - a PCT roundtrip does not require unpredictability. */
+        static const byte pct_m[WC_ML_KEM_ENC_RAND_SZ] = {
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB,
+            0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB
+        };
+
+        WC_ALLOC_VAR_EX(pct_ct, byte, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE,
+            key->heap, DYNAMIC_TYPE_TMP_BUFFER, ret = MEMORY_E);
+
+        /* pct_ss1/pct_ss2 hold the PCT shared secrets; baseline-zero and
+         * register up front (single-exit block).  Carried over from upstream's
+         * inline PCT when this test moved here, see the note in
+         * wc_MlKemKey_MakeKey(). */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(pct_ss1, 0, sizeof(pct_ss1));
+        XMEMSET(pct_ss2, 0, sizeof(pct_ss2));
+        wc_MemZero_Add("mlkem pct ss1", pct_ss1, sizeof(pct_ss1));
+        wc_MemZero_Add("mlkem pct ss2", pct_ss2, sizeof(pct_ss2));
+        /* pct_ct is a re-encryption under the just-generated key; register it
+         * alongside the shared secrets so a future early exit added between
+         * here and the ForceZero below is caught the same way. */
+        if (WC_VAR_OK(pct_ct))
+            wc_MemZero_Add("mlkem pct ct", pct_ct,
+                WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+#endif
+        if (ret == 0)
+            ret = wc_MlKemKey_CipherTextSize(key, &pct_ctSz);
+
+        if (ret == 0)
+            ret = wc_MlKemKey_EncapsulateWithRandom(key, pct_ct, pct_ss1,
+                pct_m, (int)sizeof(pct_m));
+
+        if (ret == 0)
+            ret = wc_MlKemKey_Decapsulate(key, pct_ss2, pct_ct, pct_ctSz);
+
+        if (ret == 0) {
+            if (XMEMCMP(pct_ss1, pct_ss2, WC_ML_KEM_SS_SZ) != 0)
+                ret = ML_KEM_PCT_E;
+        }
+
+        ForceZero(pct_ss1, sizeof(pct_ss1));
+        ForceZero(pct_ss2, sizeof(pct_ss2));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(pct_ss1, sizeof(pct_ss1));
+        wc_MemZero_Check(pct_ss2, sizeof(pct_ss2));
+#endif
+        if (WC_VAR_OK(pct_ct)) {
+            ForceZero(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            /* Pairs with the wc_MemZero_Add() above; must run before the free
+             * so the registration does not outlive the allocation. */
+            wc_MemZero_Check(pct_ct, WC_ML_KEM_MAX_CIPHER_TEXT_SIZE);
+        #endif
+        }
+
+        WC_FREE_VAR_EX(pct_ct, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        /* FIPS 140-3 IG 10.3.A Additional Comment 1 (TE10.35.01, the key
+         * transport PCT -- TE10.35.02 is the signature one and the footnote
+         * makes them non-interchangeable in this direction): a key pair that
+         * fails the PCT must be rendered unusable.  Zeroize the generated key
+         * material so a caller that ignores the return value cannot use it. */
+        if (ret != 0) {
+            wc_MlKemKey_Free(key);
+        }
+    }
+#endif /* HAVE_FIPS */
 
     return ret;
 }

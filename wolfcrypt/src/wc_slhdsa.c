@@ -24,6 +24,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if FIPS_VERSION3_GE(2,0,0)
+    /* Keep SLH-DSA inside the FIPS in-core integrity boundary; Windows sorts
+     * it by section name, between sha3 (.fipsA$n) and fips.c (.fipsA$o). */
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$nh")
+        #pragma const_seg(".fipsB$nh")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 
 #ifdef WOLFSSL_HAVE_SLHDSA
@@ -7126,6 +7135,54 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
             key->flags = WC_SLHDSA_FLAG_BOTH_KEYS;
         }
     }
+
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Pairwise Consistency Test (PCT) per FIPS 140-3 IG 10.3.A Additional
+     * Comment 1 (TE10.35.02): sign with the new sk, verify with the matching
+     * pk, on every KeyGen.  SignDeterministic avoids consuming RNG state.
+     * Placed here, not in wc_SlhDsaKey_MakeKey(), because this is the one
+     * function every SLH-DSA generation path reaches.
+     *
+     * STRONGER THAN THE IG REQUIRES, DELIBERATELY.  That Additional Comment
+     * names FIPS 205 alongside SP 800-208 and permits the PCT to "be limited
+     * to confirming the same key identifier (I in the case of LMS, SEED in the
+     * case of XMSS and PK.SEED for SLH-DSA) is shared by the resulting public
+     * and private keys".  The relaxation does apply here; a full sign plus
+     * verify simply exceeds it, at the cost of the slowest operation in the
+     * module.  A future reader may shorten this to the PK.SEED comparison and
+     * still be compliant. */
+    if (ret == 0) {
+        static const byte pct_msg[] = "wolfSSL SLH-DSA PCT";
+        word32 pct_sigLen = key->params->sigLen;
+        byte* pct_sig = (byte*)XMALLOC(pct_sigLen, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        word32 pct_sigSz = pct_sigLen;
+
+        if (pct_sig == NULL) {
+            ret = MEMORY_E;
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_SignDeterministic(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, &pct_sigSz);
+        }
+        if (ret == 0) {
+            ret = wc_SlhDsaKey_Verify(key, NULL, 0,
+                pct_msg, sizeof(pct_msg), pct_sig, pct_sigSz);
+            if (ret != 0) {
+                ret = SLH_DSA_PCT_E;
+            }
+        }
+        if (pct_sig != NULL) {
+            ForceZero(pct_sig, pct_sigLen);
+            XFREE(pct_sig, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        /* IG 10.3.A (TE10.35.02): a key pair that fails the PCT must be
+         * rendered unusable. */
+        if (ret != 0) {
+            wc_SlhDsaKey_Free(key);
+        }
+    }
+#endif /* FIPS_VERSION3_GE(7,0,0) */
 
     return ret;
 }

@@ -9125,6 +9125,64 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
+#if FIPS_VERSION3_GE(7,0,0)
+/* Pairwise Consistency Test for a freshly generated ML-DSA key pair.
+ *
+ * FIPS 140-3 IG 10.3.A (TE10.35.02) / ISO 19790:2012 sec 7.10.3.3: sign with
+ * the new sk and verify with the matching pk, on every key generation.
+ *
+ * Shared by both generation paths, wc_MlDsaKey_MakeKey() and the seed
+ * expansion inside wc_MlDsaKey_PrivateKeyDecode(), so neither can acquire a
+ * key pair that skipped the test.  Signing is deterministic
+ * (FIPS 204 Alg 7 with an explicit rnd) because the decode path has no RNG
+ * parameter; a fixed rnd is sound here since the test only needs a sign/verify
+ * round trip on a key pair the module just created.
+ *
+ * @param  [in, out]  key  ML-DSA key pair to test.  Zeroized on failure.
+ * @return  0 on success.
+ * @return  ML_DSA_PCT_E when the signature does not verify.
+ */
+static int mldsa_pct(wc_MlDsaKey* key)
+{
+    int ret = 0;
+    static const byte pct_msg[] = "wolfSSL ML-DSA PCT";
+    /* Deterministic signing randomness (FIPS 204 Alg 7 "rnd").  A constant is
+     * correct for a self-test: it is not signing randomness for a real
+     * signature, and it keeps the test reproducible across OEs. */
+    static const byte pct_seed[MLDSA_SEED_SZ] = { 0 };
+    WC_DECLARE_VAR(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap);
+    word32 pct_sigSz = MLDSA_MAX_SIG_SIZE;
+    int pct_res = 0;
+
+    WC_ALLOC_VAR_EX(pct_sig, byte, MLDSA_MAX_SIG_SIZE, key->heap,
+        DYNAMIC_TYPE_MLDSA, ret = MEMORY_E);
+
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, pct_sig, &pct_sigSz,
+            pct_msg, sizeof(pct_msg), pct_seed);
+    }
+    if (ret == 0) {
+        ret = wc_MlDsaKey_VerifyCtx(key, pct_sig, pct_sigSz, NULL, 0, pct_msg,
+            sizeof(pct_msg), &pct_res);
+    }
+    if ((ret == 0) && (pct_res != 1)) {
+        ret = ML_DSA_PCT_E;
+    }
+
+    if (WC_VAR_OK(pct_sig))
+        ForceZero(pct_sig, MLDSA_MAX_SIG_SIZE);
+    WC_FREE_VAR_EX(pct_sig, key->heap, DYNAMIC_TYPE_MLDSA);
+
+    /* IG 10.3.A (TE10.35.02): a key pair that fails the PCT must be rendered
+     * unusable, so a caller ignoring the return value cannot sign with it. */
+    if (ret != 0) {
+        wc_MlDsaKey_Free(key);
+    }
+
+    return ret;
+}
+#endif /* FIPS_VERSION3_GE(7,0,0) */
+
 static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
 {
     int ret;
@@ -11288,8 +11346,11 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
         }
     }
 
-    /* Note: PCT is performed in wc_MlDsaKey_MakeKey() which calls this
-     * function and has the RNG parameter needed for signing. */
+#if FIPS_VERSION3_GE(7,0,0)
+    if (ret == 0) {
+        ret = mldsa_pct(key);
+    }
+#endif
 
     return ret;
 }
