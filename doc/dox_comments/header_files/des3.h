@@ -171,8 +171,11 @@ int  wc_Des_EcbEncrypt(Des* des, byte* out,
     directly whenever possible.
 
     \return 0 Returned upon successfully encrypting the given plaintext
+    \return BAD_FUNC_ARG If des, out, or in is NULL.
+    \return MISSING_KEY If no key has been set on the Des3 structure with
+    wc_Des3_SetKey.
 
-    \param des3 pointer to the Des3 structure to use for encryption
+    \param des pointer to the Des3 structure to use for encryption
     \param out pointer to the buffer in which to store the encrypted message
     \param in pointer to the input buffer containing the plaintext to encrypt
     \param sz length of the plaintext to encrypt
@@ -381,6 +384,9 @@ int wc_Des_EcbDecrypt(Des* des, byte* out, const byte* in, word32 sz);
     avoid using ECB APIs directly whenever possible.
 
     \return 0 On successfully decrypting the given ciphertext
+    \return BAD_FUNC_ARG If des, out, or in is NULL.
+    \return MISSING_KEY If no key has been set on the Des3 structure with
+    wc_Des3_SetKey.
 
     \param des pointer to the Des3 structure to use for decryption
     \param out pointer to the buffer in which to store the decrypted

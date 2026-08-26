@@ -2769,6 +2769,55 @@ int test_wolfSSL_EVP_mdc2(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * The 3DES ECB entry points reject a context that has no key, and that is
+ * visible here: wolfSSL_EVP_CipherInit only calls wc_Des3_SetKey when a key is
+ * supplied, so initializing EVP_des_ede3_ecb() with a NULL key and then
+ * feeding it data used to run against the zeroed key schedule and report
+ * success. It must fail instead. The ordinary two-stage OpenSSL idiom --
+ * install the cipher, then install the key -- does key the context and must
+ * keep working.
+ *
+ * FIPS builds use the FIPS-certified DES3 implementation, which does not track
+ * key state, so skip the test for FIPS.
+ */
+int test_wolfSSL_EVP_des_ede3_ecb_no_key(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DES3) && !defined(HAVE_FIPS) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_DES_ECB)
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte out[32];
+    int outl = 0;
+    const byte key[24] = {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+    const byte in[16] = {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20
+    };
+
+    XMEMSET(out, 0, sizeof(out));
+
+    /* No key ever supplied: the update must not produce ciphertext. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_ede3_ecb(), NULL, NULL, 1), 1);
+    ExpectIntNE(EVP_CipherUpdate(ctx, out, &outl, in, (int)sizeof(in)), 1);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Cipher first, key second: unaffected. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_ede3_ecb(), NULL, NULL, 1), 1);
+    ExpectIntEQ(EVP_CipherInit(ctx, NULL, key, NULL, 1), 1);
+    ExpectIntEQ(EVP_CipherUpdate(ctx, out, &outl, in, (int)sizeof(in)), 1);
+    EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test for integer overflow in EVP AEAD AAD accumulation.
  *
  * wolfSSL_EVP_CipherUpdate_GCM_AAD (and the CCM/ARIA variants) compute
