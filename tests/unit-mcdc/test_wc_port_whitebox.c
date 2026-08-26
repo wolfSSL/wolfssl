@@ -145,6 +145,7 @@ static void wb_strnstr(void) { WB_NOTE("wolfSSL_strnstr not compiled; skipped");
 /* ---- close-on-exec syscall wrappers (lines ~5654 / ~5666 / ~5684) --------- *
  *
  *   wc_open_cloexec():   if (fd < 0 && errno == EINVAL)
+ *   wc_open_cloexec_mode(): if (fd < 0 && errno == EINVAL)
  *   wc_socket_cloexec(): if (fd < 0 && errno == EINVAL)
  *   wc_accept_cloexec(): if (errno != ENOSYS && errno != EINVAL)
  *
@@ -215,6 +216,36 @@ static void wb_cloexec_wrappers(void)
     fd = wc_open_cloexec("/dev/null", O_RDONLY);            /* success */
     if (fd < 0) {
         WB_NOTE("open of /dev/null failed");
+        wb_fail++;
+    }
+    else {
+        close(fd);
+    }
+
+    /* --- wc_open_cloexec_mode --- */
+    /* Same three vectors as above. None of these pass O_CREAT, so the mode is
+     * ignored by the kernel and no file is created. */
+#ifdef O_TMPFILE
+    errno = 0;
+    fd = wc_open_cloexec_mode("/tmp", O_TMPFILE | O_RDONLY, 0600); /* EINVAL */
+    if (fd >= 0) {
+        close(fd);
+        WB_NOTE("O_TMPFILE|O_RDONLY with mode unexpectedly succeeded");
+    }
+#else
+    WB_NOTE("O_TMPFILE unavailable; open() with mode EINVAL vector skipped");
+#endif
+    errno = 0;
+    fd = wc_open_cloexec_mode("/nonexistent-mcdc-path/xyz",
+                              O_RDONLY, 0600);                 /* ENOENT */
+    if (fd >= 0) {
+        close(fd);
+        WB_NOTE("open of a nonexistent path with mode unexpectedly succeeded");
+    }
+    errno = 0;
+    fd = wc_open_cloexec_mode("/dev/null", O_RDONLY, 0600);     /* success */
+    if (fd < 0) {
+        WB_NOTE("open of /dev/null with mode failed");
         wb_fail++;
     }
     else {
