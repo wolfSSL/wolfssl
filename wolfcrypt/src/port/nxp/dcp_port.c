@@ -270,14 +270,22 @@ static word32 dcp_hash_handle_word(void)
 int DCPAesInit(Aes *aes)
 {
     int ch;
+    int keyslot;
     if (!aes)
         return BAD_FUNC_ARG;
     ch = dcp_get_channel(aes);
     if (ch == 0)
         return WC_HW_WAIT_E;
+    /* dcp_key_slot() fails with -1 if its lock acquisition fails;
+     * never keep a channel with an invalid key slot. */
+    keyslot = dcp_key_slot(ch);
+    if (keyslot < 0) {
+        dcp_free(aes, ch);
+        return WC_HW_E;
+    }
     XMEMSET(&aes->handle, 0, sizeof(aes->handle));
     aes->handle.channel = (dcp_channel_t)ch;
-    aes->handle.keySlot = (dcp_key_slot_t)dcp_key_slot(aes->handle.channel);
+    aes->handle.keySlot = (dcp_key_slot_t)keyslot;
     aes->handle.swapConfig = kDCP_NoSwap;
     return 0;
 }
@@ -413,7 +421,13 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     ch = dcp_get_channel(sha256);
     if (ch == 0)
         return WC_HW_WAIT_E;
+    /* dcp_key_slot() fails with -1 if its lock acquisition fails;
+     * never keep a channel with an invalid key slot. */
     keyslot = dcp_key_slot(ch);
+    if (keyslot < 0) {
+        dcp_free(sha256, ch);
+        return WC_HW_E;
+    }
     if (dcp_lock() != 0) {
         dcp_free_unlocked(sha256, ch);
         return WC_HW_E;
@@ -537,7 +551,13 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     ch = dcp_get_channel(dst);
     if (ch == 0)
         return WC_HW_WAIT_E;
+    /* dcp_key_slot() fails with -1 if its lock acquisition fails;
+     * never keep a channel with an invalid key slot. */
     keyslot = dcp_key_slot(ch);
+    if (keyslot < 0) {
+        dcp_free(dst, ch);
+        return WC_HW_E;
+    }
     if (dcp_lock() != 0) {
         dcp_free_unlocked(dst, ch);
         return WC_HW_E;
@@ -578,7 +598,13 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     ch = dcp_get_channel(sha);
     if (ch == 0)
         return WC_HW_WAIT_E;
+    /* dcp_key_slot() fails with -1 if its lock acquisition fails;
+     * never keep a channel with an invalid key slot. */
     keyslot = dcp_key_slot(ch);
+    if (keyslot < 0) {
+        dcp_free(sha, ch);
+        return WC_HW_E;
+    }
     if (dcp_lock() != 0) {
         dcp_free_unlocked(sha, ch);
         return WC_HW_E;
@@ -703,7 +729,13 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     ch = dcp_get_channel(dst);
     if (ch == 0)
         return WC_HW_WAIT_E;
+    /* dcp_key_slot() fails with -1 if its lock acquisition fails;
+     * never keep a channel with an invalid key slot. */
     keyslot = dcp_key_slot(ch);
+    if (keyslot < 0) {
+        dcp_free(dst, ch);
+        return WC_HW_E;
+    }
     if (dcp_lock() != 0) {
         dcp_free_unlocked(dst, ch);
         return WC_HW_E;
