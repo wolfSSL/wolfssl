@@ -201,10 +201,7 @@ sbom:
 	        fi; \
 	    else \
 	        echo "NOTE: this gen-sbom has no --dep-wolfssl support, so the SBOM"; \
-	        echo "      will not list wolfssl as a dependency component. That"; \
-	        echo "      support is added by wolfSSL/wolfssl#10343; until it merges"; \
-	        echo "      to wolfssl master, point WOLFSSL_DIR at that PR's branch"; \
-	        echo "      to enable it. The generated SBOM is valid either way."; \
+	        echo "      will not list wolfssl as a dependency component."; \
 	    fi; \
 	fi; \
 	if test "$(SBOM_DEP_OPENSSL)" = yes; then \
