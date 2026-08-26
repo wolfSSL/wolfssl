@@ -54,10 +54,11 @@
 #define dcp_unlock() wolfSSL_CryptHwMutexUnLock()
 #else
 /* Single-threaded: no mutex, the lock calls evaluate to success (0) so
- * the "if (dcp_lock() != 0)" checks compile out as constants. */
+ * the "if (dcp_lock() != 0)" checks compile out as constants. unlock is
+ * statement-only, hence (void)0 to keep -Wunused-value quiet. */
 #define dcp_lock_init() 0
 #define dcp_lock()      0
-#define dcp_unlock()    0
+#define dcp_unlock()    ((void)0)
 #endif
 
 #if DCP_USE_OTP_KEY
