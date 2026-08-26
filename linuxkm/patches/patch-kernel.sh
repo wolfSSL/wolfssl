@@ -42,9 +42,42 @@ printf 'kernel  : %s  (series %s)\n' "$V" "$SERIES"
 
 # --- pick the base ----------------------------------------------------------
 if [ -z "$BASE" ]; then
+    # A series that changes random.c shape mid-series has several rows, and the
+    # coverage table's "verified at" is one tested point in each range, not the
+    # range itself.  Taking the first coverage row for the series therefore
+    # picks the wrong base: 5.15.170 got the `5.15` base, whose hunks fail
+    # outright, when it belongs on the tegra base.  So consult the
+    # "A series can change shape mid-series" table first -- that one states the
+    # patchlevel ranges.
+    BASE_PATCH=$(awk -v v="$V" -v s="$SERIES" -F'|' '
+        /^\| series \| patchlevels \| patch \|/ {inseam=1; next}
+        inseam && $0 !~ /^\|/ {inseam=0}
+        !inseam {next}
+        {
+            series=$2; gsub(/ /,"",series)
+            if (series != s) next
+            spec=$3
+            n=0; delete lim
+            while (match(spec, /[0-9]+\.[0-9]+(\.[0-9]+)?/)) {
+                lim[++n]=substr(spec,RSTART,RLENGTH)
+                spec=substr(spec,RSTART+RLENGTH)
+            }
+            if (n==0) next
+            hi = lim[n]
+            open = (spec ~ /^\+/)             # "6.6.152+" has no upper bound
+            if (open) { print trim($4); exit }
+            if (cmp(v,hi) <= 0) { print trim($4); exit }
+        }
+        function trim(x) { gsub(/[` ]/,"",x); return x }
+        function cmp(a,b,  x,y,i) {
+            split(a,x,"."); split(b,y,".")
+            for (i=1;i<=3;i++) { x[i]+=0; y[i]+=0
+                if (x[i]<y[i]) return -1; if (x[i]>y[i]) return 1 }
+            return 0
+        }' "$HERE/README.md" || true)
     # Rows look like:  | 6.6  | 6.6.99 | `6.12/WOLFSSL_KERNELv6_12_FIPS.patch` | ...
-    # Prefer a row whose "verified at" matches exactly, else the series row.
-    BASE_PATCH=$(awk -v v="$V" -F'|' '
+    # Then an exact "verified at" match, then the series row.
+    [ -n "${BASE_PATCH:-}" ] || BASE_PATCH=$(awk -v v="$V" -F'|' '
         $0 ~ /^\|/ && $3 ~ v {gsub(/[` ]/,"",$4); print $4; exit}' "$HERE/README.md" || true)
     [ -n "${BASE_PATCH:-}" ] || BASE_PATCH=$(awk -v s="$SERIES" -F'|' '
         $0 ~ /^\|/ {gsub(/ /,"",$2); if ($2==s) {gsub(/[` ]/,"",$4); print $4; exit}}' "$HERE/README.md" || true)

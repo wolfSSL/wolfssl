@@ -105,9 +105,8 @@ for v in "${WANT[@]}"; do
     [ -d "$DIR" ] || { say "  extracting"
         tar -C "$WORK" -xf "$TB" || { say "  FAIL extract"; rc_all=1; continue; }; }
 
-    # The base is forced.  patch-kernel.sh takes the first coverage row for a
-    # series, which for 5.15.170 is the 5.15 base, whose hunks fail at --fuzz=0;
-    # README.md's sublevel table puts that version on the tegra base.
+    # The base is stated rather than inferred, so a change to the tables in
+    # README.md cannot silently move what this reproduces.
     if grep -qs wolfssl_linuxkm_register_random_bytes_handlers "$DIR/include/linux/random.h"; then
         say "  already patched"
     else
