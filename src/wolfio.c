@@ -2970,13 +2970,25 @@ static int NetX_PeerAddrEqual(const NXD_ADDRESS* left, const NXD_ADDRESS* right)
     if (left->nxd_ip_version != right->nxd_ip_version)
         return 0;
 
+    /* NXD_ADDRESS only carries the union member for the families the NetX Duo
+     * build was configured with, so guard each access. NX_DISABLE_IPV4 and
+     * NX_DISABLE_IPV6 are set in nx_user.h, FEATURE_NX_IPV6 is derived from
+     * NX_DISABLE_IPV6 by nx_api.h. */
+#ifndef NX_DISABLE_IPV4
     if (left->nxd_ip_version == NX_IP_VERSION_V4)
         return left->nxd_ip_address.v4 == right->nxd_ip_address.v4;
+#endif
+#ifdef FEATURE_NX_IPV6
+    if (left->nxd_ip_version == NX_IP_VERSION_V6) {
+        return left->nxd_ip_address.v6[0] == right->nxd_ip_address.v6[0] &&
+               left->nxd_ip_address.v6[1] == right->nxd_ip_address.v6[1] &&
+               left->nxd_ip_address.v6[2] == right->nxd_ip_address.v6[2] &&
+               left->nxd_ip_address.v6[3] == right->nxd_ip_address.v6[3];
+    }
+#endif
 
-    return left->nxd_ip_address.v6[0] == right->nxd_ip_address.v6[0] &&
-           left->nxd_ip_address.v6[1] == right->nxd_ip_address.v6[1] &&
-           left->nxd_ip_address.v6[2] == right->nxd_ip_address.v6[2] &&
-           left->nxd_ip_address.v6[3] == right->nxd_ip_address.v6[3];
+    /* Unknown or unsupported address family, do not treat it as our peer. */
+    return 0;
 }
 
 /* The NetX receive callback for DTLS
@@ -3187,15 +3199,12 @@ int NetX_SendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
-    if (nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V4) {
-        status = nx_udp_socket_send(nxCtx->nxUdpSocket, packet,
-                                    nxCtx->nxdIp.nxd_ip_address.v4,
-                                    (UINT)nxCtx->nxPort);
-    }
-    else {
-        status = nxd_udp_socket_send(nxCtx->nxUdpSocket, packet,
-                                     &nxCtx->nxdIp, (UINT)nxCtx->nxPort);
-    }
+    /* nxd_udp_socket_send() takes the NXD_ADDRESS itself and dispatches on
+     * nxd_ip_version, so it serves IPv4 and IPv6 without reaching into the
+     * nxd_ip_address union, which is only partly populated when the NetX Duo
+     * build disables a family. */
+    status = nxd_udp_socket_send(nxCtx->nxUdpSocket, packet,
+                                 &nxCtx->nxdIp, (UINT)nxCtx->nxPort);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send socket send error");
