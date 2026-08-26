@@ -41132,6 +41132,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (LowResTimer() > session->bornOn + ssl->timeout) {
             WOLFSSL_MSG("Expired session, fall back to full handshake.");
             ssl->options.resuming = 0;
+            /* A declined ticket must not satisfy client auth. */
+            ssl->options.peerAuthGood = 0;
         }
 #endif /* !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
 
@@ -41148,6 +41150,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                             "use EMS with a new session with EMS. Do full "
                             "handshake.");
                 ssl->options.resuming = 0;
+                /* A declined ticket must not satisfy client auth. */
+                ssl->options.peerAuthGood = 0;
             }
             /* if old sess used EMS, but new doesn't, MUST abort */
             else if (session->haveEMS && !ssl->options.haveEMS) {
