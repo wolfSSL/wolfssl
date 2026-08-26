@@ -826,6 +826,10 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
     choice over when the session is serialized. If buffer is NULL when
     passed to function then sz will be set to the size of buffer needed
     for serializing the WOLFSSL session.
+    WARNING: buf holds the key material the connection continues with. For
+             DTLS 1.3 that includes the traffic secrets every later epoch key
+             is derived from, so it stays sensitive for the rest of the
+             connection: encrypt it if stored and wipe the buffer when done.
 
     \return Success If successful, the amount of the buffer used will
     be returned.
