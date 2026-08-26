@@ -2691,6 +2691,522 @@ int Dtls13SetRecordNumberKeys(WOLFSSL* ssl, enum encrypt_side side)
     return NOT_COMPILED_IN;
 }
 
+#ifdef WOLFSSL_SESSION_EXPORT
+/* Derive the key material of an imported epoch from the traffic secret held in
+ * ssl->clientSecret/serverSecret, so that none of it has to be serialized. */
+static int Dtls13DeriveEpochKeys(WOLFSSL* ssl, Dtls13Epoch* e, int side)
+{
+    int provision;
+    int ret;
+
+    if (ssl->specs.key_size > MAX_SYM_KEY_SIZE ||
+            ssl->specs.iv_size > MAX_WRITE_IV_SZ)
+        return BAD_STATE_E;
+
+    if (side == ENCRYPT_AND_DECRYPT_SIDE)
+        provision = PROVISION_CLIENT_SERVER;
+    else
+        provision = ((ssl->options.side != WOLFSSL_CLIENT_END) ^
+                     (side == ENCRYPT_SIDE_ONLY)) ? PROVISION_CLIENT :
+                                                    PROVISION_SERVER;
+
+    ret = Tls13DeriveRecordKeys(ssl, provision);
+    if (ret != 0)
+        return ret;
+
+    /* fills in the implicit AEAD IVs from the write IVs */
+    ret = SetKeysSide(ssl, (enum encrypt_side)side);
+    if (ret != 0)
+        return ret;
+
+    Dtls13EpochCopyKeys(ssl, e, &ssl->keys, side);
+
+    return 0;
+}
+
+/* Serialize the write key, record number key and write IV of the direction the
+ * peer sends in. Only the previous peer epoch needs this, its keys being the
+ * one set that can not be derived again on import.
+ * Returns the number of bytes written to 'exp' or a negative value. */
+static int Dtls13ExportEpochKeys(const WOLFSSL* ssl, const Dtls13Epoch* e,
+    byte* exp, word32 len)
+{
+    const byte *writeKey, *writeIV, *snKey;
+    word32 idx = 0;
+    byte keySz, ivSz;
+
+    if (ssl->specs.key_size > MAX_SYM_KEY_SIZE ||
+            ssl->specs.iv_size > MAX_WRITE_IV_SZ)
+        return BAD_STATE_E;
+    keySz = (byte)ssl->specs.key_size;
+    ivSz  = (byte)ssl->specs.iv_size;
+
+    if ((2u * OPAQUE8_LEN) + (2u * keySz) + ivSz > len)
+        return BUFFER_E;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        writeKey = e->server_write_key;
+        writeIV  = e->server_write_IV;
+        snKey    = e->server_sn_key;
+    }
+    else {
+        writeKey = e->client_write_key;
+        writeIV  = e->client_write_IV;
+        snKey    = e->client_sn_key;
+    }
+
+    exp[idx++] = keySz;
+    XMEMCPY(exp + idx, writeKey, keySz); idx += keySz;
+    XMEMCPY(exp + idx, snKey, keySz);    idx += keySz;
+    exp[idx++] = ivSz;
+    XMEMCPY(exp + idx, writeIV, ivSz);   idx += ivSz;
+
+    return (int)idx;
+}
+
+/* Install the key material written by Dtls13ExportEpochKeys() into an epoch
+ * slot. Returns the number of bytes read from 'exp' or a negative value. */
+static int Dtls13ImportEpochKeys(WOLFSSL* ssl, Dtls13Epoch* e, const byte* exp,
+    word32 len)
+{
+    byte *writeKey, *writeIV, *snKey;
+    word32 idx = 0;
+    byte keySz, ivSz;
+    int ret;
+
+    if (OPAQUE8_LEN > len)
+        return BUFFER_E;
+    keySz = exp[idx++];
+    if (keySz != ssl->specs.key_size || keySz > MAX_SYM_KEY_SIZE ||
+            idx + (2u * keySz) + OPAQUE8_LEN > len)
+        return BUFFER_E;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        writeKey = ssl->keys.server_write_key;
+        writeIV  = ssl->keys.server_write_IV;
+        snKey    = ssl->keys.server_sn_key;
+    }
+    else {
+        writeKey = ssl->keys.client_write_key;
+        writeIV  = ssl->keys.client_write_IV;
+        snKey    = ssl->keys.client_sn_key;
+    }
+
+    XMEMCPY(writeKey, exp + idx, keySz); idx += keySz;
+    XMEMCPY(snKey, exp + idx, keySz);    idx += keySz;
+    ivSz = exp[idx++];
+    if (ivSz != ssl->specs.iv_size || ivSz > MAX_WRITE_IV_SZ ||
+            idx + ivSz > len)
+        return BUFFER_E;
+    XMEMCPY(writeIV, exp + idx, ivSz);   idx += ivSz;
+
+    ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY);
+    if (ret != 0)
+        return ret;
+
+    Dtls13EpochCopyKeys(ssl, e, &ssl->keys, DECRYPT_SIDE_ONLY);
+
+    return (int)idx;
+}
+
+/* Serialize one Dtls13Epoch entry. Key material is left out, as is the side,
+ * which follows from the position of the entry in the blob.
+ * Returns the number of bytes written to 'exp' or a negative value. */
+static int Dtls13ExportEpoch(const Dtls13Epoch* e, byte* exp, word32 len)
+{
+    word32 idx = 0;
+    word32 i;
+
+    if (DTLS_EXPORT_DTLS13_EPOCH_SZ > len)
+        return BUFFER_E;
+
+    c64toa(&e->epochNumber, exp + idx);       idx += OPAQUE64_LEN;
+    c64toa(&e->nextSeqNumber, exp + idx);     idx += OPAQUE64_LEN;
+    c64toa(&e->nextPeerSeqNumber, exp + idx); idx += OPAQUE64_LEN;
+
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+    c64toa(&e->dropCount, exp + idx);
+#else
+    XMEMSET(exp + idx, 0, OPAQUE64_LEN);
+#endif
+    idx += OPAQUE64_LEN;
+
+    c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
+    for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+        c32toa(e->window[i], exp + idx); idx += OPAQUE32_LEN;
+    }
+
+    return (int)idx;
+}
+
+/* Parse one serialized epoch entry into an epoch slot of 'ssl'. 'side' is the
+ * direction it is used in, 'hasKeys' says it carries its own key material and
+ * 'number' is the epoch it has to be for.
+ * Returns the number of bytes read from 'exp' or a negative value. */
+static int Dtls13ImportEpoch(WOLFSSL* ssl, const byte* exp, word32 len,
+    int side, int hasKeys, w64wrapper number)
+{
+    Dtls13Epoch* e;
+    w64wrapper epochNumber;
+    word32 idx = 0;
+    word32 wordAdj = 0;
+    word16 wordCount;
+    word16 i;
+    int ret = 0;
+
+    if ((4 * OPAQUE64_LEN) + OPAQUE16_LEN > len)
+        return BUFFER_E;
+
+    ato64(exp + idx, &epochNumber); idx += OPAQUE64_LEN;
+    if (!w64Equal(epochNumber, number))
+        return BAD_STATE_E;
+    e = Dtls13NewEpochSlot(ssl);
+    if (e == NULL)
+        return BAD_STATE_E;
+    e->epochNumber = epochNumber;
+    e->side = (byte)side;
+
+    ato64(exp + idx, &e->nextSeqNumber);     idx += OPAQUE64_LEN;
+    ato64(exp + idx, &e->nextPeerSeqNumber); idx += OPAQUE64_LEN;
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+    ato64(exp + idx, &e->dropCount);
+#endif
+    idx += OPAQUE64_LEN;
+
+    /* window size may differ from ours, skip any extra words */
+    ato16(exp + idx, &wordCount); idx += OPAQUE16_LEN;
+    if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+        wordAdj = (wordCount - WOLFSSL_DTLS_WINDOW_WORDS) * OPAQUE32_LEN;
+        wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
+    }
+    if (idx + (wordCount * OPAQUE32_LEN) + wordAdj > len)
+        return BUFFER_E;
+    /* words the peer never tracked count as already received */
+    XMEMSET(e->window, 0xFF, sizeof(e->window));
+    for (i = 0; i < wordCount; i++) {
+        ato32(exp + idx, &e->window[i]); idx += OPAQUE32_LEN;
+    }
+    idx += wordAdj;
+
+    if (hasKeys) {
+        ret = Dtls13ImportEpochKeys(ssl, e, exp + idx, len - idx);
+        if (ret < 0)
+            return ret;
+        idx += (word32)ret;
+    }
+    else {
+        ret = Dtls13DeriveEpochKeys(ssl, e, side);
+        if (ret != 0)
+            return ret;
+    }
+
+    e->isValid = 1;
+
+    return (int)idx;
+}
+
+/* Write one length prefixed epoch field: the state of 'state' when it is not
+ * NULL, then the key material of 'keys' when it is not NULL. Both NULL writes
+ * the empty field of an epoch the connection does not have.
+ * Returns the number of bytes written to 'exp' or a negative value. */
+static int Dtls13ExportEpochField(const WOLFSSL* ssl, const Dtls13Epoch* state,
+    const Dtls13Epoch* keys, byte* exp, word32 len)
+{
+    word32 idx = WOLFSSL_EXPORT_LEN;
+    int ret;
+
+    if (WOLFSSL_EXPORT_LEN > len)
+        return BUFFER_E;
+
+    if (state != NULL) {
+        ret = Dtls13ExportEpoch(state, exp + idx, len - idx);
+        if (ret < 0)
+            return ret;
+        idx += (word32)ret;
+    }
+    if (keys != NULL) {
+        ret = Dtls13ExportEpochKeys(ssl, keys, exp + idx, len - idx);
+        if (ret < 0)
+            return ret;
+        idx += (word32)ret;
+    }
+
+    c16toa((word16)(idx - WOLFSSL_EXPORT_LEN), exp);
+
+    return (int)idx;
+}
+
+/* Read the length prefix of an epoch field, returning its body in 'payload'
+ * and 'payloadSz'.
+ * Returns the number of bytes the field takes up or a negative value. */
+static int Dtls13ImportEpochField(const byte* exp, word32 len,
+    const byte** payload, word32* payloadSz)
+{
+    word16 fieldSz;
+
+    if (WOLFSSL_EXPORT_LEN > len)
+        return BUFFER_E;
+
+    ato16(exp, &fieldSz);
+    if ((word32)fieldSz > len - WOLFSSL_EXPORT_LEN)
+        return BUFFER_E;
+
+    *payload = exp + WOLFSSL_EXPORT_LEN;
+    *payloadSz = fieldSz;
+
+    return (int)(WOLFSSL_EXPORT_LEN + fieldSz);
+}
+
+/* Serialize the DTLS 1.3 record layer state: the current, peer and invalidate
+ * before epoch numbers, the traffic secrets and three length prefixed epoch
+ * fields - the sending epoch, the peer epoch and the previous peer epoch - a
+ * field being empty when the connection does not have that epoch.
+ * Returns the number of bytes written to 'exp' or a negative value. */
+int ExportDtls13State(WOLFSSL* ssl, byte* exp, word32 len)
+{
+    const Dtls13Epoch* sendEpoch;
+    const Dtls13Epoch* recvEpoch;
+    const Dtls13Epoch* prevEpoch;
+    w64wrapper prevEpochNumber;
+    word32 idx = 0;
+    byte secretSz;
+    int ret;
+
+    WOLFSSL_ENTER("ExportDtls13State");
+
+    if (ssl == NULL || exp == NULL)
+        return BAD_FUNC_ARG;
+
+    /* the serialized state has no field for a KeyUpdate in progress */
+    if (ssl->dtls13WaitKeyUpdateAck || ssl->dtls13DoKeyUpdate ||
+            ssl->options.sendKeyUpdate) {
+        WOLFSSL_MSG("Can not export with a KeyUpdate in progress");
+        return BAD_STATE_E;
+    }
+
+    /* the rest of a half sent message is in ssl->dtls13FragmentsBuffer, which
+     * the blob has no section for */
+    if (ssl->dtls13SendingFragments) {
+        WOLFSSL_MSG("Can not export with a half sent fragmented message");
+        return BAD_STATE_E;
+    }
+
+#ifdef HAVE_WRITE_DUP
+    /* the read side of a write dup parks the KeyUpdate and ACKs it owes in the
+     * shared object, where neither WOLFSSL records them */
+    if (ssl->dupWrite != NULL) {
+        int parked;
+
+        if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0)
+            return BAD_MUTEX_E;
+        parked = ssl->dupWrite->keyUpdateRespond || ssl->dupWrite->sendAcks;
+        wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+
+        if (parked) {
+            WOLFSSL_MSG("Can not export with work parked in the write dup");
+            return BAD_STATE_E;
+        }
+    }
+#endif /* HAVE_WRITE_DUP */
+
+    sendEpoch = Dtls13GetEpoch(ssl, ssl->dtls13Epoch);
+    recvEpoch = Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch);
+    if (sendEpoch == NULL || recvEpoch == NULL)
+        return BAD_STATE_E;
+
+    /* the peer keeps retransmitting in the epoch before dtls13PeerEpoch until
+     * it sees our ACK of its KeyUpdate; before the first KeyUpdate that is the
+     * handshake epoch, which the peer does not fall back to */
+    prevEpoch = NULL;
+    prevEpochNumber = ssl->dtls13PeerEpoch;
+    if (w64GT(prevEpochNumber, w64From32(0, DTLS13_EPOCH_TRAFFIC0))) {
+        w64Decrement(&prevEpochNumber);
+        prevEpoch = Dtls13GetEpoch(ssl, prevEpochNumber);
+        /* an epoch already retired for decryption is of no use to the peer */
+        if (prevEpoch != NULL && prevEpoch->side == ENCRYPT_SIDE_ONLY)
+            prevEpoch = NULL;
+    }
+
+    secretSz = ssl->specs.hash_size;
+    if (secretSz > SECRET_LEN)
+        return BAD_STATE_E;
+
+    if ((3 * OPAQUE64_LEN) + OPAQUE8_LEN + (2u * secretSz) > len)
+        return BUFFER_E;
+
+    c64toa(&ssl->dtls13Epoch, exp + idx);     idx += OPAQUE64_LEN;
+    c64toa(&ssl->dtls13PeerEpoch, exp + idx); idx += OPAQUE64_LEN;
+    /* the epochs below it stop decrypting once the peer is seen using it
+     * (RFC 9147 Section 4.5.3) */
+    c64toa(&ssl->dtls13InvalidateBefore, exp + idx); idx += OPAQUE64_LEN;
+
+    /* traffic secrets, needed to derive the next epoch keys on KeyUpdate */
+    exp[idx++] = secretSz;
+    XMEMCPY(exp + idx, ssl->clientSecret, secretSz); idx += secretSz;
+    XMEMCPY(exp + idx, ssl->serverSecret, secretSz); idx += secretSz;
+
+    /* the sending epoch */
+    ret = Dtls13ExportEpochField(ssl, sendEpoch, NULL, exp + idx, len - idx);
+    if (ret < 0)
+        return ret;
+    idx += (word32)ret;
+
+    /* the peer epoch, empty when it is the sending epoch */
+    ret = Dtls13ExportEpochField(ssl,
+            (recvEpoch != sendEpoch) ? recvEpoch : NULL, NULL,
+            exp + idx, len - idx);
+    if (ret < 0)
+        return ret;
+    idx += (word32)ret;
+
+    /* the previous peer epoch, with its key material; its state is left out
+     * when it is our own sending epoch, which the first field already holds */
+    ret = Dtls13ExportEpochField(ssl,
+            (prevEpoch != sendEpoch) ? prevEpoch : NULL, prevEpoch,
+            exp + idx, len - idx);
+    if (ret < 0)
+        return ret;
+    idx += (word32)ret;
+
+    WOLFSSL_LEAVE("ExportDtls13State", (int)idx);
+    return (int)idx;
+}
+
+/* Parse the DTLS 1.3 record layer state written by ExportDtls13State and
+ * activate the imported epochs.
+ * Returns the number of bytes read from 'exp' or a negative value. */
+int ImportDtls13State(WOLFSSL* ssl, const byte* exp, word32 len)
+{
+    w64wrapper traffic0;
+    const byte* field;
+    word32 fieldSz;
+    word32 idx = 0;
+    byte secretSz;
+    int ret;
+
+    WOLFSSL_ENTER("ImportDtls13State");
+
+    if (ssl == NULL || exp == NULL)
+        return BAD_FUNC_ARG;
+
+    /* an import replaces the record layer wholesale; the unprotected epoch is
+     * not put back, an imported connection being past its handshake */
+    ForceZero(ssl->dtls13Epochs, sizeof(ssl->dtls13Epochs));
+    ssl->dtls13EncryptEpoch = NULL;
+    ssl->dtls13DecryptEpoch = NULL;
+
+    if ((3 * OPAQUE64_LEN) + OPAQUE8_LEN > len)
+        return BUFFER_E;
+
+    ato64(exp + idx, &ssl->dtls13Epoch);     idx += OPAQUE64_LEN;
+    ato64(exp + idx, &ssl->dtls13PeerEpoch); idx += OPAQUE64_LEN;
+    ato64(exp + idx, &ssl->dtls13InvalidateBefore); idx += OPAQUE64_LEN;
+
+    secretSz = exp[idx++];
+    /* every epoch key is derived over specs.hash_size bytes of the secrets */
+    if (secretSz != ssl->specs.hash_size || secretSz > SECRET_LEN ||
+            idx + (2u * secretSz) > len)
+        return BUFFER_E;
+    XMEMCPY(ssl->clientSecret, exp + idx, secretSz); idx += secretSz;
+    XMEMCPY(ssl->serverSecret, exp + idx, secretSz); idx += secretSz;
+
+    /* an exported connection is past its handshake, so both epochs it names are
+     * traffic epochs; Dtls13SetEpochKeys() installs no key for epoch 0 */
+    traffic0 = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+    if (w64LT(ssl->dtls13Epoch, traffic0) ||
+            w64LT(ssl->dtls13PeerEpoch, traffic0))
+        return BAD_STATE_E;
+
+    /* the sending epoch, which every exported connection has */
+    ret = Dtls13ImportEpochField(exp + idx, len - idx, &field, &fieldSz);
+    if (ret < 0)
+        return ret;
+    idx += (word32)ret;
+    if (fieldSz == 0)
+        return BUFFER_E;
+    ret = Dtls13ImportEpoch(ssl, field, fieldSz,
+            w64Equal(ssl->dtls13Epoch, ssl->dtls13PeerEpoch) ?
+                ENCRYPT_AND_DECRYPT_SIDE : ENCRYPT_SIDE_ONLY,
+            0, ssl->dtls13Epoch);
+    if (ret < 0)
+        return ret;
+
+    /* the peer epoch, empty when the field above is already for it */
+    ret = Dtls13ImportEpochField(exp + idx, len - idx, &field, &fieldSz);
+    if (ret < 0)
+        return ret;
+    idx += (word32)ret;
+    if (w64Equal(ssl->dtls13Epoch, ssl->dtls13PeerEpoch)) {
+        if (fieldSz != 0)
+            return BUFFER_E;
+    }
+    else {
+        if (fieldSz == 0)
+            return BUFFER_E;
+        ret = Dtls13ImportEpoch(ssl, field, fieldSz, DECRYPT_SIDE_ONLY, 0,
+                ssl->dtls13PeerEpoch);
+        if (ret < 0)
+            return ret;
+    }
+
+    /* The previous peer epoch, the one epoch of the blob that the header does
+     * not name. It only exists once the peer has updated its keys. */
+    ret = Dtls13ImportEpochField(exp + idx, len - idx, &field, &fieldSz);
+    if (ret < 0)
+        return ret;
+    idx += (word32)ret;
+    if (fieldSz > 0) {
+        w64wrapper prevNumber = ssl->dtls13PeerEpoch;
+
+        if (!w64GT(ssl->dtls13PeerEpoch, traffic0))
+            return BAD_STATE_E;
+        w64Decrement(&prevNumber);
+
+        if (w64Equal(prevNumber, ssl->dtls13Epoch)) {
+            /* our own sending epoch, imported above: the field repeats none of
+             * its state, only the keys the derivation can not reach */
+            Dtls13Epoch* e = Dtls13GetEpoch(ssl, prevNumber);
+
+            if (e == NULL)
+                return BAD_STATE_E;
+            ret = Dtls13ImportEpochKeys(ssl, e, field, fieldSz);
+            if (ret < 0)
+                return ret;
+            e->side = ENCRYPT_AND_DECRYPT_SIDE;
+        }
+        else {
+            ret = Dtls13ImportEpoch(ssl, field, fieldSz, DECRYPT_SIDE_ONLY, 1,
+                    prevNumber);
+            if (ret < 0)
+                return ret;
+        }
+    }
+
+    /* Activate the imported epochs: refills ssl->keys from the epoch entries
+     * and re-keys the record and record number ciphers (SetKeysSide). */
+    if (w64Equal(ssl->dtls13Epoch, ssl->dtls13PeerEpoch)) {
+        ret = Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch,
+            ENCRYPT_AND_DECRYPT_SIDE);
+    }
+    else {
+        ret = Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+        if (ret == 0)
+            ret = Dtls13SetEpochKeys(ssl, ssl->dtls13PeerEpoch,
+                DECRYPT_SIDE_ONLY);
+    }
+    if (ret != 0)
+        return ret;
+
+    /* The imported connection is past its handshake: received KeyUpdate
+     * messages must pass the out-of-order sanity check. */
+    if (ssl->options.handShakeDone)
+        ssl->msgsReceived.got_finished = 1;
+
+    WOLFSSL_LEAVE("ImportDtls13State", (int)idx);
+    return (int)idx;
+}
+#endif /* WOLFSSL_SESSION_EXPORT */
+
 
 int Dtls13WriteAckMessage(WOLFSSL* ssl,
     Dtls13RecordNumber* recordNumberList, word16 recordsCount, word32* length)
