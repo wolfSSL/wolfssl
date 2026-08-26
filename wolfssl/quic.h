@@ -94,7 +94,9 @@ struct wolfssl_quic_method_t {
     int (*flush_flight)(WOLFSSL* ssl);
     /**
      * Send a TLS alert that happened during handshake. In QUIC, such alerts
-     * lead to connection shutdown.
+     * lead to connection shutdown. alert carries a TLS AlertDescription, or
+     * a WOLFSSL_QUIC_ERR_* transport error code for failures RFC 9001
+     * defines as a QUIC connection error rather than a TLS alert.
      */
     int (*send_alert)(WOLFSSL* ssl, WOLFSSL_ENCRYPTION_LEVEL level,
                       uint8_t alert);
