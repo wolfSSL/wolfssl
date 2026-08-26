@@ -138,7 +138,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
                 esp_start_heap = esp_this_heap;                              \
             }                                                                \
             ESP_LOGI(ESPIDF_TAG, "%s #%d; Heap free: %d",                    \
-                                ((b) ? (b) : ""),  /* breadcumb string */    \
+                                ((b) ? (b) : ""),  /* breadcrumb string */    \
                                 ((i) ? (i) : 0),   /* index */               \
                                  esp_this_heap);
 
