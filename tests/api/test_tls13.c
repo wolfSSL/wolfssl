@@ -10118,14 +10118,19 @@ int test_tls13_x25519_keyshare_masks_reserved_bit(void)
             (const char*)ch_buf, ch_sz), 0);
     }
 
-    /* Before the fix: wc_curve25519_check_public() sees the reserved bit
-     * and returns ECC_OUT_OF_RANGE_E, which DoTls13ClientHello turns into
-     * ECC_PEERKEY_ERROR and a fatal alert -- the handshake dies here.
-     * After the fix: the bit is masked before the check, so the server
-     * accepts the share and moves on to building its response flight. */
     ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
+    /* Masking is compiled out: wc_curve25519_check_public() still sees
+     * the reserved bit and rejects the key, so the server must abort the
+     * handshake with ECC_PEERKEY_ERROR instead of masking it. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR));
+#else
+    /* The bit is masked before the check, so the server accepts the
+     * share and moves on to building its response flight. */
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
         WOLFSSL_ERROR_WANT_READ);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
