@@ -1583,7 +1583,8 @@ static const char* bench_result_words1[][5] = {
       defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
       defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
       defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448) || \
-      defined(WOLFSSL_HAVE_MLDSA)) && !defined(WC_NO_RNG)) || \
+      defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
+      defined(WOLFSSL_HAVE_FRODOKEM)) && !defined(WC_NO_RNG)) || \
      defined(WOLFSSL_HAVE_MLKEM)
 
 static const char* bench_desc_words[][15] = {
@@ -2115,7 +2116,10 @@ static const char* bench_result_words3[][5] = {
         || !defined(NO_DH) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_ECC) \
         || defined(HAVE_CURVE25519) || defined(HAVE_ED25519) \
         || defined(HAVE_CURVE448) || defined(HAVE_ED448) \
-        || defined(WOLFSSL_HAVE_MLKEM))
+        || defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) \
+        || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_FRODOKEM) \
+        || (defined(WOLFSSL_HAVE_SLHDSA) \
+            && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)))
     #define HAVE_LOCAL_RNG
     static THREAD_LS_T WC_RNG gRng;
     #define GLOBAL_RNG &gRng
@@ -2128,7 +2132,10 @@ static const char* bench_result_words3[][5] = {
     defined(HAVE_ECC) || !defined(NO_DH) || \
     !defined(NO_RSA) || defined(HAVE_SCRYPT) || \
     defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || \
-    defined(WOLFSSL_HAVE_LMS)
+    defined(WOLFSSL_HAVE_LMS) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_FRODOKEM) || \
+    (defined(WOLFSSL_HAVE_SLHDSA) && !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)) || \
+    (defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY))
     #define BENCH_ASYM
 #endif
 
@@ -3412,7 +3419,12 @@ static void bench_stats_ops_finish(const char* algo, int strength,
 #if ((defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
       defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
       defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-      defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_LMS)) && \
+      defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_LMS) || \
+      defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+      (defined(WOLFSSL_HAVE_SLHDSA) && \
+       !defined(WOLFSSL_SLHDSA_VERIFY_ONLY)) || \
+      (defined(WOLFSSL_HAVE_XMSS) && \
+       !defined(WOLFSSL_XMSS_VERIFY_ONLY))) && \
       !defined(WC_NO_RNG)) || defined(WOLFSSL_HAVE_MLKEM)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
@@ -18794,8 +18806,8 @@ static void Usage(void)
         print_alg(bench_asym_opt[i].str, &line);
     for (i=0; bench_other_opt[i].str != NULL; i++)
         print_alg(bench_other_opt[i].str, &line);
-#if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
-    defined(WOLFSSL_HAVE_MLDSA)
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
         print_alg(bench_pq_asym_opt[i].str, &line);
 #endif
@@ -19097,8 +19109,8 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
-        #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
-            defined(WOLFSSL_HAVE_MLDSA)
+        #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM) || \
+            defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA)
             /* Known asymmetric post-quantum algorithms */
             for (i=0; !optMatched && bench_pq_asym_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_pq_asym_opt[i].str)) {
