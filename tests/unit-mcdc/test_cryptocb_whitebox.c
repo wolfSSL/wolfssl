@@ -69,8 +69,9 @@
  * INVALID_DEVID, which correctly makes wc_CryptoCb_FindDevice() return NULL.
  *
  * Coverage in this file: RSA (including the WOLF_CRYPTO_CB_RSA_PAD
- * RsaPad/RsaPssVerify pair), ECC, Curve25519, Ed25519, Ed448, AES (GCM/CCM/
- * CBC/CTR/CFB/OFB/ECB/SetKey/KeyWrap/KeyUnWrap), DES3, the hash family
+ * RsaPad/RsaPssVerify pair), ECC, Curve25519, Curve448, Ed25519, Ed448,
+ * AES (GCM/CCM/CBC/CTR/CFB/OFB/ECB/SetKey/KeyWrap/KeyUnWrap), DES3,
+ * the hash family
  * (SHA/SHA224/SHA256/SHA384/SHA512/SHA3/SHAKE),
  * HMAC, RNG (RandomBlock/RandomSeed), GetCert, CMAC,
  * HKDF (extract/expand/two-step-CMAC), the generic Copy/Free/SetKey/
@@ -422,6 +423,29 @@ int main(void)
 #else
     WB_NOTE("HAVE_CURVE25519 not defined; Curve25519 dispatch skipped");
 #endif /* HAVE_CURVE25519 */
+
+    /* ---- Curve448 ---- */
+#ifdef HAVE_CURVE448
+    {
+        curve448_key c4a;
+        curve448_key c4b;
+        XMEMSET(&c4a, 0, sizeof(c4a));
+        XMEMSET(&c4b, 0, sizeof(c4b));
+        (void)wc_curve448_init_ex(&c4a, NULL, 0);
+        (void)wc_curve448_init_ex(&c4b, NULL, 0);
+
+        WB_DRIVE3(c4a.devId,
+            wc_CryptoCb_Curve448Gen(NULL, CURVE448_KEY_SIZE, &c4a));
+
+        outLen = sizeof(out);
+        WB_DRIVE3(c4a.devId, wc_CryptoCb_Curve448(&c4a, &c4b, out, &outLen,
+            EC448_LITTLE_ENDIAN));
+
+        WB_NOTE("Curve448: Curve448Gen/Curve448 dev&&dev->cb driven");
+    }
+#else
+    WB_NOTE("HAVE_CURVE448 not defined; Curve448 dispatch skipped");
+#endif /* HAVE_CURVE448 */
 
     /* ---- Ed25519 ---- */
 #ifdef HAVE_ED25519
@@ -1162,6 +1186,107 @@ int main(void)
     }
 #else
     WB_NOTE("HAVE_CURVE25519 not defined; :1159/:1189 vectors skipped");
+#endif
+
+    /* ---- Curve448MakePub / Curve448Generic ----
+     * Unlike their Curve25519 counterparts these take an explicit devId, so
+     * the fallback guard is
+     *     (dev == NULL || dev->cb == NULL) && (devId == INVALID_DEVID)
+     * and every operand is driven from the argument plus the table state:
+     *   devId = WB_DEVID       -> dev found WITH a callback: (F,F,-), guard
+     *                             false, and the following dev && dev->cb is
+     *                             (T,T).
+     *   devId = WB_DEVID_NOCB  -> dev found with a NULL callback: (F,T,F),
+     *                             guard false because the devId names a
+     *                             device, and dev && dev->cb is (T,F).
+     *   devId = WB_DEVID_NONE  -> no such device: (T,-,F), guard false, and
+     *                             dev && dev->cb is (F,-).
+     *   devId = INVALID_DEVID, free slots present -> the lookup lands on a
+     *                             free slot (non-NULL, cb NULL): (F,T,T),
+     *                             guard true, FindDeviceByIndex(0) supplies
+     *                             the device.
+     *   devId = INVALID_DEVID, every slot registered -> no slot holds
+     *                             INVALID_DEVID so the lookup returns NULL:
+     *                             (T,-,T), guard true.
+     * The last two rebuild the table, so this runs after everything above.
+     * Whichever device the guard selects, its callback is wb_cb, which
+     * returns CRYPTOCB_UNAVAILABLE without reading the wc_CryptoInfo. */
+#ifdef HAVE_CURVE448
+    {
+        byte c4pub[CURVE448_PUB_KEY_SIZE];
+        byte c4priv[CURVE448_KEY_SIZE];
+        byte c4base[CURVE448_KEY_SIZE];
+        int slot;
+
+        XMEMSET(c4pub, 0, sizeof(c4pub));
+        XMEMSET(c4priv, 1, sizeof(c4priv));
+        XMEMSET(c4base, 5, sizeof(c4base));
+
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_NOCB, NULL, NULL) != 0)
+            wb_fail = 1;
+
+        /* Argument guards: one operand true per call. The device state is
+         * irrelevant here -- each returns before resolving a device. */
+        (void)wc_CryptoCb_Curve448MakePub(WB_DEVID, sizeof(c4pub), NULL,
+                sizeof(c4priv), c4priv);
+        (void)wc_CryptoCb_Curve448MakePub(WB_DEVID, sizeof(c4pub), c4pub,
+                sizeof(c4priv), NULL);
+        (void)wc_CryptoCb_Curve448Generic(WB_DEVID, sizeof(c4pub), NULL,
+                sizeof(c4priv), c4priv, sizeof(c4base), c4base);
+        (void)wc_CryptoCb_Curve448Generic(WB_DEVID, sizeof(c4pub), c4pub,
+                sizeof(c4priv), NULL, sizeof(c4base), c4base);
+        (void)wc_CryptoCb_Curve448Generic(WB_DEVID, sizeof(c4pub), c4pub,
+                sizeof(c4priv), c4priv, sizeof(c4base), NULL);
+
+        /* All arguments valid from here on, so the argument guards are all
+         * false and the device guards below are the ones being varied. */
+        (void)wc_CryptoCb_Curve448MakePub(WB_DEVID, sizeof(c4pub), c4pub,
+                sizeof(c4priv), c4priv);
+        (void)wc_CryptoCb_Curve448Generic(WB_DEVID, sizeof(c4pub), c4pub,
+                sizeof(c4priv), c4priv, sizeof(c4base), c4base);
+
+        (void)wc_CryptoCb_Curve448MakePub(WB_DEVID_NOCB, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv);
+        (void)wc_CryptoCb_Curve448Generic(WB_DEVID_NOCB, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv, sizeof(c4base), c4base);
+
+        (void)wc_CryptoCb_Curve448MakePub(WB_DEVID_NONE, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv);
+        (void)wc_CryptoCb_Curve448Generic(WB_DEVID_NONE, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv, sizeof(c4base), c4base);
+
+        /* No device selected, free slots remain. */
+        (void)wc_CryptoCb_Curve448MakePub(INVALID_DEVID, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv);
+        (void)wc_CryptoCb_Curve448Generic(INVALID_DEVID, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv, sizeof(c4base), c4base);
+
+        /* No device selected and no free slot left to land on. */
+        wc_CryptoCb_Init();
+        for (slot = 0; slot < MAX_CRYPTO_DEVID_CALLBACKS; slot++) {
+            if (wc_CryptoCb_RegisterDevice(WB_DEVID_FILL + slot, wb_cb,
+                    NULL) != 0)
+                wb_fail = 1;
+        }
+        (void)wc_CryptoCb_Curve448MakePub(INVALID_DEVID, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv);
+        (void)wc_CryptoCb_Curve448Generic(INVALID_DEVID, sizeof(c4pub),
+                c4pub, sizeof(c4priv), c4priv, sizeof(c4base), c4base);
+
+        WB_NOTE("Curve448MakePub/Generic: arg guards, "
+                "(dev==NULL||dev->cb==NULL)&&(devId==INVALID_DEVID) and "
+                "dev&&dev->cb driven");
+
+        /* Leave the table the way the tail of this file expects it. */
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+    }
+#else
+    WB_NOTE("HAVE_CURVE448 not defined; Curve448MakePub/Generic skipped");
 #endif
 
     wc_CryptoCb_UnRegisterDevice(WB_DEVID);
