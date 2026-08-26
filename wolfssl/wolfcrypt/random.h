@@ -249,6 +249,17 @@ struct OS_Seed {
         /* Setting the default to 4. */
         #define SEED_BLOCK_SZ 4
     #endif
+
+/* In-boundary banked-next-seed support: the wc_RNG_DRBG_NextSeed*() APIs and
+ * the aperture members in the DRBG state structs.  Requires native atomics for
+ * the hand-off protocol. */
+#ifdef WC_RNG_NO_NEXT_SEED
+    #undef WC_RNG_HAVE_NEXT_SEED
+#elif defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    defined(WOLFSSL_ATOMIC_OPS)
+    #define WC_RNG_HAVE_NEXT_SEED
+#endif
+
 #endif
 
 #define WC_DRBG_SEED_BLOCK_SZ SEED_BLOCK_SZ
@@ -296,6 +307,15 @@ struct OS_Seed {
 #endif
 
 #ifndef NO_SHA256
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+/* Length of the banked next seed: identical byte accounting to every other
+ * source-fed (re)seed in the module (gather SEED_SZ + SEED_BLOCK_SZ, apply
+ * the block-offset remainder). */
+#define WC_DRBG_NEXT_SEED_LEN  ((word32)(WC_DRBG_SEED_SZ + \
+                                         WC_DRBG_SEED_BLOCK_SZ))
+#endif
+
 struct DRBG_internal {
     #ifdef WORD64_AVAILABLE
     word64 reseedCtr;
@@ -304,6 +324,10 @@ struct DRBG_internal {
     #endif
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    byte nextSeed[WC_DRBG_NEXT_SEED_LEN];
+    wolfSSL_Atomic_Int nextSeedLen;
+#endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
@@ -321,6 +345,10 @@ struct DRBG_SHA512_internal {
     word64 reseedCtr;
     byte V[DRBG_SHA512_SEED_LEN];
     byte C[DRBG_SHA512_SEED_LEN];
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    byte nextSeed[WC_DRBG_NEXT_SEED_LEN];
+    wolfSSL_Atomic_Int nextSeedLen;
+#endif
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
@@ -640,6 +668,36 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #endif /* !WC_NO_CONSTRUCTORS */
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* leaf, WC_RNG* root,
                                            const byte* nonce, word32 nonceSz);
+
+#ifdef WC_RNG_HAVE_NEXT_SEED
+    /* Banked-next-seed services.  _NextSeedGenerate() banks up to n more
+     * bytes from the module's seed source (clamped to the space remaining;
+     * ALREADY_E when the bank is ready or being consumed), health-testing
+     * and publishing the bank when it completes (RETRY_E when the health
+     * test could not run and the call should simply be retried); a
+     * scheduling daemon may call it without owning the instance.
+     * _NextSeedCurrent() reports the raw aperture value (racy snapshot).
+     * _NextSeedNow() claims a ready bank and performs a source-free
+     * credited reseed with it -- safe in atomic context -- or returns
+     * NOT_READY_E when no bank is ready; _NextSeedNow_Nonce() is the same
+     * with a nonce as uncredited additional input.  All report
+     * MISSING_RNG_E for an instance with no DRBG (RDRAND et al.).  The
+     * caller must own the instance for _NextSeedNow[_Nonce](). */
+
+    #define WC_DRBG_NEXT_SEED_EMPTY 0
+    /* All sentinel states are negative; non-negative values are banked byte
+     * counts. */
+    #define WC_DRBG_NEXT_SEED_READY ((WC_ATOMIC_INT_ARG)(-2))
+    #define WC_DRBG_NEXT_SEED_CONSUMING ((WC_ATOMIC_INT_ARG)(-1))
+
+    WOLFSSL_API int wc_RNG_DRBG_NextSeedGenerate(WC_RNG* rng, word32 n);
+    WOLFSSL_API int wc_RNG_DRBG_NextSeedCurrent(WC_RNG* rng,
+                                                WC_ATOMIC_INT_ARG* n);
+    WOLFSSL_API int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng,
+                                                   const byte* nonce,
+                                                   word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
+#endif /* WC_RNG_HAVE_NEXT_SEED */
 #endif
 
 #ifndef NO_SHA256
