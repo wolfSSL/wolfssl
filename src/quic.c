@@ -895,6 +895,31 @@ int wolfSSL_quic_send(WOLFSSL* ssl)
     return wolfSSL_quic_send_internal(ssl);
 }
 
+/* Report a fatal handshake failure to the QUIC protocol handler, which closes
+ * the connection with it (RFC 9001 Section 4.8). code is a TLS
+ * AlertDescription or, for failures RFC 9001 defines as a QUIC connection
+ * error rather than a TLS alert, a WOLFSSL_QUIC_ERR_* transport error code
+ * (RFC 9000 Section 20.1). Returns 0 when the handler accepted it. */
+int wolfSSL_quic_send_alert(WOLFSSL* ssl, int severity, int code)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_quic_send_alert");
+    WOLFSSL_MSG_EX("quic_send_alert: %d", code);
+
+    /* Record as the TLS record path does, so the callers' duplicate-alert
+     * guards cover QUIC connections too. */
+    ssl->alert_history.last_tx.code = code;
+    ssl->alert_history.last_tx.level = severity;
+
+    ret = !ssl->quic.method->send_alert(ssl, ssl->quic.enc_level_write,
+                                        (uint8_t)code);
+    if (ret) {
+        WOLFSSL_MSG("QUIC send_alert callback error");
+    }
+    return ret;
+}
+
 int wolfSSL_quic_forward_secrets(WOLFSSL* ssl, int ktype, int side)
 {
     const uint8_t* rx_secret = NULL, *tx_secret = NULL;
