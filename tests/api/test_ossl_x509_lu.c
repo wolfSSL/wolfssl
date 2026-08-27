@@ -303,7 +303,7 @@ int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void)
     X509_STORE* str = NULL;
     X509_LOOKUP* lookup = NULL;
     char* longPath = NULL;
-    const int longPathCap = MAX_FILENAME_SZ + 4;
+    const int longPathCap = MAX_FILENAME_SZ + 5;
 
     ExpectNotNull((longPath = (char*)XMALLOC(longPathCap, HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER)));
@@ -351,6 +351,7 @@ int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void)
         XMEMSET(longPath, 'a', longPathCap);
         XMEMSET(longPath, 'b', 2);
         longPath[2] = SEPARATOR_CHAR;
+        longPath[longPathCap-1] = '\0';
     }
 
     ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
@@ -368,7 +369,7 @@ int test_wolfSSL_X509_LOOKUP_ctrl_dir_len(void)
         XMEMSET(longPath, 'a', longPathCap);
         XMEMSET(longPath, 'b', 2);
         longPath[2] = SEPARATOR_CHAR;
-        longPath[longPathCap - 1] = '\0';
+        longPath[longPathCap - 2] = '\0';
     }
 
     ExpectIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR,
