@@ -458,7 +458,7 @@ struct Aes {
     cy_stc_crypto_aes_gcm_state_t aes_gcm_state;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
-#ifdef WOLFSSL_TI_AM64X
+#if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_AES)
     XALIGNED(16) SA2UL_ContextObject scObj;
 #endif
 };

@@ -218,7 +218,7 @@ struct wc_Sha512 {
     int hashType; /* used to determine which SHA512 is used */
 #endif /* WOLFSSL_SHA512_HASHTYPE */
 #endif /* WOLFSSL_PSOC6_CRYPTO */
-#ifdef WOLFSSL_TI_AM64X
+#if defined(WOLFSSL_TI_AM64X) && !defined(WOLFSSL_TI_AM64X_NO_SHA)
     XALIGNED(16) SA2UL_ContextObject scObj;
 #endif
 };
