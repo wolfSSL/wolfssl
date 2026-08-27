@@ -3718,9 +3718,12 @@ err_cleanup:
     return NULL;
 }
 
-/* Return 1 if an extension of type @nid is already present in the in-memory
- * @x509, based on wolfSSL's typed extension storage; 0 otherwise. Only the
- * NIDs that wolfSSL_X509_add_ext() can consume are recognized. */
+/* Report whether an extension of type @nid is present in the in-memory @x509,
+ * based on wolfSSL's typed extension storage. Only the NIDs that
+ * wolfSSL_X509_add_ext() can consume have such storage.
+ *
+ * @return 1 when present, 0 when absent and -1 when @nid has no typed storage
+ * and presence therefore cannot be determined. */
 static int wolfssl_x509_ext_is_set(const WOLFSSL_X509 *x509, int nid)
 {
     switch (nid) {
@@ -3737,7 +3740,7 @@ static int wolfssl_x509_ext_is_set(const WOLFSSL_X509 *x509, int nid)
     case WC_NID_authority_key_identifier:
         return (x509->authKeyId != NULL) || (x509->authKeyIdSet != 0);
     default:
-        return 0;
+        return -1;
     }
 }
 
@@ -3833,8 +3836,12 @@ static int wolfssl_x509_remove_ext(WOLFSSL_X509 *x509, int nid)
  *   X509V3_ADD_REPLACE_EXISTING - replace, fail if not already present
  *   X509V3_ADD_KEEP_EXISTING    - keep existing (no-op if present), else add
  *   X509V3_ADD_DELETE           - delete existing, fail if not present
- * X509V3_ADD_SILENT only suppresses error reporting; it does not change the
- * result of the operation.
+ * X509V3_ADD_SILENT is accepted but inert: this function reports nothing that
+ * could be suppressed, and the flag never changes the result.
+ *
+ * Presence can only be determined for the extensions wolfSSL_X509_add_ext()
+ * stores in typed fields. For any other NID every operation except
+ * X509V3_ADD_APPEND - the one defined as not checking - fails.
  *
  * @return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise.
  */
@@ -3855,21 +3862,24 @@ int wolfSSL_X509_add1_ext_i2d(WOLFSSL_X509 *x, int nid, void *value,
 
     op = flags & WOLFSSL_X509V3_ADD_OP_MASK;
     exists = wolfssl_x509_ext_is_set(x, nid);
+    if (exists < 0) {
+        if (op != WOLFSSL_X509V3_ADD_APPEND) {
+            WOLFSSL_MSG("Extension presence not tracked for this NID");
+            return WOLFSSL_FAILURE;
+        }
+        exists = 0;
+    }
 
     switch (op) {
     case WOLFSSL_X509V3_ADD_DELETE:
         if (!exists) {
-            if ((flags & WOLFSSL_X509V3_ADD_SILENT) == 0) {
-                WOLFSSL_MSG("No extension to delete (X509V3_ADD_DELETE)");
-            }
+            WOLFSSL_MSG("No extension to delete (X509V3_ADD_DELETE)");
             return WOLFSSL_FAILURE;
         }
         return wolfssl_x509_remove_ext(x, nid);
     case WOLFSSL_X509V3_ADD_DEFAULT:
         if (exists) {
-            if ((flags & WOLFSSL_X509V3_ADD_SILENT) == 0) {
-                WOLFSSL_MSG("Extension already present (X509V3_ADD_DEFAULT)");
-            }
+            WOLFSSL_MSG("Extension already present (X509V3_ADD_DEFAULT)");
             return WOLFSSL_FAILURE;
         }
         break;
@@ -3878,10 +3888,8 @@ int wolfSSL_X509_add1_ext_i2d(WOLFSSL_X509 *x, int nid, void *value,
         break;
     case WOLFSSL_X509V3_ADD_REPLACE_EXISTING:
         if (!exists) {
-            if ((flags & WOLFSSL_X509V3_ADD_SILENT) == 0) {
-                WOLFSSL_MSG("No extension to replace "
-                            "(X509V3_ADD_REPLACE_EXISTING)");
-            }
+            WOLFSSL_MSG("No extension to replace "
+                        "(X509V3_ADD_REPLACE_EXISTING)");
             return WOLFSSL_FAILURE;
         }
         break;
