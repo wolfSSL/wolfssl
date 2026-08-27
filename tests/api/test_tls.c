@@ -3504,6 +3504,10 @@ int test_wolfSSL_alert_type_string(void)
     ExpectStrEQ(wolfSSL_alert_type_string(0), "U");
     ExpectStrEQ(wolfSSL_alert_type_string(-1), "U");
     ExpectStrEQ(wolfSSL_alert_type_string(99), "U");
+    /* packed info-callback value: (level << 8) | code */
+    ExpectStrEQ(wolfSSL_alert_type_string((alert_warning << 8) | close_notify), "W");
+    ExpectStrEQ(wolfSSL_alert_type_string((alert_fatal << 8) | handshake_failure), "F");
+    ExpectStrEQ(wolfSSL_alert_type_string_long((alert_fatal << 8) | handshake_failure), "handshake_failure");
 #endif
     return EXPECT_RESULT();
 }
@@ -3740,6 +3744,10 @@ int test_wolfSSL_alert_desc_string(void)
     ExpectStrEQ(wolfSSL_alert_desc_string(no_application_protocol), "AP");
     /* Unknown alert description returns "UK" */
     ExpectStrEQ(wolfSSL_alert_desc_string(255), "UK");
+    /* packed info-callback value: (level << 8) | code */
+    ExpectStrEQ(wolfSSL_alert_desc_string((alert_fatal << 8) | close_notify), "CN");
+    ExpectStrEQ(wolfSSL_alert_desc_string((alert_warning << 8) | handshake_failure), "HF");
+    ExpectStrEQ(wolfSSL_alert_desc_string_long((alert_fatal << 8) | close_notify), "close_notify");
 #endif
     return EXPECT_RESULT();
 }
