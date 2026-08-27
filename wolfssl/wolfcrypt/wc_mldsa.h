@@ -592,6 +592,8 @@ typedef struct wc_MlDsaParams MlDsaParams;
 #endif
 
 struct wc_MlDsaKey {
+    /* Set when this object holds the public key bytes in p. A key generated
+     * on a crypto-callback device has none here and leaves it clear. */
     byte pubKeySet;
     byte prvKeySet;
     byte level; /* 2,3 or 5 */

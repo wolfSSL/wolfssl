@@ -62211,10 +62211,10 @@ out:
             byte seed[MLDSA_SEED_SZ];
 
             XMEMSET(seed, 0, sizeof(seed));
-            /* Expanding a seed is local work and the callback carries no
-             * seed, so no device could take this one. */
+            /* The seed goes to a device now, so with none registered this
+             * reports a missing device rather than missing code. */
             r = wc_MlDsaKey_MakeKeyFromSeed(key, seed);
-            if (r != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+            if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
                 ret = WC_TEST_RET_ENC_NC;
         }
 #endif /* !WOLFSSL_MLDSA_NO_MAKE_KEY */
@@ -62399,8 +62399,10 @@ out:
     !defined(WOLFSSL_NO_ML_DSA_44)
         if (ret == 0) {
             /* A OneAsymmetricKey holding only the 32 byte seed for
-             * ML-DSA-44. Decoding it means expanding the seed, which this
-             * build cannot do and no callback can be asked to do. */
+             * ML-DSA-44. Decoding it means expanding the seed: a device is
+             * asked to do that, so with none registered the report is a
+             * missing device -- unless key generation is compiled out, when
+             * there is no seed path at all. */
             static const byte seedOnlyKey[] = {
                 0x30, 0x34, 0x02, 0x01, 0x00, 0x30, 0x0b, 0x06,
                 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
@@ -62414,7 +62416,11 @@ out:
 
             r = wc_MlDsaKey_PrivateKeyDecode(key, seedOnlyKey,
                     (word32)sizeof(seedOnlyKey), &idx);
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+            if (r != WC_NO_ERR_TRACE(NO_VALID_DEVID))
+#else
             if (r != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+#endif
                 ret = WC_TEST_RET_ENC_NC;
         }
 #endif
@@ -81697,6 +81703,15 @@ static int myCryptoCbExportPointX963(const ecc_set_type* dp, ecc_point* pub,
 /* Example crypto dev callback function that calls software version */
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WC_MLDSA_HAVE_NATIVE)
 #define MLDSA_CB_SIG_LEN 32
+
+/* Seed the device is asked to generate from, shared with the test below so
+ * the handler can confirm it arrived unchanged. */
+static const byte mldsa_cb_seed[MLDSA_SEED_SZ] = {
+    0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+    0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+    0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
+    0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf
+};
 /* Deterministic stand-in signature for the callback-only ML-DSA device: it
  * covers the message, the context and the pre-hash selector, so a dispatch
  * that loses any of them fails the matching verify. */
@@ -82695,17 +82710,24 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
          * drops either is caught by the verify step. */
         if ((info->pk.type == WC_PK_TYPE_PQC_SIG_KEYGEN) &&
                 (info->pk.pqc_sig_kg.type == WC_PQC_SIG_TYPE_MLDSA)) {
-            wc_MlDsaKey* dk = (wc_MlDsaKey*)info->pk.pqc_sig_kg.key;
-
             myCtx->mldsaCount++;
             if (myCtx->mldsaFail != 0) {
                 ret = myCtx->mldsaFail;
             }
+            else if (info->pk.pqc_sig_kg.seed != NULL) {
+                /* Seeded generation: the seed must arrive whole. A real
+                 * device would expand it; this one only checks it. */
+                ret = ((info->pk.pqc_sig_kg.seedSz ==
+                            (word32)sizeof(mldsa_cb_seed)) &&
+                       (XMEMCMP(info->pk.pqc_sig_kg.seed, mldsa_cb_seed,
+                            sizeof(mldsa_cb_seed)) == 0)) ?
+                      0 : WC_NO_ERR_TRACE(BAD_STATE_E);
+            }
             else {
-                /* The device holds the key material; the caller's object only
-                 * records that it now has one. */
-                dk->pubKeySet = 1;
-                dk->prvKeySet = 1;
+                /* The device keeps the key material. The key flags say
+                 * whether this object holds the bytes, and it holds neither,
+                 * so both stay clear. Signing and verifying dispatch before
+                 * those flags are looked at. */
                 ret = 0;
             }
         }
@@ -82750,8 +82772,32 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         else if ((info->pk.type == WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY) &&
                 (info->pk.pqc_sig_check.type == WC_PQC_SIG_TYPE_MLDSA)) {
+            wc_MlDsaKey* ck = (wc_MlDsaKey*)info->pk.pqc_sig_check.key;
+
             myCtx->mldsaCount++;
-            ret = (myCtx->mldsaFail != 0) ? myCtx->mldsaFail : 0;
+            if (myCtx->mldsaFail != 0) {
+                ret = myCtx->mldsaFail;
+            }
+            else if (ck == NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else if (!ck->pubKeySet) {
+                /* No local public key: a real device compares against its own
+                 * copy, so anything sent here would be material the caller
+                 * never had. */
+                ret = ((info->pk.pqc_sig_check.pubKey == NULL) &&
+                       (info->pk.pqc_sig_check.pubKeySz == 0)) ?
+                      0 : WC_NO_ERR_TRACE(BAD_STATE_E);
+            }
+            else {
+                /* Public key present: it must arrive whole. */
+                int ckSz = wc_MlDsaKey_PubSize(ck);
+
+                ret = ((ckSz > 0) &&
+                       (info->pk.pqc_sig_check.pubKey != NULL) &&
+                       (info->pk.pqc_sig_check.pubKeySz == (word32)ckSz)) ?
+                      0 : WC_NO_ERR_TRACE(BAD_STATE_E);
+            }
         }
     #endif /* WOLFSSL_HAVE_MLDSA && !WC_MLDSA_HAVE_NATIVE */
     #ifdef WOLFSSL_HAVE_MLKEM
@@ -85011,6 +85057,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
         }
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+        /* Generating from a caller supplied seed is the device's job too:
+         * the handler fails the call if the seed does not arrive whole. */
+        if (ret == 0) {
+            r = wc_MlDsaKey_MakeKeyFromSeed(key, mldsa_cb_seed);
+            if (r != 0)
+                ret = WC_TEST_RET_ENC_EC(r);
+        }
+#endif
         if (ret == 0) {
             r = wc_MlDsaKey_SignCtx(key, sigCtx, (byte)sizeof(sigCtx), sig,
                     &sigLen, msg, (word32)sizeof(msg), mldsaRng);
@@ -85042,12 +85097,44 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
         }
 #ifdef WOLFSSL_MLDSA_CHECK_KEY
         /* This is the operation a no-device test cannot cover: before the key
-         * check dispatched, it could only ever fail. */
+         * check dispatched, it could only ever fail. The handler asserts that
+         * a key generated on the device sends no public key with it. */
         if (ret == 0) {
             r = wc_MlDsaKey_CheckKey(key);
             if (r != 0)
                 ret = WC_TEST_RET_ENC_EC(r);
         }
+#ifdef WOLFSSL_MLDSA_PUBLIC_KEY
+        /* Import a public key and check again: now the bytes are local, so
+         * the handler asserts they arrive whole. */
+        if (ret == 0) {
+            int pubSz = wc_MlDsaKey_PubSize(key);
+            byte* pubRaw = NULL;
+
+            if (pubSz <= 0) {
+                ret = WC_TEST_RET_ENC_NC;
+            }
+            else {
+                pubRaw = (byte*)XMALLOC((word32)pubSz, HEAP_HINT,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                if (pubRaw == NULL)
+                    ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+                else
+                    XMEMSET(pubRaw, 0x5a, (word32)pubSz);
+            }
+            if (ret == 0) {
+                r = wc_MlDsaKey_ImportPubRaw(key, pubRaw, (word32)pubSz);
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+            }
+            if (ret == 0) {
+                r = wc_MlDsaKey_CheckKey(key);
+                if (r != 0)
+                    ret = WC_TEST_RET_ENC_EC(r);
+            }
+            XFREE(pubRaw, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY */
 #endif
         /* Every operation above went through the callback. */
         if ((ret == 0) && (myCtx.mldsaCount <= baseline))

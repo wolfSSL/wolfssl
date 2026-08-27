@@ -9199,6 +9199,11 @@ static int mldsa_pct(wc_MlDsaKey* key)
  * @return  Other negative when an error occurs.
  */
 
+/* Forward declaration: the software path below calls this directly so it
+ * does not re-enter the crypto callback. */
+static int mldsa_key_from_seed_checked(wc_MlDsaKey* key, const byte* seed,
+    int runPct);
+
 static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
 {
     int ret;
@@ -9213,8 +9218,10 @@ static int mldsa_make_key(wc_MlDsaKey* key, WC_RNG* rng)
 #endif
     /* Step 2: Check for error. */
     if (ret == 0) {
-        /* Step 5: Make key with random seed. */
-        ret = wc_MlDsaKey_MakeKeyFromSeed(key, seed);
+        /* Step 5: Make key with random seed. Straight to the helper:
+         * wc_MlDsaKey_MakeKeyFromSeed() would offer the seed to the
+         * device that already declined this generation. */
+        ret = mldsa_key_from_seed_checked(key, seed, 1);
     }
 
     ForceZero(seed, sizeof(seed));
@@ -11309,7 +11316,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
-    /* No key-pair test here: wc_MlDsaKey_MakeKeyFromSeed(), reached from
+    /* No key-pair test here: mldsa_key_from_seed_checked(), reached from
      * mldsa_make_key() above, already runs it on every generation path.
      * Guarded on the version, not HAVE_FIPS: src/include.am only compiles
      * this file under BUILD_FIPS_V7_PLUS, so the two are equivalent here. */
@@ -11361,22 +11368,56 @@ static int mldsa_key_from_seed_checked(wc_MlDsaKey* key, const byte* seed,
 }
 #endif /* !WOLF_CRYPTO_CB_ONLY_MLDSA */
 
+/* Expand a seed into a key pair, offering it to a device first.
+ *
+ * A device that generates ML-DSA keys already expands a seed of its own
+ * choosing, so it can take this one. runPct is 0 for the ASN.1 decode path.
+ * The software key generation path calls mldsa_key_from_seed_checked()
+ * directly rather than coming back through here.
+ */
+static int mldsa_key_from_seed_dev(wc_MlDsaKey* key, const byte* seed,
+    int runPct)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (seed == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
+                WC_PQC_SIG_TYPE_MLDSA, key->level, seed, MLDSA_SEED_SZ, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+    (void)runPct;
+#else
+    if (ret == 0) {
+        ret = mldsa_key_from_seed_checked(key, seed, runPct);
+    }
+#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
+
+    return ret;
+}
+
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed)
 {
-#ifdef WOLF_CRYPTO_CB_ONLY_MLDSA
-    /* Validate as the software path does, so the reported error stays the
-     * same for a bad call. */
-    if ((key == NULL) || (seed == NULL)) {
-        return BAD_FUNC_ARG;
-    }
-    /* Not NO_VALID_DEVID: no device can service this one. Expanding a seed
-     * is a local computation and the callback protocol has no seed to hand
-     * over, so registering a device would not help. The seed expansion is
-     * part of the software core this build removes. */
-    return NOT_COMPILED_IN;
-#else
-    return mldsa_key_from_seed_checked(key, seed, 1);
-#endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
+    return mldsa_key_from_seed_dev(key, seed, 1);
 }
 #endif
 
@@ -12612,17 +12653,21 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
         {
             const byte* pub = NULL;
             word32 pubSz = 0;
-            /* Read through a pointer: key->p is an array in the default
-             * layout and a pointer in the dynamic and assign-key ones. */
-            const byte* keyPub = key->p;
 
-            /* pubKeySet only says a public key exists, not that this object
-             * holds its bytes: a device-generated key has none locally. Send
-             * a length only alongside a pointer to go with it. */
-            if (key->pubKeySet && (keyPub != NULL)) {
+            /* pubKeySet means this object holds the public key bytes. A key
+             * the device generated has none here, so nothing is sent and the
+             * device works from its own copy. */
+            if (key->pubKeySet) {
                 int sz = wc_MlDsaKey_PubSize(key);
-                if (sz > 0) {
-                    pub = keyPub;
+                int have = (sz > 0);
+
+            #if defined(WOLFSSL_MLDSA_DYNAMIC_KEYS) || \
+                defined(WOLFSSL_MLDSA_ASSIGN_KEY)
+                /* p is a pointer in these layouts and may be unset. */
+                have = have && (key->p != NULL);
+            #endif
+                if (have) {
+                    pub = key->p;
                     pubSz = (word32)sz;
                 }
             }
@@ -13605,10 +13650,12 @@ int wc_MlDsaKey_PrivateKeyDecode(wc_MlDsaKey* key, const byte* input,
     if (ret == 0) {
         /* Generate a key pair if seed exists and decoded key pair is ignored */
         if (seedLen != 0) {
-#if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+            /* The seed is the source of truth and any expanded key alongside
+             * it is discarded, so both build modes derive the same key. */
             if (seedLen == MLDSA_SEED_SZ) {
                 /* runPct 0: this is an import, not a generation. */
-                ret = mldsa_key_from_seed_checked(key, seed, 0);
+                ret = mldsa_key_from_seed_dev(key, seed, 0);
             }
             else {
                 ret = ASN_PARSE_E;
