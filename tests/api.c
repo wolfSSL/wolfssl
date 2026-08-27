@@ -23177,8 +23177,7 @@ static int test_wolfSSL_X509_add1_ext_i2d_flags(void)
     ExpectNotNull(gns = test_san_dns_stack("b.example"));
     ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, gns, 0,
                 X509V3_ADD_DEFAULT), WOLFSSL_FAILURE);
-    /* SILENT only suppresses the error report: still a failure, still no
-     * change. */
+    /* SILENT is inert: still a failure, still no change. */
     ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_subject_alt_name, gns, 0,
                 X509V3_ADD_DEFAULT | X509V3_ADD_SILENT), WOLFSSL_FAILURE);
     {
@@ -23479,6 +23478,45 @@ static int test_wolfSSL_X509_add1_ext_i2d_eku_copy(void)
     wolfSSL_sk_ASN1_OBJECT_pop_free(eku, NULL);
     wolfSSL_X509_free(dst);
     wolfSSL_X509_free(src);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL has no typed storage for some of the extensions
+ * wolfSSL_X509V3_EXT_i2d() can encode. Presence cannot be determined for
+ * those, so every operation but APPEND has to fail up front instead of
+ * quietly doing the wrong thing. */
+static int test_wolfSSL_X509_add1_ext_i2d_untracked_nid(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_ASN)
+    WOLFSSL_X509*          x509 = NULL;
+    WOLFSSL_GENERAL_NAMES* gns  = NULL;
+
+    ExpectNotNull(x509 = wolfSSL_X509_new());
+    ExpectNotNull(gns = test_san_dns_stack("a.example"));
+
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_issuer_alt_name, gns, 0,
+                X509V3_ADD_DEFAULT), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_issuer_alt_name, gns, 0,
+                X509V3_ADD_REPLACE), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_issuer_alt_name, gns, 0,
+                X509V3_ADD_REPLACE_EXISTING), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_issuer_alt_name, gns, 0,
+                X509V3_ADD_KEEP_EXISTING), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_issuer_alt_name, NULL, 0,
+                X509V3_ADD_DELETE), WOLFSSL_FAILURE);
+    /* APPEND is attempted; the store step is what rejects it. */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_issuer_alt_name, gns, 0,
+                X509V3_ADD_APPEND), WOLFSSL_FAILURE);
+
+    /* A NID with no typed storage must not report "nothing to delete". */
+    ExpectIntEQ(wolfSSL_X509_add1_ext_i2d(x509, NID_info_access, NULL, 0,
+                X509V3_ADD_DELETE), WOLFSSL_FAILURE);
+
+    wolfSSL_sk_GENERAL_NAME_pop_free(gns, wolfSSL_GENERAL_NAME_free);
+    wolfSSL_X509_free(x509);
 #endif
     return EXPECT_RESULT();
 }
@@ -41208,6 +41246,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_basic_constraints),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku),
     TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_eku_copy),
+    TEST_DECL(test_wolfSSL_X509_add1_ext_i2d_untracked_nid),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_roundtrip),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_ex_roundtrip),
     TEST_DECL(test_wolfSSL_X509_set_authority_key_id_overwrite),

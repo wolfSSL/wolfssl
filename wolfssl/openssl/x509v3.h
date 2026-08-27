@@ -50,8 +50,8 @@
 #define WOLFSSL_XKU_ANYEKU     0x100
 
 /* X509V3_ADD_* operation flags for wolfSSL_X509_add1_ext_i2d(). The low nibble
- * selects the operation; X509V3_ADD_SILENT suppresses the "already present"
- * error for X509V3_ADD_DEFAULT. */
+ * selects the operation. X509V3_ADD_SILENT is accepted but inert: this API
+ * reports nothing that could be suppressed. */
 #define WOLFSSL_X509V3_ADD_OP_MASK         0xfL
 #define WOLFSSL_X509V3_ADD_DEFAULT         0L
 #define WOLFSSL_X509V3_ADD_APPEND          1L
