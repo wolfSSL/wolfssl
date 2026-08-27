@@ -207,7 +207,9 @@ APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::
 sudo timeout -k 10 120 apt-get "${APT_OPTS[@]}" update -qq >/dev/null 2>&1 \
   && sudo timeout -k 10 300 apt-get "${APT_OPTS[@]}" install -y -qq \
        python3-venv libnewlib-dev >/dev/null 2>&1 \
-  || echo "==> [container] host package install skipped (apt unavailable)"
+  || echo "==> [container] host package install skipped (apt update," \
+          "install or the timeout above failed); the build continues without" \
+          "python3-venv and libnewlib-dev"
 python3 -m venv .venv
 source .venv/bin/activate
 pip3 install west
