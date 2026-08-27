@@ -5891,6 +5891,17 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error "WOLF_CRYPTO_CB_ONLY_ED25519 with " \
            "WOLFSSL_ED25519_STREAMING_VERIFY is not supported"
 #endif
+#if defined(WOLF_CRYPTO_CB_ONLY_MLDSA) && !defined(WOLF_CRYPTO_CB)
+    #error "WOLF_CRYPTO_CB_ONLY_MLDSA requires WOLF_CRYPTO_CB"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_MLDSA) && !defined(WOLFSSL_HAVE_MLDSA)
+    #error "WOLF_CRYPTO_CB_ONLY_MLDSA requires WOLFSSL_HAVE_MLDSA"
+#endif
+#if defined(WOLF_CRYPTO_CB_ONLY_MLDSA) && defined(HAVE_FIPS)
+    /* Key generation runs a pairwise consistency test that the callback would
+     * have to service; not validated. */
+    #error "WOLF_CRYPTO_CB_ONLY_MLDSA is incompatible with FIPS builds"
+#endif
 #if defined(WOLF_CRYPTO_CB_ONLY_CURVE25519) && !defined(WOLF_CRYPTO_CB)
     #error "WOLF_CRYPTO_CB_ONLY_CURVE25519 requires WOLF_CRYPTO_CB"
 #endif

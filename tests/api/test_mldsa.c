@@ -711,7 +711,8 @@ int test_mldsa(void)
 int test_mldsa_sign_pubonly_fails(void)
 {
     EXPECT_DECLS;
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(WC_MLDSA_HAVE_NATIVE)
 #if defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
@@ -804,6 +805,7 @@ int test_mldsa_make_key(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     wc_MlDsaKey* key;
     WC_RNG rng;
@@ -844,7 +846,7 @@ int test_mldsa_make_key(void)
 int test_mldsa_sign(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && defined(WOLFSSL_MLDSA_NO_CTX)
     wc_MlDsaKey* key;
     wc_MlDsaKey* importKey = NULL;
@@ -1031,7 +1033,7 @@ int test_mldsa_sign(void)
 int test_mldsa_verify(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && defined(WOLFSSL_MLDSA_NO_CTX) && \
     (!defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_MLDSA_NO_SIGN))
     wc_MlDsaKey* key;
@@ -1264,6 +1266,7 @@ int test_mldsa_sign_vfy(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
     wc_MlDsaKey* key;
@@ -1352,6 +1355,7 @@ int test_mldsa_check_key(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     defined(WOLFSSL_MLDSA_CHECK_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     wc_MlDsaKey* checkKey;
@@ -3021,6 +3025,7 @@ int test_mldsa_der(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     wc_MlDsaKey* key;
@@ -3225,6 +3230,7 @@ int test_mldsa_der(void)
 }
 
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
 
 /* Decode, re-export, byte-compare. Asserts version=1 on the bundled form and
@@ -3293,6 +3299,7 @@ int test_mldsa_oneasymkey_version(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_ASN1) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     #ifndef WOLFSSL_NO_ML_DSA_44
         ExpectIntEQ(mldsa_oneasymkey_version_check(WC_ML_DSA_44),
@@ -3314,6 +3321,7 @@ int test_mldsa_make_key_from_seed(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
     wc_MlDsaKey* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -7781,7 +7789,7 @@ int test_mldsa_make_key_from_seed(void)
 int test_mldsa_sig_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && defined(WOLFSSL_MLDSA_NO_CTX)
     wc_MlDsaKey* key;
 #ifndef WOLFSSL_NO_ML_DSA_44
@@ -12598,6 +12606,7 @@ int test_mldsa_sign_ctx_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN)
     wc_MlDsaKey* key;
     word32 sigLen;
@@ -16830,6 +16839,7 @@ int test_mldsa_verify_ctx_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY)
     wc_MlDsaKey* key;
     int res;
@@ -20351,7 +20361,7 @@ int test_mldsa_verify_ctx_kats(void)
 int test_mldsa_verify_kats(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && defined(WOLFSSL_MLDSA_NO_CTX)
     wc_MlDsaKey* key;
     int res;
@@ -24623,6 +24633,7 @@ int test_mldsa_sign_mu_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     wc_MlDsaKey* key = NULL;
     word32 sigLen;
@@ -27484,6 +27495,7 @@ int test_mldsa_verify_mu_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     wc_MlDsaKey* key = NULL;
     byte* sigBuf = NULL;
@@ -29680,6 +29692,7 @@ int test_mldsa_verify_mu_kats(void)
 }
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
@@ -29748,6 +29761,7 @@ int test_mldsa_PrivateKeyDecode_OpenSSL_form(void)
     EXPECT_DECLS;
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
@@ -29841,6 +29855,7 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     defined(WOLFSSL_HAVE_MLDSA) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && \
@@ -29915,6 +29930,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     defined(WOLFSSL_HAVE_MLDSA) && !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
@@ -30029,7 +30045,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 int test_mldsa_encode_w1_large_values(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA) && \
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
      !defined(WOLFSSL_MLDSA_NO_VERIFY))
 
@@ -30162,7 +30178,8 @@ int test_mldsa_pkcs12(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS12) && \
-    defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
+    defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && \
     !defined(NO_TLS) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
     !defined(NO_CERTS) && !defined(NO_DES3) && \
@@ -30547,6 +30564,7 @@ int test_mldsa_verify_hash(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY)
     wc_MlDsaKey key;
@@ -30587,6 +30605,7 @@ int test_dilithium_hash(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY)
     wc_MlDsaKey key;
@@ -30800,6 +30819,7 @@ int test_wc_MldsaFeatureCoverage(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE) && \
     !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
     !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_MLDSA_NO_SIGN) && \
@@ -30889,7 +30909,8 @@ int test_wc_MldsaFeatureCoverage(void)
 int test_wc_MldsaDecisionCoverage2(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_HAVE_MLDSA)
+#if defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WC_MLDSA_HAVE_NATIVE)
     wc_MlDsaKey key;
     int inited = 0;
 

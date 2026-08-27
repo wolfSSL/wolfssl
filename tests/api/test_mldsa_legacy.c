@@ -373,7 +373,8 @@ int test_mldsa_legacy_shim(void)
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN) && \
     !defined(WOLFSSL_MLDSA_NO_VERIFY) && !defined(WOLFSSL_NO_ML_DSA_44) && \
     defined(WOLFSSL_MLDSA_PUBLIC_KEY) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
-    !defined(WC_NO_RNG)
+    !defined(WC_NO_RNG) && \
+    defined(WC_MLDSA_HAVE_NATIVE)
     {
         dilithium_key  key;        /* legacy typedef */
         WC_RNG         rng;
